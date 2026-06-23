@@ -30,7 +30,9 @@ function loadEnv(path) {
 }
 
 const local = loadEnv(resolve(root, ".env.local"));
-const PRODUCTION_URL = "https://red-fitness-nine.vercel.app";
+const PRODUCTION_URL =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
+  "https://train-app-three.vercel.app";
 
 const vars = {
   ...local,
