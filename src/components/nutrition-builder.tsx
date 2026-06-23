@@ -7,19 +7,42 @@ import {
   createNutritionPlan,
   saveMeal,
   assignNutritionPlan,
+  deleteMeal,
 } from "@/lib/actions/plans";
+import {
+  createPersonalNutritionPlan,
+  updatePersonalNutritionPlan,
+} from "@/lib/actions/user-nutrition";
+import { MealDetailsFields } from "@/components/meal-details-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  emptyMealForm,
+  mealFormFromMeal,
+  mealPayloadFromForm,
+  type MealFormData,
+} from "@/lib/meal-utils";
 import type { MealType } from "@/lib/types";
 
-interface MealForm {
+interface MealForm extends MealFormData {
+  id?: string;
+}
+
+function mealFormToBuilder(meal: {
   id?: string;
   meal_type: MealType;
   name: string;
-  foods: { name: string; amount: string }[];
+  description?: string | null;
+  calories?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  foods?: { name: string; amount?: string }[];
+}): MealForm {
+  return { id: meal.id, ...mealFormFromMeal(meal) };
 }
 
 export function NutritionBuilder({
@@ -30,14 +53,36 @@ export function NutritionBuilder({
   initialMeals = [],
   clientId,
   requestId,
+  mode = "admin",
+  wizard = false,
+  onWizardComplete,
+  stayOnPage = false,
+  onSaved,
+  folderId,
 }: {
   planId?: string;
   initialTitle?: string;
   initialDescription?: string;
   initialMacros?: { target_calories: number; target_protein: number; target_carbs: number; target_fat: number };
-  initialMeals?: MealForm[];
+  initialMeals?: Array<{
+    id?: string;
+    meal_type: MealType;
+    name: string;
+    description?: string | null;
+    calories?: number | null;
+    protein?: number | null;
+    carbs?: number | null;
+    fat?: number | null;
+    foods?: { name: string; amount?: string }[];
+  }>;
   clientId?: string;
   requestId?: string;
+  mode?: "admin" | "client";
+  wizard?: boolean;
+  onWizardComplete?: () => void;
+  stayOnPage?: boolean;
+  onSaved?: () => void;
+  folderId?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -47,47 +92,111 @@ export function NutritionBuilder({
   const [macros, setMacros] = useState(initialMacros);
   const [meals, setMeals] = useState<MealForm[]>(
     initialMeals.length > 0
-      ? initialMeals
-      : [{ meal_type: "breakfast", name: "Breakfast", foods: [{ name: "", amount: "" }] }]
+      ? initialMeals.map(mealFormToBuilder)
+      : [{ ...emptyMealForm("breakfast"), name: "Breakfast" }]
   );
+  const [error, setError] = useState<string | null>(null);
 
-  const addMeal = () => {
-    setMeals([...meals, { meal_type: "lunch", name: "New Meal", foods: [{ name: "", amount: "" }] }]);
-  };
-
-  const addFood = (mealIdx: number) => {
+  const updateMeal = (mealIdx: number, next: MealFormData) => {
     const updated = [...meals];
-    updated[mealIdx].foods.push({ name: "", amount: "" });
+    updated[mealIdx] = { ...updated[mealIdx], ...next };
     setMeals(updated);
   };
 
+  const addMeal = () => {
+    setMeals([...meals, { ...emptyMealForm("lunch"), name: "New Meal" }]);
+  };
+
+  const removeMeal = (mealIdx: number) => {
+    const meal = meals[mealIdx];
+    if (meal.id && planId) {
+      startTransition(async () => {
+        await deleteMeal(meal.id!, planId);
+      });
+    }
+    setMeals(meals.filter((_, i) => i !== mealIdx));
+  };
+
   const handleSave = () => {
+    if (!title.trim()) {
+      setError("Plan title is required");
+      return;
+    }
+    setError(null);
+
     startTransition(async () => {
       let currentPlanId = planId;
-      if (!currentPlanId) {
+
+      if (mode === "client") {
+        if (!currentPlanId) {
+          const result = await createPersonalNutritionPlan(
+            title,
+            description,
+            macros,
+            folderId
+          );
+          if (result.error || !result.data) {
+            setError(result.error ?? "Failed to create plan");
+            return;
+          }
+          currentPlanId = result.data.id;
+          setPlanId(currentPlanId);
+        } else {
+          const result = await updatePersonalNutritionPlan(currentPlanId, {
+            title,
+            description,
+            ...macros,
+          });
+          if (result.error) {
+            setError(result.error);
+            return;
+          }
+        }
+      } else if (!currentPlanId) {
         const result = await createNutritionPlan({ title, description, ...macros });
-        if (result.error || !result.data) return;
+        if (result.error || !result.data) {
+          setError(result.error ?? "Failed to create plan");
+          return;
+        }
         currentPlanId = result.data.id;
         setPlanId(currentPlanId);
       }
 
       for (let i = 0; i < meals.length; i++) {
         const meal = meals[i];
-        await saveMeal(
+        const saveResult = await saveMeal(
           currentPlanId!,
           {
-            meal_type: meal.meal_type,
-            name: meal.name,
-            foods: meal.foods.filter((f) => f.name.trim()),
+            ...mealPayloadFromForm(meal),
             order_index: i,
           },
           meal.id
         );
+        if (saveResult.error) {
+          setError(saveResult.error);
+          return;
+        }
       }
 
       if (clientId && currentPlanId) {
         await assignNutritionPlan(clientId, currentPlanId, requestId);
         router.push(`/admin/clients/${clientId}`);
+        return;
+      }
+
+      if (wizard && onWizardComplete) {
+        onWizardComplete();
+        return;
+      }
+
+      if (stayOnPage) {
+        onSaved?.();
+        return;
+      }
+
+      if (mode === "client") {
+        router.push(`/dashboard/nutrition/${currentPlanId}/edit`);
+        router.refresh();
       } else {
         router.push(`/admin/nutrition/${currentPlanId}/edit`);
       }
@@ -127,68 +236,50 @@ export function NutritionBuilder({
       </Card>
 
       {meals.map((meal, mealIdx) => (
-        <Card key={mealIdx}>
-          <CardHeader className="flex flex-row gap-3">
-            <select
-              value={meal.meal_type}
-              onChange={(e) => {
-                const updated = [...meals];
-                updated[mealIdx].meal_type = e.target.value as MealType;
-                setMeals(updated);
-              }}
-              className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+        <Card key={meal.id ?? mealIdx} className="relative">
+          {meals.length > 1 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-3 top-3 z-10"
+              onClick={() => removeMeal(mealIdx)}
+              aria-label="Remove meal"
             >
-              <option value="breakfast">Breakfast</option>
-              <option value="lunch">Lunch</option>
-              <option value="dinner">Dinner</option>
-              <option value="snack">Snack</option>
-            </select>
-            <Input
-              value={meal.name}
-              onChange={(e) => {
-                const updated = [...meals];
-                updated[mealIdx].name = e.target.value;
-                setMeals(updated);
-              }}
-              className="font-semibold"
-            />
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {meal.foods.map((food, foodIdx) => (
-              <div key={foodIdx} className="flex gap-2">
-                <Input
-                  placeholder="Food"
-                  value={food.name}
-                  onChange={(e) => {
-                    const updated = [...meals];
-                    updated[mealIdx].foods[foodIdx].name = e.target.value;
-                    setMeals(updated);
-                  }}
-                />
-                <Input
-                  placeholder="Amount"
-                  value={food.amount}
-                  onChange={(e) => {
-                    const updated = [...meals];
-                    updated[mealIdx].foods[foodIdx].amount = e.target.value;
-                    setMeals(updated);
-                  }}
-                />
-              </div>
-            ))}
-            <Button type="button" variant="outline" size="sm" onClick={() => addFood(mealIdx)}>
-              <Plus className="mr-1 h-3 w-3" /> Add Food
+              <Trash2 className="h-4 w-4 text-red-400" />
             </Button>
+          )}
+          <CardContent className="pt-6">
+            <MealDetailsFields
+              mealType={meal.meal_type}
+              onMealTypeChange={(meal_type) => updateMeal(mealIdx, { ...meal, meal_type })}
+              name={meal.name}
+              onNameChange={(name) => updateMeal(mealIdx, { ...meal, name })}
+              description={meal.description}
+              onDescriptionChange={(description) => updateMeal(mealIdx, { ...meal, description })}
+              macros={meal.macros}
+              onMacrosChange={(macros) => updateMeal(mealIdx, { ...meal, macros })}
+              ingredients={meal.ingredients}
+              onIngredientsChange={(ingredients) => updateMeal(mealIdx, { ...meal, ingredients })}
+            />
           </CardContent>
         </Card>
       ))}
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="flex gap-3">
         <Button type="button" variant="secondary" onClick={addMeal}>
           <Plus className="mr-2 h-4 w-4" /> Add Meal
         </Button>
         <Button onClick={handleSave} disabled={isPending || !title.trim()}>
-          {clientId ? "Save & Assign to Client" : "Save Plan"}
+          {clientId
+            ? "Save & Assign to Client"
+            : wizard
+              ? "Save meal plan"
+              : stayOnPage
+                ? "Save changes"
+                : "Save Plan"}
         </Button>
       </div>
     </div>

@@ -36,6 +36,11 @@ export default async function EditNutritionPage({
             id: m.id,
             meal_type: m.meal_type,
             name: m.name,
+            description: m.description,
+            calories: m.calories,
+            protein: m.protein,
+            carbs: m.carbs,
+            fat: m.fat,
             foods: m.foods ?? [],
           }))}
         />

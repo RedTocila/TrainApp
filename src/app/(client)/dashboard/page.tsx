@@ -1,141 +1,185 @@
-import { format } from "date-fns";
-import Link from "next/link";
-import { Dumbbell, Apple } from "lucide-react";
+import { addDays, format } from "date-fns";
 import { requireClient } from "@/lib/actions/auth";
-import { getClientRequests } from "@/lib/actions/requests";
 import {
   getClientWorkoutAssignment,
   getClientNutritionAssignment,
 } from "@/lib/actions/plans";
-import { getDailyLog } from "@/lib/actions/logs";
+import { getDailyLog, getWaterGoal } from "@/lib/actions/logs";
+import { getDailyMealLogs } from "@/lib/actions/daily-meals";
+import { getPersonalMealsLibrary } from "@/lib/actions/user-nutrition";
+import {
+  getBodyWeightHistory,
+  getBodyWeightLog,
+} from "@/lib/actions/weight-logs";
+import {
+  ensureHabitSchedules,
+  getHabitCompletionsInRange,
+  getHabitsScheduledInRange,
+  getHabitsWithCompletions,
+} from "@/lib/actions/habits";
+import { getTaskCompletionsInRange } from "@/lib/actions/task-completions";
+import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
+import { getScheduledNutritionInRange } from "@/lib/actions/user-nutrition-schedule";
+import { resolveWorkoutForDate } from "@/lib/actions/workout-sessions";
 import { formatDateKey } from "@/lib/utils";
-import { ApplyPlanCards } from "@/components/apply-plan-cards";
-import { DailyTracker } from "@/components/daily-tracker";
+import { DashboardCalendar } from "@/components/dashboard-calendar";
+import { DashboardDateHeading } from "@/components/dashboard-date-heading";
+import { DashboardWorkoutCard } from "@/components/dashboard-workout-card";
+import { DayTasksPanel } from "@/components/day-tasks-panel";
+import { ScrollToHash } from "@/components/scroll-to-hash";
+import { HabitsTracker } from "@/components/habits-tracker";
+import { WeightTracker } from "@/components/weight-tracker";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/page-transition";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DashboardOverview } from "@/components/dashboard-overview";
+import { getPrimaryMealsForDayMenu } from "@/lib/meal-slots";
 
 export default async function DashboardPage() {
   const profile = await requireClient();
   const today = new Date();
   const dateKey = formatDateKey(today);
+  const rangeStart = format(addDays(today, -3), "yyyy-MM-dd");
+  const rangeEnd = format(addDays(today, 28), "yyyy-MM-dd");
 
-  const [requests, workoutAssignment, nutritionAssignment, dailyLog] =
-    await Promise.all([
-      getClientRequests(profile.id),
-      getClientWorkoutAssignment(profile.id),
-      getClientNutritionAssignment(profile.id),
-      getDailyLog(profile.id, dateKey),
-    ]);
+  await ensureHabitSchedules(profile.id);
 
-  const needsWorkout = !workoutAssignment;
-  const needsDiet = !nutritionAssignment;
-  const showApply =
-    needsWorkout || needsDiet;
+  const [
+    workoutAssignment,
+    nutritionAssignment,
+    dailyLog,
+    weightLog,
+    weightHistory,
+    habits,
+    scheduledWorkouts,
+    scheduledNutritionDays,
+    completions,
+    habitsByDateRaw,
+    habitCompletions,
+    waterGoalMl,
+    dailyMeals,
+    mealLibrary,
+  ] = await Promise.all([
+    getClientWorkoutAssignment(profile.id),
+    getClientNutritionAssignment(profile.id),
+    getDailyLog(profile.id, dateKey),
+    getBodyWeightLog(profile.id, dateKey),
+    getBodyWeightHistory(profile.id),
+    getHabitsWithCompletions(profile.id, dateKey),
+    getScheduledWorkoutsInRange(rangeStart, rangeEnd),
+    getScheduledNutritionInRange(rangeStart, rangeEnd),
+    getTaskCompletionsInRange(profile.id, rangeStart, rangeEnd),
+    getHabitsScheduledInRange(profile.id, rangeStart, rangeEnd),
+    getHabitCompletionsInRange(profile.id, rangeStart, rangeEnd),
+    getWaterGoal(profile.id),
+    getDailyMealLogs(profile.id, dateKey),
+    getPersonalMealsLibrary(),
+  ]);
+
+  const habitsByDate: Record<
+    string,
+    { id: string; title: string; time_start?: string | null; time_end?: string | null }[]
+  > = {};
+  for (const [date, habitsOnDay] of Object.entries(habitsByDateRaw)) {
+    habitsByDate[date] = habitsOnDay.map((h) => ({
+      id: h.id,
+      title: h.title,
+      time_start: h.time_start,
+      time_end: h.time_end,
+    }));
+  }
+
+  const completionsSerializable: Record<string, string[]> = {};
+  for (const [date, ids] of Object.entries(completions)) {
+    completionsSerializable[date] = [...ids];
+  }
+  for (const [date, ids] of Object.entries(habitCompletions)) {
+    const existing = completionsSerializable[date] ?? [];
+    completionsSerializable[date] = [...new Set([...existing, ...ids])];
+  }
 
   const nutritionPlan = nutritionAssignment?.nutrition_plans;
-  const workoutPlan = workoutAssignment?.workout_plans;
-  const todayDayIndex = today.getDay() % (workoutPlan?.workout_days?.length || 1);
-  const todayWorkout = workoutPlan?.workout_days?.[todayDayIndex];
+  const personalNutritionPlanId =
+    nutritionPlan?.is_personal && nutritionAssignment?.plan_id
+      ? nutritionAssignment.plan_id
+      : null;
+
+  const initialWorkout = await resolveWorkoutForDate(profile.id, dateKey);
 
   const targets = {
-    calories: nutritionPlan?.target_calories ?? 2000,
-    protein: nutritionPlan?.target_protein ?? 150,
-    carbs: nutritionPlan?.target_carbs ?? 200,
-    fat: nutritionPlan?.target_fat ?? 65,
+    calories: nutritionPlan?.target_calories ?? profile.target_calories ?? 2000,
+    protein: nutritionPlan?.target_protein ?? profile.target_protein ?? 150,
+    carbs: nutritionPlan?.target_carbs ?? profile.target_carbs ?? 200,
+    fat: nutritionPlan?.target_fat ?? profile.target_fat ?? 65,
   };
 
+  const nutritionSummary = nutritionPlan
+    ? {
+        title: nutritionPlan.title,
+        meals: getPrimaryMealsForDayMenu(nutritionPlan.meals ?? []),
+      }
+    : null;
+
   return (
-    <PageTransition>
+    <>
+      <div className="-mx-4 -mt-4 mb-6 md:-mx-6 md:-mt-6">
+        <DashboardCalendar
+          schedule={{
+            workoutAssignment,
+            nutritionAssignment,
+            scheduledWorkouts,
+            scheduledNutritionDays,
+            habitsByDate,
+            waterGoalMl,
+          }}
+          completionsByDate={completionsSerializable}
+        />
+      </div>
+      <PageTransition>
+      <ScrollToHash />
       <div className="mx-auto max-w-5xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight md:text-3xl">
-            {format(today, "EEEE, MMMM d")}
-          </h1>
-          <p className="text-muted-foreground">Your daily overview</p>
-        </div>
+        <DashboardDateHeading />
 
-        {showApply && (
-          <ApplyPlanCards
-            requests={requests.filter((r) => r.status !== "completed")}
-            needsWorkout={needsWorkout}
-            needsDiet={needsDiet}
-          />
-        )}
-
-        <StaggerContainer>
-          <div className="grid gap-4 md:grid-cols-2">
-            <StaggerItem>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Dumbbell className="h-5 w-5 text-primary" />
-                    Today&apos;s Workout
-                  </CardTitle>
-                  <Link href="/dashboard/workout">
-                    <Button variant="ghost" size="sm">View</Button>
-                  </Link>
-                </CardHeader>
-                <CardContent>
-                  {todayWorkout ? (
-                    <div>
-                      <p className="font-semibold">{todayWorkout.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {todayWorkout.exercises?.length ?? 0} exercises
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {todayWorkout.exercises?.slice(0, 3).map((ex: { id: string; name: string }) => (
-                          <Badge key={ex.id} variant="secondary">{ex.name}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No workout assigned yet
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </StaggerItem>
-
-            <StaggerItem>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Apple className="h-5 w-5 text-primary" />
-                    Nutrition Today
-                  </CardTitle>
-                  <Link href="/dashboard/nutrition">
-                    <Button variant="ghost" size="sm">View</Button>
-                  </Link>
-                </CardHeader>
-                <CardContent>
-                  {nutritionPlan ? (
-                    <div className="space-y-2">
-                      <p className="font-semibold">{nutritionPlan.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Target: {nutritionPlan.target_calories} cal · {nutritionPlan.target_protein}g protein
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No nutrition plan assigned yet
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </StaggerItem>
-          </div>
-        </StaggerContainer>
+        <DayTasksPanel
+          clientId={profile.id}
+          schedule={{
+            workoutAssignment,
+            nutritionAssignment,
+            scheduledWorkouts,
+            scheduledNutritionDays,
+            habitsByDate,
+            waterGoalMl,
+          }}
+          completionsByDate={completionsSerializable}
+        />
 
         <DashboardOverview
           clientId={profile.id}
           initialLog={dailyLog}
+          initialDailyMeals={dailyMeals}
+          mealLibrary={mealLibrary}
           targets={targets}
+          personalPlanId={personalNutritionPlanId}
+          initialWaterGoalMl={profile.water_goal_ml ?? 2500}
+          nutritionPlan={nutritionSummary}
         />
+
+        <StaggerContainer>
+          <StaggerItem>
+            <DashboardWorkoutCard
+              clientId={profile.id}
+              initialWorkout={initialWorkout}
+            />
+          </StaggerItem>
+        </StaggerContainer>
+
+        <WeightTracker
+          clientId={profile.id}
+          initialHistory={weightHistory}
+          initialLog={weightLog}
+        />
+
+        <HabitsTracker clientId={profile.id} initialHabits={habits} />
       </div>
     </PageTransition>
+    </>
   );
 }

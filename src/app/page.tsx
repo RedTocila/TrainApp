@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { AppLogo } from "@/components/app-logo";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -19,9 +20,7 @@ export default async function HomePage() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-border px-6 py-4">
-        <span className="text-xl font-black tracking-tight">
-          TRAIN<span className="text-primary">APP</span>
-        </span>
+        <AppLogo href="/" />
         <div className="flex gap-3">
           <Link href="/login">
             <Button variant="ghost">Sign in</Button>

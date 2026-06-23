@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { updatePersonalNutritionPlanMacros } from "@/lib/actions/user-nutrition";
 
 export async function getDailyLog(clientId: string, date: string) {
   const supabase = await createClient();
@@ -55,4 +56,87 @@ export async function addWater(clientId: string, date: string, amount: number) {
   const existing = await getDailyLog(clientId, date);
   const current = existing?.water_ml ?? 0;
   return upsertDailyLog(clientId, date, { water_ml: current + amount });
+}
+
+export async function getWaterGoal(clientId: string): Promise<number> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("water_goal_ml")
+    .eq("id", clientId)
+    .single();
+
+  return data?.water_goal_ml ?? 2500;
+}
+
+export async function updateWaterGoal(clientId: string, waterGoalMl: number) {
+  if (!Number.isFinite(waterGoalMl) || waterGoalMl < 500 || waterGoalMl > 10000) {
+    return { error: "Water goal must be between 500 and 10000 ml" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ water_goal_ml: Math.round(waterGoalMl) })
+    .eq("id", clientId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function updateNutritionTargets(
+  clientId: string,
+  targets: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  },
+  options?: { personalPlanId?: string | null }
+) {
+  const calories = Math.round(targets.calories);
+  const protein = Math.round(targets.protein);
+  const carbs = Math.round(targets.carbs);
+  const fat = Math.round(targets.fat);
+
+  if (!Number.isFinite(calories) || calories < 500 || calories > 10000) {
+    return { error: "Calories must be between 500 and 10000" };
+  }
+  if (!Number.isFinite(protein) || protein < 0 || protein > 1000) {
+    return { error: "Protein must be between 0 and 1000 g" };
+  }
+  if (!Number.isFinite(carbs) || carbs < 0 || carbs > 2000) {
+    return { error: "Carbs must be between 0 and 2000 g" };
+  }
+  if (!Number.isFinite(fat) || fat < 0 || fat > 500) {
+    return { error: "Fat must be between 0 and 500 g" };
+  }
+
+  if (options?.personalPlanId) {
+    const result = await updatePersonalNutritionPlanMacros(options.personalPlanId, {
+      target_calories: calories,
+      target_protein: protein,
+      target_carbs: carbs,
+      target_fat: fat,
+    });
+    if (result.error) return { error: result.error };
+    revalidatePath("/dashboard");
+    return { success: true };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      target_calories: calories,
+      target_protein: protein,
+      target_carbs: carbs,
+      target_fat: fat,
+    })
+    .eq("id", clientId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  return { success: true };
 }

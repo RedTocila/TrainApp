@@ -5,21 +5,24 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Dumbbell,
-  LayoutDashboard,
+  Home,
   Apple,
   BookOpen,
-  Sparkles,
+  User,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { AppLogo } from "@/components/app-logo";
+import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
 
 const navItems = [
-  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Home", icon: Home },
   { href: "/dashboard/workout", label: "Workout", icon: Dumbbell },
   { href: "/dashboard/nutrition", label: "Nutrition", icon: Apple },
   { href: "/dashboard/blog", label: "Blog", icon: BookOpen },
-  { href: "/dashboard/ai", label: "AI", icon: Sparkles },
+  { href: "/dashboard/profile", label: "Profile", icon: User },
 ];
 
 export function ClientNav({ fullName }: { fullName: string }) {
@@ -29,10 +32,13 @@ export function ClientNav({ fullName }: { fullName: string }) {
     <>
       <aside className="hidden w-64 flex-col border-r border-border bg-card lg:flex">
         <div className="border-b border-border p-6">
-          <h1 className="text-xl font-black tracking-tight">
-            TRAIN<span className="text-primary">APP</span>
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Welcome, {fullName}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <AppLogo href="/dashboard" />
+              <p className="mt-1 text-sm text-muted-foreground">Welcome, {fullName}</p>
+            </div>
+            <FullCalendarNavButton />
+          </div>
         </div>
         <nav className="flex-1 space-y-1 p-4">
           {navItems.map((item) => {
@@ -54,6 +60,12 @@ export function ClientNav({ fullName }: { fullName: string }) {
             );
           })}
         </nav>
+        <div className="border-t border-border p-4">
+          <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Theme
+          </p>
+          <ThemeToggle variant="segmented" />
+        </div>
         <form action={signOut} className="border-t border-border p-4">
           <button
             type="submit"
@@ -66,6 +78,9 @@ export function ClientNav({ fullName }: { fullName: string }) {
       </aside>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur lg:hidden">
+        <div className="absolute -top-12 right-3">
+          <ThemeToggle />
+        </div>
         <div className="flex justify-around py-2">
           {navItems.map((item) => {
             const active = pathname === item.href;

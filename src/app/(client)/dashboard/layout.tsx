@@ -1,7 +1,8 @@
 import { requireClient } from "@/lib/actions/auth";
 import { ClientNav } from "@/components/client-nav";
+import { DashboardMobileHeader } from "@/components/dashboard-mobile-header";
 import { DateProvider } from "@/components/date-provider";
-import { DashboardCalendar } from "@/components/dashboard-calendar";
+import { FullCalendarProvider } from "@/components/full-calendar-provider";
 
 export default async function DashboardLayout({
   children,
@@ -12,13 +13,15 @@ export default async function DashboardLayout({
 
   return (
     <DateProvider>
-      <div className="flex min-h-screen">
-        <ClientNav fullName={profile.full_name} />
-        <div className="flex flex-1 flex-col pb-20 lg:pb-0">
-          <DashboardCalendar />
-          <main className="flex-1 p-4 md:p-6">{children}</main>
+      <FullCalendarProvider>
+        <div className="dashboard-shell flex h-dvh min-h-0 overflow-hidden">
+          <ClientNav fullName={profile.full_name} />
+          <main className="dashboard-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-20 [-webkit-overflow-scrolling:touch] lg:pb-0">
+            <DashboardMobileHeader />
+            <div className="p-4 md:p-6">{children}</div>
+          </main>
         </div>
-      </div>
+      </FullCalendarProvider>
     </DateProvider>
   );
 }

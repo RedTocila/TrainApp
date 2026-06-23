@@ -23,7 +23,15 @@ export async function saveWorkoutDay(
   planId: string,
   dayIndex: number,
   title: string,
-  exercises: { name: string; sets: number; reps: string; rest_seconds: number; notes?: string }[],
+  exercises: {
+    name: string;
+    sets: number;
+    reps: string;
+    rest_seconds: number;
+    notes?: string;
+    image_url?: string;
+    video_url?: string;
+  }[],
   dayId?: string
 ) {
   const supabase = await createClient();
@@ -51,6 +59,8 @@ export async function saveWorkoutDay(
         reps: ex.reps,
         rest_seconds: ex.rest_seconds,
         notes: ex.notes ?? null,
+        image_url: ex.image_url ?? null,
+        video_url: ex.video_url ?? null,
         order_index: i,
       }))
     );
@@ -58,6 +68,8 @@ export async function saveWorkoutDay(
   }
 
   revalidatePath(`/admin/workouts/${planId}/edit`);
+  revalidatePath(`/dashboard/workout`);
+  revalidatePath(`/dashboard/workout/${planId}/edit`);
   return { success: true, dayId: targetDayId };
 }
 
@@ -81,12 +93,12 @@ export async function assignWorkoutPlan(clientId: string, planId: string, reques
     await supabase.from("plan_requests").update({ status: "completed" }).eq("id", requestId);
   }
 
-  await supabase.from("notifications").insert({
-    user_id: clientId,
-    type: "plan_assigned",
-    title: "Your workout plan is ready",
-    body: "Your coach has assigned your personalized workout plan.",
-    metadata: { plan_id: planId, type: "workout" },
+  await supabase.rpc("notify_user", {
+    p_user_id: clientId,
+    p_type: "plan_assigned",
+    p_title: "Your workout plan is ready",
+    p_body: "Your coach has assigned your personalized workout plan.",
+    p_metadata: { plan_id: planId, type: "workout" },
   });
 
   revalidatePath("/admin");
@@ -118,23 +130,47 @@ export async function createNutritionPlan(data: {
 
 export async function saveMeal(
   planId: string,
-  meal: { meal_type: MealType; name: string; foods: { name: string; amount?: string }[]; order_index: number },
+  meal: {
+    meal_type: MealType;
+    name: string;
+    description?: string | null;
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    foods: { name: string; amount?: string }[];
+    order_index: number;
+  },
   mealId?: string
 ) {
   const supabase = await createClient();
+  const payload = {
+    meal_type: meal.meal_type,
+    name: meal.name,
+    description: meal.description?.trim() || null,
+    calories: meal.calories ?? null,
+    protein: meal.protein ?? null,
+    carbs: meal.carbs ?? null,
+    fat: meal.fat ?? null,
+    foods: meal.foods,
+    order_index: meal.order_index,
+  };
 
   if (mealId) {
     const { error } = await supabase
       .from("meals")
-      .update(meal)
+      .update(payload)
       .eq("id", mealId);
     if (error) return { error: error.message };
   } else {
-    const { error } = await supabase.from("meals").insert({ plan_id: planId, ...meal });
+    const { error } = await supabase.from("meals").insert({ plan_id: planId, ...payload });
     if (error) return { error: error.message };
   }
 
   revalidatePath(`/admin/nutrition/${planId}/edit`);
+  revalidatePath(`/dashboard/nutrition/${planId}/edit`);
+  revalidatePath("/dashboard/nutrition");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -142,6 +178,9 @@ export async function deleteMeal(mealId: string, planId: string) {
   const supabase = await createClient();
   await supabase.from("meals").delete().eq("id", mealId);
   revalidatePath(`/admin/nutrition/${planId}/edit`);
+  revalidatePath(`/dashboard/nutrition/${planId}/edit`);
+  revalidatePath("/dashboard/nutrition");
+  revalidatePath("/dashboard");
 }
 
 export async function assignNutritionPlan(clientId: string, planId: string, requestId?: string) {
@@ -164,12 +203,12 @@ export async function assignNutritionPlan(clientId: string, planId: string, requ
     await supabase.from("plan_requests").update({ status: "completed" }).eq("id", requestId);
   }
 
-  await supabase.from("notifications").insert({
-    user_id: clientId,
-    type: "plan_assigned",
-    title: "Your nutrition plan is ready",
-    body: "Your coach has assigned your personalized diet plan.",
-    metadata: { plan_id: planId, type: "diet" },
+  await supabase.rpc("notify_user", {
+    p_user_id: clientId,
+    p_type: "plan_assigned",
+    p_title: "Your nutrition plan is ready",
+    p_body: "Your coach has assigned your personalized diet plan.",
+    p_metadata: { plan_id: planId, type: "diet" },
   });
 
   revalidatePath("/admin");

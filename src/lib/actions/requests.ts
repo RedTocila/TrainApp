@@ -27,21 +27,12 @@ export async function createPlanRequest(type: PlanRequestType, notes?: string) {
 
   if (error) return { error: error.message };
 
-  const { data: admins } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("role", "admin");
-
-  if (admins?.length) {
-    const notifications = admins.map((admin) => ({
-      user_id: admin.id,
-      type: "plan_request",
-      title: `New ${type} plan request`,
-      body: `A client has requested a ${type} plan.`,
-      metadata: { request_id: request.id, client_id: user.id, type },
-    }));
-    await supabase.from("notifications").insert(notifications);
-  }
+  await supabase.rpc("notify_all_admins", {
+    p_type: "plan_request",
+    p_title: `New ${type} plan request`,
+    p_body: `A client has requested a ${type} plan.`,
+    p_metadata: { request_id: request.id, client_id: user.id, type },
+  });
 
   revalidatePath("/dashboard");
   revalidatePath("/admin");

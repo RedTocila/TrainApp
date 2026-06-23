@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react";
 
+/** Selected calendar day — drives the whole dashboard view. */
 const DateContext = createContext<{
   selectedDate: Date;
   setSelectedDate: (date: Date) => void;
