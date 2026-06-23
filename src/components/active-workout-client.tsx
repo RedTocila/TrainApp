@@ -18,6 +18,7 @@ import type {
   WorkoutSessionSet,
 } from "@/lib/types";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
+import { useDashboardSync } from "@/components/dashboard-sync";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -181,6 +182,7 @@ export function ActiveWorkoutClient({
   histories: Record<string, ExerciseHistoryEntry | null>;
 }) {
   const router = useRouter();
+  const { notifySync } = useDashboardSync();
   const [newExerciseName, setNewExerciseName] = useState("");
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [showCompleteStep, setShowCompleteStep] = useState(false);
@@ -216,6 +218,7 @@ export function ActiveWorkoutClient({
         setError(result.error);
         return;
       }
+      notifySync();
       router.push("/dashboard/workout");
       router.refresh();
     });

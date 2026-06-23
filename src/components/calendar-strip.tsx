@@ -1,23 +1,26 @@
 "use client";
 
-import { addDays, isSameDay } from "date-fns";
+import { addDays, format, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDayCard } from "@/components/calendar-day-card";
 import { Button } from "@/components/ui/button";
 import {
-  applyTaskCompletions,
-  buildDailyTasks,
   type ClientSchedule,
   type DailyTask,
 } from "@/lib/daily-tasks";
+import {
+  enrichTasksForDate,
+  getCalendarDayStatus,
+  type DashboardEnrichmentData,
+} from "@/lib/dashboard-task-enrichment";
 import { formatDateKey } from "@/lib/utils";
 
 interface CalendarStripProps {
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
   schedule: ClientSchedule;
-  completionsByDate: Record<string, Set<string>>;
+  enrichment: DashboardEnrichmentData;
   daysCount?: number;
 }
 
@@ -27,22 +30,27 @@ export function CalendarStrip({
   selectedDate,
   onSelectDate,
   schedule,
-  completionsByDate,
+  enrichment,
   daysCount = 28,
 }: CalendarStripProps) {
   const today = new Date();
   const [startIndex, setStartIndex] = useState(0);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const dayItems = useMemo(() => {
     const rangeStart = addDays(today, -3);
     return Array.from({ length: daysCount }, (_, i) => {
       const day = addDays(rangeStart, i);
-      const dateKey = formatDateKey(day);
-      const completed = completionsByDate[dateKey] ?? new Set<string>();
-      const tasks = applyTaskCompletions(buildDailyTasks(day, schedule), completed);
-      return { day, tasks };
+      const tasks = enrichTasksForDate(day, schedule, enrichment, now);
+      const dayStatus = getCalendarDayStatus(tasks, day, now);
+      return { day, tasks, dayStatus };
     });
-  }, [daysCount, schedule, completionsByDate, today.toDateString()]);
+  }, [daysCount, schedule, enrichment, today.toDateString(), now]);
 
   const selectedIndex = useMemo(
     () => dayItems.findIndex(({ day }) => isSameDay(day, selectedDate)),
@@ -96,10 +104,6 @@ export function CalendarStrip({
   const canGoPrev = selectedIndex > 0;
   const canGoNext = selectedIndex >= 0 && selectedIndex < dayItems.length - 1;
 
-  const handleDayClick = (day: Date) => {
-    onSelectDate(day);
-  };
-
   return (
     <div className="flex items-stretch gap-1 px-2 py-3 sm:gap-2 sm:px-4 sm:py-4">
       <Button
@@ -115,26 +119,28 @@ export function CalendarStrip({
       </Button>
 
       <div className="hidden min-w-0 flex-1 grid-cols-7 gap-1 sm:gap-1.5 md:gap-2 lg:grid lg:gap-3">
-        {visibleDays.map(({ day, tasks }) => (
+        {visibleDays.map(({ day, tasks, dayStatus }) => (
           <CalendarDayCard
             key={day.toISOString()}
             date={day}
             selected={isSameDay(day, selectedDate)}
             tasks={tasks}
-            onSelect={() => handleDayClick(day)}
+            dayStatus={dayStatus}
+            onSelect={() => onSelectDate(day)}
             strip
           />
         ))}
       </div>
 
       <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-2 lg:hidden [&::-webkit-scrollbar]:hidden">
-        {dayItems.map(({ day, tasks }) => (
+        {dayItems.map(({ day, tasks, dayStatus }) => (
           <div key={day.toISOString()} className="w-[4.25rem] shrink-0 sm:w-[4.75rem]">
             <CalendarDayCard
               date={day}
               selected={isSameDay(day, selectedDate)}
               tasks={tasks}
-              onSelect={() => handleDayClick(day)}
+              dayStatus={dayStatus}
+              onSelect={() => onSelectDate(day)}
               strip
             />
           </div>
@@ -156,12 +162,20 @@ export function CalendarStrip({
   );
 }
 
+/** @deprecated Use enrichTasksForDate with dashboard enrichment data */
 export function tasksForDay(
   schedule: ClientSchedule,
   completionsByDate: Record<string, Set<string>>,
   date: Date
 ): DailyTask[] {
   const dateKey = formatDateKey(date);
-  const completed = completionsByDate[dateKey] ?? new Set<string>();
-  return applyTaskCompletions(buildDailyTasks(date, schedule), completed);
+  const enrichment: DashboardEnrichmentData = {
+    completionsByDate: Object.fromEntries(
+      Object.entries(completionsByDate).map(([key, ids]) => [key, [...ids]])
+    ),
+    waterByDate: {},
+    mealsByDate: {},
+    workoutCompletedDates: [],
+  };
+  return enrichTasksForDate(date, schedule, enrichment);
 }

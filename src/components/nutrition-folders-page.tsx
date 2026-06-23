@@ -11,14 +11,18 @@ import {
   type NutritionFolderOverview,
 } from "@/lib/actions/user-nutrition";
 import { UNCATEGORIZED_NUTRITION_FOLDER_ID } from "@/lib/nutrition-folders";
+import { CustomPlanButton } from "@/components/trainer-plan-offer-card";
+import type { PlanRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 export function NutritionFoldersPage({
   folders,
+  planRequests = [],
 }: {
   folders: NutritionFolderOverview[];
+  planRequests?: PlanRequest[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -85,6 +89,7 @@ export function NutritionFoldersPage({
                 My meals
               </Button>
             </Link>
+            <CustomPlanButton type="diet" requests={planRequests} />
             <Button onClick={() => setShowNewFolder(true)}>
               <Plus className="mr-2 h-4 w-4" />
               New folder

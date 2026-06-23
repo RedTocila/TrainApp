@@ -9,6 +9,7 @@ import {
   assignNutritionPlan,
   deleteMeal,
 } from "@/lib/actions/plans";
+import { sendTrainerPlanToClient, findDeliverablePlanRequest } from "@/lib/actions/custom-plans";
 import {
   createPersonalNutritionPlan,
   updatePersonalNutritionPlan,
@@ -179,7 +180,28 @@ export function NutritionBuilder({
       }
 
       if (clientId && currentPlanId) {
-        await assignNutritionPlan(clientId, currentPlanId, requestId);
+        if (requestId) {
+          const result = await sendTrainerPlanToClient(requestId, currentPlanId, "nutrition");
+          if (result.error) {
+            setError(result.error);
+            return;
+          }
+        } else {
+          const openRequest = await findDeliverablePlanRequest(clientId, "diet");
+          if (openRequest) {
+            const result = await sendTrainerPlanToClient(
+              openRequest.id,
+              currentPlanId,
+              "nutrition"
+            );
+            if (result.error) {
+              setError(result.error);
+              return;
+            }
+          } else {
+            await assignNutritionPlan(clientId, currentPlanId, requestId);
+          }
+        }
         router.push(`/admin/clients/${clientId}`);
         return;
       }

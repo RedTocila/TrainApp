@@ -4,33 +4,52 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
+  Bot,
   Dumbbell,
   Home,
-  Apple,
-  BookOpen,
-  User,
   LogOut,
+  User,
+  Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AppLogo } from "@/components/app-logo";
 import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
+import { isTrainPath } from "@/lib/train-nav";
 
-const navItems = [
-  { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/dashboard/workout", label: "Workout", icon: Dumbbell },
-  { href: "/dashboard/nutrition", label: "Nutrition", icon: Apple },
-  { href: "/dashboard/blog", label: "Blog", icon: BookOpen },
+const standardNavItems = [
+  { href: "/dashboard", label: "Home", icon: Home, exact: true as const },
+  { href: "/dashboard/ai", label: "AI Coach", icon: Bot },
+  { href: "/dashboard/classes", label: "Live coaching", icon: Video },
   { href: "/dashboard/profile", label: "Profile", icon: User },
 ];
 
+const programsNavItem = {
+  href: "/dashboard/workout",
+  label: "Programs",
+};
+
+function isNavItemActive(pathname: string, href: string, exact?: boolean) {
+  if (exact) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function ClientNav({ fullName }: { fullName: string }) {
   const pathname = usePathname();
+  const programsActive = isTrainPath(pathname);
+
+  const sidebarLinkClass = (active: boolean) =>
+    cn(
+      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+      active
+        ? "bg-primary/10 text-primary"
+        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+    );
 
   return (
     <>
-      <aside className="hidden w-64 flex-col border-r border-border bg-card lg:flex">
+      <aside className="hidden h-dvh w-64 flex-col border-r border-border bg-card lg:flex">
         <div className="border-b border-border p-6">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -41,19 +60,26 @@ export function ClientNav({ fullName }: { fullName: string }) {
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-4">
-          {navItems.map((item) => {
-            const active = pathname === item.href;
+          <Link
+            href="/dashboard"
+            className={sidebarLinkClass(pathname === "/dashboard")}
+          >
+            <Home className="h-4 w-4" />
+            Home
+          </Link>
+
+          <Link
+            href={programsNavItem.href}
+            className={sidebarLinkClass(programsActive)}
+          >
+            <Dumbbell className="h-4 w-4" />
+            {programsNavItem.label}
+          </Link>
+
+          {standardNavItems.slice(1).map((item) => {
+            const active = isNavItemActive(pathname, item.href);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                )}
-              >
+              <Link key={item.href} href={item.href} className={sidebarLinkClass(active)}>
                 <item.icon className="h-4 w-4" />
                 {item.label}
               </Link>
@@ -82,8 +108,34 @@ export function ClientNav({ fullName }: { fullName: string }) {
           <ThemeToggle />
         </div>
         <div className="flex justify-around py-2">
-          {navItems.map((item) => {
-            const active = pathname === item.href;
+          <Link
+            href="/dashboard"
+            className={cn(
+              "flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium",
+              pathname === "/dashboard" ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <motion.div whileTap={{ scale: 0.9 }}>
+              <Home className="h-5 w-5" />
+            </motion.div>
+            Home
+          </Link>
+
+          <Link
+            href={programsNavItem.href}
+            className={cn(
+              "flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium",
+              programsActive ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <motion.div whileTap={{ scale: 0.9 }}>
+              <Dumbbell className="h-5 w-5" />
+            </motion.div>
+            {programsNavItem.label}
+          </Link>
+
+          {standardNavItems.slice(1).map((item) => {
+            const active = isNavItemActive(pathname, item.href);
             return (
               <Link
                 key={item.href}

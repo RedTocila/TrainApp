@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useSelectedDate } from "@/components/date-provider";
 import {
   HabitFormDialog,
@@ -22,8 +23,10 @@ import {
   toggleHabitCompletion,
   type HabitWithStatus,
 } from "@/lib/actions/habits";
-import { formatHabitTimeWindow, getHabitDayStatus, habitStatusLabel } from "@/lib/habit-utils";
+import { formatHabitTimeWindow, getHabitDayStatus, habitStatusLabel, canCompleteHabit } from "@/lib/habit-utils";
 import { MissedButton } from "@/components/missed-items-dialog";
+import { SectionCompletedBadge } from "@/components/section-completed-badge";
+import { useDashboardSync } from "@/components/dashboard-sync";
 import type { ClientHabit } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,9 +48,12 @@ export function HabitsTracker({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [tick, setTick] = useState(0);
+  const { notifySync } = useDashboardSync();
+  const router = useRouter();
 
   const refresh = useCallback(() => {
     startTransition(async () => {
+      setHabits([]);
       const fetched = await getHabitsWithCompletions(clientId, dateKey);
       setHabits(fetched);
     });
@@ -103,6 +109,7 @@ export function HabitsTracker({
         return;
       }
       refresh();
+      notifySync();
     });
   };
 
@@ -157,103 +164,115 @@ export function HabitsTracker({
                   habit.time_end
                 );
                 const statusLabel = habitStatusLabel(habit.status, habit);
-                const canComplete = habit.status === "available";
+                const canComplete = canCompleteHabit(habit, dateKey, habit.completed);
 
                 return (
                   <li
                     key={habit.id}
                     id={`habit-${habit.id}`}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg border border-border bg-secondary/40 px-3 py-2.5",
-                      habit.completed && "opacity-75",
+                      "flex flex-col gap-3 rounded-lg border border-border bg-secondary/40 px-3 py-2.5 sm:flex-row sm:items-center",
+                      habit.completed && "border-green-500/30 bg-green-500/5",
                       habit.status === "missed" &&
+                        !habit.completed &&
                         "border-red-500/30 bg-red-500/5"
                     )}
                   >
-                    {habit.status === "completed" ? (
-                      <span
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-violet-500 bg-violet-500 text-white"
-                        aria-label="Completed"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                      </span>
-                    ) : habit.status === "missed" ? (
-                      <span
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-red-500/50 bg-red-500/10 text-red-400"
-                        aria-label="Missed"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleComplete(habit.id)}
-                        disabled={isPending || !canComplete}
-                        className={cn(
-                          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors",
-                          canComplete
-                            ? "border-muted-foreground/40 hover:border-violet-500"
-                            : "cursor-not-allowed border-muted-foreground/20 opacity-50"
-                        )}
-                        aria-label={
-                          canComplete ? "Mark complete" : statusLabel ?? "Not available"
-                        }
-                      >
-                        <Circle className="h-3 w-3 text-muted-foreground" />
-                      </button>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p
-                          className={cn(
-                            "text-sm font-medium",
-                            habit.completed && "text-muted-foreground line-through",
-                            habit.status === "missed" && "text-red-400"
-                          )}
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      {habit.status === "completed" ? (
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
+                          aria-label="Completed"
                         >
-                          {habit.title}
-                        </p>
-                        {statusLabel && (
-                          <span
+                          <Check className="h-3.5 w-3.5" />
+                        </span>
+                      ) : habit.status === "missed" ? (
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-red-500/50 bg-red-500/10 text-red-400"
+                          aria-label="Missed"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </span>
+                      ) : (
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-violet-500/40 bg-violet-500/10"
+                          aria-hidden
+                        >
+                          <Circle className="h-3 w-3 text-violet-400" />
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p
                             className={cn(
-                              "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                              habit.status === "missed"
-                                ? "bg-red-500/15 text-red-400"
-                                : "bg-secondary text-muted-foreground"
+                              "text-sm font-medium",
+                              habit.completed && "text-green-400 line-through",
+                              habit.status === "missed" && !habit.completed && "text-red-400"
                             )}
                           >
-                            {statusLabel}
-                          </span>
-                        )}
+                            {habit.title}
+                          </p>
+                          {habit.completed && <SectionCompletedBadge />}
+                          {!habit.completed && statusLabel && (
+                            <span
+                              className={cn(
+                                "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                habit.status === "missed"
+                                  ? "bg-red-500/15 text-red-400"
+                                  : "bg-secondary text-muted-foreground"
+                              )}
+                            >
+                              {statusLabel}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {[timeLabel, habitScheduleSummary(habit)]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {[timeLabel, habitScheduleSummary(habit)]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      disabled={isPending}
-                      onClick={() => openEdit(habit)}
-                      aria-label="Edit habit"
-                    >
-                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      disabled={isPending}
-                      onClick={() => handleDelete(habit.id)}
-                      aria-label="Remove habit"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
+                      {habit.completed ? (
+                        <span
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
+                          aria-label="Completed"
+                        >
+                          <Check className="h-4 w-4" />
+                        </span>
+                      ) : canComplete ? (
+                        <Button
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => handleComplete(habit.id)}
+                        >
+                          Mark done
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        disabled={isPending}
+                        onClick={() => openEdit(habit)}
+                        aria-label="Edit habit"
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        disabled={isPending}
+                        onClick={() => handleDelete(habit.id)}
+                        aria-label="Remove habit"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </div>
                   </li>
                 );
               })}
@@ -269,7 +288,11 @@ export function HabitsTracker({
         clientId={clientId}
         habit={editingHabit}
         onClose={() => setDialogOpen(false)}
-        onSaved={refresh}
+        onSaved={() => {
+          refresh();
+          notifySync();
+          router.refresh();
+        }}
       />
     </>
   );

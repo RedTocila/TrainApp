@@ -4,6 +4,7 @@ import {
   getActivePersonalNutritionPlanId,
   getNutritionFoldersOverview,
 } from "@/lib/actions/user-nutrition";
+import { getClientPlanRequests } from "@/lib/actions/custom-plans";
 import { NutritionFoldersPage } from "@/components/nutrition-folders-page";
 import { ScrollToHash } from "@/components/scroll-to-hash";
 import { PageTransition } from "@/components/page-transition";
@@ -13,10 +14,11 @@ import { Badge } from "@/components/ui/badge";
 export default async function NutritionPage() {
   const profile = await requireClient();
 
-  const [folders, assignment, activePersonalPlanId] = await Promise.all([
+  const [folders, assignment, activePersonalPlanId, planRequests] = await Promise.all([
     getNutritionFoldersOverview(),
     getClientNutritionAssignment(profile.id),
     getActivePersonalNutritionPlanId(),
+    getClientPlanRequests(profile.id),
   ]);
 
   const assignedPlan = assignment?.nutrition_plans;
@@ -32,7 +34,11 @@ export default async function NutritionPage() {
             <CardContent className="p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-semibold">Coach plan: {assignedPlan.title}</p>
-                <Badge variant="secondary">Assigned by coach</Badge>
+                <Badge variant="secondary">
+                  {assignedPlan.trainer_label
+                    ? `By ${assignedPlan.trainer_label}`
+                    : "Assigned by coach"}
+                </Badge>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
                 {assignedPlan.target_calories} cal · {assignedPlan.target_protein}g protein ·{" "}
@@ -53,7 +59,7 @@ export default async function NutritionPage() {
           </Card>
         )}
 
-        <NutritionFoldersPage folders={folders} />
+        <NutritionFoldersPage folders={folders} planRequests={planRequests} />
       </div>
     </PageTransition>
   );

@@ -38,6 +38,8 @@ export function WeightTracker({
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    setTodayLog(null);
+    setWeightInput("");
     startTransition(async () => {
       const [log, fetchedHistory] = await Promise.all([
         getBodyWeightLog(clientId, dateKey),

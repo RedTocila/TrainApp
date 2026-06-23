@@ -7,9 +7,9 @@ import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import { getDailyLog } from "@/lib/actions/logs";
 import { getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
-import { getPrimaryMealsForDayMenu, sumDayMenuMacros } from "@/lib/meal-slots";
+import { useDashboardSync } from "@/components/dashboard-sync";
 import { formatDateKey } from "@/lib/utils";
-import type { DailyLog, DailyMealLog, Meal } from "@/lib/types";
+import type { DailyLog, DailyMealLog, Meal, MealSlot } from "@/lib/types";
 
 type MacroTargets = {
   calories: number;
@@ -23,6 +23,7 @@ export function DashboardOverview({
   initialLog,
   initialDailyMeals,
   mealLibrary,
+  hasAiAccess,
   targets: initialTargets,
   personalPlanId,
   initialWaterGoalMl,
@@ -32,12 +33,19 @@ export function DashboardOverview({
   initialLog: DailyLog | null;
   initialDailyMeals: DailyMealLog[];
   mealLibrary: PersonalMealLibraryItem[];
+  hasAiAccess: boolean;
   targets: MacroTargets;
   personalPlanId?: string | null;
   initialWaterGoalMl: number;
-  nutritionPlan?: { title: string; meals: Meal[]; scheduled?: boolean } | null;
+  nutritionPlan?: {
+    title: string;
+    meals: Meal[];
+    scheduled?: boolean;
+    activeSlots?: MealSlot[];
+  } | null;
 }) {
   const { selectedDate } = useSelectedDate();
+  const { version } = useDashboardSync();
   const [log, setLog] = useState(initialLog);
   const [dailyMeals, setDailyMeals] = useState(initialDailyMeals);
   const [targets, setTargets] = useState(initialTargets);
@@ -47,6 +55,10 @@ export function DashboardOverview({
 
   useEffect(() => {
     const dateKey = formatDateKey(selectedDate);
+    setLog(null);
+    setDailyMeals([]);
+    setNutritionPlan(null);
+
     startTransition(async () => {
       const [fetchedLog, fetchedMeals, planForDate] = await Promise.all([
         getDailyLog(clientId, dateKey),
@@ -58,24 +70,17 @@ export function DashboardOverview({
 
       if (planForDate?.scheduled) {
         const meals = (planForDate.meals ?? []) as Meal[];
-        const primary = getPrimaryMealsForDayMenu(meals);
         setNutritionPlan({
           title: planForDate.title,
-          meals: primary.length > 0 ? primary : meals,
+          meals,
           scheduled: true,
+          activeSlots: planForDate.activeSlots,
         });
-        const totals = sumDayMenuMacros(meals);
-        if (totals.calories > 0) {
-          setTargets(totals);
-        } else {
-          setTargets(initialTargets);
-        }
       } else {
         setNutritionPlan(null);
-        setTargets(initialTargets);
       }
     });
-  }, [selectedDate, clientId, initialTargets]);
+  }, [selectedDate, clientId, version]);
 
   return (
     <DailyTracker
@@ -85,6 +90,7 @@ export function DashboardOverview({
       dailyMeals={dailyMeals}
       onDailyMealsChange={setDailyMeals}
       mealLibrary={mealLibrary}
+      hasAiAccess={hasAiAccess}
       targets={targets}
       onTargetsChange={setTargets}
       personalPlanId={personalPlanId}

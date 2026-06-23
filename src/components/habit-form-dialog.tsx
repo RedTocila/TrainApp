@@ -54,7 +54,7 @@ export function HabitFormDialog({
       setTitle("");
       setTimeStart("");
       setTimeEnd("");
-      setWeekdays([new Date().getDay()]);
+      setWeekdays([0, 1, 2, 3, 4, 5, 6]);
       setWeeks(12);
       setStartMode("now");
     }
@@ -90,12 +90,12 @@ export function HabitFormDialog({
 
   const handleSave = () => {
     if (!title.trim() || weekdays.length === 0) return;
-    if (!timeStart || !timeEnd) {
-      setError("Set both start and end times for the habit window");
+    if (timeStart && timeEnd && timeStart >= timeEnd) {
+      setError("End time must be after start time");
       return;
     }
-    if (timeStart >= timeEnd) {
-      setError("End time must be after start time");
+    if ((timeStart && !timeEnd) || (!timeStart && timeEnd)) {
+      setError("Set both start and end times, or leave both empty for all day");
       return;
     }
     setError(null);
@@ -111,7 +111,7 @@ export function HabitFormDialog({
 
     startTransition(async () => {
       const result = await saveHabit(clientId, input, habit?.id);
-      if (result.error) {
+      if ("error" in result) {
         setError(result.error);
         return;
       }
@@ -142,7 +142,7 @@ export function HabitFormDialog({
               {habit ? "Edit habit" : "Add habit"}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Set name, time window, and repeat schedule. Complete habits only during the chosen hours.
+              Set name, repeat schedule, and an optional time window. Leave times empty for all-day habits.
             </p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
@@ -164,21 +164,19 @@ export function HabitFormDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="habit-time-start">From *</Label>
+              <Label htmlFor="habit-time-start">From (optional)</Label>
               <Input
                 id="habit-time-start"
                 type="time"
-                required
                 value={timeStart}
                 onChange={(e) => setTimeStart(e.target.value)}
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="habit-time-end">Until *</Label>
+              <Label htmlFor="habit-time-end">Until (optional)</Label>
               <Input
                 id="habit-time-end"
                 type="time"
-                required
                 value={timeEnd}
                 onChange={(e) => setTimeEnd(e.target.value)}
               />
@@ -264,7 +262,7 @@ export function HabitFormDialog({
           </Button>
           <Button
             className="flex-1"
-            disabled={isPending || !title.trim() || weekdays.length === 0 || !timeStart || !timeEnd}
+            disabled={isPending || !title.trim() || weekdays.length === 0}
             onClick={handleSave}
           >
             {isPending ? "Saving…" : habit ? "Save changes" : "Add habit"}

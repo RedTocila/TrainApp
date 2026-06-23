@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SITE_URL } from "@/lib/landing-content";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +15,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TrainApp — Premium Personal Training",
-  description: "Your personalized workout, nutrition, and fitness coaching platform",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "TrainApp — Premium Personal Training",
+    template: "%s | TrainApp",
+  },
+  description:
+    "Your personalized workout, nutrition, and fitness coaching platform with AI coach and live sessions.",
+  applicationName: "TrainApp",
 };
 
 export default function RootLayout({

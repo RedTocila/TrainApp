@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireSubscribedUserAccess } from "@/lib/actions/user-access";
 import { getClientWorkoutAssignment } from "@/lib/actions/plans";
 import { getScheduledWorkoutForDate } from "@/lib/actions/user-workouts";
 import type {
@@ -20,6 +21,12 @@ async function requireUserId() {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
   return { supabase, userId: user.id };
+}
+
+async function requireMutationUserId() {
+  const access = await requireSubscribedUserAccess();
+  if ("error" in access) throw new Error(access.error);
+  return { supabase: access.supabase, userId: access.userId };
 }
 
 export interface TodaysWorkoutInfo {
@@ -123,7 +130,7 @@ export async function getInProgressSession(): Promise<WorkoutSession | null> {
 }
 
 async function getSessionWithDetails(sessionId: string) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const { data: session } = await supabase
     .from("workout_sessions")
@@ -253,7 +260,7 @@ export async function startWorkout({
   dayId: string;
   scheduledDate?: string | null;
 }) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const existing = await getInProgressSession();
   if (existing) {
@@ -362,7 +369,7 @@ export async function updateSessionSet(
   setId: string,
   updates: { reps?: number | null; weight_kg?: number | null; completed?: boolean }
 ) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const { data: setRow } = await supabase
     .from("workout_session_sets")
@@ -403,7 +410,7 @@ export async function updateSessionSet(
 }
 
 export async function addSessionSet(sessionExerciseId: string) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const { data: exercise } = await supabase
     .from("workout_session_exercises")
@@ -453,7 +460,7 @@ export async function addSessionExercise(sessionId: string, name: string) {
   const trimmed = name.trim();
   if (!trimmed) return { error: "Exercise name is required" };
 
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const { data: session } = await supabase
     .from("workout_sessions")
@@ -506,7 +513,7 @@ export async function completeWorkoutSession(
   sessionId: string,
   notes?: string | null
 ) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const { data: session } = await supabase
     .from("workout_sessions")
@@ -561,7 +568,7 @@ export async function completeWorkoutSession(
 }
 
 export async function cancelWorkoutSession(sessionId: string) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const { error } = await supabase
     .from("workout_sessions")
@@ -578,7 +585,7 @@ export async function cancelWorkoutSession(sessionId: string) {
 }
 
 export async function startPlanWorkout(planId: string) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const { data: days } = await supabase
     .from("workout_days")

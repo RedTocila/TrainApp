@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { requireSubscribedUserAccess } from "@/lib/actions/user-access";
 import { UNCATEGORIZED_NUTRITION_FOLDER_ID } from "@/lib/nutrition-folders";
 import { mealPayloadFromForm, normalizeMealMacros, type MealFormData } from "@/lib/meal-utils";
 import { mealTypeForSlot, sumDayMenuMacros, type MealSlot } from "@/lib/meal-slots";
@@ -14,6 +15,12 @@ async function requireUserId() {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
   return { supabase, userId: user.id };
+}
+
+async function requireMutationUserId() {
+  const access = await requireSubscribedUserAccess();
+  if ("error" in access) throw new Error(access.error);
+  return { supabase: access.supabase, userId: access.userId };
 }
 
 function revalidateNutritionPaths(folderId?: string | null, planId?: string) {
@@ -73,7 +80,7 @@ export async function createPersonalNutritionPlan(
   },
   folderId?: string | null
 ) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const resolvedFolderId =
     folderId && folderId !== UNCATEGORIZED_NUTRITION_FOLDER_ID ? folderId : null;
@@ -729,7 +736,7 @@ export async function createPersonalMeal(targetPlanId: string, data: MealFormDat
   const trimmed = data.name.trim();
   if (!trimmed) return { error: "Meal name is required" };
 
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
   const { data: plan } = await supabase
     .from("nutrition_plans")
     .select("id, folder_id")

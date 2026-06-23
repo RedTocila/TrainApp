@@ -64,12 +64,13 @@ export function getHabitDayStatus(
 }
 
 export function canCompleteHabit(
-  habit: { time_start?: string | null; time_end?: string | null },
+  _habit: { time_start?: string | null; time_end?: string | null },
   dateKey: string,
   completed: boolean,
   now: Date = new Date()
 ): boolean {
-  return getHabitDayStatus(habit, dateKey, completed, now) === "available";
+  if (completed) return false;
+  return dateKey === formatDateKey(now);
 }
 
 export function habitStatusLabel(

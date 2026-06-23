@@ -49,6 +49,12 @@ export function LoginForm() {
             Register
           </Link>
         </p>
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          Coach? Sign in with your admin account — you&apos;ll go to{" "}
+          <Link href="/admin" className="text-primary hover:underline">
+            /admin
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

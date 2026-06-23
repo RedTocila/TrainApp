@@ -1,9 +1,46 @@
 export type UserRole = "admin" | "client";
+export type SubscriptionPlanId = "core" | "ai";
+export type SubscriptionStatus = "inactive" | "active" | "past_due" | "canceled";
+export type BillingInterval = "monthly" | "annual";
 export type PlanRequestType = "workout" | "diet";
-export type PlanRequestStatus = "pending" | "in_progress" | "completed";
+export type PlanRequestStatus =
+  | "pending"
+  | "awaiting_approval"
+  | "rejected"
+  | "in_progress"
+  | "delivered"
+  | "implemented"
+  | "completed";
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
 export type MealSlot = "breakfast" | "snack_1" | "lunch" | "snack_2" | "dinner";
+
+export interface SlotScheduleConfig {
+  enabled: boolean;
+  startDate: string;
+  weekdays: number[];
+  weeks: number;
+  extraDates?: string[];
+}
+
+export interface NutritionScheduleConfig {
+  /** Legacy whole-plan schedule (still supported) */
+  startDate?: string;
+  weekdays?: number[];
+  weeks?: number;
+  extraDates?: string[];
+  /** Per meal-type schedules */
+  slots?: Partial<Record<MealSlot, SlotScheduleConfig>>;
+}
+
+export interface ScheduledMealSlotRow {
+  id: string;
+  client_id: string;
+  plan_id: string;
+  slot: MealSlot;
+  scheduled_date: string;
+  created_at: string;
+}
 
 export interface Profile {
   id: string;
@@ -11,11 +48,22 @@ export interface Profile {
   full_name: string;
   avatar_url: string | null;
   goal: string | null;
+  height_cm?: number | null;
+  intake_weight_kg?: number | null;
+  vices?: string | null;
+  injuries?: string | null;
+  medical_conditions?: string | null;
+  daily_routine?: string | null;
+  work_schedule?: string | null;
   water_goal_ml?: number;
   target_calories?: number;
   target_protein?: number;
   target_carbs?: number;
   target_fat?: number;
+  subscription_plan?: SubscriptionPlanId | null;
+  subscription_status?: SubscriptionStatus;
+  subscription_interval?: BillingInterval | null;
+  subscription_expires_at?: string | null;
   created_at: string;
 }
 
@@ -25,6 +73,16 @@ export interface PlanRequest {
   type: PlanRequestType;
   status: PlanRequestStatus;
   notes: string | null;
+  preferences?: string | null;
+  payment_order_id?: string | null;
+  amount_cents?: number | null;
+  delivered_workout_plan_id?: string | null;
+  delivered_nutrition_plan_id?: string | null;
+  rejected_reason?: string | null;
+  approved_at?: string | null;
+  delivered_at?: string | null;
+  implemented_at?: string | null;
+  schedule_config?: NutritionScheduleConfig | null;
   created_at: string;
   profiles?: Profile;
 }
@@ -54,6 +112,7 @@ export interface WorkoutPlan {
   created_by: string;
   is_personal?: boolean;
   folder_id?: string | null;
+  trainer_label?: string | null;
   created_at: string;
 }
 
@@ -119,6 +178,7 @@ export interface NutritionPlan {
   created_at: string;
   is_personal?: boolean;
   folder_id?: string | null;
+  trainer_label?: string | null;
 }
 
 export interface NutritionFolder {
@@ -257,12 +317,42 @@ export interface ExerciseHistoryEntry {
   completed_at: string;
 }
 
-export interface BlogPost {
+export type ClassCategory =
+  | "Training"
+  | "Nutrition"
+  | "Recovery"
+  | "Mindset"
+  | "Science";
+
+export interface FitnessClass {
   id: string;
   title: string;
   slug: string;
-  content: string;
+  description: string;
+  category: ClassCategory;
   cover_image: string | null;
+  scheduled_at: string;
+  duration_minutes: number;
+  meeting_url: string | null;
+  replay_url: string | null;
   published: boolean;
   created_at: string;
+}
+
+export interface ClientCardio {
+  id: string;
+  client_id: string;
+  title: string;
+  description: string | null;
+  youtube_url: string | null;
+  duration_minutes: number | null;
+  created_at: string;
+}
+
+export interface ScheduledCardio {
+  id: string;
+  client_id: string;
+  scheduled_date: string;
+  cardio_id: string;
+  client_cardio?: ClientCardio;
 }

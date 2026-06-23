@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { LogOut } from "lucide-react";
 import { updateProfile, updatePassword } from "@/lib/actions/profile";
-import { signOut } from "@/lib/actions/auth";
 import { AccentColorPicker } from "@/components/accent-color-picker";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -63,7 +61,7 @@ export function ProfileSettings({
   };
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
+    <>
       <div>
         <h1 className="text-2xl font-black">Profile</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -172,13 +170,6 @@ export function ProfileSettings({
           </form>
         </CardContent>
       </Card>
-
-      <form action={signOut}>
-        <Button type="submit" variant="outline" className="w-full">
-          <LogOut className="h-4 w-4" />
-          Sign out
-        </Button>
-      </form>
-    </div>
+    </>
   );
 }

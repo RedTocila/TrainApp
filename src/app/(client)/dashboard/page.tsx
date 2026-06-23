@@ -19,12 +19,15 @@ import {
 } from "@/lib/actions/habits";
 import { getTaskCompletionsInRange } from "@/lib/actions/task-completions";
 import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
+import { getScheduledCardioInRange } from "@/lib/actions/user-cardio";
+import { scheduledCardioByDateMap } from "@/lib/cardio-utils";
 import { getScheduledNutritionInRange, getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
 import { resolveWorkoutForDate } from "@/lib/actions/workout-sessions";
 import { formatDateKey } from "@/lib/utils";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
 import { DashboardDateHeading } from "@/components/dashboard-date-heading";
 import { DashboardWorkoutCard } from "@/components/dashboard-workout-card";
+import { DashboardCardioCard } from "@/components/dashboard-cardio-card";
 import { DayTasksPanel } from "@/components/day-tasks-panel";
 import { ScrollToHash } from "@/components/scroll-to-hash";
 import { HabitsTracker } from "@/components/habits-tracker";
@@ -32,6 +35,9 @@ import { WeightTracker } from "@/components/weight-tracker";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/page-transition";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { getPrimaryMealsForDayMenu } from "@/lib/meal-slots";
+import { hasAiAccess } from "@/lib/subscription";
+import { getDashboardAiInsight } from "@/lib/actions/ai-coach";
+import { AiInsightCard } from "@/components/ai-insight-card";
 
 export default async function DashboardPage() {
   const profile = await requireClient();
@@ -54,6 +60,7 @@ export default async function DashboardPage() {
     completions,
     habitsByDateRaw,
     habitCompletions,
+    scheduledCardioEntries,
     waterGoalMl,
     dailyMeals,
     mealLibrary,
@@ -69,6 +76,7 @@ export default async function DashboardPage() {
     getTaskCompletionsInRange(profile.id, rangeStart, rangeEnd),
     getHabitsScheduledInRange(profile.id, rangeStart, rangeEnd),
     getHabitCompletionsInRange(profile.id, rangeStart, rangeEnd),
+    getScheduledCardioInRange(rangeStart, rangeEnd),
     getWaterGoal(profile.id),
     getDailyMealLogs(profile.id, dateKey),
     getPersonalMealsLibrary(),
@@ -96,6 +104,15 @@ export default async function DashboardPage() {
     completionsSerializable[date] = [...new Set([...existing, ...ids])];
   }
 
+  const scheduledCardioByDate = Object.fromEntries(
+    Object.entries(scheduledCardioByDateMap(scheduledCardioEntries)).map(
+      ([date, cardio]) => [
+        date,
+        { title: cardio.title, duration_minutes: cardio.duration_minutes },
+      ]
+    )
+  );
+
   const nutritionPlan = nutritionAssignment?.nutrition_plans;
   const personalNutritionPlanId =
     nutritionPlan?.is_personal && nutritionAssignment?.plan_id
@@ -106,10 +123,10 @@ export default async function DashboardPage() {
   const scheduledPlanForToday = await getNutritionPlanForDate(profile.id, dateKey);
 
   const targets = {
-    calories: nutritionPlan?.target_calories ?? profile.target_calories ?? 2000,
-    protein: nutritionPlan?.target_protein ?? profile.target_protein ?? 150,
-    carbs: nutritionPlan?.target_carbs ?? profile.target_carbs ?? 200,
-    fat: nutritionPlan?.target_fat ?? profile.target_fat ?? 65,
+    calories: profile.target_calories ?? nutritionPlan?.target_calories ?? 2000,
+    protein: profile.target_protein ?? nutritionPlan?.target_protein ?? 150,
+    carbs: profile.target_carbs ?? nutritionPlan?.target_carbs ?? 200,
+    fat: profile.target_fat ?? nutritionPlan?.target_fat ?? 65,
   };
 
   const nutritionSummary =
@@ -121,15 +138,20 @@ export default async function DashboardPage() {
         }
       : null;
 
+  const aiAccess = hasAiAccess(profile);
+  const aiInsight = aiAccess ? await getDashboardAiInsight(dateKey) : null;
+
   return (
     <>
       <div className="-mx-4 -mt-4 mb-6 md:-mx-6 md:-mt-6">
         <DashboardCalendar
+          clientId={profile.id}
           schedule={{
             workoutAssignment,
             nutritionAssignment,
             scheduledWorkouts,
             scheduledNutritionDays,
+            scheduledCardioByDate,
             habitsByDate,
             waterGoalMl,
           }}
@@ -148,10 +170,17 @@ export default async function DashboardPage() {
             nutritionAssignment,
             scheduledWorkouts,
             scheduledNutritionDays,
+            scheduledCardioByDate,
             habitsByDate,
             waterGoalMl,
           }}
           completionsByDate={completionsSerializable}
+        />
+
+        <AiInsightCard
+          hasAiAccess={aiAccess}
+          message={aiInsight?.hasAi ? aiInsight.message : undefined}
+          proteinGap={aiInsight?.hasAi ? aiInsight.gap.protein : undefined}
         />
 
         <DashboardOverview
@@ -159,6 +188,7 @@ export default async function DashboardPage() {
           initialLog={dailyLog}
           initialDailyMeals={dailyMeals}
           mealLibrary={mealLibrary}
+          hasAiAccess={aiAccess}
           targets={targets}
           personalPlanId={personalNutritionPlanId}
           initialWaterGoalMl={profile.water_goal_ml ?? 2500}
@@ -171,6 +201,9 @@ export default async function DashboardPage() {
               clientId={profile.id}
               initialWorkout={initialWorkout}
             />
+          </StaggerItem>
+          <StaggerItem>
+            <DashboardCardioCard clientId={profile.id} />
           </StaggerItem>
         </StaggerContainer>
 

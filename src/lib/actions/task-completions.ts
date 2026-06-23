@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
 
 export async function getTaskCompletionsInRange(
   clientId: string,
@@ -43,6 +44,9 @@ export async function toggleScheduleTaskCompletion(
   date: string,
   taskId: string
 ) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error, completed: false };
+
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("schedule_task_completions")

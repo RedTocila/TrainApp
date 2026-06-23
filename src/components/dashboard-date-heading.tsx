@@ -2,20 +2,29 @@
 
 import { format, isToday } from "date-fns";
 import { useSelectedDate } from "@/components/date-provider";
+import { Button } from "@/components/ui/button";
 
 export function DashboardDateHeading() {
-  const { selectedDate } = useSelectedDate();
+  const { selectedDate, goToToday } = useSelectedDate();
+  const viewingToday = isToday(selectedDate);
 
   return (
-    <div>
-      <h1 className="text-2xl font-black tracking-tight md:text-3xl">
-        {format(selectedDate, "EEEE, MMMM d")}
-      </h1>
-      <p className="text-muted-foreground">
-        {isToday(selectedDate)
-          ? "Your daily overview"
-          : `Overview for ${format(selectedDate, "MMMM d, yyyy")}`}
-      </p>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-black tracking-tight md:text-3xl">
+          {format(selectedDate, "EEEE, MMMM d")}
+        </h1>
+        <p className="text-muted-foreground">
+          {viewingToday
+            ? "Your daily overview"
+            : `Overview for ${format(selectedDate, "MMMM d, yyyy")}`}
+        </p>
+      </div>
+      {!viewingToday && (
+        <Button type="button" variant="outline" size="sm" onClick={goToToday}>
+          Today
+        </Button>
+      )}
     </div>
   );
 }

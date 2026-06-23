@@ -1,4 +1,5 @@
 import { clsx, type ClassValue } from "clsx";
+import { format } from "date-fns";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -6,5 +7,5 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDateKey(date: Date): string {
-  return date.toISOString().split("T")[0];
+  return format(date, "yyyy-MM-dd");
 }

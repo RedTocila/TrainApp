@@ -1,0 +1,213 @@
+"use client";
+
+import { useRef, useState, useTransition } from "react";
+import { Camera, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { analyzeMealPhotoAction } from "@/lib/actions/ai-meal";
+import {
+  formatMealMacrosSummary,
+  type MealFormData,
+} from "@/lib/meal-utils";
+import { MealDetailsFields } from "@/components/meal-details-fields";
+import { ConfidenceBadge } from "@/components/confidence-badge";
+import { Button } from "@/components/ui/button";
+
+type PhotoPhase = "capture" | "analyzing" | "review";
+
+export function MealPhotoLogStep({
+  form,
+  onFormChange,
+  onError,
+  onReadyChange,
+  confidence,
+  onConfidenceChange,
+}: {
+  form: MealFormData;
+  onFormChange: (form: MealFormData) => void;
+  onError: (message: string | null) => void;
+  onReadyChange?: (ready: boolean) => void;
+  confidence: number | null;
+  onConfidenceChange: (value: number | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [phase, setPhase] = useState<PhotoPhase>("capture");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const setPhaseWithReady = (next: PhotoPhase) => {
+    setPhase(next);
+    onReadyChange?.(next === "review");
+  };
+
+  const handleFile = (file: File | null) => {
+    onError(null);
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      onError("Please choose an image file");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setPreviewUrl(dataUrl);
+      setPhaseWithReady("capture");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAnalyze = () => {
+    if (!previewUrl) {
+      onError("Take or choose a photo first");
+      return;
+    }
+
+    const match = previewUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+    if (!match) {
+      onError("Could not read the photo");
+      return;
+    }
+
+    const [, mimeType, imageBase64] = match;
+    onError(null);
+    setPhaseWithReady("analyzing");
+
+    startTransition(async () => {
+      const response = await analyzeMealPhotoAction(imageBase64, mimeType);
+      if ("error" in response) {
+        onError(response.error);
+        setPhaseWithReady("capture");
+        return;
+      }
+      onFormChange(response.form);
+      onConfidenceChange(response.result.confidence);
+      setPhaseWithReady("review");
+    });
+  };
+
+  const handleRetake = () => {
+    setPreviewUrl(null);
+    setPhaseWithReady("capture");
+    onConfidenceChange(null);
+    onError(null);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  if (phase === "review") {
+    const summary = formatMealMacrosSummary(form.macros);
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-green-400">
+            <Sparkles className="h-4 w-4" />
+            AI analysis complete
+            {confidence != null && <ConfidenceBadge confidence={confidence} />}
+          </p>
+          <p className="mt-1 text-sm font-medium">{form.name}</p>
+          {summary && (
+            <p className="mt-1 text-xs text-muted-foreground">{summary}</p>
+          )}
+          {form.description && (
+            <p className="mt-2 text-xs text-muted-foreground">{form.description}</p>
+          )}
+        </div>
+        {previewUrl && (
+          <img
+            src={previewUrl}
+            alt="Meal preview"
+            className="mx-auto max-h-40 rounded-lg border border-border object-cover"
+          />
+        )}
+        <MealDetailsFields
+          mealType={form.meal_type}
+          onMealTypeChange={(meal_type) => onFormChange({ ...form, meal_type })}
+          name={form.name}
+          onNameChange={(name) => onFormChange({ ...form, name })}
+          description={form.description}
+          onDescriptionChange={(description) => onFormChange({ ...form, description })}
+          macros={form.macros}
+          onMacrosChange={(macros) => onFormChange({ ...form, macros })}
+          ingredients={form.ingredients}
+          onIngredientsChange={(ingredients) => onFormChange({ ...form, ingredients })}
+        />
+        <p className="text-xs text-muted-foreground">
+          Edit name, macros, or ingredients if needed, then tap{" "}
+          <span className="font-medium text-foreground">Confirm &amp; log meal</span> below.
+        </p>
+        <Button variant="outline" size="sm" onClick={handleRetake}>
+          <RotateCcw className="mr-1.5 h-4 w-4" />
+          Retake photo
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Snap a photo of your meal. AI will identify the food and estimate macros — you can
+        edit everything before logging.
+      </p>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+      />
+
+      {previewUrl ? (
+        <img
+          src={previewUrl}
+          alt="Meal preview"
+          className="mx-auto max-h-52 w-full rounded-xl border border-border object-cover"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-6 py-10 transition-colors hover:bg-primary/10"
+        >
+          <Camera className="h-10 w-10 text-primary" />
+          <span className="text-sm font-medium">Take or upload a photo</span>
+        </button>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => inputRef.current?.click()}
+        >
+          {previewUrl ? "Choose different photo" : "Upload from gallery"}
+        </Button>
+        {previewUrl && (
+          <Button type="button" variant="ghost" size="sm" onClick={handleRetake}>
+            Clear
+          </Button>
+        )}
+      </div>
+
+      <Button
+        className="w-full"
+        disabled={!previewUrl || isPending || phase === "analyzing"}
+        onClick={handleAnalyze}
+      >
+        {isPending || phase === "analyzing" ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Analyzing meal…
+          </>
+        ) : (
+          <>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Analyze with AI
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}

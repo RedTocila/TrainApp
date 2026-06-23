@@ -6,7 +6,9 @@ import {
   generateRecurringScheduleDates,
   type ScheduleStartMode,
 } from "@/lib/schedule-utils";
-import type { Meal, ScheduledNutritionDay } from "@/lib/types";
+import type { Meal, MealSlot, ScheduledNutritionDay } from "@/lib/types";
+import { syncPersonalMealSlotsForDates } from "@/lib/actions/meal-slot-schedule";
+import { slotsWithMealsFromPlan } from "@/lib/nutrition-schedule-utils";
 
 async function requireUserId() {
   const supabase = await createClient();
@@ -48,6 +50,20 @@ export async function scheduleNutritionDays(planId: string, dates: string[]) {
   });
 
   if (error) return { error: error.message };
+
+  const { data: meals } = await supabase
+    .from("meals")
+    .select("*")
+    .eq("plan_id", planId)
+    .order("order_index");
+
+  await syncPersonalMealSlotsForDates(
+    userId,
+    planId,
+    dates,
+    (meals ?? []) as Meal[]
+  );
+
   revalidateSchedulePaths();
   return { success: true, count: dates.length };
 }
@@ -164,6 +180,37 @@ export async function getScheduledNutritionDatesByPlan() {
 export async function getNutritionPlanForDate(clientId: string, dateKey: string) {
   const supabase = await createClient();
 
+  const { data: slotRows } = await supabase
+    .from("scheduled_meal_slots")
+    .select("plan_id, slot")
+    .eq("client_id", clientId)
+    .eq("scheduled_date", dateKey);
+
+  if (slotRows && slotRows.length > 0) {
+    const planId = slotRows[0].plan_id as string;
+    const activeSlots = slotRows.map((r) => r.slot as MealSlot);
+
+    const { data: plan } = await supabase
+      .from("nutrition_plans")
+      .select("title")
+      .eq("id", planId)
+      .single();
+
+    const { data: meals } = await supabase
+      .from("meals")
+      .select("*")
+      .eq("plan_id", planId)
+      .order("order_index");
+
+    return {
+      title: plan?.title ?? "Meal plan",
+      meals: meals ?? [],
+      scheduled: true,
+      planId,
+      activeSlots,
+    };
+  }
+
   const { data: scheduled } = await supabase
     .from("scheduled_nutrition_days")
     .select("*, nutrition_plans(*, meals(*))")
@@ -179,6 +226,7 @@ export async function getNutritionPlanForDate(clientId: string, dateKey: string)
       meals,
       scheduled: true,
       planId: scheduled.plan_id,
+      activeSlots: slotsWithMealsFromPlan(meals),
     };
   }
 

@@ -12,10 +12,11 @@ import {
 import { FullCalendarDialog } from "@/components/full-calendar-dialog";
 import { useSelectedDate } from "@/components/date-provider";
 import type { ClientSchedule } from "@/lib/daily-tasks";
+import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 
 interface CalendarData {
   schedule: ClientSchedule;
-  completionsByDate: Record<string, Set<string>>;
+  enrichment: DashboardEnrichmentData;
 }
 
 interface FullCalendarContextValue {
@@ -25,16 +26,6 @@ interface FullCalendarContextValue {
 }
 
 const FullCalendarContext = createContext<FullCalendarContextValue | null>(null);
-
-function toCompletionSets(
-  map: Record<string, string[]>
-): Record<string, Set<string>> {
-  const out: Record<string, Set<string>> = {};
-  for (const [date, ids] of Object.entries(map)) {
-    out[date] = new Set(ids);
-  }
-  return out;
-}
 
 export function FullCalendarProvider({ children }: { children: ReactNode }) {
   const { selectedDate, setSelectedDate } = useSelectedDate();
@@ -64,7 +55,7 @@ export function FullCalendarProvider({ children }: { children: ReactNode }) {
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
           schedule={calendarData.schedule}
-          completionsByDate={calendarData.completionsByDate}
+          enrichment={calendarData.enrichment}
         />
       )}
     </FullCalendarContext.Provider>
@@ -81,20 +72,14 @@ export function useFullCalendar() {
 
 export function useRegisterDashboardCalendar(
   schedule: ClientSchedule,
-  completionsByDate: Record<string, string[]>
+  enrichment: DashboardEnrichmentData
 ) {
   const { registerCalendarData } = useFullCalendar();
 
-  const serialized = useMemo(
-    () => JSON.stringify(completionsByDate),
-    [completionsByDate]
-  );
+  const serialized = useMemo(() => JSON.stringify(enrichment), [enrichment]);
 
   useEffect(() => {
-    registerCalendarData({
-      schedule,
-      completionsByDate: toCompletionSets(completionsByDate),
-    });
+    registerCalendarData({ schedule, enrichment });
     return () => registerCalendarData(null);
-  }, [schedule, serialized, registerCalendarData, completionsByDate]);
+  }, [schedule, serialized, registerCalendarData, enrichment]);
 }

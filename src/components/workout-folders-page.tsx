@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Folder, Pencil, Plus, Trash2 } from "lucide-react";
+import { Folder, HeartPulse, List, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createWorkoutFolder,
   deleteWorkoutFolder,
@@ -11,14 +11,18 @@ import {
   type WorkoutFolderOverview,
 } from "@/lib/actions/user-workouts";
 import { UNCATEGORIZED_FOLDER_ID } from "@/lib/workout-folders";
+import { CustomPlanButton } from "@/components/trainer-plan-offer-card";
+import type { PlanRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 export function WorkoutFoldersPage({
   folders,
+  planRequests = [],
 }: {
   folders: WorkoutFolderOverview[];
+  planRequests?: PlanRequest[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -78,10 +82,25 @@ export function WorkoutFoldersPage({
           </p>
         </div>
         {!showNewFolder && (
-          <Button onClick={() => setShowNewFolder(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New folder
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/dashboard/workout/cardio">
+              <Button variant="outline">
+                <HeartPulse className="mr-2 h-4 w-4" />
+                Cardio
+              </Button>
+            </Link>
+            <Link href="/dashboard/workout/workouts">
+              <Button variant="outline">
+                <List className="mr-2 h-4 w-4" />
+                Workouts
+              </Button>
+            </Link>
+            <CustomPlanButton type="workout" requests={planRequests} />
+            <Button onClick={() => setShowNewFolder(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New folder
+            </Button>
+          </div>
         )}
       </div>
 

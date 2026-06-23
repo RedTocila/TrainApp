@@ -1,12 +1,50 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
-import { AppLogo } from "@/components/app-logo";
+import { LandingPageClient } from "@/components/landing/landing-page";
+import { LandingJsonLd } from "@/components/landing/landing-json-ld";
+import { SITE_URL } from "@/lib/landing-content";
+
+export const metadata: Metadata = {
+  title: "TrainApp — Workouts, Nutrition & AI Coaching",
+  description:
+    "Premium fitness platform with workout builder, nutrition tracking, AI coach, live coaching sessions, and custom trainer plans. Start free — plans from €9/month.",
+  keywords: [
+    "fitness app",
+    "workout tracker",
+    "nutrition tracking",
+    "AI coach",
+    "personal training",
+    "meal logging",
+    "live coaching",
+  ],
+  alternates: { canonical: SITE_URL },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "TrainApp",
+    title: "TrainApp — Workouts, Nutrition & AI Coaching",
+    description:
+      "Train smarter with workouts, nutrition, AI coaching, and live sessions in one premium dashboard.",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TrainApp — Workouts, Nutrition & AI Coaching",
+    description:
+      "Premium fitness platform with AI meal logging, live coaching, and custom trainer plans.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (user) {
     const { data: profile } = await supabase
@@ -18,54 +56,9 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-border px-6 py-4">
-        <AppLogo href="/" />
-        <div className="flex gap-3">
-          <Link href="/login">
-            <Button variant="ghost">Sign in</Button>
-          </Link>
-          <Link href="/register">
-            <Button>Get Started</Button>
-          </Link>
-        </div>
-      </header>
-
-      <main className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        <div className="max-w-2xl space-y-6">
-          <h1 className="text-5xl font-black tracking-tight md:text-7xl">
-            TRAIN LIKE A
-            <span className="block text-primary">CHAMPION</span>
-          </h1>
-          <p className="text-lg text-muted-foreground md:text-xl">
-            Premium personal coaching with custom workouts, nutrition plans,
-            macro tracking, and more — built exclusively for you.
-          </p>
-          <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <Link href="/register">
-              <Button size="lg" className="w-full sm:w-auto">
-                Start Training
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                Sign In
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        <div className="mt-20 grid max-w-4xl grid-cols-2 gap-4 md:grid-cols-4">
-          {["Workouts", "Nutrition", "Macros", "Calendar"].map((feature) => (
-            <div
-              key={feature}
-              className="premium-card p-6 text-center"
-            >
-              <p className="font-bold">{feature}</p>
-            </div>
-          ))}
-        </div>
-      </main>
-    </div>
+    <>
+      <LandingJsonLd />
+      <LandingPageClient />
+    </>
   );
 }

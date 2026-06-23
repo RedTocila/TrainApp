@@ -15,10 +15,14 @@ import {
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDayDot } from "@/components/calendar-day-card";
-import { tasksForDay } from "@/components/calendar-strip";
 import { groupTasksByStatus } from "@/components/day-tasks-list";
 import { Button } from "@/components/ui/button";
 import type { ClientSchedule } from "@/lib/daily-tasks";
+import {
+  enrichTasksForDate,
+  getCalendarDayStatus,
+  type DashboardEnrichmentData,
+} from "@/lib/dashboard-task-enrichment";
 import { cn } from "@/lib/utils";
 
 interface FullCalendarDialogProps {
@@ -27,7 +31,7 @@ interface FullCalendarDialogProps {
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
   schedule: ClientSchedule;
-  completionsByDate: Record<string, Set<string>>;
+  enrichment: DashboardEnrichmentData;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -38,9 +42,15 @@ export function FullCalendarDialog({
   selectedDate,
   onSelectDate,
   schedule,
-  completionsByDate,
+  enrichment,
 }: FullCalendarDialogProps) {
   const [viewMonth, setViewMonth] = useState(startOfMonth(selectedDate));
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (open) setViewMonth(startOfMonth(selectedDate));
@@ -66,8 +76,8 @@ export function FullCalendarDialog({
   }, [viewMonth]);
 
   const selectedDayTasks = useMemo(
-    () => tasksForDay(schedule, completionsByDate, selectedDate),
-    [selectedDate, schedule, completionsByDate]
+    () => enrichTasksForDate(selectedDate, schedule, enrichment, now),
+    [selectedDate, schedule, enrichment, now]
   );
   const { active, completed, missed } = useMemo(
     () => groupTasksByStatus(selectedDayTasks),
@@ -136,7 +146,8 @@ export function FullCalendarDialog({
 
           <div className="grid grid-cols-7 gap-1">
             {monthDays.map((day) => {
-              const tasks = tasksForDay(schedule, completionsByDate, day);
+              const tasks = enrichTasksForDate(day, schedule, enrichment, now);
+              const dayStatus = getCalendarDayStatus(tasks, day, now);
               const selected = isSameDay(day, selectedDate);
               const inMonth = isSameMonth(day, viewMonth);
 
@@ -148,6 +159,7 @@ export function FullCalendarDialog({
                   <CalendarDayDot
                     date={day}
                     tasks={tasks}
+                    dayStatus={dayStatus}
                     selected={selected}
                     onSelect={() => {
                       onSelectDate(day);

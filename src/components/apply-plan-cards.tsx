@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import type { PlanRequest } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export function ApplyPlanCards({
   requests,
@@ -100,13 +101,30 @@ function PendingCard({
   type: "workout" | "diet";
   status: string;
 }) {
+  const message =
+    status === "pending"
+      ? "Pending — your coach is reviewing"
+      : status === "delivered"
+        ? "Ready — open to implement on your calendar"
+        : status === "awaiting_approval"
+          ? "Waiting for coach approval"
+          : status === "in_progress"
+            ? "In progress — your coach is building your plan"
+            : "In progress — your coach is building your plan";
+
+  const isReady = status === "delivered";
+
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-4 text-center">
+    <div
+      className={
+        isReady
+          ? "rounded-lg border border-green-500/30 bg-green-950/20 p-4 text-center"
+          : "rounded-lg border border-amber-500/30 bg-amber-950/20 p-4 text-center"
+      }
+    >
       <p className="font-semibold capitalize">{type} Plan</p>
-      <p className="mt-1 text-sm text-amber-400">
-        {status === "pending"
-          ? "Pending — your coach is reviewing"
-          : "In progress — your coach is building your plan"}
+      <p className={cn("mt-1 text-sm", isReady ? "text-green-400" : "text-amber-400")}>
+        {message}
       </p>
     </div>
   );

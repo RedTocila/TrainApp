@@ -2,11 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import { Dumbbell } from "lucide-react";
+import { Check, Dumbbell } from "lucide-react";
 import { useSelectedDate } from "@/components/date-provider";
+import { useDashboardSync } from "@/components/dashboard-sync";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import {
+  SectionCompletedBadge,
+  sectionCompletedCardClass,
+} from "@/components/section-completed-badge";
+import {
   getInProgressSession,
+  isWorkoutCompletedOnDate,
   resolveWorkoutForDate,
   type TodaysWorkoutInfo,
 } from "@/lib/actions/workout-sessions";
@@ -14,18 +20,23 @@ import { formatDateKey } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function WorkoutTabBanner({
   clientId,
   initialWorkout,
   initialInProgressSessionId,
+  initialWorkoutCompleted = false,
 }: {
   clientId: string;
   initialWorkout: TodaysWorkoutInfo | null;
   initialInProgressSessionId: string | null;
+  initialWorkoutCompleted?: boolean;
 }) {
   const { selectedDate } = useSelectedDate();
+  const { version } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
+  const [workoutCompleted, setWorkoutCompleted] = useState(initialWorkoutCompleted);
   const [inProgressSessionId, setInProgressSessionId] = useState(
     initialInProgressSessionId
   );
@@ -34,14 +45,16 @@ export function WorkoutTabBanner({
   useEffect(() => {
     const dateKey = formatDateKey(selectedDate);
     startTransition(async () => {
-      const [resolved, inProgress] = await Promise.all([
+      const [resolved, inProgress, completed] = await Promise.all([
         resolveWorkoutForDate(clientId, dateKey),
         getInProgressSession(),
+        isWorkoutCompletedOnDate(clientId, dateKey),
       ]);
       setWorkout(resolved);
       setInProgressSessionId(inProgress?.id ?? null);
+      setWorkoutCompleted(completed);
     });
-  }, [selectedDate, clientId]);
+  }, [selectedDate, clientId, version]);
 
   if (inProgressSessionId) {
     return (
@@ -69,14 +82,25 @@ export function WorkoutTabBanner({
   if (!workout) return null;
 
   return (
-    <Card id="dashboard-workout">
+    <Card
+      id="dashboard-workout"
+      className={sectionCompletedCardClass(workoutCompleted)}
+    >
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            Scheduled workout
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              Scheduled workout
+            </p>
+            {workoutCompleted && <SectionCompletedBadge />}
+          </div>
+          <p className={cn("font-semibold", workoutCompleted && "text-green-400")}>
+            {workout.dayTitle}
           </p>
-          <p className="font-semibold">{workout.dayTitle}</p>
-          <p className="text-sm text-muted-foreground">{workout.planTitle}</p>
+          <p className="text-sm text-muted-foreground">
+            {workout.planTitle}
+            {workoutCompleted ? " · completed" : ""}
+          </p>
           <div className="mt-2 flex flex-wrap gap-1">
             {workout.exercises.slice(0, 4).map((ex) => (
               <Badge key={ex.id} variant="secondary">
@@ -88,7 +112,16 @@ export function WorkoutTabBanner({
             )}
           </div>
         </div>
-        <StartTodaysWorkoutButton date={selectedDate} />
+        {workoutCompleted ? (
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center self-end rounded-full border border-green-500 bg-green-500 text-white sm:self-center"
+            aria-label="Completed"
+          >
+            <Check className="h-4 w-4" />
+          </span>
+        ) : (
+          <StartTodaysWorkoutButton date={selectedDate} />
+        )}
       </CardContent>
     </Card>
   );

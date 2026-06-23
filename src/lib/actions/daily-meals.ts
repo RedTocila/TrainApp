@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
 import { upsertDailyLog } from "@/lib/actions/logs";
 import { mealPayloadFromForm, sumMealMacros, type MealFormData } from "@/lib/meal-utils";
+import { getMealSlotPhase } from "@/lib/meal-times";
 import type { MealSlot } from "@/lib/meal-slots";
 import type { DailyMealLog, Meal } from "@/lib/types";
 
@@ -45,12 +47,15 @@ export async function getDailyMealLogForSlot(
   return (data as DailyMealLog | null) ?? null;
 }
 
-export async function togglePlannedMealSlot(
+export async function logPlannedMealOption(
   clientId: string,
   date: string,
   slot: MealSlot,
   plannedMeal: Meal
 ) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -59,18 +64,16 @@ export async function togglePlannedMealSlot(
 
   const existing = await getDailyMealLogForSlot(clientId, date, slot);
 
-  if (existing) {
-    const { error } = await supabase
-      .from("daily_meal_logs")
-      .delete()
-      .eq("id", existing.id)
-      .eq("client_id", clientId)
-      .eq("date", date);
+  if (existing && existing.source_meal_id === plannedMeal.id) {
+    return { success: true, checked: true };
+  }
 
-    if (error) return { error: error.message };
-    await syncDailyMacros(clientId, date);
-    revalidatePath("/dashboard");
-    return { success: true, checked: false };
+  if (!existing && getMealSlotPhase(slot, date) === "missed") {
+    return { error: "This meal window has passed — you can no longer log it" };
+  }
+
+  if (existing) {
+    await supabase.from("daily_meal_logs").delete().eq("id", existing.id);
   }
 
   const { error } = await supabase.from("daily_meal_logs").insert({
@@ -95,11 +98,78 @@ export async function togglePlannedMealSlot(
   return { success: true, checked: true };
 }
 
+export async function togglePlannedMealSlot(
+  clientId: string,
+  date: string,
+  slot: MealSlot,
+  plannedMeal: Meal
+) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || user.id !== clientId) return { error: "Not authenticated" };
+
+  const existing = await getDailyMealLogForSlot(clientId, date, slot);
+
+  if (existing) {
+    const { error } = await supabase
+      .from("daily_meal_logs")
+      .delete()
+      .eq("id", existing.id)
+      .eq("client_id", clientId)
+      .eq("date", date);
+
+    if (error) return { error: error.message };
+    await syncDailyMacros(clientId, date);
+    revalidatePath("/dashboard");
+    return { success: true, checked: false };
+  }
+
+  if (getMealSlotPhase(slot, date) === "missed") {
+    return { error: "This meal window has passed — you can no longer log it" };
+  }
+
+  const macros = {
+    calories: plannedMeal.calories ?? 0,
+    protein: plannedMeal.protein ?? 0,
+    carbs: plannedMeal.carbs ?? 0,
+    fat: plannedMeal.fat ?? 0,
+  };
+
+  const { error } = await supabase.from("daily_meal_logs").insert({
+    client_id: clientId,
+    date,
+    slot,
+    meal_type: plannedMeal.meal_type,
+    name: plannedMeal.name,
+    description: plannedMeal.description,
+    calories: macros.calories,
+    protein: macros.protein,
+    carbs: macros.carbs,
+    fat: macros.fat,
+    foods: plannedMeal.foods ?? [],
+    source_meal_id: plannedMeal.id,
+  });
+
+  if (error) return { error: error.message };
+
+  await syncDailyMacros(clientId, date);
+  revalidatePath("/dashboard");
+  return { success: true, checked: true };
+}
+
 export async function logMealFromLibrary(
   clientId: string,
   date: string,
   mealId: string
 ) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -141,6 +211,9 @@ export async function logMealFromLibrary(
 }
 
 export async function logCustomMeal(clientId: string, date: string, data: MealFormData) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -171,6 +244,9 @@ export async function logCustomMeal(clientId: string, date: string, data: MealFo
 }
 
 export async function deleteDailyMealLog(clientId: string, date: string, logId: string) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   const supabase = await createClient();
   const {
     data: { user },

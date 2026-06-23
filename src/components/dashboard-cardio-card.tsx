@@ -1,0 +1,127 @@
+"use client";
+
+import Link from "next/link";
+import { format, isToday, isTomorrow } from "date-fns";
+import { Check, HeartPulse } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { useSelectedDate } from "@/components/date-provider";
+import { useDashboardSync } from "@/components/dashboard-sync";
+import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
+import {
+  SectionCompletedBadge,
+  sectionCompletedCardClass,
+} from "@/components/section-completed-badge";
+import { getScheduledCardioForDate } from "@/lib/actions/user-cardio";
+import { getTaskCompletionsForDate, toggleScheduleTaskCompletion } from "@/lib/actions/task-completions";
+import type { ScheduledCardio } from "@/lib/types";
+import { formatDateKey } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+function cardioTitle(date: Date) {
+  if (isToday(date)) return "Today's Cardio";
+  if (isTomorrow(date)) return "Tomorrow's Cardio";
+  return `${format(date, "EEEE")}'s Cardio`;
+}
+
+export function DashboardCardioCard({ clientId }: { clientId: string }) {
+  const { selectedDate } = useSelectedDate();
+  const { version, notifySync } = useDashboardSync();
+  const [scheduled, setScheduled] = useState<ScheduledCardio | null>(null);
+  const [completed, setCompleted] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const dateKey = formatDateKey(selectedDate);
+  const taskId = `${dateKey}-cardio`;
+  const cardio = scheduled?.client_cardio ?? null;
+
+  useEffect(() => {
+    setScheduled(null);
+    setCompleted(false);
+    startTransition(async () => {
+      const [entry, ids] = await Promise.all([
+        getScheduledCardioForDate(clientId, dateKey),
+        getTaskCompletionsForDate(clientId, dateKey),
+      ]);
+      setScheduled(entry);
+      setCompleted(ids.has(taskId));
+    });
+  }, [clientId, dateKey, taskId, version]);
+
+  const handleToggle = () => {
+    startTransition(async () => {
+      const result = await toggleScheduleTaskCompletion(clientId, dateKey, taskId);
+      if (result.error) return;
+      setCompleted(result.completed ?? false);
+      notifySync();
+    });
+  };
+
+  return (
+    <Card
+      id="dashboard-cardio"
+      className={cn("mt-6", sectionCompletedCardClass(completed && !!cardio))}
+    >
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardTitle className="flex flex-wrap items-center gap-2">
+          <HeartPulse className="h-5 w-5 text-orange-400" />
+          {cardioTitle(selectedDate)}
+          {completed && cardio && <SectionCompletedBadge />}
+        </CardTitle>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href="/dashboard/workout/cardio">
+            <Button size="sm" variant="outline">
+              My cardio
+            </Button>
+          </Link>
+          {cardio && (
+            completed ? (
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
+                aria-label="Completed"
+              >
+                <Check className="h-4 w-4" />
+              </span>
+            ) : (
+              <Button size="sm" disabled={isPending} onClick={handleToggle}>
+                Mark done
+              </Button>
+            )
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {cardio ? (
+          <>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className={cn("font-semibold", completed && "text-green-400 line-through")}>
+                  {cardio.title}
+                </p>
+                {cardio.duration_minutes != null && (
+                  <Badge variant="secondary">{cardio.duration_minutes} min</Badge>
+                )}
+              </div>
+              {cardio.description && (
+                <p className="mt-1 text-sm text-muted-foreground">{cardio.description}</p>
+              )}
+            </div>
+            {cardio.youtube_url && (
+              <ExerciseVideoPlayer videoUrl={cardio.youtube_url} title={cardio.title} />
+            )}
+          </>
+        ) : (
+          <div className="rounded-lg border border-dashed border-border bg-secondary/20 px-4 py-6 text-center">
+            <p className="text-sm text-muted-foreground">No cardio scheduled for this day.</p>
+            <Link href="/dashboard/workout/cardio" className="mt-2 inline-block">
+              <Button size="sm" variant="outline" className="mt-2">
+                Add & schedule cardio
+              </Button>
+            </Link>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

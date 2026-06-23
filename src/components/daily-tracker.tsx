@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { format, isToday } from "date-fns";
-import { Apple, Plus, Trash2 } from "lucide-react";
+import { Apple, Check, Plus, Trash2 } from "lucide-react";
 import { formatDateKey } from "@/lib/utils";
 import {
   addWater,
@@ -21,13 +21,18 @@ import { MacroBars } from "@/components/macro-bars";
 import { MealPlanChecklist } from "@/components/scheduled-meals-list";
 import { MissedButton } from "@/components/missed-items-dialog";
 import { LogMealDialog } from "@/components/log-meal-dialog";
+import { useDashboardSync } from "@/components/dashboard-sync";
+import {
+  SectionCompletedBadge,
+  sectionCompletedCardClass,
+} from "@/components/section-completed-badge";
 import {
   countMissedMealSlots,
   getPlannedMealSlots,
   isDeadlinePassed,
   WATER_DEADLINE,
 } from "@/lib/meal-times";
-import type { DailyMealLog, Meal } from "@/lib/types";
+import type { DailyMealLog, Meal, MealSlot } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -51,12 +56,18 @@ interface DailyTrackerProps {
   dailyMeals: DailyMealLog[];
   onDailyMealsChange: (meals: DailyMealLog[]) => void;
   mealLibrary: PersonalMealLibraryItem[];
+  hasAiAccess: boolean;
   targets: MacroTargets;
   onTargetsChange?: (targets: MacroTargets) => void;
   personalPlanId?: string | null;
   waterGoalMl: number;
   onWaterGoalChange?: (goal: number) => void;
-  nutritionPlan?: { title: string; meals: Meal[]; scheduled?: boolean } | null;
+  nutritionPlan?: {
+    title: string;
+    meals: Meal[];
+    scheduled?: boolean;
+    activeSlots?: MealSlot[];
+  } | null;
 }
 
 function GoalToggle({
@@ -86,6 +97,7 @@ export function DailyTracker({
   dailyMeals,
   onDailyMealsChange,
   mealLibrary,
+  hasAiAccess,
   targets,
   onTargetsChange,
   personalPlanId,
@@ -103,6 +115,7 @@ export function DailyTracker({
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
   const [mealTick, setMealTick] = useState(0);
+  const { notifySync } = useDashboardSync();
   const dateKey = formatDateKey(date);
 
   useEffect(() => {
@@ -128,9 +141,14 @@ export function DailyTracker({
   const plannedMealSlots = useMemo(
     () =>
       nutritionPlan?.meals?.length
-        ? getPlannedMealSlots(nutritionPlan.meals, dailyMeals, dateKey)
+        ? getPlannedMealSlots(
+            nutritionPlan.meals,
+            dailyMeals,
+            dateKey,
+            nutritionPlan.activeSlots
+          )
         : [],
-    [nutritionPlan?.meals, dailyMeals, dateKey, mealTick]
+    [nutritionPlan?.meals, nutritionPlan?.activeSlots, dailyMeals, dateKey, mealTick]
   );
 
   const extraLoggedMeals = useMemo(
@@ -155,13 +173,14 @@ export function DailyTracker({
   const waterMissed =
     localWaterMl < waterGoalMl &&
     isDeadlinePassed(WATER_DEADLINE, dateKey);
+  const waterCompleted = localWaterMl >= waterGoalMl;
 
   const nutritionTitle = isToday(date) ? "Nutrition Today" : `Nutrition · ${format(date, "MMM d")}`;
 
   const handleAddWater = (amount: number) => {
     setLocalWaterMl((prev) => prev + amount);
     startTransition(() => {
-      void addWater(clientId, dateKey, amount);
+      void addWater(clientId, dateKey, amount).then(() => notifySync());
     });
   };
 
@@ -170,6 +189,7 @@ export function DailyTracker({
       const result = await deleteDailyMealLog(clientId, dateKey, logId);
       if (result.error) return;
       onDailyMealsChange(dailyMeals.filter((meal) => meal.id !== logId));
+      notifySync();
     });
   };
 
@@ -216,6 +236,7 @@ export function DailyTracker({
       const { getDailyMealLogs } = await import("@/lib/actions/daily-meals");
       const meals = await getDailyMealLogs(clientId, dateKey);
       onDailyMealsChange(meals);
+      notifySync();
     });
   };
 
@@ -246,7 +267,7 @@ export function DailyTracker({
                 </p>
               )}
               <p className="mt-1 text-sm text-muted-foreground">
-                {targets.calories} cal · {targets.protein}g protein · {targets.carbs}g carbs ·{" "}
+                Goal: {targets.calories} cal · {targets.protein}g protein · {targets.carbs}g carbs ·{" "}
                 {targets.fat}g fat
               </p>
               <div className="mt-2">
@@ -326,7 +347,7 @@ export function DailyTracker({
                     {isToday(date) ? "Today's meal plan" : `Meal plan · ${format(date, "MMM d")}`}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Press Ate when you finish each meal.
+                    Tap a meal, then choose which option you ate. Macros update from your pick.
                   </p>
                 </div>
                 <MealPlanChecklist
@@ -343,7 +364,7 @@ export function DailyTracker({
             ) : null}
             {extraLoggedMeals.length > 0 && (
               <div className="space-y-3">
-                <Label className="text-sm font-medium">Extra logged meals</Label>
+                <Label className="text-sm font-medium">Logged food</Label>
                 <ul className="space-y-2">
                   {extraLoggedMeals.map((meal) => {
                     const summary = formatMealMacrosSummary(normalizeMealMacros(meal));
@@ -379,14 +400,14 @@ export function DailyTracker({
             )}
             {!hasMealPlan && (
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Logged meals</Label>
+              <Label className="text-sm font-medium">Logged food</Label>
               {dailyMeals.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-border bg-secondary/20 px-4 py-6 text-center text-sm text-muted-foreground">
-                  No meals logged yet. Schedule a day menu or log meals manually.
+                  No food logged yet. Use Log meal to track intake toward your goal.
                 </p>
               ) : (
                 <ul className="space-y-2">
-                  {dailyMeals.map((meal) => {
+                  {dailyMeals.filter((m) => !m.slot).map((meal) => {
                     const summary = formatMealMacrosSummary(normalizeMealMacros(meal));
                     return (
                       <li
@@ -427,39 +448,55 @@ export function DailyTracker({
           </CardContent>
         </Card>
 
-        <Card id="dashboard-water">
-          <CardHeader>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              Water Intake
-              <MissedButton
-                count={waterMissed ? 1 : 0}
-                title="Missed water goal"
-                hint="Keep a bottle nearby and sip throughout the day."
-                items={
-                  waterMissed
-                    ? [
-                        {
-                          id: "water",
-                          label: `Drink ${waterGoalMl.toLocaleString()} ml`,
-                          detail: `${localWaterMl.toLocaleString()} ml logged · goal by ${WATER_DEADLINE}`,
-                        },
-                      ]
-                    : []
-                }
+        <Card id="dashboard-water" className={sectionCompletedCardClass(waterCompleted)}>
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div className="min-w-0">
+              <CardTitle className="flex flex-wrap items-center gap-2">
+                Water Intake
+                {waterCompleted && <SectionCompletedBadge />}
+                <MissedButton
+                  count={waterMissed ? 1 : 0}
+                  title="Missed water goal"
+                  hint="Keep a bottle nearby and sip throughout the day."
+                  items={
+                    waterMissed
+                      ? [
+                          {
+                            id: "water",
+                            label: `Drink ${waterGoalMl.toLocaleString()} ml`,
+                            detail: `${localWaterMl.toLocaleString()} ml logged · goal by ${WATER_DEADLINE}`,
+                          },
+                        ]
+                      : []
+                  }
+                />
+              </CardTitle>
+              <p
+                className={cn(
+                  "text-sm text-muted-foreground",
+                  waterCompleted && "text-green-400"
+                )}
+              >
+                {localWaterMl.toLocaleString()} / {waterGoalMl.toLocaleString()} ml
+                {waterCompleted ? " · goal reached" : ` · goal by ${WATER_DEADLINE}`}
+              </p>
+              <GoalToggle
+                label="Change water goal"
+                open={waterGoalOpen}
+                onToggle={() => {
+                  setGoalError(null);
+                  setWaterGoalOpen((open) => !open);
+                }}
               />
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {localWaterMl.toLocaleString()} / {waterGoalMl.toLocaleString()} ml · goal by{" "}
-              {WATER_DEADLINE}
-            </p>
-            <GoalToggle
-              label="Change water goal"
-              open={waterGoalOpen}
-              onToggle={() => {
-                setGoalError(null);
-                setWaterGoalOpen((open) => !open);
-              }}
-            />
+            </div>
+            {waterCompleted && (
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
+                aria-label="Water goal completed"
+              >
+                <Check className="h-4 w-4" />
+              </span>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-center">
@@ -524,6 +561,7 @@ export function DailyTracker({
         clientId={clientId}
         dateKey={dateKey}
         library={mealLibrary}
+        hasAiAccess={hasAiAccess}
         onClose={() => setLogMealOpen(false)}
         onLogged={refreshMeals}
       />

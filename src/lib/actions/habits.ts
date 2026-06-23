@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
 import {
   generateRecurringScheduleDates,
   getScheduleAnchorDate,
@@ -190,15 +191,31 @@ async function replaceHabitSchedule(
   return { count: dates.length };
 }
 
+export type SaveHabitResult =
+  | { error: string }
+  | { data: ClientHabit | undefined };
+
 export async function saveHabit(
   clientId: string,
   input: SaveHabitInput,
   habitId?: string
-) {
+): Promise<SaveHabitResult> {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   const trimmed = input.title.trim();
   if (!trimmed) return { error: "Habit name is required" };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  if (user.id !== clientId) return { error: "Not authorized" };
+
+  if (input.weekdays.length === 0) {
+    return { error: "Select at least one day" };
+  }
 
   if (habitId) {
     const { data: existing } = await supabase
@@ -223,7 +240,9 @@ export async function saveHabit(
       clientId,
       input
     );
-    if (scheduleResult.error) return scheduleResult;
+    if ("error" in scheduleResult) {
+      return { error: scheduleResult.error ?? "Failed to update schedule" };
+    }
 
     revalidatePath("/dashboard");
     const { data } = await supabase
@@ -266,13 +285,18 @@ export async function saveHabit(
     clientId,
     input
   );
-  if (scheduleResult.error) return scheduleResult;
+  if ("error" in scheduleResult) {
+    return { error: scheduleResult.error ?? "Failed to update schedule" };
+  }
 
   revalidatePath("/dashboard");
   return { data: normalizeHabit(habit) };
 }
 
 export async function deleteHabit(habitId: string) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -291,6 +315,9 @@ export async function deleteHabit(habitId: string) {
 }
 
 export async function toggleHabitCompletion(habitId: string, date: string) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -323,7 +350,7 @@ export async function toggleHabitCompletion(habitId: string, date: string) {
       return { error: "This habit was missed — the time window has passed", completed: false };
     }
     if (status === "upcoming") {
-      return { error: "Not yet time for this habit", completed: false };
+      return { error: "You can only complete habits scheduled for today", completed: false };
     }
     return { error: "Cannot complete this habit right now", completed: false };
   }

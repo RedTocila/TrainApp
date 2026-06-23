@@ -128,10 +128,29 @@ export async function createNutritionPlan(data: {
   return { data: plan };
 }
 
+export async function updateNutritionPlan(
+  planId: string,
+  data: {
+    title: string;
+    description?: string;
+    target_calories: number;
+    target_protein: number;
+    target_carbs: number;
+    target_fat: number;
+  }
+) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("nutrition_plans").update(data).eq("id", planId);
+  if (error) return { error: error.message };
+  revalidatePath(`/admin/nutrition/${planId}/edit`);
+  return { success: true };
+}
+
 export async function saveMeal(
   planId: string,
   meal: {
     meal_type: MealType;
+    slot?: string | null;
     name: string;
     description?: string | null;
     calories?: number;
@@ -146,6 +165,7 @@ export async function saveMeal(
   const supabase = await createClient();
   const payload = {
     meal_type: meal.meal_type,
+    slot: meal.slot ?? null,
     name: meal.name,
     description: meal.description?.trim() || null,
     calories: meal.calories ?? null,

@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { X } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  BookOpen,
+  Camera,
+  PenLine,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { logCustomMeal, logMealFromLibrary } from "@/lib/actions/daily-meals";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import {
@@ -11,17 +19,49 @@ import {
   type MealFormData,
 } from "@/lib/meal-utils";
 import { MealDetailsFields } from "@/components/meal-details-fields";
+import { MealPhotoLogStep } from "@/components/meal-photo-log-step";
+import { MealTextLogStep } from "@/components/meal-text-log-step";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type LogMode = "library" | "custom";
+type LogMode = "picker" | "custom" | "library" | "photo" | "text";
+
+const PICKER_OPTIONS = [
+  {
+    mode: "custom" as const,
+    label: "New meal",
+    description: "Enter name and macros manually",
+    icon: PenLine,
+  },
+  {
+    mode: "text" as const,
+    label: "Type it",
+    description: '"2 eggs and a banana" — AI parses macros',
+    icon: Sparkles,
+    ai: true,
+  },
+  {
+    mode: "library" as const,
+    label: "From library",
+    description: "Pick a saved meal from your plans",
+    icon: BookOpen,
+  },
+  {
+    mode: "photo" as const,
+    label: "Photo",
+    description: "Snap a photo — AI fills in the details",
+    icon: Camera,
+    ai: true,
+  },
+];
 
 export function LogMealDialog({
   open,
   clientId,
   dateKey,
   library,
+  hasAiAccess,
   onClose,
   onLogged,
 }: {
@@ -29,20 +69,27 @@ export function LogMealDialog({
   clientId: string;
   dateKey: string;
   library: PersonalMealLibraryItem[];
+  hasAiAccess: boolean;
   onClose: () => void;
   onLogged: () => void;
 }) {
-  const [mode, setMode] = useState<LogMode>("library");
+  const [mode, setMode] = useState<LogMode>("picker");
   const [form, setForm] = useState<MealFormData>(emptyMealForm());
+  const [photoReady, setPhotoReady] = useState(false);
+  const [textReady, setTextReady] = useState(false);
+  const [aiConfidence, setAiConfidence] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (!open) return;
-    setMode(library.length > 0 ? "library" : "custom");
+    setMode("picker");
     setForm(emptyMealForm());
+    setPhotoReady(false);
+    setTextReady(false);
+    setAiConfidence(null);
     setError(null);
-  }, [open, library.length]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -89,6 +136,39 @@ export function LogMealDialog({
     });
   };
 
+  const goToMode = (next: LogMode) => {
+    setMode(next);
+    setError(null);
+    if (next === "custom" || next === "photo" || next === "text") {
+      setForm(emptyMealForm());
+      setPhotoReady(false);
+      setTextReady(false);
+      setAiConfidence(null);
+    }
+  };
+
+  const title =
+    mode === "picker"
+      ? "Log a meal"
+      : mode === "custom"
+        ? "New meal"
+        : mode === "library"
+          ? "From library"
+          : mode === "text"
+            ? "Type meal"
+            : "Photo log";
+
+  const showBack = mode !== "picker";
+  const canLogCustom =
+    mode === "custom" ||
+    (mode === "photo" && hasAiAccess && photoReady) ||
+    (mode === "text" && hasAiAccess && textReady);
+
+  const logButtonLabel =
+    (mode === "photo" && photoReady) || (mode === "text" && textReady)
+      ? "Confirm & log meal"
+      : "Log meal";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
@@ -103,44 +183,76 @@ export function LogMealDialog({
         aria-label="Log a meal"
         className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
       >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-lg font-black">Log a meal</h2>
+        <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+          {showBack && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={() => goToMode("picker")}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
+          <h2 className="flex-1 text-lg font-black">{title}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="flex gap-2 border-b border-border px-5 py-3">
-          {(
-            [
-              ["library", "From library"],
-              ["custom", "New meal"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => {
-                setMode(value);
-                setError(null);
-              }}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-                mode === value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {mode === "library" ? (
-            library.length === 0 ? (
+          {mode === "picker" && (
+            <div className="grid gap-3">
+              {PICKER_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const locked = option.ai && !hasAiAccess;
+                return (
+                  <button
+                    key={option.mode}
+                    type="button"
+                    onClick={() => goToMode(option.mode)}
+                    className={cn(
+                      "flex items-start gap-4 rounded-xl border border-border bg-secondary/30 p-4 text-left transition-colors hover:bg-secondary/60",
+                      locked && "opacity-90"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-11 w-11 shrink-0 items-center justify-center rounded-lg",
+                        option.ai
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-foreground"
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold">{option.label}</span>
+                        {option.ai && (
+                          <Badge className="gap-1 bg-primary/15 text-primary">
+                            <Sparkles className="h-3 w-3" />
+                            AI
+                          </Badge>
+                        )}
+                        {locked && (
+                          <Badge variant="secondary">Upgrade required</Badge>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {option.description}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {mode === "library" &&
+            (library.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No saved meals yet. Switch to New meal to log one with macros.
+                No saved meals yet. Go back and choose New meal to log one with macros.
               </p>
             ) : (
               <ul className="space-y-2">
@@ -175,8 +287,9 @@ export function LogMealDialog({
                   );
                 })}
               </ul>
-            )
-          ) : (
+            ))}
+
+          {mode === "custom" && (
             <MealDetailsFields
               mealType={form.meal_type}
               onMealTypeChange={(meal_type) => setForm((prev) => ({ ...prev, meal_type }))}
@@ -195,13 +308,76 @@ export function LogMealDialog({
               autoFocusName
             />
           )}
+
+          {mode === "photo" &&
+            (hasAiAccess ? (
+              <MealPhotoLogStep
+                form={form}
+                onFormChange={setForm}
+                onError={setError}
+                onReadyChange={setPhotoReady}
+                confidence={aiConfidence}
+                onConfidenceChange={setAiConfidence}
+              />
+            ) : (
+              <div className="space-y-4 py-4 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
+                  <Sparkles className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold">TrainApp AI required</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Upgrade to snap meal photos and let AI estimate food and macros
+                    automatically.
+                  </p>
+                </div>
+                <Link
+                  href="/dashboard/pricing"
+                  className={buttonVariants({ className: "w-full" })}
+                  onClick={onClose}
+                >
+                  View AI plan
+                </Link>
+              </div>
+            ))}
+
+          {mode === "text" &&
+            (hasAiAccess ? (
+              <MealTextLogStep
+                form={form}
+                onFormChange={setForm}
+                onError={setError}
+                onReadyChange={setTextReady}
+                confidence={aiConfidence}
+                onConfidenceChange={setAiConfidence}
+              />
+            ) : (
+              <div className="space-y-4 py-4 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
+                  <Sparkles className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold">TrainApp AI required</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Upgrade to type meals naturally and let AI estimate macros.
+                  </p>
+                </div>
+                <Link
+                  href="/dashboard/pricing"
+                  className={buttonVariants({ className: "w-full" })}
+                  onClick={onClose}
+                >
+                  View AI plan
+                </Link>
+              </div>
+            ))}
         </div>
 
         <div className="space-y-2 border-t border-border px-5 py-4">
           {error && <p className="text-sm text-red-400">{error}</p>}
-          {mode === "custom" ? (
+          {canLogCustom ? (
             <Button className="w-full" disabled={isPending} onClick={handleLogCustom}>
-              Log meal
+              {isPending ? "Logging…" : logButtonLabel}
             </Button>
           ) : (
             <Button variant="outline" className="w-full" onClick={onClose}>

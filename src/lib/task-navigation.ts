@@ -25,8 +25,8 @@ export function getTaskDestination(task: DailyTask): TaskDestination {
       };
     case "cardio":
       return {
-        href: "/dashboard/workout",
-        sectionId: "dashboard-workout",
+        href: "/dashboard/workout/cardio",
+        sectionId: "dashboard-cardio",
       };
     case "habits":
       return {

@@ -53,6 +53,7 @@ export function formatMealMacrosSummary(macros: MealMacros): string {
 
 export function sumMealMacros(
   meals: Array<{
+    slot?: string | null;
     calories?: number | null;
     protein?: number | null;
     carbs?: number | null;

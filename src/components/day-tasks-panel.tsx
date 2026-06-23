@@ -3,33 +3,21 @@
 import { format, isToday, isTomorrow } from "date-fns";
 import { ListChecks } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { tasksForDay } from "@/components/calendar-strip";
-import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { useSelectedDate } from "@/components/date-provider";
-import { enrichDailyTasks } from "@/lib/enrich-daily-tasks";
-import { getDailyLog } from "@/lib/actions/logs";
-import { getDailyMealLogs } from "@/lib/actions/daily-meals";
-import { isWorkoutCompletedOnDate } from "@/lib/actions/workout-sessions";
+import { useDashboardSync } from "@/components/dashboard-sync";
+import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
+import { MissedButton } from "@/components/missed-items-dialog";
+import { fetchDashboardEnrichmentData } from "@/lib/actions/dashboard-enrichment";
 import type { ClientSchedule } from "@/lib/daily-tasks";
-import type { DailyMealLog, Meal } from "@/lib/types";
+import { enrichTasksForDate } from "@/lib/dashboard-task-enrichment";
+import type { DailyMealLog } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MissedButton } from "@/components/missed-items-dialog";
 
 function panelTitle(date: Date): string {
   if (isToday(date)) return "Today's To Do";
   if (isTomorrow(date)) return "Tomorrow's To Do";
   return `${format(date, "EEEE")}'s To Do`;
-}
-
-function toCompletionSets(
-  map: Record<string, string[]>
-): Record<string, Set<string>> {
-  const out: Record<string, Set<string>> = {};
-  for (const [date, ids] of Object.entries(map)) {
-    out[date] = new Set(ids);
-  }
-  return out;
 }
 
 export function DayTasksPanel({
@@ -42,63 +30,32 @@ export function DayTasksPanel({
   completionsByDate: Record<string, string[]>;
 }) {
   const { selectedDate } = useSelectedDate();
-  const [waterMl, setWaterMl] = useState(0);
-  const [dailyMeals, setDailyMeals] = useState<DailyMealLog[]>([]);
-  const [workoutCompleted, setWorkoutCompleted] = useState(false);
+  const { version } = useDashboardSync();
+  const [enrichment, setEnrichment] = useState({
+    completionsByDate,
+    waterByDate: {} as Record<string, number>,
+    mealsByDate: {} as Record<string, DailyMealLog[]>,
+    workoutCompletedDates: [] as string[],
+  });
   const [, startTransition] = useTransition();
-  const completions = useMemo(
-    () => toCompletionSets(completionsByDate),
-    [completionsByDate]
-  );
-
-  const waterGoalMl = schedule.waterGoalMl ?? 2500;
-
-  const planMeals = useMemo((): Meal[] => {
-    const dateKey = formatDateKey(selectedDate);
-    const scheduled = schedule.scheduledNutritionDays?.find(
-      (s) => s.scheduled_date === dateKey
-    );
-    const meals =
-      scheduled?.nutrition_plans?.meals ??
-      schedule.nutritionAssignment?.nutrition_plans?.meals ??
-      [];
-    return [...meals].sort((a, b) => a.order_index - b.order_index);
-  }, [schedule, selectedDate]);
 
   useEffect(() => {
     const dateKey = formatDateKey(selectedDate);
-    startTransition(async () => {
-      const [log, meals, completedWorkout] = await Promise.all([
-        getDailyLog(clientId, dateKey),
-        getDailyMealLogs(clientId, dateKey),
-        isWorkoutCompletedOnDate(clientId, dateKey),
-      ]);
-      setWaterMl(log?.water_ml ?? 0);
-      setDailyMeals(meals);
-      setWorkoutCompleted(completedWorkout);
+    setEnrichment({
+      completionsByDate: {},
+      waterByDate: {},
+      mealsByDate: {},
+      workoutCompletedDates: [],
     });
-  }, [selectedDate, clientId]);
+    startTransition(async () => {
+      const data = await fetchDashboardEnrichmentData(clientId, dateKey, dateKey);
+      setEnrichment(data);
+    });
+  }, [selectedDate, clientId, version]);
 
   const tasks = useMemo(() => {
-    const built = tasksForDay(schedule, completions, selectedDate);
-    return enrichDailyTasks(built, {
-      dateKey: formatDateKey(selectedDate),
-      waterMl,
-      waterGoalMl,
-      dailyMeals,
-      planMeals,
-      workoutCompleted,
-    });
-  }, [
-    schedule,
-    completions,
-    selectedDate,
-    waterMl,
-    waterGoalMl,
-    dailyMeals,
-    planMeals,
-    workoutCompleted,
-  ]);
+    return enrichTasksForDate(selectedDate, schedule, enrichment);
+  }, [schedule, selectedDate, enrichment]);
 
   const { active, missed, completed } = groupTasksByStatus(tasks);
 

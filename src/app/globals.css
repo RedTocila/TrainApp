@@ -148,3 +148,7 @@ html.light .overlay-backdrop {
     box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.45);
   }
 }
+
+.landing-page {
+  scroll-behavior: smooth;
+}

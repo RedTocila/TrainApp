@@ -8,6 +8,7 @@ import {
   saveWorkoutDay,
   assignWorkoutPlan,
 } from "@/lib/actions/plans";
+import { sendTrainerPlanToClient } from "@/lib/actions/custom-plans";
 import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan } from "@/lib/actions/user-workouts";
 import { isValidYoutubeUrl } from "@/lib/youtube";
 import { Button } from "@/components/ui/button";
@@ -183,7 +184,11 @@ export function WorkoutBuilder({
       }
 
       if (clientId && currentPlanId) {
-        await assignWorkoutPlan(clientId, currentPlanId, requestId);
+        if (requestId) {
+          await sendTrainerPlanToClient(requestId, currentPlanId, "workout");
+        } else {
+          await assignWorkoutPlan(clientId, currentPlanId, requestId);
+        }
         router.push(`/admin/clients/${clientId}`);
       } else if (wizard && currentPlanId && onWizardComplete) {
         onWizardComplete(currentPlanId);

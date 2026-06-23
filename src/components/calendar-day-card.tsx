@@ -9,10 +9,12 @@ import {
   Droplets,
   HeartPulse,
   ListChecks,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import type { DailyTask, TaskCategory } from "@/lib/daily-tasks";
 import { TASK_CATEGORY_LABELS } from "@/lib/daily-tasks";
+import type { CalendarDayStatus } from "@/lib/dashboard-task-enrichment";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_ICONS: Record<TaskCategory, LucideIcon> = {
@@ -35,6 +37,7 @@ interface CalendarDayCardProps {
   date: Date;
   selected: boolean;
   tasks: DailyTask[];
+  dayStatus?: CalendarDayStatus;
   onSelect: () => void;
   compact?: boolean;
   fluid?: boolean;
@@ -57,6 +60,7 @@ export function CalendarDayCard({
   date,
   selected,
   tasks,
+  dayStatus = "default",
   onSelect,
   compact = false,
   fluid = false,
@@ -67,6 +71,8 @@ export function CalendarDayCard({
   const hiddenCount = tasks.length - visibleTasks.length;
   const categories = [...new Set(tasks.map((task) => task.category))];
   const doneCount = tasks.filter((t) => t.completed).length;
+  const isComplete = dayStatus === "complete";
+  const isIncompletePast = dayStatus === "incomplete_past";
 
   return (
     <motion.button
@@ -83,9 +89,17 @@ export function CalendarDayCard({
               ? "min-w-[148px] max-w-[148px] shrink-0 rounded-2xl"
               : "min-w-[240px] max-w-[240px] shrink-0 rounded-2xl",
         selected
-          ? "border-primary bg-primary/10 red-glow"
-          : "border-border bg-secondary/60 hover:bg-secondary/90",
-        todayDay && !selected && "ring-2 ring-primary/40"
+          ? isComplete
+            ? "border-green-500 bg-green-500/15"
+            : isIncompletePast
+              ? "border-red-500 bg-red-500/15"
+              : "border-primary bg-primary/10 red-glow"
+          : isComplete
+            ? "border-green-500/50 bg-green-500/10 hover:bg-green-500/15"
+            : isIncompletePast
+              ? "border-red-500/50 bg-red-500/10 hover:bg-red-500/15"
+              : "border-border bg-secondary/60 hover:bg-secondary/90",
+        todayDay && !selected && !isComplete && !isIncompletePast && "ring-2 ring-primary/40"
       )}
     >
       <div
@@ -99,7 +113,7 @@ export function CalendarDayCard({
               )
         )}
       >
-        <div className={cn(strip && "min-w-0")}>
+        <div className={cn(strip && "min-w-0 flex flex-col items-center sm:items-start")}>
           <p
             className={cn(
               "truncate font-bold uppercase tracking-wider text-muted-foreground",
@@ -112,18 +126,47 @@ export function CalendarDayCard({
           >
             {strip ? stripDayLabel(date) : dayLabel(date)}
           </p>
-          <p
+          <div
             className={cn(
-              "font-black leading-none",
-              strip
-                ? "text-base sm:text-lg lg:text-2xl"
-                : compact
-                  ? "text-lg"
-                  : "text-2xl"
+              "flex flex-col items-center gap-0.5",
+              strip && "sm:items-start"
             )}
           >
-            {format(date, "d")}
-          </p>
+            <p
+              className={cn(
+                "font-black leading-none",
+                strip
+                  ? "text-base sm:text-lg lg:text-2xl"
+                  : compact
+                    ? "text-lg"
+                    : "text-2xl"
+              )}
+            >
+              {format(date, "d")}
+            </p>
+            {isComplete && (
+              <span
+                className={cn(
+                  "flex shrink-0 items-center justify-center rounded-full bg-green-500 text-white",
+                  strip ? "h-4 w-4 sm:h-5 sm:w-5" : "h-5 w-5"
+                )}
+                aria-label="All tasks completed"
+              >
+                <Check className={strip ? "h-2.5 w-2.5 sm:h-3 sm:w-3" : "h-3 w-3"} />
+              </span>
+            )}
+            {isIncompletePast && (
+              <span
+                className={cn(
+                  "flex shrink-0 items-center justify-center rounded-full bg-red-500 text-white",
+                  strip ? "h-4 w-4 sm:h-5 sm:w-5" : "h-5 w-5"
+                )}
+                aria-label="Tasks incomplete"
+              >
+                <X className={strip ? "h-2.5 w-2.5 sm:h-3 sm:w-3" : "h-3 w-3"} />
+              </span>
+            )}
+          </div>
         </div>
         <div
           className={cn(
@@ -140,7 +183,7 @@ export function CalendarDayCard({
         </div>
       </div>
 
-      {strip && (
+      {strip && !isComplete && !isIncompletePast && (
         <div className="flex flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 sm:hidden">
           <div className="flex flex-wrap justify-center gap-0.5">
             {categories.slice(0, 4).map((category) => (
@@ -191,7 +234,9 @@ export function CalendarDayCard({
               )}
             >
               {task.completed ? (
-                <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                <Check className="mt-0.5 h-3 w-3 shrink-0 text-green-500" />
+              ) : task.missed ? (
+                <X className="mt-0.5 h-3 w-3 shrink-0 text-red-400" />
               ) : (
                 <Icon
                   className={cn(
@@ -247,16 +292,19 @@ export function CalendarDayDot({
   date,
   tasks,
   selected,
+  dayStatus = "default",
   onSelect,
 }: {
   date: Date;
   tasks: DailyTask[];
   selected: boolean;
+  dayStatus?: CalendarDayStatus;
   onSelect: () => void;
 }) {
   const todayDay = isToday(date);
   const categories = [...new Set(tasks.map((t) => t.category))];
-  const allDone = tasks.length > 0 && tasks.every((t) => t.completed);
+  const isComplete = dayStatus === "complete";
+  const isIncompletePast = dayStatus === "incomplete_past";
 
   return (
     <button
@@ -265,28 +313,48 @@ export function CalendarDayDot({
       className={cn(
         "flex aspect-square flex-col items-center justify-center rounded-xl border text-sm transition-colors",
         selected
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-transparent hover:bg-secondary",
-        todayDay && !selected && "ring-2 ring-primary/40"
+          ? isComplete
+            ? "border-green-500 bg-green-500/15"
+            : isIncompletePast
+              ? "border-red-500 bg-red-500/15"
+              : "border-primary bg-primary text-primary-foreground"
+          : isComplete
+            ? "border-green-500/50 bg-green-500/10 hover:bg-green-500/15"
+            : isIncompletePast
+              ? "border-red-500/50 bg-red-500/10 hover:bg-red-500/15"
+              : "border-transparent hover:bg-secondary",
+        todayDay && !selected && !isComplete && !isIncompletePast && "ring-2 ring-primary/40"
       )}
     >
       <span className="text-xs font-bold">{format(date, "d")}</span>
-      <div className="mt-1 flex flex-wrap justify-center gap-0.5 px-1">
-        {categories.slice(0, 4).map((category) => (
-          <span
-            key={category}
-            className={cn(
-              "h-1 w-1 rounded-full",
-              selected
-                ? "bg-primary-foreground/80"
-                : allDone
-                  ? "bg-emerald-400"
-                  : "bg-primary/70"
-            )}
-            title={TASK_CATEGORY_LABELS[category]}
-          />
-        ))}
-      </div>
+      {isComplete ? (
+        <span
+          className="mt-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-white"
+          aria-label="All tasks completed"
+        >
+          <Check className="h-2.5 w-2.5" />
+        </span>
+      ) : isIncompletePast ? (
+        <span
+          className="mt-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white"
+          aria-label="Tasks incomplete"
+        >
+          <X className="h-2.5 w-2.5" />
+        </span>
+      ) : (
+        <div className="mt-1 flex flex-wrap justify-center gap-0.5 px-1">
+          {categories.slice(0, 4).map((category) => (
+            <span
+              key={category}
+              className={cn(
+                "h-1 w-1 rounded-full",
+                selected ? "bg-primary-foreground/80" : "bg-primary/70"
+              )}
+              title={TASK_CATEGORY_LABELS[category]}
+            />
+          ))}
+        </div>
+      )}
     </button>
   );
 }

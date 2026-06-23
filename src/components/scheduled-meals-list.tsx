@@ -1,13 +1,19 @@
 "use client";
 
 import { Check, Clock } from "lucide-react";
-import { useTransition } from "react";
-import { togglePlannedMealSlot } from "@/lib/actions/daily-meals";
+import { useState, useTransition } from "react";
 import {
-  canToggleMealSlot,
+  logPlannedMealOption,
+  togglePlannedMealSlot,
+} from "@/lib/actions/daily-meals";
+import { MealOptionPickerDialog } from "@/components/meal-option-picker-dialog";
+import { useDashboardSync } from "@/components/dashboard-sync";
+import {
+  canMarkMealSlotAsEaten,
   type PlannedMealSlot,
 } from "@/lib/meal-times";
 import { formatMealMacrosSummary, normalizeMealMacros } from "@/lib/meal-utils";
+import type { Meal } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,12 +30,29 @@ export function MealPlanChecklist({
   onMealsChange: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
-  const canToggle = canToggleMealSlot(dateKey);
+  const [pickerSlot, setPickerSlot] = useState<PlannedMealSlot | null>(null);
+  const { notifySync } = useDashboardSync();
 
   if (slots.length === 0) return null;
 
-  const handleAte = (entry: PlannedMealSlot) => {
-    if (!entry.meal || !canToggle) return;
+  const handlePick = (meal: Meal) => {
+    if (!pickerSlot) return;
+    startTransition(async () => {
+      const result = await logPlannedMealOption(
+        clientId,
+        dateKey,
+        pickerSlot.slot,
+        meal
+      );
+      if (result.error) return;
+      setPickerSlot(null);
+      onMealsChange();
+      notifySync();
+    });
+  };
+
+  const handleUndo = (entry: PlannedMealSlot) => {
+    if (!entry.loggedMeal || !entry.meal) return;
     startTransition(async () => {
       const result = await togglePlannedMealSlot(
         clientId,
@@ -39,99 +62,115 @@ export function MealPlanChecklist({
       );
       if (result.error) return;
       onMealsChange();
+      notifySync();
     });
   };
 
-  return (
-    <ul className="space-y-2">
-      {slots.map((entry) => {
-        const { slot, label, meal, timeWindow, status } = entry;
-        const isCompleted = status === "completed";
-        const isMissed = status === "missed";
-        const macros = meal
-          ? formatMealMacrosSummary(normalizeMealMacros(meal))
-          : null;
+  const openPicker = (entry: PlannedMealSlot) => {
+    if (entry.options.length === 1 && entry.options[0]) {
+      startTransition(async () => {
+        const result = await logPlannedMealOption(
+          clientId,
+          dateKey,
+          entry.slot,
+          entry.options[0]
+        );
+        if (result.error) return;
+        onMealsChange();
+        notifySync();
+      });
+      return;
+    }
+    setPickerSlot(entry);
+  };
 
-        return (
-          <li
-            key={slot}
-            className={cn(
-              "flex items-start justify-between gap-3 rounded-lg border px-3 py-3",
-              isMissed && "border-red-500/40 bg-red-500/10",
-              isCompleted && "border-green-500/40 bg-green-500/10",
-              !isMissed && !isCompleted && "border-border bg-secondary/40"
-            )}
-          >
-            <div className="min-w-0 flex-1">
-              <div className="mb-1 flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">{label}</Badge>
-                <span
-                  className={cn(
-                    "font-medium",
-                    isCompleted && "text-green-400",
-                    isMissed && "text-red-400"
+  return (
+    <>
+      <ul className="space-y-2">
+        {slots.map((entry) => {
+          const { slot, label, meal, options, timeWindow, status } = entry;
+          const isCompleted = status === "completed";
+          const isMissed = status === "missed";
+          const canMark = canMarkMealSlotAsEaten(slot, dateKey, isCompleted);
+          const macros = meal
+            ? formatMealMacrosSummary(normalizeMealMacros(meal))
+            : null;
+          const optionCount = options.length;
+
+          return (
+            <li
+              key={slot}
+              className={cn(
+                "flex items-start justify-between gap-3 rounded-lg border px-3 py-3",
+                isMissed && "border-red-500/40 bg-red-500/10",
+                isCompleted && "border-green-500/40 bg-green-500/10",
+                !isMissed && !isCompleted && "border-border bg-secondary/40"
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">{label}</Badge>
+                  {optionCount > 1 && !isCompleted && (
+                    <span className="text-xs text-muted-foreground">
+                      {optionCount} options
+                    </span>
                   )}
-                >
-                  {meal?.name}
-                </span>
-                {isMissed && (
-                  <span className="rounded bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
-                    Missed
-                  </span>
+                  {isCompleted && meal && (
+                    <span className="font-medium text-green-400">{meal.name}</span>
+                  )}
+                  {isMissed && (
+                    <span className="rounded bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
+                      Missed
+                    </span>
+                  )}
+                </div>
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3 shrink-0" />
+                  Eat between {timeWindow}
+                </p>
+                {isCompleted && macros && (
+                  <p className="mt-1 text-xs font-medium text-green-400/90">{macros}</p>
                 )}
               </div>
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3 shrink-0" />
-                Eat between {timeWindow}
-              </p>
-              {macros && (
-                <p
-                  className={cn(
-                    "mt-1 text-xs font-medium",
-                    isCompleted && "text-green-400/90",
-                    isMissed && "text-red-400/80",
-                    !isCompleted && !isMissed && "text-primary"
-                  )}
-                >
-                  {macros}
-                </p>
-              )}
-              {meal?.description && (
-                <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                  {meal.description}
-                </p>
-              )}
-            </div>
 
-            {isCompleted ? (
-              <button
-                type="button"
-                disabled={isPending || !canToggle}
-                onClick={() => handleAte(entry)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-md border border-green-500/50 bg-green-500/15 px-2.5 py-1 text-xs font-semibold text-green-400 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label={`Undo ${label}`}
-              >
-                <Check className="h-3.5 w-3.5" />
-                Ate
-              </button>
-            ) : (
-              <Button
-                size="sm"
-                variant={isMissed ? "outline" : "default"}
-                disabled={isPending || !canToggle}
-                onClick={() => handleAte(entry)}
-                className={cn(
-                  "shrink-0",
-                  isMissed && "border-red-500/50 text-red-400 hover:bg-red-500/10"
-                )}
-              >
-                Ate
-              </Button>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+              {isCompleted ? (
+                <button
+                  type="button"
+                  disabled={isPending || !canMark}
+                  onClick={() => handleUndo(entry)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-green-500/50 bg-green-500/15 px-2.5 py-1 text-xs font-semibold text-green-400 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  Ate
+                </button>
+              ) : isMissed ? (
+                <span className="shrink-0 rounded-md border border-red-500/30 bg-red-500/5 px-2.5 py-1 text-xs font-medium text-red-400/80">
+                  Window closed
+                </span>
+              ) : (
+                <Button
+                  size="sm"
+                  disabled={isPending || !canMark}
+                  onClick={() => openPicker(entry)}
+                  className="shrink-0"
+                >
+                  {optionCount > 1 ? "Choose" : "Ate"}
+                </Button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      <MealOptionPickerDialog
+        open={!!pickerSlot}
+        onClose={() => setPickerSlot(null)}
+        slotLabel={pickerSlot?.label ?? ""}
+        options={pickerSlot?.options ?? []}
+        onSelect={handlePick}
+        isPending={isPending}
+      />
+    </>
   );
 }
 
@@ -141,7 +180,7 @@ export function ScheduledMealsList({ slots }: { slots: PlannedMealSlot[] }) {
 
   return (
     <ul className="space-y-2">
-      {slots.map(({ slot, label, meal, timeWindow, status }) => (
+      {slots.map(({ slot, label, meal, options, timeWindow, status }) => (
         <li
           key={slot}
           className={cn(
@@ -154,15 +193,22 @@ export function ScheduledMealsList({ slots }: { slots: PlannedMealSlot[] }) {
           <div className="min-w-0">
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <Badge variant="secondary">{label}</Badge>
-              <span
-                className={cn(
-                  "font-medium",
-                  status === "completed" && "text-green-400",
-                  status === "missed" && "text-red-400"
-                )}
-              >
-                {meal?.name}
-              </span>
+              {meal && (
+                <span
+                  className={cn(
+                    "font-medium",
+                    status === "completed" && "text-green-400",
+                    status === "missed" && "text-red-400"
+                  )}
+                >
+                  {meal.name}
+                </span>
+              )}
+              {options.length > 1 && (
+                <span className="text-xs text-muted-foreground">
+                  +{options.length - 1} more
+                </span>
+              )}
             </div>
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="h-3 w-3 shrink-0" />

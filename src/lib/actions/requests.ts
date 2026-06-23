@@ -14,14 +14,14 @@ export async function createPlanRequest(type: PlanRequestType, notes?: string) {
     .select("id")
     .eq("client_id", user.id)
     .eq("type", type)
-    .in("status", ["pending", "in_progress"])
+    .in("status", ["pending", "in_progress", "awaiting_approval", "delivered"])
     .maybeSingle();
 
   if (existing) return { error: "You already have a pending request for this plan type" };
 
   const { data: request, error } = await supabase
     .from("plan_requests")
-    .insert({ client_id: user.id, type, notes: notes ?? null })
+    .insert({ client_id: user.id, type, notes: notes ?? null, status: "pending" })
     .select()
     .single();
 
@@ -70,7 +70,7 @@ export async function getPendingRequests() {
   const { data } = await supabase
     .from("plan_requests")
     .select("*, profiles(full_name)")
-    .in("status", ["pending", "in_progress"])
+    .in("status", ["pending", "awaiting_approval", "in_progress"])
     .order("created_at", { ascending: false });
   return data ?? [];
 }

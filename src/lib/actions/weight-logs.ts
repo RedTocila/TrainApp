@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
 import type { BodyWeightLog } from "@/lib/types";
 
 export async function getBodyWeightLog(
@@ -42,6 +43,9 @@ export async function upsertBodyWeightLog(
   date: string,
   weightKg: number
 ) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   if (!Number.isFinite(weightKg) || weightKg <= 0 || weightKg >= 500) {
     return { error: "Enter a valid weight between 0 and 500 kg" };
   }

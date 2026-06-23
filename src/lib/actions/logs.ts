@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
 import { updatePersonalNutritionPlanMacros } from "@/lib/actions/user-nutrition";
 
 export async function getDailyLog(clientId: string, date: string) {
@@ -26,6 +27,9 @@ export async function upsertDailyLog(
     fat: number;
   }>
 ) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   const supabase = await createClient();
   const existing = await getDailyLog(clientId, date);
 
@@ -70,6 +74,9 @@ export async function getWaterGoal(clientId: string): Promise<number> {
 }
 
 export async function updateWaterGoal(clientId: string, waterGoalMl: number) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   if (!Number.isFinite(waterGoalMl) || waterGoalMl < 500 || waterGoalMl > 10000) {
     return { error: "Water goal must be between 500 and 10000 ml" };
   }
@@ -95,6 +102,9 @@ export async function updateNutritionTargets(
   },
   options?: { personalPlanId?: string | null }
 ) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
   const calories = Math.round(targets.calories);
   const protein = Math.round(targets.protein);
   const carbs = Math.round(targets.carbs);

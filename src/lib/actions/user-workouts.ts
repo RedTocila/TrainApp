@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { requireSubscribedUserAccess } from "@/lib/actions/user-access";
 import { generateRecurringScheduleDates, inferScheduleFromSessions } from "@/lib/schedule-utils";
 import { UNCATEGORIZED_FOLDER_ID } from "@/lib/workout-folders";
-import type { ScheduledWorkout, WorkoutDay } from "@/lib/types";
+import type { ScheduledWorkout, WorkoutDay, Exercise } from "@/lib/types";
 
 async function requireUserId() {
   const supabase = await createClient();
@@ -15,12 +16,18 @@ async function requireUserId() {
   return { supabase, userId: user.id };
 }
 
+async function requireMutationUserId() {
+  const access = await requireSubscribedUserAccess();
+  if ("error" in access) throw new Error(access.error);
+  return { supabase: access.supabase, userId: access.userId };
+}
+
 export async function createPersonalWorkoutPlan(
   title: string,
   description?: string,
   folderId?: string | null
 ) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const resolvedFolderId =
     folderId && folderId !== UNCATEGORIZED_FOLDER_ID ? folderId : null;
@@ -101,7 +108,7 @@ export async function getPersonalWorkoutPlanWithDetails(planId: string) {
 }
 
 export async function deletePersonalWorkoutPlan(planId: string) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   const { error } = await supabase
     .from("workout_plans")
@@ -172,7 +179,7 @@ export async function scheduleWorkoutSeries({
   planId: string;
   dayId: string;
 }) {
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
 
   if (!weekdays.length) return { error: "Select at least one day of the week" };
   if (weeks < 1 || weeks > 52) return { error: "Weeks must be between 1 and 52" };
@@ -389,7 +396,7 @@ export async function createWorkoutFolder(name: string) {
   const trimmed = name.trim();
   if (!trimmed) return { error: "Folder name is required" };
 
-  const { supabase, userId } = await requireUserId();
+  const { supabase, userId } = await requireMutationUserId();
   const { data, error } = await supabase
     .from("workout_folders")
     .insert({ client_id: userId, name: trimmed })
@@ -596,6 +603,43 @@ export async function getPersonalWorkoutsWithSchedules(
   }
 
   return items;
+}
+
+export interface PersonalExerciseLibraryItem {
+  id: string;
+  name: string;
+  sets: number | null;
+  reps: string | null;
+  planId: string;
+  planTitle: string;
+  dayTitle: string;
+}
+
+export async function getPersonalExercisesLibrary(): Promise<PersonalExerciseLibraryItem[]> {
+  const plans = await getPersonalWorkoutPlans();
+  const items: PersonalExerciseLibraryItem[] = [];
+
+  for (const plan of plans) {
+    const { days } = await getPersonalWorkoutPlanWithDetails(plan.id);
+    for (const day of days) {
+      const exercises = (day.exercises ?? []).sort(
+        (a: Exercise, b: Exercise) => a.order_index - b.order_index
+      );
+      for (const exercise of exercises) {
+        items.push({
+          id: exercise.id,
+          name: exercise.name,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          planId: plan.id,
+          planTitle: plan.title,
+          dayTitle: day.title,
+        });
+      }
+    }
+  }
+
+  return items.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getScheduledWorkoutForDate(

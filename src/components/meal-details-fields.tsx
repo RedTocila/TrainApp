@@ -20,6 +20,7 @@ export function MealDetailsFields({
   ingredients,
   onIngredientsChange,
   autoFocusName,
+  hideMealType,
 }: {
   mealType: MealType;
   onMealTypeChange: (value: MealType) => void;
@@ -32,6 +33,7 @@ export function MealDetailsFields({
   ingredients: MealIngredient[];
   onIngredientsChange: (value: MealIngredient[]) => void;
   autoFocusName?: boolean;
+  hideMealType?: boolean;
 }) {
   const updateIngredient = (
     index: number,
@@ -45,19 +47,21 @@ export function MealDetailsFields({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
-        <Label>Type</Label>
-        <select
-          value={mealType}
-          onChange={(e) => onMealTypeChange(e.target.value as MealType)}
-          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
-        >
-          <option value="breakfast">Breakfast</option>
-          <option value="lunch">Lunch</option>
-          <option value="dinner">Dinner</option>
-          <option value="snack">Snack</option>
-        </select>
-      </div>
+      {!hideMealType && (
+        <div className="space-y-1">
+          <Label>Type</Label>
+          <select
+            value={mealType}
+            onChange={(e) => onMealTypeChange(e.target.value as MealType)}
+            className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+          >
+            <option value="breakfast">Breakfast</option>
+            <option value="lunch">Lunch</option>
+            <option value="dinner">Dinner</option>
+            <option value="snack">Snack</option>
+          </select>
+        </div>
+      )}
 
       <div className="space-y-1">
         <Label>Name</Label>

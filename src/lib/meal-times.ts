@@ -99,6 +99,18 @@ export function canToggleMealSlot(dateKey: string, now: Date = new Date()): bool
   return dayRelation(dateKey, now) !== "future";
 }
 
+/** True when the user may mark a slot eaten (not after the window closes). Logged slots may undo. */
+export function canMarkMealSlotAsEaten(
+  slot: MealSlot,
+  dateKey: string,
+  isLogged: boolean,
+  now: Date = new Date()
+): boolean {
+  if (dayRelation(dateKey, now) === "future") return false;
+  if (isLogged) return true;
+  return getMealSlotPhase(slot, dateKey, now) !== "missed";
+}
+
 export function isMealSlotLogged(slot: MealSlot, dailyMeals: DailyMealLog[]): boolean {
   return mapDailyMealsToSlots(dailyMeals).has(slot);
 }
@@ -107,6 +119,8 @@ export interface PlannedMealSlot {
   slot: MealSlot;
   label: string;
   meal: Meal | null;
+  options: Meal[];
+  loggedMeal: DailyMealLog | null;
   timeWindow: string;
   status: MealSlotStatus;
 }
@@ -115,28 +129,54 @@ export function getPlannedMealSlots(
   planMeals: Meal[],
   dailyMeals: DailyMealLog[],
   dateKey: string,
+  activeSlots?: MealSlot[] | null,
   now: Date = new Date()
 ): PlannedMealSlot[] {
   const grouped = groupMealsBySlot(planMeals);
   const loggedSlots = mapDailyMealsToSlots(dailyMeals);
 
   return MEAL_SLOTS.map(({ slot, label }) => {
-    const meal = grouped[slot][0] ?? null;
+    const options = grouped[slot];
+    const slotLog = dailyMeals.find((m) => m.slot === slot) ?? null;
+    const meal =
+      slotLog?.source_meal_id
+        ? options.find((m) => m.id === slotLog.source_meal_id) ??
+          ({
+            id: slotLog.source_meal_id,
+            plan_id: "",
+            meal_type: slotLog.meal_type,
+            slot,
+            name: slotLog.name,
+            description: slotLog.description,
+            calories: slotLog.calories,
+            protein: slotLog.protein,
+            carbs: slotLog.carbs,
+            fat: slotLog.fat,
+            foods: slotLog.foods,
+            order_index: 0,
+          } as Meal)
+        : options[0] ?? null;
     const timeWindow = formatMealSlotWindow(slot);
     const logged = loggedSlots.has(slot);
 
     let status: MealSlotStatus;
     if (logged) {
       status = "completed";
-    } else if (!meal) {
+    } else if (options.length === 0) {
       status = "upcoming";
     } else {
       const phase = getMealSlotPhase(slot, dateKey, now);
       status = phase === "missed" ? "missed" : phase === "upcoming" ? "upcoming" : "due";
     }
 
-    return { slot, label, meal, timeWindow, status };
-  }).filter((entry) => entry.meal !== null);
+    return { slot, label, meal, options, loggedMeal: slotLog, timeWindow, status };
+  }).filter((entry) => {
+    if (entry.options.length === 0) return false;
+    if (activeSlots && activeSlots.length > 0) {
+      return activeSlots.includes(entry.slot);
+    }
+    return true;
+  });
 }
 
 export function countMissedMealSlots(slots: PlannedMealSlot[]): number {
@@ -149,7 +189,7 @@ export function getNutritionDayStatus(
   dateKey: string,
   now: Date = new Date()
 ) {
-  const slots = getPlannedMealSlots(planMeals, dailyMeals, dateKey, now);
+  const slots = getPlannedMealSlots(planMeals, dailyMeals, dateKey, null, now);
   const planned = slots.filter((s) => s.meal);
   const doneCount = planned.filter((s) => s.status === "completed").length;
   const missedCount = planned.filter((s) => s.status === "missed").length;

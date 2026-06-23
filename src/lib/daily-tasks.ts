@@ -29,13 +29,21 @@ export interface ClientSchedule {
   waterGoalMl?: number;
   scheduledWorkouts?: ScheduledWorkout[];
   scheduledNutritionDays?: ScheduledNutritionDay[];
+  scheduledCardioByDate?: Record<string, { title: string; duration_minutes?: number | null }>;
   habitsByDate?: Record<
     string,
     { id: string; title: string; time_start?: string | null; time_end?: string | null }[]
   >;
 }
 
-const DEFAULT_CARDIO = "30 min cardio session";
+
+function getScheduledCardioForDate(
+  date: Date,
+  schedule: ClientSchedule
+): { title: string; duration_minutes?: number | null } | null {
+  const dateKey = formatDateKey(date);
+  return schedule.scheduledCardioByDate?.[dateKey] ?? null;
+}
 
 function getScheduledWorkoutDay(
   date: Date,
@@ -138,11 +146,17 @@ export function buildDailyTasks(
     });
   }
 
-  tasks.push({
-    id: `${dateKey}-cardio`,
-    category: "cardio",
-    label: DEFAULT_CARDIO,
-  });
+  const scheduledCardio = getScheduledCardioForDate(date, schedule);
+  if (scheduledCardio) {
+    tasks.push({
+      id: `${dateKey}-cardio`,
+      category: "cardio",
+      label: scheduledCardio.title,
+      detail: scheduledCardio.duration_minutes
+        ? `${scheduledCardio.duration_minutes} min`
+        : undefined,
+    });
+  }
 
   const dayHabits = schedule.habitsByDate?.[dateKey] ?? [];
   const now = new Date();
