@@ -68,7 +68,7 @@ export function DayTasksDialog({
 
   if (!open || !date) return null;
 
-  const { inProgress, missed, completed } = groupTasksByStatus(tasks);
+  const { active, missed, completed } = groupTasksByStatus(tasks);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -91,7 +91,7 @@ export function DayTasksDialog({
             </p>
             <h2 className="text-lg font-black">{format(date, "MMMM d, yyyy")}</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {inProgress.length} in progress · {completed.length} completed
+              {active.length} active · {completed.length} completed
               {missed.length > 0 ? ` · ${missed.length} missed` : ""}
             </p>
           </div>

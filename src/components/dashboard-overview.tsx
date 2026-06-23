@@ -56,13 +56,13 @@ export function DashboardOverview({
       setLog(fetchedLog);
       setDailyMeals(fetchedMeals);
 
-      if (planForDate) {
+      if (planForDate?.scheduled) {
         const meals = (planForDate.meals ?? []) as Meal[];
         const primary = getPrimaryMealsForDayMenu(meals);
         setNutritionPlan({
           title: planForDate.title,
           meals: primary.length > 0 ? primary : meals,
-          scheduled: planForDate.scheduled,
+          scheduled: true,
         });
         const totals = sumDayMenuMacros(meals);
         if (totals.calories > 0) {

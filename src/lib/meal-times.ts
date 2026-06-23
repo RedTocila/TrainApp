@@ -1,0 +1,207 @@
+import type { DailyMealLog, Meal } from "@/lib/types";
+import { formatTimeValue } from "@/lib/habit-utils";
+import {
+  MEAL_SLOTS,
+  groupMealsBySlot,
+  slotLabel,
+  type MealSlot,
+} from "@/lib/meal-slots";
+import { formatDateKey } from "@/lib/utils";
+
+export const MEAL_SLOT_WINDOWS: Record<MealSlot, { start: string; end: string }> = {
+  breakfast: { start: "07:00", end: "09:30" },
+  snack_1: { start: "10:00", end: "11:00" },
+  lunch: { start: "12:00", end: "14:00" },
+  snack_2: { start: "15:00", end: "16:30" },
+  dinner: { start: "18:00", end: "20:30" },
+};
+
+/** Latest time to finish a scheduled workout on the same day. */
+export const WORKOUT_DEADLINE = "20:00";
+
+/** Latest time to reach the daily water goal. */
+export const WATER_DEADLINE = "21:00";
+
+export type MealSlotPhase = "upcoming" | "active" | "missed";
+
+export type MealSlotStatus = "completed" | "missed" | "upcoming" | "due";
+
+function parseTimeToMinutes(time: string): number {
+  const [h, m] = time.slice(0, 5).split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
+export function formatMealSlotWindow(slot: MealSlot): string {
+  const { start, end } = MEAL_SLOT_WINDOWS[slot];
+  return `${formatTimeValue(start)} – ${formatTimeValue(end)}`;
+}
+
+export function dayRelation(
+  dateKey: string,
+  now: Date = new Date()
+): "past" | "today" | "future" {
+  const todayKey = formatDateKey(now);
+  if (dateKey < todayKey) return "past";
+  if (dateKey > todayKey) return "future";
+  return "today";
+}
+
+export function getMealSlotPhase(
+  slot: MealSlot,
+  dateKey: string,
+  now: Date = new Date()
+): MealSlotPhase {
+  const relation = dayRelation(dateKey, now);
+  if (relation === "future") return "upcoming";
+  if (relation === "past") return "missed";
+
+  const { end } = MEAL_SLOT_WINDOWS[slot];
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  if (nowMinutes > parseTimeToMinutes(end)) return "missed";
+  return "active";
+}
+
+export function isDeadlinePassed(
+  deadline: string,
+  dateKey: string,
+  now: Date = new Date()
+): boolean {
+  const relation = dayRelation(dateKey, now);
+  if (relation === "past") return true;
+  if (relation === "future") return false;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return nowMinutes > parseTimeToMinutes(deadline);
+}
+
+export function mapDailyMealsToSlots(logs: DailyMealLog[]): Set<MealSlot> {
+  const slots = new Set<MealSlot>();
+  const snacks: DailyMealLog[] = [];
+
+  for (const log of logs) {
+    if (log.slot) {
+      slots.add(log.slot as MealSlot);
+      continue;
+    }
+    if (log.meal_type === "breakfast") slots.add("breakfast");
+    else if (log.meal_type === "lunch") slots.add("lunch");
+    else if (log.meal_type === "dinner") slots.add("dinner");
+    else if (log.meal_type === "snack") snacks.push(log);
+  }
+
+  snacks.sort((a, b) => a.logged_at.localeCompare(b.logged_at));
+  if (snacks[0] && !slots.has("snack_1")) slots.add("snack_1");
+  if (snacks.length > 1 && !slots.has("snack_2")) slots.add("snack_2");
+
+  return slots;
+}
+
+export function canToggleMealSlot(dateKey: string, now: Date = new Date()): boolean {
+  return dayRelation(dateKey, now) !== "future";
+}
+
+export function isMealSlotLogged(slot: MealSlot, dailyMeals: DailyMealLog[]): boolean {
+  return mapDailyMealsToSlots(dailyMeals).has(slot);
+}
+
+export interface PlannedMealSlot {
+  slot: MealSlot;
+  label: string;
+  meal: Meal | null;
+  timeWindow: string;
+  status: MealSlotStatus;
+}
+
+export function getPlannedMealSlots(
+  planMeals: Meal[],
+  dailyMeals: DailyMealLog[],
+  dateKey: string,
+  now: Date = new Date()
+): PlannedMealSlot[] {
+  const grouped = groupMealsBySlot(planMeals);
+  const loggedSlots = mapDailyMealsToSlots(dailyMeals);
+
+  return MEAL_SLOTS.map(({ slot, label }) => {
+    const meal = grouped[slot][0] ?? null;
+    const timeWindow = formatMealSlotWindow(slot);
+    const logged = loggedSlots.has(slot);
+
+    let status: MealSlotStatus;
+    if (logged) {
+      status = "completed";
+    } else if (!meal) {
+      status = "upcoming";
+    } else {
+      const phase = getMealSlotPhase(slot, dateKey, now);
+      status = phase === "missed" ? "missed" : phase === "upcoming" ? "upcoming" : "due";
+    }
+
+    return { slot, label, meal, timeWindow, status };
+  }).filter((entry) => entry.meal !== null);
+}
+
+export function countMissedMealSlots(slots: PlannedMealSlot[]): number {
+  return slots.filter((s) => s.status === "missed").length;
+}
+
+export function getNutritionDayStatus(
+  planMeals: Meal[],
+  dailyMeals: DailyMealLog[],
+  dateKey: string,
+  now: Date = new Date()
+) {
+  const slots = getPlannedMealSlots(planMeals, dailyMeals, dateKey, now);
+  const planned = slots.filter((s) => s.meal);
+  const doneCount = planned.filter((s) => s.status === "completed").length;
+  const missedCount = planned.filter((s) => s.status === "missed").length;
+
+  return {
+    total: planned.length,
+    doneCount,
+    missedCount,
+    completed: planned.length > 0 && doneCount === planned.length,
+    missed: planned.length > 0 && missedCount > 0 && doneCount < planned.length,
+  };
+}
+
+export function mealAttentionMessage(missedCount: number): string | null {
+  if (missedCount <= 0) return null;
+  if (missedCount === 1) {
+    return "You missed a meal today — try to eat on schedule next time.";
+  }
+  return `You missed ${missedCount} meals today — eat on schedule tomorrow.`;
+}
+
+export function workoutAttentionMessage(missed: boolean): string | null {
+  if (!missed) return null;
+  return "You missed today's workout — try to train earlier tomorrow.";
+}
+
+export function habitsAttentionMessage(missedCount: number): string | null {
+  if (missedCount <= 0) return null;
+  if (missedCount === 1) {
+    return "You missed a habit today — stick to your schedule tomorrow.";
+  }
+  return `You missed ${missedCount} habits today — stay consistent tomorrow.`;
+}
+
+export function waterAttentionMessage(missed: boolean): string | null {
+  if (!missed) return null;
+  return "You didn't reach your water goal — keep a bottle nearby and sip throughout the day.";
+}
+
+export function mealSlotStatusLabel(status: MealSlotStatus): string | undefined {
+  switch (status) {
+    case "completed":
+      return "Ate";
+    case "missed":
+      return "Missed";
+    case "due":
+      return "Due now";
+    case "upcoming":
+      return undefined;
+  }
+}
+
+export function mealSlotTaskLabel(slot: MealSlot, mealName: string): string {
+  return `${slotLabel(slot)}: ${mealName}`;
+}

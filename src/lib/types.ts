@@ -168,6 +168,7 @@ export interface DailyMealLog {
   client_id: string;
   date: string;
   meal_type: MealType;
+  slot?: MealSlot | null;
   name: string;
   description?: string | null;
   calories: number;

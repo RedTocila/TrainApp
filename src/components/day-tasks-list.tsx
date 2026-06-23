@@ -68,7 +68,7 @@ export function TaskRow({ task }: { task: DailyTask }) {
         onClick={() => navigate(task)}
         className={cn(
           "flex w-full items-start gap-3 rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-secondary/70",
-          task.completed && "opacity-75",
+          task.completed && "border-green-500/30 bg-green-500/5 hover:border-green-500/40",
           isMissed && "border-red-500/30 bg-red-500/5 hover:border-red-500/40",
           isInProgress && "border-primary/20"
         )}
@@ -77,7 +77,7 @@ export function TaskRow({ task }: { task: DailyTask }) {
           className={cn(
             "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border",
             task.completed
-              ? "border-primary bg-primary text-primary-foreground"
+              ? "border-green-500 bg-green-500 text-white"
               : isMissed
                 ? "border-red-500/50 bg-red-500/10 text-red-400"
                 : "border-primary/40 bg-primary/10 text-primary"
@@ -97,14 +97,14 @@ export function TaskRow({ task }: { task: DailyTask }) {
             <span
               className={cn(
                 "text-sm font-medium",
-                task.completed && "text-muted-foreground line-through",
+                task.completed && "text-green-400",
                 isMissed && "text-red-400"
               )}
             >
               {task.label}
             </span>
             {task.completed && (
-              <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+              <span className="rounded bg-green-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-400">
                 Completed
               </span>
             )}
@@ -141,14 +141,15 @@ export function TaskRow({ task }: { task: DailyTask }) {
 
 export function groupTasksByStatus(tasks: DailyTask[]) {
   return {
-    inProgress: tasks.filter((t) => !t.completed && !t.missed),
-    missed: tasks.filter((t) => t.missed && !t.completed),
+    active: tasks.filter((t) => !t.completed),
     completed: tasks.filter((t) => t.completed),
+    missed: tasks.filter((t) => t.missed && !t.completed),
+    inProgress: tasks.filter((t) => !t.completed && !t.missed),
   };
 }
 
 export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
-  const { inProgress, missed, completed } = groupTasksByStatus(tasks);
+  const { active, completed } = groupTasksByStatus(tasks);
 
   if (tasks.length === 0) {
     return (
@@ -158,25 +159,13 @@ export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
 
   return (
     <div className="space-y-5">
-      {inProgress.length > 0 && (
+      {active.length > 0 && (
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-amber-400">
             In Progress
           </h3>
           <ul className="space-y-2">
-            {inProgress.map((task) => (
-              <TaskRow key={task.id} task={task} />
-            ))}
-          </ul>
-        </section>
-      )}
-      {missed.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-red-400">
-            Missed
-          </h3>
-          <ul className="space-y-2">
-            {missed.map((task) => (
+            {active.map((task) => (
               <TaskRow key={task.id} task={task} />
             ))}
           </ul>
@@ -184,7 +173,7 @@ export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
       )}
       {completed.length > 0 && (
         <section>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-green-400">
             Completed
           </h3>
           <ul className="space-y-2">

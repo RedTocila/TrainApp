@@ -5,7 +5,10 @@ import type {
   WorkoutAssignment,
   WorkoutDay,
 } from "@/lib/types";
-import { getPrimaryMealsForDayMenu, formatSlotSummary } from "@/lib/meal-slots";
+import {
+  getPrimaryMealsForDayMenu,
+  formatSlotSummary,
+} from "@/lib/meal-slots";
 import { formatHabitTimeWindow, getHabitWindowPhase } from "@/lib/habit-utils";
 import { formatDateKey } from "@/lib/utils";
 
@@ -113,14 +116,13 @@ export function buildDailyTasks(
   if (nutritionPlan) {
     const meals = nutritionPlan.meals ?? [];
     const primaryMeals = getPrimaryMealsForDayMenu(meals);
-    const slotSummary = formatSlotSummary(meals);
     const label = scheduledPlan
       ? nutritionPlan.title
       : `Hit ${nutritionPlan.target_calories} cal`;
     const detail =
       primaryMeals.length > 0
         ? primaryMeals.map((m) => m.name).join(" · ")
-        : slotSummary || `${nutritionPlan.target_protein}g protein`;
+        : formatSlotSummary(meals) || `${nutritionPlan.target_protein}g protein`;
 
     tasks.push({
       id: `${dateKey}-nutrition`,

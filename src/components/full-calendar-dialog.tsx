@@ -69,7 +69,7 @@ export function FullCalendarDialog({
     () => tasksForDay(schedule, completionsByDate, selectedDate),
     [selectedDate, schedule, completionsByDate]
   );
-  const { inProgress, completed, missed } = useMemo(
+  const { active, completed, missed } = useMemo(
     () => groupTasksByStatus(selectedDayTasks),
     [selectedDayTasks]
   );
@@ -164,7 +164,7 @@ export function FullCalendarDialog({
               {format(selectedDate, "EEEE, MMMM d")}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              {inProgress.length} in progress · {completed.length} completed
+              {active.length} active · {completed.length} completed
               {missed.length > 0 ? ` · ${missed.length} missed` : ""}
             </p>
           </div>

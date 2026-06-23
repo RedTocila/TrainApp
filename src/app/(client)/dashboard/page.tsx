@@ -19,7 +19,7 @@ import {
 } from "@/lib/actions/habits";
 import { getTaskCompletionsInRange } from "@/lib/actions/task-completions";
 import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
-import { getScheduledNutritionInRange } from "@/lib/actions/user-nutrition-schedule";
+import { getScheduledNutritionInRange, getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
 import { resolveWorkoutForDate } from "@/lib/actions/workout-sessions";
 import { formatDateKey } from "@/lib/utils";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
@@ -103,6 +103,7 @@ export default async function DashboardPage() {
       : null;
 
   const initialWorkout = await resolveWorkoutForDate(profile.id, dateKey);
+  const scheduledPlanForToday = await getNutritionPlanForDate(profile.id, dateKey);
 
   const targets = {
     calories: nutritionPlan?.target_calories ?? profile.target_calories ?? 2000,
@@ -111,12 +112,14 @@ export default async function DashboardPage() {
     fat: nutritionPlan?.target_fat ?? profile.target_fat ?? 65,
   };
 
-  const nutritionSummary = nutritionPlan
-    ? {
-        title: nutritionPlan.title,
-        meals: getPrimaryMealsForDayMenu(nutritionPlan.meals ?? []),
-      }
-    : null;
+  const nutritionSummary =
+    scheduledPlanForToday?.scheduled
+      ? {
+          title: scheduledPlanForToday.title,
+          meals: getPrimaryMealsForDayMenu(scheduledPlanForToday.meals ?? []),
+          scheduled: true as const,
+        }
+      : null;
 
   return (
     <>

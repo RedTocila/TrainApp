@@ -37,6 +37,7 @@ import {
   sumDayMenuMacros,
   type MealSlot,
 } from "@/lib/meal-slots";
+import { formatMealSlotWindow } from "@/lib/meal-times";
 import type { Meal, NutritionPlan } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -350,7 +351,12 @@ export function DayMenuEditor({
         return (
           <Card key={slot}>
             <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
-              <CardTitle className="text-base">{label}</CardTitle>
+              <CardTitle className="text-base">
+                {label}
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  {formatMealSlotWindow(slot)}
+                </span>
+              </CardTitle>
               <Button size="sm" variant="outline" onClick={() => setAddSlot(slot)}>
                 <Plus className="mr-1 h-3 w-3" />
                 Add

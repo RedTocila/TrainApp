@@ -93,6 +93,22 @@ export async function resolveWorkoutForDate(
   };
 }
 
+export async function isWorkoutCompletedOnDate(
+  clientId: string,
+  dateKey: string
+): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("workout_sessions")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("status", "completed")
+    .eq("scheduled_date", dateKey)
+    .limit(1)
+    .maybeSingle();
+  return !!data;
+}
+
 export async function getInProgressSession(): Promise<WorkoutSession | null> {
   const { supabase, userId } = await requireUserId();
   const { data } = await supabase

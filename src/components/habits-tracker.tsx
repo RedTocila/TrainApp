@@ -23,6 +23,7 @@ import {
   type HabitWithStatus,
 } from "@/lib/actions/habits";
 import { formatHabitTimeWindow, getHabitDayStatus, habitStatusLabel } from "@/lib/habit-utils";
+import { MissedButton } from "@/components/missed-items-dialog";
 import type { ClientHabit } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -75,7 +76,13 @@ export function HabitsTracker({
     ? "today"
     : format(selectedDate, "MMM d");
   const doneCount = displayHabits.filter((h) => h.completed).length;
-  const missedCount = displayHabits.filter((h) => h.status === "missed").length;
+  const missedHabits = displayHabits.filter((h) => h.status === "missed");
+  const missedCount = missedHabits.length;
+  const missedHabitItems = missedHabits.map((h) => ({
+    id: h.id,
+    label: h.title,
+    detail: formatHabitTimeWindow(h.time_start, h.time_end) ?? undefined,
+  }));
 
   const openAdd = () => {
     setEditingHabit(null);
@@ -116,16 +123,20 @@ export function HabitsTracker({
       <Card id="dashboard-habits">
         <CardHeader className="flex flex-row items-start justify-between gap-3">
           <div>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex flex-wrap items-center gap-2">
               <ListChecks className="h-5 w-5 text-violet-400" />
               Daily habits
+              <MissedButton
+                count={missedCount}
+                title="Missed habits"
+                hint="Stick to your schedule tomorrow."
+                items={missedHabitItems}
+              />
             </CardTitle>
             <p className="text-sm text-muted-foreground">
               {habits.length === 0
                 ? "Add habits and schedule them on your calendar"
-                : `${doneCount}/${habits.length} done for ${dateLabel}${
-                    missedCount > 0 ? ` · ${missedCount} missed` : ""
-                  }`}
+                : `${doneCount}/${habits.length} done for ${dateLabel}`}
             </p>
           </div>
           <Button size="sm" onClick={openAdd}>

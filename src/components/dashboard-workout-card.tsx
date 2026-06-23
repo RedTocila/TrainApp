@@ -7,11 +7,17 @@ import { useSelectedDate } from "@/components/date-provider";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import {
   resolveWorkoutForDate,
+  isWorkoutCompletedOnDate,
   type TodaysWorkoutInfo,
 } from "@/lib/actions/workout-sessions";
 import { formatDateKey } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MissedButton } from "@/components/missed-items-dialog";
+import {
+  isDeadlinePassed,
+  WORKOUT_DEADLINE,
+} from "@/lib/meal-times";
 
 function workoutTitle(date: Date) {
   if (isToday(date)) return "Today's Workout";
@@ -28,26 +34,53 @@ export function DashboardWorkoutCard({
 }) {
   const { selectedDate } = useSelectedDate();
   const [workout, setWorkout] = useState(initialWorkout);
+  const [workoutCompleted, setWorkoutCompleted] = useState(false);
   const [, startTransition] = useTransition();
 
   useEffect(() => {
     const dateKey = formatDateKey(selectedDate);
     startTransition(async () => {
-      const resolved = await resolveWorkoutForDate(clientId, dateKey);
+      const [resolved, completed] = await Promise.all([
+        resolveWorkoutForDate(clientId, dateKey),
+        isWorkoutCompletedOnDate(clientId, dateKey),
+      ]);
       setWorkout(resolved);
+      setWorkoutCompleted(completed);
     });
   }, [selectedDate, clientId]);
 
+  const dateKey = formatDateKey(selectedDate);
+  const workoutMissed =
+    !!workout &&
+    !workoutCompleted &&
+    isDeadlinePassed(WORKOUT_DEADLINE, dateKey);
+
   return (
     <Card id="dashboard-workout">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardTitle className="flex flex-wrap items-center gap-2">
           <Dumbbell className="h-5 w-5 text-primary" />
           {workoutTitle(selectedDate)}
+          <MissedButton
+            count={workoutMissed ? 1 : 0}
+            title="Missed workout"
+            hint="Try to train earlier tomorrow."
+            items={
+              workout && workoutMissed
+                ? [
+                    {
+                      id: "workout",
+                      label: workout.dayTitle,
+                      detail: `${workout.planTitle} · was due by ${WORKOUT_DEADLINE}`,
+                    },
+                  ]
+                : []
+            }
+          />
         </CardTitle>
         <StartTodaysWorkoutButton date={selectedDate} disabled={!workout} />
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {workout ? (
           <div>
             <p className="font-semibold">{workout.dayTitle}</p>
@@ -55,6 +88,7 @@ export function DashboardWorkoutCard({
               {workout.planTitle}
               {workout.exercises.length > 0 &&
                 ` · ${workout.exercises.length} exercise${workout.exercises.length === 1 ? "" : "s"}`}
+              {` · complete by ${WORKOUT_DEADLINE}`}
             </p>
             <div className="mt-3 flex flex-wrap gap-1">
               {workout.exercises.slice(0, 3).map((ex) => (

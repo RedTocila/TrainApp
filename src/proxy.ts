@@ -1,8 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
-export async function middleware(request: NextRequest) {
+function missingSupabaseEnvResponse() {
+  return new NextResponse(
+    "TrainApp is missing Supabase environment variables. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel project settings, then redeploy.",
+    { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } }
+  );
+}
+
+export async function proxy(request: NextRequest) {
+  if (!getSupabasePublicEnv()) {
+    return missingSupabaseEnvResponse();
+  }
+
   const { supabase, user, supabaseResponse } = await updateSession(request);
+  if (!supabase) {
+    return missingSupabaseEnvResponse();
+  }
+
   const path = request.nextUrl.pathname;
 
   const isAuthPage = path === "/login" || path === "/register";

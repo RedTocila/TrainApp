@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { Apple, Plus, Trash2, UtensilsCrossed } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { format, isToday } from "date-fns";
+import { Apple, Plus, Trash2 } from "lucide-react";
 import { formatDateKey } from "@/lib/utils";
 import {
   addWater,
@@ -17,8 +18,15 @@ import {
 } from "@/lib/meal-utils";
 import { WaterRing } from "@/components/water-ring";
 import { MacroBars } from "@/components/macro-bars";
-import { TodaysMealsDialog } from "@/components/todays-meals-dialog";
+import { MealPlanChecklist } from "@/components/scheduled-meals-list";
+import { MissedButton } from "@/components/missed-items-dialog";
 import { LogMealDialog } from "@/components/log-meal-dialog";
+import {
+  countMissedMealSlots,
+  getPlannedMealSlots,
+  isDeadlinePassed,
+  WATER_DEADLINE,
+} from "@/lib/meal-times";
 import type { DailyMealLog, Meal } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,7 +56,7 @@ interface DailyTrackerProps {
   personalPlanId?: string | null;
   waterGoalMl: number;
   onWaterGoalChange?: (goal: number) => void;
-  nutritionPlan?: { title: string; meals: Meal[] } | null;
+  nutritionPlan?: { title: string; meals: Meal[]; scheduled?: boolean } | null;
 }
 
 function GoalToggle({
@@ -92,10 +100,16 @@ export function DailyTracker({
   const [goalError, setGoalError] = useState<string | null>(null);
   const [nutritionGoalError, setNutritionGoalError] = useState<string | null>(null);
   const [nutritionGoalInput, setNutritionGoalInput] = useState(targets);
-  const [mealsOpen, setMealsOpen] = useState(false);
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
+  const [mealTick, setMealTick] = useState(0);
   const dateKey = formatDateKey(date);
+
+  useEffect(() => {
+    if (!isToday(date)) return;
+    const id = setInterval(() => setMealTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, [date]);
 
   useEffect(() => {
     setLocalWaterMl(waterMl);
@@ -110,6 +124,39 @@ export function DailyTracker({
   }, [targets]);
 
   const current = sumMealMacros(dailyMeals);
+
+  const plannedMealSlots = useMemo(
+    () =>
+      nutritionPlan?.meals?.length
+        ? getPlannedMealSlots(nutritionPlan.meals, dailyMeals, dateKey)
+        : [],
+    [nutritionPlan?.meals, dailyMeals, dateKey, mealTick]
+  );
+
+  const extraLoggedMeals = useMemo(
+    () => dailyMeals.filter((meal) => !meal.slot),
+    [dailyMeals]
+  );
+
+  const hasMealPlan = plannedMealSlots.length > 0;
+
+  const missedMeals = countMissedMealSlots(plannedMealSlots);
+  const missedMealItems = useMemo(
+    () =>
+      plannedMealSlots
+        .filter((s) => s.status === "missed" && s.meal)
+        .map((s) => ({
+          id: s.slot,
+          label: `${s.label}: ${s.meal!.name}`,
+          detail: `Was due ${s.timeWindow}`,
+        })),
+    [plannedMealSlots]
+  );
+  const waterMissed =
+    localWaterMl < waterGoalMl &&
+    isDeadlinePassed(WATER_DEADLINE, dateKey);
+
+  const nutritionTitle = isToday(date) ? "Nutrition Today" : `Nutrition · ${format(date, "MMM d")}`;
 
   const handleAddWater = (amount: number) => {
     setLocalWaterMl((prev) => prev + amount);
@@ -178,12 +225,21 @@ export function DailyTracker({
         <Card id="dashboard-nutrition">
           <CardHeader className="flex flex-row items-start justify-between gap-3">
             <div className="min-w-0">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex flex-wrap items-center gap-2">
                 <Apple className="h-5 w-5 text-primary" />
-                Nutrition Today
+                {nutritionTitle}
+                <MissedButton
+                  count={missedMeals}
+                  title="Missed meals"
+                  hint="Try to eat on schedule next time."
+                  items={missedMealItems}
+                />
               </CardTitle>
               {nutritionPlan ? (
-                <p className="mt-1 text-sm text-muted-foreground">{nutritionPlan.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {nutritionPlan.title}
+                  {nutritionPlan.scheduled && " · scheduled for this day"}
+                </p>
               ) : (
                 <p className="mt-1 text-sm text-muted-foreground">
                   No nutrition plan assigned yet
@@ -209,12 +265,6 @@ export function DailyTracker({
                 <Plus className="mr-1.5 h-4 w-4" />
                 Log meal
               </Button>
-              {nutritionPlan && nutritionPlan.meals.length > 0 && (
-                <Button variant="outline" size="sm" onClick={() => setMealsOpen(true)}>
-                  <UtensilsCrossed className="mr-1.5 h-4 w-4" />
-                  What to eat
-                </Button>
-              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -269,11 +319,70 @@ export function DailyTracker({
               </div>
             )}
             <MacroBars current={current} targets={targets} />
+            {hasMealPlan ? (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">
+                    {isToday(date) ? "Today's meal plan" : `Meal plan · ${format(date, "MMM d")}`}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Press Ate when you finish each meal.
+                  </p>
+                </div>
+                <MealPlanChecklist
+                  clientId={clientId}
+                  dateKey={dateKey}
+                  slots={plannedMealSlots}
+                  onMealsChange={refreshMeals}
+                />
+              </div>
+            ) : nutritionPlan ? (
+              <p className="rounded-lg border border-dashed border-border bg-secondary/20 px-4 py-6 text-center text-sm text-muted-foreground">
+                No meals in this day menu yet. Add meals to your scheduled menu to see them here.
+              </p>
+            ) : null}
+            {extraLoggedMeals.length > 0 && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Extra logged meals</Label>
+                <ul className="space-y-2">
+                  {extraLoggedMeals.map((meal) => {
+                    const summary = formatMealMacrosSummary(normalizeMealMacros(meal));
+                    return (
+                      <li
+                        key={meal.id}
+                        className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <Badge className="capitalize">{meal.meal_type}</Badge>
+                            <span className="font-medium">{meal.name}</span>
+                          </div>
+                          {summary && (
+                            <p className="text-xs text-muted-foreground">{summary}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 text-muted-foreground hover:text-red-400"
+                          disabled={isPending}
+                          onClick={() => handleDeleteMeal(meal.id)}
+                          aria-label={`Remove ${meal.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+            {!hasMealPlan && (
             <div className="space-y-3">
               <Label className="text-sm font-medium">Logged meals</Label>
               {dailyMeals.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-border bg-secondary/20 px-4 py-6 text-center text-sm text-muted-foreground">
-                  No meals logged yet. Add meals with macros to track your intake.
+                  No meals logged yet. Schedule a day menu or log meals manually.
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -314,14 +423,34 @@ export function DailyTracker({
                 </ul>
               )}
             </div>
+            )}
           </CardContent>
         </Card>
 
         <Card id="dashboard-water">
           <CardHeader>
-            <CardTitle>Water Intake</CardTitle>
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              Water Intake
+              <MissedButton
+                count={waterMissed ? 1 : 0}
+                title="Missed water goal"
+                hint="Keep a bottle nearby and sip throughout the day."
+                items={
+                  waterMissed
+                    ? [
+                        {
+                          id: "water",
+                          label: `Drink ${waterGoalMl.toLocaleString()} ml`,
+                          detail: `${localWaterMl.toLocaleString()} ml logged · goal by ${WATER_DEADLINE}`,
+                        },
+                      ]
+                    : []
+                }
+              />
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              {localWaterMl.toLocaleString()} / {waterGoalMl.toLocaleString()} ml
+              {localWaterMl.toLocaleString()} / {waterGoalMl.toLocaleString()} ml · goal by{" "}
+              {WATER_DEADLINE}
             </p>
             <GoalToggle
               label="Change water goal"
@@ -389,13 +518,6 @@ export function DailyTracker({
           </CardContent>
         </Card>
       </div>
-
-      <TodaysMealsDialog
-        open={mealsOpen}
-        planTitle={nutritionPlan?.title}
-        meals={nutritionPlan?.meals ?? []}
-        onClose={() => setMealsOpen(false)}
-      />
 
       <LogMealDialog
         open={logMealOpen}
