@@ -1,0 +1,274 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import type { MealType } from "@/lib/types";
+
+export async function createWorkoutPlan(title: string, description?: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data, error } = await supabase
+    .from("workout_plans")
+    .insert({ title, description, created_by: user.id })
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  return { data };
+}
+
+export async function saveWorkoutDay(
+  planId: string,
+  dayIndex: number,
+  title: string,
+  exercises: { name: string; sets: number; reps: string; rest_seconds: number; notes?: string }[],
+  dayId?: string
+) {
+  const supabase = await createClient();
+
+  let targetDayId = dayId;
+  if (!targetDayId) {
+    const { data: day, error } = await supabase
+      .from("workout_days")
+      .insert({ plan_id: planId, day_index: dayIndex, title })
+      .select()
+      .single();
+    if (error) return { error: error.message };
+    targetDayId = day.id;
+  } else {
+    await supabase.from("workout_days").update({ title, day_index: dayIndex }).eq("id", targetDayId);
+    await supabase.from("exercises").delete().eq("day_id", targetDayId);
+  }
+
+  if (exercises.length > 0) {
+    const { error } = await supabase.from("exercises").insert(
+      exercises.map((ex, i) => ({
+        day_id: targetDayId!,
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest_seconds: ex.rest_seconds,
+        notes: ex.notes ?? null,
+        order_index: i,
+      }))
+    );
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath(`/admin/workouts/${planId}/edit`);
+  return { success: true, dayId: targetDayId };
+}
+
+export async function assignWorkoutPlan(clientId: string, planId: string, requestId?: string) {
+  const supabase = await createClient();
+
+  await supabase
+    .from("workout_assignments")
+    .update({ active: false })
+    .eq("client_id", clientId);
+
+  const { error } = await supabase.from("workout_assignments").insert({
+    client_id: clientId,
+    plan_id: planId,
+    active: true,
+  });
+
+  if (error) return { error: error.message };
+
+  if (requestId) {
+    await supabase.from("plan_requests").update({ status: "completed" }).eq("id", requestId);
+  }
+
+  await supabase.from("notifications").insert({
+    user_id: clientId,
+    type: "plan_assigned",
+    title: "Your workout plan is ready",
+    body: "Your coach has assigned your personalized workout plan.",
+    metadata: { plan_id: planId, type: "workout" },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function createNutritionPlan(data: {
+  title: string;
+  description?: string;
+  target_calories: number;
+  target_protein: number;
+  target_carbs: number;
+  target_fat: number;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: plan, error } = await supabase
+    .from("nutrition_plans")
+    .insert({ ...data, created_by: user.id })
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  return { data: plan };
+}
+
+export async function saveMeal(
+  planId: string,
+  meal: { meal_type: MealType; name: string; foods: { name: string; amount?: string }[]; order_index: number },
+  mealId?: string
+) {
+  const supabase = await createClient();
+
+  if (mealId) {
+    const { error } = await supabase
+      .from("meals")
+      .update(meal)
+      .eq("id", mealId);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabase.from("meals").insert({ plan_id: planId, ...meal });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath(`/admin/nutrition/${planId}/edit`);
+  return { success: true };
+}
+
+export async function deleteMeal(mealId: string, planId: string) {
+  const supabase = await createClient();
+  await supabase.from("meals").delete().eq("id", mealId);
+  revalidatePath(`/admin/nutrition/${planId}/edit`);
+}
+
+export async function assignNutritionPlan(clientId: string, planId: string, requestId?: string) {
+  const supabase = await createClient();
+
+  await supabase
+    .from("nutrition_assignments")
+    .update({ active: false })
+    .eq("client_id", clientId);
+
+  const { error } = await supabase.from("nutrition_assignments").insert({
+    client_id: clientId,
+    plan_id: planId,
+    active: true,
+  });
+
+  if (error) return { error: error.message };
+
+  if (requestId) {
+    await supabase.from("plan_requests").update({ status: "completed" }).eq("id", requestId);
+  }
+
+  await supabase.from("notifications").insert({
+    user_id: clientId,
+    type: "plan_assigned",
+    title: "Your nutrition plan is ready",
+    body: "Your coach has assigned your personalized diet plan.",
+    metadata: { plan_id: planId, type: "diet" },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function getWorkoutPlans() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("workout_plans").select("*").order("created_at", { ascending: false });
+  return data ?? [];
+}
+
+export async function getNutritionPlans() {
+  const supabase = await createClient();
+  const { data } = await supabase.from("nutrition_plans").select("*").order("created_at", { ascending: false });
+  return data ?? [];
+}
+
+export async function getWorkoutPlanWithDetails(planId: string) {
+  const supabase = await createClient();
+  const { data: plan } = await supabase.from("workout_plans").select("*").eq("id", planId).single();
+  const { data: days } = await supabase
+    .from("workout_days")
+    .select("*, exercises(*)")
+    .eq("plan_id", planId)
+    .order("day_index");
+  return { plan, days: days ?? [] };
+}
+
+export async function getNutritionPlanWithDetails(planId: string) {
+  const supabase = await createClient();
+  const { data: plan } = await supabase.from("nutrition_plans").select("*").eq("id", planId).single();
+  const { data: meals } = await supabase
+    .from("meals")
+    .select("*")
+    .eq("plan_id", planId)
+    .order("order_index");
+  return { plan, meals: meals ?? [] };
+}
+
+export async function getClientWorkoutAssignment(clientId: string) {
+  const supabase = await createClient();
+  const { data: assignment } = await supabase
+    .from("workout_assignments")
+    .select("*, workout_plans(*)")
+    .eq("client_id", clientId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (!assignment?.workout_plans) return assignment;
+
+  const { data: days } = await supabase
+    .from("workout_days")
+    .select("*, exercises(*)")
+    .eq("plan_id", assignment.plan_id)
+    .order("day_index");
+
+  return {
+    ...assignment,
+    workout_plans: {
+      ...assignment.workout_plans,
+      workout_days: days ?? [],
+    },
+  };
+}
+
+export async function getClientNutritionAssignment(clientId: string) {
+  const supabase = await createClient();
+  const { data: assignment } = await supabase
+    .from("nutrition_assignments")
+    .select("*, nutrition_plans(*)")
+    .eq("client_id", clientId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (!assignment?.nutrition_plans) return assignment;
+
+  const { data: meals } = await supabase
+    .from("meals")
+    .select("*")
+    .eq("plan_id", assignment.plan_id)
+    .order("order_index");
+
+  return {
+    ...assignment,
+    nutrition_plans: {
+      ...assignment.nutrition_plans,
+      meals: meals ?? [],
+    },
+  };
+}
+
+export async function getAllClients() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("role", "client")
+    .order("created_at", { ascending: false });
+  return data ?? [];
+}
