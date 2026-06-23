@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
 import { upsertDailyLog } from "@/lib/actions/logs";
@@ -94,7 +93,6 @@ export async function logPlannedMealOption(
   if (error) return { error: error.message };
 
   await syncDailyMacros(clientId, date);
-  revalidatePath("/dashboard");
   return { success: true, checked: true };
 }
 
@@ -125,7 +123,6 @@ export async function togglePlannedMealSlot(
 
     if (error) return { error: error.message };
     await syncDailyMacros(clientId, date);
-    revalidatePath("/dashboard");
     return { success: true, checked: false };
   }
 
@@ -158,7 +155,6 @@ export async function togglePlannedMealSlot(
   if (error) return { error: error.message };
 
   await syncDailyMacros(clientId, date);
-  revalidatePath("/dashboard");
   return { success: true, checked: true };
 }
 
@@ -206,7 +202,6 @@ export async function logMealFromLibrary(
   if (error) return { error: error.message };
 
   await syncDailyMacros(clientId, date);
-  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -239,7 +234,6 @@ export async function logCustomMeal(clientId: string, date: string, data: MealFo
   if (error) return { error: error.message };
 
   await syncDailyMacros(clientId, date);
-  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -263,6 +257,5 @@ export async function deleteDailyMealLog(clientId: string, date: string, logId: 
   if (error) return { error: error.message };
 
   await syncDailyMacros(clientId, date);
-  revalidatePath("/dashboard");
   return { success: true };
 }

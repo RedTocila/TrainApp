@@ -19,15 +19,16 @@ import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
 import { isTrainPath } from "@/lib/train-nav";
 
 const standardNavItems = [
-  { href: "/dashboard", label: "Home", icon: Home, exact: true as const },
-  { href: "/dashboard/ai", label: "AI Coach", icon: Bot },
-  { href: "/dashboard/classes", label: "Live coaching", icon: Video },
-  { href: "/dashboard/profile", label: "Profile", icon: User },
+  { href: "/dashboard", label: "Home", mobileLabel: "Home", icon: Home, exact: true as const },
+  { href: "/dashboard/ai", label: "AI Coach", mobileLabel: "AI", icon: Bot },
+  { href: "/dashboard/classes", label: "Live coaching", mobileLabel: "Live", icon: Video },
+  { href: "/dashboard/profile", label: "Profile", mobileLabel: "Profile", icon: User },
 ];
 
 const programsNavItem = {
   href: "/dashboard/workout",
   label: "Programs",
+  mobileLabel: "Programs",
 };
 
 function isNavItemActive(pathname: string, href: string, exact?: boolean) {
@@ -103,35 +104,32 @@ export function ClientNav({ fullName }: { fullName: string }) {
         </form>
       </aside>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        <div className="absolute -top-12 right-3">
-          <ThemeToggle />
-        </div>
-        <div className="flex justify-around py-2">
+      <nav className="dashboard-mobile-nav fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur lg:hidden">
+        <div className="flex justify-around px-1 pt-1.5">
           <Link
             href="/dashboard"
             className={cn(
-              "flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium",
+              "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none",
               pathname === "/dashboard" ? "text-primary" : "text-muted-foreground"
             )}
           >
             <motion.div whileTap={{ scale: 0.9 }}>
               <Home className="h-5 w-5" />
             </motion.div>
-            Home
+            <span className="truncate">{standardNavItems[0].mobileLabel}</span>
           </Link>
 
           <Link
             href={programsNavItem.href}
             className={cn(
-              "flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium",
+              "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none",
               programsActive ? "text-primary" : "text-muted-foreground"
             )}
           >
             <motion.div whileTap={{ scale: 0.9 }}>
               <Dumbbell className="h-5 w-5" />
             </motion.div>
-            {programsNavItem.label}
+            <span className="truncate">{programsNavItem.mobileLabel}</span>
           </Link>
 
           {standardNavItems.slice(1).map((item) => {
@@ -141,14 +139,14 @@ export function ClientNav({ fullName }: { fullName: string }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] font-medium",
+                  "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none",
                   active ? "text-primary" : "text-muted-foreground"
                 )}
               >
                 <motion.div whileTap={{ scale: 0.9 }}>
                   <item.icon className="h-5 w-5" />
                 </motion.div>
-                {item.label}
+                <span className="truncate">{item.mobileLabel}</span>
               </Link>
             );
           })}

@@ -11,7 +11,6 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useSelectedDate } from "@/components/date-provider";
 import {
   HabitFormDialog,
@@ -48,12 +47,10 @@ export function HabitsTracker({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [tick, setTick] = useState(0);
-  const { notifySync } = useDashboardSync();
-  const router = useRouter();
+  const { patchDashboard, notifySync } = useDashboardSync();
 
   const refresh = useCallback(() => {
     startTransition(async () => {
-      setHabits([]);
       const fetched = await getHabitsWithCompletions(clientId, dateKey);
       setHabits(fetched);
     });
@@ -102,14 +99,38 @@ export function HabitsTracker({
 
   const handleComplete = (habitId: string) => {
     setError(null);
+    setHabits((prev) =>
+      prev.map((h) =>
+        h.id === habitId
+          ? { ...h, completed: true, status: "completed" as const }
+          : h
+      )
+    );
+    patchDashboard({
+      dateKey,
+      taskId: `habit-${habitId}`,
+      completed: true,
+    });
+    notifySync();
+
     startTransition(async () => {
       const result = await toggleHabitCompletion(habitId, dateKey);
       if (result.error) {
         setError(result.error);
+        setHabits((prev) =>
+          prev.map((h) =>
+            h.id === habitId
+              ? { ...h, completed: false, status: getHabitDayStatus(h, dateKey, false) }
+              : h
+          )
+        );
+        patchDashboard({
+          dateKey,
+          taskId: `habit-${habitId}`,
+          completed: false,
+        });
         return;
       }
-      refresh();
-      notifySync();
     });
   };
 
@@ -291,7 +312,6 @@ export function HabitsTracker({
         onSaved={() => {
           refresh();
           notifySync();
-          router.refresh();
         }}
       />
     </>

@@ -362,7 +362,6 @@ export async function toggleHabitCompletion(habitId: string, date: string) {
   });
   if (error) return { error: error.message, completed: true };
 
-  revalidatePath("/dashboard");
   return { completed: true };
 }
 

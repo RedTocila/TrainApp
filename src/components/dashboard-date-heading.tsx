@@ -11,10 +11,10 @@ export function DashboardDateHeading() {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-black tracking-tight md:text-3xl">
+        <h1 className="text-xl font-black tracking-tight sm:text-2xl md:text-3xl">
           {format(selectedDate, "EEEE, MMMM d")}
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {viewingToday
             ? "Your daily overview"
             : `Overview for ${format(selectedDate, "MMMM d, yyyy")}`}

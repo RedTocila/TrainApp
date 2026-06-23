@@ -143,7 +143,7 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <div className="-mx-4 -mt-4 mb-6 md:-mx-6 md:-mt-6">
+      <div className="-mx-3 -mt-3 mb-4 sm:-mx-4 sm:-mt-4 sm:mb-6 md:-mx-6 md:-mt-6">
         <DashboardCalendar
           clientId={profile.id}
           schedule={{
@@ -160,7 +160,7 @@ export default async function DashboardPage() {
       </div>
       <PageTransition>
       <ScrollToHash />
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
         <DashboardDateHeading />
 
         <DayTasksPanel

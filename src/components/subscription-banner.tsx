@@ -10,7 +10,7 @@ export function SubscriptionBanner({ profile }: { profile: Profile }) {
   if (hasPaidAccess(profile)) return null;
 
   return (
-    <Card className="mb-6 border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
+    <Card className="mb-4 border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent sm:mb-6">
       <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="rounded-lg bg-primary/15 p-2.5">

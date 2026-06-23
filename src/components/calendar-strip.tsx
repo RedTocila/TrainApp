@@ -105,7 +105,7 @@ export function CalendarStrip({
   const canGoNext = selectedIndex >= 0 && selectedIndex < dayItems.length - 1;
 
   return (
-    <div className="flex items-stretch gap-1 px-2 py-3 sm:gap-2 sm:px-4 sm:py-4">
+    <div className="flex items-stretch gap-1 px-1.5 py-2 sm:gap-2 sm:px-4 sm:py-4">
       <Button
         type="button"
         variant="outline"
@@ -134,7 +134,7 @@ export function CalendarStrip({
 
       <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-2 lg:hidden [&::-webkit-scrollbar]:hidden">
         {dayItems.map(({ day, tasks, dayStatus }) => (
-          <div key={day.toISOString()} className="w-[4.25rem] shrink-0 sm:w-[4.75rem]">
+          <div key={day.toISOString()} className="w-[3.75rem] shrink-0 sm:w-[4.75rem]">
             <CalendarDayCard
               date={day}
               selected={isSameDay(day, selectedDate)}

@@ -28,7 +28,7 @@ function cardioTitle(date: Date) {
 
 export function DashboardCardioCard({ clientId }: { clientId: string }) {
   const { selectedDate } = useSelectedDate();
-  const { version, notifySync } = useDashboardSync();
+  const { version, patchDashboard, notifySync } = useDashboardSync();
   const [scheduled, setScheduled] = useState<ScheduledCardio | null>(null);
   const [completed, setCompleted] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -37,8 +37,6 @@ export function DashboardCardioCard({ clientId }: { clientId: string }) {
   const cardio = scheduled?.client_cardio ?? null;
 
   useEffect(() => {
-    setScheduled(null);
-    setCompleted(false);
     startTransition(async () => {
       const [entry, ids] = await Promise.all([
         getScheduledCardioForDate(clientId, dateKey),
@@ -50,11 +48,19 @@ export function DashboardCardioCard({ clientId }: { clientId: string }) {
   }, [clientId, dateKey, taskId, version]);
 
   const handleToggle = () => {
+    const next = !completed;
+    setCompleted(next);
+    patchDashboard({ dateKey, taskId, completed: next });
+    notifySync();
+
     startTransition(async () => {
       const result = await toggleScheduleTaskCompletion(clientId, dateKey, taskId);
-      if (result.error) return;
+      if (result.error) {
+        setCompleted(!next);
+        patchDashboard({ dateKey, taskId, completed: !next });
+        return;
+      }
       setCompleted(result.completed ?? false);
-      notifySync();
     });
   };
 

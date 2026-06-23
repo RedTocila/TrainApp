@@ -82,10 +82,21 @@ body:has(.dashboard-shell) {
   overflow: hidden;
   height: 100%;
   width: 100%;
+  overscroll-behavior: none;
+}
+
+.dashboard-shell {
+  height: 100svh;
+  height: 100dvh;
 }
 
 .dashboard-main {
   overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dashboard-mobile-nav {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
 
 .premium-gradient {

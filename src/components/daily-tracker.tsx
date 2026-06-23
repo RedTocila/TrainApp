@@ -115,7 +115,7 @@ export function DailyTracker({
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
   const [mealTick, setMealTick] = useState(0);
-  const { notifySync } = useDashboardSync();
+  const { patchDashboard, notifySync } = useDashboardSync();
   const dateKey = formatDateKey(date);
 
   useEffect(() => {
@@ -178,18 +178,32 @@ export function DailyTracker({
   const nutritionTitle = isToday(date) ? "Nutrition Today" : `Nutrition · ${format(date, "MMM d")}`;
 
   const handleAddWater = (amount: number) => {
-    setLocalWaterMl((prev) => prev + amount);
+    setLocalWaterMl((prev) => {
+      const next = prev + amount;
+      patchDashboard({ dateKey, waterMl: next });
+      return next;
+    });
+    notifySync();
     startTransition(() => {
-      void addWater(clientId, dateKey, amount).then(() => notifySync());
+      void addWater(clientId, dateKey, amount).catch(() => {
+        setLocalWaterMl((prev) => {
+          const reverted = prev - amount;
+          patchDashboard({ dateKey, waterMl: reverted });
+          return reverted;
+        });
+      });
     });
   };
 
   const handleDeleteMeal = (logId: string) => {
+    const previous = dailyMeals;
+    onDailyMealsChange(dailyMeals.filter((meal) => meal.id !== logId));
+    notifySync();
     startTransition(async () => {
       const result = await deleteDailyMealLog(clientId, dateKey, logId);
-      if (result.error) return;
-      onDailyMealsChange(dailyMeals.filter((meal) => meal.id !== logId));
-      notifySync();
+      if (result.error) {
+        onDailyMealsChange(previous);
+      }
     });
   };
 
@@ -232,11 +246,11 @@ export function DailyTracker({
   };
 
   const refreshMeals = () => {
+    notifySync();
     startTransition(async () => {
       const { getDailyMealLogs } = await import("@/lib/actions/daily-meals");
       const meals = await getDailyMealLogs(clientId, dateKey);
       onDailyMealsChange(meals);
-      notifySync();
     });
   };
 

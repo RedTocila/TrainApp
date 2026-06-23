@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
 
@@ -73,6 +72,5 @@ export async function toggleScheduleTaskCompletion(
     if (error) return { error: error.message, completed: true };
   }
 
-  revalidatePath("/dashboard");
   return { completed: !existing };
 }

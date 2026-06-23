@@ -19,6 +19,7 @@ import type {
 } from "@/lib/types";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -182,7 +183,7 @@ export function ActiveWorkoutClient({
   histories: Record<string, ExerciseHistoryEntry | null>;
 }) {
   const router = useRouter();
-  const { notifySync } = useDashboardSync();
+  const { patchDashboard, notifySync } = useDashboardSync();
   const [newExerciseName, setNewExerciseName] = useState("");
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [showCompleteStep, setShowCompleteStep] = useState(false);
@@ -218,9 +219,15 @@ export function ActiveWorkoutClient({
         setError(result.error);
         return;
       }
+      const dateKey = session.scheduled_date ?? formatDateKey(new Date());
       notifySync();
+      patchDashboard({
+        dateKey,
+        taskId: `${dateKey}-workout`,
+        completed: true,
+        workoutCompleted: true,
+      });
       router.push("/dashboard/workout");
-      router.refresh();
     });
   };
 

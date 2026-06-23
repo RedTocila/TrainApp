@@ -45,8 +45,6 @@ export function DashboardWorkoutCard({
   const [, startTransition] = useTransition();
 
   useEffect(() => {
-    setWorkout(null);
-    setWorkoutCompleted(false);
     const dateKey = formatDateKey(selectedDate);
     startTransition(async () => {
       const [resolved, completed] = await Promise.all([

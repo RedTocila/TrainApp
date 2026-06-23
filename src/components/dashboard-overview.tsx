@@ -7,7 +7,6 @@ import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import { getDailyLog } from "@/lib/actions/logs";
 import { getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
-import { useDashboardSync } from "@/components/dashboard-sync";
 import { formatDateKey } from "@/lib/utils";
 import type { DailyLog, DailyMealLog, Meal, MealSlot } from "@/lib/types";
 
@@ -45,7 +44,6 @@ export function DashboardOverview({
   } | null;
 }) {
   const { selectedDate } = useSelectedDate();
-  const { version } = useDashboardSync();
   const [log, setLog] = useState(initialLog);
   const [dailyMeals, setDailyMeals] = useState(initialDailyMeals);
   const [targets, setTargets] = useState(initialTargets);
@@ -55,9 +53,6 @@ export function DashboardOverview({
 
   useEffect(() => {
     const dateKey = formatDateKey(selectedDate);
-    setLog(null);
-    setDailyMeals([]);
-    setNutritionPlan(null);
 
     startTransition(async () => {
       const [fetchedLog, fetchedMeals, planForDate] = await Promise.all([
@@ -80,7 +75,7 @@ export function DashboardOverview({
         setNutritionPlan(null);
       }
     });
-  }, [selectedDate, clientId, version]);
+  }, [selectedDate, clientId]);
 
   return (
     <DailyTracker

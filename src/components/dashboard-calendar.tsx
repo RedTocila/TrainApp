@@ -33,11 +33,16 @@ export function DashboardCalendar({
   completionsByDate,
 }: DashboardCalendarProps) {
   const { selectedDate, setSelectedDate } = useSelectedDate();
-  const { version } = useDashboardSync();
+  const { version, mergeEnrichment } = useDashboardSync();
   const [enrichment, setEnrichment] = useState<DashboardEnrichmentData>(() =>
     buildInitialEnrichment(completionsByDate)
   );
   const [, startTransition] = useTransition();
+
+  const mergedEnrichment = useMemo(
+    () => mergeEnrichment(enrichment),
+    [enrichment, mergeEnrichment]
+  );
 
   const range = useMemo(() => {
     const today = new Date();
@@ -58,7 +63,7 @@ export function DashboardCalendar({
     });
   }, [clientId, range.from, range.to, version]);
 
-  useRegisterDashboardCalendar(schedule, enrichment);
+  useRegisterDashboardCalendar(schedule, mergedEnrichment);
 
   return (
     <div className="border-b border-border bg-card/50">
@@ -66,7 +71,7 @@ export function DashboardCalendar({
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         schedule={schedule}
-        enrichment={enrichment}
+        enrichment={mergedEnrichment}
       />
     </div>
   );

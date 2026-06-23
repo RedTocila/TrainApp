@@ -52,7 +52,6 @@ export async function upsertDailyLog(
     if (error) return { error: error.message };
   }
 
-  revalidatePath("/dashboard");
   return { success: true };
 }
 

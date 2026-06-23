@@ -18,11 +18,11 @@ export default async function DashboardLayout({
     <DateProvider>
       <DashboardSyncProvider>
       <FullCalendarProvider>
-        <div className="dashboard-shell flex h-dvh min-h-0 overflow-hidden">
+        <div className="dashboard-shell flex min-h-0 overflow-hidden">
           <ClientNav fullName={profile.full_name} />
-          <main className="dashboard-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-20 [-webkit-overflow-scrolling:touch] lg:pb-0">
+          <main className="dashboard-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] pt-0 [-webkit-overflow-scrolling:touch] lg:px-0 lg:pb-0">
             <DashboardMobileHeader />
-            <div className="p-4 md:p-6">
+            <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
               <SubscriptionBanner profile={profile} />
               <TrainSectionShell>{children}</TrainSectionShell>
             </div>

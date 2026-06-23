@@ -85,3 +85,11 @@ export async function fetchDashboardEnrichmentData(
     workoutCompletedDates,
   };
 }
+
+/** Lightweight fetch for a single day — used after user actions instead of full range reload. */
+export async function fetchDashboardEnrichmentForDate(
+  clientId: string,
+  dateKey: string
+): Promise<DashboardEnrichmentData> {
+  return fetchDashboardEnrichmentData(clientId, dateKey, dateKey);
+}

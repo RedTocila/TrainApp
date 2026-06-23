@@ -7,10 +7,12 @@ import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { MissedButton } from "@/components/missed-items-dialog";
-import { fetchDashboardEnrichmentData } from "@/lib/actions/dashboard-enrichment";
+import {
+  fetchDashboardEnrichmentForDate,
+} from "@/lib/actions/dashboard-enrichment";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import { enrichTasksForDate } from "@/lib/dashboard-task-enrichment";
-import type { DailyMealLog } from "@/lib/types";
+import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 import { formatDateKey } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -18,6 +20,17 @@ function panelTitle(date: Date): string {
   if (isToday(date)) return "Today's To Do";
   if (isTomorrow(date)) return "Tomorrow's To Do";
   return `${format(date, "EEEE")}'s To Do`;
+}
+
+function buildInitialEnrichment(
+  completionsByDate: Record<string, string[]>
+): DashboardEnrichmentData {
+  return {
+    completionsByDate,
+    waterByDate: {},
+    mealsByDate: {},
+    workoutCompletedDates: [],
+  };
 }
 
 export function DayTasksPanel({
@@ -30,32 +43,36 @@ export function DayTasksPanel({
   completionsByDate: Record<string, string[]>;
 }) {
   const { selectedDate } = useSelectedDate();
-  const { version } = useDashboardSync();
-  const [enrichment, setEnrichment] = useState({
-    completionsByDate,
-    waterByDate: {} as Record<string, number>,
-    mealsByDate: {} as Record<string, DailyMealLog[]>,
-    workoutCompletedDates: [] as string[],
-  });
+  const { version, mergeEnrichment } = useDashboardSync();
+  const [enrichment, setEnrichment] = useState<DashboardEnrichmentData>(() =>
+    buildInitialEnrichment(completionsByDate)
+  );
   const [, startTransition] = useTransition();
+  const dateKey = formatDateKey(selectedDate);
 
   useEffect(() => {
-    const dateKey = formatDateKey(selectedDate);
-    setEnrichment({
-      completionsByDate: {},
-      waterByDate: {},
-      mealsByDate: {},
-      workoutCompletedDates: [],
-    });
     startTransition(async () => {
-      const data = await fetchDashboardEnrichmentData(clientId, dateKey, dateKey);
+      const data = await fetchDashboardEnrichmentForDate(clientId, dateKey);
       setEnrichment(data);
     });
-  }, [selectedDate, clientId, version]);
+  }, [selectedDate, clientId, dateKey]);
+
+  useEffect(() => {
+    if (version === 0) return;
+    startTransition(async () => {
+      const data = await fetchDashboardEnrichmentForDate(clientId, dateKey);
+      setEnrichment(data);
+    });
+  }, [version, clientId, dateKey]);
+
+  const mergedEnrichment = useMemo(
+    () => mergeEnrichment(enrichment),
+    [enrichment, mergeEnrichment]
+  );
 
   const tasks = useMemo(() => {
-    return enrichTasksForDate(selectedDate, schedule, enrichment);
-  }, [schedule, selectedDate, enrichment]);
+    return enrichTasksForDate(selectedDate, schedule, mergedEnrichment);
+  }, [schedule, selectedDate, mergedEnrichment]);
 
   const { active, missed, completed } = groupTasksByStatus(tasks);
 
@@ -73,8 +90,8 @@ export function DayTasksPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2">
-          <ListChecks className="h-5 w-5 text-primary" />
+        <CardTitle className="flex flex-wrap items-center gap-2 text-base sm:text-lg">
+          <ListChecks className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
           {panelTitle(selectedDate)}
           <MissedButton
             count={missed.length}
@@ -83,7 +100,7 @@ export function DayTasksPanel({
             items={missedTaskItems}
           />
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground sm:text-sm">
           {format(selectedDate, "MMMM d, yyyy")} · {summary}
         </p>
       </CardHeader>

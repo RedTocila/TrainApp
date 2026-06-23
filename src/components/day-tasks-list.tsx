@@ -67,7 +67,7 @@ export function TaskRow({ task }: { task: DailyTask }) {
         type="button"
         onClick={() => navigate(task)}
         className={cn(
-          "flex w-full items-start gap-3 rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-secondary/70",
+          "flex w-full items-center gap-2.5 rounded-lg border border-border bg-secondary/40 px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-secondary/70 sm:items-start sm:gap-3 sm:px-3 sm:py-2.5",
           task.completed && "border-green-500/30 bg-green-500/5 hover:border-green-500/40",
           isMissed && "border-red-500/30 bg-red-500/5 hover:border-red-500/40",
           isInProgress && "border-primary/20"
@@ -75,7 +75,7 @@ export function TaskRow({ task }: { task: DailyTask }) {
       >
         <span
           className={cn(
-            "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border",
+            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border sm:mt-0.5 sm:h-6 sm:w-6",
             task.completed
               ? "border-green-500 bg-green-500 text-white"
               : isMissed
@@ -92,11 +92,11 @@ export function TaskRow({ task }: { task: DailyTask }) {
           )}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 sm:gap-2">
+            <Icon className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground sm:block" />
             <span
               className={cn(
-                "text-sm font-medium",
+                "text-sm font-medium leading-tight",
                 task.completed && "text-green-400",
                 isMissed && "text-red-400"
               )}
@@ -104,17 +104,17 @@ export function TaskRow({ task }: { task: DailyTask }) {
               {task.label}
             </span>
             {task.completed && (
-              <span className="rounded bg-green-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-400">
-                Completed
+              <span className="rounded bg-green-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-green-400 sm:text-[10px]">
+                Done
               </span>
             )}
             {isInProgress && (
-              <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
-                In Progress
+              <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-400 sm:text-[10px]">
+                Active
               </span>
             )}
             {isMissed && (
-              <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
+              <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-400 sm:text-[10px]">
                 Missed
               </span>
             )}
@@ -122,18 +122,18 @@ export function TaskRow({ task }: { task: DailyTask }) {
           {task.detail && (
             <p
               className={cn(
-                "mt-0.5 text-xs text-muted-foreground",
+                "mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground sm:line-clamp-none sm:text-xs",
                 task.category === "water" && !task.completed && "font-medium text-sky-400"
               )}
             >
               {task.detail}
             </p>
           )}
-          <p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <p className="mt-0.5 hidden text-[10px] uppercase tracking-wider text-muted-foreground sm:mt-1 sm:block">
             {TASK_CATEGORY_LABELS[task.category]}
           </p>
         </div>
-        <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
     </li>
   );
@@ -158,7 +158,7 @@ export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 sm:space-y-5">
       {active.length > 0 && (
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-amber-400">

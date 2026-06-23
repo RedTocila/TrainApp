@@ -561,9 +561,6 @@ export async function completeWorkoutSession(
 
   if (error) return { error: error.message };
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/workout");
-  revalidatePath(`/dashboard/workout/session/${sessionId}`);
   return { success: true };
 }
 
