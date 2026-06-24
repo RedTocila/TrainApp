@@ -249,6 +249,19 @@ export interface BodyWeightLog {
   created_at: string;
 }
 
+export type ProgressPhotoPose = "front" | "back" | "side";
+
+export interface ProgressPhotoSet {
+  id: string;
+  client_id: string;
+  month_key: string;
+  front_path: string | null;
+  back_path: string | null;
+  side_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ClientDayTask {
   id: string;
   client_id: string;

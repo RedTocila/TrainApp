@@ -4,6 +4,7 @@ export const STORAGE_BUCKETS = {
   avatars: "avatars",
   blogImages: "blog-images",
   exerciseMedia: "exercise-media",
+  progressPhotos: "progress-photos",
 } as const;
 
 export type StorageBucket = (typeof STORAGE_BUCKETS)[keyof typeof STORAGE_BUCKETS];
@@ -38,4 +39,28 @@ export function blogImagePath(slug: string, filename: string) {
 
 export function exerciseMediaPath(exerciseId: string, filename: string) {
   return `${exerciseId}/${filename}`;
+}
+
+export type ProgressPhotoPose = "front" | "back" | "side";
+
+export function progressPhotoPath(
+  userId: string,
+  monthFolder: string,
+  pose: ProgressPhotoPose,
+  extension: "webp" | "jpg"
+) {
+  return `${userId}/${monthFolder}/${pose}.${extension}`;
+}
+
+export async function createSignedStorageUrl(
+  bucket: StorageBucket,
+  path: string,
+  expiresInSeconds = 3600
+) {
+  const supabase = createClient();
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(path, expiresInSeconds);
+  if (error) throw error;
+  return data.signedUrl;
 }

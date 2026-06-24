@@ -50,6 +50,7 @@ const BUCKETS = [
   { id: "avatars", public: true, fileSizeLimit: 5242880 },
   { id: "blog-images", public: true, fileSizeLimit: 10485760 },
   { id: "exercise-media", public: true, fileSizeLimit: 20971520 },
+  { id: "progress-photos", public: false, fileSizeLimit: 2097152 },
 ];
 
 async function ensureBuckets() {

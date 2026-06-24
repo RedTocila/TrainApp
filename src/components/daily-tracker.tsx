@@ -5,9 +5,11 @@ import { format, isToday } from "date-fns";
 import { Apple, Check, ClipboardList, Plus } from "lucide-react";
 import { formatDateKey } from "@/lib/utils";
 import { addWater } from "@/lib/actions/logs";
+import { deleteDailyMealLog } from "@/lib/actions/daily-meals";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import { sumMealMacros } from "@/lib/meal-utils";
 import { NutritionStatsPanel } from "@/components/nutrition-stats-panel";
+import { RecentMealsList } from "@/components/recent-meals-list";
 import { MealPlanDialog } from "@/components/meal-plan-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
 import { LogMealDialog } from "@/components/log-meal-dialog";
@@ -145,6 +147,18 @@ export function DailyTracker({
     });
   };
 
+  const handleDeleteMeal = (logId: string) => {
+    const previous = dailyMeals;
+    onDailyMealsChange(dailyMeals.filter((meal) => meal.id !== logId));
+    notifySync();
+    startTransition(async () => {
+      const result = await deleteDailyMealLog(clientId, dateKey, logId);
+      if (result.error) {
+        onDailyMealsChange(previous);
+      }
+    });
+  };
+
   const refreshMeals = () => {
     notifySync();
     startTransition(async () => {
@@ -229,6 +243,16 @@ export function DailyTracker({
               Water goal reached
             </div>
           )}
+
+          <RecentMealsList
+            title="Meals logged"
+            meals={dailyMeals}
+            onDelete={handleDeleteMeal}
+            onAdd={() => setLogMealOpen(true)}
+            isPending={isPending}
+            showHeaderAdd={false}
+            emptyHint="Tap + to log your first meal"
+          />
         </CardContent>
       </Card>
 

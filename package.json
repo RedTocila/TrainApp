@@ -9,7 +9,8 @@
     "lint": "eslint",
     "create-admin": "node scripts/create-admin.mjs",
     "db:migrate": "node scripts/apply-migration.mjs",
-    "supabase:setup": "node scripts/supabase-setup.mjs"
+    "supabase:setup": "node scripts/supabase-setup.mjs",
+    "sync:exercises": "node scripts/sync-exercise-catalog.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",

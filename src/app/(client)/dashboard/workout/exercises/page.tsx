@@ -23,7 +23,7 @@ export default async function WorkoutExercisesPage() {
           <div>
             <h1 className="text-2xl font-black">My Exercises</h1>
             <p className="text-sm text-muted-foreground">
-              All exercises from your workout plans
+              Browse 800+ exercises or see what you&apos;ve added to workouts
             </p>
           </div>
         </div>

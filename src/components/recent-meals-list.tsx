@@ -17,13 +17,17 @@ export function RecentMealsList({
   onDelete,
   onAdd,
   isPending,
+  title = "Recently logged",
   emptyHint = "Tap + to log your first meal",
+  showHeaderAdd = true,
 }: {
   meals: DailyMealLog[];
   onDelete?: (id: string) => void;
   onAdd?: () => void;
   isPending?: boolean;
+  title?: string;
   emptyHint?: string;
+  showHeaderAdd?: boolean;
 }) {
   if (meals.length === 0) {
     return (
@@ -36,7 +40,7 @@ export function RecentMealsList({
           <Salad className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <p className="text-sm font-medium">Recently logged</p>
+          <p className="text-sm font-medium">{title}</p>
           <p className="text-xs text-muted-foreground">{emptyHint}</p>
         </div>
         {onAdd && (
@@ -51,8 +55,8 @@ export function RecentMealsList({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold">Recently logged</h3>
-        {onAdd && (
+        <h3 className="text-sm font-bold">{title}</h3>
+        {showHeaderAdd && onAdd && (
           <Button variant="ghost" size="sm" className="h-8 gap-1 text-primary" onClick={onAdd}>
             <Plus className="h-4 w-4" />
             Add

@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { Camera, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { analyzeMealPhotoAction } from "@/lib/actions/ai-meal";
+import { compressImageFile, fileToDataUrl } from "@/lib/image-compress";
 import {
   formatMealMacrosSummary,
   type MealFormData,
@@ -11,7 +12,7 @@ import { MealDetailsFields } from "@/components/meal-details-fields";
 import { ConfidenceBadge } from "@/components/confidence-badge";
 import { Button } from "@/components/ui/button";
 
-type PhotoPhase = "capture" | "analyzing" | "review";
+type PhotoPhase = "capture" | "compressing" | "analyzing" | "review";
 
 export function MealPhotoLogStep({
   form,
@@ -38,7 +39,7 @@ export function MealPhotoLogStep({
     onReadyChange?.(next === "review");
   };
 
-  const handleFile = (file: File | null) => {
+  const handleFile = async (file: File | null) => {
     onError(null);
     if (!file) return;
 
@@ -47,13 +48,20 @@ export function MealPhotoLogStep({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
+    setPhaseWithReady("compressing");
+    try {
+      const compressed = await compressImageFile(file, {
+        maxWidth: 1024,
+        maxHeight: 1024,
+        quality: 0.8,
+      });
+      const dataUrl = await fileToDataUrl(compressed);
       setPreviewUrl(dataUrl);
       setPhaseWithReady("capture");
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      onError("Could not process that photo. Try another image.");
+      setPhaseWithReady("capture");
+    }
   };
 
   const handleAnalyze = () => {
@@ -73,15 +81,20 @@ export function MealPhotoLogStep({
     setPhaseWithReady("analyzing");
 
     startTransition(async () => {
-      const response = await analyzeMealPhotoAction(imageBase64, mimeType);
-      if ("error" in response) {
-        onError(response.error);
+      try {
+        const response = await analyzeMealPhotoAction(imageBase64, mimeType);
+        if ("error" in response) {
+          onError(response.error);
+          setPhaseWithReady("capture");
+          return;
+        }
+        onFormChange(response.form);
+        onConfidenceChange(response.result.confidence);
+        setPhaseWithReady("review");
+      } catch {
+        onError("Upload failed — the photo may be too large. Try again or use a smaller image.");
         setPhaseWithReady("capture");
-        return;
       }
-      onFormChange(response.form);
-      onConfidenceChange(response.result.confidence);
-      setPhaseWithReady("review");
     });
   };
 
@@ -158,13 +171,20 @@ export function MealPhotoLogStep({
         onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
       />
 
+      {phase === "compressing" && (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 py-8 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Compressing photo…
+        </div>
+      )}
+
       {previewUrl ? (
         <img
           src={previewUrl}
           alt="Meal preview"
           className="mx-auto max-h-52 w-full rounded-xl border border-border object-cover"
         />
-      ) : (
+      ) : phase !== "compressing" ? (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -173,7 +193,7 @@ export function MealPhotoLogStep({
           <Camera className="h-10 w-10 text-primary" />
           <span className="text-sm font-medium">Take or upload a photo</span>
         </button>
-      )}
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         <Button
@@ -193,7 +213,7 @@ export function MealPhotoLogStep({
 
       <Button
         className="w-full"
-        disabled={!previewUrl || isPending || phase === "analyzing"}
+        disabled={!previewUrl || isPending || phase === "analyzing" || phase === "compressing"}
         onClick={handleAnalyze}
       >
         {isPending || phase === "analyzing" ? (

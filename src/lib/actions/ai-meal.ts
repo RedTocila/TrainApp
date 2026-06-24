@@ -12,7 +12,7 @@ import {
 import { analyzeMealText } from "@/lib/ai/meal-text";
 import type { MealAnalysisResult } from "@/lib/ai/types";
 
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -65,7 +65,7 @@ export async function analyzeMealPhotoAction(
 
   const sizeBytes = Math.ceil((imageBase64.length * 3) / 4);
   if (sizeBytes > MAX_IMAGE_BYTES) {
-    return { error: "Image is too large. Please use a photo under 8 MB." };
+    return { error: "Image is too large. Please use a photo under 2 MB." };
   }
 
   try {

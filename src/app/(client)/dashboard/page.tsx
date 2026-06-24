@@ -11,6 +11,7 @@ import {
   getBodyWeightHistory,
   getBodyWeightLog,
 } from "@/lib/actions/weight-logs";
+import { getProgressPhotoSets } from "@/lib/actions/progress-photos";
 import {
   ensureHabitSchedules,
   getHabitCompletionsInRange,
@@ -32,6 +33,7 @@ import { DayTasksPanel } from "@/components/day-tasks-panel";
 import { ScrollToHash } from "@/components/scroll-to-hash";
 import { HabitsTracker } from "@/components/habits-tracker";
 import { WeightTracker } from "@/components/weight-tracker";
+import { ProgressPhotosCard } from "@/components/progress-photos-card";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/page-transition";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { getPrimaryMealsForDayMenu } from "@/lib/meal-slots";
@@ -62,6 +64,7 @@ export default async function DashboardPage() {
     waterGoalMl,
     dailyMeals,
     mealLibrary,
+    progressPhotoSets,
   ] = await Promise.all([
     getClientWorkoutAssignment(profile.id),
     getClientNutritionAssignment(profile.id),
@@ -78,6 +81,7 @@ export default async function DashboardPage() {
     getWaterGoal(profile.id),
     getDailyMealLogs(profile.id, dateKey),
     getPersonalMealsLibrary(),
+    getProgressPhotoSets(profile.id),
   ]);
 
   const habitsByDate: Record<
@@ -202,6 +206,11 @@ export default async function DashboardPage() {
           clientId={profile.id}
           initialHistory={weightHistory}
           initialLog={weightLog}
+        />
+
+        <ProgressPhotosCard
+          clientId={profile.id}
+          initialSets={progressPhotoSets}
         />
 
         <HabitsTracker clientId={profile.id} initialHabits={habits} />
