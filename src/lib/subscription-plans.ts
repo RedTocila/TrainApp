@@ -1,3 +1,5 @@
+import { PLATFORM_AI_NAME, PLATFORM_CORE_NAME } from "@/lib/brand";
+
 export type SubscriptionPlanId = "core" | "ai";
 export type BillingInterval = "monthly" | "annual";
 
@@ -20,7 +22,7 @@ export interface SubscriptionPlan {
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: "core",
-    name: "TrainApp Core",
+    name: PLATFORM_CORE_NAME,
     tagline: "Full training & nutrition tracking without premium AI tools.",
     monthly: { amountCents: 700, label: "€7" },
     annual: { amountCents: 6900, label: "€69" },
@@ -35,14 +37,14 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   },
   {
     id: "ai",
-    name: "TrainApp AI",
+    name: PLATFORM_AI_NAME,
     tagline: "Core plan plus AI plan builders, meal logging, and live coaching.",
     monthly: { amountCents: 1900, label: "€19" },
     annual: { amountCents: 18900, label: "€189" },
     highlighted: true,
     badge: "Best value",
     features: [
-      "Everything in TrainApp Core",
+      `Everything in ${PLATFORM_CORE_NAME}`,
       "AI workout plan builder",
       "AI nutrition plan builder",
       "Photo & text AI meal logging",

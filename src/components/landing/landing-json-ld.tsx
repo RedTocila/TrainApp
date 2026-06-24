@@ -26,7 +26,7 @@ export function LandingJsonLd() {
         "@type": "WebSite",
         "@id": `${SITE_URL}/#website`,
         url: SITE_URL,
-        name: "TrainApp",
+        name: "LevelUp",
         description:
           "Premium fitness platform with workouts, nutrition, AI coaching, and live sessions.",
         inLanguage: "en-US",
@@ -34,13 +34,13 @@ export function LandingJsonLd() {
       {
         "@type": "Organization",
         "@id": `${SITE_URL}/#organization`,
-        name: "TrainApp",
+        name: "LevelUp",
         url: SITE_URL,
         email: "redtocila@gmail.com",
       },
       {
         "@type": "SoftwareApplication",
-        name: "TrainApp",
+        name: "LevelUp",
         applicationCategory: "HealthApplication",
         operatingSystem: "Web",
         offers,

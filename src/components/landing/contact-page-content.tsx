@@ -19,7 +19,7 @@ export function ContactForm() {
     const name = String(data.get("name") ?? "");
     const email = String(data.get("email") ?? "");
     const message = String(data.get("message") ?? "");
-    const subject = encodeURIComponent(`TrainApp contact from ${name}`);
+    const subject = encodeURIComponent(`LevelUp contact from ${name}`);
     const body = encodeURIComponent(
       `Name: ${name}\nEmail: ${email}\n\n${message}`
     );

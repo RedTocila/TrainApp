@@ -6,12 +6,14 @@ import {
   getClientWorkoutAssignment,
   getClientNutritionAssignment,
 } from "@/lib/actions/plans";
+import { getClientActivityFeed } from "@/lib/actions/client-activity";
 import { createClient } from "@/lib/supabase/server";
 import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Phone } from "lucide-react";
+import { ClientActivityFeed } from "@/components/client-activity-feed";
 
 export default async function ClientDetailPage({
   params,
@@ -33,10 +35,11 @@ export default async function ClientDetailPage({
 
   if (!client) notFound();
 
-  const [requests, workout, nutrition] = await Promise.all([
+  const [requests, workout, nutrition, activity] = await Promise.all([
     getClientRequests(id),
     getClientWorkoutAssignment(id),
     getClientNutritionAssignment(id),
+    getClientActivityFeed(id, 50),
   ]);
 
   const activeRequest = requestId
@@ -62,7 +65,16 @@ export default async function ClientDetailPage({
 
         <div>
           <h1 className="text-2xl font-black">{client.full_name}</h1>
-          <p className="text-muted-foreground">Client profile</p>
+          <p className="text-muted-foreground">Client profile & activity</p>
+          {client.phone && (
+            <a
+              href={`sms:${client.phone.replace(/\s/g, "")}`}
+              className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              {client.phone}
+            </a>
+          )}
         </div>
 
         {activeRequest && (
@@ -137,6 +149,15 @@ export default async function ClientDetailPage({
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ClientActivityFeed items={activity} />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

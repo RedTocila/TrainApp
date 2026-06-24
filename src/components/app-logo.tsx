@@ -18,7 +18,7 @@ export function AppLogo({
 
   const label = (
     <span className={cn("font-black tracking-tight", sizeClass, className)}>
-      Train<span className="text-primary">App</span>
+      Level<span className="text-primary">Up</span>
     </span>
   );
 

@@ -24,7 +24,7 @@ export function LoginForm() {
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-black">
-          TRAIN<span className="text-primary">APP</span>
+          LEVEL<span className="text-primary">UP</span>
         </CardTitle>
         <CardDescription>Sign in to your account</CardDescription>
       </CardHeader>

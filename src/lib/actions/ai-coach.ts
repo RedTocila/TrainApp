@@ -19,7 +19,7 @@ async function requireAiCoachAccess(): Promise<
   const profile = await getSubscriptionProfile();
   if (!profile) return { success: false, error: "Not authenticated" };
   if (!hasPaidAccess(profile)) {
-    return { success: false, error: "Upgrade to TrainApp AI to access AI Coach features." };
+    return { success: false, error: "Upgrade to LevelUp AI to access AI Coach features." };
   }
   return { success: true, profile };
 }

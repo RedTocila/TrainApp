@@ -12,7 +12,7 @@ const features = [
 ];
 
 export function AiUpgradeGate({
-  title = "TrainApp AI",
+  title = "LevelUp AI",
 }: {
   title?: string;
   description?: string;

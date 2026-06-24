@@ -1,4 +1,4 @@
-# Supabase Setup — TrainApp
+# Supabase Setup — LevelUp
 
 Project: **hpujlewxfdgkjhavqdyk**  
 Dashboard: https://supabase.com/dashboard/project/hpujlewxfdgkjhavqdyk

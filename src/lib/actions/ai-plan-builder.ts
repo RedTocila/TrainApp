@@ -30,7 +30,7 @@ async function requireAiPlanBuilder(): Promise<
   const profile = await getSubscriptionProfile();
   if (!profile) return { success: false, error: "Not authenticated" };
   if (!hasAiAccess(profile)) {
-    return { success: false, error: "Upgrade to TrainApp AI to build plans with AI Coach." };
+    return { success: false, error: "Upgrade to LevelUp AI to build plans with AI Coach." };
   }
   if (!isAiConfigured()) {
     return { success: false, error: "AI is not configured on the server yet." };

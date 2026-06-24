@@ -6,7 +6,7 @@ import { LandingJsonLd } from "@/components/landing/landing-json-ld";
 import { SITE_URL } from "@/lib/landing-content";
 
 export const metadata: Metadata = {
-  title: "TrainApp — Workouts, Nutrition & AI Coaching",
+  title: "LevelUp — Workouts, Nutrition & AI Coaching",
   description:
     "Premium fitness platform with workout builder, nutrition tracking, AI coach, live coaching sessions, and custom trainer plans. Start free — plans from €7/month.",
   keywords: [
@@ -22,15 +22,15 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: SITE_URL,
-    siteName: "TrainApp",
-    title: "TrainApp — Workouts, Nutrition & AI Coaching",
+    siteName: "LevelUp",
+    title: "LevelUp — Workouts, Nutrition & AI Coaching",
     description:
       "Train smarter with workouts, nutrition, AI coaching, and live sessions in one premium dashboard.",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "TrainApp — Workouts, Nutrition & AI Coaching",
+    title: "LevelUp — Workouts, Nutrition & AI Coaching",
     description:
       "Premium fitness platform with AI meal logging, live coaching, and custom trainer plans.",
   },

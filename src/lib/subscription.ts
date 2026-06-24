@@ -1,4 +1,5 @@
 import type { Profile } from "@/lib/types";
+import { PLATFORM_AI_NAME, PLATFORM_CORE_NAME } from "@/lib/brand";
 import type { SubscriptionPlanId } from "@/lib/subscription-plans";
 
 export type SubscriptionStatus = "inactive" | "active" | "past_due" | "canceled";
@@ -35,7 +36,7 @@ export function subscriptionLabel(
   interval: Profile["subscription_interval"]
 ): string {
   if (!plan) return "Free preview";
-  const planName = plan === "ai" ? "TrainApp AI" : "TrainApp Core";
+  const planName = plan === "ai" ? PLATFORM_AI_NAME : PLATFORM_CORE_NAME;
   const billing = interval === "annual" ? "Annual" : "Monthly";
   return `${planName} · ${billing}`;
 }

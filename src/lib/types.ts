@@ -67,6 +67,7 @@ export interface Profile {
   subscription_status?: SubscriptionStatus;
   subscription_interval?: BillingInterval | null;
   subscription_expires_at?: string | null;
+  phone?: string | null;
   created_at: string;
 }
 

@@ -37,7 +37,7 @@ export default async function ClassDetailPage({
       <PageTransition>
         <div className="mx-auto max-w-2xl space-y-4">
           <AiUpgradeGate
-            title="TrainApp AI required for live coaching"
+            title="LevelUp AI required for live coaching"
             description="Upgrade to the €19/month AI plan to join live coaching sessions and watch replays."
           />
         </div>

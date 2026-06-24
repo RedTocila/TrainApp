@@ -7,6 +7,7 @@ import {
   getAdminRevenue,
   type RevenuePeriod,
 } from "@/lib/actions/admin-stats";
+import { getRecentClientActivity } from "@/lib/actions/client-activity";
 import { getNotifications } from "@/lib/actions/notifications";
 import { PlanRequestCard } from "@/components/plan-request-card";
 import { AdminRevenuePanel } from "@/components/admin-revenue-panel";
@@ -15,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Dumbbell, Bell, Euro } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ClientActivityFeed } from "@/components/client-activity-feed";
 
 const VALID_PERIODS: RevenuePeriod[] = ["1d", "7d", "30d", "90d", "all"];
 
@@ -29,11 +31,12 @@ export default async function AdminDashboardPage({
     ? (periodParam as RevenuePeriod)
     : "30d";
 
-  const [requests, stats, revenue, notifications] = await Promise.all([
+  const [requests, stats, revenue, notifications, recentActivity] = await Promise.all([
     getPendingRequests(),
     getAdminDashboardStats(),
     getAdminRevenue(period),
     getNotifications(profile.id),
+    getRecentClientActivity(20),
   ]);
 
   const unreadNotifs = notifications.filter((n) => !n.read).slice(0, 5);
@@ -115,6 +118,26 @@ export default async function AdminDashboardPage({
           <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
             <AdminRevenuePanel revenue={revenue} />
           </Suspense>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xl font-bold">Recent client activity</h2>
+            <Link href="/admin/clients">
+              <Button variant="outline" size="sm">
+                All clients
+              </Button>
+            </Link>
+          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <ClientActivityFeed
+                items={recentActivity}
+                showClientName
+                emptyMessage="No client activity yet"
+              />
+            </CardContent>
+          </Card>
         </section>
 
         {awaitingApproval.length > 0 && (

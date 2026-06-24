@@ -80,7 +80,7 @@ export const LANDING_UPDATES: LandingUpdate[] = [
     tag: "AI",
     title: "AI meal suggestions & reports",
     description:
-      "Get meal ideas from your macros, weekly AI reports, and progress predictions on TrainApp AI.",
+      "Get meal ideas from your macros, weekly AI reports, and progress predictions on LevelUp AI.",
   },
   {
     date: "Jun 2025",

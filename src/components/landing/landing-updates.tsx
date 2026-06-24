@@ -16,7 +16,7 @@ export function LandingUpdates() {
             Latest updates
           </h2>
           <p className="mt-4 text-muted-foreground">
-            We ship fast. Here&apos;s what landed recently in TrainApp.
+            We ship fast. Here&apos;s what landed recently in LevelUp.
           </p>
         </FadeIn>
 

@@ -21,7 +21,7 @@ export default async function AdminClassesPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-black">Live Classes</h1>
             <p className="text-muted-foreground">
-              Schedule Zoom/Meet sessions and add YouTube replays for TrainApp AI clients
+              Schedule Zoom/Meet sessions and add YouTube replays for LevelUp AI clients
             </p>
           </div>
           <Link href="/admin/classes/new" className="shrink-0">

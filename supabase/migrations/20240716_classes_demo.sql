@@ -14,7 +14,7 @@ insert into public.classes (
 ) values (
   'Demo: Full-Body Strength Live',
   'demo-full-body-strength',
-  E'## Preview the live class experience\n\nThis is a **demo session** showing how classes work in TrainApp.\n\n- **Live:** Join via Zoom/Meet when the join button is active (15 min before start)\n- **Replay:** Watch the embedded recording anytime after the coach adds a YouTube link\n\n### What you need\n- Dumbbells or water bottles\n- A mat\n- 45 minutes',
+  E'## Preview the live class experience\n\nThis is a **demo session** showing how classes work in LevelUp.\n\n- **Live:** Join via Zoom/Meet when the join button is active (15 min before start)\n- **Replay:** Watch the embedded recording anytime after the coach adds a YouTube link\n\n### What you need\n- Dumbbells or water bottles\n- A mat\n- 45 minutes',
   'Training',
   'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50e?w=1200&auto=format&fit=crop',
   now() + interval '3 days',

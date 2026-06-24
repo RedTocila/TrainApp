@@ -10,12 +10,12 @@ import { SITE_URL } from "@/lib/landing-content";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Pricing — TrainApp",
+  title: "Pricing — LevelUp",
   description:
-    "TrainApp Core from €7/month and TrainApp AI from €19/month. Custom trainer plans from €49.",
+    "LevelUp Core from €7/month and LevelUp AI from €19/month. Custom trainer plans from €49.",
   alternates: { canonical: `${SITE_URL}/pricing` },
   openGraph: {
-    title: "Pricing — TrainApp",
+    title: "Pricing — LevelUp",
     description: "Simple pricing for workouts, nutrition, AI coaching, and live sessions.",
     url: `${SITE_URL}/pricing`,
   },

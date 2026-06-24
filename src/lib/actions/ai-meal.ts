@@ -27,7 +27,7 @@ async function requireAiMealAccess(): Promise<
   const profile = await getSubscriptionProfile();
   if (!profile) return { success: false, error: "Not authenticated" };
   if (!hasAiAccess(profile)) {
-    return { success: false, error: "Upgrade to TrainApp AI to use AI meal logging." };
+    return { success: false, error: "Upgrade to LevelUp AI to use AI meal logging." };
   }
   if (!isAiConfigured()) {
     return { success: false, error: "AI meal analysis is not configured on the server yet." };

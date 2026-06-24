@@ -1,16 +1,19 @@
 import Link from "next/link";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { requireAdmin } from "@/lib/actions/auth";
 import { getAdminClientsWithSubscriptions } from "@/lib/actions/admin-stats";
+import { getClientsLastActivityMap } from "@/lib/actions/client-activity";
 import { AdminClientPendingRequests } from "@/components/admin-client-pending-requests";
 import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Phone } from "lucide-react";
 
 export default async function ClientsPage() {
   await requireAdmin();
   const clients = await getAdminClientsWithSubscriptions();
+  const lastActivityMap = await getClientsLastActivityMap(clients.map((c) => c.id));
   const pendingCount = clients.reduce(
     (sum, client) => sum + client.pendingRequests.length,
     0
@@ -51,8 +54,28 @@ export default async function ClientsPage() {
                 <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1 space-y-2">
                     <CardTitle className="text-base">{client.full_name}</CardTitle>
+                    {client.phone ? (
+                      <a
+                        href={`sms:${client.phone.replace(/\s/g, "")}`}
+                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        {client.phone}
+                      </a>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No phone on file</p>
+                    )}
                     <p className="text-sm text-muted-foreground">
                       Joined {format(new Date(client.created_at), "MMM d, yyyy")}
+                      {lastActivityMap[client.id] && (
+                        <>
+                          {" · "}
+                          Last active{" "}
+                          {formatDistanceToNow(new Date(lastActivityMap[client.id]), {
+                            addSuffix: true,
+                          })}
+                        </>
+                      )}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {client.activeSubscription ? (

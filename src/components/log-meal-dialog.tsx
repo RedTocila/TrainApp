@@ -6,7 +6,7 @@ import {
   ArrowLeft,
   BookOpen,
   Camera,
-  PenLine,
+  Plus,
   Sparkles,
   X,
 } from "lucide-react";
@@ -29,12 +29,6 @@ type LogMode = "picker" | "custom" | "library" | "photo" | "text";
 
 const PICKER_OPTIONS = [
   {
-    mode: "custom" as const,
-    label: "New meal",
-    description: "Enter name and macros manually",
-    icon: PenLine,
-  },
-  {
     mode: "text" as const,
     label: "Type it",
     description: '"2 eggs and a banana" — AI parses macros',
@@ -42,17 +36,17 @@ const PICKER_OPTIONS = [
     ai: true,
   },
   {
-    mode: "library" as const,
-    label: "From library",
-    description: "Pick a saved meal from your plans",
-    icon: BookOpen,
-  },
-  {
     mode: "photo" as const,
     label: "Photo",
     description: "Snap a photo — AI fills in the details",
     icon: Camera,
     ai: true,
+  },
+  {
+    mode: "library" as const,
+    label: "From library",
+    description: "Pick a saved meal or add a new one",
+    icon: BookOpen,
   },
 ];
 
@@ -76,6 +70,7 @@ export function LogMealDialog({
   goal?: string | null;
 }) {
   const [mode, setMode] = useState<LogMode>("picker");
+  const [customFromLibrary, setCustomFromLibrary] = useState(false);
   const [form, setForm] = useState<MealFormData>(emptyMealForm());
   const [photoReady, setPhotoReady] = useState(false);
   const [textReady, setTextReady] = useState(false);
@@ -86,6 +81,7 @@ export function LogMealDialog({
   useEffect(() => {
     if (!open) return;
     setMode("picker");
+    setCustomFromLibrary(false);
     setForm(emptyMealForm());
     setPhotoReady(false);
     setTextReady(false);
@@ -156,12 +152,30 @@ export function LogMealDialog({
   const goToMode = (next: LogMode) => {
     setMode(next);
     setError(null);
+    if (next !== "custom") {
+      setCustomFromLibrary(false);
+    }
     if (next === "custom" || next === "photo" || next === "text") {
       setForm(emptyMealForm());
       setPhotoReady(false);
       setTextReady(false);
       setAiConfidence(null);
     }
+  };
+
+  const goToCustomFromLibrary = () => {
+    setCustomFromLibrary(true);
+    goToMode("custom");
+  };
+
+  const handleBack = () => {
+    if (mode === "custom" && customFromLibrary) {
+      setCustomFromLibrary(false);
+      setMode("library");
+      setError(null);
+      return;
+    }
+    goToMode("picker");
   };
 
   const title =
@@ -206,7 +220,7 @@ export function LogMealDialog({
               variant="ghost"
               size="icon"
               className="shrink-0"
-              onClick={() => goToMode("picker")}
+              onClick={handleBack}
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -266,45 +280,64 @@ export function LogMealDialog({
             </div>
           )}
 
-          {mode === "library" &&
-            (library.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No saved meals yet. Go back and choose New meal to log one with macros.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {library.map((item) => {
-                  const summary = formatMealMacrosSummary(normalizeMealMacros(item.meal));
-                  return (
-                    <li
-                      key={item.meal.id}
-                      className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="mb-1 flex flex-wrap items-center gap-2">
-                          <Badge className="capitalize">{item.meal.meal_type}</Badge>
-                          <span className="font-semibold">{item.meal.name}</span>
-                        </div>
-                        {summary && (
-                          <p className="text-xs text-muted-foreground">{summary}</p>
-                        )}
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {item.folderName} · {item.planTitle}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        className="shrink-0"
-                        disabled={isPending}
-                        onClick={() => handleLogFromLibrary(item.meal.id)}
+          {mode === "library" && (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={goToCustomFromLibrary}
+                className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-secondary/40"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold">New meal</p>
+                  <p className="text-sm text-muted-foreground">
+                    Enter name and macros manually
+                  </p>
+                </div>
+              </button>
+
+              {library.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  No saved meals yet. Tap + above to log one with macros.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {library.map((item) => {
+                    const summary = formatMealMacrosSummary(normalizeMealMacros(item.meal));
+                    return (
+                      <li
+                        key={item.meal.id}
+                        className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3"
                       >
-                        Add
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ))}
+                        <div className="min-w-0">
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <Badge className="capitalize">{item.meal.meal_type}</Badge>
+                            <span className="font-semibold">{item.meal.name}</span>
+                          </div>
+                          {summary && (
+                            <p className="text-xs text-muted-foreground">{summary}</p>
+                          )}
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {item.folderName} · {item.planTitle}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="shrink-0"
+                          disabled={isPending}
+                          onClick={() => handleLogFromLibrary(item.meal.id)}
+                        >
+                          Add
+                        </Button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
 
           {mode === "custom" && (
             <MealDetailsFields
@@ -342,7 +375,7 @@ export function LogMealDialog({
                   <Sparkles className="h-7 w-7 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold">TrainApp AI required</p>
+                  <p className="font-semibold">LevelUp AI required</p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     Upgrade to snap meal photos and let AI estimate food and macros
                     automatically.
@@ -374,7 +407,7 @@ export function LogMealDialog({
                   <Sparkles className="h-7 w-7 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold">TrainApp AI required</p>
+                  <p className="font-semibold">LevelUp AI required</p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     Upgrade to type meals naturally and let AI estimate macros.
                   </p>

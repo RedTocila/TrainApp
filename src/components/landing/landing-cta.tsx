@@ -22,7 +22,7 @@ export function LandingCta() {
               Ready to train like a champion?
             </h2>
             <p className="mx-auto max-w-lg text-muted-foreground">
-              Join TrainApp today. Set up your profile, pick a plan, and start
+              Join LevelUp today. Set up your profile, pick a plan, and start
               building momentum from day one.
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">

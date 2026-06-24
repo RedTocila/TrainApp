@@ -1,4 +1,4 @@
-# TrainApp — Premium Personal Training Platform
+# LevelUp — Premium Personal Training Platform
 
 A Trainerize-style coaching platform for personal trainers. Clients get dashboards with workouts, nutrition, water/macros tracking, calendar, and blog. Coaches (admin) build plans and get notified when clients apply.
 

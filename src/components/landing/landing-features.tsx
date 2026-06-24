@@ -19,7 +19,7 @@ export function LandingFeatures() {
             Built for serious training
           </h2>
           <p className="mt-4 text-muted-foreground">
-            From daily habits to coach-delivered plans — TrainApp keeps your
+            From daily habits to coach-delivered plans — LevelUp keeps your
             workout, nutrition, and progress aligned.
           </p>
         </FadeIn>

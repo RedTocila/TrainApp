@@ -54,7 +54,7 @@ export function LandingHero() {
             transition={{ duration: 0.55, delay: 0.1 }}
             className="mx-auto max-w-xl text-lg text-muted-foreground lg:mx-0"
           >
-            TrainApp combines workouts, nutrition, AI coaching, and live sessions
+            LevelUp combines workouts, nutrition, AI coaching, and live sessions
             in one premium dashboard — built for people who take training seriously.
           </motion.p>
 

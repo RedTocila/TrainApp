@@ -17,12 +17,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "TrainApp — Premium Personal Training",
-    template: "%s | TrainApp",
+    default: "LevelUp — Premium Personal Training",
+    template: "%s | LevelUp",
   },
   description:
     "Your personalized workout, nutrition, and fitness coaching platform with AI coach and live sessions.",
-  applicationName: "TrainApp",
+  applicationName: "LevelUp",
 };
 
 export const viewport = {

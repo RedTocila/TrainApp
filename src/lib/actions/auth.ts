@@ -10,19 +10,27 @@ export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const fullName = formData.get("full_name") as string;
+  const phone = (formData.get("phone") as string)?.trim() || null;
 
   const { data: authData, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { full_name: fullName },
+      data: { full_name: fullName, phone },
     },
   });
 
   if (error) return { error: error.message };
 
-  if (authData.user && process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL) {
-    await supabase.from("profiles").update({ role: "admin" }).eq("id", authData.user.id);
+  if (authData.user) {
+    const profileUpdate: { role?: string; phone?: string; full_name: string } = {
+      full_name: fullName,
+    };
+    if (phone) profileUpdate.phone = phone;
+    if (process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL) {
+      profileUpdate.role = "admin";
+    }
+    await supabase.from("profiles").update(profileUpdate).eq("id", authData.user.id);
   }
 
   const { data: profile } = await supabase

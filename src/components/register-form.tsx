@@ -24,7 +24,7 @@ export function RegisterForm() {
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-black">
-          JOIN <span className="text-primary">TRAINAPP</span>
+          JOIN <span className="text-primary">LEVELUP</span>
         </CardTitle>
         <CardDescription>Create your account to get started</CardDescription>
       </CardHeader>
@@ -37,6 +37,13 @@ export function RegisterForm() {
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input id="email" name="email" type="email" required placeholder="you@email.com" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone number</Label>
+            <Input id="phone" name="phone" type="tel" placeholder="+383 44 123 456" />
+            <p className="text-xs text-muted-foreground">
+              Optional — your coach may reach out if you need support.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
