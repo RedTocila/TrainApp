@@ -31,6 +31,57 @@ function parseTimeToMinutes(time: string): number {
   return h * 60 + (m || 0);
 }
 
+/** Which meal slot window the given clock time falls in (local time). */
+export function inferMealSlotFromTime(now: Date = new Date()): MealSlot | null {
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  for (const { slot } of MEAL_SLOTS) {
+    const { start, end } = MEAL_SLOT_WINDOWS[slot];
+    const startMin = parseTimeToMinutes(start);
+    const endMin = parseTimeToMinutes(end);
+    if (minutes >= startMin && minutes <= endMin) {
+      return slot;
+    }
+  }
+  return null;
+}
+
+/** Infer slot from when the meal was logged (uses time-of-day from logged_at). */
+export function inferMealSlotFromLoggedAt(loggedAt: string): MealSlot | null {
+  const d = new Date(loggedAt);
+  if (Number.isNaN(d.getTime())) return null;
+  return inferMealSlotFromTime(d);
+}
+
+/**
+ * Pick the meal slot for a new log: current time window first (today only),
+ * then meal type, then next open snack slot.
+ */
+export function resolveMealSlotForLog(
+  existingLogs: DailyMealLog[],
+  mealType: DailyMealLog["meal_type"],
+  dateKey: string,
+  now: Date = new Date()
+): MealSlot | null {
+  if (dayRelation(dateKey, now) === "today") {
+    const fromTime = inferMealSlotFromTime(now);
+    if (fromTime) return fromTime;
+  }
+
+  const filled = mapDailyMealsToSlots(existingLogs);
+
+  if (mealType === "breakfast") return "breakfast";
+  if (mealType === "lunch") return "lunch";
+  if (mealType === "dinner") return "dinner";
+
+  if (mealType === "snack") {
+    if (!filled.has("snack_1")) return "snack_1";
+    if (!filled.has("snack_2")) return "snack_2";
+    return "snack_2";
+  }
+
+  return null;
+}
+
 export function formatMealSlotWindow(slot: MealSlot): string {
   const { start, end } = MEAL_SLOT_WINDOWS[slot];
   return `${formatTimeValue(start)} – ${formatTimeValue(end)}`;
@@ -90,6 +141,11 @@ export function mapDailyMealsToSlots(logs: DailyMealLog[]): Set<MealSlot> {
       slots.add(log.slot as MealSlot);
       continue;
     }
+    const fromLoggedAt = inferMealSlotFromLoggedAt(log.logged_at);
+    if (fromLoggedAt) {
+      slots.add(fromLoggedAt);
+      continue;
+    }
     if (log.meal_type === "breakfast") slots.add("breakfast");
     else if (log.meal_type === "lunch") slots.add("lunch");
     else if (log.meal_type === "dinner") slots.add("dinner");
@@ -145,7 +201,12 @@ export function getPlannedMealSlots(
 
   return MEAL_SLOTS.map(({ slot, label }) => {
     const options = grouped[slot];
-    const slotLog = dailyMeals.find((m) => m.slot === slot) ?? null;
+    const slotLog =
+      dailyMeals.find((m) => m.slot === slot) ??
+      dailyMeals.find(
+        (m) => !m.slot && inferMealSlotFromLoggedAt(m.logged_at) === slot
+      ) ??
+      null;
     const meal =
       slotLog?.source_meal_id
         ? options.find((m) => m.id === slotLog.source_meal_id) ??

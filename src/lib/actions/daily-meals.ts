@@ -4,14 +4,70 @@ import { createClient } from "@/lib/supabase/server";
 import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
 import { upsertDailyLog } from "@/lib/actions/logs";
 import { mealPayloadFromForm, sumMealMacros, type MealFormData } from "@/lib/meal-utils";
-import { getMealSlotPhase } from "@/lib/meal-times";
-import type { MealSlot } from "@/lib/meal-slots";
-import type { DailyMealLog, Meal } from "@/lib/types";
+import { getMealSlotPhase, resolveMealSlotForLog } from "@/lib/meal-times";
+import { mealTypeForSlot, type MealSlot } from "@/lib/meal-slots";
+import type { DailyMealLog, Meal, MealType } from "@/lib/types";
 
 async function syncDailyMacros(clientId: string, date: string) {
   const meals = await getDailyMealLogs(clientId, date);
   const totals = sumMealMacros(meals);
   await upsertDailyLog(clientId, date, totals);
+}
+
+async function clearSlotLogIfExists(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientId: string,
+  date: string,
+  slot: MealSlot
+) {
+  const existing = await getDailyMealLogForSlot(clientId, date, slot);
+  if (existing) {
+    await supabase.from("daily_meal_logs").delete().eq("id", existing.id);
+  }
+}
+
+async function insertMealLogWithSlot(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientId: string,
+  date: string,
+  input: {
+    meal_type: MealType;
+    name: string;
+    description?: string | null;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    foods: { name: string; amount?: string }[];
+    source_meal_id?: string | null;
+    explicitSlot?: MealSlot | null;
+  }
+) {
+  const existingLogs = await getDailyMealLogs(clientId, date);
+  const slot =
+    input.explicitSlot ??
+    resolveMealSlotForLog(existingLogs, input.meal_type, date);
+
+  if (slot) {
+    await clearSlotLogIfExists(supabase, clientId, date, slot);
+  }
+
+  const meal_type = slot ? mealTypeForSlot(slot) : input.meal_type;
+
+  return supabase.from("daily_meal_logs").insert({
+    client_id: clientId,
+    date,
+    slot: slot ?? null,
+    meal_type,
+    name: input.name,
+    description: input.description,
+    calories: input.calories,
+    protein: input.protein,
+    carbs: input.carbs,
+    fat: input.fat,
+    foods: input.foods,
+    source_meal_id: input.source_meal_id ?? null,
+  });
 }
 
 export async function getDailyMealLogs(
@@ -185,9 +241,7 @@ export async function logMealFromLibrary(
 
   if (!plan) return { error: "Meal not found" };
 
-  const { error } = await supabase.from("daily_meal_logs").insert({
-    client_id: clientId,
-    date,
+  const { error } = await insertMealLogWithSlot(supabase, clientId, date, {
     meal_type: meal.meal_type,
     name: meal.name,
     description: meal.description,
@@ -218,9 +272,7 @@ export async function logCustomMeal(clientId: string, date: string, data: MealFo
   const payload = mealPayloadFromForm(data);
   if (!payload.name) return { error: "Meal name is required" };
 
-  const { error } = await supabase.from("daily_meal_logs").insert({
-    client_id: clientId,
-    date,
+  const { error } = await insertMealLogWithSlot(supabase, clientId, date, {
     meal_type: payload.meal_type,
     name: payload.name,
     description: payload.description,

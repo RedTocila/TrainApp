@@ -12,6 +12,7 @@ import type { MealFormData } from "@/lib/meal-utils";
 import type { MacroTargets } from "@/lib/meal-score";
 import { NutritionStatsPanel } from "@/components/nutrition-stats-panel";
 import { RecentMealsList } from "@/components/recent-meals-list";
+import { MealPlanChecklist } from "@/components/scheduled-meals-list";
 import { MealPlanDialog } from "@/components/meal-plan-dialog";
 import { NutritionPlanPdfDialog } from "@/components/nutrition-plan-pdf-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
@@ -272,6 +273,15 @@ export function DailyTracker({
               <Check className="h-4 w-4" />
               Water goal reached
             </div>
+          )}
+
+          {hasMealPlan && (
+            <MealPlanChecklist
+              clientId={clientId}
+              dateKey={dateKey}
+              slots={plannedMealSlots}
+              onMealsChange={refreshMeals}
+            />
           )}
 
           <RecentMealsList
