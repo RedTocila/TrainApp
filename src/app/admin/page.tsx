@@ -54,9 +54,6 @@ export default async function AdminDashboardPage({
             <Link href="/admin/clients">
               <Button variant="outline" size="sm">All clients</Button>
             </Link>
-            <Link href="/admin/workouts/new">
-              <Button size="sm">New workout</Button>
-            </Link>
           </div>
         </div>
 

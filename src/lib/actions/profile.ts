@@ -32,6 +32,7 @@ export async function updateProfile(formData: FormData) {
   if (!user) return { error: "Not authenticated" };
 
   const fullName = (formData.get("full_name") as string)?.trim();
+  const phone = (formData.get("phone") as string)?.trim() || null;
   const goal = (formData.get("goal") as string)?.trim() || null;
   const unitSystem = ((formData.get("unit_system") as string) || "metric").trim();
 
@@ -42,7 +43,7 @@ export async function updateProfile(formData: FormData) {
 
   const { error } = await supabase
     .from("profiles")
-    .update({ full_name: fullName, goal, unit_system: unitSystem })
+    .update({ full_name: fullName, phone, goal, unit_system: unitSystem })
     .eq("id", user.id);
 
   if (error) return { error: error.message };

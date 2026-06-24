@@ -21,11 +21,13 @@ const GOAL_OPTIONS = [
 export function ProfileSettings({
   fullName,
   email,
+  phone,
   goal,
   showHeader = true,
 }: {
   fullName: string;
   email: string;
+  phone?: string | null;
   goal: string | null;
   showHeader?: boolean;
 }) {
@@ -91,6 +93,16 @@ export function ProfileSettings({
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" value={email} disabled className="opacity-60" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone number</Label>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                defaultValue={phone ?? ""}
+                placeholder="+383 44 123 456"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="goal">Fitness goal</Label>

@@ -7,6 +7,7 @@ import {
   getClientNutritionAssignment,
 } from "@/lib/actions/plans";
 import { getClientActivityFeed } from "@/lib/actions/client-activity";
+import { getAdminClientCalendarData } from "@/lib/actions/admin-client-calendar";
 import { createClient } from "@/lib/supabase/server";
 import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Phone } from "lucide-react";
 import { ClientActivityFeed } from "@/components/client-activity-feed";
+import { AdminClientCalendar } from "@/components/admin-client-calendar";
 
 export default async function ClientDetailPage({
   params,
@@ -35,11 +37,12 @@ export default async function ClientDetailPage({
 
   if (!client) notFound();
 
-  const [requests, workout, nutrition, activity] = await Promise.all([
+  const [requests, workout, nutrition, activity, calendarData] = await Promise.all([
     getClientRequests(id),
     getClientWorkoutAssignment(id),
     getClientNutritionAssignment(id),
     getClientActivityFeed(id, 50),
+    getAdminClientCalendarData(id),
   ]);
 
   const activeRequest = requestId
@@ -55,7 +58,7 @@ export default async function ClientDetailPage({
 
   return (
     <PageTransition>
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <Link href="/admin/clients">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -76,6 +79,13 @@ export default async function ClientDetailPage({
             </a>
           )}
         </div>
+
+        {calendarData && (
+          <AdminClientCalendar
+            schedule={calendarData.schedule}
+            enrichment={calendarData.enrichment}
+          />
+        )}
 
         {activeRequest && (
           <Card className={needsBuild ? "border-primary/30" : "border-green-500/30"}>

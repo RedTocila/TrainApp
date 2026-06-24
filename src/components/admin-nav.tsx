@@ -6,8 +6,6 @@ import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Users,
-  Dumbbell,
-  Apple,
   Video,
   Bell,
   LogOut,
@@ -19,8 +17,6 @@ import { NotificationBell } from "@/components/notification-bell";
 const navItems = [
   { href: "/admin", label: "Dashboard", shortLabel: "Home", icon: LayoutDashboard, exact: true },
   { href: "/admin/requests", label: "Requests", shortLabel: "Requests", icon: Bell },
-  { href: "/admin/workouts", label: "Workouts", shortLabel: "Workout", icon: Dumbbell },
-  { href: "/admin/nutrition", label: "Nutrition", shortLabel: "Nutrition", icon: Apple },
   { href: "/admin/classes", label: "Classes", shortLabel: "Classes", icon: Video },
   { href: "/admin/clients", label: "Clients", shortLabel: "Clients", icon: Users },
 ];
@@ -83,7 +79,7 @@ export function AdminNav({
       </aside>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        <div className="grid grid-cols-6 py-2">
+        <div className="grid grid-cols-4 py-2">
           {navItems.map((item) => {
             const active = isActive(pathname, item.href, item.exact);
             return (

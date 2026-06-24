@@ -325,12 +325,14 @@ export function CalendarDayDot({
   selected,
   dayStatus = "default",
   onSelect,
+  size = "default",
 }: {
   date: Date;
   tasks: DailyTask[];
   selected: boolean;
   dayStatus?: CalendarDayStatus;
   onSelect: () => void;
+  size?: "default" | "large";
 }) {
   const todayDay = isToday(date);
   const categories = [...new Set(tasks.map((t) => t.category))];
@@ -338,13 +340,17 @@ export function CalendarDayDot({
   const isIncompletePast = dayStatus === "incomplete_past";
   const isIncompleteActive = dayStatus === "incomplete_active";
   const doneCount = tasks.filter((t) => t.completed).length;
+  const large = size === "large";
 
   return (
     <button
       type="button"
       onClick={onSelect}
       className={cn(
-        "flex aspect-square flex-col items-center justify-center rounded-xl border text-sm transition-colors",
+        "flex w-full flex-col items-center justify-center rounded-xl border transition-colors",
+        large
+          ? "min-h-[4.25rem] gap-1.5 rounded-2xl px-1 py-2 sm:min-h-[4.75rem]"
+          : "aspect-square text-sm",
         selected
           ? isComplete
             ? "border-green-500 bg-green-500/15"
@@ -359,7 +365,7 @@ export function CalendarDayDot({
               ? "border-red-500/50 bg-red-500/10 hover:bg-red-500/15"
               : isIncompleteActive
                 ? "border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/15"
-                : "border-transparent hover:bg-secondary",
+                : "border-border/60 bg-secondary/20 hover:bg-secondary/40",
         todayDay &&
           !selected &&
           !isComplete &&
@@ -368,36 +374,53 @@ export function CalendarDayDot({
           "ring-2 ring-primary/40"
       )}
     >
-      <span className="text-xs font-bold">{format(date, "d")}</span>
+      <span className={cn("font-bold leading-none", large ? "text-base" : "text-xs")}>
+        {format(date, "d")}
+      </span>
       {isComplete ? (
         <span
-          className="mt-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-white"
+          className={cn(
+            "flex items-center justify-center rounded-full bg-green-500 text-white",
+            large ? "h-6 w-6" : "mt-0.5 h-4 w-4"
+          )}
           aria-label="All tasks completed"
         >
-          <Check className="h-2.5 w-2.5" />
+          <Check className={large ? "h-3.5 w-3.5" : "h-2.5 w-2.5"} />
         </span>
       ) : isIncompletePast ? (
         <span
-          className="mt-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white"
+          className={cn(
+            "flex items-center justify-center rounded-full bg-red-500 text-white",
+            large ? "h-6 w-6" : "mt-0.5 h-4 w-4"
+          )}
           aria-label="Tasks incomplete"
         >
-          <X className="h-2.5 w-2.5" />
+          <X className={large ? "h-3.5 w-3.5" : "h-2.5 w-2.5"} />
         </span>
       ) : isIncompleteActive ? (
         <span
-          className="mt-0.5 rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-none text-white"
+          className={cn(
+            "rounded-full bg-amber-500 font-bold leading-none text-white",
+            large ? "px-2 py-1 text-[11px]" : "mt-0.5 px-1 text-[9px]"
+          )}
           aria-label={`${doneCount} of ${tasks.length} tasks completed`}
         >
           {doneCount}/{tasks.length}
         </span>
       ) : (
         categories.length > 0 && (
-          <div className="mt-1 flex flex-wrap justify-center gap-0.5 px-1">
+          <div
+            className={cn(
+              "flex flex-wrap justify-center",
+              large ? "mt-0.5 gap-1 px-1" : "mt-1 gap-0.5 px-1"
+            )}
+          >
             {categories.slice(0, 4).map((category) => (
               <span
                 key={category}
                 className={cn(
-                  "h-1 w-1 rounded-full",
+                  "rounded-full",
+                  large ? "h-1.5 w-1.5" : "h-1 w-1",
                   selected ? "bg-primary-foreground/80" : "bg-primary/70"
                 )}
                 title={TASK_CATEGORY_LABELS[category]}

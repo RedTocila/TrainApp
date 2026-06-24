@@ -51,6 +51,7 @@ export default async function ProfilePage() {
               <ProfileSettings
                 fullName={profile.full_name}
                 email={profile.email}
+                phone={profile.phone}
                 goal={profile.goal ?? null}
                 showHeader={false}
               />
