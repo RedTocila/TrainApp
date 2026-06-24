@@ -20,6 +20,7 @@ export function hasPaidAccess(profile: Pick<
   return isSubscriptionActive(profile);
 }
 
+/** Premium AI features: plan builders, photo/text meal logging, live sessions. */
 export function hasAiAccess(profile: Pick<
   Profile,
   "role" | "subscription_plan" | "subscription_status" | "subscription_expires_at"

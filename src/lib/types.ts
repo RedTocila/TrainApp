@@ -81,6 +81,7 @@ export interface PlanRequest {
   amount_cents?: number | null;
   delivered_workout_plan_id?: string | null;
   delivered_nutrition_plan_id?: string | null;
+  delivered_nutrition_pdf_path?: string | null;
   rejected_reason?: string | null;
   approved_at?: string | null;
   delivered_at?: string | null;

@@ -9,7 +9,7 @@ import {
   assignNutritionPlan,
   deleteMeal,
 } from "@/lib/actions/plans";
-import { sendTrainerPlanToClient, findDeliverablePlanRequest } from "@/lib/actions/custom-plans";
+import { findDeliverablePlanRequest } from "@/lib/actions/custom-plans";
 import {
   createPersonalNutritionPlan,
   updatePersonalNutritionPlan,
@@ -181,28 +181,18 @@ export function NutritionBuilder({
       }
 
       if (clientId && currentPlanId) {
-        if (requestId) {
-          const result = await sendTrainerPlanToClient(requestId, currentPlanId, "nutrition");
-          if (result.error) {
-            setError(result.error);
-            return;
-          }
-        } else {
-          const openRequest = await findDeliverablePlanRequest(clientId, "diet");
-          if (openRequest) {
-            const result = await sendTrainerPlanToClient(
-              openRequest.id,
-              currentPlanId,
-              "nutrition"
-            );
-            if (result.error) {
-              setError(result.error);
-              return;
-            }
-          } else {
-            await assignNutritionPlan(clientId, currentPlanId, requestId);
-          }
+        const openRequest = requestId
+          ? { id: requestId }
+          : await findDeliverablePlanRequest(clientId, "diet");
+
+        if (openRequest) {
+          setError(
+            "Custom nutrition plans are sent as PDF. Open the client request and use Upload PDF."
+          );
+          return;
         }
+
+        await assignNutritionPlan(clientId, currentPlanId, requestId);
         router.push(`/admin/clients/${clientId}`);
         return;
       }

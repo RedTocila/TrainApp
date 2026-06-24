@@ -100,7 +100,7 @@ export const LANDING_UPDATES: LandingUpdate[] = [
 
 export const LANDING_STATS = [
   { value: "2", label: "Subscription tiers" },
-  { value: "€9", label: "Core from /mo" },
+  { value: "€7", label: "Core from /mo" },
   { value: "€49", label: "Custom workout" },
   { value: "24/7", label: "Track anytime" },
 ];

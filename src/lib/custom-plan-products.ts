@@ -24,7 +24,7 @@ export const CUSTOM_PLAN_PRODUCTS: CustomPlanProduct[] = [
     type: "diet",
     orderKind: "custom_nutrition",
     title: "Custom Nutrition Plan",
-    description: `Personal meal plan and macros designed by ${TRAINER_NAME} for your body and goals.`,
+    description: `Personal nutrition plan designed by ${TRAINER_NAME} as a PDF tailored to your body and goals.`,
     amountCents: 7900,
     label: "€79",
   },

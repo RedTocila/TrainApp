@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedProfile } from "@/lib/cached-profile";
 
 export async function signUp(formData: FormData) {
   const supabase = await createClient();
@@ -67,17 +68,7 @@ export async function signOut() {
 }
 
 export async function getProfile() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  return profile;
+  return getCachedProfile();
 }
 
 export async function requireAdmin() {

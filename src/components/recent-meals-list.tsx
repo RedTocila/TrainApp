@@ -5,6 +5,7 @@ import { formatMealMacrosSummary, normalizeMealMacros } from "@/lib/meal-utils";
 import type { DailyMealLog } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const MEAL_ICONS = [Salad, Apple, UtensilsCrossed] as const;
 
@@ -15,6 +16,7 @@ function mealIcon(index: number) {
 export function RecentMealsList({
   meals,
   onDelete,
+  onSelect,
   onAdd,
   isPending,
   title = "Recently logged",
@@ -23,6 +25,7 @@ export function RecentMealsList({
 }: {
   meals: DailyMealLog[];
   onDelete?: (id: string) => void;
+  onSelect?: (meal: DailyMealLog) => void;
   onAdd?: () => void;
   isPending?: boolean;
   title?: string;
@@ -67,37 +70,55 @@ export function RecentMealsList({
         {meals.map((meal, index) => {
           const Icon = mealIcon(index);
           const summary = formatMealMacrosSummary(normalizeMealMacros(meal));
+          const interactive = Boolean(onSelect);
+
           return (
-            <li
-              key={meal.id}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-secondary/30 p-3"
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                <Icon className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="truncate text-sm font-semibold">{meal.name}</span>
-                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px] capitalize">
-                    {meal.meal_type}
-                  </Badge>
-                </div>
-                {summary && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">{summary}</p>
+            <li key={meal.id}>
+              <div
+                className={cn(
+                  "flex items-center gap-3 rounded-2xl border border-border bg-secondary/30 p-3",
+                  interactive &&
+                    "cursor-pointer transition-colors hover:border-primary/30 hover:bg-secondary/50"
+                )}
+              >
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  onClick={() => onSelect?.(meal)}
+                  disabled={!interactive}
+                  aria-label={interactive ? `View insights for ${meal.name}` : undefined}
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold">{meal.name}</span>
+                      <Badge variant="secondary" className="h-5 px-1.5 text-[10px] capitalize">
+                        {meal.meal_type}
+                      </Badge>
+                    </div>
+                    {summary && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{summary}</p>
+                    )}
+                  </div>
+                </button>
+                {onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-400"
+                    disabled={isPending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(meal.id);
+                    }}
+                    aria-label={`Remove ${meal.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 )}
               </div>
-              {onDelete && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-400"
-                  disabled={isPending}
-                  onClick={() => onDelete(meal.id)}
-                  aria-label={`Remove ${meal.name}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
             </li>
           );
         })}

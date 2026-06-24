@@ -315,7 +315,9 @@ export async function getScheduledWorkoutsInRange(from: string, to: string) {
 
   const { data } = await supabase
     .from("scheduled_workouts")
-    .select("*, workout_plans(*), workout_days(*, exercises(*))")
+    .select(
+      "*, workout_plans(title), workout_days(title, day_index, exercises(id, name, sets, reps, order_index))"
+    )
     .eq("client_id", userId)
     .gte("scheduled_date", from)
     .lte("scheduled_date", to)
@@ -538,14 +540,31 @@ export async function getPersonalWorkoutsWithSchedules(
 ): Promise<PersonalWorkoutListItem[]> {
   const { supabase, userId } = await requireUserId();
   const plans = await getPersonalWorkoutPlans(folderId);
-  const today = new Date().toISOString().split("T")[0];
+  if (plans.length === 0) return [];
 
-  const { data: upcoming } = await supabase
-    .from("scheduled_workouts")
-    .select("scheduled_date, plan_id")
-    .eq("client_id", userId)
-    .gte("scheduled_date", today)
-    .order("scheduled_date");
+  const today = new Date().toISOString().split("T")[0];
+  const planIds = plans.map((plan) => plan.id);
+
+  const [{ data: upcoming }, { data: days }] = await Promise.all([
+    supabase
+      .from("scheduled_workouts")
+      .select("scheduled_date, plan_id")
+      .eq("client_id", userId)
+      .gte("scheduled_date", today)
+      .order("scheduled_date"),
+    supabase
+      .from("workout_days")
+      .select("*, exercises(*)")
+      .in("plan_id", planIds)
+      .order("day_index"),
+  ]);
+
+  const daysByPlan = new Map<string, WorkoutDay[]>();
+  for (const day of days ?? []) {
+    const list = daysByPlan.get(day.plan_id) ?? [];
+    list.push(day as WorkoutDay);
+    daysByPlan.set(day.plan_id, list);
+  }
 
   const sessionsByPlan = new Map<string, string[]>();
   for (const row of upcoming ?? []) {
@@ -554,10 +573,8 @@ export async function getPersonalWorkoutsWithSchedules(
     sessionsByPlan.set(row.plan_id, list);
   }
 
-  const items: PersonalWorkoutListItem[] = [];
-
-  for (const plan of plans) {
-    const { days } = await getPersonalWorkoutPlanWithDetails(plan.id);
+  return plans.map((plan) => {
+    const planDays = daysByPlan.get(plan.id) ?? [];
     const sessions = sessionsByPlan.get(plan.id) ?? [];
     const nextSession = sessions[0] ?? null;
     const upcomingCount = sessions.length;
@@ -574,16 +591,14 @@ export async function getPersonalWorkoutsWithSchedules(
           : `Next: ${nextLabel} · ${upcomingCount} sessions`;
     }
 
-    items.push({
+    return {
       plan,
-      days,
+      days: planDays,
       nextSession,
       upcomingCount,
       scheduleSummary,
-    });
-  }
-
-  return items;
+    };
+  });
 }
 
 export interface PersonalExerciseLibraryItem {

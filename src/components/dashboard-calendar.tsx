@@ -13,31 +13,18 @@ import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 interface DashboardCalendarProps {
   clientId: string;
   schedule: ClientSchedule;
-  completionsByDate: Record<string, string[]>;
-}
-
-function buildInitialEnrichment(
-  completionsByDate: Record<string, string[]>
-): DashboardEnrichmentData {
-  return {
-    completionsByDate,
-    waterByDate: {},
-    mealsByDate: {},
-    workoutCompletedDates: [],
-    accountCreatedAt: null,
-  };
+  initialEnrichment: DashboardEnrichmentData;
 }
 
 export function DashboardCalendar({
   clientId,
   schedule,
-  completionsByDate,
+  initialEnrichment,
 }: DashboardCalendarProps) {
   const { selectedDate, setSelectedDate } = useSelectedDate();
   const { version, mergeEnrichment } = useDashboardSync();
-  const [enrichment, setEnrichment] = useState<DashboardEnrichmentData>(() =>
-    buildInitialEnrichment(completionsByDate)
-  );
+  const [enrichment, setEnrichment] =
+    useState<DashboardEnrichmentData>(initialEnrichment);
   const [, startTransition] = useTransition();
 
   const mergedEnrichment = useMemo(
@@ -54,6 +41,8 @@ export function DashboardCalendar({
   }, []);
 
   useEffect(() => {
+    if (version === 0) return;
+
     startTransition(async () => {
       const data = await fetchDashboardEnrichmentData(
         clientId,

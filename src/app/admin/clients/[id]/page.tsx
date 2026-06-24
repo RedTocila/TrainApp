@@ -84,10 +84,14 @@ export default async function ClientDetailPage({
               {activeRequest.notes && (
                 <p className="text-sm text-muted-foreground">{activeRequest.notes}</p>
               )}
-              {sentToClient && (
+              {sentToClient && activeRequest.type === "diet" && (
                 <p className="text-sm text-green-400">
-                  Plan delivered. Waiting for the client to click Implement it on their nutrition
-                  tab.
+                  Nutrition plan PDF sent. The client can view it from their Nutrition tab.
+                </p>
+              )}
+              {sentToClient && activeRequest.type === "workout" && (
+                <p className="text-sm text-green-400">
+                  Plan delivered. Waiting for the client to click Implement it on their workout tab.
                 </p>
               )}
               {needsBuild && (
@@ -98,7 +102,9 @@ export default async function ClientDetailPage({
                       : `/admin/nutrition/new?client=${id}&request=${activeRequest.id}`
                   }
                 >
-                  <Button size="sm">Build {activeRequest.type} Plan</Button>
+                  <Button size="sm">
+                    {activeRequest.type === "diet" ? "Upload PDF" : `Build ${activeRequest.type} plan`}
+                  </Button>
                 </Link>
               )}
             </CardContent>

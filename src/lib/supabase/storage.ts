@@ -5,6 +5,7 @@ export const STORAGE_BUCKETS = {
   blogImages: "blog-images",
   exerciseMedia: "exercise-media",
   progressPhotos: "progress-photos",
+  nutritionPlanPdfs: "nutrition-plan-pdfs",
 } as const;
 
 export type StorageBucket = (typeof STORAGE_BUCKETS)[keyof typeof STORAGE_BUCKETS];
@@ -50,6 +51,10 @@ export function progressPhotoPath(
   extension: "webp" | "jpg"
 ) {
   return `${userId}/${monthFolder}/${pose}.${extension}`;
+}
+
+export function nutritionPlanPdfPath(clientId: string, requestId: string) {
+  return `${clientId}/${requestId}/plan.pdf`;
 }
 
 export async function createSignedStorageUrl(

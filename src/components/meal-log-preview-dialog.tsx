@@ -17,12 +17,14 @@ export function MealLogPreviewDialog({
   targets,
   goal,
   onClose,
+  variant = "new",
 }: {
   open: boolean;
   meal: MealFormData | null;
   targets: MacroTargets;
   goal?: string | null;
   onClose: () => void;
+  variant?: "new" | "view";
 }) {
   useEffect(() => {
     if (!open) return;
@@ -63,7 +65,7 @@ export function MealLogPreviewDialog({
           <div className="space-y-1">
             <p className="flex items-center gap-2 text-sm font-semibold text-primary">
               <CheckCircle2 className="h-4 w-4" />
-              Meal logged
+              {variant === "new" ? "Meal logged" : "Meal insights"}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-black">{meal.name}</h2>

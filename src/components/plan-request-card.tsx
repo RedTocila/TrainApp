@@ -124,7 +124,8 @@ export function PlanRequestCard({
             {["in_progress", "awaiting_approval", "pending"].includes(request.status) && (
               <Link href={builderHref}>
                 <Button size="sm" variant="secondary">
-                  Build & send <ArrowRight className="h-3 w-3" />
+                  {request.type === "diet" ? "Upload PDF & send" : "Build & send"}{" "}
+                  <ArrowRight className="h-3 w-3" />
                 </Button>
               </Link>
             )}

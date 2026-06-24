@@ -18,11 +18,13 @@ import {
   getHabitsScheduledInRange,
   getHabitsWithCompletions,
 } from "@/lib/actions/habits";
+import { fetchDashboardEnrichmentFields } from "@/lib/actions/dashboard-enrichment";
 import { getTaskCompletionsInRange } from "@/lib/actions/task-completions";
 import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
 import { getScheduledCardioInRange } from "@/lib/actions/user-cardio";
 import { scheduledCardioByDateMap } from "@/lib/cardio-utils";
 import { getScheduledNutritionInRange, getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
+import { getActiveTrainerNutritionPdfRequestId } from "@/lib/actions/nutrition-plan-pdf";
 import { resolveWorkoutForDate } from "@/lib/actions/workout-sessions";
 import { formatDateKey } from "@/lib/utils";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
@@ -34,10 +36,10 @@ import { ScrollToHash } from "@/components/scroll-to-hash";
 import { HabitsTracker } from "@/components/habits-tracker";
 import { BodyMetricsSection } from "@/components/body-metrics-section";
 import { ProgressPhotosCard } from "@/components/progress-photos-card";
-import { PageTransition, StaggerContainer, StaggerItem } from "@/components/page-transition";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { getPrimaryMealsForDayMenu } from "@/lib/meal-slots";
 import { hasAiAccess } from "@/lib/subscription";
+import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 
 export default async function DashboardPage() {
   const profile = await requireClient();
@@ -46,7 +48,7 @@ export default async function DashboardPage() {
   const rangeStart = format(addDays(today, -3), "yyyy-MM-dd");
   const rangeEnd = format(addDays(today, 28), "yyyy-MM-dd");
 
-  await ensureHabitSchedules(profile.id);
+  void ensureHabitSchedules(profile.id);
 
   const [
     workoutAssignment,
@@ -65,6 +67,10 @@ export default async function DashboardPage() {
     dailyMeals,
     mealLibrary,
     progressPhotoSets,
+    enrichmentFields,
+    initialWorkout,
+    scheduledPlanForToday,
+    trainerNutritionPdfRequestId,
   ] = await Promise.all([
     getClientWorkoutAssignment(profile.id),
     getClientNutritionAssignment(profile.id),
@@ -82,6 +88,10 @@ export default async function DashboardPage() {
     getDailyMealLogs(profile.id, dateKey),
     getPersonalMealsLibrary(),
     getProgressPhotoSets(profile.id),
+    fetchDashboardEnrichmentFields(profile.id, rangeStart, rangeEnd),
+    resolveWorkoutForDate(profile.id, dateKey),
+    getNutritionPlanForDate(profile.id, dateKey),
+    getActiveTrainerNutritionPdfRequestId(profile.id),
   ]);
 
   const habitsByDate: Record<
@@ -115,14 +125,17 @@ export default async function DashboardPage() {
     )
   );
 
+  const initialEnrichment: DashboardEnrichmentData = {
+    completionsByDate: completionsSerializable,
+    ...enrichmentFields,
+    accountCreatedAt: profile.created_at,
+  };
+
   const nutritionPlan = nutritionAssignment?.nutrition_plans;
   const personalNutritionPlanId =
     nutritionPlan?.is_personal && nutritionAssignment?.plan_id
       ? nutritionAssignment.plan_id
       : null;
-
-  const initialWorkout = await resolveWorkoutForDate(profile.id, dateKey);
-  const scheduledPlanForToday = await getNutritionPlanForDate(profile.id, dateKey);
 
   const targets = {
     calories: profile.target_calories ?? nutritionPlan?.target_calories ?? 2000,
@@ -156,10 +169,9 @@ export default async function DashboardPage() {
             habitsByDate,
             waterGoalMl,
           }}
-          completionsByDate={completionsSerializable}
+          initialEnrichment={initialEnrichment}
         />
       </div>
-      <PageTransition>
       <ScrollToHash />
       <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
         <DashboardDateHeading />
@@ -175,7 +187,7 @@ export default async function DashboardPage() {
             habitsByDate,
             waterGoalMl,
           }}
-          completionsByDate={completionsSerializable}
+          initialEnrichment={initialEnrichment}
         />
 
         <DashboardOverview
@@ -188,20 +200,16 @@ export default async function DashboardPage() {
           personalPlanId={personalNutritionPlanId}
           initialWaterGoalMl={profile.water_goal_ml ?? 2500}
           nutritionPlan={nutritionSummary}
+          trainerNutritionPdfRequestId={trainerNutritionPdfRequestId}
           goal={profile.goal ?? null}
         />
 
-        <StaggerContainer>
-          <StaggerItem>
-            <DashboardWorkoutCard
-              clientId={profile.id}
-              initialWorkout={initialWorkout}
-            />
-          </StaggerItem>
-          <StaggerItem>
-            <DashboardCardioCard clientId={profile.id} />
-          </StaggerItem>
-        </StaggerContainer>
+        <DashboardWorkoutCard
+          clientId={profile.id}
+          initialWorkout={initialWorkout}
+        />
+
+        <DashboardCardioCard clientId={profile.id} />
 
         <BodyMetricsSection
           clientId={profile.id}
@@ -218,7 +226,6 @@ export default async function DashboardPage() {
 
         <HabitsTracker clientId={profile.id} initialHabits={habits} />
       </div>
-    </PageTransition>
     </>
   );
 }

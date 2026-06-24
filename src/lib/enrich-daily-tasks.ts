@@ -2,6 +2,7 @@ import type { DailyTask } from "@/lib/daily-tasks";
 import type { DailyMealLog, Meal } from "@/lib/types";
 import {
   getNutritionDayStatus,
+  isDayEnded,
   isDeadlinePassed,
   WATER_DEADLINE,
   WORKOUT_DEADLINE,
@@ -24,7 +25,7 @@ export function enrichDailyTasks(
 ): DailyTask[] {
   const now = ctx.now ?? new Date();
 
-  return tasks.map((task) => {
+  const enriched = tasks.map((task) => {
     if (task.category === "water") {
       const goal = ctx.waterGoalMl;
       const drank = ctx.waterMl;
@@ -82,6 +83,12 @@ export function enrichDailyTasks(
 
     return task;
   });
+
+  if (!isDayEnded(ctx.dateKey, now)) return enriched;
+
+  return enriched.map((task) =>
+    task.completed ? task : { ...task, missed: true }
+  );
 }
 
 /** @deprecated Use enrichDailyTasks */

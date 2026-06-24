@@ -27,6 +27,7 @@ export function DashboardOverview({
   personalPlanId,
   initialWaterGoalMl,
   nutritionPlan: initialNutritionPlan,
+  trainerNutritionPdfRequestId,
   goal,
 }: {
   clientId: string;
@@ -44,6 +45,7 @@ export function DashboardOverview({
     scheduled?: boolean;
     activeSlots?: MealSlot[];
   } | null;
+  trainerNutritionPdfRequestId?: string | null;
 }) {
   const { selectedDate } = useSelectedDate();
   const [log, setLog] = useState(initialLog);
@@ -94,6 +96,7 @@ export function DashboardOverview({
       waterGoalMl={waterGoalMl}
       onWaterGoalChange={setWaterGoalMl}
       nutritionPlan={nutritionPlan}
+      trainerNutritionPdfRequestId={trainerNutritionPdfRequestId}
       goal={goal}
     />
   );

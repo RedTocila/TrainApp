@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasPaidAccess } from "@/lib/subscription";
 import { getDashboardAiInsight, getLatestWeeklyReport } from "@/lib/actions/ai-coach";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { AiCoachOverviewClient } from "@/components/ai-coach-overview-client";
@@ -15,7 +15,7 @@ export default async function AiCoachOverviewPage() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
   if (!profile) return null;
 
-  const aiAccess = hasAiAccess(profile);
+  const aiAccess = hasPaidAccess(profile);
   const today = formatDateKey(new Date());
   const [insight, report] = aiAccess
     ? await Promise.all([getDashboardAiInsight(today), getLatestWeeklyReport()])

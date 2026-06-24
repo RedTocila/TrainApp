@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasPaidAccess } from "@/lib/subscription";
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { StatBar } from "@/components/ai/stat-bar";
@@ -24,7 +24,7 @@ export default async function AiRecommendationsPage() {
   if (!user) return null;
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-  if (!profile || !hasAiAccess(profile)) {
+  if (!profile || !hasPaidAccess(profile)) {
     return <AiUpgradeGate title="AI recommendations" />;
   }
 

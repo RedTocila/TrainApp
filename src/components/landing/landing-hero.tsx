@@ -83,7 +83,7 @@ export function LandingHero() {
             transition={{ delay: 0.35 }}
             className="text-sm text-muted-foreground"
           >
-            Browse free · Subscribe from €9/mo · Cancel anytime
+            Browse free · Subscribe from €7/mo · Cancel anytime
           </motion.p>
         </div>
 

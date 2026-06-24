@@ -5,7 +5,7 @@ import {
   type DailyTask,
 } from "@/lib/daily-tasks";
 import { enrichDailyTasks } from "@/lib/enrich-daily-tasks";
-import { dayRelation } from "@/lib/meal-times";
+import { isDayEnded } from "@/lib/meal-times";
 import type { DailyMealLog, Meal } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 
@@ -56,7 +56,11 @@ export function enrichTasksForDate(
   });
 }
 
-export type CalendarDayStatus = "complete" | "incomplete_past" | "default";
+export type CalendarDayStatus =
+  | "complete"
+  | "incomplete_past"
+  | "incomplete_active"
+  | "default";
 
 export function getCalendarDayStatus(
   tasks: DailyTask[],
@@ -69,7 +73,9 @@ export function getCalendarDayStatus(
   if (allDone) return "complete";
 
   const dateKey = formatDateKey(date);
-  if (dayRelation(dateKey, now) === "past") return "incomplete_past";
+  if (isDayEnded(dateKey, now)) return "incomplete_past";
+
+  if (tasks.some((task) => task.completed)) return "incomplete_active";
 
   return "default";
 }

@@ -15,8 +15,8 @@ export function PricingPageClient({ profile }: { profile: Profile }) {
       <div className="space-y-2 text-center">
         <h1 className="text-3xl font-black tracking-tight">Choose your plan</h1>
         <p className="text-muted-foreground">
-          Start with Core for full tracking, or upgrade to AI for photo-based meal logging
-          (coming soon).
+          Start with Core for full tracking and AI Coach insights, or upgrade to AI for plan
+          builders, photo meal logging, and live sessions.
         </p>
       </div>
       <PricingPlans

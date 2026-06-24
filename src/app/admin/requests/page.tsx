@@ -17,7 +17,7 @@ export default async function RequestsPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-black">Plan Requests</h1>
             <p className="text-muted-foreground">
-              Review and build plans for your clients
+              Review and deliver plans for your clients
             </p>
           </div>
           <form action={markAllReadForm} className="shrink-0">

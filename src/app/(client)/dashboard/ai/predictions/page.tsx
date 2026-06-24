@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasPaidAccess } from "@/lib/subscription";
 import { getProgressPredictionAction } from "@/lib/actions/ai-coach";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { ScoreGauge } from "@/components/ai/score-gauge";
@@ -15,7 +15,7 @@ export default async function AiPredictionsPage() {
   if (!user) return null;
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-  if (!profile || !hasAiAccess(profile)) {
+  if (!profile || !hasPaidAccess(profile)) {
     return <AiUpgradeGate title="AI progress predictions" />;
   }
 

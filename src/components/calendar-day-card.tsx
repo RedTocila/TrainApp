@@ -73,6 +73,7 @@ export function CalendarDayCard({
   const doneCount = tasks.filter((t) => t.completed).length;
   const isComplete = dayStatus === "complete";
   const isIncompletePast = dayStatus === "incomplete_past";
+  const isIncompleteActive = dayStatus === "incomplete_active";
   const hasTasks = tasks.length > 0;
 
   return (
@@ -94,13 +95,22 @@ export function CalendarDayCard({
             ? "border-green-500 bg-green-500/15"
             : isIncompletePast
               ? "border-red-500 bg-red-500/15"
-              : "border-primary bg-primary/10 red-glow"
+              : isIncompleteActive
+                ? "border-amber-500 bg-amber-500/15"
+                : "border-primary bg-primary/10 red-glow"
           : isComplete
             ? "border-green-500/50 bg-green-500/10 hover:bg-green-500/15"
             : isIncompletePast
               ? "border-red-500/50 bg-red-500/10 hover:bg-red-500/15"
-              : "border-border bg-secondary/60 hover:bg-secondary/90",
-        todayDay && !selected && !isComplete && !isIncompletePast && "ring-2 ring-primary/40"
+              : isIncompleteActive
+                ? "border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/15"
+                : "border-border bg-secondary/60 hover:bg-secondary/90",
+        todayDay &&
+          !selected &&
+          !isComplete &&
+          !isIncompletePast &&
+          !isIncompleteActive &&
+          "ring-2 ring-primary/40"
       )}
     >
       <div
@@ -166,6 +176,17 @@ export function CalendarDayCard({
                 <X className={strip ? "h-2.5 w-2.5 sm:h-3 sm:w-3" : "h-3 w-3"} />
               </span>
             )}
+            {isIncompleteActive && (
+              <span
+                className={cn(
+                  "flex shrink-0 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-none text-white sm:text-[10px]",
+                  strip ? "h-4 min-w-4 sm:h-5 sm:min-w-5" : "h-5 min-w-5"
+                )}
+                aria-label={`${doneCount} of ${tasks.length} tasks completed`}
+              >
+                {doneCount}/{tasks.length}
+              </span>
+            )}
           </div>
         </div>
         <div
@@ -187,7 +208,7 @@ export function CalendarDayCard({
         </div>
       </div>
 
-      {strip && !isComplete && !isIncompletePast && (
+      {strip && !isComplete && !isIncompletePast && !isIncompleteActive && (
         <div className="flex flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 sm:hidden">
           {hasTasks ? (
             <>
@@ -315,6 +336,8 @@ export function CalendarDayDot({
   const categories = [...new Set(tasks.map((t) => t.category))];
   const isComplete = dayStatus === "complete";
   const isIncompletePast = dayStatus === "incomplete_past";
+  const isIncompleteActive = dayStatus === "incomplete_active";
+  const doneCount = tasks.filter((t) => t.completed).length;
 
   return (
     <button
@@ -327,13 +350,22 @@ export function CalendarDayDot({
             ? "border-green-500 bg-green-500/15"
             : isIncompletePast
               ? "border-red-500 bg-red-500/15"
-              : "border-primary bg-primary text-primary-foreground"
+              : isIncompleteActive
+                ? "border-amber-500 bg-amber-500/15"
+                : "border-primary bg-primary text-primary-foreground"
           : isComplete
             ? "border-green-500/50 bg-green-500/10 hover:bg-green-500/15"
             : isIncompletePast
               ? "border-red-500/50 bg-red-500/10 hover:bg-red-500/15"
-              : "border-transparent hover:bg-secondary",
-        todayDay && !selected && !isComplete && !isIncompletePast && "ring-2 ring-primary/40"
+              : isIncompleteActive
+                ? "border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/15"
+                : "border-transparent hover:bg-secondary",
+        todayDay &&
+          !selected &&
+          !isComplete &&
+          !isIncompletePast &&
+          !isIncompleteActive &&
+          "ring-2 ring-primary/40"
       )}
     >
       <span className="text-xs font-bold">{format(date, "d")}</span>
@@ -350,6 +382,13 @@ export function CalendarDayDot({
           aria-label="Tasks incomplete"
         >
           <X className="h-2.5 w-2.5" />
+        </span>
+      ) : isIncompleteActive ? (
+        <span
+          className="mt-0.5 rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-none text-white"
+          aria-label={`${doneCount} of ${tasks.length} tasks completed`}
+        >
+          {doneCount}/{tasks.length}
         </span>
       ) : (
         categories.length > 0 && (

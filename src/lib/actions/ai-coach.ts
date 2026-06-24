@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasPaidAccess } from "@/lib/subscription";
 import { isAiConfigured } from "@/lib/ai/providers";
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { loadMealSuggestions } from "@/lib/ai/load-meal-suggestions";
@@ -18,7 +18,7 @@ async function requireAiCoachAccess(): Promise<
 > {
   const profile = await getSubscriptionProfile();
   if (!profile) return { success: false, error: "Not authenticated" };
-  if (!hasAiAccess(profile)) {
+  if (!hasPaidAccess(profile)) {
     return { success: false, error: "Upgrade to TrainApp AI to access AI Coach features." };
   }
   return { success: true, profile };

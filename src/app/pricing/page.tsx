@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = {
   title: "Pricing — TrainApp",
   description:
-    "TrainApp Core from €9/month and TrainApp AI from €24/month. Custom trainer plans from €49.",
+    "TrainApp Core from €7/month and TrainApp AI from €19/month. Custom trainer plans from €49.",
   alternates: { canonical: `${SITE_URL}/pricing` },
   openGraph: {
     title: "Pricing — TrainApp",
@@ -42,7 +42,7 @@ export default async function PublicPricingPage() {
             </h1>
             <p className="text-muted-foreground">
               Browse the dashboard for free. Subscribe to log workouts, meals,
-              habits, and unlock AI features.
+              habits, and unlock premium AI tools.
             </p>
           </FadeIn>
           <PublicPricingClient />

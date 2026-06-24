@@ -8,7 +8,7 @@ import { SITE_URL } from "@/lib/landing-content";
 export const metadata: Metadata = {
   title: "TrainApp — Workouts, Nutrition & AI Coaching",
   description:
-    "Premium fitness platform with workout builder, nutrition tracking, AI coach, live coaching sessions, and custom trainer plans. Start free — plans from €9/month.",
+    "Premium fitness platform with workout builder, nutrition tracking, AI coach, live coaching sessions, and custom trainer plans. Start free — plans from €7/month.",
   keywords: [
     "fitness app",
     "workout tracker",

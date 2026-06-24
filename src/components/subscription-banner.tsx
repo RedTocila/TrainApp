@@ -20,7 +20,7 @@ export function SubscriptionBanner({ profile }: { profile: Profile }) {
             <p className="font-semibold">Unlock your full training dashboard</p>
             <p className="text-sm text-muted-foreground">
               Browse everything for free. Subscribe to log workouts, meals, water, habits, and
-              cardio. Plans from €9/month.
+              cardio. Plans from €7/month.
             </p>
           </div>
         </div>

@@ -7,12 +7,13 @@ import { formatDateKey } from "@/lib/utils";
 import { addWater } from "@/lib/actions/logs";
 import { deleteDailyMealLog } from "@/lib/actions/daily-meals";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
-import { sumMealMacros } from "@/lib/meal-utils";
+import { sumMealMacros, mealFormFromMeal } from "@/lib/meal-utils";
 import type { MealFormData } from "@/lib/meal-utils";
 import type { MacroTargets } from "@/lib/meal-score";
 import { NutritionStatsPanel } from "@/components/nutrition-stats-panel";
 import { RecentMealsList } from "@/components/recent-meals-list";
 import { MealPlanDialog } from "@/components/meal-plan-dialog";
+import { NutritionPlanPdfDialog } from "@/components/nutrition-plan-pdf-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
 import { LogMealDialog } from "@/components/log-meal-dialog";
 import { MealLogPreviewDialog } from "@/components/meal-log-preview-dialog";
@@ -52,6 +53,7 @@ interface DailyTrackerProps {
     scheduled?: boolean;
     activeSlots?: MealSlot[];
   } | null;
+  trainerNutritionPdfRequestId?: string | null;
 }
 
 export function DailyTracker({
@@ -65,13 +67,16 @@ export function DailyTracker({
   targets,
   waterGoalMl,
   nutritionPlan,
+  trainerNutritionPdfRequestId,
   goal,
 }: DailyTrackerProps) {
   const [isPending, startTransition] = useTransition();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [mealPlanOpen, setMealPlanOpen] = useState(false);
+  const [pdfPlanOpen, setPdfPlanOpen] = useState(false);
   const [previewMeal, setPreviewMeal] = useState<MealFormData | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewVariant, setPreviewVariant] = useState<"new" | "view">("new");
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
   const [mealTick, setMealTick] = useState(0);
   const { patchDashboard, notifySync } = useDashboardSync();
@@ -103,6 +108,8 @@ export function DailyTracker({
   );
 
   const hasMealPlan = plannedMealSlots.length > 0;
+  const hasTrainerPdfPlan = !!trainerNutritionPdfRequestId;
+  const showMealPlanButton = hasMealPlan || hasTrainerPdfPlan;
 
   const missedMeals = countMissedMealSlots(plannedMealSlots);
   const missedMealItems = useMemo(
@@ -171,9 +178,16 @@ export function DailyTracker({
   const handleLogged = (preview?: MealFormData) => {
     refreshMeals();
     if (preview) {
+      setPreviewVariant("new");
       setPreviewMeal(preview);
       setPreviewOpen(true);
     }
+  };
+
+  const handleSelectMeal = (meal: DailyMealLog) => {
+    setPreviewVariant("view");
+    setPreviewMeal(mealFormFromMeal(meal));
+    setPreviewOpen(true);
   };
 
   return (
@@ -212,14 +226,22 @@ export function DailyTracker({
                 {nutritionPlan.scheduled && " · scheduled"}
               </p>
             )}
+            {!nutritionPlan && hasTrainerPdfPlan && (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                Coach nutrition plan · PDF
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {hasMealPlan && (
+            {showMealPlanButton && (
               <Button
                 size="icon"
                 variant="outline"
                 className="h-9 w-9 rounded-full"
-                onClick={() => setMealPlanOpen(true)}
+                onClick={() => {
+                  if (hasTrainerPdfPlan) setPdfPlanOpen(true);
+                  else setMealPlanOpen(true);
+                }}
                 aria-label="View meal plan"
               >
                 <ClipboardList className="h-4 w-4" />
@@ -256,6 +278,7 @@ export function DailyTracker({
             title="Meals logged"
             meals={dailyMeals}
             onDelete={handleDeleteMeal}
+            onSelect={handleSelectMeal}
             onAdd={() => setLogMealOpen(true)}
             isPending={isPending}
             showHeaderAdd={false}
@@ -270,6 +293,15 @@ export function DailyTracker({
         title={mealPlanDialogTitle}
         slots={plannedMealSlots}
       />
+
+      {trainerNutritionPdfRequestId && (
+        <NutritionPlanPdfDialog
+          open={pdfPlanOpen}
+          onClose={() => setPdfPlanOpen(false)}
+          title={mealPlanDialogTitle}
+          requestId={trainerNutritionPdfRequestId}
+        />
+      )}
 
       <LogMealDialog
         open={logMealOpen}
@@ -287,6 +319,7 @@ export function DailyTracker({
         meal={previewMeal}
         targets={targets}
         goal={goal}
+        variant={previewVariant}
         onClose={() => setPreviewOpen(false)}
       />
     </>

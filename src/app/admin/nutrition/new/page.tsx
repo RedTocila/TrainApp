@@ -2,9 +2,8 @@ import { requireAdmin } from "@/lib/actions/auth";
 import { getClientIntakeInfo } from "@/lib/actions/client-intake";
 import { createClient } from "@/lib/supabase/server";
 import { NutritionBuilder } from "@/components/nutrition-builder";
-import { AdminNutritionWizard } from "@/components/admin-nutrition-wizard";
+import { AdminNutritionPdfUpload } from "@/components/admin-nutrition-pdf-upload";
 import { PageTransition } from "@/components/page-transition";
-import type { NutritionScheduleConfig } from "@/lib/types";
 
 export default async function NewNutritionPage({
   searchParams,
@@ -23,23 +22,35 @@ export default async function NewNutritionPage({
         : Promise.resolve({ data: null }),
     ]);
 
+    if (!requestId) {
+      return (
+        <PageTransition>
+          <div className="mx-auto max-w-3xl space-y-6">
+            <div>
+              <h1 className="text-2xl font-black">Send Nutrition Plan</h1>
+              <p className="text-muted-foreground">
+                Open a client request to upload and send a PDF plan.
+              </p>
+            </div>
+          </div>
+        </PageTransition>
+      );
+    }
+
     return (
       <PageTransition>
         <div className="mx-auto max-w-3xl space-y-6">
           <div>
-            <h1 className="text-2xl font-black">Create Nutrition Plan</h1>
+            <h1 className="text-2xl font-black">Send Nutrition Plan</h1>
             <p className="text-muted-foreground">
-              3 steps: plan & macros → meals → schedule for client
+              Upload a PDF and send it to your client
             </p>
           </div>
-          <AdminNutritionWizard
+          <AdminNutritionPdfUpload
             clientId={client}
             requestId={requestId}
             clientIntake={clientIntake}
             requestPreferences={planRequest.data?.preferences ?? planRequest.data?.notes}
-            initialSchedule={
-              (planRequest.data?.schedule_config as NutritionScheduleConfig | null) ?? null
-            }
           />
         </div>
       </PageTransition>

@@ -8,6 +8,7 @@ import {
   implementTrainerPlan,
   removeTrainerPlanImplementation,
 } from "@/lib/actions/custom-plans";
+import { NutritionPlanPdfViewer } from "@/components/nutrition-plan-pdf-viewer";
 import { CUSTOM_PLAN_PRODUCTS, TRAINER_NAME } from "@/lib/custom-plan-products";
 import type { PlanRequest, PlanRequestType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -34,12 +35,20 @@ function statusMessage(request: PlanRequest): string {
     case "in_progress":
       return `${TRAINER_NAME} is building your custom plan.`;
     case "delivered":
-      return `Your plan from ${TRAINER_NAME} is ready. Click Implement it to add to your calendar.`;
+      return request.type === "diet"
+        ? `Your nutrition plan PDF from ${TRAINER_NAME} is ready. View it below.`
+        : `Your plan from ${TRAINER_NAME} is ready. Click Implement it to add to your calendar.`;
     case "implemented":
-      return `Your plan is live on your calendar. Previous coach plan was replaced.`;
+      return request.type === "diet" && request.delivered_nutrition_pdf_path
+        ? `Your nutrition plan PDF is available below.`
+        : `Your plan is live on your calendar. Previous coach plan was replaced.`;
     default:
       return "Request in progress.";
   }
+}
+
+function isNutritionPdfPlan(request: PlanRequest) {
+  return request.type === "diet" && !!request.delivered_nutrition_pdf_path;
 }
 
 function findPlanRequest(requests: PlanRequest[], type: PlanRequestType) {
@@ -178,7 +187,12 @@ function CustomPlanDialog({
   if (!open) return null;
 
   const showOffer = !request || request.status === "rejected";
-  const showSuccess = successTitle != null || request?.status === "implemented";
+  const showSuccess =
+    request?.status === "implemented" && request && !isNutritionPdfPlan(request);
+  const showPdf =
+    request &&
+    isNutritionPdfPlan(request) &&
+    ["delivered", "implemented", "completed"].includes(request.status);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -212,7 +226,16 @@ function CustomPlanDialog({
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          {showSuccess ? (
+          {showPdf ? (
+            <>
+              <Badge variant="outline" className="capitalize">
+                {request!.status === "delivered" ? "Ready" : request!.status.replace(/_/g, " ")}
+              </Badge>
+              <p className="text-sm text-muted-foreground">{statusMessage(request!)}</p>
+              <NutritionPlanPdfViewer requestId={request!.id} />
+              {error && <p className="text-sm text-red-400">{error}</p>}
+            </>
+          ) : showSuccess ? (
             <div className="space-y-4 py-4 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-green-500/40 bg-green-500/15">
                 <Check className="h-7 w-7 text-green-400" />
@@ -239,7 +262,12 @@ function CustomPlanDialog({
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 <li>· Tell us your goals and preferences</li>
                 <li>· {TRAINER_NAME} reviews and builds your plan</li>
-                <li>· Implement it on your calendar when ready</li>
+                <li>
+                  ·{" "}
+                  {type === "diet"
+                    ? "Receive your plan as a PDF in the app"
+                    : "Implement it on your calendar when ready"}
+                </li>
               </ul>
               {type === "diet" && (
                 <p className="text-xs text-muted-foreground">
@@ -276,7 +304,11 @@ function CustomPlanDialog({
         </div>
 
         <div className="border-t border-border px-5 py-4">
-          {showSuccess ? (
+          {showPdf ? (
+            <Button onClick={onClose} className="w-full">
+              Close
+            </Button>
+          ) : showSuccess ? (
             <div className="space-y-2">
               <Button onClick={onClose} className="w-full">
                 Done
@@ -294,7 +326,7 @@ function CustomPlanDialog({
             <Button onClick={handleCheckout} disabled={isPending} className="w-full">
               Continue to payment
             </Button>
-          ) : request!.status === "delivered" ? (
+          ) : request!.status === "delivered" && request!.type === "workout" ? (
             <Button onClick={handleImplement} disabled={isPending} className="w-full">
               {isPending ? "Implementing…" : "Implement it"}
             </Button>
@@ -326,7 +358,12 @@ export function CustomPlanButton({
     setRequestOverride(null);
   }, [requests]);
 
-  const isImplemented = active?.status === "implemented";
+  const isImplemented =
+    active?.status === "implemented" && active && !isNutritionPdfPlan(active);
+  const hasPdfReady =
+    active &&
+    isNutritionPdfPlan(active) &&
+    ["delivered", "implemented", "completed"].includes(active.status);
   const showPendingStatus =
     active &&
     !isImplemented &&
@@ -334,7 +371,9 @@ export function CustomPlanButton({
 
   const statusLabel =
     active?.status === "delivered"
-      ? "Ready"
+      ? active.type === "diet" && active.delivered_nutrition_pdf_path
+        ? "PDF ready"
+        : "Ready"
       : active?.status.replace(/_/g, " ") ?? null;
 
   return (
@@ -344,12 +383,20 @@ export function CustomPlanButton({
         variant={isImplemented ? "default" : "outline"}
         onClick={() => setOpen(true)}
         aria-label={planLabel(type)}
-        className={cn(isImplemented && "border-green-500/40 bg-green-500/10 text-green-400")}
+        className={cn(
+          (isImplemented || hasPdfReady) &&
+            "border-green-500/40 bg-green-500/10 text-green-400"
+        )}
       >
         {isImplemented ? (
           <>
             <Check className="mr-1.5 h-4 w-4" />
             Implemented
+          </>
+        ) : hasPdfReady ? (
+          <>
+            <Check className="mr-1.5 h-4 w-4" />
+            View plan
           </>
         ) : (
           customPlanButtonLabel(type, product.label)

@@ -35,7 +35,7 @@ export function LandingPricing() {
           </h2>
           <p className="mt-4 text-muted-foreground">
             Explore the dashboard for free. Subscribe when you&apos;re ready to
-            log workouts, meals, habits, and unlock AI features.
+            log workouts, meals, habits, and unlock premium AI tools.
           </p>
         </FadeIn>
 

@@ -1,18 +1,17 @@
 "use client";
 
-import { format, isToday, isTomorrow } from "date-fns";
+import { addDays, format, isToday, isTomorrow } from "date-fns";
 import { ChevronDown, ListChecks } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { MissedButton } from "@/components/missed-items-dialog";
-import {
-  fetchDashboardEnrichmentForDate,
-} from "@/lib/actions/dashboard-enrichment";
+import { fetchDashboardEnrichmentData } from "@/lib/actions/dashboard-enrichment";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import { enrichTasksForDate } from "@/lib/dashboard-task-enrichment";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
+import { isDayEnded } from "@/lib/meal-times";
 import { formatDateKey } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -23,49 +22,34 @@ function panelTitle(date: Date): string {
   return `${format(date, "EEEE")}'s To Do`;
 }
 
-function buildInitialEnrichment(
-  completionsByDate: Record<string, string[]>
-): DashboardEnrichmentData {
-  return {
-    completionsByDate,
-    waterByDate: {},
-    mealsByDate: {},
-    workoutCompletedDates: [],
-  };
-}
-
 export function DayTasksPanel({
   clientId,
   schedule,
-  completionsByDate,
+  initialEnrichment,
 }: {
   clientId: string;
   schedule: ClientSchedule;
-  completionsByDate: Record<string, string[]>;
+  initialEnrichment: DashboardEnrichmentData;
 }) {
   const { selectedDate } = useSelectedDate();
   const { version, mergeEnrichment } = useDashboardSync();
-  const [enrichment, setEnrichment] = useState<DashboardEnrichmentData>(() =>
-    buildInitialEnrichment(completionsByDate)
-  );
+  const [enrichment, setEnrichment] =
+    useState<DashboardEnrichmentData>(initialEnrichment);
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const dateKey = formatDateKey(selectedDate);
 
   useEffect(() => {
-    startTransition(async () => {
-      const data = await fetchDashboardEnrichmentForDate(clientId, dateKey);
-      setEnrichment(data);
-    });
-  }, [selectedDate, clientId, dateKey]);
-
-  useEffect(() => {
     if (version === 0) return;
+
+    const from = formatDateKey(addDays(new Date(), -3));
+    const to = formatDateKey(addDays(new Date(), 28));
+
     startTransition(async () => {
-      const data = await fetchDashboardEnrichmentForDate(clientId, dateKey);
+      const data = await fetchDashboardEnrichmentData(clientId, from, to);
       setEnrichment(data);
     });
-  }, [version, clientId, dateKey]);
+  }, [version, clientId]);
 
   const mergedEnrichment = useMemo(
     () => mergeEnrichment(enrichment),
@@ -78,6 +62,7 @@ export function DayTasksPanel({
 
   const { missed, completed } = groupTasksByStatus(tasks);
   const allDone = tasks.length > 0 && completed.length === tasks.length;
+  const dayEnded = isDayEnded(dateKey);
 
   const missedTaskItems = missed.map((task) => ({
     id: task.id,
@@ -102,10 +87,14 @@ export function DayTasksPanel({
                 <span
                   className={cn(
                     "text-sm font-semibold",
-                    allDone ? "text-green-400" : "text-amber-400"
+                    allDone
+                      ? "text-green-400"
+                      : dayEnded
+                        ? "text-red-400"
+                        : "text-amber-400"
                   )}
                 >
-                  {allDone ? "Completed" : "In progress"}
+                  {allDone ? "Completed" : dayEnded ? "Incomplete" : "In progress"}
                 </span>
                 {!allDone && (
                   <span className="text-sm font-medium text-muted-foreground">

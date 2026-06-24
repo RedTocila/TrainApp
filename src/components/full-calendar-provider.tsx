@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import {
   createContext,
   useCallback,
@@ -9,10 +10,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { FullCalendarDialog } from "@/components/full-calendar-dialog";
 import { useSelectedDate } from "@/components/date-provider";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
+
+const FullCalendarDialog = dynamic(
+  () =>
+    import("@/components/full-calendar-dialog").then((mod) => ({
+      default: mod.FullCalendarDialog,
+    })),
+  { ssr: false }
+);
 
 interface CalendarData {
   schedule: ClientSchedule;
@@ -48,7 +56,7 @@ export function FullCalendarProvider({ children }: { children: ReactNode }) {
   return (
     <FullCalendarContext.Provider value={value}>
       {children}
-      {calendarData && (
+      {open && calendarData && (
         <FullCalendarDialog
           open={open}
           onClose={() => setOpen(false)}

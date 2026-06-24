@@ -45,17 +45,21 @@ export async function ensureHabitSchedules(clientId: string) {
 
   const scheduledHabitIds = new Set((scheduled ?? []).map((s) => s.habit_id));
 
-  for (const habit of habits) {
-    if (scheduledHabitIds.has(habit.id)) continue;
-    await replaceHabitSchedule(supabase, habit.id, clientId, {
-      title: habit.title,
-      timeStart: habit.time_start,
-      timeEnd: habit.time_end,
-      weekdays: (habit.weekdays as number[]) ?? [0, 1, 2, 3, 4, 5, 6],
-      weeks: habit.repeat_weeks ?? 12,
-      startMode: "now",
-    });
-  }
+  const toBackfill = habits.filter((h) => !scheduledHabitIds.has(h.id));
+  if (toBackfill.length === 0) return;
+
+  await Promise.all(
+    toBackfill.map((habit) =>
+      replaceHabitSchedule(supabase, habit.id, clientId, {
+        title: habit.title,
+        timeStart: habit.time_start,
+        timeEnd: habit.time_end,
+        weekdays: (habit.weekdays as number[]) ?? [0, 1, 2, 3, 4, 5, 6],
+        weeks: habit.repeat_weeks ?? 12,
+        startMode: "now",
+      })
+    )
+  );
 }
 
 export async function getClientHabits(clientId: string): Promise<ClientHabit[]> {

@@ -1,6 +1,5 @@
 "use server";
 
-import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import { getHabitCompletionsInRange } from "@/lib/actions/habits";
 import { getTaskCompletionsInRange } from "@/lib/actions/task-completions";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
@@ -26,23 +25,19 @@ function mergeCompletionMaps(
   return out;
 }
 
-export async function fetchDashboardEnrichmentData(
+export async function fetchDashboardEnrichmentFields(
   clientId: string,
   from: string,
   to: string
-): Promise<DashboardEnrichmentData> {
+): Promise<
+  Pick<
+    DashboardEnrichmentData,
+    "waterByDate" | "mealsByDate" | "workoutCompletedDates"
+  >
+> {
   const supabase = await createClient();
 
-  const [
-    taskCompletions,
-    habitCompletions,
-    logsResult,
-    mealsResult,
-    workoutsResult,
-    profileResult,
-  ] = await Promise.all([
-    getTaskCompletionsInRange(clientId, from, to),
-    getHabitCompletionsInRange(clientId, from, to),
+  const [logsResult, mealsResult, workoutsResult] = await Promise.all([
     supabase
       .from("daily_logs")
       .select("date, water_ml")
@@ -63,7 +58,6 @@ export async function fetchDashboardEnrichmentData(
       .eq("status", "completed")
       .gte("scheduled_date", from)
       .lte("scheduled_date", to),
-    supabase.from("profiles").select("created_at").eq("id", clientId).maybeSingle(),
   ]);
 
   const waterByDate: Record<string, number> = {};
@@ -81,15 +75,31 @@ export async function fetchDashboardEnrichmentData(
     ...new Set((workoutsResult.data ?? []).map((row) => row.scheduled_date)),
   ];
 
-  if (from === to && !mealsByDate[from]) {
-    mealsByDate[from] = await getDailyMealLogs(clientId, from);
-  }
+  return { waterByDate, mealsByDate, workoutCompletedDates };
+}
+
+export async function fetchDashboardEnrichmentData(
+  clientId: string,
+  from: string,
+  to: string
+): Promise<DashboardEnrichmentData> {
+  const supabase = await createClient();
+
+  const [
+    taskCompletions,
+    habitCompletions,
+    fields,
+    profileResult,
+  ] = await Promise.all([
+    getTaskCompletionsInRange(clientId, from, to),
+    getHabitCompletionsInRange(clientId, from, to),
+    fetchDashboardEnrichmentFields(clientId, from, to),
+    supabase.from("profiles").select("created_at").eq("id", clientId).maybeSingle(),
+  ]);
 
   return {
     completionsByDate: mergeCompletionMaps(taskCompletions, habitCompletions),
-    waterByDate,
-    mealsByDate,
-    workoutCompletedDates,
+    ...fields,
     accountCreatedAt: profileResult.data?.created_at ?? null,
   };
 }

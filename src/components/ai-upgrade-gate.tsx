@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { Camera, LineChart, Salad, Sparkles, Type } from "lucide-react";
+import { Camera, Dumbbell, Salad, Sparkles, Type, Video } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const features = [
+  { icon: Dumbbell, label: "AI workout plan" },
+  { icon: Salad, label: "AI nutrition plan" },
   { icon: Camera, label: "Photo log" },
   { icon: Type, label: "Text log" },
-  { icon: Salad, label: "Meal ideas" },
-  { icon: LineChart, label: "Predictions" },
-  { icon: Sparkles, label: "Weekly report" },
+  { icon: Video, label: "Live sessions" },
 ];
 
 export function AiUpgradeGate({
@@ -25,7 +25,9 @@ export function AiUpgradeGate({
         </div>
         <div>
           <p className="text-lg font-bold">{title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">Unlock AI Coach features</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Upgrade to the €19/month AI plan to unlock this feature
+          </p>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
           {features.map(({ icon: Icon, label }) => (

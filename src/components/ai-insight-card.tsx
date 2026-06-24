@@ -23,7 +23,8 @@ export function AiInsightCard({
             <div>
               <p className="font-semibold">AI Coach</p>
               <p className="text-sm text-muted-foreground">
-                Upgrade for meal suggestions, progress insights, and weekly reports.
+                Subscribe to Core for AI Coach insights, or upgrade to AI for plan builders and
+                photo meal logging.
               </p>
             </div>
           </div>
