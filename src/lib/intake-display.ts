@@ -1,4 +1,8 @@
 import type { Profile } from "@/lib/types";
+import {
+  buildIntakeSummaryFromResponses,
+  profileToResponses,
+} from "@/lib/intake-questionnaire";
 
 export const GENDER_OPTIONS = [
   { value: "", label: "Select gender" },
@@ -32,6 +36,13 @@ export interface IntakeSummaryItem {
 }
 
 export function buildIntakeSummary(profile: Profile): IntakeSummaryItem[] {
+  const fromQuestionnaire = buildIntakeSummaryFromResponses(
+    profileToResponses(profile)
+  );
+  if (fromQuestionnaire.length > 0) {
+    return fromQuestionnaire;
+  }
+
   const items: IntakeSummaryItem[] = [];
 
   const push = (label: string, value: string | number | null | undefined) => {

@@ -20,11 +20,15 @@ import { Label } from "@/components/ui/label";
 
 export function WeightTracker({
   clientId,
+  intakeWeightKg,
+  startDate,
   initialHistory,
   initialLog,
   onHistoryChange,
 }: {
   clientId: string;
+  intakeWeightKg?: number | null;
+  startDate?: string | null;
   initialHistory: BodyWeightLog[];
   initialLog: BodyWeightLog | null;
   onHistoryChange?: (history: BodyWeightLog[]) => void;
@@ -133,7 +137,12 @@ export function WeightTracker({
         )}
       </CardHeader>
       <CardContent className="space-y-6">
-        <WeightChart entries={history} highlightDate={todayLog?.date} />
+        <WeightChart
+          entries={history}
+          highlightDate={todayLog?.date}
+          startWeightKg={intakeWeightKg}
+          startDate={startDate}
+        />
 
         {formOpen && (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">

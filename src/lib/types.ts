@@ -1,3 +1,5 @@
+import type { IntakeResponses } from "@/lib/intake-questionnaire";
+
 export type UserRole = "admin" | "client";
 export type SubscriptionPlanId = "core" | "ai";
 export type SubscriptionStatus = "inactive" | "active" | "past_due" | "canceled";
@@ -68,6 +70,8 @@ export interface Profile {
   subscription_interval?: BillingInterval | null;
   subscription_expires_at?: string | null;
   phone?: string | null;
+  dismissed_habit_suggestions?: string[];
+  intake_responses?: IntakeResponses;
   created_at: string;
 }
 

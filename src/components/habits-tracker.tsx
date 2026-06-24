@@ -1,10 +1,14 @@
 "use client";
 
 import { format, isToday } from "date-fns";
-import { Check, ListChecks, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ListChecks, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { HabitFormDialog } from "@/components/habit-form-dialog";
+import {
+  applyHabitSuggestion,
+  dismissHabitSuggestion,
+} from "@/lib/actions/client-intake";
 import {
   deleteHabit,
   getHabitsWithCompletions,
@@ -15,6 +19,7 @@ import { getHabitDayStatus, canCompleteHabit } from "@/lib/habit-utils";
 import { MissedButton } from "@/components/missed-items-dialog";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import type { ClientHabit } from "@/lib/types";
+import type { HabitSuggestion } from "@/lib/habit-suggestions";
 import { formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,19 +28,26 @@ import { cn } from "@/lib/utils";
 export function HabitsTracker({
   clientId,
   initialHabits,
+  suggestedHabits = [],
 }: {
   clientId: string;
   initialHabits: HabitWithStatus[];
+  suggestedHabits?: HabitSuggestion[];
 }) {
   const { selectedDate } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
   const [habits, setHabits] = useState(initialHabits);
+  const [suggestions, setSuggestions] = useState(suggestedHabits);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<ClientHabit | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [tick, setTick] = useState(0);
   const { patchDashboard, notifySync } = useDashboardSync();
+
+  useEffect(() => {
+    setSuggestions(suggestedHabits);
+  }, [suggestedHabits]);
 
   const refresh = useCallback(() => {
     startTransition(async () => {
@@ -133,6 +145,31 @@ export function HabitsTracker({
     });
   };
 
+  const handleAddSuggestion = (suggestionId: string) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await applyHabitSuggestion(suggestionId);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
+      refresh();
+      notifySync();
+    });
+  };
+
+  const handleDismissSuggestion = (suggestionId: string) => {
+    setError(null);
+    setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
+    startTransition(async () => {
+      const result = await dismissHabitSuggestion(suggestionId);
+      if (result.error) {
+        setError(result.error);
+      }
+    });
+  };
+
   return (
     <>
       <Card id="dashboard-habits">
@@ -164,6 +201,51 @@ export function HabitsTracker({
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
+          {suggestions.length > 0 && (
+            <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-violet-300">
+                <Sparkles className="h-4 w-4" />
+                Suggested from your health profile
+              </div>
+              <ul className="space-y-2">
+                {suggestions.map((suggestion) => (
+                  <li
+                    key={suggestion.id}
+                    className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{suggestion.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {suggestion.reason}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isPending}
+                        onClick={() => handleAddSuggestion(suggestion.id)}
+                      >
+                        Add
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        disabled={isPending}
+                        onClick={() => handleDismissSuggestion(suggestion.id)}
+                        aria-label="Dismiss suggestion"
+                      >
+                        <X className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {habits.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-6 text-center text-sm text-muted-foreground">
               No habits scheduled for this day

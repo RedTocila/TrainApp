@@ -10,6 +10,7 @@ import {
 } from "@/lib/schedule-utils";
 import { formatDateKey } from "@/lib/utils";
 import type { ClientHabit } from "@/lib/types";
+import { findHabitSuggestionById } from "@/lib/habit-suggestions";
 import {
   canCompleteHabit,
   getHabitDayStatus,
@@ -367,6 +368,24 @@ export async function toggleHabitCompletion(habitId: string, date: string) {
   if (error) return { error: error.message, completed: true };
 
   return { completed: true };
+}
+
+export async function addSuggestedHabit(
+  clientId: string,
+  suggestionId: string,
+  profile: Parameters<typeof findHabitSuggestionById>[0]
+) {
+  const suggestion = findHabitSuggestionById(profile, suggestionId);
+  if (!suggestion) return { error: "Suggestion not found" };
+
+  return saveHabit(clientId, {
+    title: suggestion.title,
+    timeStart: suggestion.timeStart ?? null,
+    timeEnd: suggestion.timeEnd ?? null,
+    weekdays: suggestion.weekdays ?? [0, 1, 2, 3, 4, 5, 6],
+    weeks: 12,
+    startMode: "now",
+  });
 }
 
 export type HabitWithStatus = ClientHabit & {

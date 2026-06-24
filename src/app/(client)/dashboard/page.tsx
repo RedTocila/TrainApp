@@ -14,6 +14,7 @@ import {
 import { getProgressPhotoSets } from "@/lib/actions/progress-photos";
 import {
   ensureHabitSchedules,
+  getClientHabits,
   getHabitCompletionsInRange,
   getHabitsScheduledInRange,
   getHabitsWithCompletions,
@@ -39,6 +40,8 @@ import { ProgressPhotosCard } from "@/components/progress-photos-card";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { getPrimaryMealsForDayMenu } from "@/lib/meal-slots";
 import { hasAiAccess } from "@/lib/subscription";
+import { isClientIntakeComplete } from "@/lib/client-intake-utils";
+import { getHabitSuggestionsForProfile } from "@/lib/habit-suggestions";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 
 export default async function DashboardPage() {
@@ -71,6 +74,7 @@ export default async function DashboardPage() {
     initialWorkout,
     scheduledPlanForToday,
     trainerNutritionPdfRequestId,
+    allHabits,
   ] = await Promise.all([
     getClientWorkoutAssignment(profile.id),
     getClientNutritionAssignment(profile.id),
@@ -92,6 +96,7 @@ export default async function DashboardPage() {
     resolveWorkoutForDate(profile.id, dateKey),
     getNutritionPlanForDate(profile.id, dateKey),
     getActiveTrainerNutritionPdfRequestId(profile.id),
+    getClientHabits(profile.id),
   ]);
 
   const habitsByDate: Record<
@@ -155,6 +160,14 @@ export default async function DashboardPage() {
 
   const aiAccess = hasAiAccess(profile);
 
+  const suggestedHabits = isClientIntakeComplete(profile)
+    ? getHabitSuggestionsForProfile(
+        profile,
+        allHabits.map((habit) => habit.title),
+        profile.dismissed_habit_suggestions ?? []
+      )
+    : [];
+
   return (
     <>
       <div className="-mx-3 -mt-3 mb-4 sm:-mx-4 sm:-mt-4 sm:mb-6 md:-mx-6 md:-mt-6">
@@ -215,6 +228,7 @@ export default async function DashboardPage() {
           clientId={profile.id}
           heightCm={profile.height_cm}
           intakeWeightKg={profile.intake_weight_kg}
+          accountCreatedAt={profile.created_at}
           initialHistory={weightHistory}
           initialLog={weightLog}
         />
@@ -224,7 +238,11 @@ export default async function DashboardPage() {
           initialSets={progressPhotoSets}
         />
 
-        <HabitsTracker clientId={profile.id} initialHabits={habits} />
+        <HabitsTracker
+          clientId={profile.id}
+          initialHabits={habits}
+          suggestedHabits={suggestedHabits}
+        />
       </div>
     </>
   );

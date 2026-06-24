@@ -1,59 +1,71 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ChevronDown } from "lucide-react";
-import { updateClientIntake } from "@/lib/actions/client-intake";
+import { AlertTriangle, ChevronDown, Sparkles } from "lucide-react";
 import {
-  getMissingIntakeFields,
-  isClientIntakeComplete,
-} from "@/lib/client-intake-utils";
-import { GENDER_OPTIONS } from "@/lib/intake-display";
+  IntakeQuestionnaireWizard,
+} from "@/components/intake-questionnaire-wizard";
+import { updateClientIntakeFromResponses } from "@/lib/actions/client-intake";
+import {
+  getMissingIntakeResponses,
+  isIntakeResponsesComplete,
+  profileToResponses,
+  type IntakeResponses,
+} from "@/lib/intake-questionnaire";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
-const GOAL_OPTIONS = [
-  { value: "", label: "No goal set" },
-  { value: "lose_weight", label: "Lose weight" },
-  { value: "build_muscle", label: "Build muscle" },
-  { value: "stay_fit", label: "Stay fit" },
-  { value: "improve_endurance", label: "Improve endurance" },
-  { value: "general_health", label: "General health" },
-];
-
 export function ClientIntakeForm({ profile }: { profile: Profile }) {
-  const complete = isClientIntakeComplete(profile);
-  const missingFields = getMissingIntakeFields(profile);
+  const initial = profileToResponses(profile);
+  const complete = isIntakeResponsesComplete(initial);
+  const missingFields = getMissingIntakeResponses(initial);
   const [open, setOpen] = useState(!complete);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [macroMessage, setMacroMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const handleSubmit = (formData: FormData) => {
+  useEffect(() => {
+    if (!complete) setOpen(true);
+  }, [complete]);
+
+  const handleComplete = (responses: IntakeResponses) => {
     setError(null);
     setSuccess(false);
+    setMacroMessage(null);
     startTransition(async () => {
-      const result = await updateClientIntake(formData);
-      if (result?.error) setError(result.error);
-      else {
-        setSuccess(true);
-        router.refresh();
+      const result = await updateClientIntakeFromResponses(responses);
+      if (result?.error) {
+        setError(result.error);
+        return;
       }
+      setSuccess(true);
+      setEditing(false);
+        if (result.macrosUpdated && result.macros) {
+          const prefix =
+            result.macroSource === "ai" ? "AI-personalized targets" : "Estimated targets";
+          const rationale =
+            result.macroRationale && result.macroSource === "ai"
+              ? ` — ${result.macroRationale}`
+              : "";
+          setMacroMessage(
+            `${prefix}: ${result.macros.calories} cal · P${result.macros.protein} C${result.macros.carbs} F${result.macros.fat}${rationale}`
+          );
+        }
+      router.refresh();
     });
   };
 
   return (
     <Card
-      className={cn(
-        !complete && "border-red-500/40 bg-red-500/[0.03]"
-      )}
+      className={cn(!complete && "border-red-500/40 bg-red-500/[0.03]")}
     >
       <button
         type="button"
@@ -63,7 +75,7 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
       >
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">Health & lifestyle info</span>
+            <span className="font-semibold">Health & lifestyle</span>
             {complete ? (
               <Badge className="bg-green-500/15 text-green-400">Complete</Badge>
             ) : (
@@ -75,8 +87,8 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
           </div>
           <p className="text-sm text-muted-foreground">
             {complete
-              ? "Used by your trainer and AI Coach for personalized plans."
-              : `Missing: ${missingFields.join(", ")}`}
+              ? "Your personalized plan uses this profile for macros, habits, and AI coaching."
+              : `${missingFields.length} areas left — ${missingFields.slice(0, 3).join(", ")}${missingFields.length > 3 ? "…" : ""}`}
           </p>
         </div>
         <ChevronDown
@@ -89,115 +101,40 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
 
       {open && (
         <CardContent className="border-t border-border pt-0">
-          <form action={handleSubmit} className="space-y-4 pt-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="age">Age</Label>
-                <Input
-                  id="age"
-                  name="age"
-                  type="number"
-                  min={13}
-                  max={120}
-                  placeholder="e.g. 28"
-                  defaultValue={profile.age ?? ""}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
-                <select
-                  id="gender"
-                  name="gender"
-                  defaultValue={profile.gender ?? ""}
-                  className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+          <div className="space-y-4 pt-4">
+            {complete && !editing ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Profile locked in. Update anytime if your routine or goals change.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditing(true)}
+                  className="gap-2"
                 >
-                  {GENDER_OPTIONS.map((opt) => (
-                    <option key={opt.value || "empty"} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  <Sparkles className="h-4 w-4" />
+                  Update questionnaire
+                </Button>
               </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="intake_weight_kg">Weight (kg)</Label>
-                <Input
-                  id="intake_weight_kg"
-                  name="intake_weight_kg"
-                  type="number"
-                  step="0.1"
-                  defaultValue={profile.intake_weight_kg ?? ""}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="height_cm">Height (cm)</Label>
-                <Input
-                  id="height_cm"
-                  name="height_cm"
-                  type="number"
-                  defaultValue={profile.height_cm ?? ""}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="goal">Goal</Label>
-              <select
-                id="goal"
-                name="goal"
-                defaultValue={profile.goal ?? ""}
-                className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
-              >
-                {GOAL_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="vices">Vices (smoking, alcohol, etc.)</Label>
-              <Textarea id="vices" name="vices" rows={2} defaultValue={profile.vices ?? ""} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="injuries">Injuries</Label>
-              <Textarea id="injuries" name="injuries" rows={2} defaultValue={profile.injuries ?? ""} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="medical_conditions">Medical conditions</Label>
-              <Textarea
-                id="medical_conditions"
-                name="medical_conditions"
-                rows={2}
-                defaultValue={profile.medical_conditions ?? ""}
+            ) : (
+              <IntakeQuestionnaireWizard
+                compact
+                completeLabel="Save health profile"
+                initialResponses={initial}
+                onComplete={handleComplete}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="daily_routine">Daily routine</Label>
-              <Textarea
-                id="daily_routine"
-                name="daily_routine"
-                rows={3}
-                placeholder="Wake time, training time, sleep, etc."
-                defaultValue={profile.daily_routine ?? ""}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="work_schedule">Work schedule</Label>
-              <Textarea
-                id="work_schedule"
-                name="work_schedule"
-                rows={2}
-                placeholder="Hours, shifts, desk job vs active, etc."
-                defaultValue={profile.work_schedule ?? ""}
-              />
-            </div>
+            )}
+
             {error && <p className="text-sm text-red-400">{error}</p>}
             {success && <p className="text-sm text-green-400">Saved</p>}
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving…" : "Save health info"}
-            </Button>
-          </form>
+            {macroMessage && (
+              <p className="text-sm text-primary">{macroMessage}</p>
+            )}
+            {isPending && (
+              <p className="text-sm text-muted-foreground">Saving your profile…</p>
+            )}
+          </div>
         </CardContent>
       )}
     </Card>

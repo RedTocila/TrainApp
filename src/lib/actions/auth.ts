@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/cached-profile";
+import { applyIntakeToProfile } from "@/lib/actions/client-intake";
+import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
 export async function signUp(formData: FormData) {
   const supabase = await createClient();
@@ -11,6 +13,16 @@ export async function signUp(formData: FormData) {
   const password = formData.get("password") as string;
   const fullName = formData.get("full_name") as string;
   const phone = (formData.get("phone") as string)?.trim() || null;
+  const intakeRaw = (formData.get("intake_json") as string)?.trim();
+
+  let intakeResponses: IntakeResponses | null = null;
+  if (intakeRaw) {
+    try {
+      intakeResponses = JSON.parse(intakeRaw) as IntakeResponses;
+    } catch {
+      return { error: "Invalid health profile data. Please retake the questionnaire." };
+    }
+  }
 
   const { data: authData, error } = await supabase.auth.signUp({
     email,
@@ -31,6 +43,10 @@ export async function signUp(formData: FormData) {
       profileUpdate.role = "admin";
     }
     await supabase.from("profiles").update(profileUpdate).eq("id", authData.user.id);
+
+    if (intakeResponses) {
+      await applyIntakeToProfile(authData.user.id, supabase, intakeResponses);
+    }
   }
 
   const { data: profile } = await supabase

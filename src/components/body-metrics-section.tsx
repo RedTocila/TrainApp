@@ -9,12 +9,14 @@ export function BodyMetricsSection({
   clientId,
   heightCm,
   intakeWeightKg,
+  accountCreatedAt,
   initialHistory,
   initialLog,
 }: {
   clientId: string;
   heightCm?: number | null;
   intakeWeightKg?: number | null;
+  accountCreatedAt?: string | null;
   initialHistory: BodyWeightLog[];
   initialLog: BodyWeightLog | null;
 }) {
@@ -29,6 +31,8 @@ export function BodyMetricsSection({
       />
       <WeightTracker
         clientId={clientId}
+        intakeWeightKg={intakeWeightKg}
+        startDate={accountCreatedAt?.slice(0, 10) ?? null}
         initialHistory={initialHistory}
         initialLog={initialLog}
         onHistoryChange={setHistory}

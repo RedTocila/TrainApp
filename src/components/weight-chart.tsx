@@ -7,17 +7,63 @@ import type { BodyWeightLog } from "@/lib/types";
 interface WeightChartProps {
   entries: BodyWeightLog[];
   highlightDate?: string;
+  startWeightKg?: number | null;
+  startDate?: string | null;
 }
 
 const CHART_WIDTH = 560;
 const CHART_HEIGHT = 200;
 const PADDING = { top: 16, right: 16, bottom: 32, left: 44 };
+const START_POINT_ID = "intake-start";
 
-export function WeightChart({ entries, highlightDate }: WeightChartProps) {
+function buildChartEntries(
+  entries: BodyWeightLog[],
+  startWeightKg?: number | null,
+  startDate?: string | null
+): { entries: BodyWeightLog[]; startEntryId: string | null } {
+  if (!startWeightKg || !startDate) {
+    return { entries, startEntryId: null };
+  }
+
+  const hasMatchingStart = entries.some(
+    (entry) =>
+      entry.date === startDate &&
+      Math.abs(Number(entry.weight_kg) - startWeightKg) < 0.05
+  );
+  if (hasMatchingStart) {
+    return { entries, startEntryId: null };
+  }
+
+  const startEntry: BodyWeightLog = {
+    id: START_POINT_ID,
+    client_id: "",
+    date: startDate,
+    weight_kg: startWeightKg,
+    created_at: startDate,
+  };
+
+  const merged = [...entries, startEntry].sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
+
+  return { entries: merged, startEntryId: START_POINT_ID };
+}
+
+export function WeightChart({
+  entries,
+  highlightDate,
+  startWeightKg,
+  startDate,
+}: WeightChartProps) {
+  const { entries: chartEntries, startEntryId } = useMemo(
+    () => buildChartEntries(entries, startWeightKg, startDate),
+    [entries, startWeightKg, startDate]
+  );
+
   const plot = useMemo(() => {
-    if (entries.length === 0) return null;
+    if (chartEntries.length === 0) return null;
 
-    const weights = entries.map((e) => Number(e.weight_kg));
+    const weights = chartEntries.map((e) => Number(e.weight_kg));
     const minW = Math.min(...weights);
     const maxW = Math.max(...weights);
     const spread = maxW - minW || 2;
@@ -27,15 +73,21 @@ export function WeightChart({ entries, highlightDate }: WeightChartProps) {
     const innerW = CHART_WIDTH - PADDING.left - PADDING.right;
     const innerH = CHART_HEIGHT - PADDING.top - PADDING.bottom;
 
-    const points = entries.map((entry, i) => {
+    const points = chartEntries.map((entry, i) => {
       const x =
-        entries.length === 1
+        chartEntries.length === 1
           ? PADDING.left + innerW / 2
-          : PADDING.left + (i / (entries.length - 1)) * innerW;
+          : PADDING.left + (i / (chartEntries.length - 1)) * innerW;
       const w = Number(entry.weight_kg);
       const y =
         PADDING.top + innerH - ((w - yMin) / (yMax - yMin)) * innerH;
-      return { x, y, entry, weight: w };
+      return {
+        x,
+        y,
+        entry,
+        weight: w,
+        isStart: entry.id === startEntryId,
+      };
     });
 
     const linePath = points
@@ -50,14 +102,35 @@ export function WeightChart({ entries, highlightDate }: WeightChartProps) {
     });
 
     const xLabelIndices =
-      entries.length <= 5
-        ? entries.map((_, i) => i)
-        : [0, Math.floor(entries.length / 2), entries.length - 1];
+      chartEntries.length <= 5
+        ? chartEntries.map((_, i) => i)
+        : [0, Math.floor(chartEntries.length / 2), chartEntries.length - 1];
 
     return { points, linePath, yLabels, xLabelIndices, yMin, yMax };
-  }, [entries]);
+  }, [chartEntries, startEntryId]);
 
   if (!plot) {
+    if (startWeightKg && startDate) {
+      return (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
+            <span>
+              Starting weight:{" "}
+              <strong className="text-foreground">
+                {Number(startWeightKg).toFixed(1)} kg
+              </strong>
+            </span>
+            <span className="text-muted-foreground">
+              Log weigh-ins to see your trend
+            </span>
+          </div>
+          <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-border bg-secondary/30 text-sm text-muted-foreground">
+            Your chart will appear after your first log
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed border-border bg-secondary/30 text-sm text-muted-foreground">
         Log your weight to see your progress
@@ -66,9 +139,13 @@ export function WeightChart({ entries, highlightDate }: WeightChartProps) {
   }
 
   const { points, linePath, yLabels, xLabelIndices } = plot;
-  const latest = entries[entries.length - 1];
-  const first = entries[0];
+  const latest = chartEntries[chartEntries.length - 1];
+  const first = chartEntries[0];
   const change = Number(latest.weight_kg) - Number(first.weight_kg);
+  const changeLabel =
+    first.id === startEntryId
+      ? "since start"
+      : `since ${format(parseISO(first.date), "MMM d")}`;
 
   return (
     <div className="space-y-3">
@@ -79,7 +156,7 @@ export function WeightChart({ entries, highlightDate }: WeightChartProps) {
             {Number(latest.weight_kg).toFixed(1)} kg
           </strong>
         </span>
-        {entries.length > 1 && (
+        {chartEntries.length > 1 && (
           <span
             className={
               change < 0
@@ -90,8 +167,12 @@ export function WeightChart({ entries, highlightDate }: WeightChartProps) {
             }
           >
             {change > 0 ? "+" : ""}
-            {change.toFixed(1)} kg since{" "}
-            {format(parseISO(first.date), "MMM d")}
+            {change.toFixed(1)} kg {changeLabel}
+          </span>
+        )}
+        {startWeightKg && startEntryId && (
+          <span className="text-muted-foreground">
+            Start: {Number(startWeightKg).toFixed(1)} kg
           </span>
         )}
       </div>
@@ -134,28 +215,36 @@ export function WeightChart({ entries, highlightDate }: WeightChartProps) {
           />
         )}
 
-        {points.map(({ x, y, entry, weight }) => {
+        {points.map(({ x, y, entry, weight, isStart }) => {
           const highlighted = highlightDate === entry.date;
           return (
             <g key={entry.id}>
               <circle
                 cx={x}
                 cy={y}
-                r={highlighted ? 6 : 4}
-                fill={highlighted ? "var(--primary)" : "var(--card)"}
-                stroke="var(--primary)"
+                r={highlighted || isStart ? 6 : 4}
+                fill={
+                  isStart
+                    ? "var(--card)"
+                    : highlighted
+                      ? "var(--primary)"
+                      : "var(--card)"
+                }
+                stroke={isStart ? "var(--muted-foreground)" : "var(--primary)"}
                 strokeWidth={2}
+                strokeDasharray={isStart ? "3 2" : undefined}
               />
               <title>
-                {format(parseISO(entry.date), "MMM d, yyyy")}: {weight.toFixed(1)} kg
+                {isStart ? "Start" : format(parseISO(entry.date), "MMM d, yyyy")}:{" "}
+                {weight.toFixed(1)} kg
               </title>
             </g>
           );
         })}
 
         {xLabelIndices.map((i) => {
-          const { x } = points[i];
-          const entry = entries[i];
+          const { x, isStart } = points[i];
+          const entry = chartEntries[i];
           return (
             <text
               key={entry.id}
@@ -164,7 +253,7 @@ export function WeightChart({ entries, highlightDate }: WeightChartProps) {
               textAnchor="middle"
               className="fill-muted-foreground text-[10px]"
             >
-              {format(parseISO(entry.date), "MMM d")}
+              {isStart ? "Start" : format(parseISO(entry.date), "MMM d")}
             </text>
           );
         })}

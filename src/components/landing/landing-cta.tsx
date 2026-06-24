@@ -26,15 +26,20 @@ export function LandingCta() {
               building momentum from day one.
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href="/register">
+              <Link href="/get-started">
                 <Button size="lg" className="gap-2">
-                  Create free account
+                  Get your custom plan
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-              <Link href="/login">
+              <Link href="/register">
                 <Button size="lg" variant="outline">
-                  I already have an account
+                  Create free account
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button size="lg" variant="ghost">
+                  Sign in
                 </Button>
               </Link>
             </div>

@@ -1,22 +1,43 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { signUp } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
+import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 
 export function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
+  const [intakeJson, setIntakeJson] = useState<string | null>(null);
+  const [macroPreview, setMacroPreview] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const draft = loadIntakeDraft();
+    if (!draft) return;
+    setIntakeJson(JSON.stringify(draft));
+    const macros = calculateMacrosFromIntakeResponses(draft);
+    if (macros) {
+      setMacroPreview(
+        `${macros.calories} cal · P${macros.protein} C${macros.carbs} F${macros.fat}`
+      );
+    }
+  }, []);
 
   const handleSubmit = (formData: FormData) => {
     setError(null);
+    if (intakeJson) {
+      formData.set("intake_json", intakeJson);
+    }
     startTransition(async () => {
       const result = await signUp(formData);
       if (result?.error) setError(result.error);
+      else clearIntakeDraft();
     });
   };
 
@@ -26,9 +47,34 @@ export function RegisterForm() {
         <CardTitle className="text-2xl font-black">
           JOIN <span className="text-primary">LEVELUP</span>
         </CardTitle>
-        <CardDescription>Create your account to get started</CardDescription>
+        <CardDescription>
+          {intakeJson
+            ? "Your custom plan is ready — create your account to unlock it"
+            : "Create your account to get started"}
+        </CardDescription>
       </CardHeader>
       <CardContent>
+        {intakeJson ? (
+          <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm">
+            <div className="flex items-center gap-2 font-semibold text-primary">
+              <Sparkles className="h-4 w-4" />
+              Health profile attached
+            </div>
+            {macroPreview && (
+              <p className="mt-1 text-muted-foreground">
+                Estimated targets: <span className="font-medium text-foreground">{macroPreview}</span>
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="mb-4 rounded-xl border border-dashed border-border bg-secondary/30 p-3 text-center text-sm text-muted-foreground">
+            <p>Want macros & habits tailored to you?</p>
+            <Link href="/get-started" className="mt-1 inline-block font-semibold text-primary hover:underline">
+              Get your custom plan first →
+            </Link>
+          </div>
+        )}
+
         <form action={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="full_name">Full Name</Label>

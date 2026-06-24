@@ -53,8 +53,8 @@ export function LandingNav() {
               Sign in
             </Button>
           </Link>
-          <Link href="/register">
-            <Button size="sm">Get started</Button>
+          <Link href="/get-started">
+            <Button size="sm">Get your plan</Button>
           </Link>
         </div>
 
@@ -91,8 +91,8 @@ export function LandingNav() {
                   Sign in
                 </Button>
               </Link>
-              <Link href="/register" onClick={() => setMobileOpen(false)}>
-                <Button className="w-full">Get started</Button>
+              <Link href="/get-started" onClick={() => setMobileOpen(false)}>
+                <Button className="w-full">Get your plan</Button>
               </Link>
             </div>
           </nav>

@@ -64,15 +64,15 @@ export function LandingHero() {
             transition={{ duration: 0.55, delay: 0.15 }}
             className="flex flex-col justify-center gap-3 sm:flex-row lg:justify-start"
           >
-            <Link href="/register">
+            <Link href="/get-started">
               <Button size="lg" className="w-full gap-2 sm:w-auto">
-                Start free
+                Get your custom plan
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="#pricing">
+            <Link href="/register">
               <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                View pricing
+                Start free
               </Button>
             </Link>
           </motion.div>

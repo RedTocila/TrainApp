@@ -1,7 +1,29 @@
 import type { Profile } from "@/lib/types";
 import { formatGender, formatGoal } from "@/lib/intake-display";
+import {
+  buildDetailedIntakeContextForAi,
+  buildIntakeSummaryFromResponses,
+  profileToResponses,
+} from "@/lib/intake-questionnaire";
 
 export function buildIntakeContextForAi(profile: Profile, extraNotes?: string): string {
+  const responses = profileToResponses(profile);
+  if (responses.goal) {
+    const detailed = buildDetailedIntakeContextForAi(responses);
+    if (detailed) {
+      const lines = detailed.split("\n");
+      if (extraNotes?.trim()) lines.push(`Client notes: ${extraNotes.trim()}`);
+      return lines.join("\n");
+    }
+  }
+
+  const structured = buildIntakeSummaryFromResponses(profileToResponses(profile));
+  if (structured.length > 0) {
+    const lines = structured.map((item) => `${item.label}: ${item.value}`);
+    if (extraNotes?.trim()) lines.push(`Client notes: ${extraNotes.trim()}`);
+    return lines.join("\n");
+  }
+
   const lines: string[] = [];
 
   const add = (label: string, value: string | number | null | undefined) => {
