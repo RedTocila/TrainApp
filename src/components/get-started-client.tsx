@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles, Target, Utensils, Zap } from "lucide-react";
+import { ArrowRight, ClipboardList, Package, Sparkles, UserPlus } from "lucide-react";
 import {
   IntakeCompleteSummary,
   IntakeQuestionnaireWizard,
@@ -17,12 +17,13 @@ import {
   EMPTY_INTAKE_RESPONSES,
   type IntakeResponses,
 } from "@/lib/intake-questionnaire";
+import { GET_STARTED_CTA } from "@/lib/landing-content";
 import { saveIntakeDraft, loadIntakeDraft } from "@/lib/intake-storage";
 
 const perks = [
-  { icon: Target, text: "Macro targets tuned to your body & goal" },
-  { icon: Utensils, text: "Nutrition that fits how you actually eat" },
-  { icon: Zap, text: "Habit ideas matched to your lifestyle" },
+  { icon: ClipboardList, text: "Macros tuned to your body" },
+  { icon: UserPlus, text: "Habits matched to lifestyle" },
+  { icon: Package, text: "Pick a package after sign-up" },
 ];
 
 type Phase = "intro" | "wizard" | "complete";
@@ -65,15 +66,13 @@ export function GetStartedClient() {
             <div className="space-y-4 text-center">
               <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
                 <Sparkles className="h-3.5 w-3.5" />
-                2-minute setup
+                Step 1 of 3
               </span>
               <h1 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">
-                Get your custom plan
+                {GET_STARTED_CTA}
               </h1>
-              <p className="mx-auto max-w-md text-muted-foreground">
-                Answer a few quick questions about your body, training, work, sleep,
-                and nutrition — we&apos;ll personalize macros, habits, and coaching
-                before you even sign up.
+              <p className="mx-auto max-w-md text-sm text-muted-foreground">
+                ~2 minutes · then sign up · then pick a package (optional)
               </p>
             </div>
 
@@ -94,20 +93,15 @@ export function GetStartedClient() {
               ))}
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <div className="flex justify-center">
               <Button
                 size="lg"
-                className="gap-2"
+                className="gap-2 px-8"
                 onClick={() => setPhase("wizard")}
               >
-                Build my plan
+                Start questionnaire
                 <ArrowRight className="h-4 w-4" />
               </Button>
-              <Link href="/register">
-                <Button size="lg" variant="outline" className="w-full">
-                  Skip — sign up first
-                </Button>
-              </Link>
             </div>
           </motion.div>
         )}
@@ -126,13 +120,16 @@ export function GetStartedClient() {
         {phase === "complete" && (
           <Card className="border-primary/30 bg-card/95 shadow-xl backdrop-blur">
             <CardContent className="space-y-6 p-6 sm:p-8">
+              <p className="text-center text-xs font-semibold uppercase tracking-wider text-primary">
+                Step 2 — Create account
+              </p>
               <IntakeCompleteSummary
                 responses={responses}
                 macros={previewMacros}
               />
               <Link href="/register">
                 <Button size="lg" className="w-full gap-2">
-                  Create account & unlock plan
+                  Continue to sign up
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>

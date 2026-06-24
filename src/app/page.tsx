@@ -8,7 +8,7 @@ import { SITE_URL } from "@/lib/landing-content";
 export const metadata: Metadata = {
   title: "LevelUp — Workouts, Nutrition & AI Coaching",
   description:
-    "Premium fitness platform with workout builder, nutrition tracking, AI coach, live coaching sessions, and custom trainer plans. Start free — plans from €7/month.",
+    "Premium fitness platform with workout builder, nutrition tracking, AI coach, and live coaching. Get your custom program — plans from €7/month.",
   keywords: [
     "fitness app",
     "workout tracker",

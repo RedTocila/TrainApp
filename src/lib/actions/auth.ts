@@ -7,15 +7,24 @@ import { getCachedProfile } from "@/lib/cached-profile";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
-export async function signUp(formData: FormData) {
+/** Apply profile + intake after the browser client has established an auth session. */
+export async function completeRegistration(input: {
+  fullName: string;
+  email: string;
+  phone: string | null;
+  intakeJson?: string | null;
+}) {
   const supabase = await createClient();
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const fullName = formData.get("full_name") as string;
-  const phone = (formData.get("phone") as string)?.trim() || null;
-  const intakeRaw = (formData.get("intake_json") as string)?.trim();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Session not established. Please try signing in." };
+  }
 
   let intakeResponses: IntakeResponses | null = null;
+  const intakeRaw = input.intakeJson?.trim();
   if (intakeRaw) {
     try {
       intakeResponses = JSON.parse(intakeRaw) as IntakeResponses;
@@ -24,41 +33,35 @@ export async function signUp(formData: FormData) {
     }
   }
 
-  const { data: authData, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: fullName, phone },
-    },
-  });
+  const profileUpdate: { role?: string; phone?: string; full_name: string } = {
+    full_name: input.fullName,
+  };
+  if (input.phone) profileUpdate.phone = input.phone;
+  if (process.env.ADMIN_EMAIL && input.email === process.env.ADMIN_EMAIL) {
+    profileUpdate.role = "admin";
+  }
 
-  if (error) return { error: error.message };
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update(profileUpdate)
+    .eq("id", user.id);
 
-  if (authData.user) {
-    const profileUpdate: { role?: string; phone?: string; full_name: string } = {
-      full_name: fullName,
-    };
-    if (phone) profileUpdate.phone = phone;
-    if (process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL) {
-      profileUpdate.role = "admin";
-    }
-    await supabase.from("profiles").update(profileUpdate).eq("id", authData.user.id);
+  if (profileError) {
+    return { error: profileError.message };
+  }
 
-    if (intakeResponses) {
-      await applyIntakeToProfile(authData.user.id, supabase, intakeResponses);
-    }
+  if (intakeResponses) {
+    await applyIntakeToProfile(user.id, supabase, intakeResponses);
   }
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", (await supabase.auth.getUser()).data.user?.id ?? "")
+    .eq("id", user.id)
     .single();
 
-  if (profile?.role === "admin") {
-    redirect("/admin");
-  }
-  redirect("/dashboard");
+  revalidatePath("/", "layout");
+  return { success: true as const, role: profile?.role ?? "client" };
 }
 
 export async function signIn(formData: FormData) {

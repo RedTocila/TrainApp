@@ -6,7 +6,7 @@ import { PublicPricingClient } from "@/components/public-pricing-client";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { FadeIn } from "@/components/landing/landing-motion";
-import { SITE_URL } from "@/lib/landing-content";
+import { GET_STARTED_CTA, GET_STARTED_HREF, SITE_URL } from "@/lib/landing-content";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -40,9 +40,8 @@ export default async function PublicPricingPage() {
             <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
               Simple, transparent plans
             </h1>
-            <p className="text-muted-foreground">
-              Browse the dashboard for free. Subscribe to log workouts, meals,
-              habits, and unlock premium AI tools.
+            <p className="text-sm text-muted-foreground">
+              Build your custom program first, then pick a plan — or skip anytime.
             </p>
           </FadeIn>
           <PublicPricingClient />
@@ -53,8 +52,8 @@ export default async function PublicPricingPage() {
             </Link>
           </p>
           <div className="flex justify-center">
-            <Link href="/register">
-              <Button size="lg">Create free account</Button>
+            <Link href={GET_STARTED_HREF}>
+              <Button size="lg">{GET_STARTED_CTA}</Button>
             </Link>
           </div>
         </div>

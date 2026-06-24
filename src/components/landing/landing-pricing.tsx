@@ -6,6 +6,10 @@ import { motion } from "framer-motion";
 import { Check, Sparkles } from "lucide-react";
 import { CUSTOM_PLAN_PRODUCTS, TRAINER_NAME } from "@/lib/custom-plan-products";
 import {
+  GET_STARTED_CTA,
+  GET_STARTED_HREF,
+} from "@/lib/landing-content";
+import {
   SUBSCRIPTION_PLANS,
   type BillingInterval,
 } from "@/lib/subscription-plans";
@@ -17,25 +21,24 @@ import { cn } from "@/lib/utils";
 function annualSavings(monthlyCents: number, annualCents: number): string | null {
   const saved = monthlyCents * 12 - annualCents;
   if (saved <= 0) return null;
-  return `Save €${(saved / 100).toFixed(0)}/year`;
+  return `Save €${(saved / 100).toFixed(0)}/yr`;
 }
 
 export function LandingPricing() {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
 
   return (
-    <section id="pricing" className="scroll-mt-24 px-4 py-20 sm:px-6">
-      <div className="mx-auto max-w-6xl space-y-16">
-        <FadeIn className="mx-auto max-w-2xl text-center">
+    <section id="pricing" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">
+      <div className="mx-auto max-w-6xl space-y-12">
+        <FadeIn className="text-center">
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
             Pricing
           </p>
-          <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-            Simple, transparent plans
+          <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+            Pick your package later
           </h2>
-          <p className="mt-4 text-muted-foreground">
-            Explore the dashboard for free. Subscribe when you&apos;re ready to
-            log workouts, meals, habits, and unlock premium AI tools.
+          <p className="mt-3 text-sm text-muted-foreground">
+            Build your program first — choose a plan after sign-up (skip anytime)
           </p>
         </FadeIn>
 
@@ -93,7 +96,6 @@ export function LandingPricing() {
                     )}
                     <CardHeader>
                       <CardTitle className="text-xl">{plan.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{plan.tagline}</p>
                       <div className="pt-2">
                         <span className="text-4xl font-black">{price.label}</span>
                         <span className="text-muted-foreground">
@@ -106,66 +108,44 @@ export function LandingPricing() {
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="space-y-4">
                       <ul className="space-y-2">
-                        {plan.features.map((feature) => (
+                        {plan.features.slice(0, 5).map((feature) => (
                           <li key={feature} className="flex items-start gap-2 text-sm">
                             <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                             <span>{feature}</span>
                           </li>
                         ))}
                       </ul>
-                      <Link href="/register">
-                        <Button
-                          className="w-full"
-                          variant={plan.highlighted ? "default" : "outline"}
-                        >
-                          Get started
-                        </Button>
-                      </Link>
                     </CardContent>
                   </Card>
                 </motion.div>
               );
             })}
           </div>
+
+          <div className="mt-8 text-center">
+            <Link href={GET_STARTED_HREF}>
+              <Button size="lg">{GET_STARTED_CTA}</Button>
+            </Link>
+          </div>
         </FadeIn>
 
         <FadeIn>
-          <div className="space-y-6">
-            <div className="text-center">
-              <h3 className="text-xl font-bold">One-time custom plans</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Hand-built by {TRAINER_NAME} — delivered in-app, ready to implement
-                on your calendar.
-              </p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {CUSTOM_PLAN_PRODUCTS.map((product) => (
-                <motion.div
-                  key={product.type}
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                >
-                  <Card className="h-full">
-                    <CardHeader>
-                      <CardTitle className="text-lg">{product.title}</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {product.description}
-                      </p>
-                      <p className="pt-2 text-3xl font-black">{product.label}</p>
-                    </CardHeader>
-                    <CardContent>
-                      <Link href="/register">
-                        <Button variant="outline" className="w-full">
-                          Sign up to order
-                        </Button>
-                      </Link>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {CUSTOM_PLAN_PRODUCTS.map((product) => (
+              <Card key={product.type} className="h-full">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">{product.title}</CardTitle>
+                  <p className="text-2xl font-black">{product.label}</p>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    By {TRAINER_NAME} · delivered in-app
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </FadeIn>
       </div>

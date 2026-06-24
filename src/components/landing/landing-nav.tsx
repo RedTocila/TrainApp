@@ -6,7 +6,11 @@ import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
-import { NAV_LINKS } from "@/lib/landing-content";
+import {
+  GET_STARTED_CTA,
+  GET_STARTED_HREF,
+  NAV_LINKS,
+} from "@/lib/landing-content";
 import { cn } from "@/lib/utils";
 
 export function LandingNav() {
@@ -53,8 +57,8 @@ export function LandingNav() {
               Sign in
             </Button>
           </Link>
-          <Link href="/get-started">
-            <Button size="sm">Get your plan</Button>
+          <Link href={GET_STARTED_HREF}>
+            <Button size="sm">{GET_STARTED_CTA}</Button>
           </Link>
         </div>
 
@@ -91,8 +95,8 @@ export function LandingNav() {
                   Sign in
                 </Button>
               </Link>
-              <Link href="/get-started" onClick={() => setMobileOpen(false)}>
-                <Button className="w-full">Get your plan</Button>
+              <Link href={GET_STARTED_HREF} onClick={() => setMobileOpen(false)}>
+                <Button className="w-full">{GET_STARTED_CTA}</Button>
               </Link>
             </div>
           </nav>
