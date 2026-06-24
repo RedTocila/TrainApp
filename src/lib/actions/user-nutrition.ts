@@ -668,6 +668,7 @@ export async function addLibraryMealToSlot(
     meal_type: found.meal.meal_type,
     name: found.meal.name,
     description: found.meal.description ?? "",
+    youtube_url: found.meal.youtube_url ?? "",
     macros: normalizeMealMacros(found.meal),
     ingredients: (found.meal.foods ?? []).map((f) => ({
       name: f.name,
@@ -815,6 +816,7 @@ export async function copyMealToPlan(mealId: string, targetPlanId: string) {
       meal_type: found.meal.meal_type,
       name: found.meal.name,
       description: found.meal.description ?? "",
+      youtube_url: found.meal.youtube_url ?? "",
       macros: normalizeMealMacros(found.meal),
       ingredients: (found.meal.foods ?? []).map((f) => ({
         name: f.name,

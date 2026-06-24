@@ -91,7 +91,7 @@ export function DashboardCardioCard({ clientId }: { clientId: string }) {
               </span>
             ) : (
               <Button size="sm" disabled={isPending} onClick={handleToggle}>
-                Mark done
+                Done
               </Button>
             )
           )}

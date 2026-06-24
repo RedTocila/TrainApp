@@ -15,6 +15,8 @@ export function MealDetailsFields({
   onNameChange,
   description,
   onDescriptionChange,
+  youtubeUrl,
+  onYoutubeUrlChange,
   macros,
   onMacrosChange,
   ingredients,
@@ -28,6 +30,8 @@ export function MealDetailsFields({
   onNameChange: (value: string) => void;
   description: string;
   onDescriptionChange: (value: string) => void;
+  youtubeUrl?: string;
+  onYoutubeUrlChange?: (value: string) => void;
   macros: MealMacros;
   onMacrosChange: (value: MealMacros) => void;
   ingredients: MealIngredient[];
@@ -78,9 +82,20 @@ export function MealDetailsFields({
           value={description}
           onChange={(e) => onDescriptionChange(e.target.value)}
           rows={2}
-          placeholder="Notes, prep tips, or how to serve"
+          placeholder="Notes, prep tips, or how to cook"
         />
       </div>
+
+      {onYoutubeUrlChange && (
+        <div className="space-y-1">
+          <Label>YouTube URL</Label>
+          <Input
+            value={youtubeUrl ?? ""}
+            onChange={(e) => onYoutubeUrlChange(e.target.value)}
+            placeholder="https://youtube.com/watch?v=..."
+          />
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label>Macros</Label>

@@ -23,6 +23,7 @@ export interface MealFormData {
   meal_type: MealType;
   name: string;
   description: string;
+  youtube_url?: string;
   macros: MealMacros;
   ingredients: MealIngredient[];
 }
@@ -79,6 +80,7 @@ export function emptyMealForm(mealType: MealType = "breakfast"): MealFormData {
     meal_type: mealType,
     name: "",
     description: "",
+    youtube_url: "",
     macros: { ...DEFAULT_MEAL_MACROS },
     ingredients: [{ name: "", amount: "" }],
   };
@@ -88,6 +90,7 @@ export function mealFormFromMeal(meal: {
   meal_type: MealType;
   name: string;
   description?: string | null;
+  youtube_url?: string | null;
   calories?: number | null;
   protein?: number | null;
   carbs?: number | null;
@@ -102,6 +105,7 @@ export function mealFormFromMeal(meal: {
     meal_type: meal.meal_type,
     name: meal.name,
     description: meal.description ?? "",
+    youtube_url: meal.youtube_url ?? "",
     macros: normalizeMealMacros(meal),
     ingredients: ingredients.length > 0 ? ingredients : [{ name: "", amount: "" }],
   };
@@ -112,6 +116,7 @@ export function mealPayloadFromForm(data: MealFormData) {
     meal_type: data.meal_type,
     name: data.name.trim(),
     description: data.description.trim() || null,
+    youtube_url: data.youtube_url?.trim() || null,
     calories: data.macros.calories,
     protein: data.macros.protein,
     carbs: data.macros.carbs,

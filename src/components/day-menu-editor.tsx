@@ -99,6 +99,8 @@ function MealEditDialog({
             onNameChange={(name) => setForm({ ...form, name })}
             description={form.description}
             onDescriptionChange={(description) => setForm({ ...form, description })}
+            youtubeUrl={form.youtube_url}
+            onYoutubeUrlChange={(youtube_url) => setForm({ ...form, youtube_url })}
             macros={form.macros}
             onMacrosChange={(macros) => setForm({ ...form, macros })}
             ingredients={form.ingredients}
@@ -204,6 +206,8 @@ function AddMealDialog({
               onNameChange={(name) => setForm({ ...form, name })}
               description={form.description}
               onDescriptionChange={(description) => setForm({ ...form, description })}
+              youtubeUrl={form.youtube_url}
+              onYoutubeUrlChange={(youtube_url) => setForm({ ...form, youtube_url })}
               macros={form.macros}
               onMacrosChange={(macros) => setForm({ ...form, macros })}
               ingredients={form.ingredients}

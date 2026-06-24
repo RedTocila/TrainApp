@@ -430,6 +430,10 @@ export function AdminNutritionWizard({
                         onDescriptionChange={(description) =>
                           updateSlotMeal(slot, idx, { ...meal, description })
                         }
+                        youtubeUrl={meal.youtube_url}
+                        onYoutubeUrlChange={(youtube_url) =>
+                          updateSlotMeal(slot, idx, { ...meal, youtube_url })
+                        }
                         macros={meal.macros}
                         onMacrosChange={(macros) => updateSlotMeal(slot, idx, { ...meal, macros })}
                         ingredients={meal.ingredients}

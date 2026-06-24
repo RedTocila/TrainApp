@@ -32,12 +32,13 @@ export function StartTodaysWorkoutButton({
   return (
     <div className="inline-flex flex-col items-end gap-1">
       <Button
-        size="sm"
+        size="icon"
+        className="h-9 w-9 rounded-full"
         disabled={disabled || isPending}
         onClick={handleStart}
+        aria-label={isPending ? "Starting workout" : "Start workout"}
       >
-        <Play className="mr-1 h-3.5 w-3.5" />
-        {isPending ? "Starting…" : "Start"}
+        <Play className="h-4 w-4" />
       </Button>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>

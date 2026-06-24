@@ -195,6 +195,7 @@ export interface Meal {
   slot?: MealSlot | null;
   name: string;
   description?: string | null;
+  youtube_url?: string | null;
   calories?: number | null;
   protein?: number | null;
   carbs?: number | null;

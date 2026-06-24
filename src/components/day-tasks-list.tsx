@@ -67,7 +67,7 @@ export function TaskRow({ task }: { task: DailyTask }) {
         type="button"
         onClick={() => navigate(task)}
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-lg border border-border bg-secondary/40 px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-secondary/70 sm:items-start sm:gap-3 sm:px-3 sm:py-2.5",
+          "relative flex w-full items-center gap-2.5 rounded-2xl border border-border bg-secondary/40 px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-secondary/70 sm:items-start sm:gap-3 sm:px-3 sm:py-2.5",
           task.completed && "border-green-500/30 bg-green-500/5 hover:border-green-500/40",
           isMissed && "border-red-500/30 bg-red-500/5 hover:border-red-500/40",
           isInProgress && "border-primary/20"
@@ -75,25 +75,36 @@ export function TaskRow({ task }: { task: DailyTask }) {
       >
         <span
           className={cn(
-            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border sm:mt-0.5 sm:h-6 sm:w-6",
+            "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:mt-0.5 sm:h-10 sm:w-10",
             task.completed
-              ? "border-green-500 bg-green-500 text-white"
+              ? "bg-green-500/15 text-green-400"
               : isMissed
-                ? "border-red-500/50 bg-red-500/10 text-red-400"
-                : "border-primary/40 bg-primary/10 text-primary"
+                ? "bg-red-500/15 text-red-400"
+                : "bg-primary/10 text-primary"
           )}
         >
-          {task.completed ? (
-            <Check className="h-3.5 w-3.5" />
-          ) : isMissed ? (
-            <X className="h-3.5 w-3.5" />
-          ) : (
-            <Circle className="h-3 w-3" />
-          )}
+          <Icon className="h-4 w-4" />
+          <span
+            className={cn(
+              "absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background",
+              task.completed
+                ? "bg-green-500 text-white"
+                : isMissed
+                  ? "bg-red-500 text-white"
+                  : "bg-secondary text-primary"
+            )}
+          >
+            {task.completed ? (
+              <Check className="h-2.5 w-2.5" />
+            ) : isMissed ? (
+              <X className="h-2.5 w-2.5" />
+            ) : (
+              <Circle className="h-2 w-2 fill-current" />
+            )}
+          </span>
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 sm:gap-2">
-            <Icon className="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground sm:block" />
             <span
               className={cn(
                 "text-sm font-medium leading-tight",
@@ -110,7 +121,7 @@ export function TaskRow({ task }: { task: DailyTask }) {
             )}
             {isInProgress && (
               <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-400 sm:text-[10px]">
-                Active
+                In progress
               </span>
             )}
             {isMissed && (
@@ -149,7 +160,7 @@ export function groupTasksByStatus(tasks: DailyTask[]) {
 }
 
 export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
-  const { active, completed } = groupTasksByStatus(tasks);
+  const { inProgress, missed, completed } = groupTasksByStatus(tasks);
 
   if (tasks.length === 0) {
     return (
@@ -158,14 +169,26 @@ export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
   }
 
   return (
-    <div className="space-y-3 sm:space-y-5">
-      {active.length > 0 && (
+    <div className="space-y-4">
+      {inProgress.length > 0 && (
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-amber-400">
-            In Progress
+            In progress
           </h3>
           <ul className="space-y-2">
-            {active.map((task) => (
+            {inProgress.map((task) => (
+              <TaskRow key={task.id} task={task} />
+            ))}
+          </ul>
+        </section>
+      )}
+      {missed.length > 0 && (
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-red-400">
+            Missed
+          </h3>
+          <ul className="space-y-2">
+            {missed.map((task) => (
               <TaskRow key={task.id} task={task} />
             ))}
           </ul>

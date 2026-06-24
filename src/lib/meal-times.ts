@@ -148,6 +148,7 @@ export function getPlannedMealSlots(
             slot,
             name: slotLog.name,
             description: slotLog.description,
+            youtube_url: null,
             calories: slotLog.calories,
             protein: slotLog.protein,
             carbs: slotLog.carbs,

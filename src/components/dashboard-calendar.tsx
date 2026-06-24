@@ -66,7 +66,7 @@ export function DashboardCalendar({
   useRegisterDashboardCalendar(schedule, mergedEnrichment);
 
   return (
-    <div className="border-b border-border bg-card/50">
+    <div className="bg-card/50">
       <CalendarStrip
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}

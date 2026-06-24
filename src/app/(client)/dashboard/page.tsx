@@ -36,8 +36,6 @@ import { PageTransition, StaggerContainer, StaggerItem } from "@/components/page
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { getPrimaryMealsForDayMenu } from "@/lib/meal-slots";
 import { hasAiAccess } from "@/lib/subscription";
-import { getDashboardAiInsight } from "@/lib/actions/ai-coach";
-import { AiInsightCard } from "@/components/ai-insight-card";
 
 export default async function DashboardPage() {
   const profile = await requireClient();
@@ -139,7 +137,6 @@ export default async function DashboardPage() {
       : null;
 
   const aiAccess = hasAiAccess(profile);
-  const aiInsight = aiAccess ? await getDashboardAiInsight(dateKey) : null;
 
   return (
     <>
@@ -175,12 +172,6 @@ export default async function DashboardPage() {
             waterGoalMl,
           }}
           completionsByDate={completionsSerializable}
-        />
-
-        <AiInsightCard
-          hasAiAccess={aiAccess}
-          message={aiInsight?.hasAi ? aiInsight.message : undefined}
-          proteinGap={aiInsight?.hasAi ? aiInsight.gap.protein : undefined}
         />
 
         <DashboardOverview

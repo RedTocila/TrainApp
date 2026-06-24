@@ -153,6 +153,7 @@ export async function saveMeal(
     slot?: string | null;
     name: string;
     description?: string | null;
+    youtube_url?: string | null;
     calories?: number;
     protein?: number;
     carbs?: number;
@@ -168,6 +169,7 @@ export async function saveMeal(
     slot: meal.slot ?? null,
     name: meal.name,
     description: meal.description?.trim() || null,
+    youtube_url: meal.youtube_url?.trim() || null,
     calories: meal.calories ?? null,
     protein: meal.protein ?? null,
     carbs: meal.carbs ?? null,

@@ -37,6 +37,7 @@ function mealFormToBuilder(meal: {
   meal_type: MealType;
   name: string;
   description?: string | null;
+  youtube_url?: string | null;
   calories?: number | null;
   protein?: number | null;
   carbs?: number | null;
@@ -279,6 +280,8 @@ export function NutritionBuilder({
               onNameChange={(name) => updateMeal(mealIdx, { ...meal, name })}
               description={meal.description}
               onDescriptionChange={(description) => updateMeal(mealIdx, { ...meal, description })}
+              youtubeUrl={meal.youtube_url}
+              onYoutubeUrlChange={(youtube_url) => updateMeal(mealIdx, { ...meal, youtube_url })}
               macros={meal.macros}
               onMacrosChange={(macros) => updateMeal(mealIdx, { ...meal, macros })}
               ingredients={meal.ingredients}

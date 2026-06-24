@@ -104,7 +104,6 @@ export function CalendarDayCard({
     >
       <div
         className={cn(
-          "border-b border-border/60",
           strip
             ? "flex flex-col items-center gap-0.5 px-1 py-1.5 text-center sm:flex-row sm:items-start sm:justify-between sm:px-2.5 sm:py-2 sm:text-left md:px-3"
             : cn(

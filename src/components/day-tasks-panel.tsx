@@ -1,7 +1,7 @@
 "use client";
 
 import { format, isToday, isTomorrow } from "date-fns";
-import { ListChecks } from "lucide-react";
+import { ChevronDown, ListChecks } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
@@ -15,6 +15,7 @@ import { enrichTasksForDate } from "@/lib/dashboard-task-enrichment";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 import { formatDateKey } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 function panelTitle(date: Date): string {
   if (isToday(date)) return "Today's To Do";
@@ -47,6 +48,7 @@ export function DayTasksPanel({
   const [enrichment, setEnrichment] = useState<DashboardEnrichmentData>(() =>
     buildInitialEnrichment(completionsByDate)
   );
+  const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const dateKey = formatDateKey(selectedDate);
 
@@ -74,12 +76,8 @@ export function DayTasksPanel({
     return enrichTasksForDate(selectedDate, schedule, mergedEnrichment);
   }, [schedule, selectedDate, mergedEnrichment]);
 
-  const { active, missed, completed } = groupTasksByStatus(tasks);
-
-  const summary =
-    tasks.length === 0
-      ? "No tasks scheduled"
-      : `${active.length} active · ${completed.length} completed`;
+  const { missed, completed } = groupTasksByStatus(tasks);
+  const allDone = tasks.length > 0 && completed.length === tasks.length;
 
   const missedTaskItems = missed.map((task) => ({
     id: task.id,
@@ -89,24 +87,53 @@ export function DayTasksPanel({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2 text-base sm:text-lg">
-          <ListChecks className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
-          {panelTitle(selectedDate)}
-          <MissedButton
-            count={missed.length}
-            title="Missed tasks"
-            hint="Try to stay on schedule tomorrow."
-            items={missedTaskItems}
+      <CardHeader className="p-0">
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left sm:px-6 sm:py-4"
+          aria-expanded={open}
+        >
+          <CardTitle className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-base sm:text-lg">
+            <ListChecks className="h-4 w-4 shrink-0 text-primary sm:h-5 sm:w-5" />
+            <span className="shrink-0">{panelTitle(selectedDate)}</span>
+            {tasks.length > 0 && (
+              <>
+                <span
+                  className={cn(
+                    "text-sm font-semibold",
+                    allDone ? "text-green-400" : "text-amber-400"
+                  )}
+                >
+                  {allDone ? "Completed" : "In progress"}
+                </span>
+                {!allDone && (
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {completed.length}/{tasks.length} completed
+                  </span>
+                )}
+              </>
+            )}
+            <MissedButton
+              count={missed.length}
+              title="Missed tasks"
+              hint="Try to stay on schedule tomorrow."
+              items={missedTaskItems}
+            />
+          </CardTitle>
+          <ChevronDown
+            className={cn(
+              "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+              open && "rotate-180"
+            )}
           />
-        </CardTitle>
-        <p className="text-xs text-muted-foreground sm:text-sm">
-          {format(selectedDate, "MMMM d, yyyy")} · {summary}
-        </p>
+        </button>
       </CardHeader>
-      <CardContent>
-        <DayTasksList tasks={tasks} />
-      </CardContent>
+      {open && (
+        <CardContent className="border-t border-border/60 px-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
+          <DayTasksList tasks={tasks} />
+        </CardContent>
+      )}
     </Card>
   );
 }
