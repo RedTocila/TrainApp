@@ -64,6 +64,7 @@ export function LogMealDialog({
   hasAiAccess,
   onClose,
   onLogged,
+  goal,
 }: {
   open: boolean;
   clientId: string;
@@ -71,7 +72,8 @@ export function LogMealDialog({
   library: PersonalMealLibraryItem[];
   hasAiAccess: boolean;
   onClose: () => void;
-  onLogged: () => void;
+  onLogged: (preview?: MealFormData) => void;
+  goal?: string | null;
 }) {
   const [mode, setMode] = useState<LogMode>("picker");
   const [form, setForm] = useState<MealFormData>(emptyMealForm());
@@ -118,7 +120,7 @@ export function LogMealDialog({
         setError(result.error);
         return;
       }
-      onLogged();
+      onLogged(form);
       onClose();
     });
   };
@@ -131,7 +133,22 @@ export function LogMealDialog({
         setError(result.error);
         return;
       }
-      onLogged();
+      const item = library.find((i) => i.meal.id === mealId);
+      if (item) {
+        onLogged({
+          meal_type: item.meal.meal_type,
+          name: item.meal.name,
+          description: item.meal.description ?? "",
+          youtube_url: item.meal.youtube_url ?? "",
+          macros: normalizeMealMacros(item.meal),
+          ingredients: (item.meal.foods ?? []).map((f) => ({
+            name: f.name,
+            amount: f.amount ?? "",
+          })),
+        });
+      } else {
+        onLogged();
+      }
       onClose();
     });
   };

@@ -27,6 +27,7 @@ export function DashboardOverview({
   personalPlanId,
   initialWaterGoalMl,
   nutritionPlan: initialNutritionPlan,
+  goal,
 }: {
   clientId: string;
   initialLog: DailyLog | null;
@@ -36,6 +37,7 @@ export function DashboardOverview({
   targets: MacroTargets;
   personalPlanId?: string | null;
   initialWaterGoalMl: number;
+  goal?: string | null;
   nutritionPlan?: {
     title: string;
     meals: Meal[];
@@ -92,6 +94,7 @@ export function DashboardOverview({
       waterGoalMl={waterGoalMl}
       onWaterGoalChange={setWaterGoalMl}
       nutritionPlan={nutritionPlan}
+      goal={goal}
     />
   );
 }

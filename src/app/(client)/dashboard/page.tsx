@@ -188,6 +188,7 @@ export default async function DashboardPage() {
           personalPlanId={personalNutritionPlanId}
           initialWaterGoalMl={profile.water_goal_ml ?? 2500}
           nutritionPlan={nutritionSummary}
+          goal={profile.goal ?? null}
         />
 
         <StaggerContainer>

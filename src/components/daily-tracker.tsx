@@ -8,11 +8,14 @@ import { addWater } from "@/lib/actions/logs";
 import { deleteDailyMealLog } from "@/lib/actions/daily-meals";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import { sumMealMacros } from "@/lib/meal-utils";
+import type { MealFormData } from "@/lib/meal-utils";
+import type { MacroTargets } from "@/lib/meal-score";
 import { NutritionStatsPanel } from "@/components/nutrition-stats-panel";
 import { RecentMealsList } from "@/components/recent-meals-list";
 import { MealPlanDialog } from "@/components/meal-plan-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
 import { LogMealDialog } from "@/components/log-meal-dialog";
+import { MealLogPreviewDialog } from "@/components/meal-log-preview-dialog";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import {
   SectionCompletedBadge,
@@ -29,13 +32,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-type MacroTargets = {
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-};
-
 interface DailyTrackerProps {
   clientId: string;
   date: Date;
@@ -49,6 +45,7 @@ interface DailyTrackerProps {
   personalPlanId?: string | null;
   waterGoalMl: number;
   onWaterGoalChange?: (goal: number) => void;
+  goal?: string | null;
   nutritionPlan?: {
     title: string;
     meals: Meal[];
@@ -68,10 +65,13 @@ export function DailyTracker({
   targets,
   waterGoalMl,
   nutritionPlan,
+  goal,
 }: DailyTrackerProps) {
   const [isPending, startTransition] = useTransition();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [mealPlanOpen, setMealPlanOpen] = useState(false);
+  const [previewMeal, setPreviewMeal] = useState<MealFormData | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
   const [mealTick, setMealTick] = useState(0);
   const { patchDashboard, notifySync } = useDashboardSync();
@@ -166,6 +166,14 @@ export function DailyTracker({
       const meals = await getDailyMealLogs(clientId, dateKey);
       onDailyMealsChange(meals);
     });
+  };
+
+  const handleLogged = (preview?: MealFormData) => {
+    refreshMeals();
+    if (preview) {
+      setPreviewMeal(preview);
+      setPreviewOpen(true);
+    }
   };
 
   return (
@@ -270,7 +278,16 @@ export function DailyTracker({
         library={mealLibrary}
         hasAiAccess={hasAiAccess}
         onClose={() => setLogMealOpen(false)}
-        onLogged={refreshMeals}
+        onLogged={handleLogged}
+        goal={goal}
+      />
+
+      <MealLogPreviewDialog
+        open={previewOpen}
+        meal={previewMeal}
+        targets={targets}
+        goal={goal}
+        onClose={() => setPreviewOpen(false)}
       />
     </>
   );
