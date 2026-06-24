@@ -532,7 +532,9 @@ export async function implementTrainerPlan(requestId: string): Promise<
         scheduleConfig,
         (meals ?? []) as Meal[]
       );
-      if (scheduleResult.error) return scheduleResult;
+      if ("error" in scheduleResult && scheduleResult.error) {
+        return { error: scheduleResult.error };
+      }
     }
   } else {
     return { error: "Delivered plan not found" };

@@ -13,7 +13,7 @@ import { enrichTasksForDate } from "@/lib/dashboard-task-enrichment";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 import { isDayEnded } from "@/lib/meal-times";
 import { formatDateKey } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 function panelTitle(date: Date): string {
@@ -73,15 +73,15 @@ export function DayTasksPanel({
   return (
     <Card>
       <CardHeader className="p-0">
-        <button
-          type="button"
-          onClick={() => setOpen((prev) => !prev)}
-          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left sm:px-6 sm:py-4"
-          aria-expanded={open}
-        >
-          <CardTitle className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-base sm:text-lg">
+        <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
+          <button
+            type="button"
+            onClick={() => setOpen((prev) => !prev)}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            aria-expanded={open}
+          >
             <ListChecks className="h-4 w-4 shrink-0 text-primary sm:h-5 sm:w-5" />
-            <span className="shrink-0">{panelTitle(selectedDate)}</span>
+            <span className="text-base font-bold sm:text-lg">{panelTitle(selectedDate)}</span>
             {tasks.length > 0 && (
               <>
                 <span
@@ -103,20 +103,26 @@ export function DayTasksPanel({
                 )}
               </>
             )}
+          </button>
+          <div className="flex shrink-0 items-center gap-2">
             <MissedButton
               count={missed.length}
               title="Missed tasks"
               hint="Try to stay on schedule tomorrow."
               items={missedTaskItems}
             />
-          </CardTitle>
-          <ChevronDown
-            className={cn(
-              "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
-              open && "rotate-180"
-            )}
-          />
-        </button>
+            <button
+              type="button"
+              onClick={() => setOpen((prev) => !prev)}
+              className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              aria-label={open ? "Collapse tasks" : "Expand tasks"}
+            >
+              <ChevronDown
+                className={cn("h-5 w-5 transition-transform", open && "rotate-180")}
+              />
+            </button>
+          </div>
+        </div>
       </CardHeader>
       {open && (
         <CardContent className="border-t border-border/60 px-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4">

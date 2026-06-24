@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { hasPaidAccess } from "@/lib/subscription";
-import { getProgressPredictionAction } from "@/lib/actions/ai-coach";
+import { getCoachContext } from "@/lib/ai/coach-context";
+import { computeProgressPrediction } from "@/lib/ai/progress-prediction";
+import { formatDateKey } from "@/lib/utils";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { ScoreGauge } from "@/components/ai/score-gauge";
 import { WeightChart } from "@/components/weight-chart";
@@ -19,13 +21,16 @@ export default async function AiPredictionsPage() {
     return <AiUpgradeGate title="AI progress predictions" />;
   }
 
-  const result = await getProgressPredictionAction();
-  if ("error" in result && result.error) {
-    return <p className="text-sm text-red-400">{result.error}</p>;
-  }
-  if (!("prediction" in result)) return null;
-
-  const { prediction, weightHistory } = result;
+  const today = formatDateKey(new Date());
+  const ctx = await getCoachContext(user.id, today);
+  const weightHistory = ctx.weightHistory.map((entry) => ({
+    ...entry,
+    weight_kg: Number(entry.weight_kg),
+  }));
+  const prediction = computeProgressPrediction(
+    weightHistory,
+    ctx.profile?.intake_weight_kg ?? null
+  );
   const trendingUp = (prediction.weekly_change_kg ?? 0) > 0;
   const TrendIcon = trendingUp ? TrendingUp : TrendingDown;
 
@@ -43,7 +48,6 @@ export default async function AiPredictionsPage() {
               <ScoreGauge
                 score={prediction.goal_progress_pct}
                 label="Goal progress"
-                icon={Target}
                 colorClass="text-primary"
                 size="lg"
               />
@@ -100,7 +104,11 @@ export default async function AiPredictionsPage() {
               <LineChart className="h-5 w-5 text-primary" />
               <p className="font-bold">Weight trend</p>
             </div>
-            <WeightChart entries={weightHistory} />
+            <WeightChart
+              entries={weightHistory}
+              startWeightKg={profile.intake_weight_kg}
+              startDate={profile.created_at?.slice(0, 10) ?? null}
+            />
           </CardContent>
         </Card>
       )}

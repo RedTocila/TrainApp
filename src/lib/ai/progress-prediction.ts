@@ -19,14 +19,14 @@ export function computeProgressPrediction(
   }
 
   const sorted = [...weightHistory].sort((a, b) => a.date.localeCompare(b.date));
-  const current = sorted[sorted.length - 1]!.weight_kg;
-  const goal = goalWeightKg ?? null;
+  const current = Number(sorted[sorted.length - 1]!.weight_kg);
+  const goal = goalWeightKg != null ? Number(goalWeightKg) : null;
 
   let weeklyChange: number | null = null;
   if (sorted.length >= 2) {
     const recent = sorted.slice(-Math.min(4, sorted.length));
-    const first = recent[0]!.weight_kg;
-    const last = recent[recent.length - 1]!.weight_kg;
+    const first = Number(recent[0]!.weight_kg);
+    const last = Number(recent[recent.length - 1]!.weight_kg);
     const days = Math.max(
       1,
       (new Date(recent[recent.length - 1]!.date).getTime() -
@@ -49,7 +49,7 @@ export function computeProgressPrediction(
     target.setDate(target.getDate() + Math.round(weeksToGoal * 7));
     estimatedDate = formatDateKey(target);
 
-    const start = sorted[0]!.weight_kg;
+    const start = Number(sorted[0]!.weight_kg);
     const totalDelta = goal - start;
     if (Math.abs(totalDelta) > 0.1) {
       progressPct = Math.min(
