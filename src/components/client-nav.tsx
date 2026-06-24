@@ -20,7 +20,7 @@ import { isTrainPath } from "@/lib/train-nav";
 
 const standardNavItems = [
   { href: "/dashboard", label: "Home", mobileLabel: "Home", icon: Home, exact: true as const },
-  { href: "/dashboard/ai", label: "AI Coach", mobileLabel: "AI", icon: Bot },
+  { href: "/dashboard/ai", label: "AI Coach", mobileLabel: "AI Coach", icon: Bot },
   { href: "/dashboard/classes", label: "Live coaching", mobileLabel: "Live", icon: Video },
   { href: "/dashboard/profile", label: "Profile", mobileLabel: "Profile", icon: User },
 ];

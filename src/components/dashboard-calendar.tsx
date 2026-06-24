@@ -24,6 +24,7 @@ function buildInitialEnrichment(
     waterByDate: {},
     mealsByDate: {},
     workoutCompletedDates: [],
+    accountCreatedAt: null,
   };
 }
 

@@ -73,6 +73,7 @@ export function CalendarDayCard({
   const doneCount = tasks.filter((t) => t.completed).length;
   const isComplete = dayStatus === "complete";
   const isIncompletePast = dayStatus === "incomplete_past";
+  const hasTasks = tasks.length > 0;
 
   return (
     <motion.button
@@ -176,33 +177,43 @@ export function CalendarDayCard({
           <p className="text-[10px] font-medium uppercase">
             {format(date, "MMM")}
           </p>
-          <p className="text-[10px] sm:text-xs">
-            {doneCount}/{tasks.length} done
-          </p>
+          {hasTasks ? (
+            <p className="text-[10px] sm:text-xs">
+              {doneCount}/{tasks.length} done
+            </p>
+          ) : (
+            <p className="text-[10px] sm:text-xs text-muted-foreground/70">—</p>
+          )}
         </div>
       </div>
 
       {strip && !isComplete && !isIncompletePast && (
         <div className="flex flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 sm:hidden">
-          <div className="flex flex-wrap justify-center gap-0.5">
-            {categories.slice(0, 4).map((category) => (
-              <span
-                key={category}
-                className={cn(
-                  "h-1.5 w-1.5 rounded-full",
-                  category === "workout" && "bg-primary",
-                  category === "nutrition" && "bg-emerald-400",
-                  category === "cardio" && "bg-orange-400",
-                  category === "habits" && "bg-violet-400",
-                  category === "water" && "bg-sky-400"
-                )}
-                title={TASK_CATEGORY_LABELS[category]}
-              />
-            ))}
-          </div>
-          <p className="text-[9px] font-medium text-muted-foreground">
-            {tasks.length} tasks
-          </p>
+          {hasTasks ? (
+            <>
+              <div className="flex flex-wrap justify-center gap-0.5">
+                {categories.slice(0, 4).map((category) => (
+                  <span
+                    key={category}
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      category === "workout" && "bg-primary",
+                      category === "nutrition" && "bg-emerald-400",
+                      category === "cardio" && "bg-orange-400",
+                      category === "habits" && "bg-violet-400",
+                      category === "water" && "bg-sky-400"
+                    )}
+                    title={TASK_CATEGORY_LABELS[category]}
+                  />
+                ))}
+              </div>
+              <p className="text-[9px] font-medium text-muted-foreground">
+                {tasks.length} tasks
+              </p>
+            </>
+          ) : (
+            <p className="text-[9px] font-medium text-muted-foreground/70">No tasks</p>
+          )}
         </div>
       )}
 
@@ -341,18 +352,20 @@ export function CalendarDayDot({
           <X className="h-2.5 w-2.5" />
         </span>
       ) : (
-        <div className="mt-1 flex flex-wrap justify-center gap-0.5 px-1">
-          {categories.slice(0, 4).map((category) => (
-            <span
-              key={category}
-              className={cn(
-                "h-1 w-1 rounded-full",
-                selected ? "bg-primary-foreground/80" : "bg-primary/70"
-              )}
-              title={TASK_CATEGORY_LABELS[category]}
-            />
-          ))}
-        </div>
+        categories.length > 0 && (
+          <div className="mt-1 flex flex-wrap justify-center gap-0.5 px-1">
+            {categories.slice(0, 4).map((category) => (
+              <span
+                key={category}
+                className={cn(
+                  "h-1 w-1 rounded-full",
+                  selected ? "bg-primary-foreground/80" : "bg-primary/70"
+                )}
+                title={TASK_CATEGORY_LABELS[category]}
+              />
+            ))}
+          </div>
+        )
       )}
     </button>
   );

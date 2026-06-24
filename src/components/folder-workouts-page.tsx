@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ArrowLeft, Calendar, Dumbbell, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, Dumbbell, Pencil, Play, Trash2 } from "lucide-react";
 import { deletePersonalWorkoutPlan } from "@/lib/actions/user-workouts";
 import type { PersonalWorkoutListItem, WorkoutPickItem } from "@/lib/actions/user-workouts";
 import { AddToFolderMenu } from "@/components/add-to-folder-menu";
@@ -30,7 +30,7 @@ export function FolderWorkoutsPage({
   const [isPending, startTransition] = useTransition();
 
   const handleDelete = (planId: string, title: string) => {
-    if (!confirm(`Delete "${title}"? This removes the workout and its schedule.`)) return;
+    if (!confirm(`Delete "${title}"?`)) return;
     startTransition(async () => {
       await deletePersonalWorkoutPlan(planId);
       router.refresh();
@@ -38,39 +38,36 @@ export function FolderWorkoutsPage({
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex flex-col gap-3">
-        <Link href="/dashboard/workout">
-          <Button variant="ghost" size="sm" className="-ml-2 w-fit">
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            All folders
-          </Button>
-        </Link>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-black">{folderName}</h1>
-            <p className="text-sm text-muted-foreground">
-              Workouts in this folder and their schedule
-            </p>
+    <div className="space-y-5">
+      <Link href="/dashboard/workout">
+        <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1 px-2">
+          <ArrowLeft className="h-4 w-4" />
+          Folders
+        </Button>
+      </Link>
+
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+            <Dumbbell className="h-5 w-5 text-primary" />
           </div>
-          <AddToFolderMenu
-            folderId={folderId}
-            folderName={folderName}
-            availableWorkouts={availableWorkouts}
-          />
+          <div>
+            <h1 className="text-lg font-black">{folderName}</h1>
+            <p className="text-xs text-muted-foreground">{workouts.length} programs</p>
+          </div>
         </div>
+        <AddToFolderMenu
+          folderId={folderId}
+          folderName={folderName}
+          availableWorkouts={availableWorkouts}
+        />
       </div>
 
       {workouts.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+          <CardContent className="flex flex-col items-center gap-3 py-12">
             <Dumbbell className="h-10 w-10 text-muted-foreground" />
-            <div>
-              <p className="font-medium">No workouts in this folder</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Create a new workout or add one you&apos;ve already built.
-              </p>
-            </div>
+            <p className="font-medium">Empty folder</p>
             <AddToFolderMenu
               folderId={folderId}
               folderName={folderName}
@@ -80,45 +77,63 @@ export function FolderWorkoutsPage({
         </Card>
       ) : (
         <div className="space-y-3">
-          {workouts.map(({ plan, days, scheduleSummary, upcomingCount }) => (
-            <Card key={plan.id}>
-              <CardContent className="p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold">{plan.title}</p>
-                    {plan.description && (
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {plan.description}
-                      </p>
-                    )}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary">
-                        {days.length} day{days.length === 1 ? "" : "s"}
-                      </Badge>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        {scheduleSummary}
-                      </span>
-                      {upcomingCount > 0 && (
-                        <Badge variant="outline">{upcomingCount} upcoming</Badge>
-                      )}
+          {workouts.map(({ plan, days, scheduleSummary, upcomingCount }) => {
+            const exerciseTotal = days.reduce(
+              (sum, day) => sum + (day.exercises?.length ?? 0),
+              0
+            );
+
+            return (
+              <Card key={plan.id}>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">{plan.title}</p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        <Badge variant="secondary" className="text-[10px]">
+                          {days.length}d
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px]">
+                          {exerciseTotal} ex
+                        </Badge>
+                        {upcomingCount > 0 && (
+                          <Badge className="bg-primary/15 text-[10px] text-primary">
+                            {upcomingCount} scheduled
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                    <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-                      {days.map((day) => (
-                        <li key={day.id}>
-                          {day.title} · {day.exercises?.length ?? 0} exercises
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="flex gap-1">
+                      {days.length > 0 && <StartWorkoutDayButton planId={plan.id} />}
+                      <Link href={`/dashboard/workout/${plan.id}/edit`}>
+                        <Button size="icon" variant="outline" className="h-8 w-8">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    {days.length > 0 && <StartWorkoutDayButton planId={plan.id} />}
-                    <Link href={`/dashboard/workout/${plan.id}/edit`}>
-                      <Button size="sm" variant="outline">
-                        <Pencil className="mr-1 h-3 w-3" />
-                        Edit
-                      </Button>
-                    </Link>
+
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{scheduleSummary}</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {days.map((day) => (
+                      <div
+                        key={day.id}
+                        className="flex items-center gap-1 rounded-lg bg-secondary/50 px-2 py-1 text-[11px]"
+                      >
+                        <Play className="h-3 w-3 text-primary" />
+                        <span className="font-medium">{day.title}</span>
+                        <span className="text-muted-foreground">
+                          {day.exercises?.length ?? 0}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-1 border-t border-border pt-2">
                     <MoveWorkoutButton
                       planId={plan.id}
                       planTitle={plan.title}
@@ -128,16 +143,17 @@ export function FolderWorkoutsPage({
                     <Button
                       size="sm"
                       variant="ghost"
+                      className="ml-auto h-8"
                       disabled={isPending}
                       onClick={() => handleDelete(plan.id, plan.title)}
                     >
                       <Trash2 className="h-4 w-4 text-red-400" />
                     </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

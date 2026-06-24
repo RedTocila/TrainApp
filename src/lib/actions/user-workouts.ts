@@ -59,9 +59,6 @@ export async function createPersonalWorkoutPlan(
   if (resolvedFolderId) {
     revalidatePath(`/dashboard/workout/folder/${resolvedFolderId}`);
   }
-  if (!resolvedFolderId) {
-    revalidatePath(`/dashboard/workout/folder/${UNCATEGORIZED_FOLDER_ID}`);
-  }
   return { data };
 }
 
@@ -363,22 +360,11 @@ export async function getWorkoutFoldersOverview(): Promise<WorkoutFolderOverview
     created_at: folder.created_at,
   }));
 
-  const uncategorizedCount = countByFolder.get(null) ?? 0;
-  if (uncategorizedCount > 0) {
-    result.push({
-      id: UNCATEGORIZED_FOLDER_ID,
-      name: "Unfiled",
-      workoutCount: uncategorizedCount,
-    });
-  }
-
   return result;
 }
 
 export async function getWorkoutFolderMeta(folderId: string) {
-  if (folderId === UNCATEGORIZED_FOLDER_ID) {
-    return { id: folderId, name: "Unfiled" };
-  }
+  if (folderId === UNCATEGORIZED_FOLDER_ID) return null;
 
   const { supabase, userId } = await requireUserId();
   const { data } = await supabase
@@ -435,7 +421,6 @@ export async function deleteWorkoutFolder(folderId: string) {
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard/workout");
-  revalidatePath(`/dashboard/workout/folder/${UNCATEGORIZED_FOLDER_ID}`);
   return { success: true };
 }
 
@@ -448,10 +433,7 @@ export async function getWorkoutFoldersForMove(): Promise<{ id: string; name: st
     .eq("client_id", userId)
     .order("created_at");
 
-  return [
-    { id: UNCATEGORIZED_FOLDER_ID, name: "Unfiled" },
-    ...(folders ?? []).map((folder) => ({ id: folder.id, name: folder.name })),
-  ];
+  return (folders ?? []).map((folder) => ({ id: folder.id, name: folder.name }));
 }
 
 export async function moveWorkoutToFolder(planId: string, targetFolderId: string) {
@@ -496,7 +478,6 @@ export async function moveWorkoutToFolder(planId: string, targetFolderId: string
 
   revalidatePath("/dashboard/workout");
   revalidatePath(`/dashboard/workout/${planId}/edit`);
-  revalidatePath(`/dashboard/workout/folder/${UNCATEGORIZED_FOLDER_ID}`);
   if (oldFolderId) {
     revalidatePath(`/dashboard/workout/folder/${oldFolderId}`);
   }
@@ -539,7 +520,7 @@ export async function getWorkoutsAvailableForFolder(
         id: plan.id,
         title: plan.title,
         description: plan.description,
-        currentFolderName: folderNameById.get(folderKey) ?? "Unfiled",
+        currentFolderName: folderNameById.get(folderKey) ?? "—",
       };
     });
 }

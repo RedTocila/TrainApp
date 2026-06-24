@@ -8,6 +8,7 @@ import {
   getMissingIntakeFields,
   isClientIntakeComplete,
 } from "@/lib/client-intake-utils";
+import { GENDER_OPTIONS } from "@/lib/intake-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,7 +75,7 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
           </div>
           <p className="text-sm text-muted-foreground">
             {complete
-              ? "Your trainer can use this for custom nutrition plans."
+              ? "Used by your trainer and AI Coach for personalized plans."
               : `Missing: ${missingFields.join(", ")}`}
           </p>
         </div>
@@ -89,6 +90,35 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
       {open && (
         <CardContent className="border-t border-border pt-0">
           <form action={handleSubmit} className="space-y-4 pt-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="age">Age</Label>
+                <Input
+                  id="age"
+                  name="age"
+                  type="number"
+                  min={13}
+                  max={120}
+                  placeholder="e.g. 28"
+                  defaultValue={profile.age ?? ""}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender</Label>
+                <select
+                  id="gender"
+                  name="gender"
+                  defaultValue={profile.gender ?? ""}
+                  className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+                >
+                  {GENDER_OPTIONS.map((opt) => (
+                    <option key={opt.value || "empty"} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="intake_weight_kg">Weight (kg)</Label>

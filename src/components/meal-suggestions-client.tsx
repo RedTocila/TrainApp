@@ -1,12 +1,13 @@
 "use client";
 
 import { useTransition } from "react";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Flame, RefreshCw, Salad, Sparkles, Utensils } from "lucide-react";
 import { getMealSuggestionsAction } from "@/lib/actions/ai-coach";
 import type { MacroGap, MealSuggestion } from "@/lib/ai/types";
+import { MacroRing } from "@/components/macro-ring";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function MealSuggestionsClient({
   dateKey,
@@ -36,54 +37,85 @@ export function MealSuggestionsClient({
 
   return (
     <div className="space-y-4">
-      <Card className="border-primary/20">
-        <CardHeader className="flex flex-row items-start justify-between gap-2">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Remaining today
-            </CardTitle>
-            <p className="mt-2 text-sm font-medium">{headline}</p>
+      <Card>
+        <CardContent className="space-y-4 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <p className="font-bold">Remaining today</p>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={refresh} disabled={isPending}>
+              <RefreshCw className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={refresh} disabled={isPending}>
-            <RefreshCw className={`mr-1 h-3 w-3 ${isPending ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-            <div className="rounded-lg bg-secondary/60 p-2 text-center">
-              <p className="text-muted-foreground">Calories</p>
-              <p className="font-bold">{Math.round(gap.calories)}</p>
-            </div>
-            <div className="rounded-lg bg-secondary/60 p-2 text-center">
-              <p className="text-muted-foreground">Protein</p>
-              <p className="font-bold">{Math.round(gap.protein)}g</p>
-            </div>
-            <div className="rounded-lg bg-secondary/60 p-2 text-center">
-              <p className="text-muted-foreground">Carbs</p>
-              <p className="font-bold">{Math.round(gap.carbs)}g</p>
-            </div>
-            <div className="rounded-lg bg-secondary/60 p-2 text-center">
-              <p className="text-muted-foreground">Fat</p>
-              <p className="font-bold">{Math.round(gap.fat)}g</p>
-            </div>
+
+          <div className="grid grid-cols-4 gap-1">
+            <MacroRing
+              size="sm"
+              value={gap.consumed.calories}
+              target={gap.targets.calories}
+              label="Cal"
+              icon={Flame}
+              accentClass="text-orange-400"
+              ringClass="text-orange-400"
+            />
+            <MacroRing
+              size="sm"
+              value={gap.consumed.protein}
+              target={gap.targets.protein}
+              label="Protein"
+              icon={Utensils}
+              accentClass="text-blue-400"
+              ringClass="text-blue-400"
+            />
+            <MacroRing
+              size="sm"
+              value={gap.consumed.carbs}
+              target={gap.targets.carbs}
+              label="Carbs"
+              icon={Salad}
+              accentClass="text-amber-400"
+              ringClass="text-amber-400"
+            />
+            <MacroRing
+              size="sm"
+              value={gap.consumed.fat}
+              target={gap.targets.fat}
+              label="Fat"
+              icon={Flame}
+              accentClass="text-rose-400"
+              ringClass="text-rose-400"
+            />
           </div>
+
+          <p className="rounded-lg bg-primary/5 px-3 py-2 text-center text-sm font-medium">{headline}</p>
         </CardContent>
       </Card>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {suggestions.map((s, i) => (
           <Card key={i}>
-            <CardContent className="space-y-2 p-4">
-              <p className="font-semibold">{s.title}</p>
-              <p className="text-sm text-muted-foreground">{s.description}</p>
-              <p className="text-xs text-primary">{s.reason}</p>
-              {(s.protein_g > 0 || s.calories > 0) && (
-                <p className="text-xs text-muted-foreground">
-                  ~{s.calories} cal · {s.protein_g}g protein
-                </p>
-              )}
+            <CardContent className="flex gap-3 p-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <Salad className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">{s.title}</p>
+                {(s.calories > 0 || s.protein_g > 0) && (
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {s.calories > 0 && (
+                      <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-semibold text-orange-300">
+                        {s.calories} cal
+                      </span>
+                    )}
+                    {s.protein_g > 0 && (
+                      <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold text-blue-300">
+                        {s.protein_g}g protein
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}

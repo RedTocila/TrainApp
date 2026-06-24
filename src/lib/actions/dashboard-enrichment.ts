@@ -33,31 +33,38 @@ export async function fetchDashboardEnrichmentData(
 ): Promise<DashboardEnrichmentData> {
   const supabase = await createClient();
 
-  const [taskCompletions, habitCompletions, logsResult, mealsResult, workoutsResult] =
-    await Promise.all([
-      getTaskCompletionsInRange(clientId, from, to),
-      getHabitCompletionsInRange(clientId, from, to),
-      supabase
-        .from("daily_logs")
-        .select("date, water_ml")
-        .eq("client_id", clientId)
-        .gte("date", from)
-        .lte("date", to),
-      supabase
-        .from("daily_meal_logs")
-        .select("*")
-        .eq("client_id", clientId)
-        .gte("date", from)
-        .lte("date", to)
-        .order("logged_at"),
-      supabase
-        .from("workout_sessions")
-        .select("scheduled_date")
-        .eq("client_id", clientId)
-        .eq("status", "completed")
-        .gte("scheduled_date", from)
-        .lte("scheduled_date", to),
-    ]);
+  const [
+    taskCompletions,
+    habitCompletions,
+    logsResult,
+    mealsResult,
+    workoutsResult,
+    profileResult,
+  ] = await Promise.all([
+    getTaskCompletionsInRange(clientId, from, to),
+    getHabitCompletionsInRange(clientId, from, to),
+    supabase
+      .from("daily_logs")
+      .select("date, water_ml")
+      .eq("client_id", clientId)
+      .gte("date", from)
+      .lte("date", to),
+    supabase
+      .from("daily_meal_logs")
+      .select("*")
+      .eq("client_id", clientId)
+      .gte("date", from)
+      .lte("date", to)
+      .order("logged_at"),
+    supabase
+      .from("workout_sessions")
+      .select("scheduled_date")
+      .eq("client_id", clientId)
+      .eq("status", "completed")
+      .gte("scheduled_date", from)
+      .lte("scheduled_date", to),
+    supabase.from("profiles").select("created_at").eq("id", clientId).maybeSingle(),
+  ]);
 
   const waterByDate: Record<string, number> = {};
   for (const row of logsResult.data ?? []) {
@@ -83,6 +90,7 @@ export async function fetchDashboardEnrichmentData(
     waterByDate,
     mealsByDate,
     workoutCompletedDates,
+    accountCreatedAt: profileResult.data?.created_at ?? null,
   };
 }
 

@@ -14,6 +14,11 @@ export interface DashboardEnrichmentData {
   waterByDate: Record<string, number>;
   mealsByDate: Record<string, DailyMealLog[]>;
   workoutCompletedDates: string[];
+  /**
+   * ISO timestamp (timestamptz) for when the user's account/profile was created.
+   * Used to avoid marking days before account creation as "missed".
+   */
+  accountCreatedAt?: string | null;
 }
 
 export function getPlanMealsForDate(

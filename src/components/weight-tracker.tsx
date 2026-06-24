@@ -22,10 +22,12 @@ export function WeightTracker({
   clientId,
   initialHistory,
   initialLog,
+  onHistoryChange,
 }: {
   clientId: string;
   initialHistory: BodyWeightLog[];
   initialLog: BodyWeightLog | null;
+  onHistoryChange?: (history: BodyWeightLog[]) => void;
 }) {
   const { selectedDate } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
@@ -50,8 +52,9 @@ export function WeightTracker({
       setTodayLog(log);
       setWeightInput(log ? String(log.weight_kg) : "");
       setHistory(fetchedHistory);
+      onHistoryChange?.(fetchedHistory);
     });
-  }, [clientId, dateKey]);
+  }, [clientId, dateKey, onHistoryChange]);
 
   const dateLabel = isToday(selectedDate)
     ? "today"
@@ -76,6 +79,7 @@ export function WeightTracker({
       ]);
       setTodayLog(log);
       setHistory(fetchedHistory);
+      onHistoryChange?.(fetchedHistory);
       setFormOpen(false);
     });
   };
@@ -94,6 +98,7 @@ export function WeightTracker({
       setFormOpen(false);
       const fetchedHistory = await getBodyWeightHistory(clientId);
       setHistory(fetchedHistory);
+      onHistoryChange?.(fetchedHistory);
     });
   };
 

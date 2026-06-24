@@ -2,7 +2,18 @@ import { createClient } from "@/lib/supabase/server";
 import { hasAiAccess } from "@/lib/subscription";
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatBar } from "@/components/ai/stat-bar";
+import { TipCard } from "@/components/ai/tip-card";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Activity,
+  Apple,
+  CalendarCheck,
+  Dumbbell,
+  Sparkles,
+  Target,
+  TrendingUp,
+} from "lucide-react";
 import { formatDateKey } from "@/lib/utils";
 
 export default async function AiRecommendationsPage() {
@@ -20,62 +31,108 @@ export default async function AiRecommendationsPage() {
   const today = formatDateKey(new Date());
   const ctx = await getCoachContext(user.id, today);
 
-  const recommendations: string[] = [];
+  const tips: {
+    icon: typeof Dumbbell;
+    title: string;
+    body: string;
+    tone: "default" | "success" | "warning" | "primary";
+  }[] = [];
+
   if (ctx.workoutsCompleted < 3) {
-    recommendations.push("Schedule at least 3 workouts next week — consistency drives results.");
+    tips.push({
+      icon: Dumbbell,
+      title: "Train more often",
+      body: `You completed ${ctx.workoutsCompleted}/4 workouts. Schedule 3+ sessions next week.`,
+      tone: "warning",
+    });
+  } else {
+    tips.push({
+      icon: TrendingUp,
+      title: "Solid training week",
+      body: `${ctx.workoutsCompleted} workouts done — keep the rhythm going.`,
+      tone: "success",
+    });
   }
+
   if (ctx.avgProtein < ctx.targets.protein * 0.85) {
-    recommendations.push(
-      `Average protein (${ctx.avgProtein}g) is below target (${ctx.targets.protein}g). Add a protein source to each meal.`
-    );
+    tips.push({
+      icon: Apple,
+      title: "Boost protein",
+      body: `Averaging ${ctx.avgProtein}g vs ${ctx.targets.protein}g target. Add protein to each meal.`,
+      tone: "warning",
+    });
   }
+
   if (ctx.daysTracked < 5) {
-    recommendations.push("Track meals at least 5 days per week for better AI coaching accuracy.");
+    tips.push({
+      icon: CalendarCheck,
+      title: "Track more days",
+      body: `${ctx.daysTracked}/7 days logged. Aim for 5+ for better AI coaching.`,
+      tone: "primary",
+    });
   }
+
   if (ctx.habitCompletions < 7) {
-    recommendations.push("Complete daily habits — small wins compound into long-term adherence.");
+    tips.push({
+      icon: Activity,
+      title: "Daily habits",
+      body: "Small daily wins build long-term consistency.",
+      tone: "default",
+    });
   }
-  if (recommendations.length === 0) {
-    recommendations.push("Strong week! Maintain protein intake and keep workout rhythm steady.");
+
+  if (tips.length === 0 || tips.every((t) => t.tone === "success")) {
+    tips.push({
+      icon: Sparkles,
+      title: "Great week!",
+      body: "Keep protein steady and maintain your workout schedule.",
+      tone: "success",
+    });
   }
 
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Behavior patterns (last 7 days)</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
-          <div className="rounded-lg bg-secondary/50 p-3">
-            <p className="text-muted-foreground">Workouts</p>
-            <p className="text-2xl font-bold">{ctx.workoutsCompleted}</p>
+        <CardContent className="space-y-3 p-4">
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            <p className="font-bold">Last 7 days</p>
           </div>
-          <div className="rounded-lg bg-secondary/50 p-3">
-            <p className="text-muted-foreground">Days tracked</p>
-            <p className="text-2xl font-bold">{ctx.daysTracked}/7</p>
-          </div>
-          <div className="rounded-lg bg-secondary/50 p-3">
-            <p className="text-muted-foreground">Avg protein</p>
-            <p className="text-2xl font-bold">{ctx.avgProtein}g</p>
-          </div>
+          <StatBar
+            label="Workouts"
+            value={ctx.workoutsCompleted}
+            max={4}
+            icon={Dumbbell}
+            accentClass="bg-blue-500"
+          />
+          <StatBar
+            label="Meals tracked"
+            value={ctx.daysTracked}
+            max={7}
+            icon={CalendarCheck}
+            accentClass="bg-green-500"
+          />
+          <StatBar
+            label="Avg protein"
+            value={ctx.avgProtein}
+            max={ctx.targets.protein}
+            unit="g"
+            icon={Apple}
+            accentClass="bg-amber-500"
+          />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Actionable recommendations</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-3">
-            {recommendations.map((rec, i) => (
-              <li key={i} className="flex gap-2 text-sm">
-                <span className="text-primary">•</span>
-                {rec}
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      <div className="space-y-2">
+        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Your tips
+        </p>
+        {tips.map((tip) => (
+          <TipCard key={tip.title} icon={tip.icon} title={tip.title} tone={tip.tone}>
+            {tip.body}
+          </TipCard>
+        ))}
+      </div>
     </div>
   );
 }

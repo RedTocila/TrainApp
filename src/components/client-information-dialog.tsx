@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import type { ClientIntakeInfo } from "@/lib/actions/client-intake";
+import { formatGender } from "@/lib/intake-display";
 
 function Field({ label, value }: { label: string; value: string | number | null | undefined }) {
   if (value === null || value === undefined || value === "") return null;
@@ -70,6 +71,8 @@ export function ClientInformationDialog({
           </button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          <Field label="Age" value={profile.age ? `${profile.age} years` : null} />
+          <Field label="Gender" value={formatGender(profile.gender)} />
           <Field label="Goal" value={goalLabel} />
           <Field
             label="Weight"
@@ -88,6 +91,8 @@ export function ClientInformationDialog({
             <Field label="Plan request notes" value={preferences} />
           )}
           {!goalLabel &&
+            !profile.age &&
+            !formatGender(profile.gender) &&
             !latestWeightKg &&
             !profile.height_cm &&
             !profile.vices &&

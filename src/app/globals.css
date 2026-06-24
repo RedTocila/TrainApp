@@ -6,16 +6,16 @@
 
 html.dark {
   color-scheme: dark;
-  --background: #0a0a0a;
+  --background: #121214;
   --foreground: #fafafa;
-  --card: #141414;
+  --card: #1a1a1d;
   --card-foreground: #fafafa;
   --primary: #dc2626;
   --primary-foreground: #ffffff;
   --primary-rgb: 220, 38, 38;
-  --secondary: #1f1f1f;
+  --secondary: #242428;
   --secondary-foreground: #fafafa;
-  --muted: #1a1a1a;
+  --muted: #202024;
   --muted-foreground: #a3a3a3;
   --accent: #ef4444;
   --accent-foreground: #ffffff;

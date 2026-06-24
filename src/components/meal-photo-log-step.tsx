@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { Camera, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { analyzeMealPhotoAction } from "@/lib/actions/ai-meal";
 import { compressImageFile, fileToDataUrl } from "@/lib/image-compress";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/lib/meal-utils";
 import { MealDetailsFields } from "@/components/meal-details-fields";
 import { ConfidenceBadge } from "@/components/confidence-badge";
+import { ImageSourceButtons } from "@/components/image-source-buttons";
 import { Button } from "@/components/ui/button";
 
 type PhotoPhase = "capture" | "compressing" | "analyzing" | "review";
@@ -29,7 +30,6 @@ export function MealPhotoLogStep({
   confidence: number | null;
   onConfidenceChange: (value: number | null) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<PhotoPhase>("capture");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -103,7 +103,6 @@ export function MealPhotoLogStep({
     setPhaseWithReady("capture");
     onConfidenceChange(null);
     onError(null);
-    if (inputRef.current) inputRef.current.value = "";
   };
 
   if (phase === "review") {
@@ -158,18 +157,9 @@ export function MealPhotoLogStep({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Snap a photo of your meal. AI will identify the food and estimate macros — you can
-        edit everything before logging.
+        Take a photo or choose one from your gallery. AI will identify the food and estimate
+        macros — you can edit everything before logging.
       </p>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
-      />
 
       {phase === "compressing" && (
         <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 py-8 text-sm text-muted-foreground">
@@ -185,31 +175,30 @@ export function MealPhotoLogStep({
           className="mx-auto max-h-52 w-full rounded-xl border border-border object-cover"
         />
       ) : phase !== "compressing" ? (
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-6 py-10 transition-colors hover:bg-primary/10"
-        >
-          <Camera className="h-10 w-10 text-primary" />
-          <span className="text-sm font-medium">Take or upload a photo</span>
-        </button>
+        <div className="rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-8">
+          <ImageSourceButtons
+            onSelect={(file) => void handleFile(file)}
+            disabled={phase === "analyzing"}
+            cameraLabel="Take photo"
+            galleryLabel="Choose from gallery"
+            className="justify-center"
+          />
+        </div>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => inputRef.current?.click()}
-        >
-          {previewUrl ? "Choose different photo" : "Upload from gallery"}
-        </Button>
-        {previewUrl && (
+      {previewUrl && (
+        <div className="flex flex-wrap gap-2">
+          <ImageSourceButtons
+            onSelect={(file) => void handleFile(file)}
+            disabled={phase === "analyzing" || phase === "compressing"}
+            cameraLabel="Retake"
+            galleryLabel="Different photo"
+          />
           <Button type="button" variant="ghost" size="sm" onClick={handleRetake}>
             Clear
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       <Button
         className="w-full"

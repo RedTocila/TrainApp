@@ -32,7 +32,7 @@ import { DashboardCardioCard } from "@/components/dashboard-cardio-card";
 import { DayTasksPanel } from "@/components/day-tasks-panel";
 import { ScrollToHash } from "@/components/scroll-to-hash";
 import { HabitsTracker } from "@/components/habits-tracker";
-import { WeightTracker } from "@/components/weight-tracker";
+import { BodyMetricsSection } from "@/components/body-metrics-section";
 import { ProgressPhotosCard } from "@/components/progress-photos-card";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/page-transition";
 import { DashboardOverview } from "@/components/dashboard-overview";
@@ -202,8 +202,10 @@ export default async function DashboardPage() {
           </StaggerItem>
         </StaggerContainer>
 
-        <WeightTracker
+        <BodyMetricsSection
           clientId={profile.id}
+          heightCm={profile.height_cm}
+          intakeWeightKg={profile.intake_weight_kg}
           initialHistory={weightHistory}
           initialLog={weightLog}
         />

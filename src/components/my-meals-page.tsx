@@ -539,9 +539,13 @@ function CreateMealDialog({
 export function MyMealsPage({
   initialMeals,
   folders,
+  showMealTypeTabs = true,
+  showFolderActions = true,
 }: {
   initialMeals: PersonalMealLibraryItem[];
   folders: { id: string; name: string }[];
+  showMealTypeTabs?: boolean;
+  showFolderActions?: boolean;
 }) {
   const [meals, setMeals] = useState(initialMeals);
   const [filter, setFilter] = useState<MealType | "all">("all");
@@ -583,23 +587,25 @@ export function MyMealsPage({
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {MEAL_TYPES.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setFilter(value)}
-              className={cn(
-                "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
-                filter === value
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-secondary text-muted-foreground hover:border-primary/40"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {showMealTypeTabs && (
+          <div className="flex flex-wrap gap-2">
+            {MEAL_TYPES.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setFilter(value)}
+                className={cn(
+                  "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
+                  filter === value
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-secondary text-muted-foreground hover:border-primary/40"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add meal
@@ -630,7 +636,8 @@ export function MyMealsPage({
                       <p className="font-semibold">{item.meal.name}</p>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {item.planTitle} · {item.folderName}
+                      {item.planTitle}
+                      {showFolderActions ? ` · ${item.folderName}` : ""}
                       {macrosSummary ? ` · ${macrosSummary}` : ""}
                     </p>
                     {item.meal.description && (
@@ -650,14 +657,16 @@ export function MyMealsPage({
                     )}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={isPending}
-                      onClick={() => setAddItem(item)}
-                    >
-                      Add to folder
-                    </Button>
+                    {showFolderActions && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isPending}
+                        onClick={() => setAddItem(item)}
+                      >
+                        Add to folder
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -690,13 +699,15 @@ export function MyMealsPage({
         onSaved={refresh}
       />
 
-      <AddMealToFolderDialog
-        item={addItem}
-        folders={folders}
-        open={addItem !== null}
-        onClose={() => setAddItem(null)}
-        onDone={refresh}
-      />
+      {showFolderActions && (
+        <AddMealToFolderDialog
+          item={addItem}
+          folders={folders}
+          open={addItem !== null}
+          onClose={() => setAddItem(null)}
+          onDone={refresh}
+        />
+      )}
 
       <CreateMealDialog
         open={showCreate}

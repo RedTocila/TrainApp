@@ -1,6 +1,6 @@
 "use client";
 
-import { addDays, format, isSameDay } from "date-fns";
+import { addDays, isBefore, isSameDay, startOfDay } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDayCard } from "@/components/calendar-day-card";
@@ -33,9 +33,13 @@ export function CalendarStrip({
   enrichment,
   daysCount = 28,
 }: CalendarStripProps) {
-  const today = new Date();
-  const [startIndex, setStartIndex] = useState(0);
   const [now, setNow] = useState(() => new Date());
+  const activeFrom = useMemo(() => {
+    if (!enrichment.accountCreatedAt) return null;
+    const d = new Date(enrichment.accountCreatedAt);
+    if (Number.isNaN(d.getTime())) return null;
+    return startOfDay(d);
+  }, [enrichment.accountCreatedAt]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -43,14 +47,16 @@ export function CalendarStrip({
   }, []);
 
   const dayItems = useMemo(() => {
-    const rangeStart = addDays(today, -3);
+    const rangeStart = addDays(now, -3);
     return Array.from({ length: daysCount }, (_, i) => {
       const day = addDays(rangeStart, i);
-      const tasks = enrichTasksForDate(day, schedule, enrichment, now);
+      const rawTasks = enrichTasksForDate(day, schedule, enrichment, now);
+      const beforeActive = activeFrom ? isBefore(day, activeFrom) : false;
+      const tasks = beforeActive ? [] : rawTasks;
       const dayStatus = getCalendarDayStatus(tasks, day, now);
       return { day, tasks, dayStatus };
     });
-  }, [daysCount, schedule, enrichment, today.toDateString(), now]);
+  }, [daysCount, schedule, enrichment, now, activeFrom]);
 
   const selectedIndex = useMemo(
     () => dayItems.findIndex(({ day }) => isSameDay(day, selectedDate)),
@@ -66,16 +72,9 @@ export function CalendarStrip({
     [dayItems.length]
   );
 
-  useEffect(() => {
-    if (selectedIndex === -1) return;
-
-    setStartIndex((currentStart) => {
-      const isVisible =
-        selectedIndex >= currentStart &&
-        selectedIndex < currentStart + VISIBLE_DAYS;
-      if (isVisible) return currentStart;
-      return startForIndex(selectedIndex);
-    });
+  const startIndex = useMemo(() => {
+    if (selectedIndex === -1) return 0;
+    return startForIndex(selectedIndex);
   }, [selectedIndex, startForIndex]);
 
   const navigateDay = (direction: "prev" | "next") => {
@@ -84,18 +83,6 @@ export function CalendarStrip({
     const delta = direction === "prev" ? -1 : 1;
     const nextIndex = selectedIndex + delta;
     if (nextIndex < 0 || nextIndex >= dayItems.length) return;
-
-    const visibleStart = startIndex;
-    const visibleEnd = startIndex + VISIBLE_DAYS - 1;
-    const atLeftEdge = selectedIndex <= visibleStart;
-    const atRightEdge = selectedIndex >= visibleEnd;
-
-    if (direction === "prev" && atLeftEdge) {
-      setStartIndex(Math.max(0, startIndex - 1));
-    } else if (direction === "next" && atRightEdge) {
-      const maxStart = Math.max(0, dayItems.length - VISIBLE_DAYS);
-      setStartIndex(Math.min(maxStart, startIndex + 1));
-    }
 
     onSelectDate(dayItems[nextIndex].day);
   };

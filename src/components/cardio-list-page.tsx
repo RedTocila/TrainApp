@@ -55,16 +55,19 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
 
   return (
     <>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-black">My Cardio</h1>
-          <p className="text-sm text-muted-foreground">
-            Save cardio sessions with YouTube links and schedule them on your calendar
-          </p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10">
+            <HeartPulse className="h-5 w-5 text-orange-400" />
+          </div>
+          <div>
+            <h1 className="text-lg font-black">Cardio</h1>
+            <p className="text-xs text-muted-foreground">{cardioList.length} sessions</p>
+          </div>
         </div>
-        <Button onClick={openAdd}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add cardio
+        <Button onClick={openAdd} size="sm">
+          <Plus className="mr-1.5 h-4 w-4" />
+          Add
         </Button>
       </div>
 

@@ -14,6 +14,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ClassStatusBadge } from "@/components/class-session-panel";
+import { FlowStep } from "@/components/ai/feature-tile";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   CLASS_CATEGORIES,
   categoryStyles,
@@ -60,7 +62,7 @@ function LiveClassCard({ fitnessClass }: { fitnessClass: FitnessClass }) {
               </Badge>
               <Badge
                 variant="outline"
-                className="border-white/20 bg-black/20 text-white/90 backdrop-blur-sm"
+                className="border-white/20 bg-zinc-900/40 text-white/90 backdrop-blur-sm"
               >
                 {fitnessClass.category}
               </Badge>
@@ -167,15 +169,50 @@ export function ClassesCatalog({ classes }: { classes: FitnessClass[] }) {
 
   return (
     <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card px-6 py-8 sm:px-8 sm:py-10">
-        <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
-        <div className="relative space-y-2">
-          <div className="flex items-center gap-2 text-primary">
-            <Video className="h-5 w-5" />
-            <span className="text-xs font-bold uppercase tracking-widest">Live coaching</span>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <Video className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-lg font-black">Live coaching</h1>
+              <p className="text-xs text-muted-foreground">Join live · schedule · watch replays</p>
+            </div>
           </div>
-          <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Live coaching</h1>
+
+          <div className="flex items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-1 font-semibold text-red-300">
+              <Radio className="h-3.5 w-3.5" />
+              Live {live.length}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-semibold text-primary">
+              <Calendar className="h-3.5 w-3.5" />
+              Next {upcoming.length}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-secondary/50 px-2 py-1 font-semibold text-muted-foreground">
+              <Video className="h-3.5 w-3.5" />
+              Replays {replays.length}
+            </span>
+          </div>
         </div>
+
+        <Card className="border-border bg-secondary/20">
+          <CardContent className="flex items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <FlowStep icon={Calendar} label="Pick" />
+                <div className="h-px w-8 bg-border" />
+                <FlowStep icon={Radio} label="Join" active={live.length > 0} />
+                <div className="h-px w-8 bg-border" />
+                <FlowStep icon={Video} label="Replay" />
+              </div>
+            </div>
+            <p className="hidden text-xs text-muted-foreground sm:block">
+              Tap any card below to open details.
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex flex-wrap gap-2">

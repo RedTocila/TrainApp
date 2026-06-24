@@ -22,10 +22,12 @@ export function ProfileSettings({
   fullName,
   email,
   goal,
+  showHeader = true,
 }: {
   fullName: string;
   email: string;
   goal: string | null;
+  showHeader?: boolean;
 }) {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -62,12 +64,14 @@ export function ProfileSettings({
 
   return (
     <>
-      <div>
-        <h1 className="text-2xl font-black">Profile</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your account and preferences
-        </p>
-      </div>
+      {showHeader && (
+        <div>
+          <h1 className="text-2xl font-black">Profile</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage your account and preferences
+          </p>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -101,6 +105,18 @@ export function ProfileSettings({
                     {opt.label}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="unit_system">Units</Label>
+              <select
+                id="unit_system"
+                name="unit_system"
+                defaultValue={"metric"}
+                className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="metric">EU / Metric (kg, cm)</option>
+                <option value="imperial">US / Imperial (lb, ft/in)</option>
               </select>
             </div>
             {profileError && (

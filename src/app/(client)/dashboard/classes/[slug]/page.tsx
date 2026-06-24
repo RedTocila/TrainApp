@@ -80,7 +80,7 @@ export default async function ClassDetailPage({
           <div className="relative space-y-4 p-6 sm:p-8">
             <Badge
               variant="outline"
-              className="border-white/30 bg-black/20 text-white backdrop-blur-sm"
+              className="border-white/30 bg-zinc-900/40 text-white backdrop-blur-sm"
             >
               {fitnessClass.category}
             </Badge>

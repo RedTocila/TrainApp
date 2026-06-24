@@ -13,6 +13,7 @@ import { MoveNutritionButton } from "@/components/move-nutrition-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MacroSummary } from "@/components/programs/macro-summary";
 import { formatSlotSummary, sumDayMenuMacros } from "@/lib/meal-slots";
 
 export function FolderMealsPage({
@@ -42,39 +43,36 @@ export function FolderMealsPage({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3">
-        <Link href="/dashboard/nutrition">
-          <Button variant="ghost" size="sm" className="-ml-2 w-fit">
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            All folders
-          </Button>
-        </Link>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-black">{folderName}</h1>
-            <p className="text-sm text-muted-foreground">
-              Day menus in this folder — each has breakfast, 2 snacks, lunch & dinner
-            </p>
+    <div className="space-y-5">
+      <Link href="/dashboard/nutrition">
+        <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1 px-2">
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Folders
+        </Button>
+      </Link>
+
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10">
+            <Apple className="h-5 w-5 text-emerald-400" />
           </div>
-          <AddToNutritionFolderMenu
-            folderId={folderId}
-            folderName={folderName}
-            availablePlans={availablePlans}
-          />
+          <div>
+            <h1 className="text-lg font-black">{folderName}</h1>
+            <p className="text-xs text-muted-foreground">{plans.length} day menus</p>
+          </div>
         </div>
+        <AddToNutritionFolderMenu
+          folderId={folderId}
+          folderName={folderName}
+          availablePlans={availablePlans}
+        />
       </div>
 
       {plans.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+          <CardContent className="flex flex-col items-center gap-3 py-12">
             <Apple className="h-10 w-10 text-muted-foreground" />
-            <div>
-              <p className="font-medium">No day menus in this folder</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Create a day menu, fill the 5 meal slots, then schedule it on your calendar.
-              </p>
-            </div>
+            <p className="font-medium">Empty folder</p>
             <AddToNutritionFolderMenu
               folderId={folderId}
               folderName={folderName}
@@ -91,39 +89,38 @@ export function FolderMealsPage({
 
             return (
               <Card key={plan.id}>
-                <CardContent className="p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold">{plan.title}</p>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">{plan.title}</p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {slotSummary && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {slotSummary}
+                          </Badge>
+                        )}
                         {scheduledCount > 0 && (
-                          <Badge className="bg-primary/15 text-primary">
-                            <Calendar className="mr-1 h-3 w-3" />
-                            {scheduledCount} scheduled
+                          <Badge className="bg-primary/15 text-[10px] text-primary">
+                            <Calendar className="mr-0.5 inline h-3 w-3" />
+                            {scheduledCount}
                           </Badge>
                         )}
                       </div>
-                      {plan.description && (
-                        <p className="mt-0.5 text-sm text-muted-foreground">
-                          {plan.description}
-                        </p>
-                      )}
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {slotSummary && (
-                          <Badge variant="secondary">{slotSummary}</Badge>
-                        )}
-                        <Badge variant="outline">
-                          {totals.calories} cal · {totals.protein}g protein
-                        </Badge>
-                      </div>
                     </div>
-                    <div className="flex shrink-0 flex-wrap gap-2">
-                      <Link href={`/dashboard/nutrition/${plan.id}/edit`}>
-                        <Button size="sm">
-                          <Pencil className="mr-1 h-3 w-3" />
-                          Edit & schedule
-                        </Button>
-                      </Link>
+                    <Link href={`/dashboard/nutrition/${plan.id}/edit`}>
+                      <Button size="icon" variant="outline" className="h-8 w-8">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
+                  <MacroSummary
+                    calories={totals.calories}
+                    protein={totals.protein}
+                    carbs={totals.carbs}
+                    fat={totals.fat}
+                    compact
+                  />
+                  <div className="flex gap-1 border-t border-border pt-2">
                       <MoveNutritionButton
                         planId={plan.id}
                         planTitle={plan.title}
@@ -133,13 +130,13 @@ export function FolderMealsPage({
                       <Button
                         size="sm"
                         variant="ghost"
+                        className="ml-auto h-8"
                         disabled={isPending}
                         onClick={() => handleDelete(plan.id, plan.title)}
                       >
                         <Trash2 className="h-4 w-4 text-red-400" />
                       </Button>
                     </div>
-                  </div>
                 </CardContent>
               </Card>
             );

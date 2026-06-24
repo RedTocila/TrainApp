@@ -6,9 +6,11 @@ import {
   endOfMonth,
   endOfWeek,
   format,
+  isBefore,
   isSameDay,
   isSameMonth,
   startOfMonth,
+  startOfDay,
   startOfWeek,
   subMonths,
 } from "date-fns";
@@ -46,6 +48,12 @@ export function FullCalendarDialog({
 }: FullCalendarDialogProps) {
   const [viewMonth, setViewMonth] = useState(startOfMonth(selectedDate));
   const [now, setNow] = useState(() => new Date());
+  const activeFrom = useMemo(() => {
+    if (!enrichment.accountCreatedAt) return null;
+    const d = new Date(enrichment.accountCreatedAt);
+    if (Number.isNaN(d.getTime())) return null;
+    return startOfDay(d);
+  }, [enrichment.accountCreatedAt]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -76,8 +84,12 @@ export function FullCalendarDialog({
   }, [viewMonth]);
 
   const selectedDayTasks = useMemo(
-    () => enrichTasksForDate(selectedDate, schedule, enrichment, now),
-    [selectedDate, schedule, enrichment, now]
+    () => {
+      const raw = enrichTasksForDate(selectedDate, schedule, enrichment, now);
+      if (activeFrom && isBefore(selectedDate, activeFrom)) return [];
+      return raw;
+    },
+    [selectedDate, schedule, enrichment, now, activeFrom]
   );
   const { active, completed, missed } = useMemo(
     () => groupTasksByStatus(selectedDayTasks),
@@ -98,13 +110,13 @@ export function FullCalendarDialog({
         role="dialog"
         aria-modal="true"
         aria-label="Full calendar"
-        className="relative z-10 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        className="relative z-10 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6">
           <div>
             <h2 className="text-lg font-black">Full Calendar</h2>
             <p className="text-sm text-muted-foreground">
-              Tap a day to view its tasks below
+              Tap a day to view its summary below
             </p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
@@ -113,7 +125,7 @@ export function FullCalendarDialog({
         </div>
 
         <div className="overflow-y-auto px-4 py-4 sm:px-6">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <Button
               variant="outline"
               size="icon"
@@ -122,7 +134,9 @@ export function FullCalendarDialog({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-base font-bold">{format(viewMonth, "MMMM yyyy")}</h3>
+            <h3 className="text-base font-black tracking-tight">
+              {format(viewMonth, "MMMM yyyy")}
+            </h3>
             <Button
               variant="outline"
               size="icon"
@@ -133,7 +147,22 @@ export function FullCalendarDialog({
             </Button>
           </div>
 
-          <div className="mb-2 grid grid-cols-7 gap-1">
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-green-500" /> Complete
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-red-500" /> Missed
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-primary/70" /> Upcoming / active
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-muted-foreground/30" /> Pre-account
+            </span>
+          </div>
+
+          <div className="mb-2 grid grid-cols-7 gap-1.5">
             {WEEKDAYS.map((day) => (
               <div
                 key={day}
@@ -144,9 +173,11 @@ export function FullCalendarDialog({
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1">
+          <div className="grid grid-cols-7 gap-1.5">
             {monthDays.map((day) => {
-              const tasks = enrichTasksForDate(day, schedule, enrichment, now);
+              const rawTasks = enrichTasksForDate(day, schedule, enrichment, now);
+              const beforeActive = activeFrom ? isBefore(day, activeFrom) : false;
+              const tasks = beforeActive ? [] : rawTasks;
               const dayStatus = getCalendarDayStatus(tasks, day, now);
               const selected = isSameDay(day, selectedDate);
               const inMonth = isSameMonth(day, viewMonth);
@@ -163,7 +194,6 @@ export function FullCalendarDialog({
                     selected={selected}
                     onSelect={() => {
                       onSelectDate(day);
-                      onClose();
                     }}
                   />
                 </div>
@@ -176,8 +206,11 @@ export function FullCalendarDialog({
               {format(selectedDate, "EEEE, MMMM d")}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              {active.length} active · {completed.length} completed
-              {missed.length > 0 ? ` · ${missed.length} missed` : ""}
+              {activeFrom && isBefore(selectedDate, activeFrom)
+                ? "No activity yet (before account creation)"
+                : `${active.length} active · ${completed.length} completed${
+                    missed.length > 0 ? ` · ${missed.length} missed` : ""
+                  }`}
             </p>
           </div>
         </div>

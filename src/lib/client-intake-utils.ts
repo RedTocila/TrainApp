@@ -1,6 +1,8 @@
 import type { Profile } from "@/lib/types";
 
 const REQUIRED_INTAKE_FIELDS = [
+  { key: "age", label: "Age" },
+  { key: "gender", label: "Gender" },
   { key: "intake_weight_kg", label: "Weight" },
   { key: "height_cm", label: "Height" },
   { key: "goal", label: "Goal" },

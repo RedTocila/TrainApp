@@ -10,7 +10,8 @@
     "create-admin": "node scripts/create-admin.mjs",
     "db:migrate": "node scripts/apply-migration.mjs",
     "supabase:setup": "node scripts/supabase-setup.mjs",
-    "sync:exercises": "node scripts/sync-exercise-catalog.mjs"
+    "sync:exercises": "node scripts/sync-exercise-catalog.mjs",
+    "sync:recipes": "node scripts/sync-recipe-catalog.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
@@ -38,6 +39,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "csv-parse": "^5.6.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",

@@ -1,8 +1,8 @@
 "use client";
 
 import { format } from "date-fns";
-import { Camera, Check, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Check, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { compressImageFile } from "@/lib/image-compress";
 import {
   getProgressPhotoSets,
@@ -23,6 +23,7 @@ import {
   type ProgressPhotoPose,
 } from "@/lib/supabase/storage";
 import type { ProgressPhotoSet } from "@/lib/types";
+import { ImageSourceButtons } from "@/components/image-source-buttons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -42,16 +43,11 @@ function PhotoSlot({
   uploading: boolean;
   onPick: (file: File) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
   return (
     <div className="flex flex-col items-center gap-2">
-      <button
-        type="button"
-        disabled={uploading}
-        onClick={() => inputRef.current?.click()}
+      <div
         className={cn(
-          "relative flex aspect-[3/4] w-full max-w-[7.5rem] flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-secondary/30 transition-colors hover:border-primary/40 hover:bg-secondary/50 disabled:opacity-60 sm:max-w-none",
+          "relative flex aspect-[3/4] w-full max-w-[7.5rem] flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-secondary/30 sm:max-w-none",
           url && "border-solid border-border/80"
         )}
       >
@@ -59,36 +55,41 @@ function PhotoSlot({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt={label} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex flex-col items-center gap-1.5 px-2 text-center text-muted-foreground">
+          <div className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground">
             {uploading ? (
               <span className="text-xs font-medium">Uploading…</span>
             ) : (
               <>
-                <Camera className="h-5 w-5" />
                 <span className="text-[11px] font-medium">Add photo</span>
+                <ImageSourceButtons
+                  layout="icons"
+                  disabled={uploading}
+                  onSelect={onPick}
+                  cameraLabel={`Take ${label} photo`}
+                  galleryLabel={`Choose ${label} from gallery`}
+                />
               </>
             )}
           </div>
         )}
         {url && !uploading && (
-          <span className="absolute bottom-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white">
+          <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">
+            <ImageSourceButtons
+              layout="icons"
+              disabled={uploading}
+              onSelect={onPick}
+              cameraLabel={`Retake ${label} photo`}
+              galleryLabel={`Replace ${label} from gallery`}
+            />
+          </div>
+        )}
+        {url && !uploading && (
+          <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white">
             <Check className="h-3 w-3" />
           </span>
         )}
-      </button>
+      </div>
       <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onPick(file);
-          e.target.value = "";
-        }}
-      />
     </div>
   );
 }
@@ -209,7 +210,7 @@ export function ProgressPhotosCard({
             )}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Upload front, back & side each month to track your transformation
+            Upload front, back & side each month — take a photo or choose from your gallery
           </p>
         </div>
       </CardHeader>

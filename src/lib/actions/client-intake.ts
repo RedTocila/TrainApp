@@ -5,20 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/actions/auth";
 import type { Profile } from "@/lib/types";
+import { formatGender, formatGoal } from "@/lib/intake-display";
 
 export interface ClientIntakeInfo {
   profile: Profile;
   latestWeightKg: number | null;
   goalLabel: string | null;
 }
-
-const GOAL_LABELS: Record<string, string> = {
-  lose_weight: "Lose weight",
-  build_muscle: "Build muscle",
-  stay_fit: "Stay fit",
-  improve_endurance: "Improve endurance",
-  general_health: "General health",
-};
 
 export async function getClientIntakeInfo(clientId: string): Promise<ClientIntakeInfo | null> {
   await requireAdmin();
@@ -50,7 +43,7 @@ export async function getClientIntakeInfo(clientId: string): Promise<ClientIntak
   return {
     profile: profile as Profile,
     latestWeightKg,
-    goalLabel: profile.goal ? GOAL_LABELS[profile.goal] ?? profile.goal : null,
+    goalLabel: profile.goal ? formatGoal(profile.goal) : null,
   };
 }
 
@@ -73,11 +66,21 @@ export async function updateClientIntake(formData: FormData) {
     return v || null;
   };
 
+  const parseOptionalInt = (key: string) => {
+    const raw = (formData.get(key) as string)?.trim();
+    if (!raw) return null;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? n : null;
+  };
+
   const goal = textOrNull("goal");
+  const gender = textOrNull("gender");
 
   const { error } = await supabase
     .from("profiles")
     .update({
+      age: parseOptionalInt("age"),
+      gender: gender || null,
       height_cm: parseOptionalNumber("height_cm"),
       intake_weight_kg: parseOptionalNumber("intake_weight_kg"),
       vices: textOrNull("vices"),

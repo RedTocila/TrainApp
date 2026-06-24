@@ -48,6 +48,9 @@ export interface Profile {
   full_name: string;
   avatar_url: string | null;
   goal: string | null;
+  unit_system?: "metric" | "imperial";
+  age?: number | null;
+  gender?: string | null;
   height_cm?: number | null;
   intake_weight_kg?: number | null;
   vices?: string | null;

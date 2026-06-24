@@ -1,11 +1,18 @@
 "use client";
 
-import { useTransition } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { useTransition, useState } from "react";
+import {
+  AlertTriangle,
+  Loader2,
+  Sparkles,
+  Target,
+  ThumbsUp,
+} from "lucide-react";
 import { generateWeeklyCoachReportAction } from "@/lib/actions/ai-coach";
+import { ScoreGauge } from "@/components/ai/score-gauge";
+import { TipCard } from "@/components/ai/tip-card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 
 type ReportRow = {
   period_start: string;
@@ -48,7 +55,7 @@ export function WeeklyReportClient({ initialReport }: { initialReport: ReportRow
 
   return (
     <div className="space-y-4">
-      <Button onClick={generate} disabled={isPending} className="w-full sm:w-auto">
+      <Button onClick={generate} disabled={isPending} className="w-full">
         {isPending ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -57,7 +64,7 @@ export function WeeklyReportClient({ initialReport }: { initialReport: ReportRow
         ) : (
           <>
             <Sparkles className="mr-2 h-4 w-4" />
-            Generate weekly report
+            Generate report
           </>
         )}
       </Button>
@@ -66,78 +73,56 @@ export function WeeklyReportClient({ initialReport }: { initialReport: ReportRow
 
       {!report ? (
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No report yet. Generate your first weekly coach report card.
+          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+            <Target className="h-10 w-10 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">No report yet — tap generate above</p>
           </CardContent>
         </Card>
       ) : (
         <>
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Week {report.period_start} — {report.period_end}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-2">
-                <Score label="Training" value={report.training_score} />
-                <Score label="Nutrition" value={report.nutrition_score} />
-                <Score label="Consistency" value={report.consistency_score} />
+            <CardContent className="space-y-4 p-4">
+              <p className="text-center text-xs text-muted-foreground">
+                {report.period_start} → {report.period_end}
+              </p>
+              <div className="flex justify-around">
+                <ScoreGauge
+                  score={report.training_score}
+                  label="Training"
+                  colorClass="text-blue-400"
+                />
+                <ScoreGauge
+                  score={report.nutrition_score}
+                  label="Nutrition"
+                  colorClass="text-green-400"
+                />
+                <ScoreGauge
+                  score={report.consistency_score}
+                  label="Consistency"
+                  colorClass="text-primary"
+                />
               </div>
-              <p className="text-sm">{report.summary}</p>
+              <p className="rounded-lg bg-secondary/40 px-3 py-2 text-center text-sm">{report.summary}</p>
             </CardContent>
           </Card>
 
-          <ReportSection title="What's improving" items={report.highlights} tone="green" />
-          <ReportSection title="What to watch" items={report.concerns} tone="amber" />
-          <ReportSection title="Next week actions" items={report.recommendations} tone="primary" />
+          {report.highlights.map((item, i) => (
+            <TipCard key={`h-${i}`} icon={ThumbsUp} title="Improving" tone="success">
+              {item}
+            </TipCard>
+          ))}
+          {report.concerns.map((item, i) => (
+            <TipCard key={`c-${i}`} icon={AlertTriangle} title="Watch" tone="warning">
+              {item}
+            </TipCard>
+          ))}
+          {report.recommendations.map((item, i) => (
+            <TipCard key={`r-${i}`} icon={Target} title="Next step" tone="primary">
+              {item}
+            </TipCard>
+          ))}
         </>
       )}
     </div>
-  );
-}
-
-function Score({ label, value }: { label: string; value: number | null }) {
-  return (
-    <div className="rounded-lg bg-secondary/60 p-3 text-center">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-2xl font-black">{value ?? "—"}</p>
-    </div>
-  );
-}
-
-function ReportSection({
-  title,
-  items,
-  tone,
-}: {
-  title: string;
-  items: string[];
-  tone: "green" | "amber" | "primary";
-}) {
-  if (!items?.length) return null;
-  const border =
-    tone === "green"
-      ? "border-green-500/30"
-      : tone === "amber"
-        ? "border-amber-500/30"
-        : "border-primary/30";
-
-  return (
-    <Card className={border}>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ul className="space-y-2 text-sm">
-          {items.map((item, i) => (
-            <li key={i} className="flex gap-2">
-              <span>•</span>
-              {item}
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
   );
 }
