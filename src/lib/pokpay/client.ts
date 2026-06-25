@@ -1,4 +1,5 @@
 import { getPokPayServerEnv } from "@/lib/pokpay/env";
+import { toPokPayAmount } from "@/lib/checkout-i18n";
 
 const POKPAY_BASE_URL =
   getPokPayServerEnv() === "production"
@@ -37,10 +38,7 @@ export interface PokPaySdkOrder {
 export interface PokPaySdkOrderProduct {
   name: string;
   quantity: number;
-  /**
-   * Price in minor units (to match `amount`).
-   * PokPay docs define `amount` as minor units; we keep products consistent.
-   */
+  /** Line price in app minor units; converted for PokPay in createSdkOrder. */
   price: number;
 }
 
@@ -185,6 +183,7 @@ export async function pokpayLogin(): Promise<string> {
 }
 
 export async function createSdkOrder(params: {
+  /** Amount in app minor units (cents); converted for PokPay before send. */
   amountCents: number;
   currencyCode?: string;
   redirectUrl: string;
@@ -196,6 +195,11 @@ export async function createSdkOrder(params: {
 }): Promise<PokPaySdkOrder> {
   const { merchantId } = requirePokPayConfig();
   const accessToken = await pokpayLogin();
+  const amount = toPokPayAmount(params.amountCents);
+  const products = params.products.map((product) => ({
+    ...product,
+    price: toPokPayAmount(product.price),
+  }));
   const data = await pokPayFetch<{ sdkOrder: PokPaySdkOrder }>(
     `/merchants/${merchantId}/sdk-orders`,
     {
@@ -205,11 +209,10 @@ export async function createSdkOrder(params: {
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        // PokPay docs: `amount` is in minor units (e.g. cents)
-        amount: params.amountCents,
+        amount,
         currencyCode: params.currencyCode ?? "ALL",
         autoCapture: true,
-        products: params.products,
+        products,
         shippingCost: 0,
         redirectUrl: params.redirectUrl,
         failRedirectUrl: params.failRedirectUrl,

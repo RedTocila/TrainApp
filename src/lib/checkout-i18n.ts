@@ -89,3 +89,11 @@ export function formatAnnualSavings(
   const saved = allCentsToCurrencyCents(savedAll, currency);
   return `Save ${formatCurrencyAmount(saved, currency)}/year`;
 }
+
+/**
+ * PokPay order amounts use whole currency units (e.g. 100 Lek, 1 EUR),
+ * not minor units. Our app stores/prices in minor units (×100).
+ */
+export function toPokPayAmount(amountCents: number): number {
+  return Math.round(amountCents / 100);
+}
