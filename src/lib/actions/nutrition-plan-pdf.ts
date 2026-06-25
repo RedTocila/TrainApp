@@ -158,8 +158,22 @@ export async function getNutritionPlanPdfSignedUrl(
 export async function getActiveTrainerNutritionPdfRequestId(
   clientId: string
 ): Promise<string | null> {
+  const state = await getCoachNutritionPlanViewState(clientId);
+  return state.mode === "pdf" ? state.requestId : null;
+}
+
+export type CoachNutritionPlanViewState =
+  | { mode: "pdf"; requestId: string }
+  | { mode: "awaiting_pdf" }
+  | { mode: "none" };
+
+/** Coach PDF plan delivered, waiting on PDF, or neither (personal / no coach plan). */
+export async function getCoachNutritionPlanViewState(
+  clientId: string
+): Promise<CoachNutritionPlanViewState> {
   const supabase = await createClient();
-  const { data } = await supabase
+
+  const { data: pdfRequest } = await supabase
     .from("plan_requests")
     .select("id")
     .eq("client_id", clientId)
@@ -170,5 +184,40 @@ export async function getActiveTrainerNutritionPdfRequestId(
     .limit(1)
     .maybeSingle();
 
-  return data?.id ?? null;
+  if (pdfRequest) {
+    return { mode: "pdf", requestId: pdfRequest.id };
+  }
+
+  const [{ data: assignment }, { data: openDietRequest }] = await Promise.all([
+    supabase
+      .from("nutrition_assignments")
+      .select("nutrition_plans(is_personal)")
+      .eq("client_id", clientId)
+      .eq("active", true)
+      .maybeSingle(),
+    supabase
+      .from("plan_requests")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("type", "diet")
+      .is("delivered_nutrition_pdf_path", null)
+      .in("status", [
+        "pending",
+        "awaiting_approval",
+        "in_progress",
+        "delivered",
+      ])
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const coachPlanAssigned =
+    assignment?.nutrition_plans &&
+    !(assignment.nutrition_plans as { is_personal?: boolean }).is_personal;
+
+  if (coachPlanAssigned || openDietRequest) {
+    return { mode: "awaiting_pdf" };
+  }
+
+  return { mode: "none" };
 }

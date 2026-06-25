@@ -32,7 +32,7 @@ export function NutritionPlanPdfDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
         aria-label="Close"
@@ -43,7 +43,7 @@ export function NutritionPlanPdfDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="nutrition-pdf-title"
-        className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col rounded-t-2xl border border-border bg-card shadow-xl sm:rounded-2xl"
+        className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-card shadow-xl"
       >
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
           <h2 id="nutrition-pdf-title" className="text-base font-bold">

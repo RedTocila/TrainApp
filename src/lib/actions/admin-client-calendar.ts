@@ -32,7 +32,9 @@ export async function getAdminClientCalendarData(
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from("profiles")
-    .select("created_at")
+    .select(
+      "created_at, target_calories, target_protein, target_carbs, target_fat"
+    )
     .eq("id", clientId)
     .single();
 
@@ -94,6 +96,12 @@ export async function getAdminClientCalendarData(
       scheduledCardioByDate,
       habitsByDate,
       waterGoalMl,
+      macroTargets: {
+        calories: profile.target_calories ?? 2000,
+        protein: profile.target_protein ?? 150,
+        carbs: profile.target_carbs ?? 200,
+        fat: profile.target_fat ?? 65,
+      },
     },
     enrichment,
     rangeStart,

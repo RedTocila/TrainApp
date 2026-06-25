@@ -120,13 +120,19 @@ function MealPlanItemRow({ item }: { item: MealPlanItem }) {
   );
 }
 
-export function MealPlanViewer({ slots }: { slots: PlannedMealSlot[] }) {
+export function MealPlanViewer({
+  slots,
+  emptyMessage,
+}: {
+  slots: PlannedMealSlot[];
+  emptyMessage?: string;
+}) {
   const items = buildMealItems(slots);
 
   if (items.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        No meals scheduled for this day.
+        {emptyMessage ?? "No meals scheduled for this day."}
       </p>
     );
   }

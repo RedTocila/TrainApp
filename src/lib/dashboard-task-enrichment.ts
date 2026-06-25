@@ -51,7 +51,7 @@ export function enrichTasksForDate(
     waterMl: data.waterByDate[dateKey] ?? 0,
     waterGoalMl: schedule.waterGoalMl ?? 2500,
     dailyMeals: data.mealsByDate[dateKey] ?? [],
-    planMeals: getPlanMealsForDate(dateKey, schedule),
+    macroTargets: schedule.macroTargets,
     workoutCompleted: data.workoutCompletedDates.includes(dateKey),
   });
 }

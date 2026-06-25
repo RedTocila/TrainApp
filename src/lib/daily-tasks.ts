@@ -5,10 +5,6 @@ import type {
   WorkoutAssignment,
   WorkoutDay,
 } from "@/lib/types";
-import {
-  getPrimaryMealsForDayMenu,
-  formatSlotSummary,
-} from "@/lib/meal-slots";
 import { formatHabitTimeWindow, getHabitWindowPhase } from "@/lib/habit-utils";
 import { formatDateKey } from "@/lib/utils";
 
@@ -27,6 +23,12 @@ export interface ClientSchedule {
   workoutAssignment: WorkoutAssignment | null;
   nutritionAssignment: NutritionAssignment | null;
   waterGoalMl?: number;
+  macroTargets?: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
   scheduledWorkouts?: ScheduledWorkout[];
   scheduledNutritionDays?: ScheduledNutritionDay[];
   scheduledCardioByDate?: Record<string, { title: string; duration_minutes?: number | null }>;
@@ -120,23 +122,13 @@ export function buildDailyTasks(
   const scheduledPlan = scheduledNutrition?.nutrition_plans;
   const fallbackPlan = schedule.nutritionAssignment?.nutrition_plans;
   const nutritionPlan = scheduledPlan ?? fallbackPlan;
+  const macroTargets = schedule.macroTargets;
 
-  if (nutritionPlan) {
-    const meals = nutritionPlan.meals ?? [];
-    const primaryMeals = getPrimaryMealsForDayMenu(meals);
-    const label = scheduledPlan
-      ? nutritionPlan.title
-      : `Hit ${nutritionPlan.target_calories} cal`;
-    const detail =
-      primaryMeals.length > 0
-        ? primaryMeals.map((m) => m.name).join(" · ")
-        : formatSlotSummary(meals) || `${nutritionPlan.target_protein}g protein`;
-
+  if (macroTargets || nutritionPlan) {
     tasks.push({
       id: `${dateKey}-nutrition`,
       category: "nutrition",
-      label,
-      detail,
+      label: "Hit daily macros",
     });
   } else {
     tasks.push({

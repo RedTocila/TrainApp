@@ -25,7 +25,7 @@ import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
 import { getScheduledCardioInRange } from "@/lib/actions/user-cardio";
 import { scheduledCardioByDateMap } from "@/lib/cardio-utils";
 import { getScheduledNutritionInRange, getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
-import { getActiveTrainerNutritionPdfRequestId } from "@/lib/actions/nutrition-plan-pdf";
+import { getCoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
 import { resolveWorkoutForDate } from "@/lib/actions/workout-sessions";
 import { formatDateKey } from "@/lib/utils";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
     enrichmentFields,
     initialWorkout,
     scheduledPlanForToday,
-    trainerNutritionPdfRequestId,
+    coachNutritionPlanState,
     allHabits,
   ] = await Promise.all([
     getClientWorkoutAssignment(profile.id),
@@ -95,7 +95,7 @@ export default async function DashboardPage() {
     fetchDashboardEnrichmentFields(profile.id, rangeStart, rangeEnd),
     resolveWorkoutForDate(profile.id, dateKey),
     getNutritionPlanForDate(profile.id, dateKey),
-    getActiveTrainerNutritionPdfRequestId(profile.id),
+    getCoachNutritionPlanViewState(profile.id),
     getClientHabits(profile.id),
   ]);
 
@@ -150,6 +150,7 @@ export default async function DashboardPage() {
   };
 
   const nutritionSummary =
+    coachNutritionPlanState.mode !== "awaiting_pdf" &&
     scheduledPlanForToday?.scheduled
       ? {
           title: scheduledPlanForToday.title,
@@ -181,6 +182,7 @@ export default async function DashboardPage() {
             scheduledCardioByDate,
             habitsByDate,
             waterGoalMl,
+            macroTargets: targets,
           }}
           initialEnrichment={initialEnrichment}
         />
@@ -199,6 +201,7 @@ export default async function DashboardPage() {
             scheduledCardioByDate,
             habitsByDate,
             waterGoalMl,
+            macroTargets: targets,
           }}
           initialEnrichment={initialEnrichment}
         />
@@ -213,7 +216,7 @@ export default async function DashboardPage() {
           personalPlanId={personalNutritionPlanId}
           initialWaterGoalMl={profile.water_goal_ml ?? 2500}
           nutritionPlan={nutritionSummary}
-          trainerNutritionPdfRequestId={trainerNutritionPdfRequestId}
+          coachNutritionPlanState={coachNutritionPlanState}
           goal={profile.goal ?? null}
         />
 

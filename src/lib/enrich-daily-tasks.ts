@@ -1,7 +1,7 @@
 import type { DailyTask } from "@/lib/daily-tasks";
-import type { DailyMealLog, Meal } from "@/lib/types";
+import type { DailyMealLog } from "@/lib/types";
+import { sumMealMacros } from "@/lib/meal-utils";
 import {
-  getNutritionDayStatus,
   isDayEnded,
   isDeadlinePassed,
   WATER_DEADLINE,
@@ -15,8 +15,34 @@ export interface EnrichTasksContext {
   waterMl: number;
   waterGoalMl: number;
   dailyMeals?: DailyMealLog[];
-  planMeals?: Meal[];
+  macroTargets?: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
   workoutCompleted?: boolean;
+}
+
+function dailyMacrosMet(
+  meals: DailyMealLog[],
+  targets: NonNullable<EnrichTasksContext["macroTargets"]>
+): boolean {
+  const current = sumMealMacros(meals);
+  return (
+    current.calories >= targets.calories &&
+    current.protein >= targets.protein &&
+    current.carbs >= targets.carbs &&
+    current.fat >= targets.fat
+  );
+}
+
+function formatMacroProgress(
+  meals: DailyMealLog[],
+  targets: NonNullable<EnrichTasksContext["macroTargets"]>
+): string {
+  const c = sumMealMacros(meals);
+  return `${c.calories}/${targets.calories} cal · P ${c.protein}/${targets.protein}g · C ${c.carbs}/${targets.carbs}g · F ${c.fat}/${targets.fat}g`;
 }
 
 export function enrichDailyTasks(
@@ -59,26 +85,20 @@ export function enrichDailyTasks(
     if (
       task.category === "nutrition" &&
       task.id.endsWith("-nutrition") &&
-      !task.id.endsWith("-nutrition-pending")
+      !task.id.endsWith("-nutrition-pending") &&
+      ctx.macroTargets
     ) {
-      const planMeals = ctx.planMeals ?? [];
-      const status = getNutritionDayStatus(
-        planMeals,
-        ctx.dailyMeals ?? [],
-        ctx.dateKey,
-        now
-      );
+      const meals = ctx.dailyMeals ?? [];
+      const met = dailyMacrosMet(meals, ctx.macroTargets);
+      const deadlinePassed = isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
 
-      if (status.total > 0) {
-        const progress = `${status.doneCount}/${status.total} meals`;
-        const detailBase = task.detail ?? "";
-        return {
-          ...task,
-          detail: detailBase ? `${progress} · ${detailBase}` : progress,
-          completed: status.completed || task.completed,
-          missed: status.completed || task.completed ? false : status.missed,
-        };
-      }
+      return {
+        ...task,
+        label: "Hit daily macros",
+        detail: formatMacroProgress(meals, ctx.macroTargets),
+        completed: met || task.completed,
+        missed: met || task.completed ? false : deadlinePassed,
+      };
     }
 
     return task;

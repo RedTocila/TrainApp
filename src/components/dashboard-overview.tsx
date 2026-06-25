@@ -7,6 +7,7 @@ import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import { getDailyLog } from "@/lib/actions/logs";
 import { getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
+import type { CoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
 import { formatDateKey } from "@/lib/utils";
 import type { DailyLog, DailyMealLog, Meal, MealSlot } from "@/lib/types";
 
@@ -27,7 +28,7 @@ export function DashboardOverview({
   personalPlanId,
   initialWaterGoalMl,
   nutritionPlan: initialNutritionPlan,
-  trainerNutritionPdfRequestId,
+  coachNutritionPlanState,
   goal,
 }: {
   clientId: string;
@@ -45,7 +46,7 @@ export function DashboardOverview({
     scheduled?: boolean;
     activeSlots?: MealSlot[];
   } | null;
-  trainerNutritionPdfRequestId?: string | null;
+  coachNutritionPlanState: CoachNutritionPlanViewState;
 }) {
   const { selectedDate } = useSelectedDate();
   const [log, setLog] = useState(initialLog);
@@ -67,7 +68,9 @@ export function DashboardOverview({
       setLog(fetchedLog);
       setDailyMeals(fetchedMeals);
 
-      if (planForDate?.scheduled) {
+      if (coachNutritionPlanState.mode === "awaiting_pdf") {
+        setNutritionPlan(null);
+      } else if (planForDate?.scheduled) {
         const meals = (planForDate.meals ?? []) as Meal[];
         setNutritionPlan({
           title: planForDate.title,
@@ -79,7 +82,7 @@ export function DashboardOverview({
         setNutritionPlan(null);
       }
     });
-  }, [selectedDate, clientId]);
+  }, [selectedDate, clientId, coachNutritionPlanState.mode]);
 
   return (
     <DailyTracker
@@ -96,7 +99,7 @@ export function DashboardOverview({
       waterGoalMl={waterGoalMl}
       onWaterGoalChange={setWaterGoalMl}
       nutritionPlan={nutritionPlan}
-      trainerNutritionPdfRequestId={trainerNutritionPdfRequestId}
+      coachNutritionPlanState={coachNutritionPlanState}
       goal={goal}
     />
   );

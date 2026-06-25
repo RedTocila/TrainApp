@@ -12,7 +12,6 @@ import type { MealFormData } from "@/lib/meal-utils";
 import type { MacroTargets } from "@/lib/meal-score";
 import { NutritionStatsPanel } from "@/components/nutrition-stats-panel";
 import { RecentMealsList } from "@/components/recent-meals-list";
-import { MealPlanChecklist } from "@/components/scheduled-meals-list";
 import { MealPlanDialog } from "@/components/meal-plan-dialog";
 import { NutritionPlanPdfDialog } from "@/components/nutrition-plan-pdf-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
@@ -23,12 +22,8 @@ import {
   SectionCompletedBadge,
   sectionCompletedCardClass,
 } from "@/components/section-completed-badge";
-import {
-  countMissedMealSlots,
-  getPlannedMealSlots,
-  isDeadlinePassed,
-  WATER_DEADLINE,
-} from "@/lib/meal-times";
+import { getPlannedMealSlots, isDeadlinePassed, WATER_DEADLINE } from "@/lib/meal-times";
+import type { CoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
 import type { DailyMealLog, Meal, MealSlot } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,7 +49,7 @@ interface DailyTrackerProps {
     scheduled?: boolean;
     activeSlots?: MealSlot[];
   } | null;
-  trainerNutritionPdfRequestId?: string | null;
+  coachNutritionPlanState: CoachNutritionPlanViewState;
 }
 
 export function DailyTracker({
@@ -68,7 +63,7 @@ export function DailyTracker({
   targets,
   waterGoalMl,
   nutritionPlan,
-  trainerNutritionPdfRequestId,
+  coachNutritionPlanState,
   goal,
 }: DailyTrackerProps) {
   const [isPending, startTransition] = useTransition();
@@ -79,15 +74,8 @@ export function DailyTracker({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewVariant, setPreviewVariant] = useState<"new" | "view">("new");
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
-  const [mealTick, setMealTick] = useState(0);
   const { patchDashboard, notifySync } = useDashboardSync();
   const dateKey = formatDateKey(date);
-
-  useEffect(() => {
-    if (!isToday(date)) return;
-    const id = setInterval(() => setMealTick((t) => t + 1), 30_000);
-    return () => clearInterval(id);
-  }, [date]);
 
   useEffect(() => {
     setLocalWaterMl(waterMl);
@@ -95,42 +83,44 @@ export function DailyTracker({
 
   const current = sumMealMacros(dailyMeals);
 
-  const plannedMealSlots = useMemo(
-    () =>
-      nutritionPlan?.meals?.length
-        ? getPlannedMealSlots(
-            nutritionPlan.meals,
-            dailyMeals,
-            dateKey,
-            nutritionPlan.activeSlots
-          )
-        : [],
-    [nutritionPlan?.meals, nutritionPlan?.activeSlots, dailyMeals, dateKey, mealTick]
-  );
+  const awaitingCoachPdf = coachNutritionPlanState.mode === "awaiting_pdf";
+  const coachPdfRequestId =
+    coachNutritionPlanState.mode === "pdf" ? coachNutritionPlanState.requestId : null;
+
+  const plannedMealSlots = useMemo(() => {
+    if (awaitingCoachPdf || coachPdfRequestId) return [];
+    if (!nutritionPlan?.meals?.length) return [];
+    return getPlannedMealSlots(
+      nutritionPlan.meals,
+      dailyMeals,
+      dateKey,
+      nutritionPlan.activeSlots
+    );
+  }, [
+    awaitingCoachPdf,
+    coachPdfRequestId,
+    nutritionPlan?.meals,
+    nutritionPlan?.activeSlots,
+    dailyMeals,
+    dateKey,
+  ]);
 
   const hasMealPlan = plannedMealSlots.length > 0;
-  const hasTrainerPdfPlan = !!trainerNutritionPdfRequestId;
-  const showMealPlanButton = hasMealPlan || hasTrainerPdfPlan;
+  const showMealPlanButton = hasMealPlan || awaitingCoachPdf || !!coachPdfRequestId;
 
-  const missedMeals = countMissedMealSlots(plannedMealSlots);
-  const missedMealItems = useMemo(
-    () =>
-      plannedMealSlots
-        .filter((s) => s.status === "missed" && s.meal)
-        .map((s) => ({
-          id: s.slot,
-          label: `${s.label}: ${s.meal!.name}`,
-          detail: `Was due ${s.timeWindow}`,
-        })),
-    [plannedMealSlots]
-  );
+  const mealPlanEmptyMessage = awaitingCoachPdf
+    ? "Your coach nutrition plan will appear here once your PDF plan is delivered. Log meals with + in the meantime."
+    : undefined;
+
   const waterMissed =
     localWaterMl < waterGoalMl && isDeadlinePassed(WATER_DEADLINE, dateKey);
   const waterCompleted = localWaterMl >= waterGoalMl;
-  const nutritionCompleted =
+  const macrosMet =
     current.calories >= targets.calories &&
     current.protein >= targets.protein &&
-    waterCompleted;
+    current.carbs >= targets.carbs &&
+    current.fat >= targets.fat;
+  const nutritionCompleted = macrosMet && waterCompleted;
 
   const nutritionTitle = isToday(date) ? "Nutrition" : format(date, "MMM d");
   const mealPlanDialogTitle = isToday(date)
@@ -195,21 +185,20 @@ export function DailyTracker({
     <>
       <Card
         id="dashboard-nutrition"
-        className={cn(sectionCompletedCardClass(nutritionCompleted && hasMealPlan))}
+        className={cn(sectionCompletedCardClass(nutritionCompleted))}
       >
         <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
           <div className="min-w-0">
             <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
               <Apple className="h-5 w-5 text-primary" />
               {nutritionTitle}
-              {nutritionCompleted && hasMealPlan && <SectionCompletedBadge />}
+              {nutritionCompleted && <SectionCompletedBadge />}
               <MissedButton
-                count={missedMeals + (waterMissed ? 1 : 0)}
+                count={waterMissed ? 1 : 0}
                 title="Missed today"
-                hint="Try to stay on schedule with meals and water."
-                items={[
-                  ...missedMealItems,
-                  ...(waterMissed
+                hint="Try to reach your water goal tomorrow."
+                items={
+                  waterMissed
                     ? [
                         {
                           id: "water",
@@ -217,17 +206,22 @@ export function DailyTracker({
                           detail: `${localWaterMl.toLocaleString()} ml logged · goal by ${WATER_DEADLINE}`,
                         },
                       ]
-                    : []),
-                ]}
+                    : []
+                }
               />
             </CardTitle>
-            {nutritionPlan && (
+            {awaitingCoachPdf && (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                Coach nutrition plan · PDF pending
+              </p>
+            )}
+            {nutritionPlan && !awaitingCoachPdf && (
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 {nutritionPlan.title}
                 {nutritionPlan.scheduled && " · scheduled"}
               </p>
             )}
-            {!nutritionPlan && hasTrainerPdfPlan && (
+            {!nutritionPlan && !awaitingCoachPdf && coachPdfRequestId && (
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 Coach nutrition plan · PDF
               </p>
@@ -240,7 +234,7 @@ export function DailyTracker({
                 variant="outline"
                 className="h-9 w-9 rounded-full"
                 onClick={() => {
-                  if (hasTrainerPdfPlan) setPdfPlanOpen(true);
+                  if (coachPdfRequestId) setPdfPlanOpen(true);
                   else setMealPlanOpen(true);
                 }}
                 aria-label="View meal plan"
@@ -275,15 +269,6 @@ export function DailyTracker({
             </div>
           )}
 
-          {hasMealPlan && (
-            <MealPlanChecklist
-              clientId={clientId}
-              dateKey={dateKey}
-              slots={plannedMealSlots}
-              onMealsChange={refreshMeals}
-            />
-          )}
-
           <RecentMealsList
             title="Meals logged"
             meals={dailyMeals}
@@ -302,14 +287,15 @@ export function DailyTracker({
         onClose={() => setMealPlanOpen(false)}
         title={mealPlanDialogTitle}
         slots={plannedMealSlots}
+        emptyMessage={mealPlanEmptyMessage}
       />
 
-      {trainerNutritionPdfRequestId && (
+      {coachPdfRequestId && (
         <NutritionPlanPdfDialog
           open={pdfPlanOpen}
           onClose={() => setPdfPlanOpen(false)}
           title={mealPlanDialogTitle}
-          requestId={trainerNutritionPdfRequestId}
+          requestId={coachPdfRequestId}
         />
       )}
 
