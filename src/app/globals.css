@@ -345,6 +345,48 @@ html.light .overlay-backdrop {
   min-height: 24rem;
 }
 
+.landing-reviews-marquee-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 6%,
+    black 94%,
+    transparent
+  );
+  mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+}
+
+.landing-reviews-marquee-left {
+  animation: landing-reviews-marquee-left 50s linear infinite;
+}
+
+.landing-reviews-marquee-right {
+  animation: landing-reviews-marquee-right 50s linear infinite;
+}
+
+.landing-reviews-marquee-mask:hover .landing-reviews-marquee-left,
+.landing-reviews-marquee-mask:hover .landing-reviews-marquee-right {
+  animation-play-state: paused;
+}
+
+@keyframes landing-reviews-marquee-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes landing-reviews-marquee-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-page {
     scroll-behavior: auto;

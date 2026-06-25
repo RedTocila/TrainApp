@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { CUSTOM_PLAN_PRODUCTS, TRAINER_NAME } from "@/lib/custom-plan-products";
-import {
-  CheckoutCurrencyToggle,
-} from "@/components/checkout-preferences-toggle";
+import { CheckoutCurrencyToggle } from "@/components/checkout-preferences-toggle";
+import { SegmentedToggle } from "@/components/segmented-toggle";
 import {
   GET_STARTED_CTA,
   GET_STARTED_HREF,
@@ -55,30 +54,18 @@ export function LandingPricing() {
         </FadeIn>
 
         <FadeIn delay={0.05}>
-          <CheckoutCurrencyToggle
-            className="mb-6"
-            currency={currency}
-            onCurrencyChange={setCurrency}
-          />
-
-          <div className="flex justify-center">
-            <div className="inline-flex rounded-lg border border-border bg-secondary/50 p-1">
-              {(["monthly", "annual"] as const).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setInterval(key)}
-                  className={cn(
-                    "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-                    interval === key
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {key === "monthly" ? "Monthly" : "Annual"}
-                </button>
-              ))}
-            </div>
+          <div className="mb-6 flex flex-col items-center gap-3">
+            <CheckoutCurrencyToggle currency={currency} onCurrencyChange={setCurrency} />
+            <SegmentedToggle
+              value={interval}
+              onChange={setInterval}
+              aria-label="Billing interval"
+              className="w-auto"
+              options={[
+                { value: "monthly", label: "Monthly" },
+                { value: "annual", label: "Annual" },
+              ]}
+            />
           </div>
 
           <div className="mt-8 grid gap-6 md:grid-cols-2">

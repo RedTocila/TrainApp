@@ -8,8 +8,8 @@ export const DEFAULT_CHECKOUT_LOCALE: CheckoutLocale = "al";
 export const ALL_PER_EUR = 100;
 
 export const CHECKOUT_CURRENCIES: { value: CheckoutCurrency; label: string }[] = [
-  { value: "ALL", label: "ALL (Lek)" },
-  { value: "EUR", label: "EUR (€)" },
+  { value: "ALL", label: "ALL" },
+  { value: "EUR", label: "EUR" },
 ];
 
 export const CHECKOUT_LOCALES: { value: CheckoutLocale; label: string }[] = [
@@ -76,7 +76,7 @@ export function formatCurrencyAmount(
   const formatted = whole
     ? major.toLocaleString("en-US", { maximumFractionDigits: 0 })
     : major.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `L${formatted}`;
+  return `ALL ${formatted}`;
 }
 
 export function formatAnnualSavings(

@@ -20,7 +20,7 @@ export function SegmentedToggle<T extends string>({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        "inline-flex w-full rounded-lg border border-border bg-secondary/50 p-1",
+        "inline-flex w-full rounded-full border border-border bg-secondary/50 p-1",
         className
       )}
     >
@@ -31,7 +31,7 @@ export function SegmentedToggle<T extends string>({
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            "flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+            "flex-1 rounded-full px-4 py-2 text-sm font-medium transition-colors",
             value === option.value
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:text-foreground"

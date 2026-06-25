@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { AiFoodDemoIllustration } from "@/components/ai-food-demo-illustration";
-import {
-  CheckoutCurrencyToggle,
-} from "@/components/checkout-preferences-toggle";
+import { CheckoutCurrencyToggle } from "@/components/checkout-preferences-toggle";
+import { SegmentedToggle } from "@/components/segmented-toggle";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import type { BillingInterval } from "@/lib/subscription-plans";
 import {
@@ -21,6 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+const BILLING_INTERVALS = ["monthly", "annual"] as const;
 
 export function PricingPlans({
   interval,
@@ -45,35 +46,16 @@ export function PricingPlans({
     <div className="space-y-8">
       <div className="flex flex-col items-center gap-3">
         <CheckoutCurrencyToggle currency={currency} onCurrencyChange={setCurrency} />
-      </div>
-
-      <div className="flex justify-center">
-        <div className="inline-flex rounded-lg border border-border bg-secondary/50 p-1">
-          <button
-            type="button"
-            onClick={() => onIntervalChange("monthly")}
-            className={cn(
-              "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-              interval === "monthly"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {pricing.monthly}
-          </button>
-          <button
-            type="button"
-            onClick={() => onIntervalChange("annual")}
-            className={cn(
-              "rounded-md px-4 py-2 text-sm font-medium transition-colors",
-              interval === "annual"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {pricing.annual}
-          </button>
-        </div>
+        <SegmentedToggle
+          value={interval}
+          onChange={onIntervalChange}
+          aria-label="Billing interval"
+          className="w-auto"
+          options={BILLING_INTERVALS.map((key) => ({
+            value: key,
+            label: key === "monthly" ? pricing.monthly : pricing.annual,
+          }))}
+        />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

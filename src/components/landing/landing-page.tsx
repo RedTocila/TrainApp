@@ -12,6 +12,14 @@ const LandingHowItWorks = dynamic(
   { loading: () => <LandingSectionSkeleton /> }
 );
 
+const LandingAppPreview = dynamic(
+  () =>
+    import("@/components/landing/landing-app-preview").then((m) => ({
+      default: m.LandingAppPreview,
+    })),
+  { loading: () => <LandingSectionSkeleton /> }
+);
+
 const LandingShowcase = dynamic(
   () =>
     import("@/components/landing/landing-showcase").then((m) => ({
@@ -20,10 +28,26 @@ const LandingShowcase = dynamic(
   { loading: () => <LandingSectionSkeleton /> }
 );
 
+const LandingCoachAlex = dynamic(
+  () =>
+    import("@/components/landing/landing-coach-alex").then((m) => ({
+      default: m.LandingCoachAlex,
+    })),
+  { loading: () => <LandingSectionSkeleton /> }
+);
+
 const LandingFeatures = dynamic(
   () =>
     import("@/components/landing/landing-features").then((m) => ({
       default: m.LandingFeatures,
+    })),
+  { loading: () => <LandingSectionSkeleton /> }
+);
+
+const LandingReviews = dynamic(
+  () =>
+    import("@/components/landing/landing-reviews").then((m) => ({
+      default: m.LandingReviews,
     })),
   { loading: () => <LandingSectionSkeleton /> }
 );
@@ -55,9 +79,12 @@ export function LandingPageClient() {
       <main className="flex-1">
         <LandingHero />
         <LandingHowItWorks />
+        <LandingAppPreview />
         <LandingShowcase />
         <LandingFeatures />
+        <LandingCoachAlex />
         <LandingPricing />
+        <LandingReviews />
         <LandingCta />
       </main>
     </div>
