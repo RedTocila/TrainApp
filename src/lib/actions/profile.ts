@@ -41,16 +41,32 @@ export async function updateProfile(formData: FormData) {
     return { error: "Invalid unit system" };
   }
 
-  const { error } = await supabase
+  const profileUpdate: {
+    full_name: string;
+    phone: string | null;
+    goal: string | null;
+    preferred_locale: CheckoutLocale;
+    unit_system?: "metric" | "imperial";
+  } = {
+    full_name: fullName,
+    phone,
+    goal,
+    preferred_locale: preferredLocale,
+    unit_system: unitSystem,
+  };
+
+  let { error } = await supabase
     .from("profiles")
-    .update({
-      full_name: fullName,
-      phone,
-      goal,
-      unit_system: unitSystem,
-      preferred_locale: preferredLocale,
-    })
+    .update(profileUpdate)
     .eq("id", user.id);
+
+  if (error?.message?.includes("unit_system")) {
+    const { unit_system: _unitSystem, ...withoutUnits } = profileUpdate;
+    ({ error } = await supabase
+      .from("profiles")
+      .update(withoutUnits)
+      .eq("id", user.id));
+  }
 
   if (error) return { error: error.message };
 

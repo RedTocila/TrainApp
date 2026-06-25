@@ -1,16 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { Camera, Dumbbell, Salad, Sparkles, Type, Video } from "lucide-react";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-const features = [
-  { icon: Dumbbell, label: "AI workout plan" },
-  { icon: Salad, label: "AI nutrition plan" },
-  { icon: Camera, label: "Photo log" },
-  { icon: Type, label: "Text log" },
-  { icon: Video, label: "Live sessions" },
-];
 
 export function AiUpgradeGate({
   title = PLATFORM_AI_NAME,
@@ -18,6 +13,17 @@ export function AiUpgradeGate({
   title?: string;
   description?: string;
 }) {
+  const platform = usePlatformCopy();
+  const copy = platform.aiUpgrade;
+
+  const features = [
+    { icon: Dumbbell, label: copy.aiWorkoutPlan },
+    { icon: Salad, label: copy.aiNutritionPlan },
+    { icon: Camera, label: copy.photoLog },
+    { icon: Type, label: copy.textLog },
+    { icon: Video, label: copy.liveSessions },
+  ];
+
   return (
     <Card className="border-primary/20">
       <CardContent className="space-y-5 p-6 text-center">
@@ -27,7 +33,7 @@ export function AiUpgradeGate({
         <div>
           <p className="text-lg font-bold">{title}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Upgrade to the €19/month AI plan to unlock this feature
+            {copy.unlockFeature}
           </p>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
@@ -41,7 +47,7 @@ export function AiUpgradeGate({
           ))}
         </div>
         <Link href="/dashboard/pricing" className={buttonVariants({ className: "w-full" })}>
-          View AI plan
+          {copy.viewAiPlan}
         </Link>
       </CardContent>
     </Card>

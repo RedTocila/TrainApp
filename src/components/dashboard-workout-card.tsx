@@ -78,7 +78,7 @@ export function DashboardWorkoutCard({
           <MissedButton
             count={workoutMissed ? 1 : 0}
             title={coachLabels.missedWorkout}
-            hint="Tomorrow: train before excuses wake up."
+            hint={coachLabels.workoutMissedHint}
             items={
               workout && workoutMissed
                 ? [
@@ -95,7 +95,7 @@ export function DashboardWorkoutCard({
         {workoutCompleted && workout ? (
           <span
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
-            aria-label="Completed"
+            aria-label={platform.aria.completed}
           >
             <Check className="h-4 w-4" />
           </span>
@@ -117,10 +117,10 @@ export function DashboardWorkoutCard({
             <p className="mt-1 text-sm text-muted-foreground">
               {workout.planTitle}
               {workout.exercises.length > 0 &&
-                ` · ${workout.exercises.length} exercise${workout.exercises.length === 1 ? "" : "s"}`}
+                ` · ${platform.common.exercises(workout.exercises.length)}`}
               {workoutCompleted
-                ? " · completed"
-                : ` · complete by ${WORKOUT_DEADLINE}`}
+                ? ` ${platform.workout.completedSuffix}`
+                : ` ${platform.workout.completeBy(WORKOUT_DEADLINE)}`}
             </p>
             <div className="mt-3 flex flex-wrap gap-1">
               {workout.exercises.slice(0, 3).map((ex) => (

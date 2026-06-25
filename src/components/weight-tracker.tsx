@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { format, isToday } from "date-fns";
 import { Plus, Scale } from "lucide-react";
@@ -37,6 +37,7 @@ export function WeightTracker({
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const { selectedDate } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
   const [history, setHistory] = useState(initialHistory);
@@ -66,13 +67,13 @@ export function WeightTracker({
   }, [clientId, dateKey, onHistoryChange]);
 
   const dateLabel = isToday(selectedDate)
-    ? "today"
+    ? platform.common.today
     : format(selectedDate, "MMM d");
 
   const handleSave = () => {
     const parsed = parseFloat(weightInput);
     if (!Number.isFinite(parsed)) {
-      setError("Enter a valid weight");
+      setError(platform.weight.invalidWeight);
       return;
     }
     setError(null);
@@ -125,12 +126,12 @@ export function WeightTracker({
         <div>
           <CardTitle className="flex items-center gap-2">
             <Scale className="h-5 w-5 text-primary" />
-            Body weight
+            {platform.weight.title}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             {todayLog
-              ? `${todayLog.weight_kg} kg logged for ${dateLabel}`
-              : "Track your weight over time"}
+              ? platform.weight.loggedForDate(String(todayLog.weight_kg), dateLabel)
+              : platform.weight.subtitle}
           </p>
         </div>
         {!formOpen && (
@@ -139,7 +140,7 @@ export function WeightTracker({
             variant="outline"
             className="h-9 w-9 shrink-0 rounded-full"
             onClick={openForm}
-            aria-label="Log weight"
+            aria-label={platform.aria.logWeight}
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -156,7 +157,7 @@ export function WeightTracker({
         {formOpen && (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-1">
-              <Label htmlFor="body-weight">Weight for {dateLabel} (kg)</Label>
+              <Label htmlFor="body-weight">{platform.weight.weightForDate(dateLabel)}</Label>
               <Input
                 id="body-weight"
                 type="number"
@@ -164,7 +165,7 @@ export function WeightTracker({
                 step="0.1"
                 min="1"
                 max="500"
-                placeholder="e.g. 75.5"
+                placeholder={platform.weight.placeholder}
                 value={weightInput}
                 onChange={(e) => setWeightInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSave()}
@@ -173,7 +174,7 @@ export function WeightTracker({
             </div>
             <div className="flex gap-2">
               <Button onClick={handleSave} disabled={isPending || !weightInput}>
-                {todayLog ? "Update" : "Log weight"}
+                {todayLog ? platform.common.update : platform.weight.logWeight}
               </Button>
               {todayLog && (
                 <Button variant="outline" disabled={isPending} onClick={handleClear}>
@@ -181,7 +182,7 @@ export function WeightTracker({
                 </Button>
               )}
               <Button variant="ghost" disabled={isPending} onClick={() => setFormOpen(false)}>
-                Cancel
+                {platform.common.cancel}
               </Button>
             </div>
           </div>

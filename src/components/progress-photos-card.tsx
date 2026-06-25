@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy } from "@/components/locale-provider";
+import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import { format } from "date-fns";
 import { Check, CalendarClock, ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
@@ -18,10 +18,10 @@ import {
   getProgressPhotoCountdown,
   progressMonthFolder,
   progressMonthKey,
-  PROGRESS_PHOTO_POSES,
   progressSetComplete,
   progressSetHasPhotos,
 } from "@/lib/progress-photo-utils";
+import { getProgressPhotoPoses } from "@/lib/locale-labels";
 import { createClient } from "@/lib/supabase/client";
 import {
   progressPhotoPath,
@@ -52,6 +52,7 @@ function PhotoSlot({
   onPick: (file: File) => void;
   onRemove: () => void;
 }) {
+  const platform = usePlatformCopy();
   return (
     <div className="flex flex-col items-center gap-2">
       <div
@@ -72,15 +73,15 @@ function PhotoSlot({
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground">
             {uploading ? (
-              <span className="text-xs font-medium">Uploading…</span>
+              <span className="text-xs font-medium">{platform.photos.uploading}</span>
             ) : (
               <>
-                <span className="text-[11px] font-medium">Add photo</span>
+                <span className="text-[11px] font-medium">{platform.photos.addPhoto}</span>
                 <ImageSourceButtons
                   layout="icon"
                   disabled={uploading}
                   onSelect={onPick}
-                  galleryLabel={`Add ${label} photo`}
+                  galleryLabel={platform.photos.addPosePhoto(label)}
                 />
               </>
             )}
@@ -91,7 +92,7 @@ function PhotoSlot({
             <button
               type="button"
               onClick={onRemove}
-              aria-label={`Remove ${label} photo`}
+              aria-label={platform.aria.removePhoto(label)}
               className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
             >
               <X className="h-3.5 w-3.5" />
@@ -107,7 +108,7 @@ function PhotoSlot({
           layout="button"
           disabled={uploading}
           onSelect={onPick}
-          galleryLabel="Replace"
+          galleryLabel={platform.photos.replace}
           className="h-7 w-full max-w-[7.5rem] text-xs sm:max-w-none"
         />
       )}
@@ -124,6 +125,9 @@ export function ProgressPhotosCard({
   initialSets: ProgressPhotoSet[];
 }) {
   const coachCopy = useCoachCopy();
+  const platform = usePlatformCopy();
+  const locale = useLocale();
+  const photoPoses = getProgressPhotoPoses(locale);
   const currentMonth = progressMonthKey();
   const [sets, setSets] = useState(initialSets);
   const [currentUrls, setCurrentUrls] = useState<PoseUrls>(EMPTY_URLS);
@@ -193,7 +197,7 @@ export function ProgressPhotosCard({
       setCurrentUrls((prev) => ({ ...prev, [pose]: null }));
       refreshSets();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove photo");
+      setError(err instanceof Error ? err.message : platform.photos.removeFailed);
     } finally {
       setUploadingPose(null);
     }
@@ -230,7 +234,7 @@ export function ProgressPhotosCard({
 
       refreshSets();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : platform.photos.uploadFailed);
     } finally {
       setUploadingPose(null);
     }
@@ -254,15 +258,15 @@ export function ProgressPhotosCard({
         <div>
           <CardTitle className="flex flex-wrap items-center gap-2">
             <ImageIcon className="h-5 w-5 text-primary" />
-            Progress photos
+            {platform.photos.title}
             {currentComplete && (
               <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-400">
-                This month complete
+                {platform.photos.monthComplete}
               </span>
             )}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Upload front, back & side each month — tap to add or replace a photo
+            {platform.photos.description}
           </p>
         </div>
       </CardHeader>
@@ -285,7 +289,7 @@ export function ProgressPhotosCard({
             )}
           </div>
           <div className="grid grid-cols-3 gap-3">
-            {PROGRESS_PHOTO_POSES.map(({ pose, label }) => (
+            {photoPoses.map(({ pose, label }) => (
               <PhotoSlot
                 key={pose}
                 label={label}
@@ -302,14 +306,14 @@ export function ProgressPhotosCard({
             ))}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Photos are compressed before upload to save storage.
+            {platform.photos.compressHint}
           </p>
         </div>
 
         {pastSets.length > 0 && (
           <div className="space-y-3 border-t border-border/60 pt-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-bold">Previous months</p>
+              <p className="text-sm font-bold">{platform.photos.previousMonths}</p>
               <div className="flex items-center gap-1">
                 <Button
                   type="button"
@@ -318,7 +322,7 @@ export function ProgressPhotosCard({
                   className="h-8 w-8"
                   disabled={historyIndex <= 0}
                   onClick={() => setHistoryIndex((i) => i - 1)}
-                  aria-label="Earlier month"
+                  aria-label={platform.aria.earlierMonth}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -334,7 +338,7 @@ export function ProgressPhotosCard({
                   className="h-8 w-8"
                   disabled={historyIndex >= pastSets.length - 1}
                   onClick={() => setHistoryIndex((i) => i + 1)}
-                  aria-label="Later month"
+                  aria-label={platform.aria.laterMonth}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -342,7 +346,7 @@ export function ProgressPhotosCard({
             </div>
             {selectedHistory && (
               <div className="grid grid-cols-3 gap-3">
-                {PROGRESS_PHOTO_POSES.map(({ pose, label }) => (
+                {photoPoses.map(({ pose, label }) => (
                   <div key={pose} className="space-y-1.5">
                     <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-border bg-secondary/20">
                       {historyUrls[pose] ? (
@@ -354,7 +358,7 @@ export function ProgressPhotosCard({
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                          No photo
+                          {platform.photos.noPhoto}
                         </div>
                       )}
                     </div>

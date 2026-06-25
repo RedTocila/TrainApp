@@ -1,5 +1,5 @@
 "use client";
-import { useCoachLabels } from "@/components/locale-provider";
+import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import {
   Apple,
@@ -15,10 +15,10 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  TASK_CATEGORY_LABELS,
   type DailyTask,
   type TaskCategory,
 } from "@/lib/daily-tasks";
+import { getTaskCategoryLabels } from "@/lib/locale-labels";
 import { getTaskDestination, scrollToSection } from "@/lib/task-navigation";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +58,9 @@ function useTaskNavigation() {
 
 export function TaskRow({ task }: { task: DailyTask }) {
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
+  const locale = useLocale();
+  const taskCategoryLabels = getTaskCategoryLabels(locale);
   const navigate = useTaskNavigation();
   const Icon = CATEGORY_ICONS[task.category];
   const isMissed = task.missed && !task.completed;
@@ -118,12 +121,12 @@ export function TaskRow({ task }: { task: DailyTask }) {
             </span>
             {task.completed && (
               <span className="rounded bg-green-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-green-400 sm:text-[10px]">
-                Done
+                {platform.common.done}
               </span>
             )}
             {isInProgress && (
               <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-400 sm:text-[10px]">
-                In progress
+                {platform.common.inProgress}
               </span>
             )}
             {isMissed && (
@@ -143,7 +146,7 @@ export function TaskRow({ task }: { task: DailyTask }) {
             </p>
           )}
           <p className="mt-0.5 hidden text-[10px] uppercase tracking-wider text-muted-foreground sm:mt-1 sm:block">
-            {TASK_CATEGORY_LABELS[task.category]}
+            {taskCategoryLabels[task.category]}
           </p>
         </div>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -163,6 +166,7 @@ export function groupTasksByStatus(tasks: DailyTask[]) {
 
 export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const { inProgress, missed, completed } = groupTasksByStatus(tasks);
 
   if (tasks.length === 0) {
@@ -176,7 +180,7 @@ export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
       {inProgress.length > 0 && (
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-amber-400">
-            In progress
+            {platform.common.inProgress}
           </h3>
           <ul className="space-y-2">
             {inProgress.map((task) => (
@@ -200,7 +204,7 @@ export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
       {completed.length > 0 && (
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-green-400">
-            Completed
+            {platform.common.completed}
           </h3>
           <ul className="space-y-2">
             {completed.map((task) => (

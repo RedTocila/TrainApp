@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy } from "@/components/locale-provider";
+import { useCoachCopy, usePlatformCopy } from "@/components/locale-provider";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[] }) {
   const coachCopy = useCoachCopy();
+  const platform = usePlatformCopy();
   const router = useRouter();
   const [cardioList, setCardioList] = useState(initialCardio);
   const [formOpen, setFormOpen] = useState(false);
@@ -67,13 +68,13 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
             <HeartPulse className="h-5 w-5 text-orange-400" />
           </div>
           <div>
-            <h1 className="text-lg font-black">Cardio</h1>
-            <p className="text-xs text-muted-foreground">{cardioList.length} sessions</p>
+            <h1 className="text-lg font-black">{platform.cardio.title}</h1>
+            <p className="text-xs text-muted-foreground">{platform.common.sessions(cardioList.length)}</p>
           </div>
         </div>
         <Button onClick={openAdd} size="sm">
           <Plus className="mr-1.5 h-4 w-4" />
-          Add
+          {platform.common.add}
         </Button>
       </div>
 
@@ -82,14 +83,14 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
           <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
             <HeartPulse className="h-10 w-10 text-orange-400" />
             <div>
-              <p className="font-medium">No cardio saved yet</p>
+              <p className="font-medium">{platform.cardio.emptyTitle}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Add a session with a YouTube follow-along, then schedule it on your calendar.
+                {platform.cardio.emptyHint}
               </p>
             </div>
             <Button onClick={openAdd}>
               <Plus className="mr-2 h-4 w-4" />
-              Add cardio
+              {platform.cardio.addCardio}
             </Button>
           </CardContent>
         </Card>
@@ -104,7 +105,7 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold">{item.title}</p>
                         {item.duration_minutes != null && (
-                          <Badge variant="secondary">{item.duration_minutes} min</Badge>
+                          <Badge variant="secondary">{platform.common.min(item.duration_minutes)}</Badge>
                         )}
                       </div>
                       {item.description && (
@@ -117,25 +118,25 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
                           rel="noopener noreferrer"
                           className="mt-1 inline-block text-xs text-primary hover:underline"
                         >
-                          Open on YouTube
+                          {platform.cardio.openYoutube}
                         </a>
                       )}
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <Button size="sm" variant="outline" onClick={() => openSchedule(item)}>
                         <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                        Schedule
+                        {platform.cardio.schedule}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => openEdit(item)}>
                         <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                        Edit
+                        {platform.common.edit}
                       </Button>
                       <Button
                         size="sm"
                         variant="ghost"
                         disabled={isPending}
                         onClick={() => handleDelete(item)}
-                        aria-label={`Delete ${item.title}`}
+                        aria-label={platform.aria.deleteItem(item.title)}
                       >
                         <Trash2 className="h-4 w-4 text-red-400" />
                       </Button>

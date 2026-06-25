@@ -1,5 +1,5 @@
 "use client";
-import { useCoachLabels } from "@/components/locale-provider";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { Sparkles, ChevronRight } from "lucide-react";
@@ -16,6 +16,7 @@ export function AiInsightCard({
   proteinGap?: number;
 }) {
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   if (!hasAiAccess) {
     return (
       <Card className="border-primary/20 bg-primary/5">
@@ -23,13 +24,13 @@ export function AiInsightCard({
           <div className="flex items-start gap-3">
             <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <div>
-              <p className="font-semibold">AI Coach</p>
+              <p className="font-semibold">{platform.ai.aiCoach}</p>
               <p className="text-sm text-muted-foreground">{coachLabels.coachHasOpinions}</p>
             </div>
           </div>
           <Link href="/dashboard/pricing">
             <Button size="sm" variant="outline">
-              Upgrade
+              {platform.ai.upgrade}
             </Button>
           </Link>
         </CardContent>
@@ -42,14 +43,14 @@ export function AiInsightCard({
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="h-4 w-4 text-primary" />
-          AI Insight
+          {platform.ai.aiInsight}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm">{message ?? coachLabels.coachHasNotes}</p>
         {proteinGap != null && proteinGap > 15 && (
           <p className="text-xs text-amber-400">
-            Protein gap today: ~{Math.round(proteinGap)}g remaining
+            {platform.ai.proteinGap(Math.round(proteinGap))}
           </p>
         )}
         <Link

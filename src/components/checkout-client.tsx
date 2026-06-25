@@ -16,10 +16,11 @@ import {
 } from "@/lib/subscription-plans";
 import { Button } from "@/components/ui/button";
 import { CheckoutLayout } from "@/components/checkout-layout";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
 
-function formatPokPayError(err: unknown): string {
-  if (!err || typeof err !== "object") return "Payment failed. Please try again.";
+function formatPokPayError(err: unknown, paymentFailed: string): string {
+  if (!err || typeof err !== "object") return paymentFailed;
   const anyErr = err as Record<string, unknown>;
   const message = typeof anyErr.message === "string" ? anyErr.message : null;
   const code = typeof anyErr.code === "string" ? anyErr.code : null;
@@ -33,7 +34,7 @@ function formatPokPayError(err: unknown): string {
         : null;
 
   return [
-    message ?? "Payment failed.",
+    message ?? paymentFailed,
     code ? `code=${code}` : null,
     statusCode ? `status=${statusCode}` : null,
     details ? `details=${details}` : null,
@@ -53,6 +54,7 @@ export function CheckoutClient({
   currency: CheckoutCurrency;
   locale: CheckoutLocale;
 }) {
+  const platform = usePlatformCopy();
   const router = useRouter();
   const [orderId, setOrderId] = useState<string | null>(null);
   const [localOrderId, setLocalOrderId] = useState<string | null>(null);
@@ -90,7 +92,7 @@ export function CheckoutClient({
     <CheckoutLayout
       backHref="/dashboard/pricing"
       title="Checkout"
-      subtitle={plan ? `${plan.name} · ${intervalLabel}` : "Complete your purchase"}
+      subtitle={plan ? `${plan.name} · ${intervalLabel}` : platform.checkoutFlow.completePurchase}
       totalLabel={price?.label}
       summary={
         <div className="space-y-4">
@@ -168,7 +170,7 @@ export function CheckoutClient({
                 orderId={orderId}
                 onSuccess={handleSuccess}
                 onError={(paymentError: PaymentErrorResponse) => {
-                  setError(formatPokPayError(paymentError));
+                  setError(formatPokPayError(paymentError, platform.checkout.paymentFailed));
                 }}
                 options={{
                   env: getPokPayClientEnv(),

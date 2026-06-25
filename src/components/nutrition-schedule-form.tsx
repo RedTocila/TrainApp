@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -12,8 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
+import { getWeekdayOptions } from "@/lib/locale-labels";
 import {
-  WEEKDAY_OPTIONS,
   describeSchedulePreview,
   formatScheduleAnchorLabel,
   getScheduleAnchorDate,
@@ -60,6 +60,9 @@ export function NutritionScheduleForm({
 }: NutritionScheduleFormProps) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
+  const locale = useLocale();
+  const weekdayOptions = getWeekdayOptions(locale);
   const inferred = useMemo(() => inferFromDates(initialDates), [initialDates]);
   const [weekdays, setWeekdays] = useState<number[]>(
     inferred?.weekdays ?? [new Date().getDay()]
@@ -133,9 +136,9 @@ export function NutritionScheduleForm({
       }
 
       setSuccess(
-        `Scheduled "${planTitle}" on your calendar${
-          extraDates.length > 0 ? ` (+${extraDates.length} extra date${extraDates.length === 1 ? "" : "s"})` : ""
-        }.`
+        platform.nutrition.scheduleUpdated(
+          weekdays.length * weeks + extraDates.length
+        )
       );
       onSaved?.();
     });
@@ -150,7 +153,7 @@ export function NutritionScheduleForm({
         const result = await clearNutritionSchedule(planId);
         if (result.error) setMessage(result.error);
         else {
-          setSuccess("Schedule cleared.");
+          setSuccess(platform.nutrition.scheduleCleared);
           onSaved?.();
         }
       },
@@ -171,21 +174,20 @@ export function NutritionScheduleForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Schedule on calendar</CardTitle>
+        <CardTitle className="text-base">{platform.nutrition.scheduleOnCalendar}</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Pick which days this menu appears — e.g. today and Saturday for weight loss.
+          {platform.nutrition.scheduleDescription}
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
         {initialDates.length > 0 && (
           <p className="text-sm text-muted-foreground">
-            Currently scheduled: {initialDates.length} day
-            {initialDates.length === 1 ? "" : "s"}
+            {platform.nutrition.currentlyScheduled(initialDates.length)}
           </p>
         )}
 
         <div className="space-y-2">
-          <Label>Start</Label>
+          <Label>{platform.nutrition.start}</Label>
           <div className="flex flex-wrap gap-2">
             {(["now", "next_week"] as const).map((mode) => (
               <button
@@ -206,9 +208,9 @@ export function NutritionScheduleForm({
         </div>
 
         <div className="space-y-2">
-          <Label>Repeat on</Label>
+          <Label>{platform.nutrition.repeatOn}</Label>
           <div className="flex flex-wrap gap-2">
-            {WEEKDAY_OPTIONS.map(({ label, value }) => (
+            {weekdayOptions.map(({ label, value }) => (
               <button
                 key={value}
                 type="button"
@@ -227,7 +229,7 @@ export function NutritionScheduleForm({
         </div>
 
         <div className="space-y-2">
-          <Label>Weeks</Label>
+          <Label>{platform.nutrition.weeks}</Label>
           <div className="flex flex-wrap gap-2">
             {[1, 2, 4, 8].map((n) => (
               <button
@@ -249,13 +251,13 @@ export function NutritionScheduleForm({
         </div>
 
         <div className="space-y-2">
-          <Label>Also add specific dates</Label>
+          <Label>{platform.nutrition.alsoAddDates}</Label>
           <div className="flex flex-wrap gap-2">
             {quickDates.map((dateKey) => {
               const d = new Date(dateKey + "T12:00:00");
               const label =
                 dateKey === today
-                  ? "Today"
+                  ? platform.common.today
                   : d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
               return (
                 <button
@@ -281,7 +283,7 @@ export function NutritionScheduleForm({
 
         <div className="flex flex-wrap gap-2">
           <Button disabled={isPending || weekdays.length === 0} onClick={handleSave}>
-            Save schedule
+            {platform.nutrition.saveSchedule}
           </Button>
           {initialDates.length > 0 && (
             <Button variant="outline" disabled={isPending} onClick={handleClear}>

@@ -23,34 +23,12 @@ import {
 import { MealDetailsFields } from "@/components/meal-details-fields";
 import { MealPhotoLogStep } from "@/components/meal-photo-log-step";
 import { MealTextLogStep } from "@/components/meal-text-log-step";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type LogMode = "picker" | "custom" | "library" | "photo" | "text";
-
-const PICKER_OPTIONS = [
-  {
-    mode: "text" as const,
-    label: "Type it",
-    description: '"2 eggs and a banana" — AI parses macros',
-    icon: Sparkles,
-    ai: true,
-  },
-  {
-    mode: "photo" as const,
-    label: "Photo",
-    description: "Snap a photo — AI fills in the details",
-    icon: Camera,
-    ai: true,
-  },
-  {
-    mode: "library" as const,
-    label: "From library",
-    description: "Pick a saved meal or add a new one",
-    icon: BookOpen,
-  },
-];
 
 export function LogMealDialog({
   open,
@@ -71,6 +49,7 @@ export function LogMealDialog({
   onLogged: (preview?: MealFormData) => void;
   goal?: string | null;
 }) {
+  const platform = usePlatformCopy();
   const [mode, setMode] = useState<LogMode>("picker");
   const [customFromLibrary, setCustomFromLibrary] = useState(false);
   const [form, setForm] = useState<MealFormData>(emptyMealForm());
@@ -111,9 +90,32 @@ export function LogMealDialog({
 
   if (!open || !mounted) return null;
 
+  const pickerOptions = [
+    {
+      mode: "text" as const,
+      label: platform.mealLog.typeIt,
+      description: platform.mealLog.typeItDesc,
+      icon: Sparkles,
+      ai: true,
+    },
+    {
+      mode: "photo" as const,
+      label: platform.mealLog.photoLog,
+      description: platform.mealLog.photoDesc,
+      icon: Camera,
+      ai: true,
+    },
+    {
+      mode: "library" as const,
+      label: platform.mealLog.fromLibrary,
+      description: platform.mealLog.fromLibraryDesc,
+      icon: BookOpen,
+    },
+  ];
+
   const handleLogCustom = () => {
     if (!form.name.trim()) {
-      setError("Meal name is required");
+      setError(platform.mealLog.nameRequired);
       return;
     }
     setError(null);
@@ -187,14 +189,14 @@ export function LogMealDialog({
 
   const title =
     mode === "picker"
-      ? "Log a meal"
+      ? platform.mealLog.logAMeal
       : mode === "custom"
-        ? "New meal"
+        ? platform.mealLog.newMeal
         : mode === "library"
-          ? "From library"
+          ? platform.mealLog.fromLibrary
           : mode === "text"
-            ? "Type meal"
-            : "Photo log";
+            ? platform.mealLog.typeMeal
+            : platform.mealLog.photoLog;
 
   const showBack = mode !== "picker";
   const canLogCustom =
@@ -202,10 +204,7 @@ export function LogMealDialog({
     (mode === "photo" && hasAiAccess && photoReady) ||
     (mode === "text" && hasAiAccess && textReady);
 
-  const logButtonLabel =
-    (mode === "photo" && photoReady) || (mode === "text" && textReady)
-      ? "Confirm & log meal"
-      : "Log meal";
+  const logButtonLabel = platform.mealLog.logMeal;
 
   const isPhotoReviewFullscreen = mode === "photo" && hasAiAccess && photoReady;
 
@@ -223,7 +222,7 @@ export function LogMealDialog({
           size="icon"
           className="shrink-0"
           onClick={handleBack}
-          aria-label="Go back"
+          aria-label={platform.mealLog.goBack}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -238,7 +237,7 @@ export function LogMealDialog({
       >
         {title}
       </h2>
-      <Button variant="ghost" size="icon" className="shrink-0" onClick={onClose} aria-label="Close">
+      <Button variant="ghost" size="icon" className="shrink-0" onClick={onClose} aria-label={platform.aria.close}>
         <X className="h-5 w-5" />
       </Button>
     </div>
@@ -248,7 +247,7 @@ export function LogMealDialog({
     <>
       {mode === "picker" && (
             <div className="grid gap-3">
-              {PICKER_OPTIONS.map((option) => {
+              {pickerOptions.map((option) => {
                 const Icon = option.icon;
                 const locked = option.ai && !hasAiAccess;
                 return (
@@ -281,7 +280,7 @@ export function LogMealDialog({
                           </Badge>
                         )}
                         {locked && (
-                          <Badge variant="secondary">Upgrade required</Badge>
+                          <Badge variant="secondary">{platform.ai.upgrade}</Badge>
                         )}
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
@@ -305,7 +304,7 @@ export function LogMealDialog({
                   <Plus className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold">New meal</p>
+                  <p className="font-semibold">{platform.mealLog.newMeal}</p>
                   <p className="text-sm text-muted-foreground">
                     Enter name and macros manually
                   </p>
@@ -343,7 +342,7 @@ export function LogMealDialog({
                           disabled={isPending}
                           onClick={() => handleLogFromLibrary(item.meal.id)}
                         >
-                          Add
+                          {platform.common.add}
                         </Button>
                       </li>
                     );
@@ -450,11 +449,11 @@ export function LogMealDialog({
       {error && <p className="text-sm text-red-400">{error}</p>}
       {canLogCustom ? (
         <Button className="w-full" disabled={isPending} onClick={handleLogCustom}>
-          {isPending ? "Logging…" : logButtonLabel}
+          {isPending ? platform.common.saving : logButtonLabel}
         </Button>
       ) : mode !== "picker" ? (
         <Button variant="outline" className="w-full" onClick={onClose}>
-          Close
+          {platform.common.close}
         </Button>
       ) : null}
     </div>
@@ -472,7 +471,7 @@ export function LogMealDialog({
       {!isPhotoReviewFullscreen && (
         <button
           type="button"
-          aria-label="Close"
+          aria-label={platform.aria.close}
           className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
           onClick={onClose}
         />
@@ -480,7 +479,7 @@ export function LogMealDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={isPhotoReviewFullscreen ? "Photo log" : "Log a meal"}
+        aria-label={isPhotoReviewFullscreen ? platform.mealLog.photoLog : platform.mealLog.logAMeal}
         className={cn(
           "relative z-10 flex min-h-0 flex-col overflow-hidden",
           isPhotoReviewFullscreen

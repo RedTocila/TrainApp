@@ -127,7 +127,7 @@ export const coachLabelsEn = {
   noSubscription:
     "No paid plan. You're in preview mode — Coach Alex sees you, but he's not saving your progress.",
   pickAPlan: "Pick a real plan",
-  levelUp: "Level up",
+  levelUp: "Upgrade",
   coachHasOpinions: "Coach Alex has opinions. Pay up if you want to hear them.",
   coachHasNotes: "Coach Alex has notes. You probably won't like them.",
   skipForNow: "Fine, I'll keep half-assing it",
@@ -145,4 +145,9 @@ export const coachLabelsEn = {
   workoutInProgress: "You didn't finish",
   pickUpWorkout: "Coach Alex is waiting. Don't make him wait longer.",
   surrendered: "Surrendered",
+  hydrationFail: "Hydration fail",
+  hydrationHint: "Tomorrow: drink water like Coach Alex's not watching. He is.",
+  workoutMissedHint: "Tomorrow: train before excuses wake up.",
+  tasksMissedHint: "Tomorrow: fewer excuses, more checkmarks.",
+  habitsMissedHint: "Tomorrow: do the boring stuff before Coach Alex notices again.",
 } as const;

@@ -1,5 +1,5 @@
 "use client";
-import { useCoachLabels } from "@/components/locale-provider";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
@@ -25,7 +25,7 @@ export function MissedButton({
   hint?: string;
   className?: string;
 }) {
-  const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const [open, setOpen] = useState(false);
   if (count <= 0) return null;
 
@@ -39,7 +39,7 @@ export function MissedButton({
           className
         )}
       >
-        {count} skipped
+        {platform.common.skipped(count)}
       </button>
       <MissedItemsDialog
         open={open}
@@ -66,6 +66,7 @@ export function MissedItemsDialog({
   onClose: () => void;
 }) {
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -85,7 +86,7 @@ export function MissedItemsDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        aria-label="Close"
+        aria-label={platform.aria.close}
         className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
         onClick={onClose}
       />
@@ -100,7 +101,7 @@ export function MissedItemsDialog({
             <h2 className="text-lg font-black text-red-400">{title}</h2>
             {hint && <p className="mt-1 text-sm text-muted-foreground">{hint}</p>}
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label={platform.aria.close}>
             <X className="h-5 w-5" />
           </Button>
         </div>

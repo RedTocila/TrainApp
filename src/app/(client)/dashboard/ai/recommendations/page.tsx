@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { hasPaidAccess } from "@/lib/subscription";
 import { getCoachContext } from "@/lib/ai/coach-context";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
+import { getPlatformCopy } from "@/lib/platform-copy";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { StatBar } from "@/components/ai/stat-bar";
 import { TipCard } from "@/components/ai/tip-card";
@@ -24,6 +26,9 @@ export default async function AiRecommendationsPage() {
   if (!user) return null;
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  const platform = getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale));
+  const copy = platform.aiPages;
+
   if (!profile || !hasPaidAccess(profile)) {
     return <AiUpgradeGate title="AI recommendations" />;
   }
@@ -41,15 +46,15 @@ export default async function AiRecommendationsPage() {
   if (ctx.workoutsCompleted < 3) {
     tips.push({
       icon: Dumbbell,
-      title: "Train more often",
-      body: `You completed ${ctx.workoutsCompleted}/4 workouts. Schedule 3+ sessions next week.`,
+      title: copy.trainMoreOften,
+      body: copy.trainMoreOftenBody,
       tone: "warning",
     });
   } else {
     tips.push({
       icon: TrendingUp,
-      title: "Solid training week",
-      body: `${ctx.workoutsCompleted} workouts done — keep the rhythm going.`,
+      title: copy.solidTrainingWeek,
+      body: copy.solidTrainingWeekBody,
       tone: "success",
     });
   }
@@ -57,8 +62,8 @@ export default async function AiRecommendationsPage() {
   if (ctx.avgProtein < ctx.targets.protein * 0.85) {
     tips.push({
       icon: Apple,
-      title: "Boost protein",
-      body: `Averaging ${ctx.avgProtein}g vs ${ctx.targets.protein}g target. Add protein to each meal.`,
+      title: copy.boostProtein,
+      body: copy.boostProteinBody,
       tone: "warning",
     });
   }
@@ -66,8 +71,8 @@ export default async function AiRecommendationsPage() {
   if (ctx.daysTracked < 5) {
     tips.push({
       icon: CalendarCheck,
-      title: "Track more days",
-      body: `${ctx.daysTracked}/7 days logged. Aim for 5+ for better AI coaching.`,
+      title: copy.trackMoreDays,
+      body: copy.trackMoreDaysBody,
       tone: "primary",
     });
   }
@@ -75,8 +80,8 @@ export default async function AiRecommendationsPage() {
   if (ctx.habitCompletions < 7) {
     tips.push({
       icon: Activity,
-      title: "Daily habits",
-      body: "Small daily wins build long-term consistency.",
+      title: copy.dailyHabits,
+      body: copy.dailyHabitsBody,
       tone: "default",
     });
   }
@@ -84,8 +89,8 @@ export default async function AiRecommendationsPage() {
   if (tips.length === 0 || tips.every((t) => t.tone === "success")) {
     tips.push({
       icon: Sparkles,
-      title: "Great week!",
-      body: "Keep protein steady and maintain your workout schedule.",
+      title: copy.greatWeek,
+      body: copy.greatWeekBody,
       tone: "success",
     });
   }
@@ -99,21 +104,21 @@ export default async function AiRecommendationsPage() {
             <p className="font-bold">Last 7 days</p>
           </div>
           <StatBar
-            label="Workouts"
+            label={copy.workouts}
             value={ctx.workoutsCompleted}
             max={4}
             icon={Dumbbell}
             accentClass="bg-blue-500"
           />
           <StatBar
-            label="Meals tracked"
+            label={copy.mealsTracked}
             value={ctx.daysTracked}
             max={7}
             icon={CalendarCheck}
             accentClass="bg-green-500"
           />
           <StatBar
-            label="Avg protein"
+            label={copy.avgProtein}
             value={ctx.avgProtein}
             max={ctx.targets.protein}
             unit="g"
@@ -125,7 +130,7 @@ export default async function AiRecommendationsPage() {
 
       <div className="space-y-2">
         <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Your tips
+          {platform.ai.tips}
         </p>
         {tips.map((tip) => (
           <TipCard key={tip.title} icon={tip.icon} title={tip.title} tone={tip.tone}>

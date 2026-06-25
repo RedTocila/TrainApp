@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -40,6 +40,7 @@ export function WorkoutFoldersPage({
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
@@ -96,29 +97,29 @@ export function WorkoutFoldersPage({
           <Dumbbell className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-black">Workouts</h1>
+          <h1 className="text-xl font-black">{platform.workout.title}</h1>
           <p className="text-xs text-muted-foreground">
-            {folders.length} folders · {totalWorkouts} programs
+            {platform.workout.foldersMeta(folders.length, totalWorkouts)}
           </p>
         </div>
       </div>
 
       <Card className="border-primary/15 bg-primary/5">
         <CardContent className="flex items-center gap-1 px-3 py-4">
-          <FlowStep icon={Folder} label="Folder" active />
+          <FlowStep icon={Folder} label={platform.workout.flowFolder} active />
           <div className="mb-4 h-px flex-1 bg-border" />
-          <FlowStep icon={Dumbbell} label="Program" active />
+          <FlowStep icon={Dumbbell} label={platform.workout.flowProgram} active />
           <div className="mb-4 h-px flex-1 bg-border" />
-          <FlowStep icon={Calendar} label="Schedule" active />
+          <FlowStep icon={Calendar} label={platform.workout.flowSchedule} active />
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-        <ProgramQuickTile href="/dashboard/workout/cardio" icon={HeartPulse} label="Cardio" accentClass="text-orange-400" bgClass="bg-orange-500/10" />
-        <ProgramQuickTile href="/dashboard/workout/workouts" icon={List} label="All" />
-        <ProgramQuickTile href="/dashboard/workout/exercises" icon={Library} label="Exercises" accentClass="text-violet-400" bgClass="bg-violet-500/10" />
-        <ProgramQuickTile href="/dashboard/ai/plans/workout" icon={Sparkles} label="AI plan" accentClass="text-primary" bgClass="bg-primary/10" />
-        <ProgramQuickTile icon={Plus} label="Folder" onClick={() => setShowNewFolder(true)} />
+        <ProgramQuickTile href="/dashboard/workout/cardio" icon={HeartPulse} label={platform.workout.cardioTile} accentClass="text-orange-400" bgClass="bg-orange-500/10" />
+        <ProgramQuickTile href="/dashboard/workout/workouts" icon={List} label={platform.workout.allTile} />
+        <ProgramQuickTile href="/dashboard/workout/exercises" icon={Library} label={platform.workout.exercisesTile} accentClass="text-violet-400" bgClass="bg-violet-500/10" />
+        <ProgramQuickTile href="/dashboard/ai/plans/workout" icon={Sparkles} label={platform.workout.aiPlanTile} accentClass="text-primary" bgClass="bg-primary/10" />
+        <ProgramQuickTile icon={Plus} label={platform.workout.folderTile} onClick={() => setShowNewFolder(true)} />
       </div>
 
       <div className="flex justify-end">
@@ -129,7 +130,7 @@ export function WorkoutFoldersPage({
         <Card>
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
             <Input
-              placeholder="Folder name"
+              placeholder={platform.nutrition.folderNamePlaceholder}
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -137,10 +138,10 @@ export function WorkoutFoldersPage({
             />
             <div className="flex gap-2">
               <Button onClick={handleCreate} disabled={isPending || !newFolderName.trim()}>
-                Create
+                {platform.common.create}
               </Button>
               <Button variant="outline" onClick={() => { setShowNewFolder(false); setNewFolderName(""); }}>
-                Cancel
+                {platform.common.cancel}
               </Button>
             </div>
           </CardContent>
@@ -177,10 +178,10 @@ export function WorkoutFoldersPage({
                     />
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => handleRename(folder.id)} disabled={isPending}>
-                        Save
+                        {platform.common.save}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                        Cancel
+                        {platform.common.cancel}
                       </Button>
                     </div>
                   </CardContent>
@@ -194,7 +195,7 @@ export function WorkoutFoldersPage({
                   href={`/dashboard/workout/folder/${folder.id}`}
                   name={folder.name}
                   count={folder.workoutCount}
-                  countLabel={folder.workoutCount === 1 ? "workout" : "workouts"}
+                  countLabel={folder.workoutCount === 1 ? platform.workout.workout : platform.workout.workouts}
                   icon={Folder}
                 />
                 <div className="absolute right-2 top-2 flex gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">

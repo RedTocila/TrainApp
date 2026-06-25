@@ -15,6 +15,8 @@ import {
   Wheat,
   X,
 } from "lucide-react";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
+import { getMealTypeOptions } from "@/lib/locale-labels";
 import type { MealType } from "@/lib/types";
 import type { MealFormData, MealIngredient, MealMacros } from "@/lib/meal-utils";
 import { ConfidenceBadge } from "@/components/confidence-badge";
@@ -25,40 +27,42 @@ import { cn } from "@/lib/utils";
 
 const MEAL_TYPE_META: Record<
   MealType,
-  { label: string; icon: typeof Coffee; className: string }
+  { icon: typeof Coffee; className: string }
 > = {
-  breakfast: { label: "Breakfast", icon: Coffee, className: "text-amber-400 bg-amber-500/15" },
-  lunch: { label: "Lunch", icon: Sun, className: "text-orange-400 bg-orange-500/15" },
-  dinner: { label: "Dinner", icon: Moon, className: "text-indigo-400 bg-indigo-500/15" },
-  snack: { label: "Snack", icon: UtensilsCrossed, className: "text-emerald-400 bg-emerald-500/15" },
+  breakfast: { icon: Coffee, className: "text-amber-400 bg-amber-500/15" },
+  lunch: { icon: Sun, className: "text-orange-400 bg-orange-500/15" },
+  dinner: { icon: Moon, className: "text-indigo-400 bg-indigo-500/15" },
+  snack: { icon: UtensilsCrossed, className: "text-emerald-400 bg-emerald-500/15" },
 };
 
-const MACRO_ROWS = [
-  {
-    key: "protein" as const,
-    label: "Protein",
-    icon: Beef,
-    text: "text-sky-400",
-    bar: "bg-sky-500",
-    track: "bg-sky-500/15",
-  },
-  {
-    key: "carbs" as const,
-    label: "Carbs",
-    icon: Wheat,
-    text: "text-amber-400",
-    bar: "bg-amber-500",
-    track: "bg-amber-500/15",
-  },
-  {
-    key: "fat" as const,
-    label: "Fat",
-    icon: Droplets,
-    text: "text-rose-400",
-    bar: "bg-rose-500",
-    track: "bg-rose-500/15",
-  },
-];
+function macroRows(platform: ReturnType<typeof usePlatformCopy>) {
+  return [
+    {
+      key: "protein" as const,
+      label: platform.ai.protein,
+      icon: Beef,
+      text: "text-sky-400",
+      bar: "bg-sky-500",
+      track: "bg-sky-500/15",
+    },
+    {
+      key: "carbs" as const,
+      label: platform.ai.carbs,
+      icon: Wheat,
+      text: "text-amber-400",
+      bar: "bg-amber-500",
+      track: "bg-amber-500/15",
+    },
+    {
+      key: "fat" as const,
+      label: platform.ai.fat,
+      icon: Droplets,
+      text: "text-rose-400",
+      bar: "bg-rose-500",
+      track: "bg-rose-500/15",
+    },
+  ];
+}
 
 function macroCalories(macros: MealMacros) {
   return {
@@ -147,16 +151,18 @@ function MacroBars({
   macros,
   isAdjusting,
   onMacroChange,
+  rows,
 }: {
   macros: MealMacros;
   isAdjusting: boolean;
   onMacroChange: (key: keyof MealMacros, value: number) => void;
+  rows: ReturnType<typeof macroRows>;
 }) {
   const max = Math.max(macros.protein, macros.carbs, macros.fat, 1);
 
   return (
     <div className="min-w-0 flex-1 space-y-2.5">
-      {MACRO_ROWS.map((row) => {
+      {rows.map((row) => {
         const Icon = row.icon;
         const value = macros[row.key];
         const width = Math.max(8, (value / max) * 100);
@@ -215,6 +221,14 @@ export function MealAnalysisSummary({
   onToggleAdjust: () => void;
   onRetake?: () => void;
 }) {
+  const platform = usePlatformCopy();
+  const locale = useLocale();
+  const mealTypeLabels = Object.fromEntries(
+    getMealTypeOptions(locale)
+      .filter((option) => option.value !== "all")
+      .map((option) => [option.value, option.label])
+  ) as Record<MealType, string>;
+  const rows = macroRows(platform);
   const mealMeta = MEAL_TYPE_META[form.meal_type];
   const MealIcon = mealMeta.icon;
   const ingredients = form.ingredients.filter((item) => item.name.trim());
@@ -242,7 +256,7 @@ export function MealAnalysisSummary({
         <div className="overflow-hidden rounded-2xl border border-border bg-secondary/20">
           <img
             src={imageUrl}
-            alt="Meal preview"
+            alt={platform.mealLog.mealPreview}
             className="aspect-[4/3] w-full object-cover"
           />
         </div>
@@ -268,7 +282,7 @@ export function MealAnalysisSummary({
                   value={form.name}
                   onChange={(e) => onFormChange({ ...form, name: e.target.value })}
                   className="mt-2 h-10 text-base font-bold"
-                  placeholder="Meal name"
+                  placeholder={platform.mealLog.mealName}
                 />
               ) : (
                 <h3 className="mt-1.5 text-lg font-bold leading-tight">{form.name}</h3>
@@ -282,10 +296,11 @@ export function MealAnalysisSummary({
                   }
                   className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 >
-                  <option value="breakfast">Breakfast</option>
-                  <option value="lunch">Lunch</option>
-                  <option value="dinner">Dinner</option>
-                  <option value="snack">Snack</option>
+                  {(Object.keys(mealTypeLabels) as MealType[]).map((mealType) => (
+                    <option key={mealType} value={mealType}>
+                      {mealTypeLabels[mealType]}
+                    </option>
+                  ))}
                 </select>
               ) : (
                 <span
@@ -295,7 +310,7 @@ export function MealAnalysisSummary({
                   )}
                 >
                   <MealIcon className="h-3.5 w-3.5" />
-                  {mealMeta.label}
+                  {mealTypeLabels[form.meal_type]}
                 </span>
               )}
             </div>
@@ -307,7 +322,9 @@ export function MealAnalysisSummary({
                 size="icon"
                 className="h-9 w-9 rounded-xl"
                 onClick={onToggleAdjust}
-                aria-label={isAdjusting ? "Done adjusting" : "Adjust meal details"}
+                aria-label={
+                  isAdjusting ? platform.mealLog.doneAdjusting : platform.mealLog.adjustDetails
+                }
                 aria-pressed={isAdjusting}
               >
                 <Pencil className="h-4 w-4" />
@@ -319,7 +336,7 @@ export function MealAnalysisSummary({
                   size="icon"
                   className="h-9 w-9 rounded-xl"
                   onClick={onRetake}
-                  aria-label="Retake photo"
+                  aria-label={platform.mealLog.retakePhoto}
                 >
                   <RotateCcw className="h-4 w-4" />
                 </Button>
@@ -332,7 +349,7 @@ export function MealAnalysisSummary({
               value={form.description}
               onChange={(e) => onFormChange({ ...form, description: e.target.value })}
               rows={2}
-              placeholder="Description or notes"
+              placeholder={platform.mealLog.descriptionNotes}
               className="mt-3 resize-none text-sm"
             />
           ) : (
@@ -354,6 +371,7 @@ export function MealAnalysisSummary({
             macros={form.macros}
             isAdjusting={isAdjusting}
             onMacroChange={updateMacros}
+            rows={rows}
           />
         </div>
 
@@ -385,7 +403,7 @@ export function MealAnalysisSummary({
                       size="icon"
                       className="h-9 w-9 shrink-0"
                       onClick={() => removeIngredient(index)}
-                      aria-label="Remove ingredient"
+                      aria-label={platform.mealLog.removeIngredient}
                     >
                       <X className="h-4 w-4" />
                     </Button>

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "create-admin": "node scripts/create-admin.mjs",
     "db:migrate": "node scripts/apply-migration.mjs",
+    "db:profile-unit-system": "node scripts/apply-profile-unit-system.mjs",
     "supabase:setup": "node scripts/supabase-setup.mjs",
     "sync:exercises": "node scripts/sync-exercise-catalog.mjs",
     "sync:recipes": "node scripts/sync-recipe-catalog.mjs"

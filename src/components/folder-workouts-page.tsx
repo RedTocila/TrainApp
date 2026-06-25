@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -30,6 +30,7 @@ export function FolderWorkoutsPage({
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
@@ -49,7 +50,7 @@ export function FolderWorkoutsPage({
       <Link href="/dashboard/workout">
         <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1 px-2">
           <ArrowLeft className="h-4 w-4" />
-          Folders
+          {platform.workout.foldersNav}
         </Button>
       </Link>
 
@@ -60,7 +61,9 @@ export function FolderWorkoutsPage({
           </div>
           <div>
             <h1 className="text-lg font-black">{folderName}</h1>
-            <p className="text-xs text-muted-foreground">{workouts.length} programs</p>
+            <p className="text-xs text-muted-foreground">
+              {platform.workout.programsCount(workouts.length)}
+            </p>
           </div>
         </div>
         <AddToFolderMenu
@@ -98,14 +101,14 @@ export function FolderWorkoutsPage({
                       <p className="font-semibold">{plan.title}</p>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         <Badge variant="secondary" className="text-[10px]">
-                          {days.length}d
+                          {platform.workout.daysBadge(days.length)}
                         </Badge>
                         <Badge variant="outline" className="text-[10px]">
-                          {exerciseTotal} ex
+                          {platform.workout.exBadge(exerciseTotal)}
                         </Badge>
                         {upcomingCount > 0 && (
                           <Badge className="bg-primary/15 text-[10px] text-primary">
-                            {upcomingCount} scheduled
+                            {platform.workout.scheduledBadge(upcomingCount)}
                           </Badge>
                         )}
                       </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { format, isToday } from "date-fns";
 import { Check, ListChecks, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
@@ -38,6 +38,7 @@ export function HabitsTracker({
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const { selectedDate } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
   const [habits, setHabits] = useState(initialHabits);
@@ -81,7 +82,7 @@ export function HabitsTracker({
   );
 
   const dateLabel = isToday(selectedDate)
-    ? "today"
+    ? platform.common.today
     : format(selectedDate, "MMM d");
   const doneCount = displayHabits.filter((h) => h.completed).length;
   const missedHabits = displayHabits.filter((h) => h.status === "missed");
@@ -184,25 +185,25 @@ export function HabitsTracker({
           <div>
             <CardTitle className="flex flex-wrap items-center gap-2">
               <ListChecks className="h-5 w-5 text-violet-400" />
-              Daily habits
+              {platform.habits.title}
               <MissedButton
                 count={missedCount}
                 title={coachLabels.missedHabits}
-                hint="Tomorrow: do the boring stuff before Coach Alex notices again."
+                hint={coachLabels.habitsMissedHint}
                 items={missedHabitItems}
               />
             </CardTitle>
             <p className="text-sm text-muted-foreground">
               {habits.length === 0
                 ? coachLabels.addHabitsHint
-                : `${doneCount}/${habits.length} done for ${dateLabel}`}
+                : platform.common.doneForDate(doneCount, habits.length, dateLabel)}
             </p>
           </div>
           <Button
             size="icon"
             className="h-9 w-9 shrink-0 rounded-full"
             onClick={openAdd}
-            aria-label="Add habit"
+            aria-label={platform.aria.addHabit}
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -212,7 +213,7 @@ export function HabitsTracker({
             <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-violet-300">
                 <Sparkles className="h-4 w-4" />
-                Suggested from your health profile
+                {platform.habits.suggestedFromProfile}
               </div>
               <ul className="space-y-2">
                 {suggestions.map((suggestion) => (
@@ -233,7 +234,7 @@ export function HabitsTracker({
                         disabled={isPending}
                         onClick={() => handleAddSuggestion(suggestion.id)}
                       >
-                        Add
+                        {platform.common.add}
                       </Button>
                       <Button
                         type="button"
@@ -242,7 +243,7 @@ export function HabitsTracker({
                         className="h-8 w-8"
                         disabled={isPending}
                         onClick={() => handleDismissSuggestion(suggestion.id)}
-                        aria-label="Dismiss suggestion"
+                        aria-label={platform.aria.dismissSuggestion}
                       >
                         <X className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
@@ -287,7 +288,7 @@ export function HabitsTracker({
                       {habit.completed ? (
                         <span
                           className="flex h-8 w-8 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
-                          aria-label="Completed"
+                          aria-label={platform.aria.completed}
                         >
                           <Check className="h-4 w-4" />
                         </span>
@@ -297,7 +298,7 @@ export function HabitsTracker({
                           disabled={isPending}
                           onClick={() => handleComplete(habit.id)}
                         >
-                          Done
+                          {platform.habits.done}
                         </Button>
                       ) : null}
                       <Button
@@ -307,7 +308,7 @@ export function HabitsTracker({
                         className="h-8 w-8 shrink-0"
                         disabled={isPending}
                         onClick={() => openEdit(habit)}
-                        aria-label="Edit habit"
+                        aria-label={platform.aria.editHabit}
                       >
                         <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
@@ -318,7 +319,7 @@ export function HabitsTracker({
                         className="h-8 w-8 shrink-0"
                         disabled={isPending}
                         onClick={() => handleDelete(habit.id)}
-                        aria-label="Remove habit"
+                        aria-label={platform.aria.removeHabit}
                       >
                         <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>

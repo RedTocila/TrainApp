@@ -2,6 +2,16 @@ import Link from "next/link";
 import { PLATFORM_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
+/** Split wordmark for auth cards and compact headers (e.g. RUT + INA). */
+export function BrandWordmark({ className }: { className?: string }) {
+  return (
+    <span className={className}>
+      {PLATFORM_NAME.slice(0, 3)}
+      <span className="text-primary">{PLATFORM_NAME.slice(3)}</span>
+    </span>
+  );
+}
+
 const sizeStyles = {
   sm: {
     text: "text-base",

@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { Camera, ImageIcon, ImagePlus } from "lucide-react";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -23,11 +24,15 @@ export function ImageSourceButtons({
   onSelect,
   disabled = false,
   layout = "row",
-  cameraLabel = "Take photo",
-  galleryLabel = "Gallery",
-  zoneLabel = "Add meal photo",
+  cameraLabel,
+  galleryLabel,
+  zoneLabel,
   className,
 }: ImageSourceButtonsProps) {
+  const platform = usePlatformCopy();
+  const resolvedCameraLabel = cameraLabel ?? platform.mealLog.takePhoto;
+  const resolvedGalleryLabel = galleryLabel ?? platform.mealLog.changePhoto;
+  const resolvedZoneLabel = zoneLabel ?? platform.mealLog.addMealPhoto;
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
@@ -56,7 +61,7 @@ export function ImageSourceButtons({
           type="button"
           disabled={disabled}
           onClick={() => galleryRef.current?.click()}
-          aria-label={zoneLabel}
+          aria-label={resolvedZoneLabel}
           className={cn(
             "flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-10 transition-colors",
             "hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
@@ -65,7 +70,7 @@ export function ImageSourceButtons({
           )}
         >
           <ImagePlus className="h-10 w-10 text-primary" strokeWidth={1.75} />
-          <span className="text-sm font-medium text-muted-foreground">{zoneLabel}</span>
+          <span className="text-sm font-medium text-muted-foreground">{resolvedZoneLabel}</span>
         </button>
       </>
     );
@@ -84,7 +89,7 @@ export function ImageSourceButtons({
           className={className}
         >
           <ImagePlus className="mr-1.5 h-4 w-4" />
-          {galleryLabel}
+          {resolvedGalleryLabel}
         </Button>
       </>
     );
@@ -116,7 +121,7 @@ export function ImageSourceButtons({
           className="h-8 w-8"
           disabled={disabled}
           onClick={() => cameraRef.current?.click()}
-          aria-label={cameraLabel}
+          aria-label={resolvedCameraLabel}
         >
           <Camera className="h-3.5 w-3.5" />
         </Button>
@@ -127,7 +132,7 @@ export function ImageSourceButtons({
           className="h-8 w-8"
           disabled={disabled}
           onClick={() => galleryRef.current?.click()}
-          aria-label={galleryLabel}
+          aria-label={resolvedGalleryLabel}
         >
           <ImageIcon className="h-3.5 w-3.5" />
         </Button>
@@ -146,7 +151,7 @@ export function ImageSourceButtons({
           className={cn("h-9 w-9", className)}
           disabled={disabled}
           onClick={() => galleryRef.current?.click()}
-          aria-label={galleryLabel}
+          aria-label={resolvedGalleryLabel}
         >
           <ImagePlus className="h-4 w-4" />
         </Button>
@@ -166,7 +171,7 @@ export function ImageSourceButtons({
         onClick={() => cameraRef.current?.click()}
       >
         <Camera className="mr-1.5 h-4 w-4" />
-        {cameraLabel}
+        {resolvedCameraLabel}
       </Button>
       <Button
         type="button"
@@ -177,7 +182,7 @@ export function ImageSourceButtons({
         onClick={() => galleryRef.current?.click()}
       >
         <ImageIcon className="mr-1.5 h-4 w-4" />
-        {galleryLabel}
+        {resolvedGalleryLabel}
       </Button>
     </div>
   );

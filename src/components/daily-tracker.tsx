@@ -105,12 +105,17 @@ export function DailyTracker({
   const hasMealPlan = plannedMealSlots.length > 0;
   const showMealPlanButton = hasMealPlan || awaitingCoachPdf || !!coachPdfRequestId;
 
-  const mealPlanSubtitle = nutritionPlan?.kind === "ai" ? "AI Coach plan" : nutritionPlan ? "Your meal plan" : undefined;
+  const mealPlanSubtitle =
+    nutritionPlan?.kind === "ai"
+      ? platform.nutrition.aiCoachPlan
+      : nutritionPlan
+        ? platform.nutrition.yourMealPlan
+        : undefined;
 
   const mealPlanEmptyMessage = !hasMealPlan
     ? awaitingCoachPdf
-      ? "Your coach PDF plan is still being prepared. Create or activate a personal or AI meal plan under Programs → Nutrition, or log meals with +."
-      : "No meal plan for this day yet. Build one in Programs → Nutrition or with AI Coach."
+      ? platform.nutrition.coachPdfEmpty
+      : platform.nutrition.mealPlanEmpty
     : undefined;
 
   const handleMealPlanClick = () => {
@@ -204,15 +209,19 @@ export function DailyTracker({
               {nutritionCompleted && <SectionCompletedBadge />}
               <MissedButton
                 count={waterMissed ? 1 : 0}
-                title="Hydration fail"
-                hint="Tomorrow: drink water like Coach Alex's not watching. He is."
+                title={coachLabels.hydrationFail}
+                hint={coachLabels.hydrationHint}
                 items={
                   waterMissed
                     ? [
                         {
                           id: "water",
-                          label: `Drink ${waterGoalMl.toLocaleString()} ml`,
-                          detail: `${localWaterMl.toLocaleString()} ml logged · goal by ${WATER_DEADLINE}`,
+                          label: platform.nutrition.drinkWater(waterGoalMl),
+                          detail: platform.nutrition.waterLogged(
+                            localWaterMl,
+                            waterGoalMl,
+                            WATER_DEADLINE
+                          ),
                         },
                       ]
                     : []
@@ -222,17 +231,19 @@ export function DailyTracker({
             {nutritionPlan && (
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 {nutritionPlan.title}
-                {nutritionPlan.scheduled ? " · scheduled" : ` · ${mealPlanSubtitle ?? "active"}`}
+                {nutritionPlan.scheduled
+                  ? ` · ${platform.common.scheduled}`
+                  : ` · ${mealPlanSubtitle ?? platform.common.active}`}
               </p>
             )}
             {!nutritionPlan && awaitingCoachPdf && (
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                Coach PDF plan · pending
+                {platform.nutrition.coachPdfPending}
               </p>
             )}
             {!nutritionPlan && !awaitingCoachPdf && coachPdfRequestId && (
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                Coach nutrition plan · PDF
+                {platform.nutrition.coachNutritionPdf}
               </p>
             )}
           </div>
@@ -243,7 +254,7 @@ export function DailyTracker({
                 variant="outline"
                 className="h-9 w-9 rounded-full"
                 onClick={handleMealPlanClick}
-                aria-label="View meal plan"
+                aria-label={platform.aria.viewMealPlan}
               >
                 <ClipboardList className="h-4 w-4" />
               </Button>
@@ -252,7 +263,7 @@ export function DailyTracker({
               size="icon"
               className="h-9 w-9 rounded-full"
               onClick={() => setLogMealOpen(true)}
-              aria-label="Log meal"
+              aria-label={platform.aria.logMeal}
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -271,19 +282,19 @@ export function DailyTracker({
           {waterCompleted && (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm font-medium text-green-400">
               <Check className="h-4 w-4" />
-              Water goal reached
+              {platform.nutrition.waterGoalReached}
             </div>
           )}
 
           <RecentMealsList
-            title="Meals logged"
+            title={platform.nutrition.mealsLogged}
             meals={dailyMeals}
             onDelete={handleDeleteMeal}
             onSelect={handleSelectMeal}
             onAdd={() => setLogMealOpen(true)}
             isPending={isPending}
             showHeaderAdd={false}
-            emptyHint="Tap + to log your first meal"
+            emptyHint={platform.nutrition.logFirstMealHint}
           />
         </CardContent>
       </Card>

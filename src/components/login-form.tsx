@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { signIn } from "@/lib/actions/auth";
+import { BrandWordmark } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +25,7 @@ export function LoginForm() {
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-black">
-          LEVEL<span className="text-primary">UP</span>
+          <BrandWordmark />
         </CardTitle>
         <CardDescription>Sign in to your account</CardDescription>
       </CardHeader>

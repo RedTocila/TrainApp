@@ -1,5 +1,5 @@
 "use client";
-import { useCoachLabels } from "@/components/locale-provider";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -20,6 +20,7 @@ export function PricingPageClient({
   onboarding?: boolean;
 }) {
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const subscribed = hasPaidAccess(profile);
 
@@ -44,14 +45,12 @@ export function PricingPageClient({
       <div className="space-y-2 text-center">
         {onboarding && (
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            Step 3 — Pick a package
+            {platform.pricing.step}
           </p>
         )}
-        <h1 className="text-3xl font-black tracking-tight">Choose your plan</h1>
+        <h1 className="text-3xl font-black tracking-tight">{platform.pricing.choosePlan}</h1>
         <p className="text-sm text-muted-foreground">
-          {onboarding
-            ? "Subscribe now or skip and explore your dashboard first."
-            : "Core for full tracking, or AI for plan builders, photo logging & live sessions."}
+          {onboarding ? platform.pricing.onboardingBlurb : platform.pricing.upgradeBlurb}
         </p>
       </div>
       <PricingPlans

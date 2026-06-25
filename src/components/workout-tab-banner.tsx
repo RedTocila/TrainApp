@@ -1,5 +1,5 @@
 "use client";
-import { useCoachLabels } from "@/components/locale-provider";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
@@ -35,6 +35,7 @@ export function WorkoutTabBanner({
   initialWorkoutCompleted?: boolean;
 }) {
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const { selectedDate } = useSelectedDate();
   const { version } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
@@ -90,7 +91,7 @@ export function WorkoutTabBanner({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Scheduled workout
+              {platform.workout.scheduledWorkout}
             </p>
             {workoutCompleted && <SectionCompletedBadge />}
           </div>
@@ -99,7 +100,7 @@ export function WorkoutTabBanner({
           </p>
           <p className="text-sm text-muted-foreground">
             {workout.planTitle}
-            {workoutCompleted ? " · completed" : ""}
+            {workoutCompleted ? ` ${platform.workout.completedSuffix}` : ""}
           </p>
           <div className="mt-2 flex flex-wrap gap-1">
             {workout.exercises.slice(0, 4).map((ex) => (
@@ -115,7 +116,7 @@ export function WorkoutTabBanner({
         {workoutCompleted ? (
           <span
             className="flex h-8 w-8 shrink-0 items-center justify-center self-end rounded-full border border-green-500 bg-green-500 text-white sm:self-center"
-            aria-label="Completed"
+            aria-label={platform.aria.completed}
           >
             <Check className="h-4 w-4" />
           </span>

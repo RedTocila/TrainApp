@@ -6,6 +6,7 @@ import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import { formatMealMacrosSummary, normalizeMealMacros } from "@/lib/meal-utils";
 import type { PlannedMealSlot } from "@/lib/meal-times";
 import type { Meal } from "@/lib/types";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +18,7 @@ type MealPlanItem = {
   optionLabel?: string;
 };
 
-function buildMealItems(slots: PlannedMealSlot[]): MealPlanItem[] {
+function buildMealItems(slots: PlannedMealSlot[], optionLabel: (n: number) => string): MealPlanItem[] {
   return slots.flatMap((entry) => {
     const meals =
       entry.options.length > 0 ? entry.options : entry.meal ? [entry.meal] : [];
@@ -26,12 +27,22 @@ function buildMealItems(slots: PlannedMealSlot[]): MealPlanItem[] {
       meal,
       slotLabel: entry.label,
       timeWindow: entry.timeWindow,
-      optionLabel: meals.length > 1 ? `Option ${index + 1}` : undefined,
+      optionLabel: meals.length > 1 ? optionLabel(index + 1) : undefined,
     }));
   });
 }
 
-function MealPlanItemRow({ item }: { item: MealPlanItem }) {
+function MealPlanItemRow({
+  item,
+  noMealDetails,
+  ingredientsLabel,
+  howToCookLabel,
+}: {
+  item: MealPlanItem;
+  noMealDetails: string;
+  ingredientsLabel: string;
+  howToCookLabel: string;
+}) {
   const [open, setOpen] = useState(false);
   const { meal, slotLabel, timeWindow, optionLabel } = item;
   const macros = formatMealMacrosSummary(normalizeMealMacros(meal));
@@ -78,7 +89,7 @@ function MealPlanItemRow({ item }: { item: MealPlanItem }) {
           {ingredients.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Ingredients
+                {ingredientsLabel}
               </p>
               <ul className="space-y-1.5">
                 {ingredients.map((ingredient, index) => (
@@ -99,7 +110,7 @@ function MealPlanItemRow({ item }: { item: MealPlanItem }) {
           {meal.description?.trim() && (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                How to cook
+                {howToCookLabel}
               </p>
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                 {meal.description}
@@ -112,7 +123,7 @@ function MealPlanItemRow({ item }: { item: MealPlanItem }) {
           )}
 
           {ingredients.length === 0 && !meal.description?.trim() && !meal.youtube_url && (
-            <p className="text-sm text-muted-foreground">No details added for this meal yet.</p>
+            <p className="text-sm text-muted-foreground">{noMealDetails}</p>
           )}
         </div>
       )}
@@ -127,12 +138,14 @@ export function MealPlanViewer({
   slots: PlannedMealSlot[];
   emptyMessage?: string;
 }) {
-  const items = buildMealItems(slots);
+  const platform = usePlatformCopy();
+  const mealPlan = platform.mealPlan;
+  const items = buildMealItems(slots, mealPlan.option);
 
   if (items.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        {emptyMessage ?? "No meals scheduled for this day."}
+        {emptyMessage ?? mealPlan.noMealsScheduled}
       </p>
     );
   }
@@ -140,7 +153,13 @@ export function MealPlanViewer({
   return (
     <ul className="space-y-2">
       {items.map((item) => (
-        <MealPlanItemRow key={item.id} item={item} />
+        <MealPlanItemRow
+          key={item.id}
+          item={item}
+          noMealDetails={mealPlan.noMealDetails}
+          ingredientsLabel={mealPlan.ingredients}
+          howToCookLabel={mealPlan.howToCook}
+        />
       ))}
     </ul>
   );

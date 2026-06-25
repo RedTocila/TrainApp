@@ -7,6 +7,7 @@ import {
   GET_STARTED_HREF,
   LANDING_STATS,
 } from "@/lib/landing-content";
+import { PLATFORM_NAME } from "@/lib/brand";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
 
@@ -20,7 +21,7 @@ export function LandingCta() {
           <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/15" />
           <div className="relative space-y-5">
             <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-              Ready to level up?
+              Ready for {PLATFORM_NAME}?
             </h2>
             <p className="mx-auto max-w-md text-sm text-muted-foreground">
               Answer a few questions, create your account, then pick a package — or skip straight to your dashboard.

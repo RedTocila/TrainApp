@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -38,6 +38,7 @@ export function NutritionFoldersPage({
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
@@ -94,27 +95,27 @@ export function NutritionFoldersPage({
           <Apple className="h-6 w-6 text-emerald-400" />
         </div>
         <div>
-          <h1 className="text-xl font-black">Nutrition</h1>
+          <h1 className="text-xl font-black">{platform.nutrition.title}</h1>
           <p className="text-xs text-muted-foreground">
-            {folders.length} folders · {totalMenus} day menus
+            {platform.nutrition.foldersMeta(folders.length, totalMenus)}
           </p>
         </div>
       </div>
 
       <Card className="border-emerald-500/15 bg-emerald-500/5">
         <CardContent className="flex items-center gap-1 px-3 py-4">
-          <FlowStep icon={Folder} label="Folder" active />
+          <FlowStep icon={Folder} label={platform.nutrition.flowFolder} active />
           <div className="mb-4 h-px flex-1 bg-border" />
-          <FlowStep icon={UtensilsCrossed} label="Day menu" active />
+          <FlowStep icon={UtensilsCrossed} label={platform.nutrition.flowDayMenu} active />
           <div className="mb-4 h-px flex-1 bg-border" />
-          <FlowStep icon={Calendar} label="Schedule" active />
+          <FlowStep icon={Calendar} label={platform.nutrition.flowSchedule} active />
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-4 gap-2">
-        <ProgramQuickTile href="/dashboard/nutrition/meals" icon={UtensilsCrossed} label="Meals" accentClass="text-emerald-400" bgClass="bg-emerald-500/10" />
-        <ProgramQuickTile href="/dashboard/ai/plans/nutrition" icon={Sparkles} label="AI plan" accentClass="text-primary" bgClass="bg-primary/10" />
-        <ProgramQuickTile icon={Plus} label="Folder" onClick={() => setShowNewFolder(true)} />
+        <ProgramQuickTile href="/dashboard/nutrition/meals" icon={UtensilsCrossed} label={platform.nutrition.mealsTile} accentClass="text-emerald-400" bgClass="bg-emerald-500/10" />
+        <ProgramQuickTile href="/dashboard/ai/plans/nutrition" icon={Sparkles} label={platform.nutrition.aiPlanTile} accentClass="text-primary" bgClass="bg-primary/10" />
+        <ProgramQuickTile icon={Plus} label={platform.nutrition.folderTile} onClick={() => setShowNewFolder(true)} />
       </div>
 
       <div className="flex justify-end">
@@ -125,7 +126,7 @@ export function NutritionFoldersPage({
         <Card>
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
             <Input
-              placeholder="Folder name"
+              placeholder={platform.nutrition.folderNamePlaceholder}
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -133,10 +134,10 @@ export function NutritionFoldersPage({
             />
             <div className="flex gap-2">
               <Button onClick={handleCreate} disabled={isPending || !newFolderName.trim()}>
-                Create
+                {platform.common.create}
               </Button>
               <Button variant="outline" onClick={() => { setShowNewFolder(false); setNewFolderName(""); }}>
-                Cancel
+                {platform.common.cancel}
               </Button>
             </div>
           </CardContent>
@@ -152,7 +153,7 @@ export function NutritionFoldersPage({
             <p className="font-medium">{coachLabels.noFolders}</p>
             <Button onClick={() => setShowNewFolder(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              New folder
+              {platform.nutrition.newFolder}
             </Button>
           </CardContent>
         </Card>
@@ -174,10 +175,10 @@ export function NutritionFoldersPage({
                     />
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => handleRename(folder.id)} disabled={isPending}>
-                        Save
+                        {platform.common.save}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                        Cancel
+                        {platform.common.cancel}
                       </Button>
                     </div>
                   </CardContent>
@@ -191,7 +192,7 @@ export function NutritionFoldersPage({
                   href={`/dashboard/nutrition/folder/${folder.id}`}
                   name={folder.name}
                   count={folder.planCount}
-                  countLabel={folder.planCount === 1 ? "day menu" : "day menus"}
+                  countLabel={folder.planCount === 1 ? platform.nutrition.dayMenu : platform.nutrition.dayMenus}
                   icon={Folder}
                 />
                 {!isUncategorized && (

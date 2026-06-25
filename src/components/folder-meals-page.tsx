@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -35,6 +35,7 @@ export function FolderMealsPage({
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
@@ -54,7 +55,7 @@ export function FolderMealsPage({
       <Link href="/dashboard/nutrition">
         <Button variant="ghost" size="sm" className="-ml-2 h-8 gap-1 px-2">
           <ArrowLeft className="mr-1 h-4 w-4" />
-          Folders
+          {platform.workout.foldersNav}
         </Button>
       </Link>
 
@@ -65,7 +66,9 @@ export function FolderMealsPage({
           </div>
           <div>
             <h1 className="text-lg font-black">{folderName}</h1>
-            <p className="text-xs text-muted-foreground">{plans.length} day menus</p>
+            <p className="text-xs text-muted-foreground">
+              {platform.common.dayMenus(plans.length)}
+            </p>
           </div>
         </div>
         <AddToNutritionFolderMenu

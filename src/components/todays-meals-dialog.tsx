@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { Clock, X } from "lucide-react";
+import { usePlatformCopy } from "@/components/locale-provider";
 import type { DailyMealLog, Meal } from "@/lib/types";
 import { formatMealMacrosSummary, normalizeMealMacros } from "@/lib/meal-utils";
 import {
@@ -31,6 +32,7 @@ export function TodaysMealsDialog({
   dateKey,
   onClose,
 }: TodaysMealsDialogProps) {
+  const platform = usePlatformCopy();
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -62,24 +64,24 @@ export function TodaysMealsDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        aria-label="Close"
+        aria-label={platform.aria.close}
         className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="What to eat today"
+        aria-label={platform.mealLog.whatToEatToday}
         className="relative z-10 flex max-h-[min(85vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
       >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-lg font-black">What to eat</h2>
+            <h2 className="text-lg font-black">{platform.mealLog.whatToEatToday}</h2>
             {planTitle && (
               <p className="text-sm text-muted-foreground">{planTitle}</p>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label={platform.aria.close}>
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -169,7 +171,7 @@ export function TodaysMealsDialog({
 
         <div className="border-t border-border px-5 py-3">
           <Button variant="outline" className="w-full" onClick={onClose}>
-            Close
+            {platform.common.close}
           </Button>
         </div>
       </div>

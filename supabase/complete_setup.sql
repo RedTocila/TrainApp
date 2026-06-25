@@ -526,6 +526,27 @@ from auth.users
 where lower(email) = lower('redtocila@gmail.com')
 on conflict (id) do update set role = 'admin';
 
+-- Profile preferences (language + units)
+alter table public.profiles
+  add column if not exists unit_system text not null default 'metric';
+
+alter table public.profiles
+  drop constraint if exists profiles_unit_system_values;
+
+alter table public.profiles
+  add constraint profiles_unit_system_values
+  check (unit_system in ('metric', 'imperial'));
+
+alter table public.profiles
+  add column if not exists preferred_locale text not null default 'al';
+
+alter table public.profiles
+  drop constraint if exists profiles_preferred_locale_values;
+
+alter table public.profiles
+  add constraint profiles_preferred_locale_values
+  check (preferred_locale in ('al', 'en'));
+
 -- =============================================================================
 -- DONE
 -- =============================================================================

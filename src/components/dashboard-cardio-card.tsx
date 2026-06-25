@@ -81,20 +81,20 @@ export function DashboardCardioCard({ clientId }: { clientId: string }) {
         <div className="flex shrink-0 items-center gap-2">
           <Link href="/dashboard/workout/cardio">
             <Button size="sm" variant="outline">
-              My cardio
+              {platform.workout.myCardio}
             </Button>
           </Link>
           {cardio && (
             completed ? (
               <span
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
-                aria-label="Completed"
+                aria-label={platform.aria.completed}
               >
                 <Check className="h-4 w-4" />
               </span>
             ) : (
               <Button size="sm" disabled={isPending} onClick={handleToggle}>
-                Done
+                {platform.common.done}
               </Button>
             )
           )}
@@ -109,7 +109,7 @@ export function DashboardCardioCard({ clientId }: { clientId: string }) {
                   {cardio.title}
                 </p>
                 {cardio.duration_minutes != null && (
-                  <Badge variant="secondary">{cardio.duration_minutes} min</Badge>
+                  <Badge variant="secondary">{platform.common.min(cardio.duration_minutes)}</Badge>
                 )}
               </div>
               {cardio.description && (
@@ -125,7 +125,7 @@ export function DashboardCardioCard({ clientId }: { clientId: string }) {
             <p className="text-sm text-muted-foreground">{coachLabels.noCardioToday}</p>
             <Link href="/dashboard/workout/cardio" className="mt-2 inline-block">
               <Button size="sm" variant="outline" className="mt-2">
-                Add & schedule cardio
+                {platform.workout.addScheduleCardio}
               </Button>
             </Link>
           </div>

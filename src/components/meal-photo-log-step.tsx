@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Loader2, Sparkles } from "lucide-react";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { analyzeMealPhotoAction } from "@/lib/actions/ai-meal";
 import { compressImageFile, fileToDataUrl } from "@/lib/image-compress";
 import { type MealFormData } from "@/lib/meal-utils";
@@ -26,6 +27,7 @@ export function MealPhotoLogStep({
   confidence: number | null;
   onConfidenceChange: (value: number | null) => void;
 }) {
+  const platform = usePlatformCopy();
   const [phase, setPhase] = useState<PhotoPhase>("capture");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAdjusting, setIsAdjusting] = useState(false);
@@ -41,7 +43,7 @@ export function MealPhotoLogStep({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      onError("Please choose an image file");
+      onError(platform.mealLog.chooseImage);
       return;
     }
 
@@ -56,20 +58,20 @@ export function MealPhotoLogStep({
       setPreviewUrl(dataUrl);
       setPhaseWithReady("capture");
     } catch {
-      onError("Could not process that photo. Try another image.");
+      onError(platform.mealLog.processFailed);
       setPhaseWithReady("capture");
     }
   };
 
   const handleAnalyze = () => {
     if (!previewUrl) {
-      onError("Take or choose a photo first");
+      onError(platform.mealLog.takePhotoFirst);
       return;
     }
 
     const match = previewUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
     if (!match) {
-      onError("Could not read the photo");
+      onError(platform.mealLog.readFailed);
       return;
     }
 
@@ -90,7 +92,7 @@ export function MealPhotoLogStep({
         setIsAdjusting(false);
         setPhaseWithReady("review");
       } catch {
-        onError("Upload failed — the photo may be too large. Try again or use a smaller image.");
+        onError(platform.mealLog.uploadTooLarge);
         setPhaseWithReady("capture");
       }
     });
@@ -137,7 +139,7 @@ export function MealPhotoLogStep({
       {previewUrl ? (
         <img
           src={previewUrl}
-          alt="Meal preview"
+          alt={platform.mealLog.mealPreview}
           className="mx-auto max-h-52 w-full rounded-xl border border-border object-cover"
         />
       ) : phase !== "compressing" ? (
@@ -145,7 +147,7 @@ export function MealPhotoLogStep({
           layout="zone"
           onSelect={(file) => void handleFile(file)}
           disabled={phase === "analyzing"}
-          zoneLabel="Add meal photo"
+          zoneLabel={platform.mealLog.addMealPhoto}
         />
       ) : null}
 
@@ -155,7 +157,7 @@ export function MealPhotoLogStep({
             layout="button"
             onSelect={(file) => void handleFile(file)}
             disabled={phase === "analyzing" || phase === "compressing"}
-            galleryLabel="Change photo"
+            galleryLabel={platform.mealLog.changePhoto}
           />
           <Button type="button" variant="ghost" size="sm" onClick={handleRetake}>
             Clear

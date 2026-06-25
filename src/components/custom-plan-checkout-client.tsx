@@ -5,12 +5,13 @@ import { GuestCheckoutForm } from "@nebula-ltd/pok-payments-js/react";
 import type { PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
 import { Lock } from "lucide-react";
 import { useState } from "react";
+import { usePlatformCopy } from "@/components/locale-provider";
 import type { PlanRequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { getPokPayClientEnv } from "@/lib/pokpay/env";
 
-function formatPokPayError(err: unknown): string {
-  if (!err || typeof err !== "object") return "Payment failed. Please try again.";
+function formatPokPayError(err: unknown, paymentFailed: string): string {
+  if (!err || typeof err !== "object") return paymentFailed;
   const anyErr = err as Record<string, unknown>;
   const message = typeof anyErr.message === "string" ? anyErr.message : null;
   const code = typeof anyErr.code === "string" ? anyErr.code : null;
@@ -24,7 +25,7 @@ function formatPokPayError(err: unknown): string {
         : null;
 
   return [
-    message ?? "Payment failed.",
+    message ?? paymentFailed,
     code ? `code=${code}` : null,
     statusCode ? `status=${statusCode}` : null,
     details ? `details=${details}` : null,
@@ -44,6 +45,7 @@ export function CustomPlanCheckoutClient({
   planType: PlanRequestType;
   locale: "al" | "en";
 }) {
+  const platform = usePlatformCopy();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +74,7 @@ export function CustomPlanCheckoutClient({
           orderId={pokpayOrderId}
           onSuccess={() => router.push(successUrl)}
           onError={(paymentError: PaymentErrorResponse) => {
-            setError(formatPokPayError(paymentError));
+            setError(formatPokPayError(paymentError, platform.checkout.paymentFailed));
           }}
           options={{
             env: getPokPayClientEnv(),

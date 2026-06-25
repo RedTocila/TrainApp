@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import { useState, useTransition } from "react";
 import { LogOut } from "lucide-react";
@@ -16,6 +16,7 @@ export function SignOutButton({
   className?: string;
 }) {
   const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -39,7 +40,7 @@ export function SignOutButton({
           )}
         >
           <LogOut className="h-4 w-4" />
-          Give up
+          {coachLabels.giveUp}
         </button>
         <SarcasticGiveUpDialog
           open={open}
@@ -64,7 +65,7 @@ export function SignOutButton({
         onClick={() => setOpen(true)}
       >
         <LogOut className="h-4 w-4" />
-        Give up
+        {coachLabels.giveUp}
       </Button>
       <SarcasticGiveUpDialog
         open={open}

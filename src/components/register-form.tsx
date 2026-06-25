@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Mail, Sparkles } from "lucide-react";
 import { completeRegistration } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
+import { BrandWordmark } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -142,7 +143,7 @@ export function RegisterForm() {
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-black">
-          JOIN <span className="text-primary">RUTINA</span>
+          JOIN <BrandWordmark />
         </CardTitle>
         <CardDescription>
           {intakeJson

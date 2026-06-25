@@ -10,6 +10,8 @@ import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { categoryStyles } from "@/lib/class-utils";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
+import { getPlatformCopy } from "@/lib/platform-copy";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiAccess } from "@/lib/subscription";
 import { ArrowLeft } from "lucide-react";
@@ -33,13 +35,15 @@ export default async function ClassDetailPage({
     .eq("id", user!.id)
     .single();
 
+  const platform = getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale));
+
   if (!profile || !hasAiAccess(profile)) {
     return (
       <PageTransition>
         <div className="mx-auto max-w-2xl space-y-4">
           <AiUpgradeGate
             title={`${PLATFORM_AI_NAME} required for live coaching`}
-            description="Upgrade to the €19/month AI plan to join live coaching sessions and watch replays."
+            description={platform.classes.upgradeDescriptionShort}
           />
         </div>
       </PageTransition>

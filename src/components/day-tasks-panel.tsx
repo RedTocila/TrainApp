@@ -97,11 +97,11 @@ export function DayTasksPanel({
                         : "text-amber-400"
                   )}
                 >
-                  {allDone ? "Completed" : dayEnded ? "Incomplete" : "In progress"}
+                  {allDone ? platform.common.completed : dayEnded ? platform.common.incomplete : platform.common.inProgress}
                 </span>
                 {!allDone && (
                   <span className="text-sm font-medium text-muted-foreground">
-                    {completed.length}/{tasks.length} completed
+                    {platform.common.completedCount(completed.length, tasks.length)}
                   </span>
                 )}
               </>
@@ -111,14 +111,14 @@ export function DayTasksPanel({
             <MissedButton
               count={missed.length}
               title={coachLabels.missedTasks}
-              hint="Tomorrow: fewer excuses, more checkmarks."
+              hint={coachLabels.tasksMissedHint}
               items={missedTaskItems}
             />
             <button
               type="button"
               onClick={() => setOpen((prev) => !prev)}
               className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              aria-label={open ? "Collapse tasks" : "Expand tasks"}
+              aria-label={open ? platform.aria.collapseTasks : platform.aria.expandTasks}
             >
               <ChevronDown
                 className={cn("h-5 w-5 transition-transform", open && "rotate-180")}

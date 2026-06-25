@@ -3,17 +3,11 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUp, ExternalLink, Globe, Loader2, UserRound } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
+import { usePlatformCopy } from "@/components/locale-provider";
 import type { ChatMessage, WebSource } from "@/lib/ai/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
-const STARTER_PROMPTS = [
-  "How should I structure my weekly workouts?",
-  "What should I eat after training?",
-  "How can I hit my protein goal?",
-  "Tips for staying consistent?",
-];
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
 
@@ -53,7 +47,15 @@ function renderLinkedText(content: string) {
   return parts.length > 0 ? parts : text;
 }
 
-const ChatSources = memo(function ChatSources({ sources }: { sources: WebSource[] }) {
+const ChatSources = memo(function ChatSources({
+  sources,
+  sourcesLabel,
+  webSourcesAria,
+}: {
+  sources: WebSource[];
+  sourcesLabel: (n: number) => string;
+  webSourcesAria: (n: number) => string;
+}) {
   const [open, setOpen] = useState(false);
 
   if (sources.length === 0) return null;
@@ -65,10 +67,10 @@ const ChatSources = memo(function ChatSources({ sources }: { sources: WebSource[
         onClick={() => setOpen((v) => !v)}
         className="inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
         aria-expanded={open}
-        aria-label={`${sources.length} web sources`}
+        aria-label={webSourcesAria(sources.length)}
       >
         <Globe className="h-3.5 w-3.5" />
-        {sources.length} source{sources.length === 1 ? "" : "s"}
+        {sourcesLabel(sources.length)}
       </button>
       {open && (
         <ul className="mt-2 space-y-2">
@@ -100,7 +102,15 @@ const ChatSources = memo(function ChatSources({ sources }: { sources: WebSource[
   );
 });
 
-const ChatBubble = memo(function ChatBubble({ message }: { message: ChatMessage }) {
+const ChatBubble = memo(function ChatBubble({
+  message,
+  sourcesLabel,
+  webSourcesAria,
+}: {
+  message: ChatMessage;
+  sourcesLabel: (n: number) => string;
+  webSourcesAria: (n: number) => string;
+}) {
   if (message.role === "assistant" && !message.content.trim()) {
     return null;
   }
@@ -133,7 +143,11 @@ const ChatBubble = memo(function ChatBubble({ message }: { message: ChatMessage 
             : message.content}
         </p>
         {message.role === "assistant" && message.sources && message.sources.length > 0 && (
-          <ChatSources sources={message.sources} />
+          <ChatSources
+            sources={message.sources}
+            sourcesLabel={sourcesLabel}
+            webSourcesAria={webSourcesAria}
+          />
         )}
       </div>
     </div>
@@ -141,6 +155,9 @@ const ChatBubble = memo(function ChatBubble({ message }: { message: ChatMessage 
 });
 
 export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
+  const platform = usePlatformCopy();
+  const ai = platform.ai;
+  const starterPrompts = [...ai.starterPrompts];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -184,11 +201,11 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Could not reach AI Coach");
+        throw new Error(payload?.error ?? ai.chatUnreachable);
       }
 
       if (!response.body) {
-        throw new Error("No response stream");
+        throw new Error(ai.noStream);
       }
 
       setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
@@ -246,7 +263,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
       }
     } catch (err) {
       if (controller.signal.aborted) return;
-      const msg = err instanceof Error ? err.message : "AI request failed";
+      const msg = err instanceof Error ? err.message : ai.requestFailed;
       setError(msg);
       setMessages((prev) => {
         let next = [...prev];
@@ -290,10 +307,10 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               <div className="space-y-4 py-4 text-center">
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
                 <div>
-                  <p className="font-bold">Ask Alex</p>
+                  <p className="font-bold">{ai.askAlex}</p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {STARTER_PROMPTS.map((prompt) => (
+                  {starterPrompts.map((prompt) => (
                     <button
                       key={prompt}
                       type="button"
@@ -309,7 +326,12 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             )}
 
             {messages.map((message, index) => (
-              <ChatBubble key={`${message.role}-${index}`} message={message} />
+              <ChatBubble
+                key={`${message.role}-${index}`}
+                message={message}
+                sourcesLabel={ai.sources}
+                webSourcesAria={platform.aria.webSources}
+              />
             ))}
 
             {isStreaming &&
@@ -319,7 +341,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                 <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
                 <div className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-3.5 py-2.5 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {pendingWebSearch ? "Searching & thinking…" : "Thinking…"}
+                  {pendingWebSearch ? ai.searching : ai.thinking}
                 </div>
               </div>
             )}
@@ -333,7 +355,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about workouts, nutrition, recovery…"
+                placeholder={ai.placeholder}
                 rows={1}
                 disabled={isStreaming}
                 className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3.5 pr-12 shadow-none focus-visible:ring-0"
@@ -341,7 +363,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               <button
                 type="submit"
                 disabled={isStreaming || !input.trim()}
-                aria-label="Send message"
+                aria-label={platform.aria.sendMessage}
                 className={cn(
                   "absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full transition-colors",
                   input.trim() && !isStreaming
@@ -357,7 +379,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               </button>
             </div>
             <p className="mt-2 bg-amber-50 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:bg-amber-500/10">
-              I can&apos;t give medical advice. For that consult with a doctor, not me.
+              {ai.medicalDisclaimer}
             </p>
           </form>
         </div>
@@ -372,10 +394,10 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               <div className="space-y-4 py-4 text-center">
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
                 <div>
-                  <p className="font-bold">Ask Alex</p>
+                  <p className="font-bold">{ai.askAlex}</p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {STARTER_PROMPTS.map((prompt) => (
+                  {starterPrompts.map((prompt) => (
                     <button
                       key={prompt}
                       type="button"
@@ -391,7 +413,12 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             )}
 
             {messages.map((message, index) => (
-              <ChatBubble key={`${message.role}-${index}`} message={message} />
+              <ChatBubble
+                key={`${message.role}-${index}`}
+                message={message}
+                sourcesLabel={ai.sources}
+                webSourcesAria={platform.aria.webSources}
+              />
             ))}
 
             {isStreaming &&
@@ -401,7 +428,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                 <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
                 <div className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-3.5 py-2.5 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {pendingWebSearch ? "Searching & thinking…" : "Thinking…"}
+                  {pendingWebSearch ? ai.searching : ai.thinking}
                 </div>
               </div>
             )}
@@ -418,7 +445,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about workouts, nutrition, recovery…"
+                placeholder={ai.placeholder}
                 rows={1}
                 disabled={isStreaming}
                 className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3.5 pr-12 shadow-none focus-visible:ring-0"
@@ -426,7 +453,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               <button
                 type="submit"
                 disabled={isStreaming || !input.trim()}
-                aria-label="Send message"
+                aria-label={platform.aria.sendMessage}
                 className={cn(
                   "absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full transition-colors",
                   input.trim() && !isStreaming
@@ -442,7 +469,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               </button>
             </div>
             <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:bg-amber-500/10">
-              I can&apos;t give medical advice. For that consult with a doctor, not me.
+              {ai.medicalDisclaimer}
             </p>
           </form>
         </CardContent>

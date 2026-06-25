@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -10,8 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
+import { getWeekdayOptions } from "@/lib/locale-labels";
 import {
-  WEEKDAY_OPTIONS,
   describeSchedulePreview,
   formatScheduleAnchorLabel,
   getScheduleAnchorDate,
@@ -39,10 +39,14 @@ export function WorkoutScheduleForm({
   onSaved,
   showBackButton,
   onBack,
-  saveLabel = "Save schedule",
+  saveLabel,
 }: WorkoutScheduleFormProps) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
+  const locale = useLocale();
+  const weekdayOptions = getWeekdayOptions(locale);
+  const resolvedSaveLabel = saveLabel ?? platform.workout.saveSchedule;
   const [dayId, setDayId] = useState(
     initialSchedule?.dayId ?? days[0]?.id ?? ""
   );
@@ -109,8 +113,8 @@ export function WorkoutScheduleForm({
       } else if (result.success) {
         setSuccess(
           initialSchedule
-            ? "Schedule updated."
-            : `Scheduled ${"count" in result ? result.count : 0} session${"count" in result && result.count === 1 ? "" : "s"}.`
+            ? platform.workout.scheduleUpdated
+            : platform.workout.scheduleSaved("count" in result ? result.count : 0)
         );
         onSaved?.();
       }
@@ -127,7 +131,7 @@ export function WorkoutScheduleForm({
         if (result.error) {
           setMessage(result.error);
         } else {
-          setSuccess("Upcoming sessions removed.");
+          setSuccess(platform.workout.sessionsRemoved);
           onSaved?.();
         }
       },
@@ -137,7 +141,7 @@ export function WorkoutScheduleForm({
   if (days.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Save at least one workout day before scheduling.
+        {platform.workout.saveDaysFirst}
       </p>
     );
   }
@@ -146,19 +150,17 @@ export function WorkoutScheduleForm({
     <div className="space-y-5">
       {initialSchedule && (
         <p className="rounded-lg bg-secondary/60 px-3 py-2 text-sm text-muted-foreground">
-          {initialSchedule.upcomingCount} upcoming session
-          {initialSchedule.upcomingCount === 1 ? "" : "s"} scheduled. Changes
-          replace future sessions only.
+          {platform.workout.upcomingSessions(initialSchedule.upcomingCount)}
         </p>
       )}
 
       <div className="space-y-2">
-        <Label>When to start</Label>
+        <Label>{platform.workout.whenToStart}</Label>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {(
             [
-              { mode: "now" as const, label: "Start right now" },
-              { mode: "next_week" as const, label: "Next week (Monday)" },
+              { mode: "now" as const, label: platform.workout.startNow },
+              { mode: "next_week" as const, label: platform.workout.startNextMonday },
             ] as const
           ).map(({ mode, label }) => (
             <button
@@ -182,7 +184,7 @@ export function WorkoutScheduleForm({
       </div>
 
       <div className="space-y-2">
-        <Label>Workout day</Label>
+        <Label>{platform.workout.workoutDay}</Label>
         <select
           value={dayId}
           onChange={(e) => setDayId(e.target.value)}
@@ -197,9 +199,9 @@ export function WorkoutScheduleForm({
       </div>
 
       <div className="space-y-2">
-        <Label>Repeat on these days</Label>
+        <Label>{platform.workout.repeatDays}</Label>
         <div className="flex flex-wrap gap-2">
-          {WEEKDAY_OPTIONS.map(({ label, value }) => (
+          {weekdayOptions.map(({ label, value }) => (
             <button
               key={value}
               type="button"
@@ -218,7 +220,7 @@ export function WorkoutScheduleForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="schedule-weeks">Repeat for how many weeks?</Label>
+        <Label htmlFor="schedule-weeks">{platform.workout.repeatWeeks}</Label>
         <select
           id="schedule-weeks"
           value={weeks}
@@ -243,7 +245,7 @@ export function WorkoutScheduleForm({
       <div className="flex flex-wrap gap-2">
         {showBackButton && onBack && (
           <Button variant="outline" onClick={onBack}>
-            Back
+            {platform.common.back}
           </Button>
         )}
         {initialSchedule && (
@@ -261,7 +263,7 @@ export function WorkoutScheduleForm({
           onClick={handleSave}
           disabled={isPending || !dayId || weekdays.length === 0}
         >
-          {saveLabel}
+          {resolvedSaveLabel}
         </Button>
       </div>
       {giveUpDialog}

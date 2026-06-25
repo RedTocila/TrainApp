@@ -367,7 +367,7 @@ export async function getAllClients() {
   const { data } = await supabase
     .from("profiles")
     .select(
-      "id, role, full_name, avatar_url, goal, unit_system, age, gender, height_cm, intake_weight_kg, vices, injuries, medical_conditions, daily_routine, work_schedule, water_goal_ml, target_calories, target_protein, target_carbs, target_fat, subscription_plan, subscription_status, subscription_interval, subscription_expires_at, phone, dismissed_habit_suggestions, intake_responses, created_at"
+      "id, role, full_name, avatar_url, goal, age, gender, height_cm, intake_weight_kg, vices, injuries, medical_conditions, daily_routine, work_schedule, water_goal_ml, target_calories, target_protein, target_carbs, target_fat, subscription_plan, subscription_status, subscription_interval, subscription_expires_at, phone, dismissed_habit_suggestions, intake_responses, created_at"
     )
     .eq("role", "client")
     .order("created_at", { ascending: false });

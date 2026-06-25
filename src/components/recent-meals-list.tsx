@@ -1,5 +1,5 @@
 "use client";
-import { useCoachLabels } from "@/components/locale-provider";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { Apple, Plus, Salad, Trash2, UtensilsCrossed } from "lucide-react";
 import { formatMealMacrosSummary, normalizeMealMacros } from "@/lib/meal-utils";
@@ -20,7 +20,7 @@ export function RecentMealsList({
   onSelect,
   onAdd,
   isPending,
-  title = "Recently logged",
+  title,
   emptyHint,
   showHeaderAdd = true,
 }: {
@@ -34,6 +34,8 @@ export function RecentMealsList({
   showHeaderAdd?: boolean;
 }) {
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
+  const resolvedTitle = title ?? platform.nutrition.recentlyLogged;
   const resolvedEmptyHint = emptyHint ?? coachLabels.logFirstMeal;
   if (meals.length === 0) {
     return (
@@ -46,7 +48,7 @@ export function RecentMealsList({
           <Salad className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <p className="text-sm font-medium">{title}</p>
+          <p className="text-sm font-medium">{resolvedTitle}</p>
           <p className="text-xs text-muted-foreground">{resolvedEmptyHint}</p>
         </div>
         {onAdd && (
@@ -61,11 +63,11 @@ export function RecentMealsList({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold">{title}</h3>
+        <h3 className="text-sm font-bold">{resolvedTitle}</h3>
         {showHeaderAdd && onAdd && (
           <Button variant="ghost" size="sm" className="h-8 gap-1 text-primary" onClick={onAdd}>
             <Plus className="h-4 w-4" />
-            Add
+            {platform.common.add}
           </Button>
         )}
       </div>
@@ -89,7 +91,7 @@ export function RecentMealsList({
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   onClick={() => onSelect?.(meal)}
                   disabled={!interactive}
-                  aria-label={interactive ? `View insights for ${meal.name}` : undefined}
+                  aria-label={interactive ? platform.aria.mealInsights(meal.name) : undefined}
                 >
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                     <Icon className="h-5 w-5 text-primary" />
@@ -116,7 +118,7 @@ export function RecentMealsList({
                       e.stopPropagation();
                       onDelete(meal.id);
                     }}
-                    aria-label={`Remove ${meal.name}`}
+                    aria-label={platform.aria.removeMeal(meal.name)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

@@ -27,6 +27,7 @@ export function ProfileSettings({
   phone,
   goal,
   preferredLocale = "al",
+  unitSystem = "metric",
   showHeader = true,
 }: {
   fullName: string;
@@ -34,6 +35,7 @@ export function ProfileSettings({
   phone?: string | null;
   goal: string | null;
   preferredLocale?: CheckoutLocale;
+  unitSystem?: "metric" | "imperial";
   showHeader?: boolean;
 }) {
   const platform = usePlatformCopy();
@@ -145,7 +147,7 @@ export function ProfileSettings({
               <select
                 id="unit_system"
                 name="unit_system"
-                defaultValue={"metric"}
+                defaultValue={unitSystem}
                 className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <option value="metric">{platform.settings.metric}</option>

@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPaidAccess } from "@/lib/subscription";
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { computeProgressPrediction } from "@/lib/ai/progress-prediction";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
+import { getPlatformCopy } from "@/lib/platform-copy";
 import { formatDateKey } from "@/lib/utils";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { ScoreGauge } from "@/components/ai/score-gauge";
@@ -17,8 +19,11 @@ export default async function AiPredictionsPage() {
   if (!user) return null;
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  const platform = getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale));
+  const copy = platform.aiPages;
+
   if (!profile || !hasPaidAccess(profile)) {
-    return <AiUpgradeGate title="AI progress predictions" />;
+    return <AiUpgradeGate title={copy.predictionsTitle} />;
   }
 
   const today = formatDateKey(new Date());
@@ -47,7 +52,7 @@ export default async function AiPredictionsPage() {
             {prediction.goal_progress_pct != null && (
               <ScoreGauge
                 score={prediction.goal_progress_pct}
-                label="Goal progress"
+                label={copy.goalProgress}
                 colorClass="text-primary"
                 size="lg"
               />

@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Plus, Trash2, X } from "lucide-react";
@@ -20,19 +20,12 @@ import {
   type MealFormData,
 } from "@/lib/meal-utils";
 import type { MealType } from "@/lib/types";
+import { getMealTypeOptions } from "@/lib/locale-labels";
 import { MealDetailsFields } from "@/components/meal-details-fields";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-const MEAL_TYPES: { value: MealType | "all"; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "breakfast", label: "Breakfast" },
-  { value: "lunch", label: "Lunch" },
-  { value: "dinner", label: "Dinner" },
-  { value: "snack", label: "Snack" },
-];
 
 function EditMealDialog({
   item,
@@ -45,6 +38,7 @@ function EditMealDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const platform = usePlatformCopy();
   const [form, setForm] = useState<MealFormData>(emptyMealForm());
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -72,7 +66,7 @@ function EditMealDialog({
 
   const handleSave = () => {
     if (!form.name.trim()) {
-      setError("Meal name is required");
+      setError(platform.meals.nameRequired);
       return;
     }
     setError(null);
@@ -91,13 +85,13 @@ function EditMealDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        aria-label="Close"
+        aria-label={platform.aria.close}
         className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
         onClick={onClose}
       />
       <div className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-lg font-black">Edit meal</h2>
+          <h2 className="text-lg font-black">{platform.meals.editMeal}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
@@ -121,10 +115,10 @@ function EditMealDialog({
         </div>
         <div className="flex gap-2 border-t border-border px-5 py-4">
           <Button variant="outline" className="flex-1" onClick={onClose}>
-            Cancel
+            {platform.common.cancel}
           </Button>
           <Button className="flex-1" disabled={isPending} onClick={handleSave}>
-            {isPending ? "Saving…" : "Save"}
+            {isPending ? platform.common.saving : platform.common.save}
           </Button>
         </div>
       </div>
@@ -145,6 +139,7 @@ function AddMealToFolderDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const platform = usePlatformCopy();
   const [step, setStep] = useState<"folder" | "plan">("folder");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [plans, setPlans] = useState<{ id: string; title: string }[]>([]);
@@ -223,7 +218,7 @@ function AddMealToFolderDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        aria-label="Close"
+        aria-label={platform.aria.close}
         className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
         onClick={onClose}
       />
@@ -231,7 +226,7 @@ function AddMealToFolderDialog({
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Add to folder
+              {platform.meals.addToFolder}
             </p>
             <h2 className="text-lg font-black">{item.meal.name}</h2>
           </div>
@@ -244,7 +239,7 @@ function AddMealToFolderDialog({
           {step === "folder" ? (
             <>
               <p className="mb-3 text-sm text-muted-foreground">
-                Choose a folder to add this meal to.
+                {platform.meals.whichFolder}
               </p>
               <div className="space-y-2">
                 {folders.map((folder) => (
@@ -256,7 +251,7 @@ function AddMealToFolderDialog({
                   >
                     <span className="font-medium">{folder.name}</span>
                     {folder.id === item.folderId && (
-                      <Badge variant="secondary">Current</Badge>
+                      <Badge variant="secondary">{platform.common.current}</Badge>
                     )}
                   </button>
                 ))}
@@ -269,13 +264,13 @@ function AddMealToFolderDialog({
                 className="mb-3 text-sm text-primary hover:underline"
                 onClick={() => setStep("folder")}
               >
-                ← Back to folders
+                {platform.meals.backTo(platform.workout.foldersNav)}
               </button>
               <p className="mb-3 text-sm text-muted-foreground">
-                Add a copy of this meal to a plan in {folderName}.
+                {platform.meals.addCopyHint}
               </p>
               {loadingPlans ? (
-                <p className="text-sm text-muted-foreground">Loading plans…</p>
+                <p className="text-sm text-muted-foreground">{platform.meals.loadingPlans}</p>
               ) : (
                 <div className="space-y-2">
                   {plans
@@ -297,7 +292,7 @@ function AddMealToFolderDialog({
                     onClick={handleNewPlan}
                     className="flex w-full rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-left font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
                   >
-                    + New meal plan in {folderName}
+                    {platform.meals.newMealPlanIn(folderName)}
                   </button>
                 </div>
               )}
@@ -323,6 +318,7 @@ function CreateMealDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const platform = usePlatformCopy();
   const [step, setStep] = useState<"details" | "folder" | "plan">("details");
   const [form, setForm] = useState<MealFormData>(emptyMealForm());
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -355,7 +351,7 @@ function CreateMealDialog({
 
   const goToFolderStep = () => {
     if (!form.name.trim()) {
-      setError("Meal name is required");
+      setError(platform.meals.nameRequired);
       return;
     }
     setError(null);
@@ -411,7 +407,7 @@ function CreateMealDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        aria-label="Close"
+        aria-label={platform.aria.close}
         className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
         onClick={onClose}
       />
@@ -420,13 +416,13 @@ function CreateMealDialog({
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
               {step === "details"
-                ? "New meal"
+                ? platform.meals.newMeal
                 : step === "folder"
-                  ? "Choose folder"
-                  : "Choose plan"}
+                  ? platform.meals.chooseFolder
+                  : platform.meals.choosePlan}
             </p>
             <h2 className="text-lg font-black">
-              {step === "details" ? "Add meal" : form.name}
+              {step === "details" ? platform.meals.addMeal : form.name}
             </h2>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -460,10 +456,10 @@ function CreateMealDialog({
                 className="text-sm text-primary hover:underline"
                 onClick={() => setStep("details")}
               >
-                ← Back to meal details
+                {platform.common.back}
               </button>
               <p className="text-sm text-muted-foreground">
-                Which folder should this meal live in?
+                {platform.meals.whichFolder}
               </p>
               <div className="space-y-2">
                 {folders.map((folder) => (
@@ -487,13 +483,13 @@ function CreateMealDialog({
                 className="text-sm text-primary hover:underline"
                 onClick={() => setStep("folder")}
               >
-                ← Back to folders
+                {platform.meals.backTo(platform.workout.foldersNav)}
               </button>
               <p className="text-sm text-muted-foreground">
-                Add to a meal plan in {folderName}, or create a new one.
+                {platform.meals.addCopyHint}
               </p>
               {loadingPlans ? (
-                <p className="text-sm text-muted-foreground">Loading plans…</p>
+                <p className="text-sm text-muted-foreground">{platform.meals.loadingPlans}</p>
               ) : (
                 <div className="space-y-2">
                   {plans.map((plan) => (
@@ -513,7 +509,7 @@ function CreateMealDialog({
                     onClick={handleNewPlan}
                     className="flex w-full rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-left font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
                   >
-                    + New meal plan in {folderName}
+                    {platform.meals.newMealPlanIn(folderName)}
                   </button>
                 </div>
               )}
@@ -526,10 +522,10 @@ function CreateMealDialog({
         {step === "details" && (
           <div className="flex gap-2 border-t border-border px-5 py-4">
             <Button variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
+              {platform.common.cancel}
             </Button>
             <Button className="flex-1" onClick={goToFolderStep}>
-              Next
+              {platform.common.next}
             </Button>
           </div>
         )}
@@ -551,6 +547,9 @@ export function MyMealsPage({
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
+  const locale = useLocale();
+  const mealTypeOptions = getMealTypeOptions(locale);
   const [meals, setMeals] = useState(initialMeals);
   const [filter, setFilter] = useState<MealType | "all">("all");
   const [editItem, setEditItem] = useState<PersonalMealLibraryItem | null>(null);
@@ -596,7 +595,7 @@ export function MyMealsPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         {showMealTypeTabs && (
           <div className="flex flex-wrap gap-2">
-            {MEAL_TYPES.map(({ value, label }) => (
+            {mealTypeOptions.map(({ value, label }) => (
               <button
                 key={value}
                 type="button"
@@ -615,7 +614,7 @@ export function MyMealsPage({
         )}
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add meal
+          {platform.meals.addMeal}
         </Button>
       </div>
 
@@ -623,7 +622,11 @@ export function MyMealsPage({
         <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
           {meals.length === 0
             ? coachLabels.noMealsYet
-            : `No ${filter === "all" ? "" : filter + " "}meals found.`}
+            : platform.meals.noMealsOfType(
+                filter === "all"
+                  ? mealTypeOptions.find((o) => o.value === "all")?.label ?? ""
+                  : mealTypeOptions.find((o) => o.value === filter)?.label ?? filter
+              )}
         </div>
       ) : (
         <ul className="space-y-3">
@@ -671,7 +674,7 @@ export function MyMealsPage({
                         disabled={isPending}
                         onClick={() => setAddItem(item)}
                       >
-                        Add to folder
+                        {platform.meals.addToFolder}
                       </Button>
                     )}
                     <Button
@@ -680,14 +683,14 @@ export function MyMealsPage({
                       disabled={isPending}
                       onClick={() => setEditItem(item)}
                     >
-                      Edit
+                      {platform.common.edit}
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       disabled={isPending}
                       onClick={() => handleDelete(item)}
-                      aria-label="Delete meal"
+                      aria-label={platform.aria.deleteMeal}
                     >
                       <Trash2 className="h-4 w-4 text-red-400" />
                     </Button>

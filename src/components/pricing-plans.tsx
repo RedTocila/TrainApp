@@ -7,11 +7,14 @@ import { AiFoodDemoIllustration } from "@/components/ai-food-demo-illustration";
 import {
   CheckoutCurrencyToggle,
 } from "@/components/checkout-preferences-toggle";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import type { BillingInterval } from "@/lib/subscription-plans";
-import { SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
+import {
+  formatAnnualSavingsLocalized,
+  getLocalizedSubscriptionPlans,
+} from "@/lib/subscription-plans-i18n";
 import {
   DEFAULT_CHECKOUT_CURRENCY,
-  formatAnnualSavings,
   getCurrencyPrice,
   type CheckoutCurrency,
 } from "@/lib/checkout-i18n";
@@ -32,6 +35,10 @@ export function PricingPlans({
   currentPlan?: string | null;
   subscribed?: boolean;
 }) {
+  const locale = useLocale();
+  const platform = usePlatformCopy();
+  const pricing = platform.pricing;
+  const plans = getLocalizedSubscriptionPlans(locale);
   const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
 
   return (
@@ -52,7 +59,7 @@ export function PricingPlans({
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            Monthly
+            {pricing.monthly}
           </button>
           <button
             type="button"
@@ -64,21 +71,22 @@ export function PricingPlans({
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            Annual
+            {pricing.annual}
           </button>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {SUBSCRIPTION_PLANS.map((plan) => {
+        {plans.map((plan) => {
           const tier = interval === "monthly" ? plan.monthly : plan.annual;
           const price = getCurrencyPrice(tier, currency);
           const savings =
             interval === "annual"
-              ? formatAnnualSavings(
+              ? formatAnnualSavingsLocalized(
                   plan.monthly.amountAllCents,
                   plan.annual.amountAllCents,
-                  currency
+                  currency,
+                  locale
                 )
               : null;
           const isCurrent = subscribed && currentPlan === plan.id;
@@ -105,7 +113,7 @@ export function PricingPlans({
                 <div className="pt-2">
                   <span className="text-4xl font-black">{price.label}</span>
                   <span className="text-muted-foreground">
-                    /{interval === "monthly" ? "mo" : "yr"}
+                    /{interval === "monthly" ? pricing.perMonth : pricing.perYear}
                   </span>
                   {savings && (
                     <p className="mt-1 text-sm font-medium text-green-400">{savings}</p>
@@ -124,14 +132,14 @@ export function PricingPlans({
                 </ul>
                 {isCurrent ? (
                   <Button className="w-full" variant="outline" disabled>
-                    Current plan
+                    {pricing.currentPlan}
                   </Button>
                 ) : (
                   <Link
                     href={`${checkoutBasePath}?plan=${plan.id}&interval=${interval}&currency=${currency}`}
                   >
                     <Button className="w-full" variant={plan.highlighted ? "default" : "outline"}>
-                      {subscribed ? "Switch plan" : "Subscribe"}
+                      {subscribed ? pricing.switchPlan : pricing.subscribe}
                     </Button>
                   </Link>
                 )}

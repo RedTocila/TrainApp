@@ -3,6 +3,8 @@ import { hasPaidAccess } from "@/lib/subscription";
 import { getDashboardAiInsight, getLatestWeeklyReport } from "@/lib/actions/ai-coach";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { AiCoachOverviewClient } from "@/components/ai-coach-overview-client";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
+import { getPlatformCopy } from "@/lib/platform-copy";
 import { formatDateKey } from "@/lib/utils";
 
 export default async function AiCoachOverviewPage() {
@@ -16,6 +18,8 @@ export default async function AiCoachOverviewPage() {
   if (!profile) return null;
 
   const aiAccess = hasPaidAccess(profile);
+  const locale = parseCheckoutLocale(profile.preferred_locale);
+  const platform = getPlatformCopy(locale);
   const today = formatDateKey(new Date());
   const [insight, report] = aiAccess
     ? await Promise.all([getDashboardAiInsight(today), getLatestWeeklyReport()])
@@ -27,8 +31,8 @@ export default async function AiCoachOverviewPage() {
 
   const message =
     insight && "message" in insight
-      ? (insight.message ?? "Log meals to get personalized guidance.")
-      : "Log meals to get personalized guidance.";
+      ? (insight.message ?? platform.ai.logMealsGuidance)
+      : platform.ai.logMealsGuidance;
   const gap = insight && "gap" in insight ? (insight.gap ?? null) : null;
   const workoutsThisWeek =
     insight && "workoutsThisWeek" in insight ? (insight.workoutsThisWeek ?? 0) : 0;

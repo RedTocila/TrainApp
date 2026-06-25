@@ -141,8 +141,15 @@ export const coachLabelsAl = {
   noWorkoutsYet: "Ende nuk ka programe. Coach Alex po mban shënime.",
   createWorkout: "Ndërto diçka që vlen të djersitësh",
   noFolders: "Zero dosje. Aftësi organizative mbresëlënëse.",
-  newFolder: "Shtiret sikur je i organizuar",
+  newFolder: "Shto dosje (pretendo organizimin)",
   workoutInProgress: "Nuk e përfundove",
   pickUpWorkout: "Coach Alex po pret. Mos e bëj të presë më shumë.",
   surrendered: "U dorëzua",
+  hydrationFail: "Dështim me ujin",
+  hydrationHint:
+    "Nesër: pini ujë sikur Coach Alex nuk po ju shikon. Po ju shikon.",
+  workoutMissedHint: "Nesër: stërvitu para se justifikimet të zgjohen.",
+  tasksMissedHint: "Nesër: më pak justifikime, më shumë shenja të kryera.",
+  habitsMissedHint:
+    "Nesër: bëni gjërat e mërzitshme para se Coach Alex ta vërejë përsëri.",
 } as const;

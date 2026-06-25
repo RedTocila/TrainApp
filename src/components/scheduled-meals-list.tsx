@@ -1,5 +1,5 @@
 "use client";
-import { useCoachLabels } from "@/components/locale-provider";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { Check, Clock } from "lucide-react";
 import { useState, useTransition } from "react";
@@ -31,6 +31,7 @@ export function MealPlanChecklist({
   onMealsChange: () => void;
 }) {
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const [isPending, startTransition] = useTransition();
   const [pickerSlot, setPickerSlot] = useState<PlannedMealSlot | null>(null);
   const { notifySync } = useDashboardSync();
@@ -114,7 +115,7 @@ export function MealPlanChecklist({
                   <Badge variant="secondary">{label}</Badge>
                   {optionCount > 1 && !isCompleted && (
                     <span className="text-xs text-muted-foreground">
-                      {optionCount} options
+                      {platform.nutrition.options(optionCount)}
                     </span>
                   )}
                   {isCompleted && meal && (
@@ -128,7 +129,7 @@ export function MealPlanChecklist({
                 </div>
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3 shrink-0" />
-                  Eat between {timeWindow}
+                  {platform.nutrition.eatBetween(timeWindow)}
                 </p>
                 {isCompleted && macros && (
                   <p className="mt-1 text-xs font-medium text-green-400/90">{macros}</p>
@@ -143,11 +144,11 @@ export function MealPlanChecklist({
                   className="inline-flex shrink-0 items-center gap-1 rounded-md border border-green-500/50 bg-green-500/15 px-2.5 py-1 text-xs font-semibold text-green-400 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Check className="h-3.5 w-3.5" />
-                  Ate
+                  {platform.nutrition.ate}
                 </button>
               ) : isMissed ? (
                 <span className="shrink-0 rounded-md border border-red-500/30 bg-red-500/5 px-2.5 py-1 text-xs font-medium text-red-400/80">
-                  Window closed
+                  {platform.nutrition.windowClosed}
                 </span>
               ) : (
                 <Button
@@ -156,7 +157,7 @@ export function MealPlanChecklist({
                   onClick={() => openPicker(entry)}
                   className="shrink-0"
                 >
-                  {optionCount > 1 ? "Choose" : "Ate"}
+                  {optionCount > 1 ? platform.common.choose : platform.nutrition.ate}
                 </Button>
               )}
             </li>
@@ -178,7 +179,7 @@ export function MealPlanChecklist({
 
 /** Read-only list for dialogs */
 export function ScheduledMealsList({ slots }: { slots: PlannedMealSlot[] }) {
-  const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   if (slots.length === 0) return null;
 
   return (
@@ -209,7 +210,7 @@ export function ScheduledMealsList({ slots }: { slots: PlannedMealSlot[] }) {
               )}
               {options.length > 1 && (
                 <span className="text-xs text-muted-foreground">
-                  +{options.length - 1} more
+                  {platform.nutrition.moreOptions(options.length - 1)}
                 </span>
               )}
             </div>

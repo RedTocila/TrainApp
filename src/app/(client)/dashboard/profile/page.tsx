@@ -85,6 +85,7 @@ export default async function ProfilePage() {
                 phone={profile.phone}
                 goal={profile.goal ?? null}
                 preferredLocale={profile.preferred_locale ?? "al"}
+                unitSystem={profile.unit_system ?? "metric"}
                 showHeader={false}
               />
             </CardContent>

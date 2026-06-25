@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
+import { useCoachCopy, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 
 export function SarcasticGiveUpDialog({
@@ -11,8 +12,8 @@ export function SarcasticGiveUpDialog({
   onConfirm,
   title,
   message,
-  confirmLabel = "Yeah, I give up",
-  cancelLabel = "Never mind",
+  confirmLabel,
+  cancelLabel,
   isPending = false,
 }: {
   open: boolean;
@@ -24,6 +25,10 @@ export function SarcasticGiveUpDialog({
   cancelLabel?: string;
   isPending?: boolean;
 }) {
+  const platform = usePlatformCopy();
+  const coachCopy = useCoachCopy();
+  const resolvedConfirm = confirmLabel ?? coachCopy.giveUpTrainerPlan.confirm;
+  const resolvedCancel = cancelLabel ?? platform.common.cancel;
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -43,7 +48,7 @@ export function SarcasticGiveUpDialog({
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <button
         type="button"
-        aria-label="Close"
+        aria-label={platform.aria.close}
         className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
         onClick={isPending ? undefined : onClose}
         disabled={isPending}
@@ -78,7 +83,7 @@ export function SarcasticGiveUpDialog({
 
         <div className="flex flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={onClose} disabled={isPending}>
-            {cancelLabel}
+            {resolvedCancel}
           </Button>
           <Button
             variant="destructive"
@@ -86,7 +91,7 @@ export function SarcasticGiveUpDialog({
             disabled={isPending}
             className="bg-red-500/90 hover:bg-red-500"
           >
-            {isPending ? "Surrendering…" : confirmLabel}
+            {isPending ? platform.common.surrendering : resolvedConfirm}
           </Button>
         </div>
       </div>

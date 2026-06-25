@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -29,7 +29,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
-function formatHistory(history: ExerciseHistoryEntry | null | undefined): string | null {
+function formatHistory(
+  history: ExerciseHistoryEntry | null | undefined,
+  lastLabel: (parts: string) => string
+): string | null {
   if (!history?.sets.length) return null;
   const parts = history.sets
     .filter((s) => s.reps != null || s.weight_kg != null)
@@ -39,7 +42,7 @@ function formatHistory(history: ExerciseHistoryEntry | null | undefined): string
       return `${reps} × ${weight}`;
     });
   if (parts.length === 0) return null;
-  return `Last: ${parts.join(", ")}`;
+  return lastLabel(parts.join(", "));
 }
 
 function SessionExerciseCard({
@@ -51,9 +54,10 @@ function SessionExerciseCard({
   history: ExerciseHistoryEntry | null;
   onUpdate: () => void;
 }) {
+  const platform = usePlatformCopy();
   const [isPending, startTransition] = useTransition();
   const [showVideo, setShowVideo] = useState(false);
-  const historyLabel = formatHistory(history);
+  const historyLabel = formatHistory(history, platform.workout.lastSets);
   const hasVideo = !!exercise.video_url;
 
   const handleSetBlur = (
@@ -112,11 +116,15 @@ function SessionExerciseCard({
                 onClick={() => setShowVideo((v) => !v)}
               >
                 <Play className="mr-1 h-3.5 w-3.5" />
-                {showVideo ? "Hide video" : "Preview"}
+                {showVideo ? platform.workout.hideVideo : platform.workout.preview}
               </Button>
             )}
-            <Badge variant="secondary">{exercise.target_sets} sets target</Badge>
-            <Badge variant="outline">{exercise.target_reps} reps target</Badge>
+            <Badge variant="secondary">
+              {platform.workout.setsTarget(exercise.target_sets)}
+            </Badge>
+            <Badge variant="outline">
+              {platform.workout.repsTarget(exercise.target_reps)}
+            </Badge>
           </div>
         </div>
         {showVideo && hasVideo && (
@@ -127,9 +135,9 @@ function SessionExerciseCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-[2.5rem_1fr_1fr] gap-2 text-xs font-medium text-muted-foreground">
-          <span>Set</span>
-          <span>Reps</span>
-          <span>Weight (kg)</span>
+          <span>{platform.workout.set}</span>
+          <span>{platform.workout.reps}</span>
+          <span>{platform.workout.weightKg}</span>
         </div>
         {(exercise.sets ?? []).map((set) => (
           <div
@@ -168,7 +176,7 @@ function SessionExerciseCard({
           onClick={handleAddSet}
         >
           <Plus className="mr-1 h-3.5 w-3.5" />
-          Add set
+          {platform.workout.addSet}
         </Button>
       </CardContent>
     </Card>
@@ -186,6 +194,7 @@ export function ActiveWorkoutClient({
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const router = useRouter();
   const { patchDashboard, notifySync } = useDashboardSync();
   const [newExerciseName, setNewExerciseName] = useState("");
@@ -254,15 +263,17 @@ export function ActiveWorkoutClient({
         <Link href="/dashboard/workout">
           <Button variant="ghost" size="sm" className="-ml-2 w-fit">
             <ArrowLeft className="mr-1 h-4 w-4" />
-            Back
+            {platform.common.back}
           </Button>
         </Link>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Still in the gym
+              {platform.workout.stillInGym}
             </p>
-            <h1 className="text-2xl font-black">{session.day_title ?? "Workout"}</h1>
+            <h1 className="text-2xl font-black">
+              {session.day_title ?? platform.workout.fallbackTitle}
+            </h1>
             {session.plan_title && (
               <p className="text-sm text-muted-foreground">{session.plan_title}</p>
             )}
@@ -299,10 +310,10 @@ export function ActiveWorkoutClient({
         <Card>
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-1">
-              <Label htmlFor="new-exercise">Exercise name</Label>
+              <Label htmlFor="new-exercise">{platform.workout.exerciseName}</Label>
               <Input
                 id="new-exercise"
-                placeholder="e.g. Cable flyes"
+                placeholder={platform.workout.exercisePlaceholder}
                 value={newExerciseName}
                 onChange={(e) => setNewExerciseName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAddExercise()}
@@ -311,7 +322,7 @@ export function ActiveWorkoutClient({
             </div>
             <div className="flex gap-2">
               <Button onClick={handleAddExercise} disabled={isPending || !newExerciseName.trim()}>
-                Add
+                {platform.common.add}
               </Button>
               <Button
                 variant="outline"
@@ -320,7 +331,7 @@ export function ActiveWorkoutClient({
                   setNewExerciseName("");
                 }}
               >
-                Cancel
+                {platform.common.cancel}
               </Button>
             </div>
           </CardContent>
@@ -332,7 +343,7 @@ export function ActiveWorkoutClient({
           onClick={() => setShowAddExercise(true)}
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add exercise
+          {platform.workout.addExercise}
         </Button>
       )}
 
@@ -342,15 +353,15 @@ export function ActiveWorkoutClient({
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">{coachLabels.actuallyFinish}</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Add an optional note about how it went — or skip and save.
+                {platform.workout.finishNote}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1">
-                <Label htmlFor="session-note">Note (optional)</Label>
+                <Label htmlFor="session-note">{platform.workout.noteOptional}</Label>
                 <Textarea
                   id="session-note"
-                  placeholder="e.g. Felt strong today, increased weight on bench press…"
+                  placeholder={platform.workout.notePlaceholder}
                   value={sessionNote}
                   onChange={(e) => setSessionNote(e.target.value)}
                   rows={3}
@@ -364,10 +375,10 @@ export function ActiveWorkoutClient({
                 >
                   <Check className="mr-1 h-4 w-4" />
                   {isPending
-                    ? "Saving…"
+                    ? platform.common.saving
                     : sessionNote.trim()
-                      ? "Save with note"
-                      : "Finish workout"}
+                      ? platform.workout.saveWithNote
+                      : platform.workout.finishWorkout}
                 </Button>
                 {sessionNote.trim() && (
                   <Button
@@ -376,7 +387,7 @@ export function ActiveWorkoutClient({
                     disabled={isPending}
                     onClick={() => handleFinishWorkout(false)}
                   >
-                    Finish without note
+                    {platform.workout.finishWithoutNote}
                   </Button>
                 )}
                 <Button
@@ -384,7 +395,7 @@ export function ActiveWorkoutClient({
                   disabled={isPending}
                   onClick={() => setShowCompleteStep(false)}
                 >
-                  Back
+                  {platform.common.back}
                 </Button>
               </div>
             </CardContent>
