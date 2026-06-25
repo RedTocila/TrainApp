@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Camera, Dumbbell, Salad, Sparkles, Type, Video } from "lucide-react";
+import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -12,7 +13,7 @@ const features = [
 ];
 
 export function AiUpgradeGate({
-  title = "LevelUp AI",
+  title = PLATFORM_AI_NAME,
 }: {
   title?: string;
   description?: string;

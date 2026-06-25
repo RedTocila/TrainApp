@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppLogo } from "@/components/app-logo";
+import { PLATFORM_NAME } from "@/lib/brand";
 import { CONTACT_EMAIL, NAV_LINKS } from "@/lib/landing-content";
 
 const legalLinks = [
@@ -66,7 +67,7 @@ export function LandingFooter() {
         </div>
 
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 text-sm text-muted-foreground sm:flex-row">
-          <p>© {year} LevelUp. All rights reserved.</p>
+          <p>© {year} {PLATFORM_NAME}. All rights reserved.</p>
           <p>Built for athletes who show up every day.</p>
         </div>
       </div>

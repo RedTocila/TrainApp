@@ -7,15 +7,16 @@ import { LandingNav } from "@/components/landing/landing-nav";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { GET_STARTED_CTA, GET_STARTED_HREF, SITE_URL } from "@/lib/landing-content";
+import { PLATFORM_CORE_NAME, PLATFORM_AI_NAME, PLATFORM_NAME } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Pricing — LevelUp",
+  title: `Pricing — ${PLATFORM_NAME}`,
   description:
-    "LevelUp Core from €7/month and LevelUp AI from €19/month. Custom trainer plans from €49.",
+    `${PLATFORM_CORE_NAME} from €7/month and ${PLATFORM_AI_NAME} from €19/month. Custom trainer plans from €49.`,
   alternates: { canonical: `${SITE_URL}/pricing` },
   openGraph: {
-    title: "Pricing — LevelUp",
+    title: `Pricing — ${PLATFORM_NAME}`,
     description: "Simple pricing for workouts, nutrition, AI coaching, and live sessions.",
     url: `${SITE_URL}/pricing`,
   },

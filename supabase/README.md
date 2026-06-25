@@ -1,4 +1,4 @@
-# Supabase Setup — LevelUp
+# Supabase Setup — RUTINA
 
 Project: **hpujlewxfdgkjhavqdyk**  
 Dashboard: https://supabase.com/dashboard/project/hpujlewxfdgkjhavqdyk

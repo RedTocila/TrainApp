@@ -1,5 +1,5 @@
 -- =============================================================================
--- LevelUp — Complete Supabase Setup
+-- RUTINA — Complete Supabase Setup
 -- Project: hpujlewxfdgkjhavqdyk
 -- Run this entire file in: Supabase Dashboard → SQL Editor → New query → Run
 -- =============================================================================
@@ -530,4 +530,4 @@ on conflict (id) do update set role = 'admin';
 -- DONE
 -- =============================================================================
 
-select 'LevelUp Supabase setup complete' as status;
+select 'RUTINA Supabase setup complete' as status;

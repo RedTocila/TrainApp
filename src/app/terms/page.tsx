@@ -3,8 +3,8 @@ import { LegalPageShell } from "@/components/landing/legal-page-shell";
 import { SITE_URL } from "@/lib/landing-content";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — LevelUp",
-  description: "Terms of Service for LevelUp fitness platform.",
+  title: "Terms of Service — RUTINA",
+  description: "Terms of Service for RUTINA fitness platform.",
   alternates: { canonical: `${SITE_URL}/terms` },
   robots: { index: true, follow: true },
 };
@@ -18,7 +18,7 @@ export default function TermsPage() {
       <section className="space-y-4">
         <h2>1. Agreement</h2>
         <p>
-          By creating an account or using LevelUp, you agree to these Terms of
+          By creating an account or using RUTINA, you agree to these Terms of
           Service. If you do not agree, do not use the service.
         </p>
       </section>
@@ -26,7 +26,7 @@ export default function TermsPage() {
       <section className="space-y-4">
         <h2>2. Service description</h2>
         <p>
-          LevelUp provides fitness tracking, workout and nutrition tools, AI-powered
+          RUTINA provides fitness tracking, workout and nutrition tools, AI-powered
           coaching features (on eligible plans), live coaching sessions, and optional
           one-time custom plans delivered by a trainer. Features vary by subscription
           tier.
@@ -38,7 +38,7 @@ export default function TermsPage() {
         <ul>
           <li>You must provide accurate registration information.</li>
           <li>You are responsible for keeping your login credentials secure.</li>
-          <li>You must be at least 16 years old to use LevelUp.</li>
+          <li>You must be at least 16 years old to use RUTINA.</li>
         </ul>
       </section>
 
@@ -46,7 +46,7 @@ export default function TermsPage() {
         <h2>4. Subscriptions & payments</h2>
         <ul>
           <li>
-            Paid plans (LevelUp Core and LevelUp AI) are billed monthly or
+            Paid plans (RUTINA Core and RUTINA AI) are billed monthly or
             annually as selected at checkout.
           </li>
           <li>
@@ -65,7 +65,7 @@ export default function TermsPage() {
       <section className="space-y-4">
         <h2>5. Health disclaimer</h2>
         <p>
-          LevelUp is not a medical service. Content, AI suggestions, and coaching
+          RUTINA is not a medical service. Content, AI suggestions, and coaching
           are for general fitness purposes only. Consult a physician before starting
           any exercise or nutrition program. You use the app at your own risk.
         </p>
@@ -84,7 +84,7 @@ export default function TermsPage() {
       <section className="space-y-4">
         <h2>7. Intellectual property</h2>
         <p>
-          LevelUp, its branding, and platform content are owned by LevelUp or its
+          RUTINA, its branding, and platform content are owned by RUTINA or its
           licensors. You retain ownership of data you submit (workouts, logs, etc.)
           and grant us a license to store and process it to provide the service.
         </p>
@@ -93,7 +93,7 @@ export default function TermsPage() {
       <section className="space-y-4">
         <h2>8. Limitation of liability</h2>
         <p>
-          To the maximum extent permitted by law, LevelUp is provided &quot;as is&quot;
+          To the maximum extent permitted by law, RUTINA is provided &quot;as is&quot;
           without warranties. We are not liable for indirect or consequential damages
           arising from your use of the service.
         </p>

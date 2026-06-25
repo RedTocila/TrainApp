@@ -142,7 +142,7 @@ export function RegisterForm() {
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-black">
-          JOIN <span className="text-primary">LEVELUP</span>
+          JOIN <span className="text-primary">RUTINA</span>
         </CardTitle>
         <CardDescription>
           {intakeJson

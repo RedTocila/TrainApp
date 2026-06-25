@@ -4,7 +4,7 @@ import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
 function missingSupabaseEnvResponse() {
   return new NextResponse(
-    "LevelUp is missing Supabase environment variables. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel project settings, then redeploy.",
+    "RUTINA is missing Supabase environment variables. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel project settings, then redeploy.",
     { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } }
   );
 }

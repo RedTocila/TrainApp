@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Mail, MessageSquare } from "lucide-react";
+import { PLATFORM_NAME } from "@/lib/brand";
 import { CONTACT_EMAIL } from "@/lib/landing-content";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ export function ContactForm() {
     const name = String(data.get("name") ?? "");
     const email = String(data.get("email") ?? "");
     const message = String(data.get("message") ?? "");
-    const subject = encodeURIComponent(`LevelUp contact from ${name}`);
+    const subject = encodeURIComponent(`${PLATFORM_NAME} contact from ${name}`);
     const body = encodeURIComponent(
       `Name: ${name}\nEmail: ${email}\n\n${message}`
     );

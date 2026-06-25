@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DeleteClassButton } from "@/components/delete-class-button";
+import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { getClassStatus } from "@/lib/class-utils";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
@@ -21,7 +22,7 @@ export default async function AdminClassesPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-black">Live Classes</h1>
             <p className="text-muted-foreground">
-              Schedule Zoom/Meet sessions and add YouTube replays for LevelUp AI clients
+              Schedule Zoom/Meet sessions and add YouTube replays for {PLATFORM_AI_NAME} clients
             </p>
           </div>
           <Link href="/admin/classes/new" className="shrink-0">

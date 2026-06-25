@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
+import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiAccess } from "@/lib/subscription";
 import { isAiConfigured } from "@/lib/ai/providers";
 import {
@@ -27,7 +28,7 @@ async function requireAiMealAccess(): Promise<
   const profile = await getSubscriptionProfile();
   if (!profile) return { success: false, error: "Not authenticated" };
   if (!hasAiAccess(profile)) {
-    return { success: false, error: "Upgrade to LevelUp AI to use AI meal logging." };
+    return { success: false, error: `Upgrade to ${PLATFORM_AI_NAME} to use AI meal logging.` };
   }
   if (!isAiConfigured()) {
     return { success: false, error: "AI meal analysis is not configured on the server yet." };

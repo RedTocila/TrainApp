@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
+import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiAccess } from "@/lib/subscription";
 import { isAiConfigured } from "@/lib/ai/providers";
 import { generateWorkoutPlanFromProfile } from "@/lib/ai/generate-workout-plan";
@@ -30,7 +31,7 @@ async function requireAiPlanBuilder(): Promise<
   const profile = await getSubscriptionProfile();
   if (!profile) return { success: false, error: "Not authenticated" };
   if (!hasAiAccess(profile)) {
-    return { success: false, error: "Upgrade to LevelUp AI to build plans with AI Coach." };
+    return { success: false, error: `Upgrade to ${PLATFORM_AI_NAME} to build plans with AI Coach.` };
   }
   if (!isAiConfigured()) {
     return { success: false, error: "AI is not configured on the server yet." };

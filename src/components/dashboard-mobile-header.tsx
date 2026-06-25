@@ -10,7 +10,7 @@ const headerSurface =
 
 export function DashboardMobileHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-md lg:hidden">
+    <header className="sticky top-0 z-40 bg-transparent lg:hidden">
       <div
         className={cn(
           "flex items-center justify-between gap-2 px-3 pb-2.5 sm:px-4 sm:pb-3",

@@ -1,7 +1,7 @@
 import type { Profile } from "@/lib/types";
 import { GOAL_LABELS, GENDER_OPTIONS } from "@/lib/intake-display";
 
-export const INTAKE_STORAGE_KEY = "levelup-intake-draft";
+export const INTAKE_STORAGE_KEY = "rutina-intake-draft";
 
 export interface IntakeResponses {
   age?: number;

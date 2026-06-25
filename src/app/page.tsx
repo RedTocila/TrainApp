@@ -4,9 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { LandingPageClient } from "@/components/landing/landing-page";
 import { LandingJsonLd } from "@/components/landing/landing-json-ld";
 import { SITE_URL } from "@/lib/landing-content";
+import { PLATFORM_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "LevelUp — Workouts, Nutrition & AI Coaching",
+  title: `${PLATFORM_NAME} — Workouts, Nutrition & AI Coaching`,
   description:
     "Premium fitness platform with workout builder, nutrition tracking, AI coach, and live coaching. Get your custom program — plans from €7/month.",
   keywords: [
@@ -22,15 +23,15 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: SITE_URL,
-    siteName: "LevelUp",
-    title: "LevelUp — Workouts, Nutrition & AI Coaching",
+    siteName: PLATFORM_NAME,
+    title: `${PLATFORM_NAME} — Workouts, Nutrition & AI Coaching`,
     description:
       "Train smarter with workouts, nutrition, AI coaching, and live sessions in one premium dashboard.",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "LevelUp — Workouts, Nutrition & AI Coaching",
+    title: `${PLATFORM_NAME} — Workouts, Nutrition & AI Coaching`,
     description:
       "Premium fitness platform with AI meal logging, live coaching, and custom trainer plans.",
   },

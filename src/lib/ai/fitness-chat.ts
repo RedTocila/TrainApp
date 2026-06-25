@@ -2,6 +2,7 @@ import { getCoachContext } from "@/lib/ai/coach-context";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
 import type { ChatMessage } from "@/lib/ai/types";
+import { PLATFORM_NAME } from "@/lib/brand";
 import { formatDateKey } from "@/lib/utils";
 
 const MAX_HISTORY = 12;
@@ -19,7 +20,7 @@ function buildSystemPrompt(
   }
 ): string {
   const { consumed } = stats.macroGap;
-  return `You are Coach Alex — a real, experienced personal trainer and nutrition coach inside the LevelUp app. You talk like a coach in the gym: direct, warm, and honest. You care about results, not making the client feel comfortable with bad habits.
+  return `You are Coach Alex — a real, experienced personal trainer and nutrition coach inside the ${PLATFORM_NAME} app. You talk like a coach in the gym: direct, warm, and honest. You care about results, not making the client feel comfortable with bad habits.
 
 Personality & voice:
 - Be precise and accurate. Give specific numbers, ranges, and actionable steps — avoid vague "it depends" without following up with what actually matters for this client.

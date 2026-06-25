@@ -3,8 +3,8 @@ import { LegalPageShell } from "@/components/landing/legal-page-shell";
 import { SITE_URL } from "@/lib/landing-content";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — LevelUp",
-  description: "How LevelUp collects, uses, and protects your personal data.",
+  title: "Privacy Policy — RUTINA",
+  description: "How RUTINA collects, uses, and protects your personal data.",
   alternates: { canonical: `${SITE_URL}/privacy` },
   robots: { index: true, follow: true },
 };
@@ -18,7 +18,7 @@ export default function PrivacyPage() {
       <section className="space-y-4">
         <h2>1. Overview</h2>
         <p>
-          LevelUp (&quot;we&quot;, &quot;us&quot;) respects your privacy. This policy explains what
+          RUTINA (&quot;we&quot;, &quot;us&quot;) respects your privacy. This policy explains what
           data we collect, why we collect it, and your choices.
         </p>
       </section>
@@ -56,7 +56,7 @@ export default function PrivacyPage() {
       <section className="space-y-4">
         <h2>3. How we use data</h2>
         <ul>
-          <li>Provide and personalize the LevelUp experience.</li>
+          <li>Provide and personalize the RUTINA experience.</li>
           <li>Process subscriptions and custom plan orders.</li>
           <li>Generate AI meal suggestions, reports, and recommendations.</li>
           <li>Deliver coach-built custom plans and live coaching access.</li>

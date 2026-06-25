@@ -141,7 +141,7 @@ async function verifyTables() {
 }
 
 async function main() {
-  console.log("🚀 LevelUp Supabase Setup");
+  console.log("🚀 RUTINA Supabase Setup");
   console.log(`   Project: ${ref}`);
 
   const password = process.argv[2] || process.env.SUPABASE_DB_PASSWORD;

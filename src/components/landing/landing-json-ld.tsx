@@ -1,4 +1,5 @@
 import { SITE_URL } from "@/lib/landing-content";
+import { PLATFORM_NAME } from "@/lib/brand";
 import { SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
 
 export function LandingJsonLd() {
@@ -26,7 +27,7 @@ export function LandingJsonLd() {
         "@type": "WebSite",
         "@id": `${SITE_URL}/#website`,
         url: SITE_URL,
-        name: "LevelUp",
+        name: PLATFORM_NAME,
         description:
           "Premium fitness platform with workouts, nutrition, AI coaching, and live sessions.",
         inLanguage: "en-US",
@@ -34,13 +35,13 @@ export function LandingJsonLd() {
       {
         "@type": "Organization",
         "@id": `${SITE_URL}/#organization`,
-        name: "LevelUp",
+        name: PLATFORM_NAME,
         url: SITE_URL,
         email: "redtocila@gmail.com",
       },
       {
         "@type": "SoftwareApplication",
-        name: "LevelUp",
+        name: PLATFORM_NAME,
         applicationCategory: "HealthApplication",
         operatingSystem: "Web",
         offers,

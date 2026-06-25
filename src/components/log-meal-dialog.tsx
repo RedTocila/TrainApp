@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { PLATFORM_AI_NAME } from "@/lib/brand";
 import {
   ArrowLeft,
   BookOpen,
@@ -375,7 +376,7 @@ export function LogMealDialog({
                   <Sparkles className="h-7 w-7 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold">LevelUp AI required</p>
+                  <p className="font-semibold">{PLATFORM_AI_NAME} required</p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     Upgrade to snap meal photos and let AI estimate food and macros
                     automatically.
@@ -407,7 +408,7 @@ export function LogMealDialog({
                   <Sparkles className="h-7 w-7 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold">LevelUp AI required</p>
+                  <p className="font-semibold">{PLATFORM_AI_NAME} required</p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     Upgrade to type meals naturally and let AI estimate macros.
                   </p>

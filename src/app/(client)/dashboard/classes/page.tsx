@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireClient } from "@/lib/actions/auth";
 import { getPublishedClasses } from "@/lib/actions/classes";
+import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { ClassesCatalog } from "@/components/classes-catalog";
 import { PageTransition } from "@/components/page-transition";
@@ -24,7 +25,7 @@ export default async function ClassesPage() {
       <PageTransition>
         <div className="mx-auto max-w-2xl">
           <AiUpgradeGate
-            title="LevelUp AI required for live coaching"
+            title={`${PLATFORM_AI_NAME} required for live coaching`}
             description="Upgrade to the €19/month AI plan to join live coaching sessions and watch replays anytime."
           />
         </div>

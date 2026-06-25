@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SITE_URL } from "@/lib/landing-content";
+import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/lib/brand";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,12 +18,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "LevelUp — Premium Personal Training",
-    template: "%s | LevelUp",
+    default: `${PLATFORM_NAME} — ${PLATFORM_TAGLINE}`,
+    template: `%s | ${PLATFORM_NAME}`,
   },
   description:
     "Your personalized workout, nutrition, and fitness coaching platform with AI coach and live sessions.",
-  applicationName: "LevelUp",
+  applicationName: PLATFORM_NAME,
 };
 
 export const viewport = {

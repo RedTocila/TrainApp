@@ -10,6 +10,7 @@ import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { categoryStyles } from "@/lib/class-utils";
+import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiAccess } from "@/lib/subscription";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,7 +38,7 @@ export default async function ClassDetailPage({
       <PageTransition>
         <div className="mx-auto max-w-2xl space-y-4">
           <AiUpgradeGate
-            title="LevelUp AI required for live coaching"
+            title={`${PLATFORM_AI_NAME} required for live coaching`}
             description="Upgrade to the €19/month AI plan to join live coaching sessions and watch replays."
           />
         </div>

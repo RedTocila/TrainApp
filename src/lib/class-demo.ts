@@ -14,7 +14,7 @@ export const DEMO_CLASS: FitnessClass = {
   slug: "demo-full-body-strength",
   description: `## Preview the live class experience
 
-This is a **demo session** showing how classes work in LevelUp.
+This is a **demo session** showing how classes work in RUTINA.
 
 - **Live:** Join via Zoom/Meet when the join button is active (15 min before start)
 - **Replay:** Watch the embedded recording below anytime
