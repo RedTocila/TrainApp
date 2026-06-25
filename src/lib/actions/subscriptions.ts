@@ -49,6 +49,7 @@ export async function createCheckoutOrder(
   interval: BillingInterval
 ) {
   const supabase = await createClient();
+  const admin = createAdminClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -60,7 +61,7 @@ export async function createCheckoutOrder(
   const price = getPlanPrice(planId, interval);
   const baseUrl = getAppBaseUrl();
 
-  const { data: orderRow, error: insertError } = await supabase
+  const { data: orderRow, error: insertError } = await admin
     .from("subscription_orders")
     .insert({
       user_id: user.id,
@@ -86,7 +87,7 @@ export async function createCheckoutOrder(
       webhookUrl,
     });
 
-    await supabase
+    await admin
       .from("subscription_orders")
       .update({ pokpay_order_id: sdkOrder.id })
       .eq("id", orderRow.id);
@@ -101,7 +102,7 @@ export async function createCheckoutOrder(
       priceLabel: price.label,
     };
   } catch (err) {
-    await supabase
+    await admin
       .from("subscription_orders")
       .update({ status: "failed" })
       .eq("id", orderRow.id);

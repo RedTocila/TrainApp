@@ -1,4 +1,4 @@
--- Live classes (LevelUp AI / €24 plan)
+-- Live classes (RUTINA AI / €24 plan)
 
 create table if not exists public.classes (
   id uuid primary key default gen_random_uuid(),
