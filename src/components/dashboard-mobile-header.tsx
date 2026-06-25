@@ -10,8 +10,13 @@ const headerSurface =
 
 export function DashboardMobileHeader() {
   return (
-    <header className="sticky top-0 z-40 bg-transparent px-3 py-2.5 sm:px-4 sm:py-3 lg:hidden">
-      <div className="flex items-center justify-between gap-2">
+    <header className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-md lg:hidden">
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2 px-3 pb-2.5 sm:px-4 sm:pb-3",
+          "pt-[max(0.625rem,env(safe-area-inset-top,0px))]"
+        )}
+      >
         <div className={cn(headerSurface, "px-3 py-2")}>
           <AppLogo href="/dashboard" size="sm" />
         </div>

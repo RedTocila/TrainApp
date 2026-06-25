@@ -68,6 +68,9 @@ html.light {
 
 html {
   scroll-behavior: auto;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
 }
 
 body {
@@ -75,6 +78,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
   min-height: 100vh;
+  touch-action: manipulation;
 }
 
 html:has(.dashboard-shell),
@@ -97,6 +101,14 @@ body:has(.dashboard-shell) {
 
 .dashboard-mobile-nav {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 1023px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 .premium-gradient {
