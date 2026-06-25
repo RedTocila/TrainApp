@@ -191,10 +191,35 @@ html.light .pokpay-checkout .pok-payment-modal-trigger-empty {
   gap: 12px;
 }
 
+.pokpay-checkout .pok-payment-error-text {
+  font-size: 12px;
+  margin-top: 6px;
+  color: rgba(239, 68, 68, 0.95);
+}
+
+.pokpay-checkout .pok-payment-label-error {
+  color: rgba(239, 68, 68, 0.95);
+}
+
+.pokpay-checkout .pok-payment-input-error {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.pokpay-checkout .pok-payment-input-error:focus {
+  border-color: rgba(239, 68, 68, 0.75);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18);
+}
+
+.pokpay-checkout .pok-payment-options {
+  z-index: 60;
+}
+
 .pokpay-checkout .pok-payment-button {
   border-radius: 14px;
   font-weight: 800;
   letter-spacing: 0.01em;
+  padding: 14px 16px;
+  font-size: 16px;
 }
 
 .pokpay-checkout .pok-payment-checkbox-container label {

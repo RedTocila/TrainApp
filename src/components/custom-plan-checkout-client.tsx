@@ -24,7 +24,7 @@ export function CustomPlanCheckoutClient({
   const successUrl = `/dashboard/checkout/custom-success?localOrderId=${localOrderId}&type=${planType}`;
 
   return (
-    <Card className="overflow-hidden border-primary/20 bg-gradient-to-b from-primary/5 to-card">
+    <Card className="border-primary/20 bg-gradient-to-b from-primary/5 to-card">
       <CardHeader className="space-y-3">
         <div className="flex items-center gap-2">
           <CreditCard className="h-5 w-5 text-primary" />
@@ -33,7 +33,7 @@ export function CustomPlanCheckoutClient({
         <div className="flex flex-wrap gap-2">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
             <Lock className="h-4 w-4 text-primary" />
-            Secure payment
+            Processed with PokPay
           </div>
         </div>
       </CardHeader>
@@ -45,12 +45,7 @@ export function CustomPlanCheckoutClient({
           </div>
         )}
 
-        <div
-          className={cn(
-            "pokpay-checkout rounded-2xl border border-border bg-card/70 p-4 backdrop-blur",
-            "[&_*]:!text-[15px] sm:[&_*]:!text-[16px]"
-          )}
-        >
+        <div className="pokpay-checkout rounded-2xl border border-border bg-card/70 p-4 backdrop-blur">
           <GuestCheckoutForm
             orderId={pokpayOrderId}
             onSuccess={() => router.push(successUrl)}

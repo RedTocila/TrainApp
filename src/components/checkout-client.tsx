@@ -71,7 +71,7 @@ export function CheckoutClient({
         </div>
       </div>
 
-      <Card className="overflow-hidden border-primary/20 bg-gradient-to-b from-primary/5 to-card">
+      <Card className="border-primary/20 bg-gradient-to-b from-primary/5 to-card">
         <CardHeader className="space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -98,7 +98,7 @@ export function CheckoutClient({
           <div className="flex flex-wrap gap-2">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
               <Lock className="h-4 w-4 text-primary" />
-              Secure payment
+              Processed with PokPay
             </div>
           </div>
         </CardHeader>
@@ -125,7 +125,6 @@ export function CheckoutClient({
             <div
               className={cn(
                 "pokpay-checkout rounded-2xl border border-border bg-card/70 p-4 backdrop-blur",
-                "[&_*]:!text-[15px] sm:[&_*]:!text-[16px]",
                 "[&_[data-testid='pokpay-title']]:hidden"
               )}
             >
