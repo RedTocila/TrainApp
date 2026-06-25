@@ -8,8 +8,22 @@ import {
   implementTrainerPlan,
   removeTrainerPlanImplementation,
 } from "@/lib/actions/custom-plans";
+import {
+  CheckoutCurrencyToggle,
+  CheckoutLocaleToggle,
+} from "@/components/checkout-preferences-toggle";
 import { NutritionPlanPdfViewer } from "@/components/nutrition-plan-pdf-viewer";
-import { CUSTOM_PLAN_PRODUCTS, TRAINER_NAME } from "@/lib/custom-plan-products";
+import {
+  CUSTOM_PLAN_PRODUCTS,
+  getCustomPlanPrice,
+  TRAINER_NAME,
+} from "@/lib/custom-plan-products";
+import {
+  DEFAULT_CHECKOUT_CURRENCY,
+  DEFAULT_CHECKOUT_LOCALE,
+  type CheckoutCurrency,
+  type CheckoutLocale,
+} from "@/lib/checkout-i18n";
 import type { PlanRequest, PlanRequestType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -90,6 +104,8 @@ function CustomPlanDialog({
   const product = CUSTOM_PLAN_PRODUCTS.find((p) => p.type === type)!;
   const [request, setRequest] = useState<PlanRequest | null>(initialRequest);
   const [preferences, setPreferences] = useState("");
+  const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
+  const [locale, setLocale] = useState<CheckoutLocale>(DEFAULT_CHECKOUT_LOCALE);
   const [error, setError] = useState<string | null>(null);
   const [successTitle, setSuccessTitle] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -118,16 +134,18 @@ function CustomPlanDialog({
     };
   }, [open, onClose]);
 
+  const price = getCustomPlanPrice(type, currency);
+
   const handleCheckout = () => {
     setError(null);
     startTransition(async () => {
-      const result = await createCustomPlanCheckout(type, preferences);
+      const result = await createCustomPlanCheckout(type, preferences, currency);
       if ("error" in result && result.error) {
         setError(result.error);
         return;
       }
       if ("localOrderId" in result && result.localOrderId) {
-        window.location.href = `/dashboard/checkout/custom?localOrderId=${result.localOrderId}&type=${type}`;
+        window.location.href = `/dashboard/checkout/custom?localOrderId=${result.localOrderId}&type=${type}&locale=${locale}`;
       }
     });
   };
@@ -255,8 +273,12 @@ function CustomPlanDialog({
           ) : showOffer ? (
             <>
               <p className="text-sm text-muted-foreground">{product.description}</p>
+              <div className="space-y-3">
+                <CheckoutCurrencyToggle currency={currency} onCurrencyChange={setCurrency} />
+                <CheckoutLocaleToggle locale={locale} onLocaleChange={setLocale} />
+              </div>
               <p className="text-2xl font-black">
-                {product.label}
+                {price.label}
                 <span className="text-sm font-normal text-muted-foreground"> one-time</span>
               </p>
               <ul className="space-y-1.5 text-sm text-muted-foreground">
@@ -351,6 +373,7 @@ export function CustomPlanButton({
   const [open, setOpen] = useState(false);
   const [requestOverride, setRequestOverride] = useState<PlanRequest | null>(null);
   const product = CUSTOM_PLAN_PRODUCTS.find((p) => p.type === type)!;
+  const defaultPrice = getCustomPlanPrice(type, DEFAULT_CHECKOUT_CURRENCY);
 
   const active = requestOverride ?? findPlanRequest(requests, type);
 
@@ -399,7 +422,7 @@ export function CustomPlanButton({
             View plan
           </>
         ) : (
-          customPlanButtonLabel(type, product.label)
+          customPlanButtonLabel(type, defaultPrice.label)
         )}
         {showPendingStatus && statusLabel && (
           <span className="ml-1.5 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-400">

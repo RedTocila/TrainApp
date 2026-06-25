@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/server-cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  parseCheckoutCurrency,
+  type CheckoutCurrency,
+} from "@/lib/checkout-i18n";
+import {
   getPlan,
   getPlanPrice,
   type BillingInterval,
@@ -42,7 +46,8 @@ export async function ensureSubscribedMutation(): Promise<
 
 export async function createCheckoutOrder(
   planId: SubscriptionPlanId,
-  interval: BillingInterval
+  interval: BillingInterval,
+  currencyCode: CheckoutCurrency = "ALL"
 ) {
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -54,7 +59,8 @@ export async function createCheckoutOrder(
   const plan = getPlan(planId);
   if (!plan) return { error: "Invalid plan" };
 
-  const price = getPlanPrice(planId, interval);
+  const currency = parseCheckoutCurrency(currencyCode);
+  const price = getPlanPrice(planId, interval, currency);
   const baseUrl = getAppBaseUrl();
   const isProd = process.env.VERCEL_ENV === "production";
   if (isProd && baseUrl.includes("localhost")) {
@@ -71,7 +77,7 @@ export async function createCheckoutOrder(
       plan: planId,
       billing_interval: interval,
       amount_cents: price.amountCents,
-      currency_code: "EUR",
+      currency_code: currency,
       status: "pending",
     })
     .select("id")
@@ -83,7 +89,7 @@ export async function createCheckoutOrder(
 
   try {
     const redirectUrl = `${baseUrl}/dashboard/checkout/success?localOrderId=${orderRow.id}`;
-    const failRedirectUrl = `${baseUrl}/dashboard/checkout?plan=${planId}&interval=${interval}`;
+    const failRedirectUrl = `${baseUrl}/dashboard/checkout?plan=${planId}&interval=${interval}&currency=${currency}`;
     const webhookUrl = `${baseUrl}/api/payments/pokpay/webhook`;
     const products: PokPaySdkOrderProduct[] = [
       {
@@ -95,6 +101,7 @@ export async function createCheckoutOrder(
     ];
     const sdkOrder = await createSdkOrder({
       amountCents: price.amountCents,
+      currencyCode: currency,
       redirectUrl,
       failRedirectUrl,
       webhookUrl,

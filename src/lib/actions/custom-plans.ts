@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCustomPlanProduct, TRAINER_NAME } from "@/lib/custom-plan-products";
+import { getCustomPlanProduct, getCustomPlanPrice, TRAINER_NAME } from "@/lib/custom-plan-products";
+import {
+  parseCheckoutCurrency,
+  type CheckoutCurrency,
+} from "@/lib/checkout-i18n";
 import {
   createSdkOrder,
   getSdkOrder,
@@ -56,7 +60,8 @@ async function activateNutritionAssignment(
 
 export async function createCustomPlanCheckout(
   type: PlanRequestType,
-  preferences: string
+  preferences: string,
+  currencyCode: CheckoutCurrency = "ALL"
 ) {
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -67,6 +72,9 @@ export async function createCustomPlanCheckout(
 
   const product = getCustomPlanProduct(type);
   if (!product) return { error: "Invalid plan type" };
+
+  const currency = parseCheckoutCurrency(currencyCode);
+  const price = getCustomPlanPrice(type, currency);
 
   const trimmed = preferences.trim();
   if (trimmed.length < 10) {
@@ -92,8 +100,8 @@ export async function createCustomPlanCheckout(
       user_id: user.id,
       plan: "core",
       billing_interval: "monthly",
-      amount_cents: product.amountCents,
-      currency_code: "EUR",
+      amount_cents: price.amountCents,
+      currency_code: currency,
       status: "pending",
       order_kind: product.orderKind,
       metadata: { preferences: trimmed, plan_type: type },
@@ -107,17 +115,18 @@ export async function createCustomPlanCheckout(
 
   try {
     const redirectUrl = `${baseUrl}/dashboard/checkout/custom-success?localOrderId=${orderRow.id}&type=${type}`;
-    const failRedirectUrl = `${baseUrl}/dashboard/checkout/custom?localOrderId=${orderRow.id}&type=${type}`;
+    const failRedirectUrl = `${baseUrl}/dashboard/checkout/custom?localOrderId=${orderRow.id}&type=${type}&currency=${currency}`;
     const webhookUrl = `${baseUrl}/api/payments/pokpay/webhook`;
     const products: PokPaySdkOrderProduct[] = [
       {
         name: product.title,
         quantity: 1,
-        price: product.amountCents,
+        price: price.amountCents,
       },
     ];
     const sdkOrder = await createSdkOrder({
-      amountCents: product.amountCents,
+      amountCents: price.amountCents,
+      currencyCode: currency,
       redirectUrl,
       failRedirectUrl,
       webhookUrl,
@@ -135,7 +144,7 @@ export async function createCustomPlanCheckout(
       localOrderId: orderRow.id,
       orderId: sdkOrder.id,
       productTitle: product.title,
-      priceLabel: product.label,
+      priceLabel: price.label,
     };
   } catch (err) {
     await admin

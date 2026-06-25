@@ -1,8 +1,12 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CustomPlanCheckoutClient } from "@/components/custom-plan-checkout-client";
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { getCustomPlanProduct } from "@/lib/custom-plan-products";
+import {
+  formatCurrencyAmount,
+  parseCheckoutCurrency,
+  parseCheckoutLocale,
+} from "@/lib/checkout-i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { PlanRequestType } from "@/lib/types";
@@ -10,14 +14,16 @@ import type { PlanRequestType } from "@/lib/types";
 export default async function CustomCheckoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ localOrderId?: string; type?: string }>;
+  searchParams: Promise<{ localOrderId?: string; type?: string; locale?: string }>;
 }) {
-  const { localOrderId, type } = await searchParams;
+  const { localOrderId, type, locale: localeParam } = await searchParams;
   if (!localOrderId || !type) redirect("/dashboard");
 
   const planType = type as PlanRequestType;
   const product = getCustomPlanProduct(planType);
   if (!product) redirect("/dashboard");
+
+  const locale = parseCheckoutLocale(localeParam);
 
   const supabase = await createClient();
   const {
@@ -35,12 +41,15 @@ export default async function CustomCheckoutPage({
 
   if (!order?.pokpay_order_id) redirect("/dashboard");
 
+  const currency = parseCheckoutCurrency(order.currency_code);
+  const totalLabel = formatCurrencyAmount(order.amount_cents ?? 0, currency);
+
   return (
     <CheckoutLayout
       backHref={planType === "workout" ? "/dashboard/workout" : "/dashboard/nutrition"}
       title={product.title}
       subtitle={product.description}
-      totalLabel={`€${(product.amountCents / 100).toFixed(0)}`}
+      totalLabel={totalLabel}
       summary={
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-secondary/25 p-4">
@@ -49,7 +58,7 @@ export default async function CustomCheckoutPage({
             <p className="mt-1 text-sm text-muted-foreground">{product.description}</p>
             <div className="mt-3 flex items-center justify-between">
               <p className="text-sm font-semibold text-muted-foreground">Total</p>
-              <p className="text-xl font-black">€{(product.amountCents / 100).toFixed(0)}</p>
+              <p className="text-xl font-black">{totalLabel}</p>
             </div>
           </div>
 
@@ -67,6 +76,7 @@ export default async function CustomCheckoutPage({
           localOrderId={order.id}
           pokpayOrderId={order.pokpay_order_id}
           planType={planType}
+          locale={locale}
         />
       }
     />

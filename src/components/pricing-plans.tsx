@@ -1,20 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { AiFoodDemoIllustration } from "@/components/ai-food-demo-illustration";
-import type { BillingInterval, SubscriptionPlan } from "@/lib/subscription-plans";
+import {
+  CheckoutCurrencyToggle,
+  CheckoutLocaleToggle,
+} from "@/components/checkout-preferences-toggle";
+import type { BillingInterval } from "@/lib/subscription-plans";
 import { SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
+import {
+  DEFAULT_CHECKOUT_CURRENCY,
+  DEFAULT_CHECKOUT_LOCALE,
+  formatAnnualSavings,
+  getCurrencyPrice,
+  type CheckoutCurrency,
+  type CheckoutLocale,
+} from "@/lib/checkout-i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-
-function annualSavings(plan: SubscriptionPlan): string | null {
-  const monthlyYear = plan.monthly.amountCents * 12;
-  const saved = monthlyYear - plan.annual.amountCents;
-  if (saved <= 0) return null;
-  return `Save €${(saved / 100).toFixed(0)}/year`;
-}
 
 export function PricingPlans({
   interval,
@@ -29,8 +35,16 @@ export function PricingPlans({
   currentPlan?: string | null;
   subscribed?: boolean;
 }) {
+  const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
+  const [locale, setLocale] = useState<CheckoutLocale>(DEFAULT_CHECKOUT_LOCALE);
+
   return (
     <div className="space-y-8">
+      <div className="flex flex-col items-center gap-3">
+        <CheckoutCurrencyToggle currency={currency} onCurrencyChange={setCurrency} />
+        <CheckoutLocaleToggle locale={locale} onLocaleChange={setLocale} />
+      </div>
+
       <div className="flex justify-center">
         <div className="inline-flex rounded-lg border border-border bg-secondary/50 p-1">
           <button
@@ -62,8 +76,16 @@ export function PricingPlans({
 
       <div className="grid gap-6 md:grid-cols-2">
         {SUBSCRIPTION_PLANS.map((plan) => {
-          const price = interval === "monthly" ? plan.monthly : plan.annual;
-          const savings = interval === "annual" ? annualSavings(plan) : null;
+          const tier = interval === "monthly" ? plan.monthly : plan.annual;
+          const price = getCurrencyPrice(tier, currency);
+          const savings =
+            interval === "annual"
+              ? formatAnnualSavings(
+                  getCurrencyPrice(plan.monthly, currency).amountCents,
+                  getCurrencyPrice(plan.annual, currency).amountCents,
+                  currency
+                )
+              : null;
           const isCurrent = subscribed && currentPlan === plan.id;
 
           return (
@@ -110,7 +132,9 @@ export function PricingPlans({
                     Current plan
                   </Button>
                 ) : (
-                  <Link href={`${checkoutBasePath}?plan=${plan.id}&interval=${interval}`}>
+                  <Link
+                    href={`${checkoutBasePath}?plan=${plan.id}&interval=${interval}&currency=${currency}&locale=${locale}`}
+                  >
                     <Button className="w-full" variant={plan.highlighted ? "default" : "outline"}>
                       {subscribed ? "Switch plan" : "Subscribe"}
                     </Button>

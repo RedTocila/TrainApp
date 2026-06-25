@@ -6,12 +6,17 @@ import { GuestCheckoutForm } from "@nebula-ltd/pok-payments-js/react";
 import type { PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
 import { CreditCard, Lock, Loader2, ShieldCheck } from "lucide-react";
 import { createCheckoutOrder } from "@/lib/actions/subscriptions";
-import type { BillingInterval, SubscriptionPlanId } from "@/lib/subscription-plans";
-import { getPlan } from "@/lib/subscription-plans";
+import type { CheckoutCurrency, CheckoutLocale } from "@/lib/checkout-i18n";
+import { getPokPayClientEnv } from "@/lib/pokpay/env";
+import {
+  getPlan,
+  getPlanPrice,
+  type BillingInterval,
+  type SubscriptionPlanId,
+} from "@/lib/subscription-plans";
 import { Button } from "@/components/ui/button";
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { cn } from "@/lib/utils";
-import { getPokPayClientEnv } from "@/lib/pokpay/env";
 
 function formatPokPayError(err: unknown): string {
   if (!err || typeof err !== "object") return "Payment failed. Please try again.";
@@ -40,9 +45,13 @@ function formatPokPayError(err: unknown): string {
 export function CheckoutClient({
   planId,
   interval,
+  currency,
+  locale,
 }: {
   planId: SubscriptionPlanId;
   interval: BillingInterval;
+  currency: CheckoutCurrency;
+  locale: CheckoutLocale;
 }) {
   const router = useRouter();
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -51,15 +60,11 @@ export function CheckoutClient({
   const [isPending, startTransition] = useTransition();
 
   const plan = getPlan(planId);
-  const price = plan
-    ? interval === "monthly"
-      ? plan.monthly
-      : plan.annual
-    : null;
+  const price = plan ? getPlanPrice(planId, interval, currency) : null;
 
   useEffect(() => {
     startTransition(async () => {
-      const result = await createCheckoutOrder(planId, interval);
+      const result = await createCheckoutOrder(planId, interval, currency);
       if ("error" in result && result.error) {
         setError(result.error);
         return;
@@ -69,7 +74,7 @@ export function CheckoutClient({
         setLocalOrderId(result.localOrderId ?? null);
       }
     });
-  }, [planId, interval]);
+  }, [planId, interval, currency]);
 
   const handleSuccess = () => {
     if (localOrderId) {
@@ -167,7 +172,7 @@ export function CheckoutClient({
                 }}
                 options={{
                   env: getPokPayClientEnv(),
-                  locale: "en",
+                  locale,
                   countrySelect: "modal",
                 }}
               />

@@ -207,7 +207,7 @@ export async function createSdkOrder(params: {
       body: JSON.stringify({
         // PokPay docs: `amount` is in minor units (e.g. cents)
         amount: params.amountCents,
-        currencyCode: params.currencyCode ?? "EUR",
+        currencyCode: params.currencyCode ?? "ALL",
         autoCapture: true,
         products: params.products,
         shippingCost: 0,

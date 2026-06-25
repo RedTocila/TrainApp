@@ -6,6 +6,9 @@ import { motion } from "framer-motion";
 import { Check, Sparkles } from "lucide-react";
 import { CUSTOM_PLAN_PRODUCTS, TRAINER_NAME } from "@/lib/custom-plan-products";
 import {
+  CheckoutCurrencyToggle,
+} from "@/components/checkout-preferences-toggle";
+import {
   GET_STARTED_CTA,
   GET_STARTED_HREF,
 } from "@/lib/landing-content";
@@ -13,19 +16,28 @@ import {
   SUBSCRIPTION_PLANS,
   type BillingInterval,
 } from "@/lib/subscription-plans";
+import {
+  DEFAULT_CHECKOUT_CURRENCY,
+  formatAnnualSavings,
+  getCurrencyPrice,
+  type CheckoutCurrency,
+} from "@/lib/checkout-i18n";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-function annualSavings(monthlyCents: number, annualCents: number): string | null {
-  const saved = monthlyCents * 12 - annualCents;
-  if (saved <= 0) return null;
-  return `Save €${(saved / 100).toFixed(0)}/yr`;
+function annualSavings(
+  monthly: { amountCents: number },
+  annual: { amountCents: number },
+  currency: CheckoutCurrency
+): string | null {
+  return formatAnnualSavings(monthly.amountCents, annual.amountCents, currency);
 }
 
 export function LandingPricing() {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
+  const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
 
   return (
     <section id="pricing" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">
@@ -43,6 +55,12 @@ export function LandingPricing() {
         </FadeIn>
 
         <FadeIn delay={0.05}>
+          <CheckoutCurrencyToggle
+            className="mb-6"
+            currency={currency}
+            onCurrencyChange={setCurrency}
+          />
+
           <div className="flex justify-center">
             <div className="inline-flex rounded-lg border border-border bg-secondary/50 p-1">
               {(["monthly", "annual"] as const).map((key) => (
@@ -65,10 +83,15 @@ export function LandingPricing() {
 
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             {SUBSCRIPTION_PLANS.map((plan, i) => {
-              const price = interval === "monthly" ? plan.monthly : plan.annual;
+              const tier = interval === "monthly" ? plan.monthly : plan.annual;
+              const price = getCurrencyPrice(tier, currency);
               const savings =
                 interval === "annual"
-                  ? annualSavings(plan.monthly.amountCents, plan.annual.amountCents)
+                  ? annualSavings(
+                      getCurrencyPrice(plan.monthly, currency),
+                      getCurrencyPrice(plan.annual, currency),
+                      currency
+                    )
                   : null;
 
               return (
@@ -133,11 +156,13 @@ export function LandingPricing() {
 
         <FadeIn>
           <div className="grid gap-4 sm:grid-cols-2">
-            {CUSTOM_PLAN_PRODUCTS.map((product) => (
+            {CUSTOM_PLAN_PRODUCTS.map((product) => {
+              const price = getCurrencyPrice(product.pricing, currency);
+              return (
               <Card key={product.type} className="h-full">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">{product.title}</CardTitle>
-                  <p className="text-2xl font-black">{product.label}</p>
+                  <p className="text-2xl font-black">{price.label}</p>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
@@ -145,7 +170,8 @@ export function LandingPricing() {
                   </p>
                 </CardContent>
               </Card>
-            ))}
+            );
+            })}
           </div>
         </FadeIn>
       </div>

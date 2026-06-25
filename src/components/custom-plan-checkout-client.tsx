@@ -37,10 +37,12 @@ export function CustomPlanCheckoutClient({
   pokpayOrderId,
   localOrderId,
   planType,
+  locale,
 }: {
   pokpayOrderId: string;
   localOrderId: string;
   planType: PlanRequestType;
+  locale: "al" | "en";
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function CustomPlanCheckoutClient({
           }}
           options={{
             env: getPokPayClientEnv(),
-            locale: "en",
+            locale,
             countrySelect: "modal",
           }}
         />
