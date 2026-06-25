@@ -1,14 +1,22 @@
 export type PokPayEnv = "production" | "staging";
 
 /**
- * Single source of truth for PokPay environment.
+ * Server-side PokPay environment.
  *
- * - Server can read `POKPAY_ENV` (preferred) or fall back to `NEXT_PUBLIC_POKPAY_ENV`.
- * - Client bundles only have access to `NEXT_PUBLIC_POKPAY_ENV`.
+ * IMPORTANT: backend code must use `POKPAY_ENV` only (never `NEXT_PUBLIC_*`).
  */
-export function getPokPayEnv(): PokPayEnv {
-  const raw =
-    (process.env.NEXT_PUBLIC_POKPAY_ENV ?? process.env.POKPAY_ENV ?? "").toLowerCase();
+export function getPokPayServerEnv(): PokPayEnv {
+  const raw = (process.env.POKPAY_ENV ?? "").toLowerCase();
+  return raw === "production" ? "production" : "staging";
+}
+
+/**
+ * Client-side PokPay environment.
+ *
+ * IMPORTANT: client bundles can only read `NEXT_PUBLIC_*`.
+ */
+export function getPokPayClientEnv(): PokPayEnv {
+  const raw = (process.env.NEXT_PUBLIC_POKPAY_ENV ?? "").toLowerCase();
   return raw === "production" ? "production" : "staging";
 }
 

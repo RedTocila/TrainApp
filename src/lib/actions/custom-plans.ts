@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomPlanProduct, TRAINER_NAME } from "@/lib/custom-plan-products";
-import { createSdkOrder, getSdkOrder, isSdkOrderPaid } from "@/lib/pokpay/client";
+import {
+  createSdkOrder,
+  getSdkOrder,
+  isSdkOrderPaid,
+  type PokPaySdkOrderProduct,
+} from "@/lib/pokpay/client";
 import { getAppBaseUrl } from "@/lib/app-url";
 import type { Meal, PlanRequest, PlanRequestType, NutritionScheduleConfig } from "@/lib/types";
 import { scheduleNutritionForClient, clearAllClientNutritionSchedule } from "@/lib/actions/admin-nutrition";
@@ -102,11 +107,23 @@ export async function createCustomPlanCheckout(
 
   try {
     const redirectUrl = `${baseUrl}/dashboard/checkout/custom-success?localOrderId=${orderRow.id}&type=${type}`;
+    const failRedirectUrl = `${baseUrl}/dashboard/checkout/custom?localOrderId=${orderRow.id}&type=${type}`;
     const webhookUrl = `${baseUrl}/api/payments/pokpay/webhook`;
+    const products: PokPaySdkOrderProduct[] = [
+      {
+        name: product.title,
+        quantity: 1,
+        price: product.amountCents,
+      },
+    ];
     const sdkOrder = await createSdkOrder({
       amountCents: product.amountCents,
       redirectUrl,
+      failRedirectUrl,
       webhookUrl,
+      description: product.title,
+      merchantCustomReference: orderRow.id,
+      products,
     });
 
     await admin

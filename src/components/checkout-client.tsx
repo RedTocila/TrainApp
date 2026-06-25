@@ -11,7 +11,7 @@ import { getPlan } from "@/lib/subscription-plans";
 import { Button } from "@/components/ui/button";
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { cn } from "@/lib/utils";
-import { getPokPayEnv } from "@/lib/pokpay/env";
+import { getPokPayClientEnv } from "@/lib/pokpay/env";
 
 function formatPokPayError(err: unknown): string {
   if (!err || typeof err !== "object") return "Payment failed. Please try again.";
@@ -166,7 +166,7 @@ export function CheckoutClient({
                   setError(formatPokPayError(paymentError));
                 }}
                 options={{
-                  env: getPokPayEnv(),
+                  env: getPokPayClientEnv(),
                   locale: "en",
                   countrySelect: "modal",
                 }}

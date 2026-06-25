@@ -7,7 +7,7 @@ import { Lock } from "lucide-react";
 import { useState } from "react";
 import type { PlanRequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { getPokPayEnv } from "@/lib/pokpay/env";
+import { getPokPayClientEnv } from "@/lib/pokpay/env";
 
 function formatPokPayError(err: unknown): string {
   if (!err || typeof err !== "object") return "Payment failed. Please try again.";
@@ -73,7 +73,7 @@ export function CustomPlanCheckoutClient({
             setError(formatPokPayError(paymentError));
           }}
           options={{
-            env: getPokPayEnv(),
+            env: getPokPayClientEnv(),
             locale: "en",
             countrySelect: "modal",
           }}

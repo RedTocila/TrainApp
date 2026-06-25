@@ -15,6 +15,7 @@ import {
   createSdkOrder,
   getSdkOrder,
   isSdkOrderPaid,
+  type PokPaySdkOrderProduct,
 } from "@/lib/pokpay/client";
 import { getAppBaseUrl } from "@/lib/app-url";
 import type { Profile } from "@/lib/types";
@@ -82,11 +83,24 @@ export async function createCheckoutOrder(
 
   try {
     const redirectUrl = `${baseUrl}/dashboard/checkout/success?localOrderId=${orderRow.id}`;
+    const failRedirectUrl = `${baseUrl}/dashboard/checkout?plan=${planId}&interval=${interval}`;
     const webhookUrl = `${baseUrl}/api/payments/pokpay/webhook`;
+    const products: PokPaySdkOrderProduct[] = [
+      {
+        name: `${plan.name} · ${interval === "monthly" ? "Monthly" : "Annual"}`,
+        quantity: 1,
+        // Keep product price consistent with order amount (minor units, cents)
+        price: price.amountCents,
+      },
+    ];
     const sdkOrder = await createSdkOrder({
       amountCents: price.amountCents,
       redirectUrl,
+      failRedirectUrl,
       webhookUrl,
+      description: `${plan.name} subscription`,
+      merchantCustomReference: orderRow.id,
+      products,
     });
 
     await admin
