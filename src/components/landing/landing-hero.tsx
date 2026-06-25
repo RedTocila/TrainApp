@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowRight, Bot, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { HeroGlow } from "@/components/landing/landing-motion";
 import {
   GET_STARTED_CTA,
   GET_STARTED_HREF,
@@ -18,10 +17,8 @@ import {
 
 export function LandingHero() {
   return (
-    <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pt-14 lg:pb-24">
-      <HeroGlow />
-
-      <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-14">
+    <section className="relative overflow-hidden px-4 pb-16 pt-[calc(4.5rem+2.5rem)] sm:px-6 sm:pt-[calc(4.5rem+3.5rem)] lg:pb-24">
+      <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-14">
         <div className="space-y-6 text-center lg:text-left">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
             <Sparkles className="h-3.5 w-3.5" />
@@ -78,19 +75,19 @@ export function LandingHero() {
             </div>
           </div>
 
-          <div className="absolute -bottom-3 -right-2 flex items-center gap-2 rounded-xl border border-primary/30 bg-card px-3 py-2 shadow-lg sm:-right-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
-              <Bot className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground">AI insight</p>
-              <p className="text-xs font-bold">+12g protein tip</p>
-            </div>
+          <div className="pointer-events-none absolute -left-2 top-3 z-10 flex items-center gap-1.5 rounded-lg border border-border bg-card/95 px-2.5 py-1.5 text-[11px] font-bold shadow-md backdrop-blur-sm sm:-left-3">
+            <Zap className="h-3.5 w-3.5 text-amber-400" />
+            HIIT · 7PM
           </div>
 
-          <div className="absolute -left-2 top-8 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-lg sm:-left-4">
-            <Zap className="h-4 w-4 text-amber-400" />
-            <p className="text-xs font-bold">HIIT · 7PM tonight</p>
+          <div className="pointer-events-none absolute -bottom-2 -right-2 z-10 flex items-center gap-2 rounded-lg border border-primary/30 bg-card/95 px-2.5 py-1.5 shadow-md backdrop-blur-sm sm:-right-3">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 text-primary">
+              <Bot className="h-3.5 w-3.5" />
+            </div>
+            <div>
+              <p className="text-[9px] text-muted-foreground">AI insight</p>
+              <p className="text-[11px] font-bold">+12g protein</p>
+            </div>
           </div>
         </div>
       </div>

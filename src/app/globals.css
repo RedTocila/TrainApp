@@ -330,6 +330,38 @@ html.light .overlay-backdrop {
   scroll-behavior: smooth;
 }
 
+.landing-page :where(
+  .text-primary,
+  [class*="text-primary/"]:not([class*="text-primary-foreground"])
+) {
+  text-shadow:
+    0 0 10px rgba(var(--primary-rgb), 0.55),
+    0 0 1px rgb(0 0 0 / 0.4);
+}
+
+.landing-page :where(svg.text-primary, .text-primary svg) {
+  filter: drop-shadow(0 0 6px rgba(var(--primary-rgb), 0.55))
+    drop-shadow(0 0 1px rgb(0 0 0 / 0.4));
+}
+
+html.light .landing-page {
+  --muted-foreground: #3f3f46;
+}
+
+html.light .landing-page :where(
+  .text-primary,
+  [class*="text-primary/"]:not([class*="text-primary-foreground"])
+) {
+  text-shadow:
+    0 0 1px rgb(255 255 255 / 0.95),
+    0 1px 3px rgb(0 0 0 / 0.22);
+}
+
+html.light .landing-page :where(svg.text-primary, .text-primary svg) {
+  filter: drop-shadow(0 0 1px rgb(255 255 255 / 0.95))
+    drop-shadow(0 1px 2px rgb(0 0 0 / 0.22));
+}
+
 .landing-hero-glow {
   background:
     radial-gradient(ellipse 50% 40% at 15% 25%, rgba(var(--primary-rgb), 0.14), transparent 70%),

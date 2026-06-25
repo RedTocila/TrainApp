@@ -16,7 +16,16 @@ export function extractYoutubeId(url: string): string | null {
 
 export function getYoutubeEmbedUrl(url: string): string | null {
   const id = extractYoutubeId(url);
-  return id ? `https://www.youtube.com/embed/${id}` : null;
+  if (!id) return null;
+
+  const startMatch = url.match(/[?&](?:t|start)=(\d+)/);
+  const start = startMatch ? startMatch[1] : null;
+
+  const params = new URLSearchParams();
+  if (start) params.set("start", start);
+
+  const qs = params.toString();
+  return `https://www.youtube.com/embed/${id}${qs ? `?${qs}` : ""}`;
 }
 
 export function isValidYoutubeUrl(url: string): boolean {

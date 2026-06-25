@@ -47,6 +47,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     badge: "Best value",
     features: [
       `Everything in ${PLATFORM_CORE_NAME}`,
+      "AI Coach Alex — motivation, help & answers to your questions",
       "AI workout plan builder",
       "AI nutrition plan builder",
       "Photo & text AI meal logging",

@@ -1,55 +1,45 @@
 "use client";
 
 import Image from "next/image";
-import { Brain, Camera, TrendingUp } from "lucide-react";
+import { Brain, Camera, TrendingUp, type LucideIcon } from "lucide-react";
 import { FadeIn } from "@/components/landing/landing-motion";
 import {
-  ProgressRing,
-  WeightTrendChart,
-} from "@/components/landing/landing-visuals";
+  LANDING_AI_PREDICTIONS_IMAGE,
+  LANDING_MEAL_PHOTO_LOG_IMAGE,
+  LANDING_TRACK_PROGRESS_IMAGE,
+} from "@/lib/landing-content";
 
-const panels = [
+const panels: {
+  icon: LucideIcon;
+  title: string;
+  color: string;
+  image: string;
+  alt: string;
+  caption: string;
+}[] = [
   {
     icon: Camera,
     title: "Snap & log meals",
     color: "text-violet-400",
-    visual: (
-      <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-secondary/20">
-        <div className="relative aspect-[4/3] w-full">
-          <Image
-            src="/landing/meal-photo-log.png"
-            alt="Log meals by taking a picture"
-            fill
-            sizes="(min-width: 768px) 320px, 90vw"
-            className="object-cover"
-          />
-        </div>
-        <div className="flex items-center justify-between gap-3 px-4 py-3 text-xs">
-          <span className="font-semibold text-muted-foreground">
-            Take a photo → get macros matched
-          </span>
-          <span className="rounded-full border border-border bg-card/70 px-2 py-1 font-bold">
-            Photo Log
-          </span>
-        </div>
-      </div>
-    ),
+    image: LANDING_MEAL_PHOTO_LOG_IMAGE,
+    alt: "Photo meal log — snap a meal, get macros and ingredient breakdown",
+    caption: "Snap a photo → AI logs calories & macros",
   },
   {
     icon: TrendingUp,
     title: "Track progress",
     color: "text-emerald-400",
-    visual: <WeightTrendChart className="mt-4" />,
+    image: LANDING_TRACK_PROGRESS_IMAGE,
+    alt: "Track progress — weight, photos, habits, and body metrics in one dashboard",
+    caption: "Weight, photos, habits & metrics — all in one view",
   },
   {
     icon: Brain,
     title: "AI predictions",
     color: "text-sky-400",
-    visual: (
-      <div className="mt-4 flex justify-center">
-        <ProgressRing value={92} label="On track" sublabel="4-week forecast" />
-      </div>
-    ),
+    image: LANDING_AI_PREDICTIONS_IMAGE,
+    alt: "AI predictions — workouts, nutrition, sleep and weight turned into forecasts",
+    caption: "Your data in → AI forecasts where you're headed",
   },
 ];
 
@@ -66,19 +56,28 @@ export function LandingShowcase() {
           </h2>
         </FadeIn>
 
-        <div className="mt-12 grid gap-5 md:grid-cols-3">
+        <div className="mt-12 grid gap-8 md:grid-cols-3">
           {panels.map((panel) => (
-            <div
-              key={panel.title}
-              className="premium-card overflow-hidden p-5 transition-transform duration-300 hover:-translate-y-1"
-            >
-              <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-secondary ${panel.color}`}>
-                  <panel.icon className="h-5 w-5" />
-                </div>
+            <div key={panel.title}>
+              <div className="flex items-center gap-2">
+                <panel.icon className={`h-5 w-5 shrink-0 ${panel.color}`} />
                 <h3 className="font-bold">{panel.title}</h3>
               </div>
-              {panel.visual}
+
+              <div className="relative mt-3 aspect-[3/2] w-full overflow-hidden rounded-2xl">
+                <Image
+                  src={panel.image}
+                  alt={panel.alt}
+                  fill
+                  unoptimized
+                  sizes="(min-width: 768px) 320px, 90vw"
+                  className="object-contain object-center"
+                />
+              </div>
+
+              <p className="mt-3 text-xs font-semibold leading-relaxed text-muted-foreground">
+                {panel.caption}
+              </p>
             </div>
           ))}
         </div>

@@ -18,7 +18,7 @@ export function LandingFooter() {
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-10 md:grid-cols-3">
           <div className="space-y-3">
-            <AppLogo href="/" />
+            <AppLogo href="/" variant="text" />
             <p className="max-w-xs text-sm text-muted-foreground">
               Premium personal training — workouts, nutrition, AI coaching, and
               live sessions in one place.

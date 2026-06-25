@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
-import { CUSTOM_PLAN_PRODUCTS, TRAINER_NAME } from "@/lib/custom-plan-products";
 import { CheckoutCurrencyToggle } from "@/components/checkout-preferences-toggle";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import {
@@ -112,7 +111,7 @@ export function LandingPricing() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <ul className="space-y-2">
-                        {plan.features.slice(0, 5).map((feature) => (
+                        {plan.features.map((feature) => (
                           <li key={feature} className="flex items-start gap-2 text-sm">
                             <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                             <span>{feature}</span>
@@ -130,27 +129,6 @@ export function LandingPricing() {
             <Link href={GET_STARTED_HREF}>
               <Button size="lg">{GET_STARTED_CTA}</Button>
             </Link>
-          </div>
-        </FadeIn>
-
-        <FadeIn>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {CUSTOM_PLAN_PRODUCTS.map((product) => {
-              const price = getCurrencyPrice(product.pricing, currency);
-              return (
-              <Card key={product.type} className="h-full">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">{product.title}</CardTitle>
-                  <p className="text-2xl font-black">{price.label}</p>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    By {TRAINER_NAME} · delivered in-app
-                  </p>
-                </CardContent>
-              </Card>
-            );
-            })}
           </div>
         </FadeIn>
       </div>

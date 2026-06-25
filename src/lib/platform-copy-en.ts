@@ -484,6 +484,7 @@ export const platformCopyEn = {
     ],
     aiFeatures: (coreName: string) => [
       `Everything in ${coreName}`,
+      "AI Coach Alex — motivation, help & answers to your questions",
       "AI workout plan builder",
       "AI nutrition plan builder",
       "Photo & text AI meal logging",

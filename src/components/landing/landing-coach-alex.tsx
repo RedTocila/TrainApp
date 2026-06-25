@@ -31,7 +31,7 @@ export function LandingCoachAlex() {
           <FadeIn>
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              Meet Coach Alex
+              Meet Alex
             </div>
             <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
               Your coach who helps you

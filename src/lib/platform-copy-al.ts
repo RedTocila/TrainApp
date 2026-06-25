@@ -489,6 +489,7 @@ export const platformCopyAl = {
     ],
     aiFeatures: (coreName: string) => [
       `Gjithçka në ${coreName}`,
+      "Coach Alex me AI — motivim, ndihmë dhe përgjigje për pyetjet tuaja",
       "Ndërtues planet stërvitjeje me AI",
       "Ndërtues planet ushqimore me AI",
       "Regjistrim vaktesh me foto dhe tekst me AI",

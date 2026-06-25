@@ -34,6 +34,17 @@ export const GET_STARTED_CTA = "Get Your Custom Program";
 export const GET_STARTED_HREF = "/get-started";
 
 export const LANDING_HERO_IMAGE = "/landing/hero.png";
+export const LANDING_HERO_BACKGROUND_IMAGE = "/landing/hero-background.png";
+export const LANDING_BACKGROUND_IMAGE = "/landing/landing-background.png";
+export const LANDING_BACKGROUND_IMAGE_LIGHT = "/landing/landing-background-light.png";
+
+/** Override with NEXT_PUBLIC_LANDING_HERO_YOUTUBE_URL if needed */
+export const LANDING_HERO_YOUTUBE_URL =
+  process.env.NEXT_PUBLIC_LANDING_HERO_YOUTUBE_URL ??
+  "https://www.youtube.com/watch?v=RJXjyS7jnlU&t=21s";
+export const LANDING_MEAL_PHOTO_LOG_IMAGE = "/landing/meal-photo-log-flow.png";
+export const LANDING_TRACK_PROGRESS_IMAGE = "/landing/track-progress-v2.png";
+export const LANDING_AI_PREDICTIONS_IMAGE = "/landing/ai-predictions-v2.png";
 
 export interface AppPreviewHighlight {
   icon: LucideIcon;
@@ -63,13 +74,6 @@ export const LANDING_APP_PREVIEW_HIGHLIGHTS: AppPreviewHighlight[] = [
     description: "Calendar, habits, and reminders that keep you showing up.",
   },
 ];
-
-export const LANDING_APP_STATS = [
-  { value: "10,000+", label: "Active users" },
-  { value: "50,000+", label: "Workouts completed" },
-  { value: "3.2M+", label: "Kg lifted" },
-  { value: "95%", label: "User satisfaction" },
-] as const;
 
 export interface LandingFeature {
   icon: LucideIcon;
@@ -178,6 +182,32 @@ export const COACH_ALEX_HIGHLIGHTS: CoachAlexHighlight[] = [
   },
 ];
 
+export const LANDING_FOUNDER_IMAGE = "/landing/transformations/transformation-10.png";
+
+export interface LandingFounderBio {
+  name: string;
+  role: string;
+  headline: string;
+  paragraphs: string[];
+  kgLost: number;
+  months: number;
+  imageAlt: string;
+}
+
+export const LANDING_FOUNDER_BIO: LandingFounderBio = {
+  name: "Redjan Tocila",
+  role: "Founder & coach",
+  headline: "I built RUTINA because I needed it myself.",
+  paragraphs: [
+    "I'm not selling a fantasy — I went through the same grind: tracking meals, showing up when motivation was gone, and learning what actually moves the needle.",
+    "That two-month stretch in the photos is real. Consistent training, honest nutrition logging, and habits stacked day by day. RUTINA is the system I wish I had back then — now it's what I use with every client.",
+    "When you train here, you're not talking to a faceless app. I review custom plans, run live sessions, and built Coach Alex to keep you accountable between check-ins.",
+  ],
+  kgLost: 12,
+  months: 2,
+  imageAlt: "Redjan Tocila — founder transformation from March to May",
+};
+
 export const LANDING_HIGHLIGHTS = [
   { icon: Bot, label: "AI meal logging" },
   { icon: LineChart, label: "Macro tracking" },
@@ -190,6 +220,70 @@ export const LANDING_STATS = [
   { value: "€7", label: "Core from /mo" },
   { value: "AI", label: "Smart coaching" },
   { value: "24/7", label: "Track anytime" },
+];
+
+export interface LandingTransformation {
+  image: string;
+  alt: string;
+  kgLost: number;
+  months: number;
+}
+
+export const LANDING_TRANSFORMATIONS: LandingTransformation[] = [
+  {
+    image: "/landing/transformations/transformation-01.png",
+    alt: "Member body transformation — side profile before and after",
+    kgLost: 8,
+    months: 3,
+  },
+  {
+    image: "/landing/transformations/transformation-02.png",
+    alt: "Member body transformation — front view before and after",
+    kgLost: 15,
+    months: 5,
+  },
+  {
+    image: "/landing/transformations/transformation-03.png",
+    alt: "Member body transformation — side profile before and after",
+    kgLost: 10,
+    months: 4,
+  },
+  {
+    image: "/landing/transformations/transformation-04.png",
+    alt: "Member body transformation — lower body progress before and after",
+    kgLost: 6,
+    months: 2,
+  },
+  {
+    image: "/landing/transformations/transformation-05.png",
+    alt: "Member body transformation — waist progress before and after",
+    kgLost: 9,
+    months: 3,
+  },
+  {
+    image: "/landing/transformations/transformation-06.png",
+    alt: "Member body transformation — midsection progress before and after",
+    kgLost: 11,
+    months: 4,
+  },
+  {
+    image: "/landing/transformations/transformation-07.png",
+    alt: "Member body transformation — full body before and after",
+    kgLost: 14,
+    months: 6,
+  },
+  {
+    image: "/landing/transformations/transformation-08.png",
+    alt: "Member body transformation — back view before and after",
+    kgLost: 7,
+    months: 3,
+  },
+  {
+    image: "/landing/transformations/transformation-09.png",
+    alt: "Member body transformation — side profile before and after",
+    kgLost: 12,
+    months: 5,
+  },
 ];
 
 export interface LandingReview {
@@ -246,7 +340,6 @@ export const LANDING_REVIEWS: LandingReview[] = [
 
 export const NAV_LINKS = [
   { href: "#how-it-works", label: "How it works" },
-  { href: "#features", label: "Features" },
   { href: "#pricing", label: "Pricing" },
   { href: "/contact", label: "Contact" },
 ] as const;

@@ -1,13 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Quote, Star } from "lucide-react";
-import {
-  GET_STARTED_HREF,
-  LANDING_REVIEWS,
-  type LandingReview,
-} from "@/lib/landing-content";
+import { LANDING_REVIEWS, type LandingReview } from "@/lib/landing-content";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { cn } from "@/lib/utils";
 
@@ -29,10 +24,7 @@ function StarRating({ rating }: { rating: number }) {
 
 function ReviewCard({ review }: { review: LandingReview }) {
   return (
-    <Link
-      href={GET_STARTED_HREF}
-      className="premium-card relative z-10 flex w-[min(100vw-2rem,20rem)] shrink-0 cursor-pointer flex-col p-5 transition-shadow hover:shadow-lg hover:shadow-primary/10 sm:w-80"
-    >
+    <article className="premium-card relative z-10 flex w-[min(100vw-2rem,20rem)] shrink-0 flex-col p-5 sm:w-80">
       <Quote className="h-8 w-8 text-primary/20" aria-hidden />
       <StarRating rating={review.rating} />
       <blockquote className="mt-3 flex-1 text-sm leading-relaxed">
@@ -42,7 +34,7 @@ function ReviewCard({ review }: { review: LandingReview }) {
         <p className="font-bold">{review.name}</p>
         <p className="text-xs text-muted-foreground">{review.context}</p>
       </footer>
-    </Link>
+    </article>
   );
 }
 

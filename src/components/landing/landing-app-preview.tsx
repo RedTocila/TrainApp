@@ -5,9 +5,10 @@ import { MonitorSmartphone } from "lucide-react";
 import { FadeIn } from "@/components/landing/landing-motion";
 import {
   LANDING_APP_PREVIEW_HIGHLIGHTS,
-  LANDING_APP_STATS,
+  LANDING_FEATURES,
   LANDING_HERO_IMAGE,
 } from "@/lib/landing-content";
+import { cn } from "@/lib/utils";
 
 export function LandingAppPreview() {
   return (
@@ -66,16 +67,30 @@ export function LandingAppPreview() {
           </div>
         </div>
 
-        <FadeIn delay={0.1} className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {LANDING_APP_STATS.map((stat) => (
-            <div
-              key={stat.label}
-              className="rounded-xl border border-border bg-card/50 p-4 text-center"
-            >
-              <p className="text-xl font-black text-primary sm:text-2xl">{stat.value}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
-            </div>
-          ))}
+        <FadeIn delay={0.1} className="mt-12">
+          <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-primary">
+            Features
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {LANDING_FEATURES.map((feature) => (
+              <article
+                key={feature.title}
+                className={cn(
+                  "premium-card flex items-start gap-3 overflow-hidden p-3.5 transition-transform duration-300 hover:-translate-y-0.5 sm:p-4",
+                  "bg-gradient-to-br",
+                  feature.accent
+                )}
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background/80 text-primary shadow-sm">
+                  <feature.icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold sm:text-base">{feature.title}</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{feature.tagline}</p>
+                </div>
+              </article>
+            ))}
+          </div>
         </FadeIn>
       </div>
     </section>
