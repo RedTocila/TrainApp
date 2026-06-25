@@ -6,17 +6,14 @@ import { Check, Sparkles } from "lucide-react";
 import { AiFoodDemoIllustration } from "@/components/ai-food-demo-illustration";
 import {
   CheckoutCurrencyToggle,
-  CheckoutLocaleToggle,
 } from "@/components/checkout-preferences-toggle";
 import type { BillingInterval } from "@/lib/subscription-plans";
 import { SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
 import {
   DEFAULT_CHECKOUT_CURRENCY,
-  DEFAULT_CHECKOUT_LOCALE,
   formatAnnualSavings,
   getCurrencyPrice,
   type CheckoutCurrency,
-  type CheckoutLocale,
 } from "@/lib/checkout-i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,13 +33,11 @@ export function PricingPlans({
   subscribed?: boolean;
 }) {
   const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
-  const [locale, setLocale] = useState<CheckoutLocale>(DEFAULT_CHECKOUT_LOCALE);
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col items-center gap-3">
         <CheckoutCurrencyToggle currency={currency} onCurrencyChange={setCurrency} />
-        <CheckoutLocaleToggle locale={locale} onLocaleChange={setLocale} />
       </div>
 
       <div className="flex justify-center">
@@ -81,8 +76,8 @@ export function PricingPlans({
           const savings =
             interval === "annual"
               ? formatAnnualSavings(
-                  getCurrencyPrice(plan.monthly, currency).amountCents,
-                  getCurrencyPrice(plan.annual, currency).amountCents,
+                  plan.monthly.amountAllCents,
+                  plan.annual.amountAllCents,
                   currency
                 )
               : null;
@@ -133,7 +128,7 @@ export function PricingPlans({
                   </Button>
                 ) : (
                   <Link
-                    href={`${checkoutBasePath}?plan=${plan.id}&interval=${interval}&currency=${currency}&locale=${locale}`}
+                    href={`${checkoutBasePath}?plan=${plan.id}&interval=${interval}&currency=${currency}`}
                   >
                     <Button className="w-full" variant={plan.highlighted ? "default" : "outline"}>
                       {subscribed ? "Switch plan" : "Subscribe"}

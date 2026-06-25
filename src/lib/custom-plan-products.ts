@@ -1,4 +1,4 @@
-import type { CheckoutCurrency, MultiCurrencyPrice } from "@/lib/checkout-i18n";
+import type { CheckoutCurrency, PriceInAll } from "@/lib/checkout-i18n";
 import { getCurrencyPrice } from "@/lib/checkout-i18n";
 import type { PlanRequestType } from "@/lib/types";
 
@@ -9,7 +9,7 @@ export interface CustomPlanProduct {
   orderKind: "custom_workout" | "custom_nutrition";
   title: string;
   description: string;
-  pricing: MultiCurrencyPrice;
+  pricing: PriceInAll;
 }
 
 export const CUSTOM_PLAN_PRODUCTS: CustomPlanProduct[] = [
@@ -18,20 +18,14 @@ export const CUSTOM_PLAN_PRODUCTS: CustomPlanProduct[] = [
     orderKind: "custom_workout",
     title: "Custom Workout Plan",
     description: `Personal workout program built by ${TRAINER_NAME} based on your goals and preferences.`,
-    pricing: {
-      ALL: { amountCents: 490_000, label: "L4,900" },
-      EUR: { amountCents: 4900, label: "€49" },
-    },
+    pricing: { amountAllCents: 490_000 },
   },
   {
     type: "diet",
     orderKind: "custom_nutrition",
     title: "Custom Nutrition Plan",
     description: `Personal nutrition plan designed by ${TRAINER_NAME} as a PDF tailored to your body and goals.`,
-    pricing: {
-      ALL: { amountCents: 790_000, label: "L7,900" },
-      EUR: { amountCents: 7900, label: "€79" },
-    },
+    pricing: { amountAllCents: 790_000 },
   },
 ];
 

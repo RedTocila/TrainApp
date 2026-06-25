@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { CHECKOUT_LOCALES } from "@/lib/checkout-i18n";
+import type { CheckoutLocale } from "@/lib/checkout-i18n";
 import { updateProfile, updatePassword } from "@/lib/actions/profile";
 import { AccentColorPicker } from "@/components/accent-color-picker";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -23,12 +25,14 @@ export function ProfileSettings({
   email,
   phone,
   goal,
+  preferredLocale = "al",
   showHeader = true,
 }: {
   fullName: string;
   email: string;
   phone?: string | null;
   goal: string | null;
+  preferredLocale?: CheckoutLocale;
   showHeader?: boolean;
 }) {
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -113,6 +117,21 @@ export function ProfileSettings({
                 className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {GOAL_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="preferred_locale">Language</Label>
+              <select
+                id="preferred_locale"
+                name="preferred_locale"
+                defaultValue={preferredLocale}
+                className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {CHECKOUT_LOCALES.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>

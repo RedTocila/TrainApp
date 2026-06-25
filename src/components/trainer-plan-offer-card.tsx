@@ -10,7 +10,6 @@ import {
 } from "@/lib/actions/custom-plans";
 import {
   CheckoutCurrencyToggle,
-  CheckoutLocaleToggle,
 } from "@/components/checkout-preferences-toggle";
 import { NutritionPlanPdfViewer } from "@/components/nutrition-plan-pdf-viewer";
 import {
@@ -20,9 +19,7 @@ import {
 } from "@/lib/custom-plan-products";
 import {
   DEFAULT_CHECKOUT_CURRENCY,
-  DEFAULT_CHECKOUT_LOCALE,
   type CheckoutCurrency,
-  type CheckoutLocale,
 } from "@/lib/checkout-i18n";
 import type { PlanRequest, PlanRequestType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -105,7 +102,6 @@ function CustomPlanDialog({
   const [request, setRequest] = useState<PlanRequest | null>(initialRequest);
   const [preferences, setPreferences] = useState("");
   const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
-  const [locale, setLocale] = useState<CheckoutLocale>(DEFAULT_CHECKOUT_LOCALE);
   const [error, setError] = useState<string | null>(null);
   const [successTitle, setSuccessTitle] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -145,7 +141,7 @@ function CustomPlanDialog({
         return;
       }
       if ("localOrderId" in result && result.localOrderId) {
-        window.location.href = `/dashboard/checkout/custom?localOrderId=${result.localOrderId}&type=${type}&locale=${locale}`;
+        window.location.href = `/dashboard/checkout/custom?localOrderId=${result.localOrderId}&type=${type}`;
       }
     });
   };
@@ -275,7 +271,6 @@ function CustomPlanDialog({
               <p className="text-sm text-muted-foreground">{product.description}</p>
               <div className="space-y-3">
                 <CheckoutCurrencyToggle currency={currency} onCurrencyChange={setCurrency} />
-                <CheckoutLocaleToggle locale={locale} onLocaleChange={setLocale} />
               </div>
               <p className="text-2xl font-black">
                 {price.label}

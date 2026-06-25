@@ -1,5 +1,5 @@
 import { PLATFORM_AI_NAME, PLATFORM_CORE_NAME } from "@/lib/brand";
-import type { CheckoutCurrency, MultiCurrencyPrice } from "@/lib/checkout-i18n";
+import type { CheckoutCurrency, PriceInAll } from "@/lib/checkout-i18n";
 import { getCurrencyPrice } from "@/lib/checkout-i18n";
 
 export type SubscriptionPlanId = "core" | "ai";
@@ -14,8 +14,8 @@ export interface SubscriptionPlan {
   id: SubscriptionPlanId;
   name: string;
   tagline: string;
-  monthly: MultiCurrencyPrice;
-  annual: MultiCurrencyPrice;
+  monthly: PriceInAll;
+  annual: PriceInAll;
   features: string[];
   highlighted?: boolean;
   badge?: string;
@@ -26,14 +26,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     id: "core",
     name: PLATFORM_CORE_NAME,
     tagline: "Full training & nutrition tracking without premium AI tools.",
-    monthly: {
-      ALL: { amountCents: 100, label: "L1" },
-      EUR: { amountCents: 100, label: "€1" },
-    },
-    annual: {
-      ALL: { amountCents: 100, label: "L1" },
-      EUR: { amountCents: 100, label: "€1" },
-    },
+    monthly: { amountAllCents: 100 },
+    annual: { amountAllCents: 100 },
     features: [
       "Workout builder & sessions",
       "Nutrition plans & manual meal logging",
@@ -47,14 +41,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     id: "ai",
     name: PLATFORM_AI_NAME,
     tagline: "Core plan plus AI plan builders, meal logging, and live coaching.",
-    monthly: {
-      ALL: { amountCents: 100, label: "L1" },
-      EUR: { amountCents: 100, label: "€1" },
-    },
-    annual: {
-      ALL: { amountCents: 100, label: "L1" },
-      EUR: { amountCents: 100, label: "€1" },
-    },
+    monthly: { amountAllCents: 100 },
+    annual: { amountAllCents: 100 },
     highlighted: true,
     badge: "Best value",
     features: [

@@ -4,6 +4,9 @@ export type CheckoutLocale = "al" | "en";
 export const DEFAULT_CHECKOUT_CURRENCY: CheckoutCurrency = "ALL";
 export const DEFAULT_CHECKOUT_LOCALE: CheckoutLocale = "al";
 
+/** 1 EUR = 100 ALL (major units). Amounts are stored in ALL minor units (cent). */
+export const ALL_PER_EUR = 100;
+
 export const CHECKOUT_CURRENCIES: { value: CheckoutCurrency; label: string }[] = [
   { value: "ALL", label: "ALL (Lek)" },
   { value: "EUR", label: "EUR (€)" },
@@ -19,9 +22,9 @@ export interface CurrencyAmount {
   label: string;
 }
 
-export interface MultiCurrencyPrice {
-  ALL: CurrencyAmount;
-  EUR: CurrencyAmount;
+/** Canonical price stored in ALL minor units (1/100 of a Lek). */
+export interface PriceInAll {
+  amountAllCents: number;
 }
 
 export function parseCheckoutCurrency(value?: string | null): CheckoutCurrency {
@@ -32,11 +35,30 @@ export function parseCheckoutLocale(value?: string | null): CheckoutLocale {
   return value === "en" ? "en" : "al";
 }
 
-export function getCurrencyPrice(
-  price: MultiCurrencyPrice,
+export function allCentsToCurrencyCents(
+  amountAllCents: number,
+  currency: CheckoutCurrency
+): number {
+  if (currency === "ALL") return amountAllCents;
+  return Math.round(amountAllCents / ALL_PER_EUR);
+}
+
+export function toCurrencyAmount(
+  amountAllCents: number,
   currency: CheckoutCurrency
 ): CurrencyAmount {
-  return price[currency];
+  const amountCents = allCentsToCurrencyCents(amountAllCents, currency);
+  return {
+    amountCents,
+    label: formatCurrencyAmount(amountCents, currency),
+  };
+}
+
+export function getCurrencyPrice(
+  price: PriceInAll,
+  currency: CheckoutCurrency
+): CurrencyAmount {
+  return toCurrencyAmount(price.amountAllCents, currency);
 }
 
 export function formatCurrencyAmount(
@@ -49,18 +71,21 @@ export function formatCurrencyAmount(
       ? `€${(amountCents / 100).toFixed(0)}`
       : `€${(amountCents / 100).toFixed(2)}`;
   }
+  const major = amountCents / 100;
   const whole = amountCents % 100 === 0;
-  return whole
-    ? `L${(amountCents / 100).toFixed(0)}`
-    : `L${(amountCents / 100).toFixed(2)}`;
+  const formatted = whole
+    ? major.toLocaleString("en-US", { maximumFractionDigits: 0 })
+    : major.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `L${formatted}`;
 }
 
 export function formatAnnualSavings(
-  monthlyCents: number,
-  annualCents: number,
+  monthlyAllCents: number,
+  annualAllCents: number,
   currency: CheckoutCurrency
 ): string | null {
-  const saved = monthlyCents * 12 - annualCents;
-  if (saved <= 0) return null;
+  const savedAll = monthlyAllCents * 12 - annualAllCents;
+  if (savedAll <= 0) return null;
+  const saved = allCentsToCurrencyCents(savedAll, currency);
   return `Save ${formatCurrencyAmount(saved, currency)}/year`;
 }

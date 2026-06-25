@@ -7,14 +7,14 @@ export function LandingJsonLd() {
     {
       "@type": "Offer",
       name: `${plan.name} — Monthly`,
-      price: (plan.monthly.ALL.amountCents / 100).toFixed(2),
+      price: (plan.monthly.amountAllCents / 100).toFixed(2),
       priceCurrency: "ALL",
       url: `${SITE_URL}/#pricing`,
     },
     {
       "@type": "Offer",
       name: `${plan.name} — Annual`,
-      price: (plan.annual.ALL.amountCents / 100).toFixed(2),
+      price: (plan.annual.amountAllCents / 100).toFixed(2),
       priceCurrency: "ALL",
       url: `${SITE_URL}/#pricing`,
     },

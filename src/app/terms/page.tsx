@@ -53,7 +53,7 @@ export default function TermsPage() {
             One-time custom workout and nutrition plans are separate purchases.
           </li>
           <li>
-            Prices are shown in ALL (Albanian Lek) or EUR. Taxes may apply depending on your location.
+            Prices are shown in ALL (Albanian Lek) or EUR at a fixed rate of 100 ALL per 1 EUR. Taxes may apply depending on your location.
           </li>
           <li>
             You may cancel recurring subscriptions from your account; access

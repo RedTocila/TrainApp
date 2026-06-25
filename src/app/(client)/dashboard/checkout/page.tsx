@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
 import { requireClient } from "@/lib/actions/auth";
+import { getPreferredLocale } from "@/lib/actions/profile";
 import { CheckoutClient } from "@/components/checkout-client";
 import { PageTransition } from "@/components/page-transition";
-import {
-  parseCheckoutCurrency,
-  parseCheckoutLocale,
-} from "@/lib/checkout-i18n";
+import { parseCheckoutCurrency } from "@/lib/checkout-i18n";
 import type { BillingInterval, SubscriptionPlanId } from "@/lib/subscription-plans";
 import { getPlan } from "@/lib/subscription-plans";
 
@@ -16,7 +14,6 @@ export default async function CheckoutPage({
     plan?: string;
     interval?: string;
     currency?: string;
-    locale?: string;
   }>;
 }) {
   await requireClient();
@@ -24,7 +21,7 @@ export default async function CheckoutPage({
   const planId = params.plan as SubscriptionPlanId | undefined;
   const interval = params.interval as BillingInterval | undefined;
   const currency = parseCheckoutCurrency(params.currency);
-  const locale = parseCheckoutLocale(params.locale);
+  const locale = await getPreferredLocale();
 
   if (!planId || !interval || !getPlan(planId)) {
     redirect("/dashboard/pricing");

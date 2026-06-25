@@ -53,6 +53,7 @@ export default async function ProfilePage() {
                 email={profile.email}
                 phone={profile.phone}
                 goal={profile.goal ?? null}
+                preferredLocale={profile.preferred_locale ?? "al"}
                 showHeader={false}
               />
             </CardContent>

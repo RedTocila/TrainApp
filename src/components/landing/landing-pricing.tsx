@@ -21,6 +21,7 @@ import {
   formatAnnualSavings,
   getCurrencyPrice,
   type CheckoutCurrency,
+  type PriceInAll,
 } from "@/lib/checkout-i18n";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
@@ -28,11 +29,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 function annualSavings(
-  monthly: { amountCents: number },
-  annual: { amountCents: number },
+  monthly: PriceInAll,
+  annual: PriceInAll,
   currency: CheckoutCurrency
 ): string | null {
-  return formatAnnualSavings(monthly.amountCents, annual.amountCents, currency);
+  return formatAnnualSavings(monthly.amountAllCents, annual.amountAllCents, currency);
 }
 
 export function LandingPricing() {
@@ -87,11 +88,7 @@ export function LandingPricing() {
               const price = getCurrencyPrice(tier, currency);
               const savings =
                 interval === "annual"
-                  ? annualSavings(
-                      getCurrencyPrice(plan.monthly, currency),
-                      getCurrencyPrice(plan.annual, currency),
-                      currency
-                    )
+                  ? annualSavings(plan.monthly, plan.annual, currency)
                   : null;
 
               return (

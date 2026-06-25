@@ -51,6 +51,7 @@ export interface Profile {
   avatar_url: string | null;
   goal: string | null;
   unit_system?: "metric" | "imperial";
+  preferred_locale?: "al" | "en";
   age?: number | null;
   gender?: string | null;
   height_cm?: number | null;

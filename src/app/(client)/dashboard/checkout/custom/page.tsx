@@ -2,10 +2,10 @@ import { redirect } from "next/navigation";
 import { CustomPlanCheckoutClient } from "@/components/custom-plan-checkout-client";
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { getCustomPlanProduct } from "@/lib/custom-plan-products";
+import { getPreferredLocale } from "@/lib/actions/profile";
 import {
   formatCurrencyAmount,
   parseCheckoutCurrency,
-  parseCheckoutLocale,
 } from "@/lib/checkout-i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -14,16 +14,16 @@ import type { PlanRequestType } from "@/lib/types";
 export default async function CustomCheckoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ localOrderId?: string; type?: string; locale?: string }>;
+  searchParams: Promise<{ localOrderId?: string; type?: string }>;
 }) {
-  const { localOrderId, type, locale: localeParam } = await searchParams;
+  const { localOrderId, type } = await searchParams;
   if (!localOrderId || !type) redirect("/dashboard");
 
   const planType = type as PlanRequestType;
   const product = getCustomPlanProduct(planType);
   if (!product) redirect("/dashboard");
 
-  const locale = parseCheckoutLocale(localeParam);
+  const locale = await getPreferredLocale();
 
   const supabase = await createClient();
   const {
