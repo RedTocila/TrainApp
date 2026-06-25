@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { PROFILE_COLUMNS } from "@/lib/db-selects";
+import { SUBSCRIPTION_ACCESS_COLUMNS } from "@/lib/db-selects";
 import { hasPaidAccess } from "@/lib/subscription";
 import { SUBSCRIPTION_REQUIRED_MESSAGE } from "@/lib/subscription-messages";
 import type { Profile } from "@/lib/types";
@@ -16,18 +16,26 @@ export async function requireSubscribedUserAccess(): Promise<
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
+  const { data: accessProfile } = await supabase
+    .from("profiles")
+    .select(SUBSCRIPTION_ACCESS_COLUMNS)
+    .eq("id", user.id)
+    .single();
+
+  if (!accessProfile) return { error: "Profile not found" };
+
+  if (!hasPaidAccess(accessProfile as Profile)) {
+    return { error: SUBSCRIPTION_REQUIRED_MESSAGE };
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
-    .select(PROFILE_COLUMNS)
+    .select("*")
     .eq("id", user.id)
     .single();
 
   if (!profile) return { error: "Profile not found" };
   const typedProfile = profile as Profile;
-
-  if (!hasPaidAccess(typedProfile)) {
-    return { error: SUBSCRIPTION_REQUIRED_MESSAGE };
-  }
 
   return { supabase, userId: user.id, profile: typedProfile };
 }

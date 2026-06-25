@@ -54,7 +54,7 @@ export function AiCoachOverviewClient({
             <p className="font-bold">Ask your coach</p>
           </div>
           <p className="text-sm text-muted-foreground">
-            Get straight answers about training, nutrition, and recovery — Coach Alex will push back when you're off track.
+            Get sarcastic, darkly funny coaching on training, nutrition, and recovery — Coach Alex roasts bad habits, then tells you exactly what to fix.
           </p>
           <OpenAiCoachChatButton className="w-full" icon={MessageCircle}>
             Start chatting

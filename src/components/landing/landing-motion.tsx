@@ -92,21 +92,12 @@ export function StaggerGridItem({
   );
 }
 
+/** Static CSS gradients — avoids expensive animated blur filters on the GPU. */
 export function HeroGlow() {
-  const reduce = useReducedMotion();
-
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      <motion.div
-        className="absolute -left-32 top-20 h-72 w-72 rounded-full bg-primary/20 blur-[100px]"
-        animate={reduce ? undefined : { x: [0, 30, 0], y: [0, -20, 0] }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute -right-20 top-40 h-96 w-96 rounded-full bg-primary/10 blur-[120px]"
-        animate={reduce ? undefined : { x: [0, -25, 0], y: [0, 25, 0] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-      />
-    </div>
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden landing-hero-glow"
+      aria-hidden
+    />
   );
 }

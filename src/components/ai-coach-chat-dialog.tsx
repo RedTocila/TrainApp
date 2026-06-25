@@ -46,7 +46,7 @@ export function AiCoachChatDialog() {
               <h2 id="ai-coach-chat-title" className="text-base font-bold">
                 Coach Alex
               </h2>
-              <p className="truncate text-xs text-muted-foreground">Ask anything about fitness</p>
+              <p className="truncate text-xs text-muted-foreground">Sarcastic answers. Real advice.</p>
             </div>
           </div>
           <Button

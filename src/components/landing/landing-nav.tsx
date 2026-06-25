@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
@@ -25,14 +24,11 @@ export function LandingNav() {
   }, []);
 
   return (
-    <motion.header
-      initial={{ y: -20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.4 }}
+    <header
       className={cn(
         "sticky top-0 z-50 border-b transition-colors duration-300",
         scrolled
-          ? "border-border/80 bg-background/85 backdrop-blur-xl"
+          ? "border-border/80 bg-background/95"
           : "border-transparent bg-transparent"
       )}
     >
@@ -73,11 +69,7 @@ export function LandingNav() {
       </div>
 
       {mobileOpen && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          className="border-t border-border bg-background/95 px-4 py-4 md:hidden"
-        >
+        <div className="border-t border-border bg-background/95 px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => (
               <Link
@@ -100,8 +92,8 @@ export function LandingNav() {
               </Link>
             </div>
           </nav>
-        </motion.div>
+        </div>
       )}
-    </motion.header>
+    </header>
   );
 }

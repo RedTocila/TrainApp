@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 export function LandingFeatures() {
   return (
-    <section id="features" className="scroll-mt-24 border-y border-border bg-card/20 px-4 py-16 sm:px-6 sm:py-20">
+    <section id="features" className="landing-deferred-section scroll-mt-24 border-y border-border bg-card/20 px-4 py-16 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
         <FadeIn className="text-center">
           <p className="text-xs font-bold uppercase tracking-widest text-primary">

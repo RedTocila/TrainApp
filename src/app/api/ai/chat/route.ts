@@ -1,6 +1,6 @@
 import { prepareFitnessCoachChatMessages } from "@/lib/ai/fitness-chat";
 import { streamChatCompletion } from "@/lib/ai/providers";
-import { PROFILE_COLUMNS } from "@/lib/db-selects";
+import { SUBSCRIPTION_ACCESS_COLUMNS } from "@/lib/db-selects";
 import { createClient } from "@/lib/supabase/server";
 import { hasPaidAccess } from "@/lib/subscription";
 import type { ChatMessage } from "@/lib/ai/types";
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select(PROFILE_COLUMNS)
+    .select(SUBSCRIPTION_ACCESS_COLUMNS)
     .eq("id", user.id)
     .single();
 

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 
 export function LandingHowItWorks() {
   return (
-    <section id="how-it-works" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">
+    <section id="how-it-works" className="landing-deferred-section scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
         <FadeIn className="text-center">
           <p className="text-xs font-bold uppercase tracking-widest text-primary">

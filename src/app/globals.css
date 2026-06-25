@@ -298,3 +298,32 @@ html.light .overlay-backdrop {
 .landing-page {
   scroll-behavior: smooth;
 }
+
+.landing-hero-glow {
+  background:
+    radial-gradient(ellipse 50% 40% at 15% 25%, rgba(var(--primary-rgb), 0.14), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 90% 40%, rgba(var(--primary-rgb), 0.08), transparent 70%);
+}
+
+.landing-deferred-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
+}
+
+.landing-section-skeleton {
+  min-height: 24rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page {
+    scroll-behavior: auto;
+  }
+
+  .landing-page *,
+  .landing-page *::before,
+  .landing-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

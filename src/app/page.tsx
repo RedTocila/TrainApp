@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { LandingPageClient } from "@/components/landing/landing-page";
 import { LandingJsonLd } from "@/components/landing/landing-json-ld";
+import { LandingFooter } from "@/components/landing/landing-footer";
 import { SITE_URL } from "@/lib/landing-content";
 import { PLATFORM_NAME } from "@/lib/brand";
 
@@ -41,25 +40,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function HomePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    redirect(profile?.role === "admin" ? "/admin" : "/dashboard");
-  }
-
+/** Auth redirect for logged-in users is handled in proxy.ts — keep this page static for fast TTFB. */
+export default function HomePage() {
   return (
     <>
       <LandingJsonLd />
       <LandingPageClient />
+      <LandingFooter />
     </>
   );
 }

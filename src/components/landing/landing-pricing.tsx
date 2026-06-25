@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Check, Sparkles } from "lucide-react";
 import { CUSTOM_PLAN_PRODUCTS, TRAINER_NAME } from "@/lib/custom-plan-products";
 import {
@@ -41,7 +40,7 @@ export function LandingPricing() {
   const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
 
   return (
-    <section id="pricing" className="scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">
+    <section id="pricing" className="landing-deferred-section scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl space-y-12">
         <FadeIn className="text-center">
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
@@ -83,7 +82,7 @@ export function LandingPricing() {
           </div>
 
           <div className="mt-8 grid gap-6 md:grid-cols-2">
-            {SUBSCRIPTION_PLANS.map((plan, i) => {
+            {SUBSCRIPTION_PLANS.map((plan) => {
               const tier = interval === "monthly" ? plan.monthly : plan.annual;
               const price = getCurrencyPrice(tier, currency);
               const savings =
@@ -92,13 +91,9 @@ export function LandingPricing() {
                   : null;
 
               return (
-                <motion.div
+                <div
                   key={plan.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.08, duration: 0.45 }}
-                  whileHover={{ y: -4 }}
+                  className="transition-transform duration-300 hover:-translate-y-1"
                 >
                   <Card
                     className={cn(
@@ -139,7 +134,7 @@ export function LandingPricing() {
                       </ul>
                     </CardContent>
                   </Card>
-                </motion.div>
+                </div>
               );
             })}
           </div>

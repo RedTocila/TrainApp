@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useState,
 } from "react";
 import {
@@ -39,21 +38,20 @@ function applyAccentColor(color: AccentColor) {
   root.style.setProperty("--primary-rgb", palette.rgb);
 }
 
+function readInitialTheme(): Theme {
+  if (typeof window === "undefined") return "dark";
+  return document.documentElement.classList.contains("light") ? "light" : "dark";
+}
+
+function readInitialAccent(): AccentColor {
+  if (typeof window === "undefined") return "red";
+  const stored = localStorage.getItem("accent-color");
+  return isAccentColor(stored) ? stored : "red";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
-  const [accentColor, setAccentColorState] = useState<AccentColor>("red");
-
-  useEffect(() => {
-    const storedTheme = localStorage.getItem("theme") as Theme | null;
-    const initialTheme = storedTheme === "light" ? "light" : "dark";
-    setThemeState(initialTheme);
-    applyTheme(initialTheme);
-
-    const storedAccent = localStorage.getItem("accent-color");
-    const initialAccent = isAccentColor(storedAccent) ? storedAccent : "red";
-    setAccentColorState(initialAccent);
-    applyAccentColor(initialAccent);
-  }, []);
+  const [theme, setThemeState] = useState<Theme>(readInitialTheme);
+  const [accentColor, setAccentColorState] = useState<AccentColor>(readInitialAccent);
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);

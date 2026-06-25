@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { motion } from "framer-motion";
 import { Brain, Camera, TrendingUp } from "lucide-react";
 import { FadeIn } from "@/components/landing/landing-motion";
 import {
@@ -23,7 +22,6 @@ const panels = [
             fill
             sizes="(min-width: 768px) 320px, 90vw"
             className="object-cover"
-            priority
           />
         </div>
         <div className="flex items-center justify-between gap-3 px-4 py-3 text-xs">
@@ -57,7 +55,7 @@ const panels = [
 
 export function LandingShowcase() {
   return (
-    <section className="px-4 py-16 sm:px-6 sm:py-20">
+    <section className="landing-deferred-section px-4 py-16 sm:px-6 sm:py-20">
       <div className="mx-auto max-w-6xl">
         <FadeIn className="text-center">
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
@@ -69,15 +67,10 @@ export function LandingShowcase() {
         </FadeIn>
 
         <div className="mt-12 grid gap-5 md:grid-cols-3">
-          {panels.map((panel, i) => (
-            <motion.div
+          {panels.map((panel) => (
+            <div
               key={panel.title}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1, duration: 0.5 }}
-              whileHover={{ y: -4 }}
-              className="premium-card overflow-hidden p-5"
+              className="premium-card overflow-hidden p-5 transition-transform duration-300 hover:-translate-y-1"
             >
               <div className="flex items-center gap-3">
                 <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-secondary ${panel.color}`}>
@@ -86,7 +79,7 @@ export function LandingShowcase() {
                 <h3 className="font-bold">{panel.title}</h3>
               </div>
               {panel.visual}
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

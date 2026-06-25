@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 
 /** Animated macro split bars */
 export function MacroBars({ className }: { className?: string }) {
+  const reduce = useReducedMotion();
   const bars = [
     { label: "P", pct: 32, color: "bg-sky-400" },
     { label: "C", pct: 45, color: "bg-amber-400" },
@@ -17,15 +18,19 @@ export function MacroBars({ className }: { className?: string }) {
         <span className="font-semibold text-foreground">2,100 kcal</span>
       </div>
       <div className="flex h-3 overflow-hidden rounded-full bg-secondary">
-        {bars.map((b) => (
-          <motion.div
-            key={b.label}
-            className={b.color}
-            initial={{ width: 0 }}
-            animate={{ width: `${b.pct}%` }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          />
-        ))}
+        {bars.map((b) =>
+          reduce ? (
+            <div key={b.label} className={b.color} style={{ width: `${b.pct}%` }} />
+          ) : (
+            <motion.div
+              key={b.label}
+              className={b.color}
+              initial={{ width: 0 }}
+              animate={{ width: `${b.pct}%` }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            />
+          )
+        )}
       </div>
       <div className="mt-2 flex justify-between text-[10px] font-medium text-muted-foreground">
         {bars.map((b) => (
@@ -124,6 +129,7 @@ export function ProgressRing({
   sublabel: string;
   className?: string;
 }) {
+  const reduce = useReducedMotion();
   const r = 36;
   const c = 2 * Math.PI * r;
   const offset = c - (value / 100) * c;
@@ -148,9 +154,9 @@ export function ProgressRing({
           strokeWidth="8"
           strokeLinecap="round"
           strokeDasharray={c}
-          initial={{ strokeDashoffset: c }}
+          initial={reduce ? false : { strokeDashoffset: c }}
           animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1, ease: "easeOut" }}
+          transition={reduce ? { duration: 0 } : { duration: 1, ease: "easeOut" }}
           transform="rotate(-90 44 44)"
         />
         <text

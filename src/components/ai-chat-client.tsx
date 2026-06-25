@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { Loader2, Send, UserRound } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import type { ChatMessage } from "@/lib/ai/types";
@@ -15,6 +15,39 @@ const STARTER_PROMPTS = [
   "How can I hit my protein goal?",
   "Tips for staying consistent?",
 ];
+
+const URL_RE = /https?:\/\/[^\s<>)]+/g;
+
+function renderLinkedText(content: string) {
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of content.matchAll(URL_RE)) {
+    const url = match[0];
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      parts.push(content.slice(lastIndex, index));
+    }
+    parts.push(
+      <a
+        key={`${index}-${url}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="break-all underline underline-offset-2"
+      >
+        {url}
+      </a>
+    );
+    lastIndex = index + url.length;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(content.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : content;
+}
 
 const ChatBubble = memo(function ChatBubble({ message }: { message: ChatMessage }) {
   return (
@@ -39,7 +72,11 @@ const ChatBubble = memo(function ChatBubble({ message }: { message: ChatMessage 
             : "bg-secondary/60 text-foreground"
         )}
       >
-        <p className="whitespace-pre-wrap">{message.content}</p>
+        <p className="whitespace-pre-wrap">
+          {message.role === "assistant"
+            ? renderLinkedText(message.content)
+            : message.content}
+        </p>
       </div>
     </div>
   );
@@ -177,7 +214,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                 <div>
                   <p className="font-bold">Ask your AI Coach</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Direct, honest coaching — precise advice, real accountability, no fluff.
+                    Sarcastic, darkly funny coaching — real advice wrapped in gym-floor roasts.
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
@@ -238,7 +275,8 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               </Button>
             </div>
             <p className="mt-2 text-[10px] text-muted-foreground">
-              General fitness guidance only — not medical advice. Press Enter to send, Shift+Enter for a new line.
+              Fitness guidance only — not medical advice. Check with your doctor before acting on
+              health-related suggestions. Press Enter to send, Shift+Enter for a new line.
             </p>
           </form>
         </CardContent>

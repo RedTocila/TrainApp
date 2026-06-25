@@ -1,5 +1,9 @@
 /** Shared Supabase column lists — keeps payloads small and consistent. */
 
+/** Minimal profile fields for subscription / access gates — avoids failing when optional columns are not migrated yet. */
+export const SUBSCRIPTION_ACCESS_COLUMNS =
+  "id, role, subscription_plan, subscription_status, subscription_expires_at";
+
 export const PROFILE_COLUMNS =
   "id, role, full_name, avatar_url, goal, unit_system, preferred_locale, age, gender, height_cm, intake_weight_kg, vices, injuries, medical_conditions, daily_routine, work_schedule, water_goal_ml, target_calories, target_protein, target_carbs, target_fat, subscription_plan, subscription_status, subscription_interval, subscription_expires_at, phone, dismissed_habit_suggestions, intake_responses, created_at";
 
