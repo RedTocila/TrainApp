@@ -275,14 +275,97 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", !embedded && "min-h-[calc(100dvh-14rem)] gap-4")}>
-      <Card
-        className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-hidden",
-          embedded && "rounded-none border-0 shadow-none"
-        )}
-      >
+      {embedded ? (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+          <div
+            ref={scrollRef}
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain p-4 [-webkit-overflow-scrolling:touch]"
+          >
+            {messages.length === 0 && (
+              <div className="space-y-4 py-4 text-center">
+                <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
+                <div>
+                  <p className="font-bold">Ask your AI Coach</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Sarcastic, darkly funny coaching — real advice wrapped in gym-floor roasts.
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {STARTER_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => void sendMessage(prompt)}
+                      disabled={isStreaming}
+                      className="rounded-full border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {messages.map((message, index) => (
+              <ChatBubble key={`${message.role}-${index}`} message={message} />
+            ))}
+
+            {isStreaming &&
+              (messages[messages.length - 1]?.role !== "assistant" ||
+                !messages[messages.length - 1]?.content?.trim()) && (
+              <div className="flex gap-3">
+                <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
+                <div className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-3.5 py-2.5 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {pendingWebSearch ? "Searching & thinking…" : "Thinking…"}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="shrink-0 border-t border-border bg-background px-4 pt-3 pb-2">
+            {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
+            <div className="relative rounded-2xl border border-border bg-background shadow-sm">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask about workouts, nutrition, recovery…"
+                rows={1}
+                disabled={isStreaming}
+                className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3.5 pr-12 shadow-none focus-visible:ring-0"
+              />
+              <button
+                type="submit"
+                disabled={isStreaming || !input.trim()}
+                aria-label="Send message"
+                className={cn(
+                  "absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full transition-colors",
+                  input.trim() && !isStreaming
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "cursor-not-allowed bg-muted text-muted-foreground"
+                )}
+              >
+                {isStreaming ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                )}
+              </button>
+            </div>
+            <p className="mt-2 bg-amber-50 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:bg-amber-500/10">
+              I can&apos;t give medical advice. For that consult with a doctor, not me.
+            </p>
+          </form>
+        </div>
+      ) : (
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
-          <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          <div
+            ref={scrollRef}
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+          >
             {messages.length === 0 && (
               <div className="space-y-4 py-4 text-center">
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
@@ -365,6 +448,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
           </form>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

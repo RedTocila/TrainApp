@@ -88,6 +88,41 @@ export async function saveProgressPhotoPath(
   return { success: true as const };
 }
 
+export async function removeProgressPhotoPath(
+  clientId: string,
+  monthKey: string,
+  pose: ProgressPhotoPose
+) {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+
+  const auth = await assertClientAccess(clientId);
+  if ("error" in auth) return auth;
+
+  const existing = await getProgressPhotoSetForMonth(clientId, monthKey);
+  if (!existing) return { success: true as const };
+
+  const column = POSE_COLUMNS[pose];
+  const storagePath = existing[column];
+
+  const { error } = await auth.supabase
+    .from("progress_photo_sets")
+    .update({
+      [column]: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existing.id);
+
+  if (error) return { error: error.message };
+
+  if (storagePath) {
+    await auth.supabase.storage.from(STORAGE_BUCKETS.progressPhotos).remove([storagePath]);
+  }
+
+  revalidatePath("/dashboard");
+  return { success: true as const };
+}
+
 export async function getSignedProgressPhotoUrls(
   clientId: string,
   set: ProgressPhotoSet

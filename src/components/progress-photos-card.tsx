@@ -1,21 +1,25 @@
 "use client";
 
 import { format } from "date-fns";
-import { Check, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import { Check, CalendarClock, ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import Image from "next/image";
 import { compressImageFile } from "@/lib/image-compress";
 import {
   getProgressPhotoSets,
   getSignedProgressPhotoUrls,
+  removeProgressPhotoPath,
   saveProgressPhotoPath,
 } from "@/lib/actions/progress-photos";
 import {
+  formatProgressCycleLabel,
   formatProgressMonthLabel,
+  getProgressPhotoCountdown,
   progressMonthFolder,
   progressMonthKey,
   PROGRESS_PHOTO_POSES,
   progressSetComplete,
+  progressSetHasPhotos,
 } from "@/lib/progress-photo-utils";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -38,11 +42,13 @@ function PhotoSlot({
   url,
   uploading,
   onPick,
+  onRemove,
 }: {
   label: string;
   url: string | null;
   uploading: boolean;
   onPick: (file: File) => void;
+  onRemove: () => void;
 }) {
   return (
     <div className="flex flex-col items-center gap-2">
@@ -69,33 +75,40 @@ function PhotoSlot({
               <>
                 <span className="text-[11px] font-medium">Add photo</span>
                 <ImageSourceButtons
-                  layout="icons"
+                  layout="icon"
                   disabled={uploading}
                   onSelect={onPick}
-                  cameraLabel={`Take ${label} photo`}
-                  galleryLabel={`Choose ${label} from gallery`}
+                  galleryLabel={`Add ${label} photo`}
                 />
               </>
             )}
           </div>
         )}
         {url && !uploading && (
-          <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">
-            <ImageSourceButtons
-              layout="icons"
-              disabled={uploading}
-              onSelect={onPick}
-              cameraLabel={`Retake ${label} photo`}
-              galleryLabel={`Replace ${label} from gallery`}
-            />
-          </div>
-        )}
-        {url && !uploading && (
-          <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white">
-            <Check className="h-3 w-3" />
-          </span>
+          <>
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label={`Remove ${label} photo`}
+              className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+            <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white">
+              <Check className="h-3 w-3" />
+            </span>
+          </>
         )}
       </div>
+      {url && !uploading && (
+        <ImageSourceButtons
+          layout="button"
+          disabled={uploading}
+          onSelect={onPick}
+          galleryLabel="Replace"
+          className="h-7 w-full max-w-[7.5rem] text-xs sm:max-w-none"
+        />
+      )}
       <span className="text-xs font-semibold text-muted-foreground">{label}</span>
     </div>
   );
@@ -164,6 +177,24 @@ export function ProgressPhotosCard({
     }
   }, [pastSets.length, historyIndex]);
 
+  const handleRemove = async (pose: ProgressPhotoPose) => {
+    setError(null);
+    setUploadingPose(pose);
+    try {
+      const result = await removeProgressPhotoPath(clientId, currentMonth, pose);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setCurrentUrls((prev) => ({ ...prev, [pose]: null }));
+      refreshSets();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not remove photo");
+    } finally {
+      setUploadingPose(null);
+    }
+  };
+
   const handleUpload = async (pose: ProgressPhotoPose, file: File) => {
     setError(null);
     setUploadingPose(pose);
@@ -202,6 +233,16 @@ export function ProgressPhotosCard({
   };
 
   const currentComplete = currentSet ? progressSetComplete(currentSet) : false;
+  const countdown = useMemo(
+    () => getProgressPhotoCountdown({ sets, currentSet }),
+    [sets, currentSet]
+  );
+  const cycleLabel = useMemo(() => {
+    if (currentSet && progressSetHasPhotos(currentSet)) {
+      return formatProgressCycleLabel(new Date(currentSet.created_at));
+    }
+    return formatProgressMonthLabel(currentMonth);
+  }, [currentSet, currentMonth]);
 
   return (
     <Card id="dashboard-progress-photos">
@@ -217,13 +258,28 @@ export function ProgressPhotosCard({
             )}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Upload front, back & side each month — take a photo or choose from your gallery
+            Upload front, back & side each month — tap to add or replace a photo
           </p>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
-          <p className="mb-3 text-sm font-bold">{formatProgressMonthLabel(currentMonth)}</p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-bold">{cycleLabel}</p>
+            {countdown && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                  countdown.urgency === "complete" && "bg-primary/10 text-primary",
+                  countdown.urgency === "soon" && "bg-amber-500/15 text-amber-400",
+                  countdown.urgency === "normal" && "bg-secondary/50 text-muted-foreground"
+                )}
+              >
+                <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                {countdown.label}
+              </span>
+            )}
+          </div>
           <div className="grid grid-cols-3 gap-3">
             {PROGRESS_PHOTO_POSES.map(({ pose, label }) => (
               <PhotoSlot
@@ -232,6 +288,7 @@ export function ProgressPhotosCard({
                 url={currentUrls[pose]}
                 uploading={uploadingPose === pose || isPending}
                 onPick={(file) => void handleUpload(pose, file)}
+                onRemove={() => void handleRemove(pose)}
               />
             ))}
           </div>

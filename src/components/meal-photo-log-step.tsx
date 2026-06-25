@@ -1,15 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { analyzeMealPhotoAction } from "@/lib/actions/ai-meal";
 import { compressImageFile, fileToDataUrl } from "@/lib/image-compress";
-import {
-  formatMealMacrosSummary,
-  type MealFormData,
-} from "@/lib/meal-utils";
-import { MealDetailsFields } from "@/components/meal-details-fields";
-import { ConfidenceBadge } from "@/components/confidence-badge";
+import { type MealFormData } from "@/lib/meal-utils";
+import { MealAnalysisSummary } from "@/components/meal-analysis-summary";
 import { ImageSourceButtons } from "@/components/image-source-buttons";
 import { Button } from "@/components/ui/button";
 
@@ -32,6 +28,7 @@ export function MealPhotoLogStep({
 }) {
   const [phase, setPhase] = useState<PhotoPhase>("capture");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isAdjusting, setIsAdjusting] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const setPhaseWithReady = (next: PhotoPhase) => {
@@ -90,6 +87,7 @@ export function MealPhotoLogStep({
         }
         onFormChange(response.form);
         onConfidenceChange(response.result.confidence);
+        setIsAdjusting(false);
         setPhaseWithReady("review");
       } catch {
         onError("Upload failed — the photo may be too large. Try again or use a smaller image.");
@@ -100,56 +98,24 @@ export function MealPhotoLogStep({
 
   const handleRetake = () => {
     setPreviewUrl(null);
+    setIsAdjusting(false);
     setPhaseWithReady("capture");
     onConfidenceChange(null);
     onError(null);
   };
 
   if (phase === "review") {
-    const summary = formatMealMacrosSummary(form.macros);
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
-          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-green-400">
-            <Sparkles className="h-4 w-4" />
-            AI analysis complete
-            {confidence != null && <ConfidenceBadge confidence={confidence} />}
-          </p>
-          <p className="mt-1 text-sm font-medium">{form.name}</p>
-          {summary && (
-            <p className="mt-1 text-xs text-muted-foreground">{summary}</p>
-          )}
-          {form.description && (
-            <p className="mt-2 text-xs text-muted-foreground">{form.description}</p>
-          )}
-        </div>
-        {previewUrl && (
-          <img
-            src={previewUrl}
-            alt="Meal preview"
-            className="mx-auto max-h-40 rounded-lg border border-border object-cover"
-          />
-        )}
-        <MealDetailsFields
-          mealType={form.meal_type}
-          onMealTypeChange={(meal_type) => onFormChange({ ...form, meal_type })}
-          name={form.name}
-          onNameChange={(name) => onFormChange({ ...form, name })}
-          description={form.description}
-          onDescriptionChange={(description) => onFormChange({ ...form, description })}
-          macros={form.macros}
-          onMacrosChange={(macros) => onFormChange({ ...form, macros })}
-          ingredients={form.ingredients}
-          onIngredientsChange={(ingredients) => onFormChange({ ...form, ingredients })}
+        <MealAnalysisSummary
+          form={form}
+          onFormChange={onFormChange}
+          confidence={confidence}
+          imageUrl={previewUrl}
+          isAdjusting={isAdjusting}
+          onToggleAdjust={() => setIsAdjusting((value) => !value)}
+          onRetake={handleRetake}
         />
-        <p className="text-xs text-muted-foreground">
-          Edit name, macros, or ingredients if needed, then tap{" "}
-          <span className="font-medium text-foreground">Confirm &amp; log meal</span> below.
-        </p>
-        <Button variant="outline" size="sm" onClick={handleRetake}>
-          <RotateCcw className="mr-1.5 h-4 w-4" />
-          Retake photo
-        </Button>
       </div>
     );
   }
@@ -175,24 +141,21 @@ export function MealPhotoLogStep({
           className="mx-auto max-h-52 w-full rounded-xl border border-border object-cover"
         />
       ) : phase !== "compressing" ? (
-        <div className="rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-8">
-          <ImageSourceButtons
-            onSelect={(file) => void handleFile(file)}
-            disabled={phase === "analyzing"}
-            cameraLabel="Take photo"
-            galleryLabel="Choose from gallery"
-            className="justify-center"
-          />
-        </div>
+        <ImageSourceButtons
+          layout="zone"
+          onSelect={(file) => void handleFile(file)}
+          disabled={phase === "analyzing"}
+          zoneLabel="Add meal photo"
+        />
       ) : null}
 
       {previewUrl && (
         <div className="flex flex-wrap gap-2">
           <ImageSourceButtons
+            layout="button"
             onSelect={(file) => void handleFile(file)}
             disabled={phase === "analyzing" || phase === "compressing"}
-            cameraLabel="Retake"
-            galleryLabel="Different photo"
+            galleryLabel="Change photo"
           />
           <Button type="button" variant="ghost" size="sm" onClick={handleRetake}>
             Clear

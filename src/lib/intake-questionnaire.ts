@@ -422,10 +422,24 @@ export function isIntakeResponsesComplete(responses: IntakeResponses): boolean {
   return getMissingIntakeResponses(responses).length === 0;
 }
 
+export function getRequiredIntakeFieldCount(): number {
+  return REQUIRED_RESPONSE_KEYS.length;
+}
+
 export function isClientIntakeCompleteFromProfile(profile: Profile): boolean {
   const responses = profileToResponses(profile);
   if (isIntakeResponsesComplete(responses)) return true;
   return false;
+}
+
+export type ClientIntakeStatus = "complete" | "partial" | "empty";
+
+export function getClientIntakeStatusFromProfile(profile: Profile): ClientIntakeStatus {
+  const responses = profileToResponses(profile);
+  const missing = getMissingIntakeResponses(responses);
+  if (missing.length === 0) return "complete";
+  const filled = REQUIRED_RESPONSE_KEYS.length - missing.length;
+  return filled > 0 ? "partial" : "empty";
 }
 
 export function getStepMissingFields(

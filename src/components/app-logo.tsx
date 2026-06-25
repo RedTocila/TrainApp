@@ -5,15 +5,15 @@ import { cn } from "@/lib/utils";
 const sizeStyles = {
   sm: {
     text: "text-base",
-    box: "rounded-lg px-2.5 py-1",
+    box: "rounded-full px-2.5 py-1",
   },
   default: {
     text: "text-xl",
-    box: "rounded-xl px-3 py-1.5",
+    box: "rounded-full px-3 py-1.5",
   },
   lg: {
     text: "text-2xl",
-    box: "rounded-xl px-4 py-2",
+    box: "rounded-full px-4 py-2",
   },
 } as const;
 
@@ -31,7 +31,7 @@ export function AppLogo({
   const label = (
     <span
       className={cn(
-        "app-logo-badge inline-flex items-center font-black tracking-tight uppercase",
+        "app-logo-badge inline-flex items-center font-black tracking-tight uppercase text-white",
         styles.text,
         styles.box,
         className

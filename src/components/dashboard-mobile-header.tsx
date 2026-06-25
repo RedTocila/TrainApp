@@ -7,7 +7,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const headerSurface =
-  "rounded-2xl border border-border/70 bg-card/90 shadow-sm backdrop-blur-md dark:border-border/50 dark:bg-card/75";
+  "rounded-full border border-border/70 bg-card/90 shadow-sm backdrop-blur-md dark:border-border/50 dark:bg-card/75";
+
+const headerIconButton =
+  "h-9 w-9 shrink-0 rounded-full border border-border/60 bg-background/60 p-0 shadow-sm transition-colors hover:bg-secondary/80 hover:text-foreground";
 
 export function DashboardMobileHeader() {
   return (
@@ -19,14 +22,10 @@ export function DashboardMobileHeader() {
         )}
       >
         <AppLogo href="/dashboard" size="sm" />
-        <div className={cn(headerSurface, "flex items-center gap-1 p-1")}>
-          <SupportContactButton
-            buttonClassName="h-9 w-9 rounded-xl border-0 bg-transparent hover:bg-secondary/80"
-          />
-          <ThemeToggle
-            className="h-9 w-9 rounded-xl border-0 bg-transparent hover:bg-secondary/80"
-          />
-          <FullCalendarNavButton className="h-9 w-9 rounded-xl" />
+        <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
+          <SupportContactButton buttonClassName={headerIconButton} />
+          <ThemeToggle className={headerIconButton} />
+          <FullCalendarNavButton className={headerIconButton} />
         </div>
       </div>
     </header>

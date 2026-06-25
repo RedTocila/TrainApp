@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import {
@@ -78,6 +79,11 @@ export function LogMealDialog({
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -103,7 +109,7 @@ export function LogMealDialog({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const handleLogCustom = () => {
     if (!form.name.trim()) {
@@ -201,39 +207,46 @@ export function LogMealDialog({
       ? "Confirm & log meal"
       : "Log meal";
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close"
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Log a meal"
-        className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-      >
-        <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-          {showBack && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0"
-              onClick={handleBack}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          )}
-          <h2 className="flex-1 text-lg font-black">{title}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+  const isPhotoReviewFullscreen = mode === "photo" && hasAiAccess && photoReady;
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {mode === "picker" && (
+  const header = (
+    <div
+      className={cn(
+        "flex shrink-0 items-center gap-2 border-b border-border px-4 py-4",
+        isPhotoReviewFullscreen &&
+          "bg-background/95 pt-[max(0.75rem,env(safe-area-inset-top,0px))] backdrop-blur-md"
+      )}
+    >
+      {showBack ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          onClick={handleBack}
+          aria-label="Go back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+      ) : isPhotoReviewFullscreen ? (
+        <div className="w-10 shrink-0" aria-hidden />
+      ) : null}
+      <h2
+        className={cn(
+          "flex-1 text-lg font-black",
+          isPhotoReviewFullscreen && "text-center"
+        )}
+      >
+        {title}
+      </h2>
+      <Button variant="ghost" size="icon" className="shrink-0" onClick={onClose} aria-label="Close">
+        <X className="h-5 w-5" />
+      </Button>
+    </div>
+  );
+
+  const body = (
+    <>
+      {mode === "picker" && (
             <div className="grid gap-3">
               {PICKER_OPTIONS.map((option) => {
                 const Icon = option.icon;
@@ -422,21 +435,73 @@ export function LogMealDialog({
                 </Link>
               </div>
             ))}
-        </div>
+    </>
+  );
 
-        <div className="space-y-2 border-t border-border px-5 py-4">
-          {error && <p className="text-sm text-red-400">{error}</p>}
-          {canLogCustom ? (
-            <Button className="w-full" disabled={isPending} onClick={handleLogCustom}>
-              {isPending ? "Logging…" : logButtonLabel}
-            </Button>
-          ) : (
-            <Button variant="outline" className="w-full" onClick={onClose}>
-              Close
-            </Button>
-          )}
-        </div>
-      </div>
+  const footer = (
+    <div
+      className={cn(
+        "shrink-0 space-y-2 border-t border-border py-4",
+        isPhotoReviewFullscreen
+          ? "bg-background/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] backdrop-blur-md"
+          : "px-5"
+      )}
+    >
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      {canLogCustom ? (
+        <Button className="w-full" disabled={isPending} onClick={handleLogCustom}>
+          {isPending ? "Logging…" : logButtonLabel}
+        </Button>
+      ) : mode !== "picker" ? (
+        <Button variant="outline" className="w-full" onClick={onClose}>
+          Close
+        </Button>
+      ) : null}
     </div>
+  );
+
+  return createPortal(
+    <div
+      className={cn(
+        "fixed inset-0 z-[100] h-dvh w-full",
+        isPhotoReviewFullscreen
+          ? "flex flex-col bg-background"
+          : "flex items-center justify-center p-4"
+      )}
+    >
+      {!isPhotoReviewFullscreen && (
+        <button
+          type="button"
+          aria-label="Close"
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+      )}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={isPhotoReviewFullscreen ? "Photo log" : "Log a meal"}
+        className={cn(
+          "relative z-10 flex min-h-0 flex-col overflow-hidden",
+          isPhotoReviewFullscreen
+            ? "h-full min-h-0 w-full bg-background"
+            : "max-h-[min(90vh,36rem)] w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl"
+        )}
+      >
+        {header}
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto",
+            isPhotoReviewFullscreen ? "px-4 py-4" : "px-5 py-4"
+          )}
+        >
+          <div className={cn(isPhotoReviewFullscreen && "mx-auto w-full max-w-lg")}>
+            {body}
+          </div>
+        </div>
+        {footer}
+      </div>
+    </div>,
+    document.body
   );
 }

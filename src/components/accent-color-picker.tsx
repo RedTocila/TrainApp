@@ -8,7 +8,7 @@ export function AccentColorPicker({ className }: { className?: string }) {
   const { accentColor, setAccentColor } = useTheme();
 
   return (
-    <div className={cn("grid grid-cols-3 gap-2 sm:grid-cols-6", className)}>
+    <div className={cn("grid grid-cols-4 gap-2 sm:grid-cols-4", className)}>
       {ACCENT_COLORS.map((color) => {
         const selected = accentColor === color.id;
         return (

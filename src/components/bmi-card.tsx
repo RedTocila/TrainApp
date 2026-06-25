@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CircleHelp } from "lucide-react";
 import {
@@ -32,19 +33,58 @@ export function BmiCard({
 
   const missingHeight = !heightCm;
   const missingWeight = !weightKg;
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!helpOpen) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (helpRef.current && !helpRef.current.contains(e.target as Node)) {
+        setHelpOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setHelpOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [helpOpen]);
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
         <CardTitle>Your BMI</CardTitle>
-        <button
-          type="button"
-          className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          title="Body Mass Index is calculated from your height and most recent weight log."
-          aria-label="What is BMI?"
-        >
-          <CircleHelp className="h-4 w-4" />
-        </button>
+        <div ref={helpRef} className="relative z-10 shrink-0">
+          <button
+            type="button"
+            className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            onClick={() => setHelpOpen((value) => !value)}
+            aria-label="What is BMI?"
+            aria-expanded={helpOpen}
+            aria-haspopup="dialog"
+          >
+            <CircleHelp className="h-4 w-4" />
+          </button>
+          {helpOpen && (
+            <div
+              role="dialog"
+              aria-label="What is BMI?"
+              className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-border bg-card p-3 shadow-lg"
+            >
+              <p className="text-xs font-semibold text-foreground">Body Mass Index (BMI)</p>
+              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                BMI is calculated from your height and most recent weight log. It is a general
+                guide and does not account for muscle mass or body composition.
+              </p>
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-5">
         {bmi != null && category && categoryStyle ? (

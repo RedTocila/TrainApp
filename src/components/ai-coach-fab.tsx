@@ -18,7 +18,7 @@ export function AiCoachFab() {
         "fixed z-40 overflow-hidden rounded-full",
         "border-2 border-primary/40 shadow-lg shadow-primary/30",
         "transition-transform hover:scale-105 active:scale-95",
-        "bottom-[calc(3.5rem+max(0.5rem,env(safe-area-inset-bottom,0px))+10px)] right-4",
+        "bottom-[calc(var(--dashboard-mobile-nav-height)+10px)] right-4",
         "lg:bottom-4 lg:right-4"
       )}
     >
