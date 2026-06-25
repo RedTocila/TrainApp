@@ -20,6 +20,13 @@ export const SITE_URL =
 
 export const CONTACT_EMAIL = "redtocila@gmail.com";
 
+/** Coach support line — shown in-app for call/text. */
+export const SUPPORT_PHONE =
+  process.env.NEXT_PUBLIC_SUPPORT_PHONE ?? "+355699944675";
+
+export const SUPPORT_PHONE_DISPLAY =
+  process.env.NEXT_PUBLIC_SUPPORT_PHONE_DISPLAY ?? "+355 69 994 4675";
+
 /** Primary funnel CTA — questionnaire → sign up → packages */
 export const GET_STARTED_CTA = "Get Your Custom Program";
 export const GET_STARTED_HREF = "/get-started";

@@ -1,10 +1,9 @@
 "use client";
 
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
-import { Loader2, Send, UserRound } from "lucide-react";
+import { ArrowUp, ExternalLink, Globe, Loader2, UserRound } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
-import type { ChatMessage } from "@/lib/ai/types";
-import { Button } from "@/components/ui/button";
+import type { ChatMessage, WebSource } from "@/lib/ai/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -49,7 +48,58 @@ function renderLinkedText(content: string) {
   return parts.length > 0 ? parts : content;
 }
 
+const ChatSources = memo(function ChatSources({ sources }: { sources: WebSource[] }) {
+  const [open, setOpen] = useState(false);
+
+  if (sources.length === 0) return null;
+
+  return (
+    <div className="mt-2 border-t border-border/60 pt-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
+        aria-expanded={open}
+        aria-label={`${sources.length} web sources`}
+      >
+        <Globe className="h-3.5 w-3.5" />
+        {sources.length} source{sources.length === 1 ? "" : "s"}
+      </button>
+      {open && (
+        <ul className="mt-2 space-y-2">
+          {sources.map((source) => (
+            <li key={source.url}>
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-start gap-2 rounded-lg border border-border/60 bg-background/60 px-2.5 py-2 transition-colors hover:border-primary/30 hover:bg-secondary/40"
+              >
+                <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground group-hover:text-primary" />
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-medium text-foreground">
+                    {source.title}
+                  </span>
+                  {source.snippet && (
+                    <span className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+                      {source.snippet}
+                    </span>
+                  )}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+});
+
 const ChatBubble = memo(function ChatBubble({ message }: { message: ChatMessage }) {
+  if (message.role === "assistant" && !message.content.trim()) {
+    return null;
+  }
+
   return (
     <div
       className={cn(
@@ -77,6 +127,9 @@ const ChatBubble = memo(function ChatBubble({ message }: { message: ChatMessage 
             ? renderLinkedText(message.content)
             : message.content}
         </p>
+        {message.role === "assistant" && message.sources && message.sources.length > 0 && (
+          <ChatSources sources={message.sources} />
+        )}
       </div>
     </div>
   );
@@ -87,6 +140,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [pendingWebSearch, setPendingWebSearch] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -109,6 +163,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     const history = messages;
     setMessages((prev) => [...prev, userMessage]);
     setIsStreaming(true);
+    setPendingWebSearch(false);
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -150,8 +205,28 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
           const payload = line.slice(6).trim();
           if (payload === "[DONE]") continue;
 
-          const parsed = JSON.parse(payload) as { text?: string; error?: string };
+          const parsed = JSON.parse(payload) as {
+            text?: string;
+            error?: string;
+            sources?: WebSource[];
+            meta?: { searchedWeb?: boolean };
+          };
           if (parsed.error) throw new Error(parsed.error);
+          if (parsed.meta?.searchedWeb !== undefined) {
+            setPendingWebSearch(parsed.meta.searchedWeb);
+            continue;
+          }
+          if (parsed.sources?.length) {
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last?.role === "assistant") {
+                next[next.length - 1] = { ...last, sources: parsed.sources };
+              }
+              return next;
+            });
+            continue;
+          }
           if (!parsed.text) continue;
 
           setMessages((prev) => {
@@ -237,12 +312,14 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               <ChatBubble key={`${message.role}-${index}`} message={message} />
             ))}
 
-            {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
+            {isStreaming &&
+              (messages[messages.length - 1]?.role !== "assistant" ||
+                !messages[messages.length - 1]?.content?.trim()) && (
               <div className="flex gap-3">
                 <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
                 <div className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-3.5 py-2.5 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Thinking…
+                  {pendingWebSearch ? "Searching & thinking…" : "Thinking…"}
                 </div>
               </div>
             )}
@@ -253,30 +330,37 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             className="border-t border-border bg-card p-4"
           >
             {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
-            <div className="flex gap-2">
+            <div className="relative rounded-2xl border border-border bg-background shadow-sm">
               <Textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask about workouts, nutrition, recovery…"
-                rows={2}
+                rows={1}
                 disabled={isStreaming}
-                className="min-h-[2.75rem] resize-none"
+                className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3.5 pr-12 shadow-none focus-visible:ring-0"
               />
-              <Button
+              <button
                 type="submit"
-                size="icon"
-                className="h-11 w-11 shrink-0 rounded-xl"
                 disabled={isStreaming || !input.trim()}
                 aria-label="Send message"
+                className={cn(
+                  "absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full transition-colors",
+                  input.trim() && !isStreaming
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "cursor-not-allowed bg-muted text-muted-foreground"
+                )}
               >
-                <Send className="h-4 w-4" />
-              </Button>
+                {isStreaming ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                )}
+              </button>
             </div>
-            <p className="mt-2 text-[10px] text-muted-foreground">
-              Fitness guidance only — not medical advice. Check with your doctor before acting on
-              health-related suggestions. Press Enter to send, Shift+Enter for a new line.
+            <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:bg-amber-500/10">
+              I can&apos;t give medical advice. For that consult with a doctor, not me.
             </p>
           </form>
         </CardContent>

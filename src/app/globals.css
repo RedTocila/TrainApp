@@ -103,6 +103,30 @@ body:has(.dashboard-shell) {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
 
+.app-logo-badge {
+  color: #ffffff;
+  background: rgba(var(--primary-rgb), 0.62);
+  border: 1px solid rgba(var(--primary-rgb), 0.38);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+html.light .app-logo-badge {
+  background: rgba(var(--primary-rgb), 0.7);
+  border-color: rgba(var(--primary-rgb), 0.45);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+html.dark .app-logo-badge {
+  background: rgba(var(--primary-rgb), 0.5);
+  border-color: rgba(var(--primary-rgb), 0.32);
+}
+
 /* PokPay checkout theming (embedded form) */
 .pokpay-checkout #pok-payment-container {
   --pok-primary: var(--primary);

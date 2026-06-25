@@ -2,6 +2,7 @@
 
 import { AppLogo } from "@/components/app-logo";
 import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
+import { SupportContactButton } from "@/components/support-contact-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -17,10 +18,11 @@ export function DashboardMobileHeader() {
           "pt-[max(0.625rem,env(safe-area-inset-top,0px))]"
         )}
       >
-        <div className={cn(headerSurface, "px-3 py-2")}>
-          <AppLogo href="/dashboard" size="sm" />
-        </div>
+        <AppLogo href="/dashboard" size="sm" />
         <div className={cn(headerSurface, "flex items-center gap-1 p-1")}>
+          <SupportContactButton
+            buttonClassName="h-9 w-9 rounded-xl border-0 bg-transparent hover:bg-secondary/80"
+          />
           <ThemeToggle
             className="h-9 w-9 rounded-xl border-0 bg-transparent hover:bg-secondary/80"
           />

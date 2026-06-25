@@ -2,6 +2,21 @@ import Link from "next/link";
 import { PLATFORM_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
+const sizeStyles = {
+  sm: {
+    text: "text-base",
+    box: "rounded-lg px-2.5 py-1",
+  },
+  default: {
+    text: "text-xl",
+    box: "rounded-xl px-3 py-1.5",
+  },
+  lg: {
+    text: "text-2xl",
+    box: "rounded-xl px-4 py-2",
+  },
+} as const;
+
 export function AppLogo({
   href = "/dashboard",
   className,
@@ -11,16 +26,18 @@ export function AppLogo({
   className?: string;
   size?: "sm" | "default" | "lg";
 }) {
-  const sizeClass = {
-    sm: "text-base",
-    default: "text-xl",
-    lg: "text-2xl",
-  }[size];
+  const styles = sizeStyles[size];
 
   const label = (
-    <span className={cn("font-black tracking-tight uppercase", sizeClass, className)}>
-      {PLATFORM_NAME.slice(0, 3)}
-      <span className="text-primary">{PLATFORM_NAME.slice(3)}</span>
+    <span
+      className={cn(
+        "app-logo-badge inline-flex items-center font-black tracking-tight uppercase",
+        styles.text,
+        styles.box,
+        className
+      )}
+    >
+      {PLATFORM_NAME}
     </span>
   );
 

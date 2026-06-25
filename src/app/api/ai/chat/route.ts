@@ -1,4 +1,4 @@
-import { prepareFitnessCoachChatMessages } from "@/lib/ai/fitness-chat";
+import { prepareFitnessCoachChatWithSearch } from "@/lib/ai/fitness-chat";
 import { streamChatCompletion } from "@/lib/ai/providers";
 import { SUBSCRIPTION_ACCESS_COLUMNS } from "@/lib/db-selects";
 import { createClient } from "@/lib/supabase/server";
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select(SUBSCRIPTION_ACCESS_COLUMNS)
+    .select(`${SUBSCRIPTION_ACCESS_COLUMNS}, preferred_locale`)
     .eq("id", user.id)
     .single();
 
@@ -38,21 +38,38 @@ export async function POST(request: Request) {
   const message = body.message ?? "";
   const history = Array.isArray(body.history) ? body.history : [];
 
-  const prepared = await prepareFitnessCoachChatMessages(user.id, message, history);
+  const prepared = await prepareFitnessCoachChatWithSearch(
+    user.id,
+    message,
+    history,
+    (profile as Profile).preferred_locale
+  );
   if ("error" in prepared) {
     return Response.json({ error: prepared.error }, { status: 400 });
   }
+
+  const { messages: chatMessages, sources, searchedWeb } = prepared;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of streamChatCompletion(prepared.messages, {
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ meta: { searchedWeb } })}\n\n`
+          )
+        );
+        for await (const chunk of streamChatCompletion(chatMessages, {
           maxTokens: 900,
           signal: request.signal,
         })) {
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`)
+          );
+        }
+        if (sources.length > 0) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ sources })}\n\n`)
           );
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));

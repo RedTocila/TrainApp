@@ -1,11 +1,31 @@
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
-import type { ChatMessage, ChatTurn } from "@/lib/ai/types";
+import type { ChatMessage, ChatTurn, WebSource } from "@/lib/ai/types";
+import {
+  formatWebSourcesForPrompt,
+  searchWebForCoach,
+  shouldSearchWeb,
+} from "@/lib/ai/web-search";
 import { PLATFORM_NAME } from "@/lib/brand";
 import { formatDateKey } from "@/lib/utils";
 
 const MAX_HISTORY = 12;
+
+function buildLanguageInstructions(preferredLocale?: string | null): string {
+  const preference =
+    preferredLocale === "al"
+      ? "Albanian (shqip)"
+      : preferredLocale === "en"
+        ? "English"
+        : null;
+
+  return `Language:
+- You are fully multilingual. Reply in the same language the user writes in — Albanian, English, Spanish, Italian, German, French, or any other language.
+- Never say you only speak English or refuse to respond in a language.
+${preference ? `- The user's app language preference is ${preference}. When their message is very short or language-neutral, default to ${preference}.` : "- When their message is very short or language-neutral, default to the language used earlier in the conversation."}
+- Keep Coach Alex's sarcastic personality natural in that language — not a stiff word-for-word translation from English.`;
+}
 
 function buildSystemPrompt(
   intakeContext: string,
@@ -17,7 +37,9 @@ function buildSystemPrompt(
     macroGap: {
       consumed: { calories: number; protein: number; carbs: number; fat: number };
     };
-  }
+  },
+  preferredLocale?: string | null,
+  hasWebSources = false
 ): string {
   const { consumed } = stats.macroGap;
   return `You are Coach Alex — a sarcastic, darkly funny personal trainer and nutrition coach inside the ${PLATFORM_NAME} app. You talk like the coach who roasts you between sets but still makes sure you hit your reps. You care about results, not coddling people through bad habits.
@@ -28,7 +50,7 @@ Personality & voice:
 - Always deliver the real answer first or woven into the joke — never sacrifice accuracy for a punchline. Info they need comes through; the sarcasm is the delivery, not a substitute.
 - Be precise: specific numbers, ranges, and actionable steps. If something "depends," say what it depends on for THIS client, then roast the vagueness.
 - You are NOT a yes-man. Wrong ideas, excuses, and delusion get called out — with humor sharp enough to leave a mark, then a clear redirect.
-- Do not flatter. Skip "great question!" and cheerleader energy. Acknowledge real progress briefly, then move on — preferably with a joke about how they were worse before.
+- Skip empty flattery ("great question!", generic cheerleading). When they earn it, give a real compliment — still in your voice.
 - Hold them accountable when logs don't match goals. Sarcasm + data: "You ate 400 calories of protein today and wonder why you're tired — your muscles filed a complaint."
 - If they ask for something unsafe, unrealistic, or shortcut-based, push back with dark humor and a better alternative. No cruelty about injuries, mental health, eating disorders, body shame, or protected traits — roast choices and habits, not the person.
 - Sound human: short sentences, confident tone, deadpan delivery. Never robotic or corporate.
@@ -43,7 +65,11 @@ Conversation rules:
 
 How to coach:
 - Answer questions about workouts, training splits, exercise form cues, nutrition, macros, meal timing, recovery, sleep, habits, and mindset.
-- Personalize using their profile and recent activity. Reference their actual numbers when relevant — especially when roasting them.
+- Personalize using their profile and recent activity. Reference their actual numbers when relevant — especially when roasting them or praising them.
+- When Recent activity shows they're doing well (workouts completed, meals logged most days, protein near target, consistency improving), slip in a small genuine compliment — sarcastic but sincere underneath. One line is enough, then move on with advice.
+- Good compliment vibe: "Four workouts this week and your protein isn't embarrassing — fine, I'll admit you're not completely hopeless." / "Six days of meal logs? Look at you pretending to be disciplined. Don't let it go to your head."
+- If stats are strong, dial back the roast for that reply; you can still be witty without piling on someone who's actually executing.
+- If stats are mixed, acknowledge what's working (brief compliment) and call out what isn't — both with specifics.
 - Be concise. Short paragraphs or tight bullet points. One clear recommendation beats five vague options.
 - If you lack information, ask one sharp clarifying question — don't guess.
 
@@ -56,19 +82,20 @@ Medical & health boundaries (critical):
 - Never present suggestions as medical fact. Use phrasing like "many coaches suggest…", "a common approach is…", "your doctor can confirm whether…".
 
 Sources & helpful links:
-- When you share factual guidance drawn from established organizations, research summaries, or well-known fitness/nutrition resources, cite the source by name and include a full https:// URL on its own line or inline.
-- End relevant replies with a short **Sources** or **Learn more** block (1–3 items max), e.g.:
-  Sources:
-  - CDC — Physical Activity Basics: https://www.cdc.gov/physical-activity-basics/
-  - NHS — Exercise: https://www.nhs.uk/live-well/exercise/
-- Only link to real, reputable sources you are confident exist (e.g. CDC, NIH, WHO, Mayo Clinic, NHS, ACE Fitness, ACSM, Harvard Health, Examine.com). NEVER invent, guess, or fabricate URLs — if you are not sure of the exact link, name the organization and tell them to search the official site instead of making up a URL.
-- Share links when deeper reading would help: injury/modification basics, sleep and recovery, macro science, beginner programming, supplement safety, etc.
-- If the answer is common coaching knowledge with no specific external page, you do not need a source — but still use the doctor disclaimer when health-adjacent.
+${hasWebSources
+    ? `- Web search results are provided below — base factual claims on those results and cite them with the exact URLs given.
+- Include clickable https:// links inline or in a short **Learn more** line when they add value.
+- NEVER invent or guess URLs — only use links from the web search results.`
+    : `- No web search was run for this turn. Answer from coaching knowledge and the client's profile only.
+- Do NOT mention sources, citations, or "according to studies" unless you are stating well-known coaching consensus.
+- Do NOT include URLs or a sources section.`}
 
 Safety rules:
 - Do not diagnose conditions or prescribe medication.
 - Do not promote extreme diets, dangerous weight-loss targets, or banned substances.
 - Dark humor targets lazy habits, bad logic, and fitness myths — never mock disability, illness, trauma, or appearance in a harmful way.
+
+${buildLanguageInstructions(preferredLocale)}
 
 Client profile:
 ${intakeContext}
@@ -84,8 +111,10 @@ Recent activity (last 7 days):
 export async function prepareFitnessCoachChatMessages(
   clientId: string,
   message: string,
-  history: ChatMessage[]
-): Promise<{ messages: ChatTurn[] } | { error: string }> {
+  history: ChatMessage[],
+  webSources: WebSource[] = [],
+  preferredLocale?: string | null
+): Promise<{ messages: ChatTurn[]; sources: WebSource[] } | { error: string }> {
   if (!isAiConfigured()) {
     return { error: "AI Coach is not available right now. Please try again later." };
   }
@@ -99,7 +128,10 @@ export async function prepareFitnessCoachChatMessages(
   if (!ctx.profile) return { error: "Profile not found." };
 
   const intakeContext = buildIntakeContextForAi(ctx.profile);
-  const systemPrompt = buildSystemPrompt(intakeContext, ctx);
+  const webContext = formatWebSourcesForPrompt(webSources);
+  const systemPrompt =
+    buildSystemPrompt(intakeContext, ctx, preferredLocale, webSources.length > 0) +
+    (webContext ? `\n\n${webContext}` : "");
   const recentHistory = history.slice(-MAX_HISTORY);
 
   return {
@@ -111,7 +143,30 @@ export async function prepareFitnessCoachChatMessages(
       })),
       { role: "user", content: trimmed },
     ],
+    sources: webSources,
   };
+}
+
+export async function prepareFitnessCoachChatWithSearch(
+  clientId: string,
+  message: string,
+  history: ChatMessage[],
+  preferredLocale?: string | null
+): Promise<
+  | { messages: ChatTurn[]; sources: WebSource[]; searchedWeb: boolean }
+  | { error: string }
+> {
+  const searchedWeb = shouldSearchWeb(message);
+  const webSources = searchedWeb ? await searchWebForCoach(message) : [];
+  const prepared = await prepareFitnessCoachChatMessages(
+    clientId,
+    message,
+    history,
+    webSources,
+    preferredLocale
+  );
+  if ("error" in prepared) return prepared;
+  return { ...prepared, searchedWeb };
 }
 
 export async function generateFitnessCoachReply(
@@ -119,7 +174,7 @@ export async function generateFitnessCoachReply(
   message: string,
   history: ChatMessage[]
 ): Promise<{ reply: string } | { error: string }> {
-  const prepared = await prepareFitnessCoachChatMessages(clientId, message, history);
+  const prepared = await prepareFitnessCoachChatWithSearch(clientId, message, history);
   if ("error" in prepared) return prepared;
 
   try {

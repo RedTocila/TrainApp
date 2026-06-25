@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { AiChatClientLazy } from "@/components/ai-chat-client-lazy";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
+import { SupportContactButton } from "@/components/support-contact-button";
 import { Button } from "@/components/ui/button";
 
 export function AiCoachChatDialog() {
@@ -46,19 +47,21 @@ export function AiCoachChatDialog() {
               <h2 id="ai-coach-chat-title" className="text-base font-bold">
                 Coach Alex
               </h2>
-              <p className="truncate text-xs text-muted-foreground">Sarcastic answers. Real advice.</p>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={closeChat}
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <SupportContactButton />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={closeChat}
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <AiChatClientLazy embedded />
       </div>

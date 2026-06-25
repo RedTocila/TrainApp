@@ -8,6 +8,14 @@ export type ChatRole = "system" | "user" | "assistant";
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  sources?: WebSource[];
+}
+
+export interface WebSource {
+  title: string;
+  url: string;
+  snippet: string;
+  provider: "tavily" | "exa";
 }
 
 export interface ChatTurn {
