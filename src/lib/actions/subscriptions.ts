@@ -6,6 +6,7 @@ import { getCachedProfile } from "@/lib/cached-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   parseCheckoutCurrency,
+  parseCheckoutLocale,
   type CheckoutCurrency,
 } from "@/lib/checkout-i18n";
 import {
@@ -23,7 +24,7 @@ import {
 } from "@/lib/pokpay/client";
 import { getAppBaseUrl } from "@/lib/app-url";
 import type { Profile } from "@/lib/types";
-import { SUBSCRIPTION_REQUIRED_MESSAGE } from "@/lib/subscription-messages";
+import { getSubscriptionRequiredMessage } from "@/lib/subscription-messages";
 
 export async function getSubscriptionProfile(): Promise<Profile | null> {
   return getCachedProfile();
@@ -35,7 +36,8 @@ export async function ensureSubscribedMutation(): Promise<
   const profile = await getSubscriptionProfile();
   if (!profile) return { error: "Not authenticated" };
   if (hasPaidAccess(profile)) return { profile };
-  return { error: SUBSCRIPTION_REQUIRED_MESSAGE };
+  const locale = parseCheckoutLocale(profile.preferred_locale);
+  return { error: getSubscriptionRequiredMessage(locale) };
 }
 
 export async function createCheckoutOrder(

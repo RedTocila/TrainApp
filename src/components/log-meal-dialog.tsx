@@ -8,7 +8,9 @@ import {
   ArrowLeft,
   BookOpen,
   Camera,
+  Loader2,
   Plus,
+  Search,
   Sparkles,
   X,
 } from "lucide-react";
@@ -20,12 +22,15 @@ import {
   normalizeMealMacros,
   type MealFormData,
 } from "@/lib/meal-utils";
+import { catalogRecipeToMealForm, type CatalogRecipe } from "@/lib/recipe-catalog";
+import { useRecipeCatalog } from "@/hooks/use-recipe-catalog";
 import { MealDetailsFields } from "@/components/meal-details-fields";
 import { MealPhotoLogStep } from "@/components/meal-photo-log-step";
 import { MealTextLogStep } from "@/components/meal-text-log-step";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 type LogMode = "picker" | "custom" | "library" | "photo" | "text";
@@ -59,6 +64,14 @@ export function LogMealDialog({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
+  const catalogActive = open && mode === "library";
+  const {
+    query: catalogQuery,
+    setQuery: setCatalogQuery,
+    recipes: catalogRecipes,
+    loading: catalogLoading,
+    error: catalogError,
+  } = useRecipeCatalog("all", 25, catalogActive);
 
   useEffect(() => {
     setMounted(true);
@@ -126,6 +139,26 @@ export function LogMealDialog({
         return;
       }
       onLogged(form);
+      onClose();
+    });
+  };
+
+  const handleLogFromCatalog = (recipeId: string) => {
+    setError(null);
+    startTransition(async () => {
+      const res = await fetch(`/api/recipe-catalog?id=${encodeURIComponent(recipeId)}`);
+      if (!res.ok) {
+        setError("Recipe not found");
+        return;
+      }
+      const data = (await res.json()) as { recipe: CatalogRecipe };
+      const mealForm = catalogRecipeToMealForm(data.recipe);
+      const result = await logCustomMeal(clientId, dateKey, mealForm);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      onLogged(mealForm);
       onClose();
     });
   };
@@ -294,61 +327,108 @@ export function LogMealDialog({
           )}
 
           {mode === "library" && (
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={goToCustomFromLibrary}
-                className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/20 p-4 text-left transition-colors hover:border-primary/40 hover:bg-secondary/40"
-              >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                  <Plus className="h-5 w-5" />
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={catalogQuery}
+                    onChange={(e) => setCatalogQuery(e.target.value)}
+                    placeholder="Search 13k recipes…"
+                    className="pl-9"
+                  />
                 </div>
-                <div className="min-w-0">
-                  <p className="font-semibold">{platform.mealLog.newMeal}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Enter name and macros manually
-                  </p>
-                </div>
-              </button>
+                <Button
+                  type="button"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={goToCustomFromLibrary}
+                  aria-label={platform.mealLog.newMeal}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
 
-              {library.length === 0 ? (
+              {catalogLoading ? (
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading recipes…
+                </div>
+              ) : catalogError ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">{catalogError}</p>
+              ) : catalogRecipes.length === 0 ? (
                 <p className="py-4 text-center text-sm text-muted-foreground">
-                  No saved meals yet. Tap + above to log one with macros.
+                  No recipes match your search.
                 </p>
               ) : (
-                <ul className="space-y-2">
-                  {library.map((item) => {
-                    const summary = formatMealMacrosSummary(normalizeMealMacros(item.meal));
-                    return (
-                      <li
-                        key={item.meal.id}
-                        className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3"
-                      >
-                        <div className="min-w-0">
-                          <div className="mb-1 flex flex-wrap items-center gap-2">
-                            <Badge className="capitalize">{item.meal.meal_type}</Badge>
-                            <span className="font-semibold">{item.meal.name}</span>
-                          </div>
-                          {summary && (
-                            <p className="text-xs text-muted-foreground">{summary}</p>
-                          )}
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {item.folderName} · {item.planTitle}
-                          </p>
+                <ul className="max-h-[min(50vh,28rem)] space-y-2 overflow-y-auto">
+                  {catalogRecipes.map((recipe) => (
+                    <li
+                      key={recipe.id}
+                      className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <Badge className="capitalize">{recipe.meal_type}</Badge>
+                          <span className="font-semibold">{recipe.title}</span>
                         </div>
-                        <Button
-                          size="sm"
-                          className="shrink-0"
-                          disabled={isPending}
-                          onClick={() => handleLogFromLibrary(item.meal.id)}
-                        >
-                          {platform.common.add}
-                        </Button>
-                      </li>
-                    );
-                  })}
+                        <p className="line-clamp-2 text-xs text-muted-foreground">
+                          {recipe.description}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="shrink-0"
+                        disabled={isPending}
+                        onClick={() => handleLogFromCatalog(recipe.id)}
+                      >
+                        {platform.mealLog.logMeal}
+                      </Button>
+                    </li>
+                  ))}
                 </ul>
               )}
+
+              {library.length > 0 && (
+                <div className="space-y-2 border-t border-border pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Your saved meals
+                  </p>
+                  <ul className="space-y-2">
+                    {library.map((item) => {
+                      const summary = formatMealMacrosSummary(normalizeMealMacros(item.meal));
+                      return (
+                        <li
+                          key={item.meal.id}
+                          className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3"
+                        >
+                          <div className="min-w-0">
+                            <div className="mb-1 flex flex-wrap items-center gap-2">
+                              <Badge className="capitalize">{item.meal.meal_type}</Badge>
+                              <span className="font-semibold">{item.meal.name}</span>
+                            </div>
+                            {summary && (
+                              <p className="text-xs text-muted-foreground">{summary}</p>
+                            )}
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {item.folderName} · {item.planTitle}
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="shrink-0"
+                            disabled={isPending}
+                            onClick={() => handleLogFromLibrary(item.meal.id)}
+                          >
+                            {platform.common.add}
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -484,7 +564,7 @@ export function LogMealDialog({
           "relative z-10 flex min-h-0 flex-col overflow-hidden",
           isPhotoReviewFullscreen
             ? "h-full min-h-0 w-full bg-background"
-            : "max-h-[min(90vh,36rem)] w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl"
+            : "max-h-[min(92vh,48rem)] w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl"
         )}
       >
         {header}

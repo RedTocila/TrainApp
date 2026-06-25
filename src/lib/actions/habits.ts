@@ -1,7 +1,9 @@
 "use server";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { formatDbError, requireOwnedClient } from "@/lib/actions/auth-client";
 import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
 import {
   generateRecurringScheduleDates,
@@ -32,15 +34,18 @@ export interface SaveHabitInput {
 }
 
 export async function ensureHabitSchedules(clientId: string) {
-  const supabase = await createClient();
-  const { data: habits } = await supabase
+  const auth = await requireOwnedClient(clientId);
+  if ("error" in auth) return;
+
+  const { admin } = auth;
+  const { data: habits } = await admin
     .from("client_habits")
     .select(CLIENT_HABIT_COLUMNS)
     .eq("client_id", clientId);
 
   if (!habits?.length) return;
 
-  const { data: scheduled } = await supabase
+  const { data: scheduled } = await admin
     .from("habit_scheduled_dates")
     .select("habit_id")
     .eq("client_id", clientId);
@@ -52,7 +57,7 @@ export async function ensureHabitSchedules(clientId: string) {
 
   await Promise.all(
     toBackfill.map((habit) =>
-      replaceHabitSchedule(supabase, habit.id, clientId, {
+      replaceHabitSchedule(admin, habit.id, clientId, {
         title: habit.title,
         timeStart: habit.time_start,
         timeEnd: habit.time_end,
@@ -144,7 +149,7 @@ export async function getHabitsScheduledInRange(
 }
 
 async function replaceHabitSchedule(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  admin: SupabaseClient,
   habitId: string,
   clientId: string,
   input: SaveHabitInput
@@ -161,7 +166,7 @@ async function replaceHabitSchedule(
     input.weeks
   );
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await admin
     .from("client_habits")
     .update({
       time_start: input.timeStart || null,
@@ -173,10 +178,10 @@ async function replaceHabitSchedule(
     .eq("id", habitId)
     .eq("client_id", clientId);
 
-  if (updateError) return { error: updateError.message };
+  if (updateError) return { error: formatDbError(updateError.message) };
 
   const today = new Date().toISOString().split("T")[0];
-  await supabase
+  await admin
     .from("habit_scheduled_dates")
     .delete()
     .eq("habit_id", habitId)
@@ -188,10 +193,10 @@ async function replaceHabitSchedule(
       client_id: clientId,
       scheduled_date,
     }));
-    const { error: insertError } = await supabase
+    const { error: insertError } = await admin
       .from("habit_scheduled_dates")
       .upsert(rows, { onConflict: "habit_id,scheduled_date" });
-    if (insertError) return { error: insertError.message };
+    if (insertError) return { error: formatDbError(insertError.message) };
   }
 
   return { count: dates.length };
@@ -212,19 +217,16 @@ export async function saveHabit(
   const trimmed = input.title.trim();
   if (!trimmed) return { error: "Habit name is required" };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-  if (user.id !== clientId) return { error: "Not authorized" };
+  const auth = await requireOwnedClient(clientId);
+  if ("error" in auth) return { error: auth.error };
+  const { admin } = auth;
 
   if (input.weekdays.length === 0) {
     return { error: "Select at least one day" };
   }
 
   if (habitId) {
-    const { data: existing } = await supabase
+    const { data: existing } = await admin
       .from("client_habits")
       .select("id")
       .eq("id", habitId)
@@ -233,25 +235,25 @@ export async function saveHabit(
 
     if (!existing) return { error: "Habit not found" };
 
-    const { error } = await supabase
+    const { error } = await admin
       .from("client_habits")
       .update({ title: trimmed })
       .eq("id", habitId);
 
-    if (error) return { error: error.message };
+    if (error) return { error: formatDbError(error.message) };
 
     const scheduleResult = await replaceHabitSchedule(
-      supabase,
+      admin,
       habitId,
       clientId,
       input
     );
     if ("error" in scheduleResult) {
-      return { error: scheduleResult.error ?? "Failed to update schedule" };
+      return { error: formatDbError(scheduleResult.error ?? "Failed to update schedule") };
     }
 
     revalidatePath("/dashboard");
-    const { data } = await supabase
+    const { data } = await admin
       .from("client_habits")
       .select(CLIENT_HABIT_COLUMNS)
       .eq("id", habitId)
@@ -259,7 +261,7 @@ export async function saveHabit(
     return { data: data ? normalizeHabit(data) : undefined };
   }
 
-  const { data: last } = await supabase
+  const { data: last } = await admin
     .from("client_habits")
     .select("order_index")
     .eq("client_id", clientId)
@@ -268,7 +270,7 @@ export async function saveHabit(
 
   const orderIndex = (last?.[0]?.order_index ?? -1) + 1;
 
-  const { data: habit, error } = await supabase
+  const { data: habit, error } = await admin
     .from("client_habits")
     .insert({
       client_id: clientId,
@@ -283,16 +285,18 @@ export async function saveHabit(
     .select()
     .single();
 
-  if (error || !habit) return { error: error?.message ?? "Failed to create habit" };
+  if (error || !habit) {
+    return { error: formatDbError(error?.message ?? "Failed to create habit") };
+  }
 
   const scheduleResult = await replaceHabitSchedule(
-    supabase,
+    admin,
     habit.id,
     clientId,
     input
   );
   if ("error" in scheduleResult) {
-    return { error: scheduleResult.error ?? "Failed to update schedule" };
+    return { error: formatDbError(scheduleResult.error ?? "Failed to update schedule") };
   }
 
   revalidatePath("/dashboard");
@@ -303,19 +307,17 @@ export async function deleteHabit(habitId: string) {
   const access = await ensureSubscribedMutation();
   if ("error" in access) return { error: access.error };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  const auth = await requireOwnedClient(access.profile.id);
+  if ("error" in auth) return { error: auth.error };
+  const { admin } = auth;
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("client_habits")
     .delete()
     .eq("id", habitId)
-    .eq("client_id", user.id);
+    .eq("client_id", access.profile.id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
   revalidatePath("/dashboard");
   return { success: true };
 }
@@ -324,22 +326,21 @@ export async function toggleHabitCompletion(habitId: string, date: string) {
   const access = await ensureSubscribedMutation();
   if ("error" in access) return { error: access.error };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
+  const auth = await requireOwnedClient(access.profile.id);
+  if ("error" in auth) return { error: auth.error };
+  const { admin } = auth;
+  const clientId = access.profile.id;
 
-  const { data: habit } = await supabase
+  const { data: habit } = await admin
     .from("client_habits")
     .select("id, time_start, time_end")
     .eq("id", habitId)
-    .eq("client_id", user.id)
+    .eq("client_id", clientId)
     .single();
 
   if (!habit) return { error: "Habit not found" };
 
-  const { data: existing } = await supabase
+  const { data: existing } = await admin
     .from("habit_completions")
     .select("habit_id")
     .eq("habit_id", habitId)
@@ -361,12 +362,12 @@ export async function toggleHabitCompletion(habitId: string, date: string) {
     return { error: "Cannot complete this habit right now", completed: false };
   }
 
-  const { error } = await supabase.from("habit_completions").insert({
+  const { error } = await admin.from("habit_completions").insert({
     habit_id: habitId,
-    client_id: user.id,
+    client_id: clientId,
     date,
   });
-  if (error) return { error: error.message, completed: true };
+  if (error) return { error: formatDbError(error.message), completed: true };
 
   return { completed: true };
 }

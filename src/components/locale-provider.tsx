@@ -1,27 +1,53 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
 import { DEFAULT_CHECKOUT_LOCALE } from "@/lib/checkout-i18n";
 import { getCoachCopy, getCoachLabels } from "@/lib/coach-copy";
 import { getPlatformCopy } from "@/lib/platform-copy";
 
-const LocaleContext = createContext<CheckoutLocale>(DEFAULT_CHECKOUT_LOCALE);
+type LocaleContextValue = {
+  locale: CheckoutLocale;
+  setLocalePreview: (locale: CheckoutLocale) => void;
+};
+
+const LocaleContext = createContext<LocaleContextValue>({
+  locale: DEFAULT_CHECKOUT_LOCALE,
+  setLocalePreview: () => {},
+});
 
 export function LocaleProvider({
-  locale,
+  locale: serverLocale,
   children,
 }: {
   locale: CheckoutLocale;
   children: React.ReactNode;
 }) {
+  const [preview, setPreview] = useState<CheckoutLocale | null>(null);
+
+  useEffect(() => {
+    setPreview(null);
+  }, [serverLocale]);
+
+  const value = useMemo(
+    () => ({
+      locale: preview ?? serverLocale,
+      setLocalePreview: setPreview,
+    }),
+    [preview, serverLocale]
+  );
+
   return (
-    <LocaleContext.Provider value={locale}>{children}</LocaleContext.Provider>
+    <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
   );
 }
 
 export function useLocale(): CheckoutLocale {
-  return useContext(LocaleContext);
+  return useContext(LocaleContext).locale;
+}
+
+export function useLocalePreview(): (locale: CheckoutLocale) => void {
+  return useContext(LocaleContext).setLocalePreview;
 }
 
 export function useCoachCopy() {

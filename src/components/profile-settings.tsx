@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { CHECKOUT_LOCALES } from "@/lib/checkout-i18n";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
 import { updateProfile, updatePassword } from "@/lib/actions/profile";
-import { usePlatformCopy } from "@/components/locale-provider";
+import {
+  useLocalePreview,
+  usePlatformCopy,
+} from "@/components/locale-provider";
 import { AccentColorPicker } from "@/components/accent-color-picker";
+import { SegmentedToggle } from "@/components/segmented-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +25,10 @@ const GOAL_KEYS = [
   "improve_endurance",
   "general_health",
 ] as const;
+
+function goalToFormValue(goal: string | null | undefined): string {
+  return goal && goal.length > 0 ? goal : "";
+}
 
 export function ProfileSettings({
   fullName,
@@ -39,6 +48,50 @@ export function ProfileSettings({
   showHeader?: boolean;
 }) {
   const platform = usePlatformCopy();
+  const setLocalePreview = useLocalePreview();
+  const router = useRouter();
+
+  const [name, setName] = useState(fullName);
+  const [phoneValue, setPhoneValue] = useState(phone ?? "");
+  const [goalValue, setGoalValue] = useState(() => goalToFormValue(goal));
+  const [locale, setLocale] = useState<CheckoutLocale>(preferredLocale);
+  const [units, setUnits] = useState<"metric" | "imperial">(unitSystem);
+
+  const serverSnapshot = useRef({
+    fullName,
+    phone: phone ?? "",
+    goal: goalToFormValue(goal),
+    preferredLocale,
+    unitSystem,
+  });
+
+  useEffect(() => {
+    const prev = serverSnapshot.current;
+    const nextPhone = phone ?? "";
+    const nextGoal = goalToFormValue(goal);
+
+    if (
+      prev.fullName !== fullName ||
+      prev.phone !== nextPhone ||
+      prev.goal !== nextGoal ||
+      prev.preferredLocale !== preferredLocale ||
+      prev.unitSystem !== unitSystem
+    ) {
+      serverSnapshot.current = {
+        fullName,
+        phone: nextPhone,
+        goal: nextGoal,
+        preferredLocale,
+        unitSystem,
+      };
+      setName(fullName);
+      setPhoneValue(nextPhone);
+      setGoalValue(nextGoal);
+      setLocale(preferredLocale);
+      setUnits(unitSystem);
+    }
+  }, [fullName, phone, goal, preferredLocale, unitSystem]);
+
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -46,15 +99,37 @@ export function ProfileSettings({
   const [isProfilePending, startProfileTransition] = useTransition();
   const [isPasswordPending, startPasswordTransition] = useTransition();
 
-  const handleProfileSubmit = (formData: FormData) => {
+  const handleLocaleChange = (next: CheckoutLocale) => {
+    setLocale(next);
+    setLocalePreview(next);
+  };
+
+  const handleProfileSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setProfileError(null);
     setProfileSuccess(false);
+
+    const formData = new FormData(e.currentTarget);
+    formData.set("full_name", name);
+    formData.set("phone", phoneValue);
+    formData.set("goal", goalValue);
+    formData.set("preferred_locale", locale);
+    formData.set("unit_system", units);
+
     startProfileTransition(async () => {
       const result = await updateProfile(formData);
       if (result?.error) {
         setProfileError(result.error);
       } else {
+        serverSnapshot.current = {
+          fullName: name,
+          phone: phoneValue,
+          goal: goalValue,
+          preferredLocale: locale,
+          unitSystem: units,
+        };
         setProfileSuccess(true);
+        router.refresh();
       }
     });
   };
@@ -88,13 +163,14 @@ export function ProfileSettings({
           <CardTitle className="text-base">{platform.profile.personalInfo}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={handleProfileSubmit} className="space-y-4">
+          <form onSubmit={handleProfileSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="full_name">{platform.settings.fullName}</Label>
               <Input
                 id="full_name"
                 name="full_name"
-                defaultValue={fullName}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 required
               />
             </div>
@@ -108,7 +184,8 @@ export function ProfileSettings({
                 id="phone"
                 name="phone"
                 type="tel"
-                defaultValue={phone ?? ""}
+                value={phoneValue}
+                onChange={(e) => setPhoneValue(e.target.value)}
                 placeholder="+383 44 123 456"
               />
             </div>
@@ -116,8 +193,8 @@ export function ProfileSettings({
               <Label htmlFor="goal">{platform.settings.fitnessGoal}</Label>
               <select
                 id="goal"
-                name="goal"
-                defaultValue={goal ?? ""}
+                value={goalValue}
+                onChange={(e) => setGoalValue(e.target.value)}
                 className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {GOAL_KEYS.map((key) => (
@@ -128,31 +205,30 @@ export function ProfileSettings({
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="preferred_locale">{platform.settings.language}</Label>
-              <select
-                id="preferred_locale"
-                name="preferred_locale"
-                defaultValue={preferredLocale}
-                className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {CHECKOUT_LOCALES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+              <Label>{platform.settings.language}</Label>
+              <input type="hidden" name="preferred_locale" value={locale} />
+              <SegmentedToggle
+                value={locale}
+                onChange={handleLocaleChange}
+                aria-label={platform.settings.language}
+                options={CHECKOUT_LOCALES.map((opt) => ({
+                  value: opt.value,
+                  label: opt.label,
+                }))}
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="unit_system">{platform.settings.units}</Label>
-              <select
-                id="unit_system"
-                name="unit_system"
-                defaultValue={unitSystem}
-                className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="metric">{platform.settings.metric}</option>
-                <option value="imperial">{platform.settings.imperial}</option>
-              </select>
+              <Label>{platform.settings.units}</Label>
+              <input type="hidden" name="unit_system" value={units} />
+              <SegmentedToggle
+                value={units}
+                onChange={setUnits}
+                aria-label={platform.settings.units}
+                options={[
+                  { value: "metric", label: platform.settings.metricToggle },
+                  { value: "imperial", label: platform.settings.imperialToggle },
+                ]}
+              />
             </div>
             {profileError && (
               <p className="text-sm text-red-400">{profileError}</p>

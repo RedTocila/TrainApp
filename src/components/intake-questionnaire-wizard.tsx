@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, Sparkles } from "lucide-react";
 import {
@@ -493,6 +493,15 @@ export function IntakeQuestionnaireWizard({
   const [responses, setResponses] = useState<IntakeResponses>(initialResponses);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const serverSnapshot = useRef(JSON.stringify(initialResponses));
+
+  useEffect(() => {
+    const nextSnapshot = JSON.stringify(initialResponses);
+    if (serverSnapshot.current !== nextSnapshot) {
+      serverSnapshot.current = nextSnapshot;
+      setResponses(initialResponses);
+    }
+  }, [initialResponses]);
 
   const current = INTAKE_STEPS[step];
   const progress = ((step + 1) / INTAKE_STEPS.length) * 100;

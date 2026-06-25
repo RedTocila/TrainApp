@@ -41,17 +41,44 @@ export async function updateProfile(formData: FormData) {
     return { error: "Invalid unit system" };
   }
 
+  const allowedGoals = new Set([
+    "lose_weight",
+    "build_muscle",
+    "stay_fit",
+    "improve_endurance",
+    "general_health",
+  ]);
+  const normalizedGoal =
+    goal && allowedGoals.has(goal) ? goal : null;
+
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("intake_responses")
+    .eq("id", user.id)
+    .single();
+
+  const existingIntake =
+    (existingProfile?.intake_responses as Record<string, unknown> | null) ?? {};
+  const intakeResponses = { ...existingIntake };
+  if (normalizedGoal) {
+    intakeResponses.goal = normalizedGoal;
+  } else {
+    delete intakeResponses.goal;
+  }
+
   const profileUpdate: {
     full_name: string;
     phone: string | null;
     goal: string | null;
     preferred_locale: CheckoutLocale;
+    intake_responses: Record<string, unknown>;
     unit_system?: "metric" | "imperial";
   } = {
     full_name: fullName,
     phone,
-    goal,
+    goal: normalizedGoal,
     preferred_locale: preferredLocale,
+    intake_responses: intakeResponses,
     unit_system: unitSystem,
   };
 

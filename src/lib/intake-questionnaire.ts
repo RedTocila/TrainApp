@@ -400,7 +400,7 @@ export function profileToResponses(profile: Profile): IntakeResponses {
     height_cm: stored.height_cm ?? profile.height_cm ?? undefined,
     intake_weight_kg:
       stored.intake_weight_kg ?? profile.intake_weight_kg ?? undefined,
-    goal: stored.goal ?? profile.goal ?? undefined,
+    goal: stored.goal || profile.goal || undefined,
   };
 }
 

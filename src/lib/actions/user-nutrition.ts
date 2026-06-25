@@ -204,6 +204,27 @@ export async function getPersonalNutritionPlans(folderId?: string) {
   return (data ?? []) as NutritionPlan[];
 }
 
+const DEFAULT_RECIPE_COLLECTION_TITLE = "Saved recipes";
+
+/** Ensures the user has at least one personal plan for saving recipes from the catalog. */
+export async function ensureDefaultRecipeCollectionPlan(): Promise<
+  { planId: string } | { error: string }
+> {
+  const plans = await getPersonalNutritionPlans();
+  if (plans.length > 0) return { planId: plans[0].id };
+
+  const result = await createPersonalNutritionPlan(
+    DEFAULT_RECIPE_COLLECTION_TITLE,
+    "Recipes saved from the recipe book"
+  );
+
+  if (result.error || !result.data) {
+    return { error: result.error ?? "Could not create recipe collection" };
+  }
+
+  return { planId: result.data.id };
+}
+
 export async function getPersonalNutritionPlanWithDetails(planId: string) {
   const { supabase, userId } = await requireUserId();
 
