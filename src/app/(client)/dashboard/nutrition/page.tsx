@@ -114,15 +114,6 @@ export default async function NutritionPage() {
           </Card>
         )}
 
-        {planRequests.length > 0 && (
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="p-4 text-sm">
-              You have {planRequests.length} pending plan request
-              {planRequests.length === 1 ? "" : "s"}.
-            </CardContent>
-          </Card>
-        )}
-
         <AllMealPlansPage plans={plans} activePlanId={activePersonalPlanId} />
       </div>
     </PageTransition>

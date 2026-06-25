@@ -5,6 +5,7 @@ import { useSelectedDate } from "@/components/date-provider";
 import { DailyTracker } from "@/components/daily-tracker";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import { getDailyLog } from "@/lib/actions/logs";
+import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import { getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import type { CoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
@@ -45,6 +46,7 @@ export function DashboardOverview({
     meals: Meal[];
     scheduled?: boolean;
     activeSlots?: MealSlot[];
+    kind?: MealPlanViewKind;
   } | null;
   coachNutritionPlanState: CoachNutritionPlanViewState;
 }) {
@@ -68,21 +70,19 @@ export function DashboardOverview({
       setLog(fetchedLog);
       setDailyMeals(fetchedMeals);
 
-      if (coachNutritionPlanState.mode === "awaiting_pdf") {
-        setNutritionPlan(null);
-      } else if (planForDate?.scheduled) {
-        const meals = (planForDate.meals ?? []) as Meal[];
+      if (planForDate?.meals?.length) {
         setNutritionPlan({
           title: planForDate.title,
-          meals,
-          scheduled: true,
+          meals: planForDate.meals as Meal[],
+          scheduled: planForDate.scheduled,
           activeSlots: planForDate.activeSlots,
+          kind: planForDate.kind,
         });
       } else {
         setNutritionPlan(null);
       }
     });
-  }, [selectedDate, clientId, coachNutritionPlanState.mode]);
+  }, [selectedDate, clientId]);
 
   return (
     <DailyTracker

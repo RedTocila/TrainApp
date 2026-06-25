@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import type { AiProvider } from "@/lib/ai/types";
+import type { AiProvider, ChatTurn } from "@/lib/ai/types";
 
 export function getConfiguredProviders(): AiProvider[] {
   const preferred = (process.env.AI_MEAL_PROVIDER ?? "openai") as AiProvider;
@@ -75,6 +75,59 @@ export async function runTextPrompt(
   }
 
   throw lastError ?? new Error("AI request failed");
+}
+
+export async function runChatCompletion(
+  messages: ChatTurn[],
+  options?: { maxTokens?: number }
+): Promise<string> {
+  const providers = getConfiguredProviders();
+  if (providers.length === 0) {
+    throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
+  }
+
+  const systemMessage = messages.find((message) => message.role === "system")?.content;
+  const conversation = messages.filter((message) => message.role !== "system");
+
+  let lastError: Error | null = null;
+  for (const provider of providers) {
+    try {
+      if (provider === "openai") {
+        const client = getOpenAIClient();
+        const response = await client.chat.completions.create({
+          model: process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini",
+          messages: messages.map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+          max_tokens: options?.maxTokens ?? 900,
+        });
+        const content = response.choices[0]?.message?.content;
+        if (!content) throw new Error("OpenAI returned an empty response");
+        return content;
+      }
+
+      const client = getAnthropicClient();
+      const response = await client.messages.create({
+        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-20250514",
+        max_tokens: options?.maxTokens ?? 900,
+        ...(systemMessage ? { system: systemMessage } : {}),
+        messages: conversation.map((message) => ({
+          role: message.role as "user" | "assistant",
+          content: message.content,
+        })),
+      });
+      const textBlock = response.content.find((block) => block.type === "text");
+      if (!textBlock || textBlock.type !== "text") {
+        throw new Error("Anthropic returned an empty response");
+      }
+      return textBlock.text;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  throw lastError ?? new Error("AI chat request failed");
 }
 
 export async function runVisionPrompt(

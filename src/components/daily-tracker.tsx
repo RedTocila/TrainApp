@@ -24,6 +24,7 @@ import {
 } from "@/components/section-completed-badge";
 import { getPlannedMealSlots, isDeadlinePassed, WATER_DEADLINE } from "@/lib/meal-times";
 import type { CoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
+import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import type { DailyMealLog, Meal, MealSlot } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +49,7 @@ interface DailyTrackerProps {
     meals: Meal[];
     scheduled?: boolean;
     activeSlots?: MealSlot[];
+    kind?: MealPlanViewKind;
   } | null;
   coachNutritionPlanState: CoachNutritionPlanViewState;
 }
@@ -88,7 +90,6 @@ export function DailyTracker({
     coachNutritionPlanState.mode === "pdf" ? coachNutritionPlanState.requestId : null;
 
   const plannedMealSlots = useMemo(() => {
-    if (awaitingCoachPdf || coachPdfRequestId) return [];
     if (!nutritionPlan?.meals?.length) return [];
     return getPlannedMealSlots(
       nutritionPlan.meals,
@@ -96,21 +97,26 @@ export function DailyTracker({
       dateKey,
       nutritionPlan.activeSlots
     );
-  }, [
-    awaitingCoachPdf,
-    coachPdfRequestId,
-    nutritionPlan?.meals,
-    nutritionPlan?.activeSlots,
-    dailyMeals,
-    dateKey,
-  ]);
+  }, [nutritionPlan?.meals, nutritionPlan?.activeSlots, dailyMeals, dateKey]);
 
   const hasMealPlan = plannedMealSlots.length > 0;
   const showMealPlanButton = hasMealPlan || awaitingCoachPdf || !!coachPdfRequestId;
 
-  const mealPlanEmptyMessage = awaitingCoachPdf
-    ? "Your coach nutrition plan will appear here once your PDF plan is delivered. Log meals with + in the meantime."
+  const mealPlanSubtitle = nutritionPlan?.kind === "ai" ? "AI Coach plan" : nutritionPlan ? "Your meal plan" : undefined;
+
+  const mealPlanEmptyMessage = !hasMealPlan
+    ? awaitingCoachPdf
+      ? "Your coach PDF plan is still being prepared. Create or activate a personal or AI meal plan under Programs → Nutrition, or log meals with +."
+      : "No meal plan for this day yet. Build one in Programs → Nutrition or with AI Coach."
     : undefined;
+
+  const handleMealPlanClick = () => {
+    if (hasMealPlan || awaitingCoachPdf || !coachPdfRequestId) {
+      setMealPlanOpen(true);
+      return;
+    }
+    setPdfPlanOpen(true);
+  };
 
   const waterMissed =
     localWaterMl < waterGoalMl && isDeadlinePassed(WATER_DEADLINE, dateKey);
@@ -210,15 +216,15 @@ export function DailyTracker({
                 }
               />
             </CardTitle>
-            {awaitingCoachPdf && (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                Coach nutrition plan · PDF pending
-              </p>
-            )}
-            {nutritionPlan && !awaitingCoachPdf && (
+            {nutritionPlan && (
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 {nutritionPlan.title}
-                {nutritionPlan.scheduled && " · scheduled"}
+                {nutritionPlan.scheduled ? " · scheduled" : ` · ${mealPlanSubtitle ?? "active"}`}
+              </p>
+            )}
+            {!nutritionPlan && awaitingCoachPdf && (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                Coach PDF plan · pending
               </p>
             )}
             {!nutritionPlan && !awaitingCoachPdf && coachPdfRequestId && (
@@ -233,10 +239,7 @@ export function DailyTracker({
                 size="icon"
                 variant="outline"
                 className="h-9 w-9 rounded-full"
-                onClick={() => {
-                  if (coachPdfRequestId) setPdfPlanOpen(true);
-                  else setMealPlanOpen(true);
-                }}
+                onClick={handleMealPlanClick}
                 aria-label="View meal plan"
               >
                 <ClipboardList className="h-4 w-4" />
@@ -286,8 +289,14 @@ export function DailyTracker({
         open={mealPlanOpen}
         onClose={() => setMealPlanOpen(false)}
         title={mealPlanDialogTitle}
+        subtitle={mealPlanSubtitle}
         slots={plannedMealSlots}
         emptyMessage={mealPlanEmptyMessage}
+        coachPdfRequestId={coachPdfRequestId}
+        onOpenCoachPdf={() => {
+          setMealPlanOpen(false);
+          setPdfPlanOpen(true);
+        }}
       />
 
       {coachPdfRequestId && (

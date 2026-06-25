@@ -3,6 +3,18 @@ import type { MealIngredient } from "@/lib/meal-utils";
 
 export type AiProvider = "openai" | "anthropic";
 
+export type ChatRole = "system" | "user" | "assistant";
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatTurn {
+  role: ChatRole;
+  content: string;
+}
+
 export interface MealAnalysisResult {
   meal_type: MealType;
   name: string;

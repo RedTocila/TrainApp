@@ -128,6 +128,7 @@ export function WeightTracker({
         {!formOpen && (
           <Button
             size="icon"
+            variant="outline"
             className="h-9 w-9 shrink-0 rounded-full"
             onClick={openForm}
             aria-label="Log weight"

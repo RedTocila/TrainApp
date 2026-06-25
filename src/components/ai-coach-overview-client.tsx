@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { OpenAiCoachChatButton } from "@/components/open-ai-coach-chat-button";
+import { AiCoachChatFeatureTile } from "@/components/ai-coach-chat-feature-tile";
 import {
   Camera,
   Check,
@@ -8,6 +10,7 @@ import {
   FileText,
   Flame,
   LineChart,
+  MessageCircle,
   Salad,
   Sparkles,
   Target,
@@ -44,6 +47,21 @@ export function AiCoachOverviewClient({
 
   return (
     <div className="space-y-5">
+      <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-transparent to-transparent">
+        <CardContent className="space-y-3 p-4">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-primary" />
+            <p className="font-bold">Ask your coach</p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Get straight answers about training, nutrition, and recovery — Coach Alex will push back when you're off track.
+          </p>
+          <OpenAiCoachChatButton className="w-full" icon={MessageCircle}>
+            Start chatting
+          </OpenAiCoachChatButton>
+        </CardContent>
+      </Card>
+
       {/* Plan builder flow */}
       <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-transparent to-transparent">
         <CardContent className="space-y-4 p-4">
@@ -192,7 +210,8 @@ export function AiCoachOverviewClient({
       </Card>
 
       {/* Feature grid */}
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <AiCoachChatFeatureTile icon={MessageCircle} label="Ask coach" />
         <AiFeatureTile href="/dashboard/ai/meal-suggestions" icon={Salad} label="Meal ideas" />
         <AiFeatureTile
           href="/dashboard/ai/recommendations"

@@ -38,7 +38,6 @@ import { HabitsTracker } from "@/components/habits-tracker";
 import { BodyMetricsSection } from "@/components/body-metrics-section";
 import { ProgressPhotosCard } from "@/components/progress-photos-card";
 import { DashboardOverview } from "@/components/dashboard-overview";
-import { getPrimaryMealsForDayMenu } from "@/lib/meal-slots";
 import { hasAiAccess } from "@/lib/subscription";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 import { getHabitSuggestionsForProfile } from "@/lib/habit-suggestions";
@@ -150,12 +149,13 @@ export default async function DashboardPage() {
   };
 
   const nutritionSummary =
-    coachNutritionPlanState.mode !== "awaiting_pdf" &&
-    scheduledPlanForToday?.scheduled
+    scheduledPlanForToday?.meals?.length
       ? {
           title: scheduledPlanForToday.title,
-          meals: getPrimaryMealsForDayMenu(scheduledPlanForToday.meals ?? []),
-          scheduled: true as const,
+          meals: scheduledPlanForToday.meals,
+          scheduled: scheduledPlanForToday.scheduled,
+          activeSlots: scheduledPlanForToday.activeSlots,
+          kind: scheduledPlanForToday.kind,
         }
       : null;
 

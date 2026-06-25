@@ -47,7 +47,7 @@ export function RecentMealsList({
           <p className="text-xs text-muted-foreground">{emptyHint}</p>
         </div>
         {onAdd && (
-          <div className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <div className="ml-auto flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">
             <Plus className="h-4 w-4" />
           </div>
         )}

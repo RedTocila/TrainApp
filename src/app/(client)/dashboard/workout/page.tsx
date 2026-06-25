@@ -1,6 +1,5 @@
 import { requireClient } from "@/lib/actions/auth";
 import { getPersonalWorkoutsWithSchedules } from "@/lib/actions/user-workouts";
-import { getClientPlanRequests } from "@/lib/actions/custom-plans";
 import { AllWorkoutsPage } from "@/components/all-workouts-page";
 import { WorkoutSectionTabs } from "@/components/workout-section-tabs";
 import { ScrollToHash } from "@/components/scroll-to-hash";
@@ -8,15 +7,11 @@ import { PageTransition } from "@/components/page-transition";
 import Link from "next/link";
 import { Dumbbell, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 export default async function WorkoutPage() {
-  const profile = await requireClient();
+  await requireClient();
 
-  const [workouts, planRequests] = await Promise.all([
-    getPersonalWorkoutsWithSchedules(),
-    getClientPlanRequests(profile.id),
-  ]);
+  const workouts = await getPersonalWorkoutsWithSchedules();
 
   return (
     <PageTransition>
@@ -45,15 +40,6 @@ export default async function WorkoutPage() {
             </Link>
           </div>
         </div>
-
-        {planRequests.length > 0 && (
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="p-4 text-sm">
-              You have {planRequests.length} pending plan request
-              {planRequests.length === 1 ? "" : "s"}.
-            </CardContent>
-          </Card>
-        )}
 
         <AllWorkoutsPage workouts={workouts} />
       </div>

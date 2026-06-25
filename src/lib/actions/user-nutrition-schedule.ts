@@ -10,6 +10,74 @@ import type { Meal, MealSlot, ScheduledNutritionDay } from "@/lib/types";
 import { syncPersonalMealSlotsForDates } from "@/lib/actions/meal-slot-schedule";
 import { slotsWithMealsFromPlan } from "@/lib/nutrition-schedule-utils";
 
+export type MealPlanViewKind = "ai" | "personal";
+
+export interface MealPlanForDate {
+  title: string;
+  meals: Meal[];
+  scheduled: boolean;
+  planId: string;
+  activeSlots?: MealSlot[];
+  kind: MealPlanViewKind;
+}
+
+function inferMealPlanKind(description?: string | null, title?: string | null): MealPlanViewKind {
+  const text = `${description ?? ""} ${title ?? ""}`.toLowerCase();
+  if (text.includes("ai coach")) return "ai";
+  return "personal";
+}
+
+function buildMealPlanForDate(
+  plan: { title: string; description?: string | null },
+  meals: Meal[],
+  planId: string,
+  scheduled: boolean,
+  activeSlots?: MealSlot[]
+): MealPlanForDate | null {
+  if (meals.length === 0) return null;
+  return {
+    title: plan.title,
+    meals,
+    scheduled,
+    planId,
+    activeSlots,
+    kind: inferMealPlanKind(plan.description, plan.title),
+  };
+}
+
+async function getActivePersonalAssignmentPlan(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  clientId: string
+): Promise<MealPlanForDate | null> {
+  const { data: assignment } = await supabase
+    .from("nutrition_assignments")
+    .select("plan_id, nutrition_plans(title, description, is_personal)")
+    .eq("client_id", clientId)
+    .eq("active", true)
+    .maybeSingle();
+
+  const plan = assignment?.nutrition_plans as
+    | { title: string; description?: string | null; is_personal?: boolean }
+    | null
+    | undefined;
+
+  if (!assignment || !plan?.is_personal) return null;
+
+  const { data: meals } = await supabase
+    .from("meals")
+    .select("*")
+    .eq("plan_id", assignment.plan_id)
+    .order("order_index");
+
+  return buildMealPlanForDate(
+    plan,
+    (meals ?? []) as Meal[],
+    assignment.plan_id,
+    false,
+    slotsWithMealsFromPlan((meals ?? []) as Meal[])
+  );
+}
+
 async function requireUserId() {
   const supabase = await createClient();
   const {
@@ -177,7 +245,10 @@ export async function getScheduledNutritionDatesByPlan() {
   return byPlan;
 }
 
-export async function getNutritionPlanForDate(clientId: string, dateKey: string) {
+export async function getNutritionPlanForDate(
+  clientId: string,
+  dateKey: string
+): Promise<MealPlanForDate | null> {
   const supabase = await createClient();
 
   const { data: slotRows } = await supabase
@@ -188,67 +259,59 @@ export async function getNutritionPlanForDate(clientId: string, dateKey: string)
 
   if (slotRows && slotRows.length > 0) {
     const planId = slotRows[0].plan_id as string;
-    const activeSlots = slotRows.map((r) => r.slot as MealSlot);
-
     const { data: plan } = await supabase
       .from("nutrition_plans")
-      .select("title")
+      .select("title, description, is_personal")
       .eq("id", planId)
       .single();
 
-    const { data: meals } = await supabase
-      .from("meals")
-      .select("*")
-      .eq("plan_id", planId)
-      .order("order_index");
+    if (plan?.is_personal) {
+      const activeSlots = slotRows.map((r) => r.slot as MealSlot);
+      const { data: meals } = await supabase
+        .from("meals")
+        .select("*")
+        .eq("plan_id", planId)
+        .order("order_index");
 
-    return {
-      title: plan?.title ?? "Meal plan",
-      meals: meals ?? [],
-      scheduled: true,
-      planId,
-      activeSlots,
-    };
+      const result = buildMealPlanForDate(
+        plan,
+        (meals ?? []) as Meal[],
+        planId,
+        true,
+        activeSlots
+      );
+      if (result) return result;
+    }
   }
 
   const { data: scheduled } = await supabase
     .from("scheduled_nutrition_days")
-    .select("*, nutrition_plans(*, meals(*))")
+    .select("plan_id, nutrition_plans(title, description, is_personal, meals(*))")
     .eq("client_id", clientId)
     .eq("scheduled_date", dateKey)
     .maybeSingle();
 
   if (scheduled?.nutrition_plans) {
-    const rawMeals = (scheduled.nutrition_plans as { meals?: Meal[] }).meals ?? [];
-    const meals = [...rawMeals].sort((a, b) => a.order_index - b.order_index);
-    return {
-      title: scheduled.nutrition_plans.title as string,
-      meals,
-      scheduled: true,
-      planId: scheduled.plan_id,
-      activeSlots: slotsWithMealsFromPlan(meals),
-    };
+    const rawPlan = scheduled.nutrition_plans;
+    const plan = (Array.isArray(rawPlan) ? rawPlan[0] : rawPlan) as {
+      title: string;
+      description?: string | null;
+      is_personal?: boolean;
+      meals?: Meal[];
+    } | null | undefined;
+
+    if (plan?.is_personal) {
+      const meals = [...(plan.meals ?? [])].sort((a, b) => a.order_index - b.order_index);
+      const result = buildMealPlanForDate(
+        plan,
+        meals,
+        scheduled.plan_id as string,
+        true,
+        slotsWithMealsFromPlan(meals)
+      );
+      if (result) return result;
+    }
   }
 
-  const { data: assignment } = await supabase
-    .from("nutrition_assignments")
-    .select("*, nutrition_plans(*)")
-    .eq("client_id", clientId)
-    .eq("active", true)
-    .maybeSingle();
-
-  if (!assignment?.nutrition_plans) return null;
-
-  const { data: meals } = await supabase
-    .from("meals")
-    .select("*")
-    .eq("plan_id", assignment.plan_id)
-    .order("order_index");
-
-  return {
-    title: assignment.nutrition_plans.title as string,
-    meals: meals ?? [],
-    scheduled: false,
-    planId: assignment.plan_id,
-  };
+  return getActivePersonalAssignmentPlan(supabase, clientId);
 }
