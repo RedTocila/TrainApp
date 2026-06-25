@@ -1,10 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Brain, Camera, TrendingUp } from "lucide-react";
 import { FadeIn } from "@/components/landing/landing-motion";
 import {
-  MacroBars,
   ProgressRing,
   WeightTrendChart,
 } from "@/components/landing/landing-visuals";
@@ -14,7 +14,28 @@ const panels = [
     icon: Camera,
     title: "Snap & log meals",
     color: "text-violet-400",
-    visual: <MacroBars className="mt-4" />,
+    visual: (
+      <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-secondary/20">
+        <div className="relative aspect-[4/3] w-full">
+          <Image
+            src="/landing/meal-photo-log.png"
+            alt="Log meals by taking a picture"
+            fill
+            sizes="(min-width: 768px) 320px, 90vw"
+            className="object-cover"
+            priority
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 text-xs">
+          <span className="font-semibold text-muted-foreground">
+            Take a photo → get macros matched
+          </span>
+          <span className="rounded-full border border-border bg-card/70 px-2 py-1 font-bold">
+            Photo Log
+          </span>
+        </div>
+      </div>
+    ),
   },
   {
     icon: TrendingUp,

@@ -7,6 +7,31 @@ import { Lock } from "lucide-react";
 import { useState } from "react";
 import type { PlanRequestType } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { getPokPayEnv } from "@/lib/pokpay/env";
+
+function formatPokPayError(err: unknown): string {
+  if (!err || typeof err !== "object") return "Payment failed. Please try again.";
+  const anyErr = err as Record<string, unknown>;
+  const message = typeof anyErr.message === "string" ? anyErr.message : null;
+  const code = typeof anyErr.code === "string" ? anyErr.code : null;
+  const statusCode =
+    typeof anyErr.statusCode === "number" ? String(anyErr.statusCode) : null;
+  const details =
+    typeof anyErr.details === "string"
+      ? anyErr.details
+      : Array.isArray(anyErr.errors)
+        ? JSON.stringify(anyErr.errors)
+        : null;
+
+  return [
+    message ?? "Payment failed.",
+    code ? `code=${code}` : null,
+    statusCode ? `status=${statusCode}` : null,
+    details ? `details=${details}` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
 
 export function CustomPlanCheckoutClient({
   pokpayOrderId,
@@ -45,11 +70,10 @@ export function CustomPlanCheckoutClient({
           orderId={pokpayOrderId}
           onSuccess={() => router.push(successUrl)}
           onError={(paymentError: PaymentErrorResponse) => {
-            setError(paymentError.message ?? "Payment failed. Please try again.");
+            setError(formatPokPayError(paymentError));
           }}
           options={{
-            env:
-              process.env.NEXT_PUBLIC_POKPAY_ENV === "production" ? "production" : "staging",
+            env: getPokPayEnv(),
             locale: "en",
             countrySelect: "modal",
           }}

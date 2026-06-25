@@ -13,6 +13,30 @@ import { CheckoutLayout } from "@/components/checkout-layout";
 import { cn } from "@/lib/utils";
 import { getPokPayEnv } from "@/lib/pokpay/env";
 
+function formatPokPayError(err: unknown): string {
+  if (!err || typeof err !== "object") return "Payment failed. Please try again.";
+  const anyErr = err as Record<string, unknown>;
+  const message = typeof anyErr.message === "string" ? anyErr.message : null;
+  const code = typeof anyErr.code === "string" ? anyErr.code : null;
+  const statusCode =
+    typeof anyErr.statusCode === "number" ? String(anyErr.statusCode) : null;
+  const details =
+    typeof anyErr.details === "string"
+      ? anyErr.details
+      : Array.isArray(anyErr.errors)
+        ? JSON.stringify(anyErr.errors)
+        : null;
+
+  return [
+    message ?? "Payment failed.",
+    code ? `code=${code}` : null,
+    statusCode ? `status=${statusCode}` : null,
+    details ? `details=${details}` : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function CheckoutClient({
   planId,
   interval,
@@ -139,7 +163,7 @@ export function CheckoutClient({
                 orderId={orderId}
                 onSuccess={handleSuccess}
                 onError={(paymentError: PaymentErrorResponse) => {
-                  setError(paymentError.message ?? "Payment failed. Please try again.");
+                  setError(formatPokPayError(paymentError));
                 }}
                 options={{
                   env: getPokPayEnv(),
