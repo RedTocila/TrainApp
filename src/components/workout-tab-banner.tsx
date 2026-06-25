@@ -1,4 +1,5 @@
 "use client";
+import { useCoachLabels } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
@@ -33,6 +34,7 @@ export function WorkoutTabBanner({
   initialInProgressSessionId: string | null;
   initialWorkoutCompleted?: boolean;
 }) {
+  const coachLabels = useCoachLabels();
   const { selectedDate } = useSelectedDate();
   const { version } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
@@ -65,14 +67,12 @@ export function WorkoutTabBanner({
               <Dumbbell className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="font-semibold">Workout in progress</p>
-              <p className="text-sm text-muted-foreground">
-                Pick up where you left off
-              </p>
+              <p className="font-semibold">{coachLabels.workoutInProgress}</p>
+              <p className="text-sm text-muted-foreground">{coachLabels.pickUpWorkout}</p>
             </div>
           </div>
           <Link href={`/dashboard/workout/session/${inProgressSessionId}`}>
-            <Button size="sm">Continue</Button>
+            <Button size="sm">{coachLabels.getBackInThere}</Button>
           </Link>
         </CardContent>
       </Card>

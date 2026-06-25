@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,6 +20,7 @@ import type {
 } from "@/lib/types";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -182,6 +184,8 @@ export function ActiveWorkoutClient({
   exercises: WorkoutSessionExercise[];
   histories: Record<string, ExerciseHistoryEntry | null>;
 }) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const router = useRouter();
   const { patchDashboard, notifySync } = useDashboardSync();
   const [newExerciseName, setNewExerciseName] = useState("");
@@ -190,6 +194,8 @@ export function ActiveWorkoutClient({
   const [sessionNote, setSessionNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog, isPending: isGivingUp } =
+    useSarcasticConfirm();
 
   const refresh = () => router.refresh();
 
@@ -232,13 +238,13 @@ export function ActiveWorkoutClient({
   };
 
   const handleCancel = () => {
-    if (!confirm("Discard this workout? Your logged sets will not be saved.")) {
-      return;
-    }
-    startTransition(async () => {
-      await cancelWorkoutSession(session.id);
-      router.push("/dashboard/workout");
-      router.refresh();
+    confirmGiveUp({
+      ...coachCopy.discardWorkout,
+      onConfirm: async () => {
+        await cancelWorkoutSession(session.id);
+        router.push("/dashboard/workout");
+        router.refresh();
+      },
     });
   };
 
@@ -254,7 +260,7 @@ export function ActiveWorkoutClient({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              In progress
+              Still in the gym
             </p>
             <h1 className="text-2xl font-black">{session.day_title ?? "Workout"}</h1>
             {session.plan_title && (
@@ -264,11 +270,11 @@ export function ActiveWorkoutClient({
           <Button
             variant="outline"
             size="sm"
-            disabled={isPending}
+            disabled={isPending || isGivingUp}
             onClick={handleCancel}
           >
             <Trash2 className="mr-1 h-3.5 w-3.5" />
-            Discard
+            {coachLabels.bailOnWorkout}
           </Button>
         </div>
       </div>
@@ -334,7 +340,7 @@ export function ActiveWorkoutClient({
         {showCompleteStep ? (
           <Card className="border-primary/30 bg-primary/5">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Finish workout</CardTitle>
+              <CardTitle className="text-lg">{coachLabels.actuallyFinish}</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Add an optional note about how it went — or skip and save.
               </p>
@@ -391,10 +397,11 @@ export function ActiveWorkoutClient({
             onClick={() => setShowCompleteStep(true)}
           >
             <Check className="mr-2 h-4 w-4" />
-            Complete workout
+            {coachLabels.actuallyFinish}
           </Button>
         )}
       </div>
+      {giveUpDialog}
     </div>
   );
 }

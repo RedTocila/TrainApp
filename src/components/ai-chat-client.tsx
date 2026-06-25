@@ -17,15 +17,20 @@ const STARTER_PROMPTS = [
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
 
+function stripMarkdownAsterisks(content: string) {
+  return content.replace(/\*\*/g, "");
+}
+
 function renderLinkedText(content: string) {
+  const text = stripMarkdownAsterisks(content);
   const parts: ReactNode[] = [];
   let lastIndex = 0;
 
-  for (const match of content.matchAll(URL_RE)) {
+  for (const match of text.matchAll(URL_RE)) {
     const url = match[0];
     const index = match.index ?? 0;
     if (index > lastIndex) {
-      parts.push(content.slice(lastIndex, index));
+      parts.push(text.slice(lastIndex, index));
     }
     parts.push(
       <a
@@ -41,11 +46,11 @@ function renderLinkedText(content: string) {
     lastIndex = index + url.length;
   }
 
-  if (lastIndex < content.length) {
-    parts.push(content.slice(lastIndex));
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
   }
 
-  return parts.length > 0 ? parts : content;
+  return parts.length > 0 ? parts : text;
 }
 
 const ChatSources = memo(function ChatSources({ sources }: { sources: WebSource[] }) {
@@ -285,10 +290,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               <div className="space-y-4 py-4 text-center">
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
                 <div>
-                  <p className="font-bold">Ask your AI Coach</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Sarcastic, darkly funny coaching — real advice wrapped in gym-floor roasts.
-                  </p>
+                  <p className="font-bold">Ask Alex</p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
                   {STARTER_PROMPTS.map((prompt) => (
@@ -370,10 +372,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               <div className="space-y-4 py-4 text-center">
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
                 <div>
-                  <p className="font-bold">Ask your AI Coach</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Sarcastic, darkly funny coaching — real advice wrapped in gym-floor roasts.
-                  </p>
+                  <p className="font-bold">Ask Alex</p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
                   {STARTER_PROMPTS.map((prompt) => (

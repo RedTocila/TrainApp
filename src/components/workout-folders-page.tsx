@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,6 +24,7 @@ import {
 } from "@/lib/actions/user-workouts";
 import { CustomPlanButton } from "@/components/trainer-plan-offer-card";
 import { FlowStep } from "@/components/ai/feature-tile";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { ProgramFolderCard, ProgramQuickTile } from "@/components/programs/program-tiles";
 import type { PlanRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -36,8 +38,11 @@ export function WorkoutFoldersPage({
   folders: WorkoutFolderOverview[];
   planRequests?: PlanRequest[];
 }) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -75,10 +80,12 @@ export function WorkoutFoldersPage({
   };
 
   const handleDelete = (folder: WorkoutFolderOverview) => {
-    if (!confirm(`Delete "${folder.name}"? Workouts will be unassigned.`)) return;
-    startTransition(async () => {
-      await deleteWorkoutFolder(folder.id);
-      router.refresh();
+    confirmGiveUp({
+      ...coachCopy.deleteWorkoutFolder(folder.name),
+      onConfirm: async () => {
+        await deleteWorkoutFolder(folder.id);
+        router.refresh();
+      },
     });
   };
 
@@ -146,10 +153,10 @@ export function WorkoutFoldersPage({
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12">
             <Folder className="h-10 w-10 text-muted-foreground" />
-            <p className="font-medium">No folders yet</p>
+            <p className="font-medium">{coachLabels.noFolders}</p>
             <Button onClick={() => setShowNewFolder(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              New folder
+              {coachLabels.newFolder}
             </Button>
           </CardContent>
         </Card>
@@ -219,6 +226,7 @@ export function WorkoutFoldersPage({
           })}
         </div>
       )}
+      {giveUpDialog}
     </div>
   );
 }

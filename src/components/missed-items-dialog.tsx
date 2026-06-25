@@ -1,4 +1,5 @@
 "use client";
+import { useCoachLabels } from "@/components/locale-provider";
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
@@ -24,6 +25,7 @@ export function MissedButton({
   hint?: string;
   className?: string;
 }) {
+  const coachLabels = useCoachLabels();
   const [open, setOpen] = useState(false);
   if (count <= 0) return null;
 
@@ -37,7 +39,7 @@ export function MissedButton({
           className
         )}
       >
-        {count} missed
+        {count} skipped
       </button>
       <MissedItemsDialog
         open={open}
@@ -63,6 +65,7 @@ export function MissedItemsDialog({
   hint?: string;
   onClose: () => void;
 }) {
+  const coachLabels = useCoachLabels();
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -104,7 +107,9 @@ export function MissedItemsDialog({
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {items.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Nothing missed.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              {coachLabels.nothingMissed}
+            </p>
           ) : (
             <ul className="space-y-2">
               {items.map((item) => (
@@ -124,7 +129,7 @@ export function MissedItemsDialog({
 
         <div className="border-t border-border px-5 py-3">
           <Button variant="outline" className="w-full" onClick={onClose}>
-            Close
+            {coachLabels.illDoBetter}
           </Button>
         </div>
       </div>

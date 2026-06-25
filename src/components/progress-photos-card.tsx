@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy } from "@/components/locale-provider";
 
 import { format } from "date-fns";
 import { Check, CalendarClock, ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/supabase/storage";
 import type { ProgressPhotoSet } from "@/lib/types";
 import { ImageSourceButtons } from "@/components/image-source-buttons";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -121,6 +123,7 @@ export function ProgressPhotosCard({
   clientId: string;
   initialSets: ProgressPhotoSet[];
 }) {
+  const coachCopy = useCoachCopy();
   const currentMonth = progressMonthKey();
   const [sets, setSets] = useState(initialSets);
   const [currentUrls, setCurrentUrls] = useState<PoseUrls>(EMPTY_URLS);
@@ -129,6 +132,7 @@ export function ProgressPhotosCard({
   const [uploadingPose, setUploadingPose] = useState<ProgressPhotoPose | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
   const currentSet = useMemo(
     () => sets.find((s) => s.month_key === currentMonth) ?? null,
@@ -288,7 +292,12 @@ export function ProgressPhotosCard({
                 url={currentUrls[pose]}
                 uploading={uploadingPose === pose || isPending}
                 onPick={(file) => void handleUpload(pose, file)}
-                onRemove={() => void handleRemove(pose)}
+                onRemove={() => {
+                  confirmGiveUp({
+                    ...coachCopy.removeProgressPhoto(label),
+                    onConfirm: () => handleRemove(pose),
+                  });
+                }}
               />
             ))}
           </div>
@@ -361,6 +370,7 @@ export function ProgressPhotosCard({
 
         {error && <p className="text-sm text-red-400">{error}</p>}
       </CardContent>
+      {giveUpDialog}
     </Card>
   );
 }

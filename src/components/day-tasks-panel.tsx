@@ -1,4 +1,5 @@
 "use client";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { addDays, format, isToday, isTomorrow } from "date-fns";
 import { ChevronDown, ListChecks } from "lucide-react";
@@ -16,10 +17,10 @@ import { formatDateKey } from "@/lib/utils";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-function panelTitle(date: Date): string {
-  if (isToday(date)) return "Today's To Do";
-  if (isTomorrow(date)) return "Tomorrow's To Do";
-  return `${format(date, "EEEE")}'s To Do`;
+function panelTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>): string {
+  if (isToday(date)) return platform.dashboard.toDoToday;
+  if (isTomorrow(date)) return platform.dashboard.toDoTomorrow;
+  return platform.dashboard.toDoOnDay(format(date, "EEEE"));
 }
 
 export function DayTasksPanel({
@@ -31,6 +32,8 @@ export function DayTasksPanel({
   schedule: ClientSchedule;
   initialEnrichment: DashboardEnrichmentData;
 }) {
+  const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const { selectedDate } = useSelectedDate();
   const { version, mergeEnrichment } = useDashboardSync();
   const [enrichment, setEnrichment] =
@@ -81,7 +84,7 @@ export function DayTasksPanel({
             aria-expanded={open}
           >
             <ListChecks className="h-4 w-4 shrink-0 text-primary sm:h-5 sm:w-5" />
-            <span className="text-base font-bold sm:text-lg">{panelTitle(selectedDate)}</span>
+            <span className="text-base font-bold sm:text-lg">{panelTitle(selectedDate, platform)}</span>
             {tasks.length > 0 && (
               <>
                 <span
@@ -107,8 +110,8 @@ export function DayTasksPanel({
           <div className="flex shrink-0 items-center gap-2">
             <MissedButton
               count={missed.length}
-              title="Missed tasks"
-              hint="Try to stay on schedule tomorrow."
+              title={coachLabels.missedTasks}
+              hint="Tomorrow: fewer excuses, more checkmarks."
               items={missedTaskItems}
             />
             <button

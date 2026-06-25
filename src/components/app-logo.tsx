@@ -5,15 +5,15 @@ import { cn } from "@/lib/utils";
 const sizeStyles = {
   sm: {
     text: "text-base",
-    box: "rounded-full px-2.5 py-1",
+    box: "rounded-lg px-2.5 py-1",
   },
   default: {
     text: "text-xl",
-    box: "rounded-full px-3 py-1.5",
+    box: "rounded-lg px-3 py-1.5",
   },
   lg: {
     text: "text-2xl",
-    box: "rounded-full px-4 py-2",
+    box: "rounded-lg px-4 py-2",
   },
 } as const;
 

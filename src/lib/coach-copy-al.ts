@@ -1,0 +1,148 @@
+/** Coach Alex voice — sarcastic copy for client-facing UI (Albanian). */
+
+export const coachCopyAl = {
+  signOut: {
+    title: "Po ik tashmë?",
+    message:
+      "Po dilni? Guxim. Coach Alex do të jetë këtu duke gjykuar panelin tuaj bosh kur të ktheheni me vështirësi. Jeni të sigurt që doni të dorëzoheni për tani?",
+    confirm: "Po, dorëzohem",
+    cancel: "Po qëndroj",
+  },
+  discardWorkout: {
+    title: "Po braktis në mes të serisë?",
+    message:
+      "Po fshini çdo përsëritje që keni regjistruar. Asnjë rekord, asnjë provë — Coach Alex do të bëjë sikur nuk ju pa të ikni. Ende po dorëzoheni?",
+    confirm: "Po, braktis këtë stërvitje",
+    cancel: "Edhe një seri",
+  },
+  removeHabit: {
+    title: "Po e lë zakonin tashmë?",
+    message:
+      "Të fshihet ky zakon dhe i gjithë orari i tij? Coach Alex sapo filloi të besonte se kishit disiplinë. Jeni të sigurt që doni ta largoni?",
+    confirm: "Po, hiqe",
+    cancel: "Mbaje zakonin",
+  },
+  deleteWorkoutFolder: (name: string) => ({
+    title: "Të djegim dosjen?",
+    message: `Fshirja e "${name}" heq çdo stërvitje brenda. Coach Alex urren gjërat e papërfunduara — jeni të sigurt që po dorëzoheni nga organizimi?`,
+    confirm: "Fshi dosjen",
+    cancel: "Harroje",
+  }),
+  deleteNutritionFolder: (name: string) => ({
+    title: "Të hedhim dosjen e ushqimit?",
+    message: `"${name}" zhduket; menytë shkojnë te të pafilesuara. Kaos, por e kthyeshme. Ende doni të dorëzoheni nga struktura?`,
+    confirm: "Fshi dosjen",
+    cancel: "Harroje",
+  }),
+  deleteWorkoutPlan: (title: string) => ({
+    title: "Të hedhim poshtë këtë program?",
+    message: `"${title}" dhe të gjitha ditët e tij — zhduken. Coach Alex pritej të paktën ta mbaronit leximin. Të fshihet gjithsesi?`,
+    confirm: "Po, fshije",
+    cancel: "Mbaje",
+  }),
+  deleteMealPlan: (title: string) => ({
+    title: "Të hedhim poshtë këtë menu ditor?",
+    message: `"${title}" dhe çdo vakt brenda — zhduken. Makrot tuaja nuk regjistrohen vetë. Ende po dorëzoheni?`,
+    confirm: "Po, fshije",
+    cancel: "Mbaje",
+  }),
+  deleteCardio: (title: string) => ({
+    title: "Të fshihet ky kardio?",
+    message: `"${title}" zhduket dhe seancat e planifikuara humbasin. Coach Alex thotë kardio është opsional — a është braktisja e tij personaliteti juaj?`,
+    confirm: "Po, fshije",
+    cancel: "Mbaje",
+  }),
+  deleteSavedMeal: (name: string) => ({
+    title: "Të fshihet ky vakt?",
+    message: `"${name}" largohet nga biblioteka përgjithmonë. Një gjë më pak për të përgatitur. Coach Alex… nuk është i impresionuar. Ta fshij?`,
+    confirm: "Po, fshije",
+    cancel: "Mbaje",
+  }),
+  clearWorkoutSchedule: {
+    title: "Të pastrohet orari?",
+    message:
+      "Të hiqen nga orari të gjitha stërvitjet e ardhshme? Ju i ardhshmi do të pyesë pse kalendari është bosh. Coach Alex e di tashmë pse.",
+    confirm: "Po, pastroje",
+    cancel: "Mbaje orarin",
+  },
+  clearNutritionSchedule: {
+    title: "Të pastrohet orari i vakteve?",
+    message:
+      "Të hiqet kjo menu nga kalendari? Planifikimi i vakteve po shkonte kaq mirë. Jeni të sigurt që doni ta lini në rastësi?",
+    confirm: "Po, pastroje",
+    cancel: "Mbaje orarin",
+  },
+  clearWeight: {
+    title: "Të fshihet peshimi i sotëm?",
+    message:
+      "Të fshihet pesha e sotme? Coach Alex nuk mund të ndjekë progresin që refuzoni ta regjistroni. Ende po fshiheni nga peshoreja?",
+    confirm: "Po, fshije",
+    cancel: "Mbaje regjistrimin",
+  },
+  removeProgressPhoto: (label: string) => ({
+    title: "Të fshihet kjo foto?",
+    message: `Po hiqni foton e progresit (${label.toLowerCase()})? Pasqyra mban mend edhe nëse albumi juaj jo.`,
+    confirm: "Po, fshije",
+    cancel: "Mbaje",
+  }),
+  cancelSubscription: {
+    title: "Po hedhni peshqirën?",
+    message:
+      "Po anuloni abonimin? E bukur. Keni akses deri në fund të periudhës së paguar — pastaj ktheheni në modalitetin falas. Pa përfitime të ruajtura, pa funksione të plota. Coach Alex pritej më shumë luftë nga ju. Jeni të sigurt që doni të dorëzoheni?",
+    confirm: "Dorëzohem — anulo planin",
+    cancel: "Do të vazhdoj të luftoj",
+  },
+  giveUpTrainerPlan: {
+    title: "Po dorëzoheni tashmë?",
+    message:
+      "Po e hiqni këtë plan trajneri nga kalendari dhe po ktheheni në rastësi. Stërvitjet ose vaktet e planifikuara — zhduken. Mund ta zbatoni përsëri më vonë, por Coach Alex po ju shikon me skepticizëm. Ende doni të dorëzoheni?",
+    confirm: "Po, dorëzohem",
+    cancel: "Do të qëndroj në plan",
+  },
+} as const;
+
+export const coachLabelsAl = {
+  giveUp: "Dorëzohem",
+  giveUpOnPlan: "Dorëzohem nga plani",
+  giveUpOnThisPlan: "Dorëzohem nga ky plan",
+  giveUpOnSchedule: "Dorëzohem nga orari",
+  bailOnWorkout: "Dorëzohem",
+  dropHabit: "Hiq zakonin",
+  clearWeight: "Fshi peshimin",
+  faceTheRoast: "Përballu me kritikën",
+  getBackInThere: "Kthehu në stërvitje",
+  actuallyFinish: "Mbaroje vërtet",
+  missed: "U anashkalua",
+  missedWorkout: "Stërvitja që shmangët",
+  missedTasks: "Detyrat që braktisët",
+  missedHabits: "Zakonet që larguat",
+  nothingMissed: "Për çudi, nuk braktisët asgjë. Mos u mësoni me këtë.",
+  illDoBetter: "Do të bëj më mirë nesër",
+  noHabitsToday: 'Sot nuk ka zakone. Coach Alex supozon se jeni "në pushim."',
+  addHabitsHint: "Grumbulloni fitore të vogla para se Coach Alex të kritikojë qëndrueshmërinë tuaj",
+  unlockDashboard: "Ndalo të shfletosh. Fillo të stërvitesh vërtet.",
+  subscribeBlurb:
+    "Modaliteti falas është i lezetshëm. Abonohu nëse don që Coach Alex të mbajë mend seritë, vaktet dhe dinjitetin tënd.",
+  viewPlans: "Ndalo falas — shiko planet",
+  noSubscription:
+    "Nuk keni plan të paguar. Jeni në modalitet parashikimi — Coach Alex ju sheh, por nuk po ruan progresin tuaj.",
+  pickAPlan: "Zgjidh një plan të vërtetë",
+  levelUp: "Përmirësohu",
+  coachHasOpinions: "Coach Alex ka mendime. Paguaj nëse don t'i dëgjosh.",
+  coachHasNotes: "Coach Alex ka shënime. Nuk do t'ju pëlqejnë.",
+  skipForNow: "Mirë, do të vazhdoj gjysmë",
+  noWorkoutToday: "Ditë pushimi — apo shmangie? Coach Alex nuk e di.",
+  noCardioToday: "Sot nuk ka kardio. Justifikimet tuaja ju falënderojnë.",
+  noTasksToday: "Asgjë në listë. Shijojeni — nesër nuk do të jetë kaq e lehtë.",
+  logFirstMeal: "Regjistro diçka para se Coach Alex të pyesë çfarë ke ngrënë",
+  noMealsYet: "Biblioteka e vakteve është bosh. Coach Alex nuk mund të gjykojë atë që nuk regjistron.",
+  emptyWorkoutFolder: "Dosja është bosh. Si lista juaj e justifikimeve duhet të jetë.",
+  emptyMealFolder: "Asgjë këtu. Coach Alex shpreson që nuk po hani kështu në jetën reale.",
+  noWorkoutsYet: "Ende nuk ka programe. Coach Alex po mban shënime.",
+  createWorkout: "Ndërto diçka që vlen të djersitësh",
+  noFolders: "Zero dosje. Aftësi organizative mbresëlënëse.",
+  newFolder: "Shtiret sikur je i organizuar",
+  workoutInProgress: "Nuk e përfundove",
+  pickUpWorkout: "Coach Alex po pret. Mos e bëj të presë më shumë.",
+  surrendered: "U dorëzua",
+} as const;

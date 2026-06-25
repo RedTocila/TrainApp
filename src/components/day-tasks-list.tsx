@@ -1,4 +1,5 @@
 "use client";
+import { useCoachLabels } from "@/components/locale-provider";
 
 import {
   Apple,
@@ -56,6 +57,7 @@ function useTaskNavigation() {
 }
 
 export function TaskRow({ task }: { task: DailyTask }) {
+  const coachLabels = useCoachLabels();
   const navigate = useTaskNavigation();
   const Icon = CATEGORY_ICONS[task.category];
   const isMissed = task.missed && !task.completed;
@@ -126,7 +128,7 @@ export function TaskRow({ task }: { task: DailyTask }) {
             )}
             {isMissed && (
               <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-400 sm:text-[10px]">
-                Missed
+                {coachLabels.missed}
               </span>
             )}
           </div>
@@ -160,11 +162,12 @@ export function groupTasksByStatus(tasks: DailyTask[]) {
 }
 
 export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
+  const coachLabels = useCoachLabels();
   const { inProgress, missed, completed } = groupTasksByStatus(tasks);
 
   if (tasks.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">No tasks scheduled for this day.</p>
+      <p className="text-sm text-muted-foreground">{coachLabels.noTasksToday}</p>
     );
   }
 
@@ -185,7 +188,7 @@ export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
       {missed.length > 0 && (
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-red-400">
-            Missed
+            {coachLabels.missed}
           </h3>
           <ul className="space-y-2">
             {missed.map((task) => (

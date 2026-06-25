@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Plus, Trash2, X } from "lucide-react";
@@ -20,6 +21,7 @@ import {
 } from "@/lib/meal-utils";
 import type { MealType } from "@/lib/types";
 import { MealDetailsFields } from "@/components/meal-details-fields";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -547,12 +549,15 @@ export function MyMealsPage({
   showMealTypeTabs?: boolean;
   showFolderActions?: boolean;
 }) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const [meals, setMeals] = useState(initialMeals);
   const [filter, setFilter] = useState<MealType | "all">("all");
   const [editItem, setEditItem] = useState<PersonalMealLibraryItem | null>(null);
   const [addItem, setAddItem] = useState<PersonalMealLibraryItem | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
   const defaultMealType: MealType =
     filter === "all" ? "breakfast" : filter;
@@ -577,10 +582,12 @@ export function MyMealsPage({
   };
 
   const handleDelete = (item: PersonalMealLibraryItem) => {
-    if (!confirm(`Delete "${item.meal.name}"?`)) return;
-    startTransition(async () => {
-      const result = await deletePersonalMeal(item.meal.id);
-      if (!result.error) refresh();
+    confirmGiveUp({
+      ...coachCopy.deleteSavedMeal(item.meal.name),
+      onConfirm: async () => {
+        const result = await deletePersonalMeal(item.meal.id);
+        if (!result.error) refresh();
+      },
     });
   };
 
@@ -615,7 +622,7 @@ export function MyMealsPage({
       {filtered.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
           {meals.length === 0
-            ? "No meals yet — tap Add meal to create your first one."
+            ? coachLabels.noMealsYet
             : `No ${filter === "all" ? "" : filter + " "}meals found.`}
         </div>
       ) : (
@@ -716,6 +723,7 @@ export function MyMealsPage({
         onClose={() => setShowCreate(false)}
         onSaved={refresh}
       />
+      {giveUpDialog}
     </>
   );
 }

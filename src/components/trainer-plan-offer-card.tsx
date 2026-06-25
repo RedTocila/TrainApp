@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -12,6 +13,7 @@ import {
   CheckoutCurrencyToggle,
 } from "@/components/checkout-preferences-toggle";
 import { NutritionPlanPdfViewer } from "@/components/nutrition-plan-pdf-viewer";
+import { SarcasticGiveUpDialog } from "@/components/sarcastic-give-up-dialog";
 import {
   CUSTOM_PLAN_PRODUCTS,
   getCustomPlanPrice,
@@ -97,6 +99,8 @@ function CustomPlanDialog({
   onImplemented?: (request: PlanRequest, planTitle: string) => void;
   onRemoved?: (request: PlanRequest) => void;
 }) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const router = useRouter();
   const product = CUSTOM_PLAN_PRODUCTS.find((p) => p.type === type)!;
   const [request, setRequest] = useState<PlanRequest | null>(initialRequest);
@@ -104,6 +108,7 @@ function CustomPlanDialog({
   const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
   const [error, setError] = useState<string | null>(null);
   const [successTitle, setSuccessTitle] = useState<string | null>(null);
+  const [giveUpOpen, setGiveUpOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const Icon = type === "workout" ? Dumbbell : Salad;
 
@@ -171,13 +176,6 @@ function CustomPlanDialog({
 
   const handleRemoveFromCalendar = () => {
     if (!request) return;
-    if (
-      !confirm(
-        "Remove this plan from your calendar? You can implement it again later if you change your mind."
-      )
-    ) {
-      return;
-    }
     setError(null);
     startTransition(async () => {
       const result = await removeTrainerPlanImplementation(request.id);
@@ -193,6 +191,7 @@ function CustomPlanDialog({
       };
       setRequest(deliveredRequest);
       setSuccessTitle(null);
+      setGiveUpOpen(false);
       onRemoved?.(deliveredRequest);
       router.refresh();
     });
@@ -332,11 +331,11 @@ function CustomPlanDialog({
               </Button>
               <Button
                 variant="outline"
-                onClick={handleRemoveFromCalendar}
+                onClick={() => setGiveUpOpen(true)}
                 disabled={isPending}
                 className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-400"
               >
-                {isPending ? "Removing…" : "Remove from calendar"}
+                {coachLabels.giveUpOnThisPlan}
               </Button>
             </div>
           ) : showOffer ? (
@@ -354,6 +353,17 @@ function CustomPlanDialog({
           )}
         </div>
       </div>
+
+      <SarcasticGiveUpDialog
+        open={giveUpOpen}
+        onClose={() => setGiveUpOpen(false)}
+        onConfirm={handleRemoveFromCalendar}
+        isPending={isPending}
+        title={coachCopy.giveUpTrainerPlan.title}
+        message={coachCopy.giveUpTrainerPlan.message}
+        confirmLabel={coachCopy.giveUpTrainerPlan.confirm}
+        cancelLabel={coachCopy.giveUpTrainerPlan.cancel}
+      />
     </div>
   );
 }

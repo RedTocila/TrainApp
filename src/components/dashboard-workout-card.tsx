@@ -1,4 +1,5 @@
 "use client";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { format, isToday, isTomorrow } from "date-fns";
 import { Check, Dumbbell } from "lucide-react";
@@ -25,10 +26,10 @@ import {
 } from "@/lib/meal-times";
 import { cn } from "@/lib/utils";
 
-function workoutTitle(date: Date) {
-  if (isToday(date)) return "Today's Workout";
-  if (isTomorrow(date)) return "Tomorrow's Workout";
-  return `${format(date, "EEEE")}'s Workout`;
+function workoutTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>) {
+  if (isToday(date)) return platform.dashboard.todaysWorkout;
+  if (isTomorrow(date)) return platform.dashboard.tomorrowsWorkout;
+  return platform.dashboard.workoutOnDay(format(date, "EEEE"));
 }
 
 export function DashboardWorkoutCard({
@@ -38,6 +39,8 @@ export function DashboardWorkoutCard({
   clientId: string;
   initialWorkout: TodaysWorkoutInfo | null;
 }) {
+  const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const { selectedDate } = useSelectedDate();
   const { version } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
@@ -70,12 +73,12 @@ export function DashboardWorkoutCard({
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle className="flex flex-wrap items-center gap-2">
           <Dumbbell className="h-5 w-5 text-primary" />
-          {workoutTitle(selectedDate)}
+          {workoutTitle(selectedDate, platform)}
           {workoutCompleted && workout && <SectionCompletedBadge />}
           <MissedButton
             count={workoutMissed ? 1 : 0}
-            title="Missed workout"
-            hint="Try to train earlier tomorrow."
+            title={coachLabels.missedWorkout}
+            hint="Tomorrow: train before excuses wake up."
             items={
               workout && workoutMissed
                 ? [
@@ -129,7 +132,7 @@ export function DashboardWorkoutCard({
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No workout scheduled for this day
+            {coachLabels.noWorkoutToday}
           </p>
         )}
       </CardContent>

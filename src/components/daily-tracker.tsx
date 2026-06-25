@@ -1,4 +1,5 @@
 "use client";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { format, isToday } from "date-fns";
@@ -68,6 +69,8 @@ export function DailyTracker({
   coachNutritionPlanState,
   goal,
 }: DailyTrackerProps) {
+  const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const [isPending, startTransition] = useTransition();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [mealPlanOpen, setMealPlanOpen] = useState(false);
@@ -128,10 +131,10 @@ export function DailyTracker({
     current.fat >= targets.fat;
   const nutritionCompleted = macrosMet && waterCompleted;
 
-  const nutritionTitle = isToday(date) ? "Nutrition" : format(date, "MMM d");
+  const nutritionTitle = isToday(date) ? platform.dashboard.nutrition : format(date, "MMM d");
   const mealPlanDialogTitle = isToday(date)
-    ? "Today's meal plan"
-    : `Meal plan · ${format(date, "MMM d")}`;
+    ? platform.dashboard.todaysMealPlan
+    : platform.dashboard.mealPlanOnDay(format(date, "MMM d"));
 
   const handleAddWater = (amount: number) => {
     setLocalWaterMl((prev) => {
@@ -201,8 +204,8 @@ export function DailyTracker({
               {nutritionCompleted && <SectionCompletedBadge />}
               <MissedButton
                 count={waterMissed ? 1 : 0}
-                title="Missed today"
-                hint="Try to reach your water goal tomorrow."
+                title="Hydration fail"
+                hint="Tomorrow: drink water like Coach Alex's not watching. He is."
                 items={
                   waterMissed
                     ? [

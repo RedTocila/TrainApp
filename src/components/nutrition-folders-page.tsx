@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -22,6 +23,7 @@ import { UNCATEGORIZED_NUTRITION_FOLDER_ID } from "@/lib/nutrition-folders";
 import { CustomPlanButton } from "@/components/trainer-plan-offer-card";
 import { FlowStep } from "@/components/ai/feature-tile";
 import { ProgramFolderCard, ProgramQuickTile } from "@/components/programs/program-tiles";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import type { PlanRequest } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,8 +36,11 @@ export function NutritionFoldersPage({
   folders: NutritionFolderOverview[];
   planRequests?: PlanRequest[];
 }) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -73,10 +78,12 @@ export function NutritionFoldersPage({
   };
 
   const handleDelete = (folder: NutritionFolderOverview) => {
-    if (!confirm(`Delete "${folder.name}"? Menus move to Unfiled.`)) return;
-    startTransition(async () => {
-      await deleteNutritionFolder(folder.id);
-      router.refresh();
+    confirmGiveUp({
+      ...coachCopy.deleteNutritionFolder(folder.name),
+      onConfirm: async () => {
+        await deleteNutritionFolder(folder.id);
+        router.refresh();
+      },
     });
   };
 
@@ -142,7 +149,7 @@ export function NutritionFoldersPage({
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12">
             <Folder className="h-10 w-10 text-muted-foreground" />
-            <p className="font-medium">No folders yet</p>
+            <p className="font-medium">{coachLabels.noFolders}</p>
             <Button onClick={() => setShowNewFolder(true)}>
               <Plus className="mr-2 h-4 w-4" />
               New folder
@@ -215,6 +222,7 @@ export function NutritionFoldersPage({
           })}
         </div>
       )}
+      {giveUpDialog}
     </div>
   );
 }

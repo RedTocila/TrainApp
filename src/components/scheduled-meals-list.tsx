@@ -1,4 +1,5 @@
 "use client";
+import { useCoachLabels } from "@/components/locale-provider";
 
 import { Check, Clock } from "lucide-react";
 import { useState, useTransition } from "react";
@@ -29,6 +30,7 @@ export function MealPlanChecklist({
   slots: PlannedMealSlot[];
   onMealsChange: () => void;
 }) {
+  const coachLabels = useCoachLabels();
   const [isPending, startTransition] = useTransition();
   const [pickerSlot, setPickerSlot] = useState<PlannedMealSlot | null>(null);
   const { notifySync } = useDashboardSync();
@@ -120,7 +122,7 @@ export function MealPlanChecklist({
                   )}
                   {isMissed && (
                     <span className="rounded bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
-                      Missed
+                      {coachLabels.missed}
                     </span>
                   )}
                 </div>
@@ -176,6 +178,7 @@ export function MealPlanChecklist({
 
 /** Read-only list for dialogs */
 export function ScheduledMealsList({ slots }: { slots: PlannedMealSlot[] }) {
+  const coachLabels = useCoachLabels();
   if (slots.length === 0) return null;
 
   return (

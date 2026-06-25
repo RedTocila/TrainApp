@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
-import { AlertTriangle, BadgeCheck, CreditCard, LogOut, Settings2, UserRound } from "lucide-react";
+import { AlertTriangle, BadgeCheck, CreditCard, Settings2, UserRound } from "lucide-react";
 import { getProfileWithEmail } from "@/lib/actions/profile";
-import { signOut } from "@/lib/actions/auth";
+import { SignOutButton } from "@/components/sign-out-button";
 import { ProfileSettings } from "@/components/profile-settings";
 import { ProfileSubscriptionSection } from "@/components/profile-subscription-section";
 import { ClientIntakeForm } from "@/components/client-intake-form";
 import { PageTransition } from "@/components/page-transition";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
+import { getPlatformCopy } from "@/lib/platform-copy";
 import { cn } from "@/lib/utils";
 import { getClientIntakeStatus } from "@/lib/client-intake-utils";
 
@@ -15,6 +16,7 @@ export default async function ProfilePage() {
   const profile = await getProfileWithEmail();
   if (!profile) redirect("/login");
   const intakeStatus = getClientIntakeStatus(profile);
+  const platform = getPlatformCopy(parseCheckoutLocale(profile.preferred_locale));
 
   return (
     <PageTransition>
@@ -25,8 +27,8 @@ export default async function ProfilePage() {
               <UserRound className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-lg font-black">Profile</h1>
-              <p className="text-xs text-muted-foreground">Account · subscription · health profile</p>
+              <h1 className="text-lg font-black">{platform.profile.title}</h1>
+              <p className="text-xs text-muted-foreground">{platform.profile.subtitle}</p>
             </div>
           </div>
           <Card
@@ -49,7 +51,7 @@ export default async function ProfilePage() {
               )}
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Health profile
+                  {platform.profile.healthProfile}
                 </p>
                 <p
                   className={cn(
@@ -60,10 +62,10 @@ export default async function ProfilePage() {
                   )}
                 >
                   {intakeStatus === "complete"
-                    ? "Complete"
+                    ? platform.profile.complete
                     : intakeStatus === "partial"
-                      ? "In progress"
-                      : "Incomplete"}
+                      ? platform.profile.inProgress
+                      : platform.profile.incomplete}
                 </p>
               </div>
             </CardContent>
@@ -75,7 +77,7 @@ export default async function ProfilePage() {
             <CardContent className="space-y-4 p-4">
               <div className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-black">Account</p>
+                <p className="text-sm font-black">{platform.profile.account}</p>
               </div>
               <ProfileSettings
                 fullName={profile.full_name}
@@ -93,7 +95,7 @@ export default async function ProfilePage() {
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-center gap-2">
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-sm font-black">Plan</p>
+                  <p className="text-sm font-black">{platform.profile.plan}</p>
                 </div>
                 <ProfileSubscriptionSection profile={profile} />
               </CardContent>
@@ -103,12 +105,9 @@ export default async function ProfilePage() {
 
         <ClientIntakeForm profile={profile} />
 
-        <form action={signOut} className="pt-2">
-          <Button type="submit" variant="outline" className="w-full">
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </Button>
-        </form>
+        <div className="pt-2">
+          <SignOutButton variant="profile" />
+        </div>
       </div>
     </PageTransition>
   );

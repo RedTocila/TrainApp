@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/lib/actions/user-nutrition-schedule";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import {
   WEEKDAY_OPTIONS,
   describeSchedulePreview,
@@ -56,6 +58,8 @@ export function NutritionScheduleForm({
   initialDates,
   onSaved,
 }: NutritionScheduleFormProps) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const inferred = useMemo(() => inferFromDates(initialDates), [initialDates]);
   const [weekdays, setWeekdays] = useState<number[]>(
     inferred?.weekdays ?? [new Date().getDay()]
@@ -68,6 +72,7 @@ export function NutritionScheduleForm({
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
   useEffect(() => {
     if (!inferred) return;
@@ -137,15 +142,18 @@ export function NutritionScheduleForm({
   };
 
   const handleClear = () => {
-    setMessage(null);
-    setSuccess(null);
-    startTransition(async () => {
-      const result = await clearNutritionSchedule(planId);
-      if (result.error) setMessage(result.error);
-      else {
-        setSuccess("Schedule cleared.");
-        onSaved?.();
-      }
+    confirmGiveUp({
+      ...coachCopy.clearNutritionSchedule,
+      onConfirm: async () => {
+        setMessage(null);
+        setSuccess(null);
+        const result = await clearNutritionSchedule(planId);
+        if (result.error) setMessage(result.error);
+        else {
+          setSuccess("Schedule cleared.");
+          onSaved?.();
+        }
+      },
     });
   };
 
@@ -277,11 +285,12 @@ export function NutritionScheduleForm({
           </Button>
           {initialDates.length > 0 && (
             <Button variant="outline" disabled={isPending} onClick={handleClear}>
-              Clear schedule
+              {coachLabels.giveUpOnSchedule}
             </Button>
           )}
         </div>
       </CardContent>
+      {giveUpDialog}
     </Card>
   );
 }

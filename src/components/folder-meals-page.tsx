@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +10,7 @@ import {
   type PersonalNutritionListItem,
 } from "@/lib/actions/user-nutrition";
 import { AddToNutritionFolderMenu } from "@/components/add-to-nutrition-folder-menu";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { MoveNutritionButton } from "@/components/move-nutrition-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,14 +33,19 @@ export function FolderMealsPage({
   availablePlans: { id: string; title: string; description: string | null; currentFolderName: string }[];
   scheduledDatesByPlan: Record<string, string[]>;
 }) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
   const handleDelete = (planId: string, title: string) => {
-    if (!confirm(`Delete "${title}"? This removes the day menu and its meals.`)) return;
-    startTransition(async () => {
-      await deletePersonalNutritionPlan(planId);
-      router.refresh();
+    confirmGiveUp({
+      ...coachCopy.deleteMealPlan(title),
+      onConfirm: async () => {
+        await deletePersonalNutritionPlan(planId);
+        router.refresh();
+      },
     });
   };
 
@@ -72,7 +79,7 @@ export function FolderMealsPage({
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12">
             <Apple className="h-10 w-10 text-muted-foreground" />
-            <p className="font-medium">Empty folder</p>
+            <p className="font-medium">{coachLabels.emptyMealFolder}</p>
             <AddToNutritionFolderMenu
               folderId={folderId}
               folderName={folderName}
@@ -143,6 +150,7 @@ export function FolderMealsPage({
           })}
         </div>
       )}
+      {giveUpDialog}
     </div>
   );
 }

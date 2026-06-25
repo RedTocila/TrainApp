@@ -51,11 +51,8 @@ export function AiCoachOverviewClient({
         <CardContent className="space-y-3 p-4">
           <div className="flex items-center gap-2">
             <MessageCircle className="h-5 w-5 text-primary" />
-            <p className="font-bold">Ask your coach</p>
+            <p className="font-bold">Ask Alex</p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Get sarcastic, darkly funny coaching on training, nutrition, and recovery — Coach Alex roasts bad habits, then tells you exactly what to fix.
-          </p>
           <OpenAiCoachChatButton className="w-full" icon={MessageCircle}>
             Start chatting
           </OpenAiCoachChatButton>

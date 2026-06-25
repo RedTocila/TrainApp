@@ -1,4 +1,5 @@
 "use client";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { format, isToday, isTomorrow } from "date-fns";
@@ -20,13 +21,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-function cardioTitle(date: Date) {
-  if (isToday(date)) return "Today's Cardio";
-  if (isTomorrow(date)) return "Tomorrow's Cardio";
-  return `${format(date, "EEEE")}'s Cardio`;
+function cardioTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>) {
+  if (isToday(date)) return platform.dashboard.todaysCardio;
+  if (isTomorrow(date)) return platform.dashboard.tomorrowsCardio;
+  return platform.dashboard.cardioOnDay(format(date, "EEEE"));
 }
 
 export function DashboardCardioCard({ clientId }: { clientId: string }) {
+  const coachLabels = useCoachLabels();
+  const platform = usePlatformCopy();
   const { selectedDate } = useSelectedDate();
   const { version, patchDashboard, notifySync } = useDashboardSync();
   const [scheduled, setScheduled] = useState<ScheduledCardio | null>(null);
@@ -72,7 +75,7 @@ export function DashboardCardioCard({ clientId }: { clientId: string }) {
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle className="flex flex-wrap items-center gap-2">
           <HeartPulse className="h-5 w-5 text-orange-400" />
-          {cardioTitle(selectedDate)}
+          {cardioTitle(selectedDate, platform)}
           {completed && cardio && <SectionCompletedBadge />}
         </CardTitle>
         <div className="flex shrink-0 items-center gap-2">
@@ -119,7 +122,7 @@ export function DashboardCardioCard({ clientId }: { clientId: string }) {
           </>
         ) : (
           <div className="rounded-lg border border-dashed border-border bg-secondary/20 px-4 py-6 text-center">
-            <p className="text-sm text-muted-foreground">No cardio scheduled for this day.</p>
+            <p className="text-sm text-muted-foreground">{coachLabels.noCardioToday}</p>
             <Link href="/dashboard/workout/cardio" className="mt-2 inline-block">
               <Button size="sm" variant="outline" className="mt-2">
                 Add & schedule cardio

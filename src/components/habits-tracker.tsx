@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import { format, isToday } from "date-fns";
 import { Check, ListChecks, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
@@ -18,6 +19,7 @@ import {
 import { getHabitDayStatus, canCompleteHabit } from "@/lib/habit-utils";
 import { MissedButton } from "@/components/missed-items-dialog";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import type { ClientHabit } from "@/lib/types";
 import type { HabitSuggestion } from "@/lib/habit-suggestions";
 import { formatDateKey } from "@/lib/utils";
@@ -34,6 +36,8 @@ export function HabitsTracker({
   initialHabits: HabitWithStatus[];
   suggestedHabits?: HabitSuggestion[];
 }) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const { selectedDate } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
   const [habits, setHabits] = useState(initialHabits);
@@ -42,6 +46,7 @@ export function HabitsTracker({
   const [editingHabit, setEditingHabit] = useState<ClientHabit | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
   const [tick, setTick] = useState(0);
   const { patchDashboard, notifySync } = useDashboardSync();
 
@@ -134,14 +139,16 @@ export function HabitsTracker({
   };
 
   const handleDelete = (habitId: string) => {
-    if (!confirm("Remove this habit and its schedule?")) return;
-    startTransition(async () => {
-      const result = await deleteHabit(habitId);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      refresh();
+    confirmGiveUp({
+      ...coachCopy.removeHabit,
+      onConfirm: async () => {
+        const result = await deleteHabit(habitId);
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        refresh();
+      },
     });
   };
 
@@ -180,14 +187,14 @@ export function HabitsTracker({
               Daily habits
               <MissedButton
                 count={missedCount}
-                title="Missed habits"
-                hint="Stick to your schedule tomorrow."
+                title={coachLabels.missedHabits}
+                hint="Tomorrow: do the boring stuff before Coach Alex notices again."
                 items={missedHabitItems}
               />
             </CardTitle>
             <p className="text-sm text-muted-foreground">
               {habits.length === 0
-                ? "Add habits to track each day"
+                ? coachLabels.addHabitsHint
                 : `${doneCount}/${habits.length} done for ${dateLabel}`}
             </p>
           </div>
@@ -248,7 +255,7 @@ export function HabitsTracker({
 
           {habits.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-6 text-center text-sm text-muted-foreground">
-              No habits scheduled for this day
+              {coachLabels.noHabitsToday}
             </div>
           ) : (
             <ul className="space-y-2">
@@ -336,6 +343,7 @@ export function HabitsTracker({
           notifySync();
         }}
       />
+      {giveUpDialog}
     </>
   );
 }

@@ -1,4 +1,5 @@
 "use client";
+import { useCoachLabels } from "@/components/locale-provider";
 
 import { Apple, Plus, Salad, Trash2, UtensilsCrossed } from "lucide-react";
 import { formatMealMacrosSummary, normalizeMealMacros } from "@/lib/meal-utils";
@@ -20,7 +21,7 @@ export function RecentMealsList({
   onAdd,
   isPending,
   title = "Recently logged",
-  emptyHint = "Tap + to log your first meal",
+  emptyHint,
   showHeaderAdd = true,
 }: {
   meals: DailyMealLog[];
@@ -32,6 +33,8 @@ export function RecentMealsList({
   emptyHint?: string;
   showHeaderAdd?: boolean;
 }) {
+  const coachLabels = useCoachLabels();
+  const resolvedEmptyHint = emptyHint ?? coachLabels.logFirstMeal;
   if (meals.length === 0) {
     return (
       <button
@@ -44,7 +47,7 @@ export function RecentMealsList({
         </div>
         <div>
           <p className="text-sm font-medium">{title}</p>
-          <p className="text-xs text-muted-foreground">{emptyHint}</p>
+          <p className="text-xs text-muted-foreground">{resolvedEmptyHint}</p>
         </div>
         {onAdd && (
           <div className="ml-auto flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">

@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -8,6 +9,7 @@ import {
 } from "@/lib/actions/user-workouts";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import {
   WEEKDAY_OPTIONS,
   describeSchedulePreview,
@@ -39,6 +41,8 @@ export function WorkoutScheduleForm({
   onBack,
   saveLabel = "Save schedule",
 }: WorkoutScheduleFormProps) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const [dayId, setDayId] = useState(
     initialSchedule?.dayId ?? days[0]?.id ?? ""
   );
@@ -52,6 +56,7 @@ export function WorkoutScheduleForm({
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
   useEffect(() => {
     if (!days.some((d) => d.id === dayId)) {
@@ -113,16 +118,19 @@ export function WorkoutScheduleForm({
   };
 
   const handleClear = () => {
-    setMessage(null);
-    setSuccess(null);
-    startTransition(async () => {
-      const result = await clearPlanSchedule(planId);
-      if (result.error) {
-        setMessage(result.error);
-      } else {
-        setSuccess("Upcoming sessions removed.");
-        onSaved?.();
-      }
+    confirmGiveUp({
+      ...coachCopy.clearWorkoutSchedule,
+      onConfirm: async () => {
+        setMessage(null);
+        setSuccess(null);
+        const result = await clearPlanSchedule(planId);
+        if (result.error) {
+          setMessage(result.error);
+        } else {
+          setSuccess("Upcoming sessions removed.");
+          onSaved?.();
+        }
+      },
     });
   };
 
@@ -246,7 +254,7 @@ export function WorkoutScheduleForm({
             disabled={isPending}
             className="text-red-400 hover:text-red-300"
           >
-            Remove schedule
+            {coachLabels.giveUpOnSchedule}
           </Button>
         )}
         <Button
@@ -256,6 +264,7 @@ export function WorkoutScheduleForm({
           {saveLabel}
         </Button>
       </div>
+      {giveUpDialog}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 "use client";
+import { useCoachLabels } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -18,6 +19,7 @@ export function PricingPageClient({
   profile: Profile;
   onboarding?: boolean;
 }) {
+  const coachLabels = useCoachLabels();
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const subscribed = hasPaidAccess(profile);
 
@@ -62,7 +64,7 @@ export function PricingPageClient({
         <div className="text-center">
           <Link href="/dashboard">
             <Button variant="ghost" className="gap-2 text-muted-foreground">
-              Skip for now — go to dashboard
+              {coachLabels.skipForNow}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>

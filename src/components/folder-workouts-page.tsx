@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +10,7 @@ import type { PersonalWorkoutListItem, WorkoutPickItem } from "@/lib/actions/use
 import { AddToFolderMenu } from "@/components/add-to-folder-menu";
 import { StartWorkoutDayButton } from "@/components/start-workout-day-button";
 import { MoveWorkoutButton } from "@/components/move-workout-dialog";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,14 +28,19 @@ export function FolderWorkoutsPage({
   folders: { id: string; name: string }[];
   availableWorkouts: WorkoutPickItem[];
 }) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
   const handleDelete = (planId: string, title: string) => {
-    if (!confirm(`Delete "${title}"?`)) return;
-    startTransition(async () => {
-      await deletePersonalWorkoutPlan(planId);
-      router.refresh();
+    confirmGiveUp({
+      ...coachCopy.deleteWorkoutPlan(title),
+      onConfirm: async () => {
+        await deletePersonalWorkoutPlan(planId);
+        router.refresh();
+      },
     });
   };
 
@@ -67,7 +74,7 @@ export function FolderWorkoutsPage({
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12">
             <Dumbbell className="h-10 w-10 text-muted-foreground" />
-            <p className="font-medium">Empty folder</p>
+            <p className="font-medium">{coachLabels.emptyWorkoutFolder}</p>
             <AddToFolderMenu
               folderId={folderId}
               folderName={folderName}
@@ -156,6 +163,7 @@ export function FolderWorkoutsPage({
           })}
         </div>
       )}
+      {giveUpDialog}
     </div>
   );
 }

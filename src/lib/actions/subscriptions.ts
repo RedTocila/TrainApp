@@ -192,6 +192,38 @@ export async function activateSubscriptionFromLocalOrder(localOrderId: string) {
   }
 }
 
+export async function cancelSubscription(): Promise<{ error: string } | { success: true }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("subscription_status, subscription_expires_at")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.subscription_status !== "active") {
+    return { error: "No active subscription to cancel." };
+  }
+
+  const { error } = await admin
+    .from("profiles")
+    .update({ subscription_status: "canceled" })
+    .eq("id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/profile");
+  revalidatePath("/dashboard/pricing");
+
+  return { success: true };
+}
+
 export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string) {
   const admin = createAdminClient();
   const { data: order } = await admin

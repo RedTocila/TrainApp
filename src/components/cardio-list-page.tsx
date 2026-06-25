@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy } from "@/components/locale-provider";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -8,11 +9,13 @@ import { CardioScheduleDialog } from "@/components/cardio-schedule-dialog";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import { deleteClientCardio } from "@/lib/actions/user-cardio";
 import type { ClientCardio } from "@/lib/types";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[] }) {
+  const coachCopy = useCoachCopy();
   const router = useRouter();
   const [cardioList, setCardioList] = useState(initialCardio);
   const [formOpen, setFormOpen] = useState(false);
@@ -20,6 +23,7 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
   const [editing, setEditing] = useState<ClientCardio | null>(null);
   const [scheduling, setScheduling] = useState<ClientCardio | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
   const refresh = () => {
     startTransition(async () => {
@@ -46,10 +50,12 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
   };
 
   const handleDelete = (item: ClientCardio) => {
-    if (!confirm(`Delete "${item.title}"? Scheduled sessions using it will be removed.`)) return;
-    startTransition(async () => {
-      const result = await deleteClientCardio(item.id);
-      if (!result.error) refresh();
+    confirmGiveUp({
+      ...coachCopy.deleteCardio(item.title),
+      onConfirm: async () => {
+        const result = await deleteClientCardio(item.id);
+        if (!result.error) refresh();
+      },
     });
   };
 
@@ -158,6 +164,7 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
         onClose={() => setScheduleOpen(false)}
         onScheduled={refresh}
       />
+      {giveUpDialog}
     </>
   );
 }

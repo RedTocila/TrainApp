@@ -9,8 +9,9 @@ export function isSubscriptionActive(profile: Pick<
   "role" | "subscription_status" | "subscription_expires_at"
 >): boolean {
   if (profile.role === "admin") return true;
-  if (profile.subscription_status !== "active") return false;
-  if (!profile.subscription_expires_at) return true;
+  const status = profile.subscription_status;
+  if (status !== "active" && status !== "canceled") return false;
+  if (!profile.subscription_expires_at) return status === "active";
   return new Date(profile.subscription_expires_at) > new Date();
 }
 

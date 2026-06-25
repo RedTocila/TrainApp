@@ -1,4 +1,5 @@
 "use client";
+import { useCoachCopy, useCoachLabels } from "@/components/locale-provider";
 
 import { format, isToday } from "date-fns";
 import { Plus, Scale } from "lucide-react";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/actions/weight-logs";
 import type { BodyWeightLog } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
+import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,6 +35,8 @@ export function WeightTracker({
   initialLog: BodyWeightLog | null;
   onHistoryChange?: (history: BodyWeightLog[]) => void;
 }) {
+  const coachCopy = useCoachCopy();
+  const coachLabels = useCoachLabels();
   const { selectedDate } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
   const [history, setHistory] = useState(initialHistory);
@@ -43,6 +47,7 @@ export function WeightTracker({
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
   useEffect(() => {
     setTodayLog(null);
@@ -90,19 +95,22 @@ export function WeightTracker({
 
   const handleClear = () => {
     if (!todayLog) return;
-    setError(null);
-    startTransition(async () => {
-      const result = await deleteBodyWeightLog(clientId, dateKey);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      setTodayLog(null);
-      setWeightInput("");
-      setFormOpen(false);
-      const fetchedHistory = await getBodyWeightHistory(clientId);
-      setHistory(fetchedHistory);
-      onHistoryChange?.(fetchedHistory);
+    confirmGiveUp({
+      ...coachCopy.clearWeight,
+      onConfirm: async () => {
+        setError(null);
+        const result = await deleteBodyWeightLog(clientId, dateKey);
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        setTodayLog(null);
+        setWeightInput("");
+        setFormOpen(false);
+        const fetchedHistory = await getBodyWeightHistory(clientId);
+        setHistory(fetchedHistory);
+        onHistoryChange?.(fetchedHistory);
+      },
     });
   };
 
@@ -169,7 +177,7 @@ export function WeightTracker({
               </Button>
               {todayLog && (
                 <Button variant="outline" disabled={isPending} onClick={handleClear}>
-                  Clear
+                  {coachLabels.clearWeight}
                 </Button>
               )}
               <Button variant="ghost" disabled={isPending} onClick={() => setFormOpen(false)}>
@@ -181,6 +189,7 @@ export function WeightTracker({
 
         {error && <p className="text-sm text-red-400">{error}</p>}
       </CardContent>
+      {giveUpDialog}
     </Card>
   );
 }
