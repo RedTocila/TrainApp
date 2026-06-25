@@ -11,10 +11,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { CANONICAL_SITE_ORIGIN } from "@/lib/site-config";
+
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ??
   process.env.NEXT_PUBLIC_APP_URL ??
-  "https://trainapp.app";
+  CANONICAL_SITE_ORIGIN;
 
 export const CONTACT_EMAIL = "redtocila@gmail.com";
 

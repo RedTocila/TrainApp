@@ -11,7 +11,7 @@ import { fileURLToPath } from "url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const vercel = resolve(root, "node_modules/.bin/vercel");
 
-const PRODUCTION_URL = "https://train-app-three.vercel.app";
+const PRODUCTION_URL = "https://rutina.al";
 
 function loadEnv(path) {
   const vars = {};

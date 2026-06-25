@@ -1,3 +1,5 @@
+import { CANONICAL_SITE_ORIGIN } from "@/lib/site-config";
+
 function trimUrl(url: string): string {
   return url.replace(/\/$/, "");
 }
@@ -38,4 +40,8 @@ export function getAppBaseUrl(): string {
   }
 
   return "http://localhost:3000";
+}
+
+export function getCanonicalSiteOrigin(): string {
+  return CANONICAL_SITE_ORIGIN;
 }

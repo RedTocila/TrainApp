@@ -88,5 +88,8 @@ SUPABASE_DB_PASSWORD=your-db-password
 - For dev: disable "Confirm email" so login works immediately
 
 **Authentication → URL Configuration**
-- Site URL: `http://localhost:3000` (dev) or your Vercel URL
-- Redirect URLs: `http://localhost:3000/auth/callback`, `https://your-domain.com/auth/callback`
+- Site URL: `https://rutina.al` (production) or `http://localhost:3000` (dev)
+- Redirect URLs:
+  - `http://localhost:3000/auth/callback`
+  - `https://rutina.al/auth/callback`
+  - `https://www.rutina.al/auth/callback`

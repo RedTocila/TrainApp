@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getCachedProfile } from "@/lib/server-cache";
+import { getCachedProfile } from "@/lib/cached-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   parseCheckoutCurrency,
@@ -26,13 +26,7 @@ import type { Profile } from "@/lib/types";
 import { SUBSCRIPTION_REQUIRED_MESSAGE } from "@/lib/subscription-messages";
 
 export async function getSubscriptionProfile(): Promise<Profile | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  return getCachedProfile(user.id);
+  return getCachedProfile();
 }
 
 export async function ensureSubscribedMutation(): Promise<

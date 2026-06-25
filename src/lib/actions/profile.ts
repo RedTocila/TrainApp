@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { PROFILE_COLUMNS } from "@/lib/db-selects";
+import { getCachedProfile } from "@/lib/cached-profile";
 import { parseCheckoutLocale, type CheckoutLocale } from "@/lib/checkout-i18n";
 
 export async function getProfileWithEmail() {
@@ -12,12 +12,7 @@ export async function getProfileWithEmail() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(PROFILE_COLUMNS)
-    .eq("id", user.id)
-    .single();
-
+  const profile = await getCachedProfile();
   if (!profile) return null;
 
   return {

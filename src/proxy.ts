@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
+import {
+  CANONICAL_SITE_HOST,
+  LEGACY_VERCEL_HOSTS,
+  WWW_SITE_HOST,
+} from "@/lib/site-config";
 
 function missingSupabaseEnvResponse() {
   return new NextResponse(
@@ -9,7 +14,27 @@ function missingSupabaseEnvResponse() {
   );
 }
 
+function redirectToCanonicalHost(request: NextRequest): NextResponse | null {
+  const host = request.headers.get("host")?.split(":")[0]?.toLowerCase();
+  if (!host) return null;
+
+  const shouldRedirect =
+    host === WWW_SITE_HOST ||
+    (process.env.VERCEL_ENV === "production" &&
+      (LEGACY_VERCEL_HOSTS as readonly string[]).includes(host));
+
+  if (!shouldRedirect) return null;
+
+  const url = request.nextUrl.clone();
+  url.protocol = "https:";
+  url.host = CANONICAL_SITE_HOST;
+  return NextResponse.redirect(url, 308);
+}
+
 export async function proxy(request: NextRequest) {
+  const canonicalRedirect = redirectToCanonicalHost(request);
+  if (canonicalRedirect) return canonicalRedirect;
+
   if (!getSupabasePublicEnv()) {
     return missingSupabaseEnvResponse();
   }
