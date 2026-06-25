@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { GuestCheckoutForm } from "@nebula-ltd/pok-payments-js/react";
 import type { PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
-import { CreditCard, Lock, ShieldCheck } from "lucide-react";
+import { CreditCard, Lock } from "lucide-react";
 import { useState } from "react";
 import type { PlanRequestType } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,12 +32,8 @@ export function CustomPlanCheckoutClient({
         </div>
         <div className="flex flex-wrap gap-2">
           <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            3D Secure supported
-          </div>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
             <Lock className="h-4 w-4 text-primary" />
-            Card data never hits our servers
+            Secure payment
           </div>
         </div>
       </CardHeader>
@@ -51,7 +47,7 @@ export function CustomPlanCheckoutClient({
 
         <div
           className={cn(
-            "rounded-2xl border border-border bg-card/70 p-4 backdrop-blur",
+            "pokpay-checkout rounded-2xl border border-border bg-card/70 p-4 backdrop-blur",
             "[&_*]:!text-[15px] sm:[&_*]:!text-[16px]"
           )}
         >
@@ -73,7 +69,7 @@ export function CustomPlanCheckoutClient({
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          Payments are processed by PokPay. Your card details never touch our servers.
+          Payments are processed by PokPay.
         </p>
       </CardContent>
     </Card>

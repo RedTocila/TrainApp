@@ -103,6 +103,104 @@ body:has(.dashboard-shell) {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
 
+/* PokPay checkout theming (embedded form) */
+.pokpay-checkout #pok-payment-container {
+  --pok-primary: var(--primary);
+  --pok-primary-hover: var(--accent);
+  --pok-primary-active: var(--primary);
+  --pok-primary-tint: rgba(var(--primary-rgb), 0.06);
+  --pok-primary-tint-strong: rgba(var(--primary-rgb), 0.12);
+  --pok-primary-ring: rgba(var(--primary-rgb), 0.22);
+
+  --pok-surface: transparent;
+  --pok-surface-soft: rgba(255, 255, 255, 0.06);
+  --pok-text: var(--foreground);
+  --pok-text-muted: rgba(255, 255, 255, 0.72);
+  --pok-text-subtle: rgba(255, 255, 255, 0.45);
+
+  --pok-border: rgba(255, 255, 255, 0.12);
+  --pok-border-strong: rgba(255, 255, 255, 0.18);
+  --pok-error: #ef4444;
+  --pok-error-tint: rgba(239, 68, 68, 0.12);
+  --pok-error-ring: rgba(239, 68, 68, 0.25);
+}
+
+html.light .pokpay-checkout #pok-payment-container {
+  --pok-surface-soft: rgba(0, 0, 0, 0.04);
+  --pok-text-muted: rgba(0, 0, 0, 0.62);
+  --pok-text-subtle: rgba(0, 0, 0, 0.4);
+  --pok-border: rgba(0, 0, 0, 0.12);
+  --pok-border-strong: rgba(0, 0, 0, 0.18);
+}
+
+.pokpay-checkout .pok-payment-form {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  max-width: none;
+}
+
+.pokpay-checkout .pok-payment-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 6px;
+}
+
+html.light .pokpay-checkout .pok-payment-label {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.pokpay-checkout .pok-payment-input,
+.pokpay-checkout .pok-payment-modal-trigger,
+.pokpay-checkout .pok-payment-modal-search {
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+html.light .pokpay-checkout .pok-payment-input,
+html.light .pokpay-checkout .pok-payment-modal-trigger,
+html.light .pokpay-checkout .pok-payment-modal-search {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.03);
+  color: var(--foreground);
+}
+
+.pokpay-checkout .pok-payment-input::placeholder,
+.pokpay-checkout .pok-payment-modal-trigger-empty {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+html.light .pokpay-checkout .pok-payment-input::placeholder,
+html.light .pokpay-checkout .pok-payment-modal-trigger-empty {
+  color: rgba(0, 0, 0, 0.42);
+}
+
+.pokpay-checkout .pok-payment-input:focus,
+.pokpay-checkout .pok-payment-modal-search:focus {
+  border-color: rgba(var(--primary-rgb), 0.55);
+  box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.18);
+}
+
+.pokpay-checkout .pok-payment-input-row {
+  gap: 12px;
+}
+
+.pokpay-checkout .pok-payment-button {
+  border-radius: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.pokpay-checkout .pok-payment-checkbox-container label {
+  font-weight: 600;
+}
+
 @media (max-width: 1023px) {
   input,
   select,
