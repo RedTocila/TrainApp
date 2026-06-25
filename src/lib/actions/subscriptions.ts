@@ -15,6 +15,7 @@ import {
   getSdkOrder,
   isSdkOrderPaid,
 } from "@/lib/pokpay/client";
+import { getAppBaseUrl } from "@/lib/app-url";
 import type { Profile } from "@/lib/types";
 import { SUBSCRIPTION_REQUIRED_MESSAGE } from "@/lib/subscription-messages";
 
@@ -43,16 +44,6 @@ export async function ensureSubscribedMutation(): Promise<
   return { error: SUBSCRIPTION_REQUIRED_MESSAGE };
 }
 
-function appBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return "http://localhost:3000";
-}
-
 export async function createCheckoutOrder(
   planId: SubscriptionPlanId,
   interval: BillingInterval
@@ -67,7 +58,7 @@ export async function createCheckoutOrder(
   if (!plan) return { error: "Invalid plan" };
 
   const price = getPlanPrice(planId, interval);
-  const baseUrl = appBaseUrl();
+  const baseUrl = getAppBaseUrl();
 
   const { data: orderRow, error: insertError } = await supabase
     .from("subscription_orders")

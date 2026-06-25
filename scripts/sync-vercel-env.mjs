@@ -11,6 +11,8 @@ import { fileURLToPath } from "url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const vercel = resolve(root, "node_modules/.bin/vercel");
 
+const PRODUCTION_URL = "https://train-app-three.vercel.app";
+
 function loadEnv(path) {
   const vars = {};
   if (!existsSync(path)) throw new Error(`Missing ${path}`);
@@ -29,27 +31,32 @@ function loadEnv(path) {
   return vars;
 }
 
+function isLocalhostUrl(value) {
+  return /localhost|127\.0\.0\.1/i.test(value ?? "");
+}
+
 const local = loadEnv(resolve(root, ".env.local"));
-const PRODUCTION_URL =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-  "https://train-app-three.vercel.app";
 
 const vars = {
   ...local,
-  POKPAY_ENV: "staging",
-  NEXT_PUBLIC_POKPAY_ENV: "staging",
+  POKPAY_ENV: local.POKPAY_ENV ?? "production",
+  NEXT_PUBLIC_POKPAY_ENV: local.NEXT_PUBLIC_POKPAY_ENV ?? local.POKPAY_ENV ?? "production",
 };
 
-const productionOnly = {
+const remoteDeploymentUrls = {
+  APP_URL: PRODUCTION_URL,
   NEXT_PUBLIC_APP_URL: PRODUCTION_URL,
   NEXT_PUBLIC_SITE_URL: PRODUCTION_URL,
 };
+
+const urlKeys = new Set(Object.keys(remoteDeploymentUrls));
 
 const sensitive = new Set([
   "SUPABASE_SERVICE_ROLE_KEY",
   "OPENAI_API_KEY",
   "ANTHROPIC_API_KEY",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "POKPAY_KEY_ID",
   "POKPAY_KEY_SECRET",
 ]);
 
@@ -72,13 +79,16 @@ let failCount = 0;
 for (const target of targets) {
   for (const [name, value] of Object.entries(vars)) {
     if (!value) continue;
+    if ((target === "production" || target === "preview") && urlKeys.has(name) && isLocalhostUrl(value)) {
+      continue;
+    }
     const { ok, out } = addEnv(name, value, target);
     console.log(`${ok ? "✓" : "✗"} ${name} (${target})`);
     if (!ok) console.log(`  ${out.slice(-300)}`);
     ok ? okCount++ : failCount++;
   }
-  if (target === "production") {
-    for (const [name, value] of Object.entries(productionOnly)) {
+  if (target === "production" || target === "preview") {
+    for (const [name, value] of Object.entries(remoteDeploymentUrls)) {
       const { ok, out } = addEnv(name, value, target);
       console.log(`${ok ? "✓" : "✗"} ${name} (${target})`);
       if (!ok) console.log(`  ${out.slice(-300)}`);

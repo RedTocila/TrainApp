@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomPlanProduct, TRAINER_NAME } from "@/lib/custom-plan-products";
 import { createSdkOrder, getSdkOrder, isSdkOrderPaid } from "@/lib/pokpay/client";
+import { getAppBaseUrl } from "@/lib/app-url";
 import type { Meal, PlanRequest, PlanRequestType, NutritionScheduleConfig } from "@/lib/types";
 import { scheduleNutritionForClient, clearAllClientNutritionSchedule } from "@/lib/actions/admin-nutrition";
 
@@ -48,16 +49,6 @@ async function activateNutritionAssignment(
   return {};
 }
 
-function appBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return "http://localhost:3000";
-}
-
 export async function createCustomPlanCheckout(
   type: PlanRequestType,
   preferences: string
@@ -88,7 +79,7 @@ export async function createCustomPlanCheckout(
     return { error: "You already have an active request for this plan type" };
   }
 
-  const baseUrl = appBaseUrl();
+  const baseUrl = getAppBaseUrl();
   const { data: orderRow, error: insertError } = await supabase
     .from("subscription_orders")
     .insert({

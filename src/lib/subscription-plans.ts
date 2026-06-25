@@ -24,8 +24,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     id: "core",
     name: PLATFORM_CORE_NAME,
     tagline: "Full training & nutrition tracking without premium AI tools.",
-    monthly: { amountCents: 700, label: "€7" },
-    annual: { amountCents: 6900, label: "€69" },
+    monthly: { amountCents: 100, label: "€1" },
+    annual: { amountCents: 100, label: "€1" },
     features: [
       "Workout builder & sessions",
       "Nutrition plans & manual meal logging",
@@ -39,8 +39,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     id: "ai",
     name: PLATFORM_AI_NAME,
     tagline: "Core plan plus AI plan builders, meal logging, and live coaching.",
-    monthly: { amountCents: 1900, label: "€19" },
-    annual: { amountCents: 18900, label: "€189" },
+    monthly: { amountCents: 100, label: "€1" },
+    annual: { amountCents: 100, label: "€1" },
     highlighted: true,
     badge: "Best value",
     features: [
