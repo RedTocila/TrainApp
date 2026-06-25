@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { Check, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import Image from "next/image";
 import { compressImageFile } from "@/lib/image-compress";
 import {
   getProgressPhotoSets,
@@ -52,8 +53,14 @@ function PhotoSlot({
         )}
       >
         {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt={label} className="h-full w-full object-cover" />
+          <Image
+            src={url}
+            alt={label}
+            fill
+            unoptimized
+            sizes="(max-width: 640px) 120px, 150px"
+            className="object-cover"
+          />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground">
             {uploading ? (

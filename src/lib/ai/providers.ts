@@ -130,6 +130,72 @@ export async function runChatCompletion(
   throw lastError ?? new Error("AI chat request failed");
 }
 
+export async function* streamChatCompletion(
+  messages: ChatTurn[],
+  options?: { maxTokens?: number; signal?: AbortSignal }
+): AsyncGenerator<string> {
+  const providers = getConfiguredProviders();
+  if (providers.length === 0) {
+    throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
+  }
+
+  const systemMessage = messages.find((message) => message.role === "system")?.content;
+  const conversation = messages.filter((message) => message.role !== "system");
+
+  let lastError: Error | null = null;
+  for (const provider of providers) {
+    try {
+      if (provider === "openai") {
+        const client = getOpenAIClient();
+        const stream = await client.chat.completions.create(
+          {
+            model: process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini",
+            messages: messages.map((message) => ({
+              role: message.role,
+              content: message.content,
+            })),
+            max_tokens: options?.maxTokens ?? 900,
+            stream: true,
+          },
+          { signal: options?.signal }
+        );
+
+        for await (const chunk of stream) {
+          const text = chunk.choices[0]?.delta?.content;
+          if (text) yield text;
+        }
+        return;
+      }
+
+      const client = getAnthropicClient();
+      const stream = client.messages.stream({
+        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-20250514",
+        max_tokens: options?.maxTokens ?? 900,
+        ...(systemMessage ? { system: systemMessage } : {}),
+        messages: conversation.map((message) => ({
+          role: message.role as "user" | "assistant",
+          content: message.content,
+        })),
+      });
+
+      for await (const event of stream) {
+        if (
+          event.type === "content_block_delta" &&
+          event.delta.type === "text_delta"
+        ) {
+          yield event.delta.text;
+        }
+      }
+      return;
+    } catch (error) {
+      if (options?.signal?.aborted) return;
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  throw lastError ?? new Error("AI chat stream failed");
+}
+
 export async function runVisionPrompt(
   prompt: string,
   imageBase64: string,

@@ -6,6 +6,7 @@ import { upsertDailyLog } from "@/lib/actions/logs";
 import { mealPayloadFromForm, sumMealMacros, type MealFormData } from "@/lib/meal-utils";
 import { getMealSlotPhase, resolveMealSlotForLog } from "@/lib/meal-times";
 import { mealTypeForSlot, type MealSlot } from "@/lib/meal-slots";
+import { MEAL_COLUMNS } from "@/lib/db-selects";
 import type { DailyMealLog, Meal, MealType } from "@/lib/types";
 
 async function syncDailyMacros(clientId: string, date: string) {
@@ -77,7 +78,9 @@ export async function getDailyMealLogs(
   const supabase = await createClient();
   const { data } = await supabase
     .from("daily_meal_logs")
-    .select("*")
+    .select(
+      "id, client_id, date, slot, meal_type, name, description, calories, protein, carbs, fat, foods, source_meal_id, logged_at"
+    )
     .eq("client_id", clientId)
     .eq("date", date)
     .order("logged_at");
@@ -93,7 +96,9 @@ export async function getDailyMealLogForSlot(
   const supabase = await createClient();
   const { data } = await supabase
     .from("daily_meal_logs")
-    .select("*")
+    .select(
+      "id, client_id, date, slot, meal_type, name, description, calories, protein, carbs, fat, foods, source_meal_id, logged_at"
+    )
     .eq("client_id", clientId)
     .eq("date", date)
     .eq("slot", slot)
@@ -228,7 +233,7 @@ export async function logMealFromLibrary(
   } = await supabase.auth.getUser();
   if (!user || user.id !== clientId) return { error: "Not authenticated" };
 
-  const { data: meal } = await supabase.from("meals").select("*").eq("id", mealId).single();
+  const { data: meal } = await supabase.from("meals").select(MEAL_COLUMNS).eq("id", mealId).single();
   if (!meal) return { error: "Meal not found" };
 
   const { data: plan } = await supabase

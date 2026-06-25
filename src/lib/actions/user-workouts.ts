@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireSubscribedUserAccess } from "@/lib/actions/user-access";
 import { generateRecurringScheduleDates, inferScheduleFromSessions } from "@/lib/schedule-utils";
+import { WORKOUT_DAY_WITH_EXERCISES, WORKOUT_PLAN_LIST_COLUMNS } from "@/lib/db-selects";
 import { UNCATEGORIZED_FOLDER_ID } from "@/lib/workout-folders";
 import type { ScheduledWorkout, WorkoutDay, Exercise } from "@/lib/types";
 
@@ -67,7 +68,7 @@ export async function getPersonalWorkoutPlans(folderId?: string) {
 
   let query = supabase
     .from("workout_plans")
-    .select("*")
+    .select("id, title, description, created_by, is_personal, folder_id, trainer_label, created_at")
     .eq("created_by", userId)
     .eq("is_personal", true);
 
@@ -87,7 +88,7 @@ export async function getPersonalWorkoutPlanWithDetails(planId: string) {
 
   const { data: plan } = await supabase
     .from("workout_plans")
-    .select("*")
+    .select("id, title, description, created_by, is_personal, folder_id, trainer_label, created_at")
     .eq("id", planId)
     .eq("created_by", userId)
     .eq("is_personal", true)
@@ -97,7 +98,9 @@ export async function getPersonalWorkoutPlanWithDetails(planId: string) {
 
   const { data: days } = await supabase
     .from("workout_days")
-    .select("*, exercises(*)")
+    .select(
+      "id, plan_id, day_index, title, exercises(id, day_id, name, sets, reps, rest_seconds, notes, image_url, video_url, order_index)"
+    )
     .eq("plan_id", planId)
     .order("day_index");
 
@@ -339,7 +342,7 @@ export async function getWorkoutFoldersOverview(): Promise<WorkoutFolderOverview
   const [{ data: folders }, { data: plans }] = await Promise.all([
     supabase
       .from("workout_folders")
-      .select("*")
+      .select("id, name, created_at")
       .eq("client_id", userId)
       .order("created_at"),
     supabase
@@ -554,7 +557,7 @@ export async function getPersonalWorkoutsWithSchedules(
       .order("scheduled_date"),
     supabase
       .from("workout_days")
-      .select("*, exercises(*)")
+      .select(WORKOUT_DAY_WITH_EXERCISES)
       .in("plan_id", planIds)
       .order("day_index"),
   ]);
@@ -646,21 +649,33 @@ export async function getScheduledWorkoutForDate(
 
   const { data } = await supabase
     .from("scheduled_workouts")
-    .select("*, workout_plans(*), workout_days(*, exercises(*))")
+    .select(`id, client_id, scheduled_date, plan_id, day_id, created_at, workout_plans(${WORKOUT_PLAN_LIST_COLUMNS}), workout_days(${WORKOUT_DAY_WITH_EXERCISES})`)
     .eq("client_id", clientId)
     .eq("scheduled_date", date)
     .maybeSingle();
 
   if (!data?.workout_days) return data as ScheduledWorkout | null;
 
-  const day = data.workout_days as WorkoutDay & { exercises?: { order_index: number }[] };
+  const rawDay = data.workout_days;
+  const day = (Array.isArray(rawDay) ? rawDay[0] : rawDay) as WorkoutDay & {
+    exercises?: { order_index: number }[];
+  };
+  const rawPlan = data.workout_plans;
+  const workoutPlan = Array.isArray(rawPlan) ? rawPlan[0] : rawPlan;
+
   return {
-    ...(data as ScheduledWorkout),
+    id: data.id,
+    client_id: data.client_id,
+    scheduled_date: data.scheduled_date,
+    plan_id: data.plan_id,
+    day_id: data.day_id,
+    created_at: data.created_at,
+    workout_plans: workoutPlan ?? undefined,
     workout_days: {
       ...day,
       exercises: (day.exercises ?? []).sort(
         (a, b) => a.order_index - b.order_index
       ),
     },
-  };
+  } satisfies ScheduledWorkout;
 }

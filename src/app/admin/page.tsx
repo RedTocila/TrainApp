@@ -7,7 +7,7 @@ import {
   getAdminRevenue,
   type RevenuePeriod,
 } from "@/lib/actions/admin-stats";
-import { getRecentClientActivity } from "@/lib/actions/client-activity";
+import { getRecentClientActivityPage } from "@/lib/actions/client-activity";
 import { getNotifications } from "@/lib/actions/notifications";
 import { PlanRequestCard } from "@/components/plan-request-card";
 import { AdminRevenuePanel } from "@/components/admin-revenue-panel";
@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Dumbbell, Bell, Euro } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ClientActivityFeed } from "@/components/client-activity-feed";
+import { ClientActivityFeedPanel } from "@/components/client-activity-feed-panel";
 
 const VALID_PERIODS: RevenuePeriod[] = ["1d", "7d", "30d", "90d", "all"];
 
@@ -31,12 +31,12 @@ export default async function AdminDashboardPage({
     ? (periodParam as RevenuePeriod)
     : "30d";
 
-  const [requests, stats, revenue, notifications, recentActivity] = await Promise.all([
+  const [requests, stats, revenue, notifications, activityPage] = await Promise.all([
     getPendingRequests(),
     getAdminDashboardStats(),
     getAdminRevenue(period),
     getNotifications(profile.id),
-    getRecentClientActivity(20),
+    getRecentClientActivityPage({ limit: 20 }),
   ]);
 
   const unreadNotifs = notifications.filter((n) => !n.read).slice(0, 5);
@@ -128,10 +128,11 @@ export default async function AdminDashboardPage({
           </div>
           <Card>
             <CardContent className="pt-6">
-              <ClientActivityFeed
-                items={recentActivity}
+              <ClientActivityFeedPanel
+                initialItems={activityPage.items}
+                initialCursor={activityPage.nextCursor}
+                initialHasMore={activityPage.hasMore}
                 showClientName
-                emptyMessage="No client activity yet"
               />
             </CardContent>
           </Card>

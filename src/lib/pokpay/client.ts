@@ -1,7 +1,7 @@
+import { getPokPayEnv } from "@/lib/pokpay/env";
+
 const POKPAY_BASE_URL =
-  process.env.POKPAY_ENV === "production"
-    ? "https://api.pokpay.io"
-    : "https://api-staging.pokpay.io";
+  getPokPayEnv() === "production" ? "https://api.pokpay.io" : "https://api-staging.pokpay.io";
 
 function requirePokPayConfig() {
   const keyId = process.env.POKPAY_KEY_ID;
@@ -109,5 +109,5 @@ export function isSdkOrderPaid(order: PokPaySdkOrder): boolean {
 }
 
 export function pokpayPublicEnv(): "production" | "staging" {
-  return process.env.POKPAY_ENV === "production" ? "production" : "staging";
+  return getPokPayEnv();
 }

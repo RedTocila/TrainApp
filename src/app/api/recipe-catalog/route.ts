@@ -55,13 +55,20 @@ export async function GET(request: NextRequest) {
     ingredientCount: recipe.ingredients.length,
   }));
 
-  return NextResponse.json({
-    source: catalog.source,
-    attribution: catalog.attribution,
-    total,
-    count: catalog.count,
-    page,
-    limit,
-    recipes,
-  });
+  return NextResponse.json(
+    {
+      source: catalog.source,
+      attribution: catalog.attribution,
+      total,
+      count: catalog.count,
+      page,
+      limit,
+      recipes,
+    },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    }
+  );
 }

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedProfile } from "@/lib/server-cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getPlan,
@@ -26,13 +27,7 @@ export async function getSubscriptionProfile(): Promise<Profile | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  return profile as Profile | null;
+  return getCachedProfile(user.id);
 }
 
 export async function ensureSubscribedMutation(): Promise<
@@ -60,6 +55,13 @@ export async function createCheckoutOrder(
 
   const price = getPlanPrice(planId, interval);
   const baseUrl = getAppBaseUrl();
+  const isProd = process.env.VERCEL_ENV === "production";
+  if (isProd && baseUrl.includes("localhost")) {
+    return {
+      error:
+        "Checkout is not configured for production. Set APP_URL to your live domain in Vercel Environment Variables.",
+    };
+  }
 
   const { data: orderRow, error: insertError } = await admin
     .from("subscription_orders")
@@ -122,7 +124,7 @@ export async function activateSubscriptionFromLocalOrder(localOrderId: string) {
   const admin = createAdminClient();
   const { data: order } = await admin
     .from("subscription_orders")
-    .select("*")
+    .select("id, user_id, plan, billing_interval, status, pokpay_order_id, amount_cents, created_at")
     .eq("id", localOrderId)
     .eq("user_id", user.id)
     .single();
@@ -179,7 +181,7 @@ export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string)
   const admin = createAdminClient();
   const { data: order } = await admin
     .from("subscription_orders")
-    .select("*")
+    .select("id, user_id, plan, billing_interval, status, pokpay_order_id, order_kind, amount_cents, created_at")
     .eq("pokpay_order_id", pokpayOrderId)
     .single();
 

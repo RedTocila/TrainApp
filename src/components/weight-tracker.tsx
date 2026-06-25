@@ -4,7 +4,7 @@ import { format, isToday } from "date-fns";
 import { Plus, Scale } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { useSelectedDate } from "@/components/date-provider";
-import { WeightChart } from "@/components/weight-chart";
+import { WeightChartLazy } from "@/components/weight-chart-lazy";
 import {
   deleteBodyWeightLog,
   getBodyWeightHistory,
@@ -138,7 +138,7 @@ export function WeightTracker({
         )}
       </CardHeader>
       <CardContent className="space-y-6">
-        <WeightChart
+        <WeightChartLazy
           entries={history}
           highlightDate={todayLog?.date}
           startWeightKg={intakeWeightKg}

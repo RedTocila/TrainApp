@@ -9,6 +9,7 @@ import {
 import type { Meal, MealSlot, ScheduledNutritionDay } from "@/lib/types";
 import { syncPersonalMealSlotsForDates } from "@/lib/actions/meal-slot-schedule";
 import { slotsWithMealsFromPlan } from "@/lib/nutrition-schedule-utils";
+import { MEAL_COLUMNS, NUTRITION_PLAN_LIST_COLUMNS } from "@/lib/db-selects";
 
 export type MealPlanViewKind = "ai" | "personal";
 
@@ -65,7 +66,7 @@ async function getActivePersonalAssignmentPlan(
 
   const { data: meals } = await supabase
     .from("meals")
-    .select("*")
+    .select(MEAL_COLUMNS)
     .eq("plan_id", assignment.plan_id)
     .order("order_index");
 
@@ -121,7 +122,7 @@ export async function scheduleNutritionDays(planId: string, dates: string[]) {
 
   const { data: meals } = await supabase
     .from("meals")
-    .select("*")
+    .select(MEAL_COLUMNS)
     .eq("plan_id", planId)
     .order("order_index");
 
@@ -205,7 +206,7 @@ export async function getScheduledNutritionInRange(from: string, to: string) {
 
   const { data } = await supabase
     .from("scheduled_nutrition_days")
-    .select("*, nutrition_plans(*, meals(*))")
+    .select(`*, nutrition_plans(${NUTRITION_PLAN_LIST_COLUMNS}, meals(${MEAL_COLUMNS}))`)
     .eq("client_id", userId)
     .gte("scheduled_date", from)
     .lte("scheduled_date", to)
@@ -269,7 +270,7 @@ export async function getNutritionPlanForDate(
       const activeSlots = slotRows.map((r) => r.slot as MealSlot);
       const { data: meals } = await supabase
         .from("meals")
-        .select("*")
+        .select(MEAL_COLUMNS)
         .eq("plan_id", planId)
         .order("order_index");
 

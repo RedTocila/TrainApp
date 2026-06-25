@@ -1,7 +1,7 @@
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
-import type { ChatMessage } from "@/lib/ai/types";
+import type { ChatMessage, ChatTurn } from "@/lib/ai/types";
 import { PLATFORM_NAME } from "@/lib/brand";
 import { formatDateKey } from "@/lib/utils";
 
@@ -62,11 +62,11 @@ Recent activity (last 7 days):
 - Daily targets: ${stats.targets.calories} cal, ${stats.targets.protein}g protein`;
 }
 
-export async function generateFitnessCoachReply(
+export async function prepareFitnessCoachChatMessages(
   clientId: string,
   message: string,
   history: ChatMessage[]
-): Promise<{ reply: string } | { error: string }> {
+): Promise<{ messages: ChatTurn[] } | { error: string }> {
   if (!isAiConfigured()) {
     return { error: "AI Coach is not available right now. Please try again later." };
   }
@@ -81,19 +81,30 @@ export async function generateFitnessCoachReply(
 
   const intakeContext = buildIntakeContextForAi(ctx.profile);
   const systemPrompt = buildSystemPrompt(intakeContext, ctx);
-
   const recentHistory = history.slice(-MAX_HISTORY);
-  const messages = [
-    { role: "system" as const, content: systemPrompt },
-    ...recentHistory.map((turn) => ({
-      role: turn.role,
-      content: turn.content,
-    })),
-    { role: "user" as const, content: trimmed },
-  ];
+
+  return {
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...recentHistory.map((turn) => ({
+        role: turn.role,
+        content: turn.content,
+      })),
+      { role: "user", content: trimmed },
+    ],
+  };
+}
+
+export async function generateFitnessCoachReply(
+  clientId: string,
+  message: string,
+  history: ChatMessage[]
+): Promise<{ reply: string } | { error: string }> {
+  const prepared = await prepareFitnessCoachChatMessages(clientId, message, history);
+  if ("error" in prepared) return prepared;
 
   try {
-    const reply = await runChatCompletion(messages, { maxTokens: 900 });
+    const reply = await runChatCompletion(prepared.messages, { maxTokens: 900 });
     return { reply: reply.trim() };
   } catch (error) {
     const msg = error instanceof Error ? error.message : "AI request failed";

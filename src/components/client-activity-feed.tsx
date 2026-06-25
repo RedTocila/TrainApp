@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { format } from "date-fns";
 import {
   Apple,
@@ -23,6 +24,46 @@ const TYPE_META: Record<
   task: { label: "Task", icon: Sparkles, className: "text-violet-400 bg-violet-500/10" },
 };
 
+const ActivityRow = memo(function ActivityRow({
+  item,
+  showClientName,
+}: {
+  item: ClientActivityItem;
+  showClientName: boolean;
+}) {
+  const meta = TYPE_META[item.type];
+  const Icon = meta.icon;
+  return (
+    <li className="flex items-start gap-3 rounded-xl border border-border bg-secondary/20 px-3 py-3">
+      <div
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+          meta.className
+        )}
+      >
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium">{item.title}</p>
+          <Badge variant="outline" className="text-[10px]">
+            {meta.label}
+          </Badge>
+        </div>
+        {showClientName && item.clientName && (
+          <p className="mt-0.5 text-xs font-medium text-primary">{item.clientName}</p>
+        )}
+        {item.detail && (
+          <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
+        )}
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {format(new Date(item.occurredAt), "MMM d, yyyy · h:mm a")}
+        </p>
+      </div>
+    </li>
+  );
+});
+
 export function ClientActivityFeed({
   items,
   showClientName = false,
@@ -40,42 +81,9 @@ export function ClientActivityFeed({
 
   return (
     <ul className="space-y-2">
-      {items.map((item) => {
-        const meta = TYPE_META[item.type];
-        const Icon = meta.icon;
-        return (
-          <li
-            key={item.id}
-            className="flex items-start gap-3 rounded-xl border border-border bg-secondary/20 px-3 py-3"
-          >
-            <div
-              className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-                meta.className
-              )}
-            >
-              <Icon className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium">{item.title}</p>
-                <Badge variant="outline" className="text-[10px]">
-                  {meta.label}
-                </Badge>
-              </div>
-              {showClientName && item.clientName && (
-                <p className="mt-0.5 text-xs font-medium text-primary">{item.clientName}</p>
-              )}
-              {item.detail && (
-                <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
-              )}
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {format(new Date(item.occurredAt), "MMM d, yyyy · h:mm a")}
-              </p>
-            </div>
-          </li>
-        );
-      })}
+      {items.map((item) => (
+        <ActivityRow key={item.id} item={item} showClientName={showClientName} />
+      ))}
     </ul>
   );
 }

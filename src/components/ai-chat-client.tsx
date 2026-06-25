@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Loader2, Send, UserRound } from "lucide-react";
-import { sendFitnessChatMessageAction } from "@/lib/actions/ai-chat";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import type { ChatMessage } from "@/lib/ai/types";
 import { Button } from "@/components/ui/button";
@@ -17,48 +16,148 @@ const STARTER_PROMPTS = [
   "Tips for staying consistent?",
 ];
 
+const ChatBubble = memo(function ChatBubble({ message }: { message: ChatMessage }) {
+  return (
+    <div
+      className={cn(
+        "flex gap-3",
+        message.role === "user" ? "flex-row-reverse" : "flex-row"
+      )}
+    >
+      {message.role === "user" ? (
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
+          <UserRound className="h-4 w-4 text-muted-foreground" />
+        </div>
+      ) : (
+        <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
+      )}
+      <div
+        className={cn(
+          "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+          message.role === "user"
+            ? "bg-primary text-primary-foreground"
+            : "bg-secondary/60 text-foreground"
+        )}
+      >
+        <p className="whitespace-pre-wrap">{message.content}</p>
+      </div>
+    </div>
+  );
+});
+
 export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [isStreaming, setIsStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, isPending]);
+  }, [messages, isStreaming]);
 
-  const sendMessage = (text: string) => {
+  useEffect(() => {
+    return () => abortRef.current?.abort();
+  }, []);
+
+  const sendMessage = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || isPending) return;
+    if (!trimmed || isStreaming) return;
 
     setError(null);
     setInput("");
     const userMessage: ChatMessage = { role: "user", content: trimmed };
+    const history = messages;
     setMessages((prev) => [...prev, userMessage]);
+    setIsStreaming(true);
 
-    startTransition(async () => {
-      const result = await sendFitnessChatMessageAction(trimmed, messages);
-      if ("error" in result) {
-        setError(result.error);
-        setMessages((prev) => prev.slice(0, -1));
-        setInput(trimmed);
-        return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: trimmed, history }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Could not reach AI Coach");
       }
-      setMessages((prev) => [...prev, { role: "assistant", content: result.reply }]);
-    });
+
+      if (!response.body) {
+        throw new Error("No response stream");
+      }
+
+      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6).trim();
+          if (payload === "[DONE]") continue;
+
+          const parsed = JSON.parse(payload) as { text?: string; error?: string };
+          if (parsed.error) throw new Error(parsed.error);
+          if (!parsed.text) continue;
+
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last?.role === "assistant") {
+              next[next.length - 1] = { ...last, content: last.content + parsed.text };
+            }
+            return next;
+          });
+        }
+      }
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      const msg = err instanceof Error ? err.message : "AI request failed";
+      setError(msg);
+      setMessages((prev) => {
+        let next = [...prev];
+        const last = next[next.length - 1];
+        if (last?.role === "assistant" && !last.content) {
+          next = next.slice(0, -1);
+        }
+        if (next[next.length - 1]?.role === "user") {
+          next = next.slice(0, -1);
+        }
+        return next;
+      });
+      setInput(trimmed);
+    } finally {
+      setIsStreaming(false);
+      abortRef.current = null;
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMessage(input);
+    void sendMessage(input);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage(input);
+      void sendMessage(input);
     }
   };
 
@@ -86,8 +185,8 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                     <button
                       key={prompt}
                       type="button"
-                      onClick={() => sendMessage(prompt)}
-                      disabled={isPending}
+                      onClick={() => void sendMessage(prompt)}
+                      disabled={isStreaming}
                       className="rounded-full border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                     >
                       {prompt}
@@ -98,34 +197,10 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             )}
 
             {messages.map((message, index) => (
-              <div
-                key={index}
-                className={cn(
-                  "flex gap-3",
-                  message.role === "user" ? "flex-row-reverse" : "flex-row"
-                )}
-              >
-                {message.role === "user" ? (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-                    <UserRound className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                ) : (
-                  <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
-                )}
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary/60 text-foreground"
-                  )}
-                >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                </div>
-              </div>
+              <ChatBubble key={`${message.role}-${index}`} message={message} />
             ))}
 
-            {isPending && (
+            {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
               <div className="flex gap-3">
                 <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
                 <div className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-3.5 py-2.5 text-sm text-muted-foreground">
@@ -149,14 +224,14 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                 onKeyDown={handleKeyDown}
                 placeholder="Ask about workouts, nutrition, recovery…"
                 rows={2}
-                disabled={isPending}
+                disabled={isStreaming}
                 className="min-h-[2.75rem] resize-none"
               />
               <Button
                 type="submit"
                 size="icon"
                 className="h-11 w-11 shrink-0 rounded-xl"
-                disabled={isPending || !input.trim()}
+                disabled={isStreaming || !input.trim()}
                 aria-label="Send message"
               >
                 <Send className="h-4 w-4" />

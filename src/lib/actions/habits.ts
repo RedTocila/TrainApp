@@ -8,6 +8,7 @@ import {
   getScheduleAnchorDate,
   type ScheduleStartMode,
 } from "@/lib/schedule-utils";
+import { CLIENT_HABIT_COLUMNS } from "@/lib/db-selects";
 import { formatDateKey } from "@/lib/utils";
 import type { ClientHabit } from "@/lib/types";
 import { findHabitSuggestionById } from "@/lib/habit-suggestions";
@@ -34,7 +35,7 @@ export async function ensureHabitSchedules(clientId: string) {
   const supabase = await createClient();
   const { data: habits } = await supabase
     .from("client_habits")
-    .select("*")
+    .select(CLIENT_HABIT_COLUMNS)
     .eq("client_id", clientId);
 
   if (!habits?.length) return;
@@ -67,7 +68,7 @@ export async function getClientHabits(clientId: string): Promise<ClientHabit[]> 
   const supabase = await createClient();
   const { data } = await supabase
     .from("client_habits")
-    .select("*")
+    .select(CLIENT_HABIT_COLUMNS)
     .eq("client_id", clientId)
     .order("order_index");
 
@@ -252,7 +253,7 @@ export async function saveHabit(
     revalidatePath("/dashboard");
     const { data } = await supabase
       .from("client_habits")
-      .select("*")
+      .select(CLIENT_HABIT_COLUMNS)
       .eq("id", habitId)
       .single();
     return { data: data ? normalizeHabit(data) : undefined };

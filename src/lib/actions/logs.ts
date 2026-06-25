@@ -9,7 +9,7 @@ export async function getDailyLog(clientId: string, date: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("daily_logs")
-    .select("*")
+    .select("id, client_id, date, water_ml, calories, protein, carbs, fat")
     .eq("client_id", clientId)
     .eq("date", date)
     .maybeSingle();

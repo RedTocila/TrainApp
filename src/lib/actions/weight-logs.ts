@@ -12,7 +12,7 @@ export async function getBodyWeightLog(
   const supabase = await createClient();
   const { data } = await supabase
     .from("body_weight_logs")
-    .select("*")
+    .select("id, client_id, date, weight_kg, created_at")
     .eq("client_id", clientId)
     .eq("date", date)
     .maybeSingle();
@@ -30,7 +30,7 @@ export async function getBodyWeightHistory(
 
   const { data } = await supabase
     .from("body_weight_logs")
-    .select("*")
+    .select("id, client_id, date, weight_kg, created_at")
     .eq("client_id", clientId)
     .gte("date", fromKey)
     .order("date", { ascending: true });

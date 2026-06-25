@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { CLIENT_DAY_TASK_COLUMNS } from "@/lib/db-selects";
 import type { ClientDayTask } from "@/lib/types";
 
 export async function getDayTasksInRange(
@@ -12,7 +13,7 @@ export async function getDayTasksInRange(
   const supabase = await createClient();
   const { data } = await supabase
     .from("client_day_tasks")
-    .select("*")
+    .select(CLIENT_DAY_TASK_COLUMNS)
     .eq("client_id", clientId)
     .gte("date", from)
     .lte("date", to)
@@ -29,7 +30,7 @@ export async function getDayTasksForDate(
   const supabase = await createClient();
   const { data } = await supabase
     .from("client_day_tasks")
-    .select("*")
+    .select(CLIENT_DAY_TASK_COLUMNS)
     .eq("client_id", clientId)
     .eq("date", date)
     .order("order_index");

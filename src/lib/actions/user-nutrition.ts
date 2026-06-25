@@ -6,6 +6,7 @@ import { requireSubscribedUserAccess } from "@/lib/actions/user-access";
 import { UNCATEGORIZED_NUTRITION_FOLDER_ID } from "@/lib/nutrition-folders";
 import { mealPayloadFromForm, normalizeMealMacros, type MealFormData } from "@/lib/meal-utils";
 import { mealTypeForSlot, sumDayMenuMacros, type MealSlot } from "@/lib/meal-slots";
+import { MEAL_COLUMNS, NUTRITION_PLAN_LIST_COLUMNS } from "@/lib/db-selects";
 import type { Meal, MealType, NutritionPlan } from "@/lib/types";
 
 async function requireUserId() {
@@ -40,7 +41,7 @@ async function syncDayMenuMacrosFromMeals(planId: string) {
   const { supabase, userId } = await requireUserId();
   const { data: meals } = await supabase
     .from("meals")
-    .select("*")
+    .select("id, meal_type, slot, calories, protein, carbs, fat, foods, order_index")
     .eq("plan_id", planId);
 
   const totals = sumDayMenuMacros((meals ?? []) as Meal[]);
@@ -108,7 +109,9 @@ export async function createPersonalNutritionPlan(
       is_personal: true,
       folder_id: resolvedFolderId,
     })
-    .select()
+    .select(
+      "id, title, description, target_calories, target_protein, target_carbs, target_fat, created_by, is_personal, folder_id, trainer_label, created_at"
+    )
     .single();
 
   if (error) return { error: error.message };
@@ -185,7 +188,9 @@ export async function getPersonalNutritionPlans(folderId?: string) {
 
   let query = supabase
     .from("nutrition_plans")
-    .select("*")
+    .select(
+      "id, title, description, target_calories, target_protein, target_carbs, target_fat, created_by, is_personal, folder_id, trainer_label, created_at"
+    )
     .eq("created_by", userId)
     .eq("is_personal", true);
 
@@ -204,7 +209,9 @@ export async function getPersonalNutritionPlanWithDetails(planId: string) {
 
   const { data: plan } = await supabase
     .from("nutrition_plans")
-    .select("*")
+    .select(
+      "id, title, description, target_calories, target_protein, target_carbs, target_fat, created_by, is_personal, folder_id, trainer_label, created_at"
+    )
     .eq("id", planId)
     .eq("created_by", userId)
     .eq("is_personal", true)
@@ -214,7 +221,9 @@ export async function getPersonalNutritionPlanWithDetails(planId: string) {
 
   const { data: meals } = await supabase
     .from("meals")
-    .select("*")
+    .select(
+      "id, plan_id, meal_type, slot, name, description, youtube_url, calories, protein, carbs, fat, foods, order_index"
+    )
     .eq("plan_id", planId)
     .order("order_index");
 
@@ -287,7 +296,7 @@ export async function getNutritionFoldersOverview(): Promise<NutritionFolderOver
   const [{ data: folders }, { data: plans }] = await Promise.all([
     supabase
       .from("nutrition_folders")
-      .select("*")
+      .select("id, name, created_at")
       .eq("client_id", userId)
       .order("created_at"),
     supabase
@@ -490,18 +499,27 @@ export async function getPersonalNutritionPlansInFolder(
   folderId?: string
 ): Promise<PersonalNutritionListItem[]> {
   const plans = await getPersonalNutritionPlans(folderId);
-  const items: PersonalNutritionListItem[] = [];
+  if (plans.length === 0) return [];
 
-  for (const plan of plans) {
-    const { meals } = await getPersonalNutritionPlanWithDetails(plan.id);
-    items.push({
-      plan,
-      meals,
-      mealCount: meals.length,
-    });
+  const { supabase } = await requireUserId();
+  const planIds = plans.map((p) => p.id);
+  const { data: allMeals } = await supabase
+    .from("meals")
+    .select(MEAL_COLUMNS)
+    .in("plan_id", planIds)
+    .order("order_index");
+
+  const mealsByPlan = new Map<string, Meal[]>();
+  for (const meal of (allMeals ?? []) as Meal[]) {
+    const list = mealsByPlan.get(meal.plan_id) ?? [];
+    list.push(meal);
+    mealsByPlan.set(meal.plan_id, list);
   }
 
-  return items;
+  return plans.map((plan) => {
+    const meals = mealsByPlan.get(plan.id) ?? [];
+    return { plan, meals, mealCount: meals.length };
+  });
 }
 
 export async function getActivePersonalNutritionPlanId(): Promise<string | null> {
@@ -524,7 +542,9 @@ async function getPersonalMealWithPlan(mealId: string) {
 
   const { data: meal } = await supabase
     .from("meals")
-    .select("*")
+    .select(
+      "id, plan_id, meal_type, slot, name, description, youtube_url, calories, protein, carbs, fat, foods, order_index"
+    )
     .eq("id", mealId)
     .single();
 
@@ -532,7 +552,9 @@ async function getPersonalMealWithPlan(mealId: string) {
 
   const { data: plan } = await supabase
     .from("nutrition_plans")
-    .select("*")
+    .select(
+      "id, title, description, target_calories, target_protein, target_carbs, target_fat, created_by, is_personal, folder_id, trainer_label, created_at"
+    )
     .eq("id", meal.plan_id)
     .eq("created_by", userId)
     .eq("is_personal", true)
@@ -558,7 +580,9 @@ export async function getPersonalMealsLibrary(): Promise<PersonalMealLibraryItem
 
   const { data: plans } = await supabase
     .from("nutrition_plans")
-    .select("id, title, folder_id, meals(*)")
+    .select(
+      "id, title, folder_id, meals(id, plan_id, meal_type, slot, name, description, youtube_url, calories, protein, carbs, fat, foods, order_index)"
+    )
     .eq("created_by", userId)
     .eq("is_personal", true)
     .order("created_at", { ascending: false });

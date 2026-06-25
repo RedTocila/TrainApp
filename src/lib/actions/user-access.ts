@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { PROFILE_COLUMNS } from "@/lib/db-selects";
 import { hasPaidAccess } from "@/lib/subscription";
 import { SUBSCRIPTION_REQUIRED_MESSAGE } from "@/lib/subscription-messages";
 import type { Profile } from "@/lib/types";
@@ -17,7 +18,7 @@ export async function requireSubscribedUserAccess(): Promise<
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select(PROFILE_COLUMNS)
     .eq("id", user.id)
     .single();
 

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
-import { AiChatClient } from "@/components/ai-chat-client";
+import { AiChatClientLazy } from "@/components/ai-chat-client-lazy";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,7 @@ export function AiCoachChatDialog() {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <AiChatClient embedded />
+        <AiChatClientLazy embedded />
       </div>
     </div>
   );

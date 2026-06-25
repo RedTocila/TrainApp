@@ -19,6 +19,19 @@ export interface ClientActivityItem {
   occurredAt: string;
 }
 
+function withPerf<T extends (...args: any[]) => Promise<any>>(name: string, fn: T): T {
+  return (async (...args: Parameters<T>) => {
+    const start = performance.now();
+    try {
+      return await fn(...args);
+    } finally {
+      const ms = Math.round(performance.now() - start);
+      // eslint-disable-next-line no-console
+      console.log(`[perf] ${name} ${ms}ms`);
+    }
+  }) as T;
+}
+
 function mergeActivities(items: ClientActivityItem[], limit: number) {
   return items
     .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
@@ -135,6 +148,7 @@ export async function getRecentClientActivity(
   limit = 25
 ): Promise<ClientActivityItem[]> {
   const admin = createAdminClient();
+
   const { data: clients } = await admin
     .from("profiles")
     .select("id, full_name")
@@ -145,18 +159,141 @@ export async function getRecentClientActivity(
   if (!clients?.length) return [];
 
   const nameById = new Map(clients.map((c) => [c.id as string, c.full_name as string]));
-  const perClient = await Promise.all(
-    clients.map((c) => getClientActivityFeed(c.id as string, 8))
-  );
+  const clientIds = clients.map((c) => c.id as string);
 
-  const merged = perClient
-    .flat()
-    .map((item) => ({
-      ...item,
-      clientName: nameById.get(item.clientId),
-    }));
+  // Batched queries across all clients (avoids N+1 explosions).
+  const perClientLimit = 8;
+  const batchLimit = Math.max(150, clientIds.length * perClientLimit);
 
-  return mergeActivities(merged, limit);
+  const [meals, workouts, weights, habits, tasks, habitTitles] = await Promise.all([
+    admin
+      .from("daily_meal_logs")
+      .select("id, client_id, name, calories, meal_type, logged_at")
+      .in("client_id", clientIds)
+      .order("logged_at", { ascending: false })
+      .limit(batchLimit),
+    admin
+      .from("workout_sessions")
+      .select("id, client_id, plan_title, day_title, status, completed_at, started_at")
+      .in("client_id", clientIds)
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false })
+      .limit(batchLimit),
+    admin
+      .from("body_weight_logs")
+      .select("id, client_id, weight_kg, created_at")
+      .in("client_id", clientIds)
+      .order("created_at", { ascending: false })
+      .limit(batchLimit),
+    admin
+      .from("habit_completions")
+      .select("habit_id, client_id, completed_at, date")
+      .in("client_id", clientIds)
+      .order("completed_at", { ascending: false })
+      .limit(batchLimit),
+    admin
+      .from("schedule_task_completions")
+      .select("task_id, client_id, completed_at, date")
+      .in("client_id", clientIds)
+      .order("completed_at", { ascending: false })
+      .limit(batchLimit),
+    admin.from("client_habits").select("id, client_id, title").in("client_id", clientIds),
+  ]);
+
+  const habitNameByClientHabitId = new Map<string, string>();
+  for (const h of habitTitles.data ?? []) {
+    habitNameByClientHabitId.set(String(h.id), String(h.title));
+  }
+
+  const items: ClientActivityItem[] = [];
+
+  for (const meal of meals.data ?? []) {
+    items.push({
+      id: `meal-${meal.id}`,
+      clientId: meal.client_id as string,
+      clientName: nameById.get(meal.client_id as string),
+      type: "meal",
+      title: `Logged meal: ${meal.name}`,
+      detail: `${meal.calories} kcal · ${meal.meal_type}`,
+      occurredAt: meal.logged_at as string,
+    });
+  }
+
+  for (const session of workouts.data ?? []) {
+    const at = (session.completed_at ?? session.started_at) as string;
+    items.push({
+      id: `workout-${session.id}`,
+      clientId: session.client_id as string,
+      clientName: nameById.get(session.client_id as string),
+      type: "workout",
+      title: "Completed workout",
+      detail: [session.plan_title, session.day_title].filter(Boolean).join(" · ") || undefined,
+      occurredAt: at,
+    });
+  }
+
+  for (const log of weights.data ?? []) {
+    items.push({
+      id: `weight-${log.id}`,
+      clientId: log.client_id as string,
+      clientName: nameById.get(log.client_id as string),
+      type: "weight",
+      title: "Logged weight",
+      detail: `${log.weight_kg} kg`,
+      occurredAt: log.created_at as string,
+    });
+  }
+
+  for (const habit of habits.data ?? []) {
+    items.push({
+      id: `habit-${habit.habit_id}-${habit.date}`,
+      clientId: habit.client_id as string,
+      clientName: nameById.get(habit.client_id as string),
+      type: "habit",
+      title: "Completed habit",
+      detail: habitNameByClientHabitId.get(String(habit.habit_id)) ?? "Habit",
+      occurredAt: habit.completed_at as string,
+    });
+  }
+
+  for (const task of tasks.data ?? []) {
+    items.push({
+      id: `task-${task.task_id}-${task.date}`,
+      clientId: task.client_id as string,
+      clientName: nameById.get(task.client_id as string),
+      type: "task",
+      title: "Completed daily task",
+      detail: String(task.task_id).replace(/_/g, " "),
+      occurredAt: task.completed_at as string,
+    });
+  }
+
+  return mergeActivities(items, limit);
+}
+
+export async function getRecentClientActivityPage(options?: {
+  cursor?: string;
+  limit?: number;
+}): Promise<import("@/lib/pagination").CursorPage<ClientActivityItem>> {
+  const { buildCursorPage, decodeCursor } = await import("@/lib/pagination");
+  const limit = Math.min(50, Math.max(1, options?.limit ?? 20));
+  const decoded = decodeCursor(options?.cursor);
+  const fetchLimit = decoded ? limit * 4 : limit;
+
+  const all = await getRecentClientActivity(fetchLimit + (decoded ? 50 : 0));
+
+  let filtered = all;
+  if (decoded) {
+    const cursorTime = new Date(decoded.sortValue).getTime();
+    filtered = all.filter((item) => {
+      const itemTime = new Date(item.occurredAt).getTime();
+      if (itemTime < cursorTime) return true;
+      if (itemTime === cursorTime && item.id < decoded.id) return true;
+      return false;
+    });
+  }
+
+  return buildCursorPage(filtered, limit, (item) => item.occurredAt);
 }
 
 export async function getClientLastActivityAt(

@@ -240,22 +240,36 @@ export async function assignNutritionPlan(clientId: string, planId: string, requ
 
 export async function getWorkoutPlans() {
   const supabase = await createClient();
-  const { data } = await supabase.from("workout_plans").select("*").order("created_at", { ascending: false });
+  const { data } = await supabase
+    .from("workout_plans")
+    .select("id, title, description, created_by, is_personal, folder_id, trainer_label, created_at")
+    .order("created_at", { ascending: false });
   return data ?? [];
 }
 
 export async function getNutritionPlans() {
   const supabase = await createClient();
-  const { data } = await supabase.from("nutrition_plans").select("*").order("created_at", { ascending: false });
+  const { data } = await supabase
+    .from("nutrition_plans")
+    .select(
+      "id, title, description, target_calories, target_protein, target_carbs, target_fat, created_by, is_personal, folder_id, trainer_label, created_at"
+    )
+    .order("created_at", { ascending: false });
   return data ?? [];
 }
 
 export async function getWorkoutPlanWithDetails(planId: string) {
   const supabase = await createClient();
-  const { data: plan } = await supabase.from("workout_plans").select("*").eq("id", planId).single();
+  const { data: plan } = await supabase
+    .from("workout_plans")
+    .select("id, title, description, created_by, is_personal, folder_id, trainer_label, created_at")
+    .eq("id", planId)
+    .single();
   const { data: days } = await supabase
     .from("workout_days")
-    .select("*, exercises(*)")
+    .select(
+      "id, plan_id, day_index, title, exercises(id, day_id, name, sets, reps, rest_seconds, notes, image_url, video_url, order_index)"
+    )
     .eq("plan_id", planId)
     .order("day_index");
   return { plan, days: days ?? [] };
@@ -263,10 +277,18 @@ export async function getWorkoutPlanWithDetails(planId: string) {
 
 export async function getNutritionPlanWithDetails(planId: string) {
   const supabase = await createClient();
-  const { data: plan } = await supabase.from("nutrition_plans").select("*").eq("id", planId).single();
+  const { data: plan } = await supabase
+    .from("nutrition_plans")
+    .select(
+      "id, title, description, target_calories, target_protein, target_carbs, target_fat, created_by, is_personal, folder_id, trainer_label, created_at"
+    )
+    .eq("id", planId)
+    .single();
   const { data: meals } = await supabase
     .from("meals")
-    .select("*")
+    .select(
+      "id, plan_id, meal_type, slot, name, description, youtube_url, calories, protein, carbs, fat, foods, order_index"
+    )
     .eq("plan_id", planId)
     .order("order_index");
   return { plan, meals: meals ?? [] };
@@ -276,23 +298,31 @@ export async function getClientWorkoutAssignment(clientId: string) {
   const supabase = await createClient();
   const { data: assignment } = await supabase
     .from("workout_assignments")
-    .select("*, workout_plans(*)")
+    .select(
+      "id, client_id, plan_id, start_date, active, workout_plans(id, title, description, created_by, is_personal, folder_id, trainer_label, created_at)"
+    )
     .eq("client_id", clientId)
     .eq("active", true)
     .maybeSingle();
 
-  if (!assignment?.workout_plans) return assignment;
+  if (!assignment?.workout_plans) return assignment as any;
+
+  const rawPlan = (assignment as any).workout_plans;
+  const workoutPlan = (Array.isArray(rawPlan) ? rawPlan[0] : rawPlan) as any;
+  if (!workoutPlan) return assignment as any;
 
   const { data: days } = await supabase
     .from("workout_days")
-    .select("*, exercises(*)")
+    .select(
+      "id, plan_id, day_index, title, exercises(id, day_id, name, sets, reps, rest_seconds, notes, image_url, video_url, order_index)"
+    )
     .eq("plan_id", assignment.plan_id)
     .order("day_index");
 
   return {
     ...assignment,
     workout_plans: {
-      ...assignment.workout_plans,
+      ...workoutPlan,
       workout_days: days ?? [],
     },
   };
@@ -302,23 +332,31 @@ export async function getClientNutritionAssignment(clientId: string) {
   const supabase = await createClient();
   const { data: assignment } = await supabase
     .from("nutrition_assignments")
-    .select("*, nutrition_plans(*)")
+    .select(
+      "id, client_id, plan_id, start_date, active, nutrition_plans(id, title, description, target_calories, target_protein, target_carbs, target_fat, created_by, is_personal, folder_id, trainer_label, created_at)"
+    )
     .eq("client_id", clientId)
     .eq("active", true)
     .maybeSingle();
 
-  if (!assignment?.nutrition_plans) return assignment;
+  if (!assignment?.nutrition_plans) return assignment as any;
+
+  const rawPlan = (assignment as any).nutrition_plans;
+  const nutritionPlan = (Array.isArray(rawPlan) ? rawPlan[0] : rawPlan) as any;
+  if (!nutritionPlan) return assignment as any;
 
   const { data: meals } = await supabase
     .from("meals")
-    .select("*")
+    .select(
+      "id, plan_id, meal_type, slot, name, description, youtube_url, calories, protein, carbs, fat, foods, order_index"
+    )
     .eq("plan_id", assignment.plan_id)
     .order("order_index");
 
   return {
     ...assignment,
     nutrition_plans: {
-      ...assignment.nutrition_plans,
+      ...nutritionPlan,
       meals: meals ?? [],
     },
   };
@@ -328,7 +366,9 @@ export async function getAllClients() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("*")
+    .select(
+      "id, role, full_name, avatar_url, goal, unit_system, age, gender, height_cm, intake_weight_kg, vices, injuries, medical_conditions, daily_routine, work_schedule, water_goal_ml, target_calories, target_protein, target_carbs, target_fat, subscription_plan, subscription_status, subscription_interval, subscription_expires_at, phone, dismissed_habit_suggestions, intake_responses, created_at"
+    )
     .eq("role", "client")
     .order("created_at", { ascending: false });
   return data ?? [];

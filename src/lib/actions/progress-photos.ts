@@ -30,7 +30,7 @@ export async function getProgressPhotoSets(
   const supabase = await createClient();
   const { data } = await supabase
     .from("progress_photo_sets")
-    .select("*")
+    .select("id, client_id, month_key, front_path, back_path, side_path, created_at, updated_at")
     .eq("client_id", clientId)
     .order("month_key", { ascending: false })
     .limit(limit);
@@ -44,7 +44,7 @@ export async function getProgressPhotoSetForMonth(
   const supabase = await createClient();
   const { data } = await supabase
     .from("progress_photo_sets")
-    .select("*")
+    .select("id, client_id, month_key, front_path, back_path, side_path, created_at, updated_at")
     .eq("client_id", clientId)
     .eq("month_key", monthKey)
     .maybeSingle();

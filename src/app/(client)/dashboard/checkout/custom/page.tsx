@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CustomPlanCheckoutClient } from "@/components/custom-plan-checkout-client";
+import { CheckoutLayout } from "@/components/checkout-layout";
 import { getCustomPlanProduct } from "@/lib/custom-plan-products";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -35,29 +36,39 @@ export default async function CustomCheckoutPage({
   if (!order?.pokpay_order_id) redirect("/dashboard");
 
   return (
-    <div className="mx-auto max-w-lg space-y-6 p-6">
-      <div>
-        <Link
-          href={
-            planType === "workout"
-              ? "/dashboard/workout"
-              : "/dashboard/nutrition"
-          }
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Back
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold">{product.title}</h1>
-        <p className="text-muted-foreground">{product.description}</p>
-        <p className="mt-2 text-xl font-semibold">
-          €{(product.amountCents / 100).toFixed(0)}
-        </p>
-      </div>
-      <CustomPlanCheckoutClient
-        localOrderId={order.id}
-        pokpayOrderId={order.pokpay_order_id}
-        planType={planType}
-      />
-    </div>
+    <CheckoutLayout
+      backHref={planType === "workout" ? "/dashboard/workout" : "/dashboard/nutrition"}
+      title={product.title}
+      subtitle={product.description}
+      totalLabel={`€${(product.amountCents / 100).toFixed(0)}`}
+      summary={
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-border bg-secondary/25 p-4">
+            <p className="text-sm font-semibold text-muted-foreground">Order</p>
+            <p className="mt-1 text-lg font-black leading-tight">{product.title}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{product.description}</p>
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-sm font-semibold text-muted-foreground">Total</p>
+              <p className="text-xl font-black">€{(product.amountCents / 100).toFixed(0)}</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-secondary/25 p-4 text-sm text-muted-foreground">
+            <p className="font-semibold text-foreground">What happens next</p>
+            <ul className="mt-2 list-inside list-disc space-y-1">
+              <li>You’ll see your purchase confirmation immediately after payment.</li>
+              <li>Your plan request will appear in your dashboard.</li>
+            </ul>
+          </div>
+        </div>
+      }
+      payment={
+        <CustomPlanCheckoutClient
+          localOrderId={order.id}
+          pokpayOrderId={order.pokpay_order_id}
+          planType={planType}
+        />
+      }
+    />
   );
 }

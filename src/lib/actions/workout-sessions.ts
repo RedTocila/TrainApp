@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireSubscribedUserAccess } from "@/lib/actions/user-access";
+import {
+  WORKOUT_SESSION_COLUMNS,
+  WORKOUT_SESSION_EXERCISE_COLUMNS,
+  WORKOUT_SESSION_SET_COLUMNS,
+} from "@/lib/db-selects";
 import { getClientWorkoutAssignment } from "@/lib/actions/plans";
 import { getScheduledWorkoutForDate } from "@/lib/actions/user-workouts";
 import type {
@@ -120,7 +125,7 @@ export async function getInProgressSession(): Promise<WorkoutSession | null> {
   const { supabase, userId } = await requireUserId();
   const { data } = await supabase
     .from("workout_sessions")
-    .select("*")
+    .select(WORKOUT_SESSION_COLUMNS)
     .eq("client_id", userId)
     .eq("status", "in_progress")
     .order("started_at", { ascending: false })
@@ -134,7 +139,7 @@ async function getSessionWithDetails(sessionId: string) {
 
   const { data: session } = await supabase
     .from("workout_sessions")
-    .select("*")
+    .select(WORKOUT_SESSION_COLUMNS)
     .eq("id", sessionId)
     .eq("client_id", userId)
     .single();
@@ -143,7 +148,7 @@ async function getSessionWithDetails(sessionId: string) {
 
   const { data: exercises } = await supabase
     .from("workout_session_exercises")
-    .select("*, workout_session_sets(*)")
+    .select(`${WORKOUT_SESSION_EXERCISE_COLUMNS}, workout_session_sets(${WORKOUT_SESSION_SET_COLUMNS})`)
     .eq("session_id", sessionId)
     .order("order_index");
 

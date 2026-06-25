@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { PROFILE_COLUMNS } from "@/lib/db-selects";
 
 export async function getProfileWithEmail() {
   const supabase = await createClient();
@@ -12,7 +13,7 @@ export async function getProfileWithEmail() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select(PROFILE_COLUMNS)
     .eq("id", user.id)
     .single();
 
