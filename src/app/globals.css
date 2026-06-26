@@ -91,16 +91,19 @@ body:has(.dashboard-shell) {
   height: 100%;
   width: 100%;
   overscroll-behavior: none;
+  background: var(--background);
 }
 
 .dashboard-shell {
   height: 100svh;
   height: 100dvh;
+  background: var(--background);
 }
 
 .dashboard-main {
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  background: var(--background);
 }
 
 .dashboard-mobile-nav {

@@ -34,6 +34,132 @@ async function requireMutationAdmin() {
   return { admin: mutation.admin, userId: mutation.userId };
 }
 
+type PlanDayExercise = {
+  id: string;
+  name: string;
+  sets: number;
+  reps: string;
+  notes: string | null;
+  order_index: number;
+};
+
+async function loadPlanDayExercises(
+  admin: Awaited<ReturnType<typeof requireMutationAdmin>>["admin"],
+  planId: string,
+  dayId: string
+): Promise<PlanDayExercise[]> {
+  const { data: day } = await admin
+    .from("workout_days")
+    .select("exercises(id, name, sets, reps, notes, order_index)")
+    .eq("id", dayId)
+    .eq("plan_id", planId)
+    .single();
+
+  return ((day?.exercises as PlanDayExercise[]) ?? []).sort(
+    (a, b) => a.order_index - b.order_index
+  );
+}
+
+async function seedSessionExercisesFromPlan(
+  admin: Awaited<ReturnType<typeof requireMutationAdmin>>["admin"],
+  sessionId: string,
+  exercises: PlanDayExercise[]
+): Promise<{ error?: string }> {
+  if (exercises.length === 0) {
+    return { error: "No exercises on this workout day" };
+  }
+
+  for (const [index, exercise] of exercises.entries()) {
+    const { data: sessionExercise, error: exError } = await admin
+      .from("workout_session_exercises")
+      .insert({
+        session_id: sessionId,
+        exercise_id: exercise.id,
+        name: exercise.name,
+        target_sets: exercise.sets,
+        target_reps: exercise.reps,
+        order_index: index,
+        notes: exercise.notes,
+      })
+      .select()
+      .single();
+
+    if (exError || !sessionExercise) {
+      return {
+        error: exError?.message ?? `Failed to add exercise: ${exercise.name}`,
+      };
+    }
+
+    const setRows = Array.from({ length: exercise.sets }, (_, i) => ({
+      session_exercise_id: sessionExercise.id,
+      set_number: i + 1,
+      completed: false,
+    }));
+
+    const { error: setsError } = await admin
+      .from("workout_session_sets")
+      .insert(setRows);
+    if (setsError) return { error: setsError.message };
+  }
+
+  return {};
+}
+
+async function mapSessionExercises(
+  admin: Awaited<ReturnType<typeof requireMutationAdmin>>["admin"],
+  sessionId: string
+): Promise<WorkoutSessionExercise[]> {
+  const { data: exercises, error } = await admin
+    .from("workout_session_exercises")
+    .select(
+      `${WORKOUT_SESSION_EXERCISE_COLUMNS}, workout_session_sets(${WORKOUT_SESSION_SET_COLUMNS})`
+    )
+    .eq("session_id", sessionId)
+    .order("order_index");
+
+  if (error) return [];
+
+  const mappedExercises: WorkoutSessionExercise[] = (exercises ?? []).map(
+    (ex) => ({
+      ...ex,
+      sets: ((ex.workout_session_sets as WorkoutSessionSet[]) ?? []).sort(
+        (a, b) => a.set_number - b.set_number
+      ),
+    })
+  );
+
+  const planExerciseIds = mappedExercises
+    .map((ex) => ex.exercise_id)
+    .filter((id): id is string => !!id);
+
+  if (planExerciseIds.length > 0) {
+    const { data: planExercises } = await admin
+      .from("exercises")
+      .select("id, video_url, rest_seconds")
+      .in("id", planExerciseIds);
+
+    const metaById = new Map(
+      (planExercises ?? []).map((ex) => [
+        ex.id,
+        {
+          video_url: ex.video_url as string | null,
+          rest_seconds: ex.rest_seconds as number | null,
+        },
+      ])
+    );
+
+    for (const ex of mappedExercises) {
+      if (ex.exercise_id) {
+        const meta = metaById.get(ex.exercise_id);
+        ex.video_url = meta?.video_url ?? null;
+        ex.rest_seconds = meta?.rest_seconds ?? null;
+      }
+    }
+  }
+
+  return mappedExercises;
+}
+
 export interface TodaysWorkoutInfo {
   planId: string;
   dayId: string;
@@ -146,39 +272,22 @@ async function getSessionWithDetails(sessionId: string) {
 
   if (!session) return null;
 
-  const { data: exercises } = await admin
-    .from("workout_session_exercises")
-    .select(`${WORKOUT_SESSION_EXERCISE_COLUMNS}, workout_session_sets(${WORKOUT_SESSION_SET_COLUMNS})`)
-    .eq("session_id", sessionId)
-    .order("order_index");
+  let mappedExercises = await mapSessionExercises(admin, sessionId);
 
-  const mappedExercises: WorkoutSessionExercise[] = (exercises ?? []).map(
-    (ex) => ({
-      ...ex,
-      sets: ((ex.workout_session_sets as WorkoutSessionSet[]) ?? []).sort(
-        (a, b) => a.set_number - b.set_number
-      ),
-    })
-  );
-
-  const planExerciseIds = mappedExercises
-    .map((ex) => ex.exercise_id)
-    .filter((id): id is string => !!id);
-
-  if (planExerciseIds.length > 0) {
-    const { data: planExercises } = await admin
-      .from("exercises")
-      .select("id, video_url")
-      .in("id", planExerciseIds);
-
-    const videoById = new Map(
-      (planExercises ?? []).map((ex) => [ex.id, ex.video_url as string | null])
+  if (
+    mappedExercises.length === 0 &&
+    session.plan_id &&
+    session.day_id &&
+    session.status === "in_progress"
+  ) {
+    const planExercises = await loadPlanDayExercises(
+      admin,
+      session.plan_id,
+      session.day_id
     );
-
-    for (const ex of mappedExercises) {
-      if (ex.exercise_id) {
-        ex.video_url = videoById.get(ex.exercise_id) ?? null;
-      }
+    if (planExercises.length > 0) {
+      await seedSessionExercisesFromPlan(admin, sessionId, planExercises);
+      mappedExercises = await mapSessionExercises(admin, sessionId);
     }
   }
 
@@ -269,12 +378,32 @@ export async function startWorkout({
 
   const existing = await getInProgressSession();
   if (existing) {
+    if (existing.plan_id && existing.day_id) {
+      const { count } = await admin
+        .from("workout_session_exercises")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", existing.id);
+      if (count === 0) {
+        const planExercises = await loadPlanDayExercises(
+          admin,
+          existing.plan_id,
+          existing.day_id
+        );
+        if (planExercises.length > 0) {
+          await seedSessionExercisesFromPlan(
+            admin,
+            existing.id,
+            planExercises
+          );
+        }
+      }
+    }
     return { sessionId: existing.id, resumed: true };
   }
 
   const { data: day } = await admin
     .from("workout_days")
-    .select("*, exercises(*), workout_plans(title)")
+    .select("*, workout_plans(title)")
     .eq("id", dayId)
     .eq("plan_id", planId)
     .single();
@@ -283,14 +412,7 @@ export async function startWorkout({
 
   const planTitle =
     (day.workout_plans as { title: string } | null)?.title ?? "Workout";
-  const exercises = ((day.exercises as {
-    id: string;
-    name: string;
-    sets: number;
-    reps: string;
-    notes: string | null;
-    order_index: number;
-  }[]) ?? []).sort((a, b) => a.order_index - b.order_index);
+  const exercises = await loadPlanDayExercises(admin, planId, dayId);
 
   const { data: session, error: sessionError } = await admin
     .from("workout_sessions")
@@ -310,30 +432,14 @@ export async function startWorkout({
     return { error: sessionError?.message ?? "Failed to start workout" };
   }
 
-  for (const [index, exercise] of exercises.entries()) {
-    const { data: sessionExercise, error: exError } = await admin
-      .from("workout_session_exercises")
-      .insert({
-        session_id: session.id,
-        exercise_id: exercise.id,
-        name: exercise.name,
-        target_sets: exercise.sets,
-        target_reps: exercise.reps,
-        order_index: index,
-        notes: exercise.notes,
-      })
-      .select()
-      .single();
-
-    if (exError || !sessionExercise) continue;
-
-    const setRows = Array.from({ length: exercise.sets }, (_, i) => ({
-      session_exercise_id: sessionExercise.id,
-      set_number: i + 1,
-      completed: false,
-    }));
-
-    await admin.from("workout_session_sets").insert(setRows);
+  const seedResult = await seedSessionExercisesFromPlan(
+    admin,
+    session.id,
+    exercises
+  );
+  if (seedResult.error && exercises.length > 0) {
+    await admin.from("workout_sessions").delete().eq("id", session.id);
+    return { error: seedResult.error };
   }
 
   revalidatePath("/dashboard");

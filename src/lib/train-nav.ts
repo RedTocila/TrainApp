@@ -12,6 +12,10 @@ export function isTrainPath(pathname: string) {
   );
 }
 
+export function isActiveWorkoutSessionPath(pathname: string) {
+  return /^\/dashboard\/workout\/session\/[^/]+$/.test(pathname);
+}
+
 export function isTrainTabActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }

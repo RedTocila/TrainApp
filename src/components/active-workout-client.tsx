@@ -3,8 +3,8 @@ import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/loca
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { ArrowLeft, Check, Play, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { ArrowLeft, Check, Clock, Play, Plus, Trash2 } from "lucide-react";
 import {
   addSessionExercise,
   addSessionSet,
@@ -22,6 +22,12 @@ import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { formatDateKey } from "@/lib/utils";
+import {
+  estimateWorkoutDurationSeconds,
+  formatElapsedClock,
+  formatWorkoutDurationShort,
+  getWorkoutSetStats,
+} from "@/lib/workout-duration";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +49,118 @@ function formatHistory(
     });
   if (parts.length === 0) return null;
   return lastLabel(parts.join(", "));
+}
+
+function useElapsedSeconds(startedAt: string) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return Math.max(
+    0,
+    Math.floor((now - new Date(startedAt).getTime()) / 1000)
+  );
+}
+
+function WorkoutTimerCard({
+  startedAt,
+  exercises,
+}: {
+  startedAt: string;
+  exercises: WorkoutSessionExercise[];
+}) {
+  const platform = usePlatformCopy();
+  const elapsedSeconds = useElapsedSeconds(startedAt);
+  const estimatedSeconds = useMemo(
+    () => estimateWorkoutDurationSeconds(exercises),
+    [exercises]
+  );
+  const remainingSeconds = Math.max(0, estimatedSeconds - elapsedSeconds);
+
+  if (exercises.length === 0) return null;
+
+  return (
+    <Card className="border-primary/20 bg-primary/5">
+      <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-primary/10 p-2">
+            <Clock className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-xl font-bold tabular-nums tracking-tight">
+              {formatElapsedClock(elapsedSeconds)}
+            </p>
+            <p className="text-xs text-muted-foreground">{platform.workout.elapsed}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-medium">
+            {platform.workout.estTotal(formatWorkoutDurationShort(estimatedSeconds))}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {platform.workout.timeRemaining(formatWorkoutDurationShort(remainingSeconds))}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function WorkoutFinishSummary({
+  startedAt,
+  exercises,
+  session,
+}: {
+  startedAt: string;
+  exercises: WorkoutSessionExercise[];
+  session: WorkoutSession;
+}) {
+  const platform = usePlatformCopy();
+  const elapsedSeconds = useElapsedSeconds(startedAt);
+  const estimatedSeconds = estimateWorkoutDurationSeconds(exercises);
+  const { exerciseCount, totalSets, loggedSets } = getWorkoutSetStats(exercises);
+
+  return (
+    <div className="rounded-lg border border-border/60 bg-background/60 p-4">
+      <p className="text-sm font-semibold">{platform.workout.finishSummaryTitle}</p>
+      <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-muted-foreground">{platform.workout.elapsed}</dt>
+          <dd className="font-medium tabular-nums">
+            {formatElapsedClock(elapsedSeconds)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">{platform.workout.estimatedTime}</dt>
+          <dd className="font-medium">
+            {formatWorkoutDurationShort(estimatedSeconds)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">{platform.workout.exercisesTile}</dt>
+          <dd className="font-medium">{platform.common.exercises(exerciseCount)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">{platform.workout.set}</dt>
+          <dd className="font-medium">
+            {platform.workout.setsLogged(loggedSets, totalSets)}
+          </dd>
+        </div>
+        {session.plan_title && (
+          <div className="sm:col-span-2">
+            <dt className="text-muted-foreground">{platform.workout.flowProgram}</dt>
+            <dd className="font-medium">
+              {session.plan_title}
+              {session.day_title ? ` · ${session.day_title}` : ""}
+            </dd>
+          </div>
+        )}
+      </dl>
+    </div>
+  );
 }
 
 function SessionExerciseCard({
@@ -266,44 +384,46 @@ export function ActiveWorkoutClient({
             {platform.common.back}
           </Button>
         </Link>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              {platform.workout.stillInGym}
-            </p>
-            <h1 className="text-2xl font-black">
-              {session.day_title ?? platform.workout.fallbackTitle}
-            </h1>
-            {session.plan_title && (
-              <p className="text-sm text-muted-foreground">{session.plan_title}</p>
-            )}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isPending || isGivingUp}
-            onClick={handleCancel}
-          >
-            <Trash2 className="mr-1 h-3.5 w-3.5" />
-            {coachLabels.bailOnWorkout}
-          </Button>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+            {platform.workout.stillInGym}
+          </p>
+          <h1 className="text-2xl font-black">
+            {session.day_title ?? platform.workout.fallbackTitle}
+          </h1>
+          {session.plan_title && (
+            <p className="text-sm text-muted-foreground">{session.plan_title}</p>
+          )}
         </div>
       </div>
+
+      <WorkoutTimerCard startedAt={session.started_at} exercises={initialExercises} />
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="space-y-4">
-        {initialExercises.map((exercise) => {
-          const historyKey = exercise.exercise_id ?? exercise.name;
-          return (
-            <SessionExerciseCard
-              key={exercise.id}
-              exercise={exercise}
-              history={histories[historyKey] ?? null}
-              onUpdate={refresh}
-            />
-          );
-        })}
+        {initialExercises.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="space-y-1 p-6 text-center">
+              <p className="font-medium">{platform.workout.noExercisesTitle}</p>
+              <p className="text-sm text-muted-foreground">
+                {platform.workout.noExercisesHint}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          initialExercises.map((exercise) => {
+            const historyKey = exercise.exercise_id ?? exercise.name;
+            return (
+              <SessionExerciseCard
+                key={exercise.id}
+                exercise={exercise}
+                history={histories[historyKey] ?? null}
+                onUpdate={refresh}
+              />
+            );
+          })
+        )}
       </div>
 
       {showAddExercise ? (
@@ -357,6 +477,11 @@ export function ActiveWorkoutClient({
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
+              <WorkoutFinishSummary
+                startedAt={session.started_at}
+                exercises={initialExercises}
+                session={session}
+              />
               <div className="space-y-1">
                 <Label htmlFor="session-note">{platform.workout.noteOptional}</Label>
                 <Textarea
@@ -412,6 +537,17 @@ export function ActiveWorkoutClient({
           </Button>
         )}
       </div>
+
+      <Button
+        variant="outline"
+        className="w-full text-muted-foreground"
+        disabled={isPending || isGivingUp}
+        onClick={handleCancel}
+      >
+        <Trash2 className="mr-2 h-4 w-4" />
+        {coachLabels.bailOnWorkout}
+      </Button>
+
       {giveUpDialog}
     </div>
   );

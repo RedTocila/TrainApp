@@ -7,6 +7,7 @@ import { SubscriptionBanner } from "@/components/subscription-banner";
 import { DateProvider } from "@/components/date-provider";
 import { DashboardSyncProvider } from "@/components/dashboard-sync";
 import { FullCalendarProvider } from "@/components/full-calendar-provider";
+import { DashboardMainReset } from "@/components/dashboard-main-reset";
 import { TrainSectionShell } from "@/components/train-section-shell";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
@@ -23,12 +24,13 @@ export default async function DashboardLayout({
   return (
     <LocaleProvider locale={locale}>
       <PendingIntakeSync intakeComplete={intakeComplete} />
+      <DashboardMainReset />
       <DateProvider>
         <DashboardSyncProvider>
         <FullCalendarProvider>
-          <div className="dashboard-shell flex min-h-0 overflow-hidden">
+          <div className="dashboard-shell flex min-h-0 overflow-hidden bg-background">
             <ClientNav fullName={profile.full_name} />
-            <main className="dashboard-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0 pb-[var(--dashboard-mobile-nav-height,4.25rem)] pt-0 [-webkit-overflow-scrolling:touch] lg:px-0 lg:pb-0">
+            <main className="dashboard-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background px-0 pb-[var(--dashboard-mobile-nav-height,4.25rem)] pt-0 [-webkit-overflow-scrolling:touch] lg:px-0 lg:pb-0">
               <DashboardMobileHeader />
               <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
                 <SubscriptionBanner profile={profile} />

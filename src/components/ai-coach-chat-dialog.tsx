@@ -33,21 +33,10 @@ export function AiCoachChatDialog() {
     if (!isOpen) return;
 
     const main = document.querySelector<HTMLElement>(".dashboard-main");
-    const scrollY = main?.scrollTop ?? 0;
-    const prevMainStyles = main
-      ? {
-          overflow: main.style.overflow,
-          position: main.style.position,
-          top: main.style.top,
-          width: main.style.width,
-        }
-      : null;
+    const prevOverflow = main?.style.overflow ?? "";
 
     if (main) {
       main.style.overflow = "hidden";
-      main.style.position = "fixed";
-      main.style.top = `-${scrollY}px`;
-      main.style.width = "100%";
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -60,12 +49,8 @@ export function AiCoachChatDialog() {
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      if (main && prevMainStyles) {
-        main.style.overflow = prevMainStyles.overflow;
-        main.style.position = prevMainStyles.position;
-        main.style.top = prevMainStyles.top;
-        main.style.width = prevMainStyles.width;
-        main.scrollTop = scrollY;
+      if (main) {
+        main.style.overflow = prevOverflow;
       }
     };
   }, [isOpen, closeChat, readMeOpen, closeReadMe, hasAcknowledgedReadMe]);

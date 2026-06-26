@@ -324,6 +324,7 @@ export interface WorkoutSessionExercise {
   target_reps: string;
   order_index: number;
   notes: string | null;
+  rest_seconds?: number | null;
   video_url?: string | null;
   sets?: WorkoutSessionSet[];
 }
