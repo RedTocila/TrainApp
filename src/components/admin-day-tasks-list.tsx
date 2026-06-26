@@ -28,14 +28,16 @@ const CATEGORY_ICONS: Record<TaskCategory, LucideIcon> = {
 
 function AdminTaskRow({ task }: { task: DailyTask }) {
   const Icon = CATEGORY_ICONS[task.category];
-  const isMissed = task.missed && !task.completed;
-  const isInProgress = !task.completed && !isMissed;
+  const isExceeded = task.exceeded && !task.completed;
+  const isMissed = task.missed && !task.completed && !isExceeded;
+  const isInProgress = !task.completed && !isMissed && !isExceeded;
 
   return (
     <li
       className={cn(
         "flex items-center gap-2.5 rounded-xl border border-border bg-secondary/40 px-3 py-2.5",
         task.completed && "border-green-500/30 bg-green-500/5",
+        isExceeded && "border-orange-500/30 bg-orange-500/5",
         isMissed && "border-red-500/30 bg-red-500/5",
         isInProgress && "border-primary/20"
       )}
@@ -45,9 +47,11 @@ function AdminTaskRow({ task }: { task: DailyTask }) {
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
           task.completed
             ? "bg-green-500/15 text-green-400"
-            : isMissed
-              ? "bg-red-500/15 text-red-400"
-              : "bg-primary/10 text-primary"
+            : isExceeded
+              ? "bg-orange-500/15 text-orange-400"
+              : isMissed
+                ? "bg-red-500/15 text-red-400"
+                : "bg-primary/10 text-primary"
         )}
       >
         <Icon className="h-4 w-4" />
@@ -58,6 +62,7 @@ function AdminTaskRow({ task }: { task: DailyTask }) {
             className={cn(
               "text-sm font-medium",
               task.completed && "text-green-400",
+              isExceeded && "text-orange-400",
               isMissed && "text-red-400"
             )}
           >
@@ -66,6 +71,11 @@ function AdminTaskRow({ task }: { task: DailyTask }) {
           {task.completed && (
             <span className="rounded bg-green-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-green-400">
               Done
+            </span>
+          )}
+          {isExceeded && (
+            <span className="rounded bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-orange-400">
+              Too much
             </span>
           )}
           {isMissed && (

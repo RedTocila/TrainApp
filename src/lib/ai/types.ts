@@ -57,6 +57,14 @@ export interface MacroGap {
   protein: number;
   carbs: number;
   fat: number;
+  /** Amount above the upper tolerance band per macro (0 when within band). */
+  surplus: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  overTolerance: boolean;
   consumed: {
     calories: number;
     protein: number;

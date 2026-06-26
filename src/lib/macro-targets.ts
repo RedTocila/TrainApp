@@ -53,11 +53,102 @@ export function dailyMacrosWithinTarget(
   });
 }
 
+/** True when a macro is above its upper tolerance (can't be fixed by eating more today). */
+export function macroExceededDailyUpperLimit(
+  actual: number,
+  target: number,
+  key: keyof MealMacros
+): boolean {
+  if (target <= 0) return false;
+  const { max } = macroToleranceBand(target, key);
+  return actual > max;
+}
+
+/** True when any macro is above its upper tolerance band. */
+export function dailyMacrosExceededUpperLimit(
+  current: MealMacros,
+  targets: MacroTargets
+): boolean {
+  return listExceededMacroKeys(current, targets).length > 0;
+}
+
+/** Macro keys currently above the upper tolerance band. */
+export function listExceededMacroKeys(
+  current: MealMacros,
+  targets: MacroTargets
+): (keyof MealMacros)[] {
+  return MACRO_KEYS.filter((key) => {
+    const target = targets[key];
+    if (target <= 0) return false;
+    return macroExceededDailyUpperLimit(current[key], target, key);
+  });
+}
+
+const MACRO_KEY_LABELS: Record<keyof MealMacros, string> = {
+  calories: "calories",
+  protein: "protein",
+  carbs: "carbs",
+  fat: "fat",
+};
+
+/** Amount a macro is above its upper tolerance (0 when within band). */
+export function macroSurplusOverTolerance(
+  actual: number,
+  target: number,
+  key: keyof MealMacros
+): number {
+  if (target <= 0) return 0;
+  const { max } = macroToleranceBand(target, key);
+  return Math.max(0, Math.round(actual - max));
+}
+
+export function dailyMacroSurplus(
+  current: MealMacros,
+  targets: MacroTargets
+): MealMacros {
+  return {
+    calories: macroSurplusOverTolerance(current.calories, targets.calories, "calories"),
+    protein: macroSurplusOverTolerance(current.protein, targets.protein, "protein"),
+    carbs: macroSurplusOverTolerance(current.carbs, targets.carbs, "carbs"),
+    fat: macroSurplusOverTolerance(current.fat, targets.fat, "fat"),
+  };
+}
+
+export function formatExceededMacroSummary(
+  current: MealMacros,
+  targets: MacroTargets
+): string {
+  const keys = listExceededMacroKeys(current, targets);
+  if (keys.length === 0) return "";
+
+  const parts = keys.map((key) => {
+    const surplus = macroSurplusOverTolerance(current[key], targets[key], key);
+    const label = MACRO_KEY_LABELS[key];
+    const unit = key === "calories" ? " kcal" : "g";
+    return `+${surplus}${unit} ${label}`;
+  });
+
+  return parts.join(" · ");
+}
+
+export function macroExceededAttentionMessage(
+  current: MealMacros,
+  targets: MacroTargets
+): string | null {
+  const keys = listExceededMacroKeys(current, targets);
+  if (keys.length === 0) return null;
+
+  const summary = formatExceededMacroSummary(current, targets);
+  return `You went over your macro limit (${summary}). Eat lighter portions tomorrow and review today's meals.`;
+}
+
 export function formatMacroProgressLine(
   current: MealMacros,
   targets: MacroTargets
 ): string {
   const met = dailyMacrosWithinTarget(current, targets);
-  const prefix = met ? "✓ " : "";
-  return `${prefix}${current.calories}/${targets.calories} cal · P ${current.protein}/${targets.protein}g · C ${current.carbs}/${targets.carbs}g · F ${current.fat}/${targets.fat}g`;
+  const exceeded = dailyMacrosExceededUpperLimit(current, targets);
+  const prefix = met ? "✓ " : exceeded ? "↑ " : "";
+  const suffix = exceeded ? ` · over limit (${formatExceededMacroSummary(current, targets)})` : "";
+  return `${prefix}${current.calories}/${targets.calories} cal · P ${current.protein}/${targets.protein}g · C ${current.carbs}/${targets.carbs}g · F ${current.fat}/${targets.fat}g${suffix}`;
 }

@@ -6,8 +6,10 @@ import { Flame, RefreshCw, Salad, Sparkles, Utensils } from "lucide-react";
 import { getMealSuggestionsAction } from "@/lib/actions/ai-coach";
 import type { MacroGap, MealSuggestion } from "@/lib/ai/types";
 import { MacroRing } from "@/components/macro-ring";
+import { macroExceededDailyUpperLimit } from "@/lib/macro-targets";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export function MealSuggestionsClient({
   dateKey,
@@ -42,7 +44,7 @@ export function MealSuggestionsClient({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              <p className="font-bold">Remaining today</p>
+              <p className="font-bold">{gap.overTolerance ? "Over limit today" : "Remaining today"}</p>
             </div>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={refresh} disabled={isPending}>
               <RefreshCw className={`h-4 w-4 ${isPending ? "animate-spin" : ""}`} />
@@ -58,6 +60,11 @@ export function MealSuggestionsClient({
               icon={Flame}
               accentClass="text-orange-400"
               ringClass="text-orange-400"
+              exceededTolerance={macroExceededDailyUpperLimit(
+                gap.consumed.calories,
+                gap.targets.calories,
+                "calories"
+              )}
             />
             <MacroRing
               size="sm"
@@ -67,6 +74,11 @@ export function MealSuggestionsClient({
               icon={Utensils}
               accentClass="text-blue-400"
               ringClass="text-blue-400"
+              exceededTolerance={macroExceededDailyUpperLimit(
+                gap.consumed.protein,
+                gap.targets.protein,
+                "protein"
+              )}
             />
             <MacroRing
               size="sm"
@@ -76,6 +88,11 @@ export function MealSuggestionsClient({
               icon={Salad}
               accentClass="text-amber-400"
               ringClass="text-amber-400"
+              exceededTolerance={macroExceededDailyUpperLimit(
+                gap.consumed.carbs,
+                gap.targets.carbs,
+                "carbs"
+              )}
             />
             <MacroRing
               size="sm"
@@ -85,10 +102,22 @@ export function MealSuggestionsClient({
               icon={Flame}
               accentClass="text-rose-400"
               ringClass="text-rose-400"
+              exceededTolerance={macroExceededDailyUpperLimit(
+                gap.consumed.fat,
+                gap.targets.fat,
+                "fat"
+              )}
             />
           </div>
 
-          <p className="rounded-lg bg-primary/5 px-3 py-2 text-center text-sm font-medium">{headline}</p>
+          <p
+            className={cn(
+              "rounded-lg px-3 py-2 text-center text-sm font-medium",
+              gap.overTolerance ? "bg-orange-500/10 text-orange-300" : "bg-primary/5"
+            )}
+          >
+            {headline}
+          </p>
         </CardContent>
       </Card>
 

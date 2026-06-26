@@ -18,12 +18,16 @@ export function MissedButton({
   items,
   hint,
   className,
+  tone = "missed",
+  buttonLabel,
 }: {
   count: number;
   title: string;
   items: MissedItem[];
   hint?: string;
   className?: string;
+  tone?: "missed" | "warning";
+  buttonLabel?: string;
 }) {
   const platform = usePlatformCopy();
   const [open, setOpen] = useState(false);
@@ -35,17 +39,21 @@ export function MissedButton({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "max-w-full shrink-0 rounded-md border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase leading-snug tracking-wide text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/20",
+          "max-w-full shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase leading-snug tracking-wide transition-colors",
+          tone === "warning"
+            ? "border-orange-500/40 bg-orange-500/10 text-orange-400 hover:border-orange-500/60 hover:bg-orange-500/20"
+            : "border-red-500/40 bg-red-500/10 text-red-400 hover:border-red-500/60 hover:bg-red-500/20",
           className
         )}
       >
-        {platform.common.skipped(count)}
+        {buttonLabel ?? platform.common.skipped(count)}
       </button>
       <MissedItemsDialog
         open={open}
         title={title}
         items={items}
         hint={hint}
+        tone={tone}
         onClose={() => setOpen(false)}
       />
     </>
@@ -57,12 +65,14 @@ export function MissedItemsDialog({
   title,
   items,
   hint,
+  tone = "missed",
   onClose,
 }: {
   open: boolean;
   title: string;
   items: MissedItem[];
   hint?: string;
+  tone?: "missed" | "warning";
   onClose: () => void;
 }) {
   const coachLabels = useCoachLabels();
@@ -98,7 +108,14 @@ export function MissedItemsDialog({
       >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-lg font-black text-red-400">{title}</h2>
+            <h2
+              className={cn(
+                "text-lg font-black",
+                tone === "warning" ? "text-orange-400" : "text-red-400"
+              )}
+            >
+              {title}
+            </h2>
             {hint && <p className="mt-1 text-sm text-muted-foreground">{hint}</p>}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label={platform.aria.close}>
@@ -116,9 +133,21 @@ export function MissedItemsDialog({
               {items.map((item) => (
                 <li
                   key={item.id}
-                  className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2.5"
+                  className={cn(
+                    "rounded-lg border px-3 py-2.5",
+                    tone === "warning"
+                      ? "border-orange-500/30 bg-orange-500/5"
+                      : "border-red-500/30 bg-red-500/5"
+                  )}
                 >
-                  <p className="text-sm font-medium text-red-400">{item.label}</p>
+                  <p
+                    className={cn(
+                      "text-sm font-medium",
+                      tone === "warning" ? "text-orange-400" : "text-red-400"
+                    )}
+                  >
+                    {item.label}
+                  </p>
                   {item.detail && (
                     <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
                   )}

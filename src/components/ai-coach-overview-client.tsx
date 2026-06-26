@@ -19,6 +19,7 @@ import {
   Utensils,
 } from "lucide-react";
 import { MacroRing } from "@/components/macro-ring";
+import { macroExceededDailyUpperLimit } from "@/lib/macro-targets";
 import { ScoreGauge } from "@/components/ai/score-gauge";
 import { AiFeatureTile, FlowStep } from "@/components/ai/feature-tile";
 import { buttonVariants } from "@/components/ui/button";
@@ -112,6 +113,11 @@ export function AiCoachOverviewClient({
                 icon={Flame}
                 accentClass="text-orange-400"
                 ringClass="text-orange-400"
+                exceededTolerance={macroExceededDailyUpperLimit(
+                  gap.consumed.calories,
+                  gap.targets.calories,
+                  "calories"
+                )}
               />
               <MacroRing
                 size="sm"
@@ -121,6 +127,11 @@ export function AiCoachOverviewClient({
                 icon={Utensils}
                 accentClass="text-blue-400"
                 ringClass="text-blue-400"
+                exceededTolerance={macroExceededDailyUpperLimit(
+                  gap.consumed.protein,
+                  gap.targets.protein,
+                  "protein"
+                )}
               />
               <MacroRing
                 size="sm"
@@ -130,6 +141,11 @@ export function AiCoachOverviewClient({
                 icon={Salad}
                 accentClass="text-amber-400"
                 ringClass="text-amber-400"
+                exceededTolerance={macroExceededDailyUpperLimit(
+                  gap.consumed.carbs,
+                  gap.targets.carbs,
+                  "carbs"
+                )}
               />
               <MacroRing
                 size="sm"
@@ -139,6 +155,11 @@ export function AiCoachOverviewClient({
                 icon={Flame}
                 accentClass="text-rose-400"
                 ringClass="text-rose-400"
+                exceededTolerance={macroExceededDailyUpperLimit(
+                  gap.consumed.fat,
+                  gap.targets.fat,
+                  "fat"
+                )}
               />
             </div>
           ) : (

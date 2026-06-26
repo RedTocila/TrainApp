@@ -2,6 +2,7 @@ import type { DailyTask } from "@/lib/daily-tasks";
 import type { DailyMealLog } from "@/lib/types";
 import { sumMealMacros } from "@/lib/meal-utils";
 import {
+  dailyMacrosExceededUpperLimit,
   dailyMacrosWithinTarget,
   formatMacroProgressLine,
 } from "@/lib/macro-targets";
@@ -74,14 +75,19 @@ export function enrichDailyTasks(
       const meals = ctx.dailyMeals ?? [];
       const current = sumMealMacros(meals);
       const met = dailyMacrosWithinTarget(current, ctx.macroTargets);
+      const exceeded = dailyMacrosExceededUpperLimit(current, ctx.macroTargets);
       const deadlinePassed = isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
 
       return {
         ...task,
-        label: "Hit daily macros",
+        label: exceeded ? "Daily macros over limit" : "Hit daily macros",
         detail: formatMacroProgressLine(current, ctx.macroTargets),
         completed: met || task.completed,
-        missed: met || task.completed ? false : deadlinePassed,
+        exceeded: exceeded && !met && !task.completed,
+        missed:
+          met || task.completed || exceeded
+            ? false
+            : deadlinePassed || task.missed,
       };
     }
 
@@ -90,9 +96,10 @@ export function enrichDailyTasks(
 
   if (!isDayEnded(ctx.dateKey, now)) return enriched;
 
-  return enriched.map((task) =>
-    task.completed ? task : { ...task, missed: true }
-  );
+  return enriched.map((task) => {
+    if (task.completed || task.exceeded) return task;
+    return { ...task, missed: true };
+  });
 }
 
 /** @deprecated Use enrichDailyTasks */

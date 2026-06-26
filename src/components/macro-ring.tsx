@@ -16,6 +16,7 @@ export function MacroRing({
   onClick,
   showRemaining = true,
   unit,
+  exceededTolerance = false,
 }: {
   value: number;
   target: number;
@@ -30,11 +31,14 @@ export function MacroRing({
   showRemaining?: boolean;
   /** Shown inline next to the amount (e.g. ml, kg) */
   unit?: string;
+  /** Over target and past the daily recovery band — show as failed, not in progress */
+  exceededTolerance?: boolean;
 }) {
   const reduce = useReducedMotion();
   const consumed = target > 0 ? Math.min(value / target, 1) : 0;
   const remaining = Math.max(0, target - value);
   const over = target > 0 && value > target;
+  const failedOver = over && exceededTolerance;
 
   const dims = {
     sm: { box: "h-[4.5rem] w-[4.5rem]", r: 36, stroke: 5, icon: "h-4 w-4", value: "text-base" },
@@ -90,7 +94,10 @@ export function MacroRing({
             stroke="currentColor"
             strokeWidth={dims.stroke}
             strokeLinecap="round"
-            className={cn(ringClass, over && "text-amber-500")}
+            className={cn(
+              ringClass,
+              failedOver ? "text-red-500" : over && "text-amber-500"
+            )}
             strokeDasharray={circumference}
             initial={reduce ? false : { strokeDashoffset: circumference }}
             animate={{ strokeDashoffset: offset }}
@@ -109,7 +116,7 @@ export function MacroRing({
         </div>
       </div>
       <div className="min-w-0 space-y-0.5">
-        <p className={cn("font-black leading-none tracking-tight", dims.value, over && "text-amber-400")}>
+        <p className={cn("font-black leading-none tracking-tight", dims.value, failedOver ? "text-red-400" : over && "text-amber-400")}>
           {displayAmount}
           {displaySuffix && (
             <span className="text-[10px] font-semibold text-muted-foreground">

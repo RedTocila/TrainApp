@@ -182,6 +182,10 @@ export const coachLabelsEn = {
   faceTheRoast: "Face the roast",
   getBackInThere: "Get back in there",
   actuallyFinish: "Actually finish it",
+  exceeded: "Too much",
+  exceededTasks: "Macros you went over",
+  macrosExceededHint:
+    "Tomorrow: smaller portions and lighter meals — check today's logs and trim where you overshot.",
   missed: "Skipped",
   missedWorkout: "Workout you dodged",
   missedTasks: "Tasks you bailed on",

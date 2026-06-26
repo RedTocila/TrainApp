@@ -63,8 +63,9 @@ export function TaskRow({ task }: { task: DailyTask }) {
   const taskCategoryLabels = getTaskCategoryLabels(locale);
   const navigate = useTaskNavigation();
   const Icon = CATEGORY_ICONS[task.category];
-  const isMissed = task.missed && !task.completed;
-  const isInProgress = !task.completed && !isMissed;
+  const isExceeded = task.exceeded && !task.completed;
+  const isMissed = task.missed && !task.completed && !isExceeded;
+  const isInProgress = !task.completed && !isMissed && !isExceeded;
 
   return (
     <li>
@@ -74,6 +75,7 @@ export function TaskRow({ task }: { task: DailyTask }) {
         className={cn(
           "relative flex w-full touch-manipulation select-none items-center gap-2.5 rounded-2xl border border-border bg-secondary/40 px-2.5 py-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] active:opacity-90 sm:items-start sm:gap-3 sm:px-3 sm:py-2.5",
           task.completed && "border-green-500/30 bg-green-500/5 [@media(hover:hover)]:hover:border-green-500/40",
+          isExceeded && "border-orange-500/30 bg-orange-500/5 [@media(hover:hover)]:hover:border-orange-500/40",
           isMissed && "border-red-500/30 bg-red-500/5 [@media(hover:hover)]:hover:border-red-500/40",
           isInProgress && "border-primary/20 [@media(hover:hover)]:hover:border-primary/40 [@media(hover:hover)]:hover:bg-secondary/70"
         )}
@@ -83,9 +85,11 @@ export function TaskRow({ task }: { task: DailyTask }) {
             "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:mt-0.5 sm:h-10 sm:w-10",
             task.completed
               ? "bg-green-500/15 text-green-400"
-              : isMissed
-                ? "bg-red-500/15 text-red-400"
-                : "bg-primary/10 text-primary"
+              : isExceeded
+                ? "bg-orange-500/15 text-orange-400"
+                : isMissed
+                  ? "bg-red-500/15 text-red-400"
+                  : "bg-primary/10 text-primary"
           )}
         >
           <Icon className="h-4 w-4" />
@@ -94,13 +98,17 @@ export function TaskRow({ task }: { task: DailyTask }) {
               "absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background",
               task.completed
                 ? "bg-green-500 text-white"
-                : isMissed
-                  ? "bg-red-500 text-white"
-                  : "bg-secondary text-primary"
+                : isExceeded
+                  ? "bg-orange-500 text-white"
+                  : isMissed
+                    ? "bg-red-500 text-white"
+                    : "bg-secondary text-primary"
             )}
           >
             {task.completed ? (
               <Check className="h-2.5 w-2.5" />
+            ) : isExceeded ? (
+              <span className="text-[10px] font-black leading-none">+</span>
             ) : isMissed ? (
               <X className="h-2.5 w-2.5" />
             ) : (
@@ -114,6 +122,7 @@ export function TaskRow({ task }: { task: DailyTask }) {
               className={cn(
                 "text-sm font-medium leading-tight",
                 task.completed && "text-green-400",
+                isExceeded && "text-orange-400",
                 isMissed && "text-red-400"
               )}
             >
@@ -127,6 +136,11 @@ export function TaskRow({ task }: { task: DailyTask }) {
             {isInProgress && (
               <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-400 sm:text-[10px]">
                 {platform.common.inProgress}
+              </span>
+            )}
+            {isExceeded && (
+              <span className="rounded bg-orange-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-orange-400 sm:text-[10px]">
+                {coachLabels.exceeded}
               </span>
             )}
             {isMissed && (
@@ -159,15 +173,16 @@ export function groupTasksByStatus(tasks: DailyTask[]) {
   return {
     active: tasks.filter((t) => !t.completed),
     completed: tasks.filter((t) => t.completed),
-    missed: tasks.filter((t) => t.missed && !t.completed),
-    inProgress: tasks.filter((t) => !t.completed && !t.missed),
+    exceeded: tasks.filter((t) => t.exceeded && !t.completed),
+    missed: tasks.filter((t) => t.missed && !t.completed && !t.exceeded),
+    inProgress: tasks.filter((t) => !t.completed && !t.missed && !t.exceeded),
   };
 }
 
 export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
-  const { inProgress, missed, completed } = groupTasksByStatus(tasks);
+  const { inProgress, exceeded, missed, completed } = groupTasksByStatus(tasks);
 
   if (tasks.length === 0) {
     return (
@@ -184,6 +199,18 @@ export function DayTasksList({ tasks }: { tasks: DailyTask[] }) {
           </h3>
           <ul className="space-y-2">
             {inProgress.map((task) => (
+              <TaskRow key={task.id} task={task} />
+            ))}
+          </ul>
+        </section>
+      )}
+      {exceeded.length > 0 && (
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-orange-400">
+            {coachLabels.exceeded}
+          </h3>
+          <ul className="space-y-2">
+            {exceeded.map((task) => (
               <TaskRow key={task.id} task={task} />
             ))}
           </ul>

@@ -9,7 +9,13 @@ import { addWater } from "@/lib/actions/logs";
 import { deleteDailyMealLog } from "@/lib/actions/daily-meals";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import { sumMealMacros, mealFormFromMeal } from "@/lib/meal-utils";
-import { dailyMacrosWithinTarget } from "@/lib/macro-targets";
+import {
+  dailyMacrosExceededUpperLimit,
+  dailyMacrosWithinTarget,
+  formatExceededMacroSummary,
+  macroExceededAttentionMessage,
+  macroExceededDailyUpperLimit,
+} from "@/lib/macro-targets";
 import type { MealFormData } from "@/lib/meal-utils";
 import type { MacroTargets } from "@/lib/meal-score";
 import { NutritionStatsPanel } from "@/components/nutrition-stats-panel";
@@ -134,7 +140,9 @@ export function DailyTracker({
     localWaterMl < waterGoalMl && isDeadlinePassed(WATER_DEADLINE, dateKey);
   const waterCompleted = localWaterMl >= waterGoalMl;
   const macrosMet = dailyMacrosWithinTarget(current, targets);
-  const nutritionCompleted = macrosMet && waterCompleted;
+  const macrosExceeded = dailyMacrosExceededUpperLimit(current, targets);
+  const macrosExceededMessage = macroExceededAttentionMessage(current, targets);
+  const nutritionCompleted = macrosMet && waterCompleted && !macrosExceeded;
 
   const nutritionTitle = isToday(date) ? platform.dashboard.nutrition : format(date, "MMM d");
   const mealPlanDialogTitle = isToday(date)
@@ -199,6 +207,24 @@ export function DailyTracker({
               <Apple className="h-5 w-5 text-primary" />
               {nutritionTitle}
               {nutritionCompleted && <SectionCompletedBadge />}
+              <MissedButton
+                count={macrosExceeded ? 1 : 0}
+                title={coachLabels.exceededTasks}
+                hint={coachLabels.macrosExceededHint}
+                buttonLabel={coachLabels.exceeded}
+                tone="warning"
+                items={
+                  macrosExceeded
+                    ? [
+                        {
+                          id: "macros-over",
+                          label: "Daily macros over limit",
+                          detail: formatExceededMacroSummary(current, targets),
+                        },
+                      ]
+                    : []
+                }
+              />
               <MissedButton
                 count={waterMissed ? 1 : 0}
                 title={coachLabels.hydrationFail}
@@ -269,6 +295,12 @@ export function DailyTracker({
             waterGoalMl={waterGoalMl}
             onAddWater={handleAddWater}
           />
+
+          {macrosExceeded && macrosExceededMessage && (
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm font-medium text-orange-300">
+              {macrosExceededMessage}
+            </div>
+          )}
 
           {waterCompleted && (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm font-medium text-green-400">

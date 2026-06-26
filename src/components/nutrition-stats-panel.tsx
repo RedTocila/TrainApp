@@ -2,14 +2,11 @@
 
 import { Beef, Egg, Flame, GlassWater, Wheat } from "lucide-react";
 import { MacroRing } from "@/components/macro-ring";
+import { macroExceededDailyUpperLimit, macroExceededAttentionMessage } from "@/lib/macro-targets";
+import type { MealMacros } from "@/lib/meal-utils";
 import { cn } from "@/lib/utils";
 
-type MacroTotals = {
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-};
+type MacroTotals = MealMacros;
 
 export function NutritionStatsPanel({
   current,
@@ -29,9 +26,20 @@ export function NutritionStatsPanel({
   const calorieProgress =
     targets.calories > 0 ? Math.min(caloriesConsumed / targets.calories, 1) : 0;
   const caloriesOver = targets.calories > 0 && current.calories > targets.calories;
+  const caloriesUnrecoverable = macroExceededDailyUpperLimit(
+    current.calories,
+    targets.calories,
+    "calories"
+  );
+  const macrosExceededMessage = macroExceededAttentionMessage(current, targets);
 
   return (
     <div className="space-y-4">
+      {macrosExceededMessage && (
+        <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm font-medium text-orange-300">
+          {macrosExceededMessage}
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-secondary/30 p-4 sm:p-5">
         <div className="min-w-0 space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -40,13 +48,19 @@ export function NutritionStatsPanel({
           <p
             className={cn(
               "text-4xl font-black tracking-tight sm:text-5xl",
-              caloriesOver && "text-amber-400"
+              caloriesUnrecoverable
+                ? "text-red-400"
+                : caloriesOver && "text-amber-400"
             )}
           >
             {caloriesOver ? current.calories - targets.calories : caloriesLeft}
           </p>
           <p className="text-sm text-muted-foreground">
-            {caloriesOver ? "kcal over goal" : "Calories left"}
+            {caloriesUnrecoverable
+              ? "kcal over limit"
+              : caloriesOver
+                ? "kcal over goal"
+                : "Calories left"}
             {!caloriesOver && (
               <span className="text-muted-foreground/70">
                 {" "}
@@ -74,7 +88,13 @@ export function NutritionStatsPanel({
               stroke="currentColor"
               strokeWidth="6"
               strokeLinecap="round"
-              className={cn(caloriesOver ? "text-amber-500" : "text-primary")}
+              className={cn(
+                caloriesUnrecoverable
+                  ? "text-red-500"
+                  : caloriesOver
+                    ? "text-amber-500"
+                    : "text-primary"
+              )}
               strokeDasharray={2 * Math.PI * 42}
               strokeDashoffset={2 * Math.PI * 42 * (1 - calorieProgress)}
               style={{ transition: "stroke-dashoffset 0.45s ease-out" }}
@@ -98,6 +118,11 @@ export function NutritionStatsPanel({
             icon={Beef}
             accentClass="text-red-400"
             ringClass="text-red-500"
+            exceededTolerance={macroExceededDailyUpperLimit(
+              current.protein,
+              targets.protein,
+              "protein"
+            )}
           />
         </div>
         <div className="rounded-2xl border border-border bg-card/80 p-3 sm:p-4">
@@ -109,6 +134,11 @@ export function NutritionStatsPanel({
             icon={Wheat}
             accentClass="text-amber-400"
             ringClass="text-amber-500"
+            exceededTolerance={macroExceededDailyUpperLimit(
+              current.carbs,
+              targets.carbs,
+              "carbs"
+            )}
           />
         </div>
         <div className="rounded-2xl border border-border bg-card/80 p-3 sm:p-4">
@@ -120,6 +150,11 @@ export function NutritionStatsPanel({
             icon={Egg}
             accentClass="text-sky-400"
             ringClass="text-sky-500"
+            exceededTolerance={macroExceededDailyUpperLimit(
+              current.fat,
+              targets.fat,
+              "fat"
+            )}
           />
         </div>
         <div className="flex flex-col items-center rounded-2xl border border-border bg-card/80 p-3 sm:p-4">

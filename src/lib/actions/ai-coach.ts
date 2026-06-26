@@ -12,6 +12,7 @@ import { computeProgressPrediction } from "@/lib/ai/progress-prediction";
 import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
 import type { MacroGap, MealSuggestion, WeeklyCoachReport } from "@/lib/ai/types";
+import { formatExceededMacroSummary } from "@/lib/macro-targets";
 import { formatDateKey } from "@/lib/utils";
 
 async function requireAiCoachAccess(): Promise<
@@ -125,13 +126,20 @@ Respond with ONLY JSON:
     if (ctx.daysTracked >= 5) highlights.push("Good nutrition tracking habit.");
   }
   if (concerns.length === 0) {
+    if (ctx.macroGap.overTolerance) {
+      concerns.push("Daily macros exceeded your tolerance band — portions were too high.");
+    }
     if (ctx.avgProtein < ctx.targets.protein * 0.8) {
       concerns.push("Protein intake averaged below target — muscle recovery may suffer.");
     }
     if (ctx.workoutsCompleted < 2) concerns.push("Few workouts completed — training stimulus was low.");
   }
   if (recommendations.length === 0) {
-    if (ctx.macroGap.protein > 20) {
+    if (ctx.macroGap.overTolerance) {
+      recommendations.push(
+        "You exceeded your macro ceiling — review today's meals and plan smaller portions tomorrow."
+      );
+    } else if (ctx.macroGap.protein > 20) {
       recommendations.push("Add a high-protein snack daily (Greek yogurt, chicken, or shake).");
     }
     recommendations.push("Schedule workouts at the same time each day to build consistency.");
@@ -218,12 +226,15 @@ export async function getDashboardAiInsight(dateKey: string) {
   const gap = ctx.macroGap;
 
   let message = "You're on track with nutrition today.";
-  if (gap.protein > 25) {
+  if (gap.overTolerance) {
+    const summary = formatExceededMacroSummary(gap.consumed, gap.targets);
+    message = `You went over your macro limit today (${summary}). Don't add more food — review today's meals and eat lighter tomorrow.`;
+  } else if (gap.protein > 25) {
     message = `You need about ${Math.round(gap.protein)}g more protein today. Try chicken, Greek yogurt, tuna, or protein oats.`;
   } else if (gap.calories > 400) {
     message = `~${Math.round(gap.calories)} calories left — plan a balanced meal with lean protein.`;
-  } else if (gap.calories <= 0) {
-    message = "Calorie target reached. Focus on protein and whole foods if still hungry.";
+  } else if (gap.calories <= 0 && gap.protein <= 10) {
+    message = "You're within your macro range today. Keep portions steady if you're still hungry.";
   }
 
   return {

@@ -3,6 +3,35 @@ import { getBodyWeightHistory } from "@/lib/actions/weight-logs";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import type { MacroGap } from "@/lib/ai/types";
 import type { Profile } from "@/lib/types";
+import {
+  dailyMacroSurplus,
+  dailyMacrosExceededUpperLimit,
+  macroToleranceBand,
+} from "@/lib/macro-targets";
+import type { MealMacros } from "@/lib/meal-utils";
+
+function buildMacroGap(consumed: MealMacros, targets: MacroGap["targets"]): MacroGap {
+  const surplus = dailyMacroSurplus(consumed, targets);
+  const overTolerance = dailyMacrosExceededUpperLimit(consumed, targets);
+
+  const remaining = (key: keyof MealMacros) => {
+    const target = targets[key];
+    if (target <= 0) return 0;
+    const { max } = macroToleranceBand(target, key);
+    return Math.max(0, Math.round(max - consumed[key]));
+  };
+
+  return {
+    calories: remaining("calories"),
+    protein: remaining("protein"),
+    carbs: remaining("carbs"),
+    fat: remaining("fat"),
+    surplus,
+    overTolerance,
+    consumed,
+    targets,
+  };
+}
 
 export async function getMacroGapForDate(
   clientId: string,
@@ -42,14 +71,7 @@ export async function getMacroGapForDate(
     fat: log.data?.fat ?? fromMeals.fat,
   };
 
-  return {
-    calories: Math.max(0, targets.calories - consumed.calories),
-    protein: Math.max(0, targets.protein - consumed.protein),
-    carbs: Math.max(0, targets.carbs - consumed.carbs),
-    fat: Math.max(0, targets.fat - consumed.fat),
-    consumed,
-    targets,
-  };
+  return buildMacroGap(consumed, targets);
 }
 
 export async function getCoachContext(clientId: string, dateKey: string) {

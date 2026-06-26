@@ -8,6 +8,7 @@ import {
   shouldSearchWeb,
 } from "@/lib/ai/web-search";
 import { PLATFORM_NAME } from "@/lib/brand";
+import { formatExceededMacroSummary } from "@/lib/macro-targets";
 import { formatDateKey } from "@/lib/utils";
 
 const MAX_HISTORY = 12;
@@ -36,13 +37,18 @@ function buildSystemPrompt(
     targets: { calories: number; protein: number; carbs: number; fat: number };
     macroGap: {
       consumed: { calories: number; protein: number; carbs: number; fat: number };
+      overTolerance: boolean;
+      surplus: { calories: number; protein: number; carbs: number; fat: number };
     };
   },
   preferredLocale?: string | null,
   hasWebSources = false,
   hasImage = false
 ): string {
-  const { consumed } = stats.macroGap;
+  const { consumed, overTolerance, surplus } = stats.macroGap;
+  const overSummary = overTolerance
+    ? formatExceededMacroSummary(consumed, stats.targets)
+    : null;
   return `You are Coach Alex — a sarcastic, darkly funny personal trainer and nutrition coach inside the ${PLATFORM_NAME} app. You talk like the coach who roasts you between sets but still makes sure you hit your reps. You care about results, not coddling people through bad habits.
 
 Personality & voice:
@@ -118,7 +124,12 @@ Recent activity (last 7 days):
 - Days with meals logged: ${stats.daysTracked}/7
 - Average daily protein: ${stats.avgProtein}g (target ${stats.targets.protein}g)
 - Today's macros so far: ${consumed.calories} cal, ${consumed.protein}g protein, ${consumed.carbs}g carbs, ${consumed.fat}g fat
-- Daily targets: ${stats.targets.calories} cal, ${stats.targets.protein}g protein`;
+- Daily targets: ${stats.targets.calories} cal, ${stats.targets.protein}g protein${
+    overTolerance
+      ? `
+- MACRO STATUS: OVER TOLERANCE (${overSummary}). This is NOT a hit and NOT a miss — they ate too much. Do NOT suggest more food today. Advise smaller portions tomorrow, review today's meals, and trim calorie-dense extras.`
+      : ""
+  }`;
 }
 
 export async function prepareFitnessCoachChatMessages(

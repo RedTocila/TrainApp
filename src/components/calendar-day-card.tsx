@@ -265,6 +265,8 @@ export function CalendarDayCard({
             >
               {task.completed ? (
                 <Check className="mt-0.5 h-3 w-3 shrink-0 text-green-500" />
+              ) : task.exceeded ? (
+                <span className="mt-0.5 text-[10px] font-black leading-none text-orange-400">+</span>
               ) : task.missed ? (
                 <X className="mt-0.5 h-3 w-3 shrink-0 text-red-400" />
               ) : (

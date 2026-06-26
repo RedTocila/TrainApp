@@ -72,6 +72,11 @@ export function getCalendarDayStatus(
   const allDone = tasks.every((task) => task.completed);
   if (allDone) return "complete";
 
+  const hasUnrecoverableMiss = tasks.some(
+    (task) => task.missed && !task.completed && !task.exceeded
+  );
+  if (hasUnrecoverableMiss) return "incomplete_past";
+
   const dateKey = formatDateKey(date);
   if (isDayEnded(dateKey, now)) return "incomplete_past";
 

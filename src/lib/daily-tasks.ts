@@ -17,6 +17,8 @@ export interface DailyTask {
   detail?: string;
   completed?: boolean;
   missed?: boolean;
+  /** Daily macros above the upper tolerance band — not a miss, not a hit. */
+  exceeded?: boolean;
 }
 
 export interface ClientSchedule {
@@ -189,5 +191,6 @@ export function applyTaskCompletions(
     ...task,
     completed: completedIds.has(task.id),
     missed: completedIds.has(task.id) ? false : task.missed,
+    exceeded: completedIds.has(task.id) ? false : task.exceeded,
   }));
 }

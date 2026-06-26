@@ -63,11 +63,19 @@ export function DayTasksPanel({
     return enrichTasksForDate(selectedDate, schedule, mergedEnrichment);
   }, [schedule, selectedDate, mergedEnrichment]);
 
-  const { missed, completed } = groupTasksByStatus(tasks);
+  const { missed, exceeded, completed } = groupTasksByStatus(tasks);
   const allDone = tasks.length > 0 && completed.length === tasks.length;
   const dayEnded = isDayEnded(dateKey);
+  const hasMissed = missed.length > 0;
+  const hasExceeded = exceeded.length > 0;
 
   const missedTaskItems = missed.map((task) => ({
+    id: task.id,
+    label: task.label,
+    detail: task.detail,
+  }));
+
+  const exceededTaskItems = exceeded.map((task) => ({
     id: task.id,
     label: task.label,
     detail: task.detail,
@@ -96,22 +104,34 @@ export function DayTasksPanel({
                     "text-sm font-semibold leading-snug",
                     allDone
                       ? "text-green-400"
-                      : dayEnded
-                        ? "text-red-400"
-                        : "text-amber-400"
+                      : hasExceeded
+                        ? "text-orange-400"
+                        : dayEnded || hasMissed
+                          ? "text-red-400"
+                          : "text-amber-400"
                   )}
                 >
                   {allDone
                     ? platform.common.completed
-                    : dayEnded
-                      ? platform.common.incomplete
-                      : platform.common.inProgress}
+                    : hasExceeded
+                      ? coachLabels.exceeded
+                      : dayEnded || hasMissed
+                        ? platform.common.incomplete
+                        : platform.common.inProgress}
                 </span>
                 {!allDone && (
                   <span className="text-sm font-medium leading-snug text-muted-foreground">
                     {platform.common.completedCount(completed.length, tasks.length)}
                   </span>
                 )}
+                <MissedButton
+                  count={exceeded.length}
+                  title={coachLabels.exceededTasks}
+                  hint={coachLabels.macrosExceededHint}
+                  items={exceededTaskItems}
+                  tone="warning"
+                  buttonLabel={coachLabels.exceeded}
+                />
                 <MissedButton
                   count={missed.length}
                   title={coachLabels.missedTasks}
