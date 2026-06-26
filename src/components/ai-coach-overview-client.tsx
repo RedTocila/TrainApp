@@ -3,6 +3,7 @@
 import { usePlatformCopy } from "@/components/locale-provider";
 import Link from "next/link";
 import { OpenAiCoachChatButton } from "@/components/open-ai-coach-chat-button";
+import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { AiCoachChatFeatureTile } from "@/components/ai-coach-chat-feature-tile";
 import {
   Camera,
@@ -51,13 +52,12 @@ export function AiCoachOverviewClient({
   return (
     <div className="space-y-5">
       <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-transparent to-transparent">
-        <CardContent className="space-y-3 p-4">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="h-5 w-5 text-primary" />
-            <p className="font-bold">{platform.ai.askAlex}</p>
+        <CardContent className="space-y-4 p-4">
+          <div className="flex justify-center">
+            <AiCoachAvatar className="h-24 w-24 shrink-0 sm:h-28 sm:w-28" />
           </div>
-          <OpenAiCoachChatButton className="w-full" icon={MessageCircle}>
-            {platform.ai.startChatting}
+          <OpenAiCoachChatButton className="w-full">
+            {platform.ai.askAlex}
           </OpenAiCoachChatButton>
         </CardContent>
       </Card>
