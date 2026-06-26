@@ -93,3 +93,14 @@ SUPABASE_DB_PASSWORD=your-db-password
   - `http://localhost:3000/auth/callback`
   - `https://rutina.al/auth/callback`
   - `https://www.rutina.al/auth/callback`
+
+## Branded confirmation emails (Resend)
+
+Auth emails are sent by Supabase, not the Next.js app. To send from **RUTINA &lt;noreply@rutina.al&gt;**:
+
+1. Verify `rutina.al` in [Resend](https://resend.com/domains) (DNS via Vercel is fine)
+2. Create a Resend API key
+3. In Supabase → **Authentication → Emails → SMTP**, enable custom SMTP with Resend (`smtp.resend.com`, port `465`, user `resend`)
+4. Paste all branded templates from [`email-templates/`](./email-templates/) (confirm signup, reset password, magic link, change email, invite user)
+
+See [`email-templates/README.md`](./email-templates/README.md) for exact SMTP values and HTML to paste.
