@@ -9,6 +9,7 @@ import { addWater } from "@/lib/actions/logs";
 import { deleteDailyMealLog } from "@/lib/actions/daily-meals";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import { sumMealMacros, mealFormFromMeal } from "@/lib/meal-utils";
+import { dailyMacrosWithinTarget } from "@/lib/macro-targets";
 import type { MealFormData } from "@/lib/meal-utils";
 import type { MacroTargets } from "@/lib/meal-score";
 import { NutritionStatsPanel } from "@/components/nutrition-stats-panel";
@@ -85,6 +86,10 @@ export function DailyTracker({
     setLocalWaterMl(waterMl);
   }, [waterMl]);
 
+  useEffect(() => {
+    patchDashboard({ dateKey, dailyMeals });
+  }, [dateKey, dailyMeals, patchDashboard]);
+
   const current = sumMealMacros(dailyMeals);
 
   const awaitingCoachPdf = coachNutritionPlanState.mode === "awaiting_pdf";
@@ -128,11 +133,7 @@ export function DailyTracker({
   const waterMissed =
     localWaterMl < waterGoalMl && isDeadlinePassed(WATER_DEADLINE, dateKey);
   const waterCompleted = localWaterMl >= waterGoalMl;
-  const macrosMet =
-    current.calories >= targets.calories &&
-    current.protein >= targets.protein &&
-    current.carbs >= targets.carbs &&
-    current.fat >= targets.fat;
+  const macrosMet = dailyMacrosWithinTarget(current, targets);
   const nutritionCompleted = macrosMet && waterCompleted;
 
   const nutritionTitle = isToday(date) ? platform.dashboard.nutrition : format(date, "MMM d");

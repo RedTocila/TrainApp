@@ -1,4 +1,5 @@
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
+import type { DailyMealLog } from "@/lib/types";
 
 export interface DashboardLivePatch {
   dateKey: string;
@@ -6,16 +7,18 @@ export interface DashboardLivePatch {
   completed?: boolean;
   waterMl?: number;
   workoutCompleted?: boolean;
+  dailyMeals?: DailyMealLog[];
 }
 
 export interface DashboardPatchState {
   completions: Record<string, Record<string, boolean>>;
   water: Record<string, number>;
   workoutCompleted: Record<string, boolean>;
+  meals: Record<string, DailyMealLog[]>;
 }
 
 export function emptyPatchState(): DashboardPatchState {
-  return { completions: {}, water: {}, workoutCompleted: {} };
+  return { completions: {}, water: {}, workoutCompleted: {}, meals: {} };
 }
 
 export function applyLivePatch(
@@ -26,6 +29,7 @@ export function applyLivePatch(
     completions: { ...state.completions },
     water: { ...state.water },
     workoutCompleted: { ...state.workoutCompleted },
+    meals: { ...state.meals },
   };
 
   if (patch.taskId !== undefined && patch.completed !== undefined) {
@@ -40,6 +44,10 @@ export function applyLivePatch(
 
   if (patch.workoutCompleted !== undefined) {
     next.workoutCompleted[patch.dateKey] = patch.workoutCompleted;
+  }
+
+  if (patch.dailyMeals !== undefined) {
+    next.meals[patch.dateKey] = patch.dailyMeals;
   }
 
   return next;
@@ -60,6 +68,7 @@ export function mergeEnrichmentWithPatches(
   }
 
   const waterByDate = { ...data.waterByDate, ...patches.water };
+  const mealsByDate = { ...data.mealsByDate, ...patches.meals };
 
   const workoutSet = new Set(data.workoutCompletedDates);
   for (const [dateKey, completed] of Object.entries(patches.workoutCompleted)) {
@@ -71,6 +80,7 @@ export function mergeEnrichmentWithPatches(
     ...data,
     completionsByDate,
     waterByDate,
+    mealsByDate,
     workoutCompletedDates: [...workoutSet],
   };
 }

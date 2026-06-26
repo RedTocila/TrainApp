@@ -2,6 +2,10 @@ import type { DailyTask } from "@/lib/daily-tasks";
 import type { DailyMealLog } from "@/lib/types";
 import { sumMealMacros } from "@/lib/meal-utils";
 import {
+  dailyMacrosWithinTarget,
+  formatMacroProgressLine,
+} from "@/lib/macro-targets";
+import {
   isDayEnded,
   isDeadlinePassed,
   WATER_DEADLINE,
@@ -22,27 +26,6 @@ export interface EnrichTasksContext {
     fat: number;
   };
   workoutCompleted?: boolean;
-}
-
-function dailyMacrosMet(
-  meals: DailyMealLog[],
-  targets: NonNullable<EnrichTasksContext["macroTargets"]>
-): boolean {
-  const current = sumMealMacros(meals);
-  return (
-    current.calories >= targets.calories &&
-    current.protein >= targets.protein &&
-    current.carbs >= targets.carbs &&
-    current.fat >= targets.fat
-  );
-}
-
-function formatMacroProgress(
-  meals: DailyMealLog[],
-  targets: NonNullable<EnrichTasksContext["macroTargets"]>
-): string {
-  const c = sumMealMacros(meals);
-  return `${c.calories}/${targets.calories} cal · P ${c.protein}/${targets.protein}g · C ${c.carbs}/${targets.carbs}g · F ${c.fat}/${targets.fat}g`;
 }
 
 export function enrichDailyTasks(
@@ -89,13 +72,14 @@ export function enrichDailyTasks(
       ctx.macroTargets
     ) {
       const meals = ctx.dailyMeals ?? [];
-      const met = dailyMacrosMet(meals, ctx.macroTargets);
+      const current = sumMealMacros(meals);
+      const met = dailyMacrosWithinTarget(current, ctx.macroTargets);
       const deadlinePassed = isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
 
       return {
         ...task,
         label: "Hit daily macros",
-        detail: formatMacroProgress(meals, ctx.macroTargets),
+        detail: formatMacroProgressLine(current, ctx.macroTargets),
         completed: met || task.completed,
         missed: met || task.completed ? false : deadlinePassed,
       };
