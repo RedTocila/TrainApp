@@ -15,6 +15,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { InstantNavButton } from "@/components/instant-nav-button";
+import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ const tabClassName = (active: boolean) =>
 export function AiCoachNav() {
   const pathname = usePathname();
   const { isOpen, openChat } = useAiCoachChat();
+  const { setPendingHref } = useDashboardNavPending();
 
   const prefetchRoutes = useMemo(
     () => tabs.flatMap((tab) => (tab.href ? [tab.href] : [])),
@@ -87,6 +89,7 @@ export function AiCoachNav() {
           <InstantNavLink
             key={tab.href}
             href={tab.href!}
+            onNavigateStart={setPendingHref}
             className={tabClassName(active)}
             tapSlop={16}
           >

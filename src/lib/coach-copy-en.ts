@@ -152,6 +152,23 @@ export const coachCopyEn = {
       "Endurance needs carbs — {name} at {carbs}g is running on fumes.",
     ],
   },
+  navLoading: {
+    coachName: "Coach Alex",
+    quips: [
+      "Still here? I'd warm up while you wait — oh right, that's not your thing.",
+      "Loading… unlike your excuses, this actually has a finish line.",
+      "One sec. Your consistency could learn from our servers.",
+      "Fetching the page. Fetching your discipline would take longer.",
+      "Hold on — I'm aligning the pixels. You align your macros sometime?",
+      "Almost there. Unlike your last PR attempt.",
+      "Loading your next tab. Motivation not included.",
+      "The app's stretching before your workout. You should try that.",
+      "Buffering… at least something's making progress today.",
+      "Give it a second. I gave you a whole program and you're still deciding where to click.",
+      "Navigating faster than you navigate away from leg day.",
+      "Loading. Try not to refresh — your streak can't handle another reset.",
+    ],
+  },
 } as const;
 
 export const coachLabelsEn = {

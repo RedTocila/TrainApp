@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { DashboardPageSkeleton } from "@/components/dashboard-page-skeleton";
+import { CoachAlexNavLoading } from "@/components/coach-alex-nav-loading";
 import { isNavRouteMatch } from "@/lib/nav-route-match";
 
 interface DashboardNavPendingContextValue {
@@ -65,7 +65,7 @@ export function DashboardNavPendingContent({ children }: { children: ReactNode }
   }, [isNavigating]);
 
   if (isNavigating) {
-    return <DashboardPageSkeleton />;
+    return <CoachAlexNavLoading />;
   }
 
   return children;

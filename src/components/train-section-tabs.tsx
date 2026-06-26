@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Apple, Dumbbell } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { isTrainTabActive, trainTabs } from "@/lib/train-nav";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ const inactiveTabClass =
 export function TrainSectionTabs() {
   const pathname = usePathname();
   const platform = usePlatformCopy();
+  const { setPendingHref } = useDashboardNavPending();
 
   const tabConfig = {
     "/dashboard/workout": {
@@ -38,6 +40,7 @@ export function TrainSectionTabs() {
           <InstantNavLink
             key={tab.href}
             href={tab.href}
+            onNavigateStart={setPendingHref}
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex flex-1 flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90",

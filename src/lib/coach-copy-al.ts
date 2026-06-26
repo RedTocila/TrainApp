@@ -152,6 +152,23 @@ export const coachCopyAl = {
       "Qëndrueshmëria ka nevojë për karbo — {name} me {carbs}g po ecën me rezerva të ulëta.",
     ],
   },
+  navLoading: {
+    coachName: "Coach Alex",
+    quips: [
+      "Ende këtu? Do të ngrohesha ndërkohë — po, e di, nuk është stili juaj.",
+      "Po ngarkohet… ndryshe nga justifikimet tuaja, kjo ka një fund.",
+      "Një sekondë. Qëndrueshmëria juaj mund të mësojë nga serverët tanë.",
+      "Po marr faqen. Të marr disiplinën tuaj do të zgjaste më shumë.",
+      "Prit — po rregulloj pikselat. Do t'i rregulloni makrot tuaja ndonjëherë?",
+      "Pothuajse gati. Ndryshe nga tentativa juaj e fundit për rekord.",
+      "Po ngarkohet tab-i tjetër. Motivimi nuk përfshihet.",
+      "Aplikacioni po zgjatet para stërvitjes. Provoni edhe ju.",
+      "Po buferohet… të paktën diçka po përparon sot.",
+      "Jepni një sekondë. Ju dhashë një program të plotë dhe ende po vendosni ku të klikoni.",
+      "Po navigon më shpejt se sa shmangni ditën e këmbëve.",
+      "Po ngarkohet. Mos rifreskoni — seria juaj nuk e përballon një reset tjetër.",
+    ],
+  },
 } as const;
 
 export const coachLabelsAl = {

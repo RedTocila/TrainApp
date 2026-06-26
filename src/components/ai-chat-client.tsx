@@ -7,10 +7,11 @@ import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import type { ChatImageAttachment, ChatMessage, WebSource } from "@/lib/ai/types";
 import { Card, CardContent } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { compressImageFile, fileToDataUrl, parseDataUrl } from "@/lib/image-compress";
 import { cn } from "@/lib/utils";
 import { useSpeechRecognition } from "@/lib/use-speech-recognition";
+import { VoiceListeningIndicator } from "@/components/voice-listening-indicator";
+import { ChatCommandInput } from "@/components/chat-command-input";
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
 
@@ -167,6 +168,7 @@ const ChatBubble = memo(function ChatBubble({
   );
 });
 
+
 function ChatCommandBar({
   input,
   onInputChange,
@@ -174,6 +176,7 @@ function ChatCommandBar({
   onSubmit,
   placeholder,
   listeningPlaceholder,
+  stopVoiceLabel,
   disabled,
   canSend,
   isStreaming,
@@ -195,6 +198,7 @@ function ChatCommandBar({
   onSubmit: (e: React.FormEvent) => void;
   placeholder: string;
   listeningPlaceholder: string;
+  stopVoiceLabel: string;
   disabled: boolean;
   canSend: boolean;
   isStreaming: boolean;
@@ -210,11 +214,7 @@ function ChatCommandBar({
   onAttachSelect: (file: File) => void;
   onAttachmentClear: () => void;
 }) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const hasText = Boolean(input.trim());
-  const showMic =
-    !isStreaming && !hasText && !attachmentPreviewUrl && !disabled;
 
   const { isListening, isSupported, toggleListening, stopListening } = useSpeechRecognition({
     lang: speechLang,
@@ -222,6 +222,13 @@ function ChatCommandBar({
     onSilence: onVoiceSend,
     onError: onVoiceError,
   });
+
+  const hasText = Boolean(input.trim());
+  const showMic =
+    !isStreaming &&
+    !attachmentPreviewUrl &&
+    !disabled &&
+    (!hasText || isListening);
 
   useEffect(() => {
     if (disabled || isStreaming) {
@@ -235,7 +242,7 @@ function ChatCommandBar({
         stopListening();
         onSubmit(e);
       }}
-      className="space-y-2"
+      className="min-w-0 w-full space-y-2"
     >
       {attachmentPreviewUrl && (
         <div className="flex items-center gap-2 px-1">
@@ -258,7 +265,14 @@ function ChatCommandBar({
           </div>
         </div>
       )}
-      <div className="flex items-center gap-0.5 rounded-full border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm">
+      {isListening && (
+        <VoiceListeningIndicator
+          label={listeningPlaceholder}
+          stopLabel={stopVoiceLabel}
+          onStop={stopListening}
+        />
+      )}
+      <div className="chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-1 overflow-hidden rounded-2xl border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm">
         <input
           ref={fileInputRef}
           type="file"
@@ -276,35 +290,32 @@ function ChatCommandBar({
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled}
           aria-label={attachAriaLabel}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45"
+          className="col-start-1 mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45"
         >
           <Paperclip className="h-4 w-4" strokeWidth={2} />
         </button>
-        <Textarea
-          ref={textareaRef}
+        <ChatCommandInput
           value={input}
-          onChange={(e) => onInputChange(e.target.value)}
+          onChange={onInputChange}
           onKeyDown={onKeyDown}
           placeholder={isListening ? listeningPlaceholder : placeholder}
-          rows={1}
           disabled={disabled}
-          className="max-h-32 min-h-[32px] flex-1 resize-none border-0 bg-transparent px-0 py-1.5 shadow-none focus-visible:ring-0"
         />
         {showMic && isSupported ? (
           <button
             type="button"
-            onClick={() => toggleListening(input)}
+            onClick={() => (isListening ? stopListening() : void toggleListening(input))}
             disabled={disabled}
             aria-label={isListening ? stopVoiceAriaLabel : startVoiceAriaLabel}
             aria-pressed={isListening}
             className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+              "col-start-3 mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
               isListening
-                ? "bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)]"
+                ? "bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.5)] ring-2 ring-primary/30"
                 : "bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] hover:opacity-90"
             )}
           >
-            <Mic className={cn("h-4 w-4", isListening && "animate-pulse")} strokeWidth={2.25} />
+            <Mic className="h-4 w-4" strokeWidth={2.25} />
           </button>
         ) : (
           <button
@@ -312,7 +323,7 @@ function ChatCommandBar({
             disabled={!canSend}
             aria-label={sendAriaLabel}
             className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+              "col-start-3 mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
               canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
             )}
           >
@@ -564,7 +575,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             )}
           </div>
 
-          <div className="shrink-0 bg-background px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2">
+          <div className="min-w-0 shrink-0 bg-background px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2">
             {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
             <ChatCommandBar
               input={input}
@@ -582,6 +593,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               onVoiceError={setError}
               onVoiceSend={(text) => void sendMessage(text)}
               listeningPlaceholder={ai.listening}
+              stopVoiceLabel={ai.stopVoice}
               attachAriaLabel={platform.aria.attachFile}
               removeAttachmentAriaLabel={platform.aria.removeAttachment}
               attachmentPreviewUrl={attachmentPreviewUrl}
@@ -648,7 +660,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             )}
           </div>
 
-          <div className="border-t border-border/50 bg-card p-4">
+          <div className="min-w-0 border-t border-border/50 bg-card p-4">
             {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
             <ChatCommandBar
               input={input}
@@ -666,6 +678,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               onVoiceError={setError}
               onVoiceSend={(text) => void sendMessage(text)}
               listeningPlaceholder={ai.listening}
+              stopVoiceLabel={ai.stopVoice}
               attachAriaLabel={platform.aria.attachFile}
               removeAttachmentAriaLabel={platform.aria.removeAttachment}
               attachmentPreviewUrl={attachmentPreviewUrl}

@@ -420,6 +420,7 @@ export const platformCopyEn = {
     ],
     thinking: "Thinking…",
     listening: "Listening…",
+    stopVoice: "Stop",
     searching: "Searching & thinking…",
     placeholder: "What you want?",
     imageOnlyPrompt: "What can you tell me about this image?",

@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Dumbbell, HeartPulse, Library } from "lucide-react";
+import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
+import { InstantNavLink } from "@/components/instant-nav-link";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -28,6 +29,7 @@ const tabs = [
 
 export function WorkoutSectionTabs() {
   const pathname = usePathname();
+  const { setPendingHref } = useDashboardNavPending();
 
   return (
     <nav className="flex gap-2">
@@ -36,9 +38,10 @@ export function WorkoutSectionTabs() {
         const Icon = tab.icon;
 
         return (
-          <Link
+          <InstantNavLink
             key={tab.href}
             href={tab.href}
+            onNavigateStart={setPendingHref}
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex flex-1 flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 transition-colors",
@@ -49,10 +52,9 @@ export function WorkoutSectionTabs() {
           >
             <Icon className="h-6 w-6" />
             <span className="text-xs font-bold">{tab.label}</span>
-          </Link>
+          </InstantNavLink>
         );
       })}
     </nav>
   );
 }
-

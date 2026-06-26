@@ -422,6 +422,7 @@ export const platformCopyAl = {
     ],
     thinking: "Duke menduar…",
     listening: "Duke dëgjuar…",
+    stopVoice: "Ndalo",
     searching: "Duke kërkuar dhe menduar…",
     placeholder: "Pyet për stërvitje, ushqim, rikuperim…",
     imageOnlyPrompt: "Çfarë mund të më thuash për këtë foto?",
