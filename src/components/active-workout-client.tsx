@@ -20,6 +20,7 @@ import type {
   WorkoutSessionSet,
 } from "@/lib/types";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
+import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { formatDateKey } from "@/lib/utils";
@@ -549,15 +550,18 @@ export function ActiveWorkoutClient({
 
       <div className="space-y-4 border-t border-border pt-6">
         {!isStarted ? (
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={isPending}
-            onClick={handleBeginWorkout}
-          >
-            <Play className="mr-2 h-4 w-4" />
-            {isPending ? platform.common.saving : platform.workout.startWorkout}
-          </Button>
+          <StartWorkoutLoadingShell isLoading={isPending} className="w-full">
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={isPending}
+              onClick={handleBeginWorkout}
+              aria-busy={isPending}
+            >
+              <Play className="mr-2 h-4 w-4" />
+              {isPending ? platform.common.saving : platform.workout.startWorkout}
+            </Button>
+          </StartWorkoutLoadingShell>
         ) : showCompleteStep ? (
           <Card className="border-primary/30 bg-primary/5">
             <CardHeader className="pb-3">

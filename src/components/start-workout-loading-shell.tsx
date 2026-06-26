@@ -7,25 +7,40 @@ export function StartWorkoutLoadingShell({
   isLoading,
   children,
   className,
-  ringInset = "-inset-1",
+  rounded = "rounded-full",
 }: {
   isLoading: boolean;
   children: ReactNode;
   className?: string;
-  ringInset?: string;
+  rounded?: string;
 }) {
   return (
-    <div className={cn("relative inline-flex", className)}>
+    <div
+      className={cn(
+        "relative items-center justify-center",
+        className?.includes("w-full") ? "flex w-full" : "inline-flex",
+        isLoading && "p-[3px]",
+        className
+      )}
+    >
       {isLoading ? (
         <span
           className={cn(
-            "start-workout-loading-ring pointer-events-none absolute rounded-full",
-            ringInset
+            "pointer-events-none absolute inset-0 border-2 border-primary/20 border-t-primary animate-spin",
+            rounded
           )}
           aria-hidden
         />
       ) : null}
-      <div className="relative">{children}</div>
+      <div
+        className={cn(
+          "relative",
+          className?.includes("w-full") && "w-full",
+          isLoading && "opacity-75"
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }

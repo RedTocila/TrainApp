@@ -60,8 +60,6 @@ export function DashboardOverview({
   const [nutritionPlan, setNutritionPlan] = useState(initialNutritionPlan);
 
   const loadOverview = useCallback(async () => {
-    setLog(null);
-    setDailyMeals([]);
     const [fetchedLog, fetchedMeals, planForDate] = await Promise.all([
       getDailyLog(clientId, dateKey),
       getDailyMealLogs(clientId, dateKey),
@@ -83,14 +81,14 @@ export function DashboardOverview({
     }
   }, [clientId, dateKey]);
 
-  useDashboardDateFetch(dateKey, loadOverview);
+  const isReady = useDashboardDateFetch(dateKey, loadOverview, [clientId]);
 
   return (
     <DailyTracker
       clientId={clientId}
       date={selectedDate}
-      waterMl={log?.water_ml ?? 0}
-      dailyMeals={dailyMeals}
+      waterMl={isReady ? (log?.water_ml ?? 0) : 0}
+      dailyMeals={isReady ? dailyMeals : []}
       onDailyMealsChange={setDailyMeals}
       mealLibrary={mealLibrary}
       hasAiAccess={hasAiAccess}
@@ -99,7 +97,7 @@ export function DashboardOverview({
       personalPlanId={personalPlanId}
       waterGoalMl={waterGoalMl}
       onWaterGoalChange={setWaterGoalMl}
-      nutritionPlan={nutritionPlan}
+      nutritionPlan={isReady ? nutritionPlan : null}
       coachNutritionPlanState={coachNutritionPlanState}
       goal={goal}
     />

@@ -52,9 +52,6 @@ export function WeightTracker({
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
   const loadWeight = useCallback(async () => {
-    setTodayLog(null);
-    setWeightInput("");
-    setFormOpen(false);
     const [log, fetchedHistory] = await Promise.all([
       getBodyWeightLog(clientId, dateKey),
       getBodyWeightHistory(clientId),
@@ -65,7 +62,8 @@ export function WeightTracker({
     onHistoryChange?.(fetchedHistory);
   }, [clientId, dateKey, onHistoryChange]);
 
-  useDashboardDateFetch(dateKey, loadWeight);
+  const isReady = useDashboardDateFetch(dateKey, loadWeight, [clientId]);
+  const todayLogForDay = isReady ? todayLog : null;
 
   const dateLabel = isToday(selectedDate)
     ? platform.common.today
@@ -130,8 +128,8 @@ export function WeightTracker({
             {platform.weight.title}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            {todayLog
-              ? platform.weight.loggedForDate(String(todayLog.weight_kg), dateLabel)
+            {todayLogForDay
+              ? platform.weight.loggedForDate(String(todayLogForDay.weight_kg), dateLabel)
               : platform.weight.subtitle}
           </p>
         </div>
@@ -148,9 +146,11 @@ export function WeightTracker({
         )}
       </CardHeader>
       <CardContent className="space-y-6">
+        {isReady ? (
+          <>
         <WeightChartLazy
           entries={history}
-          highlightDate={todayLog?.date}
+          highlightDate={todayLogForDay?.date}
           startWeightKg={intakeWeightKg}
           startDate={startDate}
         />
@@ -190,6 +190,8 @@ export function WeightTracker({
         )}
 
         {error && <p className="text-sm text-red-400">{error}</p>}
+          </>
+        ) : null}
       </CardContent>
       {giveUpDialog}
     </Card>

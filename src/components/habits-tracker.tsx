@@ -58,12 +58,16 @@ export function HabitsTracker({
   }, [suggestedHabits]);
 
   const refresh = useCallback(async () => {
-    setHabits([]);
     const data = await getHabitsWithCompletions(clientId, dateKey);
     setHabits(data);
   }, [clientId, dateKey]);
 
-  useDashboardDateFetch(`${dateKey}:${todayKey}`, refresh);
+  const isReady = useDashboardDateFetch(dateKey, refresh, [clientId, todayKey]);
+  const habitsForDay = isReady ? habits : [];
+
+  const reloadHabits = useCallback(() => {
+    void refresh();
+  }, [refresh]);
 
   useEffect(() => {
     if (!isToday(selectedDate)) return;
@@ -73,11 +77,11 @@ export function HabitsTracker({
 
   const displayHabits = useMemo(
     () =>
-      habits.map((h) => ({
+      habitsForDay.map((h) => ({
         ...h,
         status: getHabitDayStatus(h, dateKey, h.completed),
       })),
-    [habits, dateKey, tick]
+    [habitsForDay, dateKey, tick]
   );
 
   const dateLabel = isToday(selectedDate)
@@ -149,7 +153,7 @@ export function HabitsTracker({
           setError(result.error);
           return;
         }
-        refresh();
+        reloadHabits();
       },
     });
   };
@@ -164,7 +168,7 @@ export function HabitsTracker({
           return;
         }
         setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
-        refresh();
+        reloadHabits();
         notifySync();
       })
       .finally(() => setSuggestionsPending(false));
@@ -196,9 +200,11 @@ export function HabitsTracker({
               />
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              {habits.length === 0
+              {isReady && habitsForDay.length === 0
                 ? coachLabels.addHabitsHint
-                : platform.common.doneForDate(doneCount, habits.length, dateLabel)}
+                : isReady
+                  ? platform.common.doneForDate(doneCount, habitsForDay.length, dateLabel)
+                  : ""}
             </p>
           </div>
           <Button
@@ -211,7 +217,7 @@ export function HabitsTracker({
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {suggestions.length > 0 && (
+          {isReady && suggestions.length > 0 && (
             <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-violet-300">
                 <Sparkles className="h-4 w-4" />
@@ -256,11 +262,11 @@ export function HabitsTracker({
             </div>
           )}
 
-          {habits.length === 0 ? (
+          {isReady && habitsForDay.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-6 text-center text-sm text-muted-foreground">
               {coachLabels.noHabitsToday}
             </div>
-          ) : (
+          ) : isReady ? (
             <ul className="space-y-2">
               {displayHabits.map((habit) => {
                 const canComplete = canCompleteHabit(habit, dateKey, habit.completed);
@@ -328,7 +334,7 @@ export function HabitsTracker({
                 );
               })}
             </ul>
-          )}
+          ) : null}
 
           {error && <p className="text-sm text-red-400">{error}</p>}
         </CardContent>
@@ -340,7 +346,7 @@ export function HabitsTracker({
         habit={editingHabit}
         onClose={() => setDialogOpen(false)}
         onSaved={() => {
-          refresh();
+          reloadHabits();
           notifySync();
         }}
       />

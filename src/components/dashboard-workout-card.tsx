@@ -58,8 +58,6 @@ export function DashboardWorkoutCard({
   }, [initialWorkout, initialWorkoutCompleted]);
 
   const refreshWorkout = useCallback(async () => {
-    setWorkout(null);
-    setWorkoutCompleted(false);
     const dateKey = formatDateKey(selectedDate);
     const [resolved, completed] = await Promise.all([
       resolveWorkoutForDate(clientId, dateKey),
@@ -69,45 +67,48 @@ export function DashboardWorkoutCard({
     setWorkoutCompleted(completed);
   }, [clientId, selectedDate]);
 
-  useDashboardDateFetch(
-    `${formatDateKey(selectedDate)}:${version}:${todayKey}`,
-    refreshWorkout
-  );
+  const isReady = useDashboardDateFetch(formatDateKey(selectedDate), refreshWorkout, [
+    clientId,
+    version,
+    todayKey,
+  ]);
 
   const dateKey = formatDateKey(selectedDate);
+  const workoutForDay = isReady ? workout : null;
+  const workoutCompletedForDay = isReady && workoutCompleted;
   const workoutMissed =
-    !!workout &&
-    !workoutCompleted &&
+    !!workoutForDay &&
+    !workoutCompletedForDay &&
     isDeadlinePassed(WORKOUT_DEADLINE, dateKey);
 
   return (
     <Card
       id="dashboard-workout"
-      className={sectionCompletedCardClass(workoutCompleted && !!workout)}
+      className={sectionCompletedCardClass(workoutCompletedForDay && !!workoutForDay)}
     >
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle className="flex flex-wrap items-center gap-2">
           <Dumbbell className="h-5 w-5 text-primary" />
           {workoutTitle(selectedDate, platform)}
-          {workoutCompleted && workout && <SectionCompletedBadge />}
+          {workoutCompletedForDay && workoutForDay && <SectionCompletedBadge />}
           <MissedButton
-            count={workoutMissed ? 1 : 0}
+            count={workoutForDay && !workoutCompletedForDay && workoutMissed ? 1 : 0}
             title={coachLabels.missedWorkout}
             hint={coachLabels.workoutMissedHint}
             items={
-              workout && workoutMissed
+              workoutForDay && workoutMissed
                 ? [
                     {
                       id: "workout",
-                      label: workout.dayTitle,
-                      detail: `${workout.planTitle} · was due by ${WORKOUT_DEADLINE}`,
+                      label: workoutForDay.dayTitle,
+                      detail: `${workoutForDay.planTitle} · was due by ${WORKOUT_DEADLINE}`,
                     },
                   ]
                 : []
             }
           />
         </CardTitle>
-        {workoutCompleted && workout ? (
+        {workoutCompletedForDay && workoutForDay ? (
           <span
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
             aria-label={platform.aria.completed}
@@ -115,41 +116,44 @@ export function DashboardWorkoutCard({
             <Check className="h-4 w-4" />
           </span>
         ) : (
-          <StartTodaysWorkoutButton date={selectedDate} disabled={!workout} />
+          <StartTodaysWorkoutButton
+            date={selectedDate}
+            disabled={!workoutForDay || !isReady}
+          />
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {workout ? (
+        {isReady && workoutForDay ? (
           <div>
             <p
               className={cn(
                 "font-semibold",
-                workoutCompleted && "text-green-400"
+                workoutCompletedForDay && "text-green-400"
               )}
             >
-              {workout.dayTitle}
+              {workoutForDay.dayTitle}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {workout.planTitle}
-              {workout.exercises.length > 0 &&
-                ` · ${platform.common.exercises(workout.exercises.length)}`}
-              {workoutCompleted
+              {workoutForDay.planTitle}
+              {workoutForDay.exercises.length > 0 &&
+                ` · ${platform.common.exercises(workoutForDay.exercises.length)}`}
+              {workoutCompletedForDay
                 ? ` ${platform.workout.completedSuffix}`
                 : ` ${platform.workout.completeBy(WORKOUT_DEADLINE)}`}
             </p>
             <div className="mt-3 flex flex-wrap gap-1">
-              {workout.exercises.slice(0, 3).map((ex) => (
+              {workoutForDay.exercises.slice(0, 3).map((ex) => (
                 <Badge key={ex.id} variant="secondary">
                   {ex.name}
                 </Badge>
               ))}
             </div>
           </div>
-        ) : (
+        ) : isReady ? (
           <p className="text-sm text-muted-foreground">
             {coachLabels.noWorkoutToday}
           </p>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );

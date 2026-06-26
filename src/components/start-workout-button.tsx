@@ -49,7 +49,7 @@ export function StartWorkoutButton({
 
   return (
     <div className={cn("inline-flex flex-col items-end gap-1", className)}>
-      <StartWorkoutLoadingShell isLoading={isPending} ringInset="-inset-0.5">
+      <StartWorkoutLoadingShell isLoading={isPending}>
         <Button
           size={size}
           variant={variant}

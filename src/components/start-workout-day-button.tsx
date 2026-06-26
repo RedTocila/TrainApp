@@ -27,7 +27,7 @@ export function StartWorkoutDayButton({ planId }: { planId: string }) {
 
   return (
     <div className="inline-flex flex-col items-end gap-1">
-      <StartWorkoutLoadingShell isLoading={isPending} ringInset="-inset-0.5">
+      <StartWorkoutLoadingShell isLoading={isPending}>
         <Button
           size="sm"
           disabled={isPending}

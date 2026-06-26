@@ -57,8 +57,6 @@ export function DashboardCardioCard({
   }, [initialScheduled, initialCompleted]);
 
   const refreshCardio = useCallback(async () => {
-    setScheduled(null);
-    setCompleted(false);
     const [entry, ids] = await Promise.all([
       getScheduledCardioForDate(clientId, dateKey),
       getTaskCompletionsForDate(clientId, dateKey),
@@ -67,10 +65,15 @@ export function DashboardCardioCard({
     setCompleted(ids.has(taskId));
   }, [clientId, dateKey, taskId]);
 
-  useDashboardDateFetch(
-    `${dateKey}:${taskId}:${todayKey}:${version}`,
-    refreshCardio
-  );
+  const isReady = useDashboardDateFetch(dateKey, refreshCardio, [
+    clientId,
+    taskId,
+    version,
+    todayKey,
+  ]);
+
+  const cardioForDay = isReady ? cardio : null;
+  const completedForDay = isReady && completed;
 
   const handleToggle = () => {
     const next = !completed;
@@ -93,13 +96,13 @@ export function DashboardCardioCard({
   return (
     <Card
       id="dashboard-cardio"
-      className={cn("mt-6", sectionCompletedCardClass(completed && !!cardio))}
+      className={sectionCompletedCardClass(completedForDay && !!cardioForDay)}
     >
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle className="flex flex-wrap items-center gap-2">
           <HeartPulse className="h-5 w-5 text-orange-400" />
           {cardioTitle(selectedDate, platform)}
-          {completed && cardio && <SectionCompletedBadge />}
+          {completedForDay && cardioForDay && <SectionCompletedBadge />}
         </CardTitle>
         <div className="flex shrink-0 items-center gap-2">
           <Link href="/dashboard/workout/cardio">
@@ -107,8 +110,8 @@ export function DashboardCardioCard({
               {platform.cardio.myCardio}
             </Button>
           </Link>
-          {cardio && (
-            completed ? (
+          {cardioForDay && (
+            completedForDay ? (
               <span
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
                 aria-label={platform.aria.completed}
@@ -116,7 +119,7 @@ export function DashboardCardioCard({
                 <Check className="h-4 w-4" />
               </span>
             ) : (
-              <Button size="sm" disabled={isToggling} onClick={handleToggle}>
+              <Button size="sm" disabled={isToggling || !isReady} onClick={handleToggle}>
                 {platform.common.done}
               </Button>
             )
@@ -124,26 +127,26 @@ export function DashboardCardioCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {cardio ? (
+        {isReady && cardioForDay ? (
           <>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <p className={cn("font-semibold", completed && "text-green-400 line-through")}>
-                  {cardio.title}
+                <p className={cn("font-semibold", completedForDay && "text-green-400 line-through")}>
+                  {cardioForDay.title}
                 </p>
-                {cardio.duration_minutes != null && (
-                  <Badge variant="secondary">{platform.common.min(cardio.duration_minutes)}</Badge>
+                {cardioForDay.duration_minutes != null && (
+                  <Badge variant="secondary">{platform.common.min(cardioForDay.duration_minutes)}</Badge>
                 )}
               </div>
-              {cardio.description && (
-                <p className="mt-1 text-sm text-muted-foreground">{cardio.description}</p>
+              {cardioForDay.description && (
+                <p className="mt-1 text-sm text-muted-foreground">{cardioForDay.description}</p>
               )}
             </div>
-            {cardio.youtube_url && (
-              <ExerciseVideoPlayer videoUrl={cardio.youtube_url} title={cardio.title} />
+            {cardioForDay.youtube_url && (
+              <ExerciseVideoPlayer videoUrl={cardioForDay.youtube_url} title={cardioForDay.title} />
             )}
           </>
-        ) : (
+        ) : isReady ? (
           <div className="rounded-lg border border-dashed border-border bg-secondary/20 px-4 py-6 text-center">
             <p className="text-sm text-muted-foreground">{coachLabels.noCardioToday}</p>
             <Link href="/dashboard/workout/cardio" className="mt-2 inline-block">
@@ -152,7 +155,7 @@ export function DashboardCardioCard({
               </Button>
             </Link>
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );
