@@ -43,20 +43,29 @@ export function DashboardWorkoutCard({
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
-  const { selectedDate } = useSelectedDate();
+  const { selectedDate, todayKey } = useSelectedDate();
   const { version } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
   const [workoutCompleted, setWorkoutCompleted] = useState(
     initialWorkoutCompleted
   );
-  const usedInitialTodayData = useRef(false);
+  const hasHydrated = useRef(false);
 
   useEffect(() => {
     const dateKey = formatDateKey(selectedDate);
-    const isToday = dateKey === formatDateKey(new Date());
-    if (!usedInitialTodayData.current && isToday && version === 0) {
-      usedInitialTodayData.current = true;
-      return;
+    if (dateKey === todayKey) {
+      setWorkout(initialWorkout);
+      setWorkoutCompleted(initialWorkoutCompleted);
+    }
+  }, [initialWorkout, initialWorkoutCompleted, selectedDate, todayKey]);
+
+  useEffect(() => {
+    const dateKey = formatDateKey(selectedDate);
+    const isViewingToday = dateKey === todayKey;
+
+    if (!hasHydrated.current) {
+      hasHydrated.current = true;
+      if (isViewingToday && version === 0) return;
     }
 
     let cancelled = false;
@@ -73,7 +82,7 @@ export function DashboardWorkoutCard({
     return () => {
       cancelled = true;
     };
-  }, [selectedDate, clientId, version]);
+  }, [selectedDate, todayKey, clientId, version]);
 
   const dateKey = formatDateKey(selectedDate);
   const workoutMissed =

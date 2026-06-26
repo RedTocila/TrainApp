@@ -39,7 +39,7 @@ export function HabitsTracker({
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
-  const { selectedDate } = useSelectedDate();
+  const { selectedDate, todayKey } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
   const [habits, setHabits] = useState(initialHabits);
   const [suggestions, setSuggestions] = useState(suggestedHabits);
@@ -61,9 +61,8 @@ export function HabitsTracker({
   }, [clientId, dateKey]);
 
   useEffect(() => {
-    if (dateKey === formatDateKey(new Date())) return;
     refresh();
-  }, [dateKey, refresh]);
+  }, [dateKey, todayKey, refresh]);
 
   useEffect(() => {
     if (!isToday(selectedDate)) return;

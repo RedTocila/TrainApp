@@ -8,6 +8,7 @@ import { DateProvider } from "@/components/date-provider";
 import { DashboardSyncProvider } from "@/components/dashboard-sync";
 import { FullCalendarProvider } from "@/components/full-calendar-provider";
 import { DashboardMainReset } from "@/components/dashboard-main-reset";
+import { DashboardDayRollover } from "@/components/dashboard-day-rollover";
 import {
   DashboardNavPendingContent,
   DashboardNavPendingProvider,
@@ -30,6 +31,7 @@ export default async function DashboardLayout({
       <PendingIntakeSync intakeComplete={intakeComplete} />
       <DashboardMainReset />
       <DateProvider>
+        <DashboardDayRollover />
         <DashboardSyncProvider>
         <DashboardNavPendingProvider>
         <div className="dashboard-shell flex min-h-0 overflow-hidden bg-background">

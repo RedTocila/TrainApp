@@ -15,6 +15,7 @@ import { formatDateKey } from "@/lib/utils";
 /** Selected calendar day — drives the whole dashboard view. */
 const DateContext = createContext<{
   selectedDate: Date;
+  todayKey: string;
   setSelectedDate: (date: Date) => void;
   goToToday: () => void;
 } | null>(null);
@@ -25,27 +26,32 @@ function todayStart() {
 
 export function DateProvider({ children }: { children: ReactNode }) {
   const [selectedDate, setSelectedDateState] = useState(todayStart);
+  const [todayKey, setTodayKey] = useState(() => formatDateKey(new Date()));
   const pinnedToTodayRef = useRef(true);
 
   const setSelectedDate = useCallback((date: Date) => {
     const normalized = startOfDay(date);
-    const todayKey = formatDateKey(new Date());
-    pinnedToTodayRef.current = formatDateKey(normalized) === todayKey;
+    const nextTodayKey = formatDateKey(new Date());
+    pinnedToTodayRef.current = formatDateKey(normalized) === nextTodayKey;
     setSelectedDateState(normalized);
   }, []);
 
   const goToToday = useCallback(() => {
     pinnedToTodayRef.current = true;
-    setSelectedDateState(todayStart());
+    const now = todayStart();
+    setTodayKey(formatDateKey(now));
+    setSelectedDateState(now);
   }, []);
 
   useEffect(() => {
     const syncWithClock = () => {
-      if (!pinnedToTodayRef.current) return;
       const now = todayStart();
-      const todayKey = formatDateKey(now);
+      const nextTodayKey = formatDateKey(now);
+      setTodayKey((current) => (current === nextTodayKey ? current : nextTodayKey));
+
+      if (!pinnedToTodayRef.current) return;
       setSelectedDateState((current) =>
-        formatDateKey(current) === todayKey ? current : now
+        formatDateKey(current) === nextTodayKey ? current : now
       );
     };
 
@@ -67,6 +73,7 @@ export function DateProvider({ children }: { children: ReactNode }) {
     <DateContext.Provider
       value={{
         selectedDate,
+        todayKey,
         setSelectedDate,
         goToToday,
       }}

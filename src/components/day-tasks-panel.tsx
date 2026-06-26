@@ -3,7 +3,7 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { addDays, format, isToday, isTomorrow } from "date-fns";
 import { ChevronDown, ListChecks } from "lucide-react";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
@@ -34,13 +34,14 @@ export function DayTasksPanel({
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
-  const { selectedDate } = useSelectedDate();
+  const { selectedDate, todayKey } = useSelectedDate();
   const { version, mergeEnrichment } = useDashboardSync();
   const [enrichment, setEnrichment] =
     useState<DashboardEnrichmentData>(initialEnrichment);
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const dateKey = formatDateKey(selectedDate);
+  const previousTodayKey = useRef(todayKey);
 
   useEffect(() => {
     if (version === 0) return;
@@ -53,6 +54,19 @@ export function DayTasksPanel({
       setEnrichment(data);
     });
   }, [version, clientId]);
+
+  useEffect(() => {
+    if (previousTodayKey.current === todayKey) return;
+    previousTodayKey.current = todayKey;
+
+    const from = formatDateKey(addDays(new Date(), -3));
+    const to = formatDateKey(addDays(new Date(), 28));
+
+    startTransition(async () => {
+      const data = await fetchDashboardEnrichmentData(clientId, from, to);
+      setEnrichment(data);
+    });
+  }, [todayKey, clientId]);
 
   const mergedEnrichment = useMemo(
     () => mergeEnrichment(enrichment),
