@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
+import {
+  formatDbError,
+  requireSubscribedMutationAdmin,
+} from "@/lib/actions/auth-client";
 import { updatePersonalNutritionPlanMacros } from "@/lib/actions/user-nutrition";
 
 export async function getDailyLog(clientId: string, date: string) {
@@ -27,20 +30,20 @@ export async function upsertDailyLog(
     fat: number;
   }>
 ) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error };
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
 
-  const supabase = await createClient();
+  const { admin } = mutation;
   const existing = await getDailyLog(clientId, date);
 
   if (existing) {
-    const { error } = await supabase
+    const { error } = await admin
       .from("daily_logs")
       .update(updates)
       .eq("id", existing.id);
-    if (error) return { error: error.message };
+    if (error) return { error: formatDbError(error.message) };
   } else {
-    const { error } = await supabase.from("daily_logs").insert({
+    const { error } = await admin.from("daily_logs").insert({
       client_id: clientId,
       date,
       water_ml: updates.water_ml ?? 0,
@@ -49,7 +52,7 @@ export async function upsertDailyLog(
       carbs: updates.carbs ?? 0,
       fat: updates.fat ?? 0,
     });
-    if (error) return { error: error.message };
+    if (error) return { error: formatDbError(error.message) };
   }
 
   return { success: true };
@@ -73,15 +76,14 @@ export async function getWaterGoal(clientId: string): Promise<number> {
 }
 
 export async function updateWaterGoal(clientId: string, waterGoalMl: number) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error };
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
 
   if (!Number.isFinite(waterGoalMl) || waterGoalMl < 500 || waterGoalMl > 10000) {
     return { error: "Water goal must be between 500 and 10000 ml" };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const { error } = await mutation.admin
     .from("profiles")
     .update({ water_goal_ml: Math.round(waterGoalMl) })
     .eq("id", clientId);
@@ -101,8 +103,8 @@ export async function updateNutritionTargets(
   },
   options?: { personalPlanId?: string | null }
 ) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error };
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
 
   const calories = Math.round(targets.calories);
   const protein = Math.round(targets.protein);
@@ -134,8 +136,7 @@ export async function updateNutritionTargets(
     return { success: true };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const { error } = await mutation.admin
     .from("profiles")
     .update({
       target_calories: calories,

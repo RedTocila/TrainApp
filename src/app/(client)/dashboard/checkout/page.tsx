@@ -4,8 +4,9 @@ import { getPreferredLocale } from "@/lib/actions/profile";
 import { CheckoutClient } from "@/components/checkout-client";
 import { PageTransition } from "@/components/page-transition";
 import { parseCheckoutCurrency } from "@/lib/checkout-i18n";
+import { getCachedAllPerEur } from "@/lib/exchange-rates";
 import type { BillingInterval, SubscriptionPlanId } from "@/lib/subscription-plans";
-import { getPlan } from "@/lib/subscription-plans";
+import { getPlan, getPlanPrice } from "@/lib/subscription-plans";
 
 export default async function CheckoutPage({
   searchParams,
@@ -30,6 +31,9 @@ export default async function CheckoutPage({
     redirect("/dashboard/pricing");
   }
 
+  const allPerEur = await getCachedAllPerEur();
+  const displayPrice = getPlanPrice(planId, interval, currency, allPerEur);
+
   return (
     <PageTransition>
       <CheckoutClient
@@ -37,6 +41,7 @@ export default async function CheckoutPage({
         interval={interval}
         currency={currency}
         locale={locale}
+        displayPrice={displayPrice}
       />
     </PageTransition>
   );

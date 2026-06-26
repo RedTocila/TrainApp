@@ -1,4 +1,4 @@
-import type { CheckoutCurrency, PriceInAll } from "@/lib/checkout-i18n";
+import type { CheckoutCurrency, PriceInEur } from "@/lib/checkout-i18n";
 import { getCurrencyPrice } from "@/lib/checkout-i18n";
 import type { PlanRequestType } from "@/lib/types";
 
@@ -9,7 +9,7 @@ export interface CustomPlanProduct {
   orderKind: "custom_workout" | "custom_nutrition";
   title: string;
   description: string;
-  pricing: PriceInAll;
+  pricing: PriceInEur;
 }
 
 export const CUSTOM_PLAN_PRODUCTS: CustomPlanProduct[] = [
@@ -18,14 +18,14 @@ export const CUSTOM_PLAN_PRODUCTS: CustomPlanProduct[] = [
     orderKind: "custom_workout",
     title: "Custom Workout Plan",
     description: `Personal workout program built by ${TRAINER_NAME} based on your goals and preferences.`,
-    pricing: { amountAllCents: 490_000 },
+    pricing: { amountEurCents: 4900 },
   },
   {
     type: "diet",
     orderKind: "custom_nutrition",
     title: "Custom Nutrition Plan",
     description: `Personal nutrition plan designed by ${TRAINER_NAME} as a PDF tailored to your body and goals.`,
-    pricing: { amountAllCents: 790_000 },
+    pricing: { amountEurCents: 7900 },
   },
 ];
 
@@ -35,9 +35,10 @@ export function getCustomPlanProduct(type: PlanRequestType): CustomPlanProduct |
 
 export function getCustomPlanPrice(
   type: PlanRequestType,
-  currency: CheckoutCurrency = "ALL"
+  currency: CheckoutCurrency,
+  allPerEur: number
 ) {
   const product = getCustomPlanProduct(type);
   if (!product) throw new Error("Unknown custom plan type");
-  return getCurrencyPrice(product.pricing, currency);
+  return getCurrencyPrice(product.pricing, currency, allPerEur);
 }

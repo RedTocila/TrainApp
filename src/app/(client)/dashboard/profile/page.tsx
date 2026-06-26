@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
-import { AlertTriangle, BadgeCheck, CreditCard, Settings2, UserRound } from "lucide-react";
+import { AlertTriangle, BadgeCheck, CreditCard, Gift, Settings2, UserRound } from "lucide-react";
 import { getProfileWithEmail } from "@/lib/actions/profile";
+import { getReferralDashboardData } from "@/lib/actions/referrals";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ProfileSettings } from "@/components/profile-settings";
 import { ProfileSubscriptionSection } from "@/components/profile-subscription-section";
+import { ReferralProgram } from "@/components/referral-program";
 import { ClientIntakeForm } from "@/components/client-intake-form";
 import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent } from "@/components/ui/card";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
+import { getReferralProgramCopy } from "@/lib/referral-program-copy";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import { cn } from "@/lib/utils";
 import { getClientIntakeStatus } from "@/lib/client-intake-utils";
@@ -17,6 +20,11 @@ export default async function ProfilePage() {
   if (!profile) redirect("/login");
   const intakeStatus = getClientIntakeStatus(profile);
   const platform = getPlatformCopy(parseCheckoutLocale(profile.preferred_locale));
+  const referralData = await getReferralDashboardData();
+  const referralCopy =
+    !("error" in referralData)
+      ? getReferralProgramCopy(platform, referralData)
+      : null;
 
   return (
     <PageTransition>
@@ -101,6 +109,18 @@ export default async function ProfilePage() {
                 <ProfileSubscriptionSection profile={profile} />
               </CardContent>
             </Card>
+
+            {referralCopy && referralData && !("error" in referralData) && (
+              <Card>
+                <CardContent className="p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Gift className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-black">{platform.profile.referrals}</p>
+                  </div>
+                  <ReferralProgram data={referralData} copy={referralCopy} compact />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 

@@ -46,14 +46,16 @@ export default function TermsPage() {
         <h2>4. Subscriptions & payments</h2>
         <ul>
           <li>
-            Paid plans (RUTINA Core and RUTINA AI) are billed monthly or
-            annually as selected at checkout.
+            Paid plans (RUTINA AI) are billed monthly or annually as selected at
+            checkout.
           </li>
           <li>
             One-time custom workout and nutrition plans are separate purchases.
           </li>
           <li>
-            Prices are shown in ALL (Albanian Lek) or EUR at a fixed rate of 100 ALL per 1 EUR. Taxes may apply depending on your location.
+            Prices are shown in ALL (Albanian Lek) or EUR. ALL amounts are
+            converted from EUR using a live exchange rate (refreshed hourly).
+            Taxes may apply depending on your location.
           </li>
           <li>
             You may cancel recurring subscriptions from your account; access

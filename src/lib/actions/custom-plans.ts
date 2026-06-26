@@ -8,6 +8,7 @@ import {
   parseCheckoutCurrency,
   type CheckoutCurrency,
 } from "@/lib/checkout-i18n";
+import { getCachedAllPerEur } from "@/lib/exchange-rates";
 import {
   createSdkOrder,
   getSdkOrder,
@@ -74,7 +75,8 @@ export async function createCustomPlanCheckout(
   if (!product) return { error: "Invalid plan type" };
 
   const currency = parseCheckoutCurrency(currencyCode);
-  const price = getCustomPlanPrice(type, currency);
+  const allPerEur = await getCachedAllPerEur();
+  const price = getCustomPlanPrice(type, currency, allPerEur);
 
   const trimmed = preferences.trim();
   if (trimmed.length < 10) {

@@ -1,10 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
+import type { Profile } from "@/lib/types";
 
 export type AuthClientResult =
   | { error: string }
   | { user: { id: string }; admin: SupabaseClient };
+
+export type MutationAdminResult =
+  | { error: string }
+  | { admin: SupabaseClient; userId: string; profile: Profile };
 
 /** Verify the caller owns clientId; return service-role client for mutations. */
 export async function requireOwnedClient(clientId: string): Promise<AuthClientResult> {
@@ -15,6 +21,18 @@ export async function requireOwnedClient(clientId: string): Promise<AuthClientRe
   if (!user) return { error: "Not authenticated" };
   if (user.id !== clientId) return { error: "Not authorized" };
   return { user, admin: createAdminClient() };
+}
+
+/** Subscribed user mutations — bypasses RLS after auth + ownership checks. */
+export async function requireSubscribedMutationAdmin(
+  clientId?: string
+): Promise<MutationAdminResult> {
+  const access = await ensureSubscribedMutation();
+  if ("error" in access) return { error: access.error };
+  if (clientId && clientId !== access.profile.id) return { error: "Not authorized" };
+  const auth = await requireOwnedClient(access.profile.id);
+  if ("error" in auth) return { error: auth.error };
+  return { admin: auth.admin, userId: access.profile.id, profile: access.profile };
 }
 
 /** Map raw Postgres/Supabase errors to short user-facing messages. */

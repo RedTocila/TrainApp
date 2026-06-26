@@ -1,9 +1,5 @@
-import { PLATFORM_CORE_NAME } from "@/lib/brand";
 import type { CheckoutCurrency, CheckoutLocale } from "@/lib/checkout-i18n";
-import {
-  allCentsToCurrencyCents,
-  formatCurrencyAmount,
-} from "@/lib/checkout-i18n";
+import { formatCurrencyAmount, toCurrencyCents } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import type { SubscriptionPlan } from "@/lib/subscription-plans";
 import { SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
@@ -13,33 +9,28 @@ export function getLocalizedSubscriptionPlans(
 ): SubscriptionPlan[] {
   const copy = getPlatformCopy(locale);
   const plans = copy.subscriptionPlans;
+  const plan = SUBSCRIPTION_PLANS[0];
 
-  return SUBSCRIPTION_PLANS.map((plan) => {
-    if (plan.id === "core") {
-      return {
-        ...plan,
-        tagline: plans.coreTagline,
-        features: [...plans.coreFeatures],
-      };
-    }
-    return {
+  return [
+    {
       ...plan,
       tagline: plans.aiTagline,
       badge: plans.bestValue,
-      features: plans.aiFeatures(PLATFORM_CORE_NAME),
-    };
-  });
+      features: [...plans.aiFeatures],
+    },
+  ];
 }
 
 export function formatAnnualSavingsLocalized(
-  monthlyAllCents: number,
-  annualAllCents: number,
+  monthlyEurCents: number,
+  annualEurCents: number,
   currency: CheckoutCurrency,
+  allPerEur: number,
   locale: CheckoutLocale
 ): string | null {
-  const savedAll = monthlyAllCents * 12 - annualAllCents;
-  if (savedAll <= 0) return null;
-  const saved = allCentsToCurrencyCents(savedAll, currency);
-  const amount = formatCurrencyAmount(saved, currency);
+  const savedEurCents = monthlyEurCents * 12 - annualEurCents;
+  if (savedEurCents <= 0) return null;
+  const savedCents = toCurrencyCents(savedEurCents, currency, allPerEur);
+  const amount = formatCurrencyAmount(savedCents, currency);
   return getPlatformCopy(locale).pricing.savePerYear(amount);
 }

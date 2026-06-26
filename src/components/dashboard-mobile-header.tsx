@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLogo } from "@/components/app-logo";
-import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
+import { ReferralNavButton } from "@/components/full-calendar-nav-button";
 import { SupportContactButton } from "@/components/support-contact-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,7 @@ export function DashboardMobileHeader() {
         <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
           <SupportContactButton buttonClassName={headerIconButton} />
           <ThemeToggle className={headerIconButton} />
-          <FullCalendarNavButton className={headerIconButton} />
+          <ReferralNavButton className={headerIconButton} />
         </div>
       </div>
     </header>

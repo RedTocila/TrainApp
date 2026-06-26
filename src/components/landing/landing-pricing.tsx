@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
-import { CheckoutCurrencyToggle } from "@/components/checkout-preferences-toggle";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import {
   GET_STARTED_CTA,
@@ -17,25 +16,16 @@ import {
   DEFAULT_CHECKOUT_CURRENCY,
   formatAnnualSavings,
   getCurrencyPrice,
-  type CheckoutCurrency,
-  type PriceInAll,
 } from "@/lib/checkout-i18n";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-function annualSavings(
-  monthly: PriceInAll,
-  annual: PriceInAll,
-  currency: CheckoutCurrency
-): string | null {
-  return formatAnnualSavings(monthly.amountAllCents, annual.amountAllCents, currency);
-}
-
-export function LandingPricing() {
+export function LandingPricing({ allPerEur }: { allPerEur: number }) {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
-  const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
+  const currency = DEFAULT_CHECKOUT_CURRENCY;
+  const eurMonthly = getCurrencyPrice(SUBSCRIPTION_PLANS[0].monthly, "EUR", allPerEur);
 
   return (
     <section id="pricing" className="landing-deferred-section scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">
@@ -45,16 +35,18 @@ export function LandingPricing() {
             Pricing
           </p>
           <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-            Pick your package later
+            {eurMonthly.label}/month — all-in-one
           </h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            Build your program first — choose a plan after sign-up (skip anytime)
+            Build your program first — subscribe after sign-up (skip anytime)
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            ALL prices use live rate: 1 EUR = {allPerEur.toFixed(2)} ALL
           </p>
         </FadeIn>
 
         <FadeIn delay={0.05}>
           <div className="mb-6 flex flex-col items-center gap-3">
-            <CheckoutCurrencyToggle currency={currency} onCurrencyChange={setCurrency} />
             <SegmentedToggle
               value={interval}
               onChange={setInterval}
@@ -67,13 +59,18 @@ export function LandingPricing() {
             />
           </div>
 
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
+          <div className="mt-8 grid gap-6 md:max-w-lg md:mx-auto">
             {SUBSCRIPTION_PLANS.map((plan) => {
               const tier = interval === "monthly" ? plan.monthly : plan.annual;
-              const price = getCurrencyPrice(tier, currency);
+              const price = getCurrencyPrice(tier, currency, allPerEur);
               const savings =
                 interval === "annual"
-                  ? annualSavings(plan.monthly, plan.annual, currency)
+                  ? formatAnnualSavings(
+                      plan.monthly.amountEurCents,
+                      plan.annual.amountEurCents,
+                      currency,
+                      allPerEur
+                    )
                   : null;
 
               return (

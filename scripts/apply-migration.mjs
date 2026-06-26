@@ -35,10 +35,17 @@ function loadEnv() {
 
 loadEnv();
 
-const password = process.argv[2] || process.env.SUPABASE_DB_PASSWORD;
+const args = process.argv.slice(2);
+const migrationArg = args.find((a) => a.endsWith(".sql"));
+const password = args.find((a) => !a.endsWith(".sql")) || process.env.SUPABASE_DB_PASSWORD;
 let databaseUrl = process.env.DATABASE_URL;
 
-const sql = readFileSync(resolve(__dirname, "../supabase/complete_setup.sql"), "utf8");
+const migrationFile = migrationArg ?? "complete_setup.sql";
+const sqlPath = migrationFile.startsWith("migrations/")
+  ? resolve(__dirname, `../supabase/${migrationFile}`)
+  : resolve(__dirname, `../supabase/${migrationFile}`);
+const sql = readFileSync(sqlPath, "utf8");
+console.log(`Migration file: supabase/${migrationFile}`);
 
 async function tryConnect(url) {
   const client = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 8000 });

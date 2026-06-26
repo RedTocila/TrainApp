@@ -4,9 +4,6 @@ export type CheckoutLocale = "al" | "en";
 export const DEFAULT_CHECKOUT_CURRENCY: CheckoutCurrency = "ALL";
 export const DEFAULT_CHECKOUT_LOCALE: CheckoutLocale = "al";
 
-/** 1 EUR = 100 ALL (major units). Amounts are stored in ALL minor units (cent). */
-export const ALL_PER_EUR = 100;
-
 export const CHECKOUT_CURRENCIES: { value: CheckoutCurrency; label: string }[] = [
   { value: "ALL", label: "ALL" },
   { value: "EUR", label: "EUR" },
@@ -22,9 +19,9 @@ export interface CurrencyAmount {
   label: string;
 }
 
-/** Canonical price stored in ALL minor units (1/100 of a Lek). */
-export interface PriceInAll {
-  amountAllCents: number;
+/** Canonical list prices are stored in EUR minor units (cents). */
+export interface PriceInEur {
+  amountEurCents: number;
 }
 
 export function parseCheckoutCurrency(value?: string | null): CheckoutCurrency {
@@ -35,19 +32,28 @@ export function parseCheckoutLocale(value?: string | null): CheckoutLocale {
   return value === "en" ? "en" : "al";
 }
 
-export function allCentsToCurrencyCents(
-  amountAllCents: number,
-  currency: CheckoutCurrency
+/** Convert €X.XX to ALL minor units using live ALL-per-EUR rate. */
+export function eurCentsToAllCents(eurCents: number, allPerEur: number): number {
+  const eurMajor = eurCents / 100;
+  const allMajor = eurMajor * allPerEur;
+  return Math.round(allMajor * 100);
+}
+
+export function toCurrencyCents(
+  amountEurCents: number,
+  currency: CheckoutCurrency,
+  allPerEur: number
 ): number {
-  if (currency === "ALL") return amountAllCents;
-  return Math.round(amountAllCents / ALL_PER_EUR);
+  if (currency === "EUR") return amountEurCents;
+  return eurCentsToAllCents(amountEurCents, allPerEur);
 }
 
 export function toCurrencyAmount(
-  amountAllCents: number,
-  currency: CheckoutCurrency
+  amountEurCents: number,
+  currency: CheckoutCurrency,
+  allPerEur: number
 ): CurrencyAmount {
-  const amountCents = allCentsToCurrencyCents(amountAllCents, currency);
+  const amountCents = toCurrencyCents(amountEurCents, currency, allPerEur);
   return {
     amountCents,
     label: formatCurrencyAmount(amountCents, currency),
@@ -55,10 +61,11 @@ export function toCurrencyAmount(
 }
 
 export function getCurrencyPrice(
-  price: PriceInAll,
-  currency: CheckoutCurrency
+  price: PriceInEur,
+  currency: CheckoutCurrency,
+  allPerEur: number
 ): CurrencyAmount {
-  return toCurrencyAmount(price.amountAllCents, currency);
+  return toCurrencyAmount(price.amountEurCents, currency, allPerEur);
 }
 
 export function formatCurrencyAmount(
@@ -80,14 +87,15 @@ export function formatCurrencyAmount(
 }
 
 export function formatAnnualSavings(
-  monthlyAllCents: number,
-  annualAllCents: number,
-  currency: CheckoutCurrency
+  monthlyEurCents: number,
+  annualEurCents: number,
+  currency: CheckoutCurrency,
+  allPerEur: number
 ): string | null {
-  const savedAll = monthlyAllCents * 12 - annualAllCents;
-  if (savedAll <= 0) return null;
-  const saved = allCentsToCurrencyCents(savedAll, currency);
-  return `Save ${formatCurrencyAmount(saved, currency)}/year`;
+  const savedEurCents = monthlyEurCents * 12 - annualEurCents;
+  if (savedEurCents <= 0) return null;
+  const savedCents = toCurrencyCents(savedEurCents, currency, allPerEur);
+  return `Save ${formatCurrencyAmount(savedCents, currency)}/year`;
 }
 
 /**

@@ -15,9 +15,11 @@ import { hasPaidAccess } from "@/lib/subscription";
 export function PricingPageClient({
   profile,
   onboarding = false,
+  allPerEur,
 }: {
   profile: Profile;
   onboarding?: boolean;
+  allPerEur: number;
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
@@ -41,7 +43,7 @@ export function PricingPageClient({
   }, [onboarding, profile.full_name, profile.phone]);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-lg space-y-8">
       <div className="space-y-2 text-center">
         {onboarding && (
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -58,6 +60,7 @@ export function PricingPageClient({
         onIntervalChange={setInterval}
         currentPlan={profile.subscription_plan}
         subscribed={subscribed}
+        allPerEur={allPerEur}
       />
       {onboarding && !subscribed && (
         <div className="text-center">

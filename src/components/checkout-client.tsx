@@ -10,10 +10,10 @@ import type { CheckoutCurrency, CheckoutLocale } from "@/lib/checkout-i18n";
 import { getPokPayClientEnv } from "@/lib/pokpay/env";
 import {
   getPlan,
-  getPlanPrice,
   type BillingInterval,
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
+import type { PlanPrice } from "@/lib/subscription-plans";
 import { Button } from "@/components/ui/button";
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { usePlatformCopy } from "@/components/locale-provider";
@@ -48,11 +48,13 @@ export function CheckoutClient({
   interval,
   currency,
   locale,
+  displayPrice,
 }: {
   planId: SubscriptionPlanId;
   interval: BillingInterval;
   currency: CheckoutCurrency;
   locale: CheckoutLocale;
+  displayPrice: PlanPrice;
 }) {
   const platform = usePlatformCopy();
   const router = useRouter();
@@ -62,7 +64,7 @@ export function CheckoutClient({
   const [isPending, startTransition] = useTransition();
 
   const plan = getPlan(planId);
-  const price = plan ? getPlanPrice(planId, interval, currency) : null;
+  const price = displayPrice;
 
   useEffect(() => {
     startTransition(async () => {

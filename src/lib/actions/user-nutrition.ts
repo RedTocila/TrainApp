@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireSubscribedUserAccess } from "@/lib/actions/user-access";
+import { requireSubscribedMutationAdmin } from "@/lib/actions/auth-client";
 import { UNCATEGORIZED_NUTRITION_FOLDER_ID } from "@/lib/nutrition-folders";
 import { mealPayloadFromForm, normalizeMealMacros, type MealFormData } from "@/lib/meal-utils";
 import { mealTypeForSlot, sumDayMenuMacros, type MealSlot } from "@/lib/meal-slots";
@@ -18,10 +18,10 @@ async function requireUserId() {
   return { supabase, userId: user.id };
 }
 
-async function requireMutationUserId() {
-  const access = await requireSubscribedUserAccess();
-  if ("error" in access) throw new Error(access.error);
-  return { supabase: access.supabase, userId: access.userId };
+async function requireMutationAdmin() {
+  const mutation = await requireSubscribedMutationAdmin();
+  if ("error" in mutation) throw new Error(mutation.error);
+  return { admin: mutation.admin, userId: mutation.userId };
 }
 
 function revalidateNutritionPaths(folderId?: string | null, planId?: string) {
@@ -38,14 +38,14 @@ function revalidateNutritionPaths(folderId?: string | null, planId?: string) {
 }
 
 async function syncDayMenuMacrosFromMeals(planId: string) {
-  const { supabase, userId } = await requireUserId();
-  const { data: meals } = await supabase
+  const { admin, userId } = await requireMutationAdmin();
+  const { data: meals } = await admin
     .from("meals")
     .select("id, meal_type, slot, calories, protein, carbs, fat, foods, order_index")
     .eq("plan_id", planId);
 
   const totals = sumDayMenuMacros((meals ?? []) as Meal[]);
-  await supabase
+  await admin
     .from("nutrition_plans")
     .update({
       target_calories: totals.calories,
@@ -81,13 +81,13 @@ export async function createPersonalNutritionPlan(
   },
   folderId?: string | null
 ) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
   const resolvedFolderId =
     folderId && folderId !== UNCATEGORIZED_NUTRITION_FOLDER_ID ? folderId : null;
 
   if (resolvedFolderId) {
-    const { data: folder } = await supabase
+    const { data: folder } = await admin
       .from("nutrition_folders")
       .select("id")
       .eq("id", resolvedFolderId)
@@ -96,7 +96,7 @@ export async function createPersonalNutritionPlan(
     if (!folder) return { error: "Folder not found" };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("nutrition_plans")
     .insert({
       title,
@@ -128,9 +128,9 @@ export async function updatePersonalNutritionPlanMacros(
     target_fat: number;
   }
 ) {
-  const { supabase, userId } = await requireUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: plan, error } = await supabase
+  const { data: plan, error } = await admin
     .from("nutrition_plans")
     .update({
       target_calories: macros.target_calories,
@@ -160,9 +160,9 @@ export async function updatePersonalNutritionPlan(
     target_fat: number;
   }
 ) {
-  const { supabase, userId } = await requireUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: plan, error } = await supabase
+  const { data: plan, error } = await admin
     .from("nutrition_plans")
     .update({
       title: data.title,
@@ -252,9 +252,9 @@ export async function getPersonalNutritionPlanWithDetails(planId: string) {
 }
 
 export async function deletePersonalNutritionPlan(planId: string) {
-  const { supabase, userId } = await requireUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: plan } = await supabase
+  const { data: plan } = await admin
     .from("nutrition_plans")
     .select("folder_id")
     .eq("id", planId)
@@ -262,7 +262,7 @@ export async function deletePersonalNutritionPlan(planId: string) {
     .eq("is_personal", true)
     .single();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("nutrition_plans")
     .delete()
     .eq("id", planId)
@@ -275,9 +275,9 @@ export async function deletePersonalNutritionPlan(planId: string) {
 }
 
 export async function assignPersonalNutritionPlan(planId: string) {
-  const { supabase, userId } = await requireUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: plan } = await supabase
+  const { data: plan } = await admin
     .from("nutrition_plans")
     .select("id")
     .eq("id", planId)
@@ -287,12 +287,12 @@ export async function assignPersonalNutritionPlan(planId: string) {
 
   if (!plan) return { error: "Plan not found" };
 
-  await supabase
+  await admin
     .from("nutrition_assignments")
     .update({ active: false })
     .eq("client_id", userId);
 
-  const { error } = await supabase.from("nutrition_assignments").insert({
+  const { error } = await admin.from("nutrition_assignments").insert({
     client_id: userId,
     plan_id: planId,
     active: true,
@@ -373,8 +373,8 @@ export async function createNutritionFolder(name: string) {
   const trimmed = name.trim();
   if (!trimmed) return { error: "Folder name is required" };
 
-  const { supabase, userId } = await requireUserId();
-  const { data, error } = await supabase
+  const { admin, userId } = await requireMutationAdmin();
+  const { data, error } = await admin
     .from("nutrition_folders")
     .insert({ client_id: userId, name: trimmed })
     .select()
@@ -389,8 +389,8 @@ export async function renameNutritionFolder(folderId: string, name: string) {
   const trimmed = name.trim();
   if (!trimmed) return { error: "Folder name is required" };
 
-  const { supabase, userId } = await requireUserId();
-  const { error } = await supabase
+  const { admin, userId } = await requireMutationAdmin();
+  const { error } = await admin
     .from("nutrition_folders")
     .update({ name: trimmed })
     .eq("id", folderId)
@@ -403,8 +403,8 @@ export async function renameNutritionFolder(folderId: string, name: string) {
 }
 
 export async function deleteNutritionFolder(folderId: string) {
-  const { supabase, userId } = await requireUserId();
-  const { error } = await supabase
+  const { admin, userId } = await requireMutationAdmin();
+  const { error } = await admin
     .from("nutrition_folders")
     .delete()
     .eq("id", folderId)
@@ -432,12 +432,12 @@ export async function getNutritionFoldersForMove(): Promise<{ id: string; name: 
 }
 
 export async function moveNutritionPlanToFolder(planId: string, targetFolderId: string) {
-  const { supabase, userId } = await requireUserId();
+  const { admin, userId } = await requireMutationAdmin();
   const resolvedTarget =
     targetFolderId === UNCATEGORIZED_NUTRITION_FOLDER_ID ? null : targetFolderId;
 
   if (resolvedTarget) {
-    const { data: folder } = await supabase
+    const { data: folder } = await admin
       .from("nutrition_folders")
       .select("id")
       .eq("id", resolvedTarget)
@@ -446,7 +446,7 @@ export async function moveNutritionPlanToFolder(planId: string, targetFolderId: 
     if (!folder) return { error: "Folder not found" };
   }
 
-  const { data: plan } = await supabase
+  const { data: plan } = await admin
     .from("nutrition_plans")
     .select("id, folder_id")
     .eq("id", planId)
@@ -459,7 +459,7 @@ export async function moveNutritionPlanToFolder(planId: string, targetFolderId: 
   const oldFolderId = plan.folder_id as string | null;
   if (oldFolderId === resolvedTarget) return { success: true };
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("nutrition_plans")
     .update({ folder_id: resolvedTarget })
     .eq("id", planId)
@@ -641,8 +641,8 @@ export async function updatePersonalMeal(mealId: string, data: MealFormData) {
   const found = await getPersonalMealWithPlan(mealId);
   if (!found) return { error: "Meal not found" };
 
-  const { supabase } = await requireUserId();
-  const { error } = await supabase
+  const { admin } = await requireMutationAdmin();
+  const { error } = await admin
     .from("meals")
     .update(mealPayloadFromForm(data))
     .eq("id", mealId);
@@ -657,8 +657,8 @@ export async function deletePersonalMeal(mealId: string) {
   const found = await getPersonalMealWithPlan(mealId);
   if (!found) return { error: "Meal not found" };
 
-  const { supabase } = await requireUserId();
-  const { error } = await supabase.from("meals").delete().eq("id", mealId);
+  const { admin } = await requireMutationAdmin();
+  const { error } = await admin.from("meals").delete().eq("id", mealId);
 
   if (error) return { error: error.message };
   await syncDayMenuMacrosFromMeals(found.plan.id);
@@ -674,8 +674,8 @@ export async function addMealToDayMenuSlot(
   const trimmed = data.name.trim();
   if (!trimmed) return { error: "Meal name is required" };
 
-  const { supabase, userId } = await requireUserId();
-  const { data: plan } = await supabase
+  const { admin, userId } = await requireMutationAdmin();
+  const { data: plan } = await admin
     .from("nutrition_plans")
     .select("id, folder_id")
     .eq("id", planId)
@@ -687,7 +687,7 @@ export async function addMealToDayMenuSlot(
 
   const orderIndex = await nextSlotOrderIndex(planId, slot);
 
-  const { error } = await supabase.from("meals").insert({
+  const { error } = await admin.from("meals").insert({
     plan_id: planId,
     ...mealPayloadFromForm(data),
     slot,
@@ -727,9 +727,9 @@ export async function reorderSlotMeals(
   slot: MealSlot,
   orderedMealIds: string[]
 ) {
-  const { supabase, userId } = await requireUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: plan } = await supabase
+  const { data: plan } = await admin
     .from("nutrition_plans")
     .select("id, folder_id")
     .eq("id", planId)
@@ -740,7 +740,7 @@ export async function reorderSlotMeals(
   if (!plan) return { error: "Day menu not found" };
 
   for (let i = 0; i < orderedMealIds.length; i++) {
-    const { error } = await supabase
+    const { error } = await admin
       .from("meals")
       .update({ order_index: i })
       .eq("id", orderedMealIds[i])
@@ -759,9 +759,9 @@ export async function updateDayMenuDetails(
   planId: string,
   data: { title: string; description?: string | null }
 ) {
-  const { supabase, userId } = await requireUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: plan, error } = await supabase
+  const { data: plan, error } = await admin
     .from("nutrition_plans")
     .update({
       title: data.title.trim(),
@@ -782,8 +782,8 @@ export async function createPersonalMeal(targetPlanId: string, data: MealFormDat
   const trimmed = data.name.trim();
   if (!trimmed) return { error: "Meal name is required" };
 
-  const { supabase, userId } = await requireMutationUserId();
-  const { data: plan } = await supabase
+  const { admin, userId } = await requireMutationAdmin();
+  const { data: plan } = await admin
     .from("nutrition_plans")
     .select("id, folder_id")
     .eq("id", targetPlanId)
@@ -793,7 +793,7 @@ export async function createPersonalMeal(targetPlanId: string, data: MealFormDat
 
   if (!plan) return { error: "Meal plan not found" };
 
-  const { data: last } = await supabase
+  const { data: last } = await admin
     .from("meals")
     .select("order_index")
     .eq("plan_id", targetPlanId)
@@ -802,7 +802,7 @@ export async function createPersonalMeal(targetPlanId: string, data: MealFormDat
 
   const orderIndex = (last?.[0]?.order_index ?? -1) + 1;
 
-  const { error } = await supabase.from("meals").insert({
+  const { error } = await admin.from("meals").insert({
     plan_id: targetPlanId,
     ...mealPayloadFromForm(data),
     order_index: orderIndex,
@@ -835,8 +835,8 @@ export async function copyMealToPlan(mealId: string, targetPlanId: string) {
   const found = await getPersonalMealWithPlan(mealId);
   if (!found) return { error: "Meal not found" };
 
-  const { supabase, userId } = await requireUserId();
-  const { data: target } = await supabase
+  const { admin, userId } = await requireMutationAdmin();
+  const { data: target } = await admin
     .from("nutrition_plans")
     .select("id, folder_id")
     .eq("id", targetPlanId)
@@ -846,7 +846,7 @@ export async function copyMealToPlan(mealId: string, targetPlanId: string) {
 
   if (!target) return { error: "Meal plan not found" };
 
-  const { data: last } = await supabase
+  const { data: last } = await admin
     .from("meals")
     .select("order_index")
     .eq("plan_id", targetPlanId)
@@ -855,7 +855,7 @@ export async function copyMealToPlan(mealId: string, targetPlanId: string) {
 
   const orderIndex = (last?.[0]?.order_index ?? -1) + 1;
 
-  const { error } = await supabase.from("meals").insert({
+  const { error } = await admin.from("meals").insert({
     plan_id: targetPlanId,
     ...mealPayloadFromForm({
       meal_type: found.meal.meal_type,

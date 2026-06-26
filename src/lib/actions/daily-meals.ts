@@ -1,7 +1,11 @@
 "use server";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
+import {
+  formatDbError,
+  requireSubscribedMutationAdmin,
+} from "@/lib/actions/auth-client";
 import { upsertDailyLog } from "@/lib/actions/logs";
 import { mealPayloadFromForm, sumMealMacros, type MealFormData } from "@/lib/meal-utils";
 import { getMealSlotPhase, resolveMealSlotForLog } from "@/lib/meal-times";
@@ -16,19 +20,19 @@ async function syncDailyMacros(clientId: string, date: string) {
 }
 
 async function clearSlotLogIfExists(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  admin: SupabaseClient,
   clientId: string,
   date: string,
   slot: MealSlot
 ) {
   const existing = await getDailyMealLogForSlot(clientId, date, slot);
   if (existing) {
-    await supabase.from("daily_meal_logs").delete().eq("id", existing.id);
+    await admin.from("daily_meal_logs").delete().eq("id", existing.id);
   }
 }
 
 async function insertMealLogWithSlot(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  admin: SupabaseClient,
   clientId: string,
   date: string,
   input: {
@@ -50,12 +54,12 @@ async function insertMealLogWithSlot(
     resolveMealSlotForLog(existingLogs, input.meal_type, date);
 
   if (slot) {
-    await clearSlotLogIfExists(supabase, clientId, date, slot);
+    await clearSlotLogIfExists(admin, clientId, date, slot);
   }
 
   const meal_type = slot ? mealTypeForSlot(slot) : input.meal_type;
 
-  return supabase.from("daily_meal_logs").insert({
+  return admin.from("daily_meal_logs").insert({
     client_id: clientId,
     date,
     slot: slot ?? null,
@@ -113,14 +117,9 @@ export async function logPlannedMealOption(
   slot: MealSlot,
   plannedMeal: Meal
 ) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error };
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || user.id !== clientId) return { error: "Not authenticated" };
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
+  const { admin } = mutation;
 
   const existing = await getDailyMealLogForSlot(clientId, date, slot);
 
@@ -133,10 +132,10 @@ export async function logPlannedMealOption(
   }
 
   if (existing) {
-    await supabase.from("daily_meal_logs").delete().eq("id", existing.id);
+    await admin.from("daily_meal_logs").delete().eq("id", existing.id);
   }
 
-  const { error } = await supabase.from("daily_meal_logs").insert({
+  const { error } = await admin.from("daily_meal_logs").insert({
     client_id: clientId,
     date,
     slot,
@@ -151,7 +150,7 @@ export async function logPlannedMealOption(
     source_meal_id: plannedMeal.id,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
 
   await syncDailyMacros(clientId, date);
   return { success: true, checked: true };
@@ -163,26 +162,21 @@ export async function togglePlannedMealSlot(
   slot: MealSlot,
   plannedMeal: Meal
 ) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error };
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || user.id !== clientId) return { error: "Not authenticated" };
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
+  const { admin } = mutation;
 
   const existing = await getDailyMealLogForSlot(clientId, date, slot);
 
   if (existing) {
-    const { error } = await supabase
+    const { error } = await admin
       .from("daily_meal_logs")
       .delete()
       .eq("id", existing.id)
       .eq("client_id", clientId)
       .eq("date", date);
 
-    if (error) return { error: error.message };
+    if (error) return { error: formatDbError(error.message) };
     await syncDailyMacros(clientId, date);
     return { success: true, checked: false };
   }
@@ -198,7 +192,7 @@ export async function togglePlannedMealSlot(
     fat: plannedMeal.fat ?? 0,
   };
 
-  const { error } = await supabase.from("daily_meal_logs").insert({
+  const { error } = await admin.from("daily_meal_logs").insert({
     client_id: clientId,
     date,
     slot,
@@ -213,7 +207,7 @@ export async function togglePlannedMealSlot(
     source_meal_id: plannedMeal.id,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
 
   await syncDailyMacros(clientId, date);
   return { success: true, checked: true };
@@ -224,29 +218,24 @@ export async function logMealFromLibrary(
   date: string,
   mealId: string
 ) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error };
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
+  const { admin } = mutation;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || user.id !== clientId) return { error: "Not authenticated" };
-
-  const { data: meal } = await supabase.from("meals").select(MEAL_COLUMNS).eq("id", mealId).single();
+  const { data: meal } = await admin.from("meals").select(MEAL_COLUMNS).eq("id", mealId).single();
   if (!meal) return { error: "Meal not found" };
 
-  const { data: plan } = await supabase
+  const { data: plan } = await admin
     .from("nutrition_plans")
     .select("id")
     .eq("id", meal.plan_id)
-    .eq("created_by", user.id)
+    .eq("created_by", mutation.userId)
     .eq("is_personal", true)
     .single();
 
   if (!plan) return { error: "Meal not found" };
 
-  const { error } = await insertMealLogWithSlot(supabase, clientId, date, {
+  const { error } = await insertMealLogWithSlot(admin, clientId, date, {
     meal_type: meal.meal_type,
     name: meal.name,
     description: meal.description,
@@ -258,26 +247,21 @@ export async function logMealFromLibrary(
     source_meal_id: meal.id,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
 
   await syncDailyMacros(clientId, date);
   return { success: true };
 }
 
 export async function logCustomMeal(clientId: string, date: string, data: MealFormData) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error };
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || user.id !== clientId) return { error: "Not authenticated" };
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
+  const { admin } = mutation;
 
   const payload = mealPayloadFromForm(data);
   if (!payload.name) return { error: "Meal name is required" };
 
-  const { error } = await insertMealLogWithSlot(supabase, clientId, date, {
+  const { error } = await insertMealLogWithSlot(admin, clientId, date, {
     meal_type: payload.meal_type,
     name: payload.name,
     description: payload.description,
@@ -288,30 +272,24 @@ export async function logCustomMeal(clientId: string, date: string, data: MealFo
     foods: payload.foods,
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
 
   await syncDailyMacros(clientId, date);
   return { success: true };
 }
 
 export async function deleteDailyMealLog(clientId: string, date: string, logId: string) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error };
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || user.id !== clientId) return { error: "Not authenticated" };
-
-  const { error } = await supabase
+  const { error } = await mutation.admin
     .from("daily_meal_logs")
     .delete()
     .eq("id", logId)
     .eq("client_id", clientId)
     .eq("date", date);
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
 
   await syncDailyMacros(clientId, date);
   return { success: true };

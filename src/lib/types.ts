@@ -70,6 +70,9 @@ export interface Profile {
   subscription_status?: SubscriptionStatus;
   subscription_interval?: BillingInterval | null;
   subscription_expires_at?: string | null;
+  referral_code?: string;
+  referred_by?: string | null;
+  founder_badge?: boolean;
   phone?: string | null;
   dismissed_habit_suggestions?: string[];
   intake_responses?: IntakeResponses;

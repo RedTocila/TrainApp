@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireSubscribedUserAccess } from "@/lib/actions/user-access";
+import { requireSubscribedMutationAdmin } from "@/lib/actions/auth-client";
 import {
   WORKOUT_SESSION_COLUMNS,
   WORKOUT_SESSION_EXERCISE_COLUMNS,
@@ -28,10 +28,10 @@ async function requireUserId() {
   return { supabase, userId: user.id };
 }
 
-async function requireMutationUserId() {
-  const access = await requireSubscribedUserAccess();
-  if ("error" in access) throw new Error(access.error);
-  return { supabase: access.supabase, userId: access.userId };
+async function requireMutationAdmin() {
+  const mutation = await requireSubscribedMutationAdmin();
+  if ("error" in mutation) throw new Error(mutation.error);
+  return { admin: mutation.admin, userId: mutation.userId };
 }
 
 export interface TodaysWorkoutInfo {
@@ -135,9 +135,9 @@ export async function getInProgressSession(): Promise<WorkoutSession | null> {
 }
 
 async function getSessionWithDetails(sessionId: string) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: session } = await supabase
+  const { data: session } = await admin
     .from("workout_sessions")
     .select(WORKOUT_SESSION_COLUMNS)
     .eq("id", sessionId)
@@ -146,7 +146,7 @@ async function getSessionWithDetails(sessionId: string) {
 
   if (!session) return null;
 
-  const { data: exercises } = await supabase
+  const { data: exercises } = await admin
     .from("workout_session_exercises")
     .select(`${WORKOUT_SESSION_EXERCISE_COLUMNS}, workout_session_sets(${WORKOUT_SESSION_SET_COLUMNS})`)
     .eq("session_id", sessionId)
@@ -166,7 +166,7 @@ async function getSessionWithDetails(sessionId: string) {
     .filter((id): id is string => !!id);
 
   if (planExerciseIds.length > 0) {
-    const { data: planExercises } = await supabase
+    const { data: planExercises } = await admin
       .from("exercises")
       .select("id, video_url")
       .in("id", planExerciseIds);
@@ -265,14 +265,14 @@ export async function startWorkout({
   dayId: string;
   scheduledDate?: string | null;
 }) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
   const existing = await getInProgressSession();
   if (existing) {
     return { sessionId: existing.id, resumed: true };
   }
 
-  const { data: day } = await supabase
+  const { data: day } = await admin
     .from("workout_days")
     .select("*, exercises(*), workout_plans(title)")
     .eq("id", dayId)
@@ -292,7 +292,7 @@ export async function startWorkout({
     order_index: number;
   }[]) ?? []).sort((a, b) => a.order_index - b.order_index);
 
-  const { data: session, error: sessionError } = await supabase
+  const { data: session, error: sessionError } = await admin
     .from("workout_sessions")
     .insert({
       client_id: userId,
@@ -311,7 +311,7 @@ export async function startWorkout({
   }
 
   for (const [index, exercise] of exercises.entries()) {
-    const { data: sessionExercise, error: exError } = await supabase
+    const { data: sessionExercise, error: exError } = await admin
       .from("workout_session_exercises")
       .insert({
         session_id: session.id,
@@ -333,7 +333,7 @@ export async function startWorkout({
       completed: false,
     }));
 
-    await supabase.from("workout_session_sets").insert(setRows);
+    await admin.from("workout_session_sets").insert(setRows);
   }
 
   revalidatePath("/dashboard");
@@ -374,9 +374,9 @@ export async function updateSessionSet(
   setId: string,
   updates: { reps?: number | null; weight_kg?: number | null; completed?: boolean }
 ) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: setRow } = await supabase
+  const { data: setRow } = await admin
     .from("workout_session_sets")
     .select("id, session_exercise_id")
     .eq("id", setId)
@@ -384,7 +384,7 @@ export async function updateSessionSet(
 
   if (!setRow) return { error: "Set not found" };
 
-  const { data: exercise } = await supabase
+  const { data: exercise } = await admin
     .from("workout_session_exercises")
     .select("session_id")
     .eq("id", setRow.session_exercise_id)
@@ -392,7 +392,7 @@ export async function updateSessionSet(
 
   if (!exercise) return { error: "Set not found" };
 
-  const { data: session } = await supabase
+  const { data: session } = await admin
     .from("workout_sessions")
     .select("client_id, status")
     .eq("id", exercise.session_id)
@@ -405,7 +405,7 @@ export async function updateSessionSet(
     return { error: "Workout is no longer in progress" };
   }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("workout_session_sets")
     .update(updates)
     .eq("id", setId);
@@ -415,9 +415,9 @@ export async function updateSessionSet(
 }
 
 export async function addSessionSet(sessionExerciseId: string) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: exercise } = await supabase
+  const { data: exercise } = await admin
     .from("workout_session_exercises")
     .select("id, target_sets, session_id")
     .eq("id", sessionExerciseId)
@@ -425,7 +425,7 @@ export async function addSessionSet(sessionExerciseId: string) {
 
   if (!exercise) return { error: "Exercise not found" };
 
-  const { data: session } = await supabase
+  const { data: session } = await admin
     .from("workout_sessions")
     .select("client_id, status")
     .eq("id", exercise.session_id)
@@ -438,7 +438,7 @@ export async function addSessionSet(sessionExerciseId: string) {
     return { error: "Workout is no longer in progress" };
   }
 
-  const { data: existingSets } = await supabase
+  const { data: existingSets } = await admin
     .from("workout_session_sets")
     .select("set_number")
     .eq("session_exercise_id", sessionExerciseId)
@@ -447,7 +447,7 @@ export async function addSessionSet(sessionExerciseId: string) {
 
   const nextSetNumber = (existingSets?.[0]?.set_number ?? 0) + 1;
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("workout_session_sets")
     .insert({
       session_exercise_id: sessionExerciseId,
@@ -465,9 +465,9 @@ export async function addSessionExercise(sessionId: string, name: string) {
   const trimmed = name.trim();
   if (!trimmed) return { error: "Exercise name is required" };
 
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: session } = await supabase
+  const { data: session } = await admin
     .from("workout_sessions")
     .select("id, status")
     .eq("id", sessionId)
@@ -479,7 +479,7 @@ export async function addSessionExercise(sessionId: string, name: string) {
     return { error: "Workout is no longer in progress" };
   }
 
-  const { data: last } = await supabase
+  const { data: last } = await admin
     .from("workout_session_exercises")
     .select("order_index")
     .eq("session_id", sessionId)
@@ -488,7 +488,7 @@ export async function addSessionExercise(sessionId: string, name: string) {
 
   const orderIndex = (last?.[0]?.order_index ?? -1) + 1;
 
-  const { data: exercise, error } = await supabase
+  const { data: exercise, error } = await admin
     .from("workout_session_exercises")
     .insert({
       session_id: sessionId,
@@ -508,7 +508,7 @@ export async function addSessionExercise(sessionId: string, name: string) {
     set_number: i + 1,
     completed: false,
   }));
-  await supabase.from("workout_session_sets").insert(setRows);
+  await admin.from("workout_session_sets").insert(setRows);
 
   revalidatePath(`/dashboard/workout/session/${sessionId}`);
   return { data: exercise as WorkoutSessionExercise };
@@ -518,9 +518,9 @@ export async function completeWorkoutSession(
   sessionId: string,
   notes?: string | null
 ) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: session } = await supabase
+  const { data: session } = await admin
     .from("workout_sessions")
     .select("id, status")
     .eq("id", sessionId)
@@ -532,7 +532,7 @@ export async function completeWorkoutSession(
     return { error: "Workout already finished" };
   }
 
-  const { data: exercises } = await supabase
+  const { data: exercises } = await admin
     .from("workout_session_exercises")
     .select("id, workout_session_sets(id, reps, weight_kg)")
     .eq("session_id", sessionId);
@@ -547,7 +547,7 @@ export async function completeWorkoutSession(
     for (const set of sets) {
       const hasData = set.reps != null || set.weight_kg != null;
       if (hasData) {
-        await supabase
+        await admin
           .from("workout_session_sets")
           .update({ completed: true })
           .eq("id", set.id);
@@ -555,7 +555,7 @@ export async function completeWorkoutSession(
     }
   }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("workout_sessions")
     .update({
       status: "completed",
@@ -570,9 +570,9 @@ export async function completeWorkoutSession(
 }
 
 export async function cancelWorkoutSession(sessionId: string) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("workout_sessions")
     .update({ status: "cancelled" })
     .eq("id", sessionId)
@@ -587,9 +587,9 @@ export async function cancelWorkoutSession(sessionId: string) {
 }
 
 export async function startPlanWorkout(planId: string) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: days } = await supabase
+  const { data: days } = await admin
     .from("workout_days")
     .select("id, day_index")
     .eq("plan_id", planId)
@@ -601,7 +601,7 @@ export async function startPlanWorkout(planId: string) {
   if (!dayId) return { error: "No workout day found" };
 
   const today = new Date().toISOString().split("T")[0];
-  const { data: scheduled } = await supabase
+  const { data: scheduled } = await admin
     .from("scheduled_workouts")
     .select("scheduled_date")
     .eq("client_id", userId)

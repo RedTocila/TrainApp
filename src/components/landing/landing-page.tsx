@@ -87,7 +87,7 @@ function LandingSectionSkeleton() {
   return <div className="landing-section-skeleton" aria-hidden />;
 }
 
-export function LandingPageClient() {
+export function LandingPageClient({ allPerEur }: { allPerEur: number }) {
   const { theme } = useTheme();
   const backgroundImage =
     theme === "light" ? LANDING_BACKGROUND_IMAGE_LIGHT : LANDING_BACKGROUND_IMAGE;
@@ -122,7 +122,7 @@ export function LandingPageClient() {
         <LandingShowcase />
         <LandingCoachAlex />
         <LandingFounderBio />
-        <LandingPricing />
+        <LandingPricing allPerEur={allPerEur} />
         <LandingTransformations />
         <LandingReviews />
         <LandingCta />

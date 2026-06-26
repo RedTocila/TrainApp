@@ -9,6 +9,7 @@ import {
   parseCheckoutLocale,
   type CheckoutCurrency,
 } from "@/lib/checkout-i18n";
+import { getCachedAllPerEur } from "@/lib/exchange-rates";
 import {
   getPlan,
   getPlanPrice,
@@ -16,6 +17,7 @@ import {
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
 import { addBillingPeriod, hasPaidAccess } from "@/lib/subscription";
+import { qualifyReferralForUser } from "@/lib/referral";
 import {
   createSdkOrder,
   getSdkOrder,
@@ -56,7 +58,8 @@ export async function createCheckoutOrder(
   if (!plan) return { error: "Invalid plan" };
 
   const currency = parseCheckoutCurrency(currencyCode);
-  const price = getPlanPrice(planId, interval, currency);
+  const allPerEur = await getCachedAllPerEur();
+  const price = getPlanPrice(planId, interval, currency, allPerEur);
   const baseUrl = getAppBaseUrl();
   const isProd = process.env.VERCEL_ENV === "production";
   if (isProd && baseUrl.includes("localhost")) {
@@ -182,6 +185,11 @@ export async function activateSubscriptionFromLocalOrder(localOrderId: string) {
       })
       .eq("id", order.id);
 
+    await qualifyReferralForUser(user.id, {
+      plan: order.plan,
+      billing_interval: order.billing_interval,
+    });
+
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/pricing");
     revalidatePath("/dashboard/checkout");
@@ -272,4 +280,10 @@ export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string)
       completed_at: now.toISOString(),
     })
     .eq("id", order.id);
+
+  await qualifyReferralForUser(order.user_id, {
+    plan: order.plan,
+    billing_interval: order.billing_interval,
+    order_kind: order.order_kind,
+  });
 }

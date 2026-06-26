@@ -2,13 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireSubscribedUserAccess } from "@/lib/actions/user-access";
+import { formatDbError, requireSubscribedMutationAdmin } from "@/lib/actions/auth-client";
 import {
   generateRecurringScheduleDates,
   getScheduleAnchorDate,
   type ScheduleStartMode,
 } from "@/lib/schedule-utils";
-import { formatDateKey } from "@/lib/utils";
 import type { ClientCardio, ScheduledCardio } from "@/lib/types";
 import { isValidYoutubeUrl } from "@/lib/youtube";
 
@@ -21,10 +20,10 @@ async function requireUserId() {
   return { supabase, userId: user.id };
 }
 
-async function requireMutationUserId() {
-  const access = await requireSubscribedUserAccess();
-  if ("error" in access) throw new Error(access.error);
-  return { supabase: access.supabase, userId: access.userId };
+async function requireMutationAdmin() {
+  const mutation = await requireSubscribedMutationAdmin();
+  if ("error" in mutation) return { error: mutation.error };
+  return mutation;
 }
 
 export interface SaveCardioInput {
@@ -59,8 +58,11 @@ export async function createClientCardio(input: SaveCardioInput) {
     return { error: "Duration must be between 1 and 300 minutes" };
   }
 
-  const { supabase, userId } = await requireMutationUserId();
-  const { data, error } = await supabase
+  const mutation = await requireMutationAdmin();
+  if ("error" in mutation) return { error: mutation.error };
+  const { admin, userId } = mutation;
+
+  const { data, error } = await admin
     .from("client_cardio")
     .insert({
       client_id: userId,
@@ -72,7 +74,7 @@ export async function createClientCardio(input: SaveCardioInput) {
     .select()
     .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
   revalidatePath("/dashboard/workout/cardio");
   revalidatePath("/dashboard");
   return { data: data as ClientCardio };
@@ -92,8 +94,11 @@ export async function updateClientCardio(cardioId: string, input: SaveCardioInpu
     return { error: "Duration must be between 1 and 300 minutes" };
   }
 
-  const { supabase, userId } = await requireMutationUserId();
-  const { data, error } = await supabase
+  const mutation = await requireMutationAdmin();
+  if ("error" in mutation) return { error: mutation.error };
+  const { admin, userId } = mutation;
+
+  const { data, error } = await admin
     .from("client_cardio")
     .update({
       title,
@@ -106,21 +111,24 @@ export async function updateClientCardio(cardioId: string, input: SaveCardioInpu
     .select()
     .single();
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
   revalidatePath("/dashboard/workout/cardio");
   revalidatePath("/dashboard");
   return { data: data as ClientCardio };
 }
 
 export async function deleteClientCardio(cardioId: string) {
-  const { supabase, userId } = await requireMutationUserId();
-  const { error } = await supabase
+  const mutation = await requireMutationAdmin();
+  if ("error" in mutation) return { error: mutation.error };
+  const { admin, userId } = mutation;
+
+  const { error } = await admin
     .from("client_cardio")
     .delete()
     .eq("id", cardioId)
     .eq("client_id", userId);
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
   revalidatePath("/dashboard/workout/cardio");
   revalidatePath("/dashboard");
   return { success: true };
@@ -139,9 +147,11 @@ export async function scheduleCardioSeries({
 }) {
   if (weekdays.length === 0) return { error: "Select at least one day" };
 
-  const { supabase, userId } = await requireMutationUserId();
+  const mutation = await requireMutationAdmin();
+  if ("error" in mutation) return { error: mutation.error };
+  const { admin, userId } = mutation;
 
-  const { data: cardio } = await supabase
+  const { data: cardio } = await admin
     .from("client_cardio")
     .select("id")
     .eq("id", cardioId)
@@ -163,11 +173,11 @@ export async function scheduleCardioSeries({
     cardio_id: cardioId,
   }));
 
-  const { error } = await supabase.from("scheduled_cardio").upsert(rows, {
+  const { error } = await admin.from("scheduled_cardio").upsert(rows, {
     onConflict: "client_id,scheduled_date",
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
   revalidatePath("/dashboard/workout/cardio");
   revalidatePath("/dashboard");
   return { success: true, count: dates.length };

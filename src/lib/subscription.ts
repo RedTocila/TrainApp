@@ -1,6 +1,5 @@
 import type { Profile } from "@/lib/types";
 import { PLATFORM_AI_NAME, PLATFORM_CORE_NAME } from "@/lib/brand";
-import type { SubscriptionPlanId } from "@/lib/subscription-plans";
 
 export type SubscriptionStatus = "inactive" | "active" | "past_due" | "canceled";
 
@@ -33,7 +32,7 @@ export function hasAiAccess(profile: Pick<
 }
 
 export function subscriptionLabel(
-  plan: SubscriptionPlanId | null | undefined,
+  plan: Profile["subscription_plan"],
   interval: Profile["subscription_interval"]
 ): string {
   if (!plan) return "Free preview";

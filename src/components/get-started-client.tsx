@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, ClipboardList, Package, Sparkles, UserPlus } from "lucide-react";
@@ -19,6 +19,7 @@ import {
 } from "@/lib/intake-questionnaire";
 import { GET_STARTED_CTA } from "@/lib/landing-content";
 import { saveIntakeDraft, loadIntakeDraft } from "@/lib/intake-storage";
+import { saveReferralCode } from "@/lib/referral-storage";
 
 const perks = [
   { icon: ClipboardList, text: "Macros tuned to your body" },
@@ -28,7 +29,7 @@ const perks = [
 
 type Phase = "intro" | "wizard" | "complete";
 
-export function GetStartedClient() {
+export function GetStartedClient({ initialReferralCode }: { initialReferralCode?: string }) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [responses, setResponses] = useState<IntakeResponses>(
     () => loadIntakeDraft() ?? EMPTY_INTAKE_RESPONSES
@@ -41,6 +42,10 @@ export function GetStartedClient() {
   };
 
   const previewMacros = calculateMacrosFromIntakeResponses(responses);
+
+  useEffect(() => {
+    if (initialReferralCode) saveReferralCode(initialReferralCode);
+  }, [initialReferralCode]);
 
   return (
     <div className="relative min-h-dvh px-4 py-6 sm:px-6">

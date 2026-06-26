@@ -1,7 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
+import {
+  formatDbError,
+  requireSubscribedMutationAdmin,
+} from "@/lib/actions/auth-client";
 
 export async function getTaskCompletionsInRange(
   clientId: string,
@@ -43,11 +46,11 @@ export async function toggleScheduleTaskCompletion(
   date: string,
   taskId: string
 ) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error, completed: false };
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error, completed: false };
 
-  const supabase = await createClient();
-  const { data: existing } = await supabase
+  const { admin } = mutation;
+  const { data: existing } = await admin
     .from("schedule_task_completions")
     .select("task_id")
     .eq("client_id", clientId)
@@ -56,20 +59,20 @@ export async function toggleScheduleTaskCompletion(
     .maybeSingle();
 
   if (existing) {
-    const { error } = await supabase
+    const { error } = await admin
       .from("schedule_task_completions")
       .delete()
       .eq("client_id", clientId)
       .eq("date", date)
       .eq("task_id", taskId);
-    if (error) return { error: error.message, completed: false };
+    if (error) return { error: formatDbError(error.message), completed: false };
   } else {
-    const { error } = await supabase.from("schedule_task_completions").insert({
+    const { error } = await admin.from("schedule_task_completions").insert({
       client_id: clientId,
       date,
       task_id: taskId,
     });
-    if (error) return { error: error.message, completed: true };
+    if (error) return { error: formatDbError(error.message), completed: true };
   }
 
   return { completed: !existing };

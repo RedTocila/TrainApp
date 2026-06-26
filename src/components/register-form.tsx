@@ -13,10 +13,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
+import { loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
 
 const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
 
-export function RegisterForm() {
+export function RegisterForm({ initialReferralCode }: { initialReferralCode?: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [intakeJson, setIntakeJson] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export function RegisterForm() {
   const [isPending, setIsPending] = useState(false);
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
   const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [referralCode, setReferralCode] = useState<string | null>(null);
 
   useEffect(() => {
     const draft = loadIntakeDraft();
@@ -36,6 +38,14 @@ export function RegisterForm() {
       );
     }
   }, []);
+
+  useEffect(() => {
+    const code = initialReferralCode?.trim().toLowerCase() || loadReferralCode();
+    if (code) {
+      saveReferralCode(code);
+      setReferralCode(code);
+    }
+  }, [initialReferralCode]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -56,7 +66,11 @@ export function RegisterForm() {
       email,
       password,
       options: {
-        data: { full_name: fullName, phone },
+        data: {
+          full_name: fullName,
+          phone,
+          ...(referralCode ? { referral_code: referralCode } : {}),
+        },
         emailRedirectTo,
       },
     });
@@ -95,6 +109,7 @@ export function RegisterForm() {
       email,
       phone,
       intakeJson,
+      referralCode,
     });
 
     if (result?.error) {

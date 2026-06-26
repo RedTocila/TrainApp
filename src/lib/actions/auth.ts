@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/cached-profile";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
+import { attachReferralOnSignup, normalizeReferralCode } from "@/lib/referral";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
 /** Apply profile + intake after the browser client has established an auth session. */
@@ -13,6 +14,7 @@ export async function completeRegistration(input: {
   email: string;
   phone: string | null;
   intakeJson?: string | null;
+  referralCode?: string | null;
 }) {
   const supabase = await createClient();
   const {
@@ -53,6 +55,15 @@ export async function completeRegistration(input: {
   if (intakeResponses) {
     await applyIntakeToProfile(user.id, supabase, intakeResponses);
   }
+
+  const referralCode =
+    normalizeReferralCode(input.referralCode) ??
+    normalizeReferralCode(
+      typeof user.user_metadata?.referral_code === "string"
+        ? user.user_metadata.referral_code
+        : null
+    );
+  await attachReferralOnSignup(supabase, user.id, referralCode);
 
   const { data: profile } = await supabase
     .from("profiles")

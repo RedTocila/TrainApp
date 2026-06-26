@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AppLogo } from "@/components/app-logo";
 import { SignOutButton } from "@/components/sign-out-button";
-import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
+import { ReferralNavButton } from "@/components/full-calendar-nav-button";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { isTrainPath } from "@/lib/train-nav";
 
@@ -58,7 +58,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
               <AppLogo href="/dashboard" />
               <p className="mt-1 text-sm text-muted-foreground">{platform.nav.welcome(fullName)}</p>
             </div>
-            <FullCalendarNavButton />
+            <ReferralNavButton />
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-4">

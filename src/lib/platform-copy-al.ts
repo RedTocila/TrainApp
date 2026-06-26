@@ -28,6 +28,56 @@ export const platformCopyAl = {
     personalInfo: "Të dhënat personale",
     appearance: "Pamja",
     password: "Fjalëkalimi",
+    referrals: "Referimet",
+  },
+  referrals: {
+    title: "Refero miqtë, fito Premium",
+    subtitle: "Ndaj linkun — miqtë duhet të blejnë planin AI €19/muaj që të llogaritet",
+    yourLink: "Linku juaj i referimit",
+    copyLink: "Kopjo linkun",
+    copied: "U kopjua!",
+    successfulReferrals: "Referime të suksesshme",
+    pendingReferrals: "Në pritje",
+    founderBadge: "Themelues",
+    rewardsTitle: "Nivelet e shpërblimit",
+    referralsColumn: "Referime të suksesshme",
+    rewardColumn: "Shpërblimi",
+    howItWorksTitle: "Si funksionon",
+    howItWorks: [
+      "Ndaj linkun personal me miqtë",
+      "Ata regjistrohen dhe blejnë planin AI €19/muaj",
+      "Shkyç kohë Premium dhe badge në çdo milestone",
+    ],
+    nextMilestone: (count: number, remaining: number) =>
+      `${remaining} të tjera për të arritur ${count} referime`,
+    allMilestonesUnlocked: "Ke shkyçur çdo milestone — legjendar.",
+    viewProgram: "Shiko programin e referimit",
+    unlocked: "Shkyçur",
+    nextReward: "Tjetër",
+    locked: "I kyçur",
+    atReferrals: (count: number) => `Me ${count} referime të suksesshme`,
+    previousReward: "Shpërblimi i mëparshëm",
+    nextRewardNav: "Shpërblimi tjetër",
+    activatePackagesTitle: "Aktivizo një paketë",
+    activatePackagesHint:
+      "Vetëm plani AI €19/muaj llogaritet. Miqtë duhet të regjistrohen me linkun tuaj, pastaj ta blejnë atë plan.",
+    activateAi: "Aktivizo AI — €19/muaj",
+    upgradeAi: "Përmirëso në AI — €19/muaj",
+    viewAllPlans: "Krahaso të gjitha planet",
+    currentPlanLabel: "Plani aktual",
+    yourPackages: "Abonimi juaj",
+    inviteFriends: "Fto miqtë",
+    inviteFriendAi: "Fto mik — AI €19/muaj",
+    qualifyingPlanNote: "Faturimi vjetor nuk llogaritet për referime.",
+    back: "Kthehu",
+    milestoneRewards: [
+      { count: 1, label: "1 muaj Premium" },
+      { count: 3, label: "2 muaj Premium" },
+      { count: 5, label: "3 muaj Premium" },
+      { count: 10, label: "6 muaj Premium" },
+      { count: 15, label: "1 vit Premium" },
+      { count: 25, label: "Premium për jetë + badge Themelues" },
+    ],
   },
   subscription: {
     title: "Abonimi dhe planet",
@@ -407,11 +457,11 @@ export const platformCopyAl = {
   },
   pricing: {
     step: "Hapi 3 — Zgjidh paketën",
-    choosePlan: "Zgjidh planin tënd",
+    choosePlan: "Abonohu",
     onboardingBlurb:
       "Abonohu tani ose kaloje dhe eksploro panelin fillimisht.",
     upgradeBlurb:
-      "Core për ndjekje të plotë, ose AI për ndërtues planet, regjistrim me foto dhe seanca live.",
+      "Një plan — ndjekje e plotë, coach AI, ndërtues planet, regjistrim me foto dhe seanca live.",
     monthly: "Mujore",
     annual: "Vjetore",
     perMonth: "muaj",
@@ -420,6 +470,8 @@ export const platformCopyAl = {
     switchPlan: "Ndrysho planin",
     subscribe: "Abonohu",
     savePerYear: (amount: string) => `Kurseni ${amount}/vit`,
+    liveRateNote: (eurPrice: string, allPerEur: number) =>
+      `Çmimet në ALL — ekuivalente me ${eurPrice}/muaj me 1 EUR = ${allPerEur.toFixed(2)} ALL (kursi live)`,
   },
   checkout: {
     paymentFailed: "Pagesa dështoi. Provoni përsëri.",
@@ -474,26 +526,17 @@ export const platformCopyAl = {
     whatToEatToday: "Çfarë të hash sot",
   },
   subscriptionPlans: {
-    coreTagline:
-      "Ndjekje e plotë stërvitjeje dhe ushqimi pa mjetet premium të AI.",
     aiTagline:
-      "Plani Core plus ndërtues planet me AI, regjistrim vaktesh dhe trajnime live.",
-    bestValue: "Më i mirë",
-    coreFeatures: [
+      "Ndjekje e plotë stërvitjeje dhe ushqimi, coach AI, ndërtues planet dhe seanca live.",
+    bestValue: "Gjithçka në një",
+    aiFeatures: [
       "Ndërtues stërvitjesh dhe seanca",
-      "Planet ushqimore dhe regjistrim manual vaktesh",
-      "Ndjekje uji, zakonesh dhe kardio",
-      "Sinkronizim kalendari dhe detyrash ditore",
-      "Ndjekje peshe dhe foto progresi",
-      "Vëzhgime, raporte dhe rekomandime nga Coach AI",
-    ],
-    aiFeatures: (coreName: string) => [
-      `Gjithçka në ${coreName}`,
-      "Coach Alex me AI — motivim, ndihmë dhe përgjigje për pyetjet tuaja",
-      "Ndërtues planet stërvitjeje me AI",
-      "Ndërtues planet ushqimore me AI",
+      "Planet ushqimore dhe regjistrim vaktesh",
+      "Coach Alex me AI — motivim, ndihmë dhe përgjigje",
+      "Ndërtues planet stërvitjeje dhe ushqimi me AI",
       "Regjistrim vaktesh me foto dhe tekst me AI",
       "Seanca trajnimi live + regjistrime",
+      "Ndjekje uji, zakonesh, kardio dhe progresi",
     ],
   },
   classes: {

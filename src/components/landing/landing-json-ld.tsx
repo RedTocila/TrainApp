@@ -3,22 +3,23 @@ import { PLATFORM_NAME } from "@/lib/brand";
 import { SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
 
 export function LandingJsonLd() {
-  const offers = SUBSCRIPTION_PLANS.flatMap((plan) => [
+  const plan = SUBSCRIPTION_PLANS[0];
+  const offers = [
     {
       "@type": "Offer",
       name: `${plan.name} — Monthly`,
-      price: (plan.monthly.amountAllCents / 100).toFixed(2),
-      priceCurrency: "ALL",
+      price: (plan.monthly.amountEurCents / 100).toFixed(2),
+      priceCurrency: "EUR",
       url: `${SITE_URL}/#pricing`,
     },
     {
       "@type": "Offer",
       name: `${plan.name} — Annual`,
-      price: (plan.annual.amountAllCents / 100).toFixed(2),
-      priceCurrency: "ALL",
+      price: (plan.annual.amountEurCents / 100).toFixed(2),
+      priceCurrency: "EUR",
       url: `${SITE_URL}/#pricing`,
     },
-  ]);
+  ];
 
   const jsonLd = {
     "@context": "https://schema.org",

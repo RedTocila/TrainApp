@@ -1,9 +1,14 @@
-import { PLATFORM_AI_NAME, PLATFORM_CORE_NAME } from "@/lib/brand";
-import type { CheckoutCurrency, PriceInAll } from "@/lib/checkout-i18n";
+import { PLATFORM_AI_NAME } from "@/lib/brand";
+import type { CheckoutCurrency, PriceInEur } from "@/lib/checkout-i18n";
 import { getCurrencyPrice } from "@/lib/checkout-i18n";
 
-export type SubscriptionPlanId = "core" | "ai";
+/** @deprecated Legacy subscribers only — no longer sold. */
+export type LegacySubscriptionPlanId = "core";
+
+export type SubscriptionPlanId = "ai";
 export type BillingInterval = "monthly" | "annual";
+
+export const DEFAULT_SUBSCRIPTION_PLAN: SubscriptionPlanId = "ai";
 
 export interface PlanPrice {
   amountCents: number;
@@ -14,8 +19,8 @@ export interface SubscriptionPlan {
   id: SubscriptionPlanId;
   name: string;
   tagline: string;
-  monthly: PriceInAll;
-  annual: PriceInAll;
+  monthly: PriceInEur;
+  annual: PriceInEur;
   features: string[];
   highlighted?: boolean;
   badge?: string;
@@ -23,54 +28,43 @@ export interface SubscriptionPlan {
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
-    id: "core",
-    name: PLATFORM_CORE_NAME,
-    tagline: "Full training & nutrition tracking without premium AI tools.",
-    monthly: { amountAllCents: 70_000 },
-    annual: { amountAllCents: 700_000 },
-    features: [
-      "Workout builder & sessions",
-      "Nutrition plans & manual meal logging",
-      "Water, habits & cardio tracking",
-      "Calendar & daily to-do sync",
-      "Weight tracking & progress photos",
-      "AI Coach insights, reports & recommendations",
-    ],
-  },
-  {
     id: "ai",
     name: PLATFORM_AI_NAME,
-    tagline: "Core plan plus AI plan builders, meal logging, and live coaching.",
-    monthly: { amountAllCents: 190_000 },
-    annual: { amountAllCents: 1_900_000 },
+    tagline:
+      "Full training & nutrition tracking, AI coaching, plan builders, and live sessions.",
+    monthly: { amountEurCents: 1900 },
+    annual: { amountEurCents: 19_000 },
     highlighted: true,
-    badge: "Best value",
+    badge: "All-in-one",
     features: [
-      `Everything in ${PLATFORM_CORE_NAME}`,
-      "AI Coach Alex — motivation, help & answers to your questions",
-      "AI workout plan builder",
-      "AI nutrition plan builder",
+      "Workout builder & sessions",
+      "Nutrition plans & meal logging",
+      "AI Coach Alex — motivation, help & answers",
+      "AI workout & nutrition plan builders",
       "Photo & text AI meal logging",
       "Live coaching sessions + replays",
+      "Water, habits, cardio & progress tracking",
     ],
   },
 ];
 
 export function getPlan(planId: string): SubscriptionPlan | undefined {
-  return SUBSCRIPTION_PLANS.find((plan) => plan.id === planId);
+  if (planId !== "ai") return undefined;
+  return SUBSCRIPTION_PLANS[0];
 }
 
 export function getPlanPrice(
   planId: SubscriptionPlanId,
   interval: BillingInterval,
-  currency: CheckoutCurrency = "ALL"
+  currency: CheckoutCurrency,
+  allPerEur: number
 ): PlanPrice {
   const plan = getPlan(planId);
   if (!plan) throw new Error("Unknown plan");
   const tier = interval === "monthly" ? plan.monthly : plan.annual;
-  return getCurrencyPrice(tier, currency);
+  return getCurrencyPrice(tier, currency, allPerEur);
 }
 
-export function planIncludesAi(planId: SubscriptionPlanId | null | undefined): boolean {
+export function planIncludesAi(planId: string | null | undefined): boolean {
   return planId === "ai";
 }

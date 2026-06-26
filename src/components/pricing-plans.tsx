@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { AiFoodDemoIllustration } from "@/components/ai-food-demo-illustration";
-import { CheckoutCurrencyToggle } from "@/components/checkout-preferences-toggle";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import type { BillingInterval } from "@/lib/subscription-plans";
@@ -12,11 +10,7 @@ import {
   formatAnnualSavingsLocalized,
   getLocalizedSubscriptionPlans,
 } from "@/lib/subscription-plans-i18n";
-import {
-  DEFAULT_CHECKOUT_CURRENCY,
-  getCurrencyPrice,
-  type CheckoutCurrency,
-} from "@/lib/checkout-i18n";
+import { DEFAULT_CHECKOUT_CURRENCY, getCurrencyPrice } from "@/lib/checkout-i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -29,23 +23,25 @@ export function PricingPlans({
   checkoutBasePath = "/dashboard/checkout",
   currentPlan,
   subscribed,
+  allPerEur,
 }: {
   interval: BillingInterval;
   onIntervalChange: (interval: BillingInterval) => void;
   checkoutBasePath?: string;
   currentPlan?: string | null;
   subscribed?: boolean;
+  allPerEur: number;
 }) {
   const locale = useLocale();
   const platform = usePlatformCopy();
   const pricing = platform.pricing;
   const plans = getLocalizedSubscriptionPlans(locale);
-  const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
+  const currency = DEFAULT_CHECKOUT_CURRENCY;
+  const eurMonthly = getCurrencyPrice(plans[0].monthly, "EUR", allPerEur);
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col items-center gap-3">
-        <CheckoutCurrencyToggle currency={currency} onCurrencyChange={setCurrency} />
         <SegmentedToggle
           value={interval}
           onChange={onIntervalChange}
@@ -56,18 +52,22 @@ export function PricingPlans({
             label: key === "monthly" ? pricing.monthly : pricing.annual,
           }))}
         />
+        <p className="text-center text-xs text-muted-foreground">
+          {pricing.liveRateNote(eurMonthly.label, allPerEur)}
+        </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-1 md:max-w-lg md:mx-auto">
         {plans.map((plan) => {
           const tier = interval === "monthly" ? plan.monthly : plan.annual;
-          const price = getCurrencyPrice(tier, currency);
+          const price = getCurrencyPrice(tier, currency, allPerEur);
           const savings =
             interval === "annual"
               ? formatAnnualSavingsLocalized(
-                  plan.monthly.amountAllCents,
-                  plan.annual.amountAllCents,
+                  plan.monthly.amountEurCents,
+                  plan.annual.amountEurCents,
                   currency,
+                  allPerEur,
                   locale
                 )
               : null;

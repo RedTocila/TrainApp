@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { ensureSubscribedMutation } from "@/lib/actions/subscriptions";
+import {
+  formatDbError,
+  requireOwnedClient,
+  requireSubscribedMutationAdmin,
+} from "@/lib/actions/auth-client";
 import type { ProgressPhotoPose, ProgressPhotoSet } from "@/lib/types";
 import { STORAGE_BUCKETS } from "@/lib/supabase/storage";
 
@@ -11,17 +15,6 @@ const POSE_COLUMNS: Record<ProgressPhotoPose, keyof Pick<ProgressPhotoSet, "fron
   back: "back_path",
   side: "side_path",
 };
-
-async function assertClientAccess(clientId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || user.id !== clientId) {
-    return { error: "Unauthorized" } as const;
-  }
-  return { supabase } as const;
-}
 
 export async function getProgressPhotoSets(
   clientId: string,
@@ -57,31 +50,29 @@ export async function saveProgressPhotoPath(
   pose: ProgressPhotoPose,
   storagePath: string
 ) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error };
-
-  const auth = await assertClientAccess(clientId);
-  if ("error" in auth) return auth;
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
 
   const column = POSE_COLUMNS[pose];
   const existing = await getProgressPhotoSetForMonth(clientId, monthKey);
+  const { admin } = mutation;
 
   if (existing) {
-    const { error } = await auth.supabase
+    const { error } = await admin
       .from("progress_photo_sets")
       .update({
         [column]: storagePath,
         updated_at: new Date().toISOString(),
       })
       .eq("id", existing.id);
-    if (error) return { error: error.message };
+    if (error) return { error: formatDbError(error.message) };
   } else {
-    const { error } = await auth.supabase.from("progress_photo_sets").insert({
+    const { error } = await admin.from("progress_photo_sets").insert({
       client_id: clientId,
       month_key: monthKey,
       [column]: storagePath,
     });
-    if (error) return { error: error.message };
+    if (error) return { error: formatDbError(error.message) };
   }
 
   revalidatePath("/dashboard");
@@ -93,19 +84,17 @@ export async function removeProgressPhotoPath(
   monthKey: string,
   pose: ProgressPhotoPose
 ) {
-  const access = await ensureSubscribedMutation();
-  if ("error" in access) return { error: access.error };
-
-  const auth = await assertClientAccess(clientId);
-  if ("error" in auth) return auth;
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
 
   const existing = await getProgressPhotoSetForMonth(clientId, monthKey);
   if (!existing) return { success: true as const };
 
   const column = POSE_COLUMNS[pose];
   const storagePath = existing[column];
+  const { admin } = mutation;
 
-  const { error } = await auth.supabase
+  const { error } = await admin
     .from("progress_photo_sets")
     .update({
       [column]: null,
@@ -113,10 +102,10 @@ export async function removeProgressPhotoPath(
     })
     .eq("id", existing.id);
 
-  if (error) return { error: error.message };
+  if (error) return { error: formatDbError(error.message) };
 
   if (storagePath) {
-    await auth.supabase.storage.from(STORAGE_BUCKETS.progressPhotos).remove([storagePath]);
+    await admin.storage.from(STORAGE_BUCKETS.progressPhotos).remove([storagePath]);
   }
 
   revalidatePath("/dashboard");
@@ -127,7 +116,7 @@ export async function getSignedProgressPhotoUrls(
   clientId: string,
   set: ProgressPhotoSet
 ): Promise<Record<ProgressPhotoPose, string | null>> {
-  const auth = await assertClientAccess(clientId);
+  const auth = await requireOwnedClient(clientId);
   if ("error" in auth) {
     return { front: null, back: null, side: null };
   }
@@ -148,7 +137,7 @@ export async function getSignedProgressPhotoUrls(
     (Object.keys(paths) as ProgressPhotoPose[]).map(async (pose) => {
       const path = paths[pose];
       if (!path) return;
-      const { data, error } = await auth.supabase.storage
+      const { data, error } = await auth.admin.storage
         .from(STORAGE_BUCKETS.progressPhotos)
         .createSignedUrl(path, 3600);
       if (!error && data?.signedUrl) {

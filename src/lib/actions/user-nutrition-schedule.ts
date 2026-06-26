@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { requireSubscribedMutationAdmin } from "@/lib/actions/auth-client";
 import {
   generateRecurringScheduleDates,
   type ScheduleStartMode,
@@ -96,9 +97,11 @@ function revalidateSchedulePaths() {
 export async function scheduleNutritionDays(planId: string, dates: string[]) {
   if (dates.length === 0) return { error: "Pick at least one date" };
 
-  const { supabase, userId } = await requireUserId();
+  const mutation = await requireSubscribedMutationAdmin();
+  if ("error" in mutation) return { error: mutation.error };
+  const { admin, userId } = mutation;
 
-  const { data: plan } = await supabase
+  const { data: plan } = await admin
     .from("nutrition_plans")
     .select("id")
     .eq("id", planId)
@@ -114,13 +117,13 @@ export async function scheduleNutritionDays(planId: string, dates: string[]) {
     plan_id: planId,
   }));
 
-  const { error } = await supabase.from("scheduled_nutrition_days").upsert(rows, {
+  const { error } = await admin.from("scheduled_nutrition_days").upsert(rows, {
     onConflict: "client_id,scheduled_date",
   });
 
   if (error) return { error: error.message };
 
-  const { data: meals } = await supabase
+  const { data: meals } = await admin
     .from("meals")
     .select(MEAL_COLUMNS)
     .eq("plan_id", planId)
@@ -162,9 +165,11 @@ export async function replaceNutritionSchedule(payload: {
   weeks: number;
   planId: string;
 }) {
-  const { supabase, userId } = await requireUserId();
+  const mutation = await requireSubscribedMutationAdmin();
+  if ("error" in mutation) return { error: mutation.error };
+  const { admin, userId } = mutation;
 
-  await supabase
+  await admin
     .from("scheduled_nutrition_days")
     .delete()
     .eq("client_id", userId)

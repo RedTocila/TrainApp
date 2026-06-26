@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireSubscribedUserAccess } from "@/lib/actions/user-access";
+import { requireSubscribedMutationAdmin } from "@/lib/actions/auth-client";
 import { generateRecurringScheduleDates, inferScheduleFromSessions } from "@/lib/schedule-utils";
 import { WORKOUT_DAY_WITH_EXERCISES, WORKOUT_PLAN_LIST_COLUMNS } from "@/lib/db-selects";
 import { UNCATEGORIZED_FOLDER_ID } from "@/lib/workout-folders";
@@ -17,10 +17,10 @@ async function requireUserId() {
   return { supabase, userId: user.id };
 }
 
-async function requireMutationUserId() {
-  const access = await requireSubscribedUserAccess();
-  if ("error" in access) throw new Error(access.error);
-  return { supabase: access.supabase, userId: access.userId };
+async function requireMutationAdmin() {
+  const mutation = await requireSubscribedMutationAdmin();
+  if ("error" in mutation) throw new Error(mutation.error);
+  return { admin: mutation.admin, userId: mutation.userId };
 }
 
 export async function createPersonalWorkoutPlan(
@@ -28,13 +28,13 @@ export async function createPersonalWorkoutPlan(
   description?: string,
   folderId?: string | null
 ) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
   const resolvedFolderId =
     folderId && folderId !== UNCATEGORIZED_FOLDER_ID ? folderId : null;
 
   if (resolvedFolderId) {
-    const { data: folder } = await supabase
+    const { data: folder } = await admin
       .from("workout_folders")
       .select("id")
       .eq("id", resolvedFolderId)
@@ -43,7 +43,7 @@ export async function createPersonalWorkoutPlan(
     if (!folder) return { error: "Folder not found" };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("workout_plans")
     .insert({
       title,
@@ -108,9 +108,9 @@ export async function getPersonalWorkoutPlanWithDetails(planId: string) {
 }
 
 export async function deletePersonalWorkoutPlan(planId: string) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("workout_plans")
     .delete()
     .eq("id", planId)
@@ -123,9 +123,9 @@ export async function deletePersonalWorkoutPlan(planId: string) {
 }
 
 export async function assignPersonalWorkoutPlan(planId: string) {
-  const { supabase, userId } = await requireUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
-  const { data: plan } = await supabase
+  const { data: plan } = await admin
     .from("workout_plans")
     .select("id")
     .eq("id", planId)
@@ -135,12 +135,12 @@ export async function assignPersonalWorkoutPlan(planId: string) {
 
   if (!plan) return { error: "Plan not found" };
 
-  await supabase
+  await admin
     .from("workout_assignments")
     .update({ active: false })
     .eq("client_id", userId);
 
-  const { error } = await supabase.from("workout_assignments").insert({
+  const { error } = await admin.from("workout_assignments").insert({
     client_id: userId,
     plan_id: planId,
     active: true,
@@ -179,12 +179,12 @@ export async function scheduleWorkoutSeries({
   planId: string;
   dayId: string;
 }) {
-  const { supabase, userId } = await requireMutationUserId();
+  const { admin, userId } = await requireMutationAdmin();
 
   if (!weekdays.length) return { error: "Select at least one day of the week" };
   if (weeks < 1 || weeks > 52) return { error: "Weeks must be between 1 and 52" };
 
-  const { data: plan } = await supabase
+  const { data: plan } = await admin
     .from("workout_plans")
     .select("id, is_personal, created_by")
     .eq("id", planId)
@@ -196,7 +196,7 @@ export async function scheduleWorkoutSeries({
   let canSchedule = isOwnPersonal;
 
   if (!canSchedule) {
-    const { data: assignment } = await supabase
+    const { data: assignment } = await admin
       .from("workout_assignments")
       .select("id")
       .eq("client_id", userId)
@@ -208,7 +208,7 @@ export async function scheduleWorkoutSeries({
 
   if (!canSchedule) return { error: "You cannot schedule this workout" };
 
-  const { data: day } = await supabase
+  const { data: day } = await admin
     .from("workout_days")
     .select("id")
     .eq("id", dayId)
@@ -234,7 +234,7 @@ export async function scheduleWorkoutSeries({
     day_id: dayId,
   }));
 
-  const { error } = await supabase.from("scheduled_workouts").upsert(rows, {
+  const { error } = await admin.from("scheduled_workouts").upsert(rows, {
     onConflict: "client_id,scheduled_date",
   });
 
@@ -387,8 +387,8 @@ export async function createWorkoutFolder(name: string) {
   const trimmed = name.trim();
   if (!trimmed) return { error: "Folder name is required" };
 
-  const { supabase, userId } = await requireMutationUserId();
-  const { data, error } = await supabase
+  const { admin, userId } = await requireMutationAdmin();
+  const { data, error } = await admin
     .from("workout_folders")
     .insert({ client_id: userId, name: trimmed })
     .select()
@@ -403,8 +403,8 @@ export async function renameWorkoutFolder(folderId: string, name: string) {
   const trimmed = name.trim();
   if (!trimmed) return { error: "Folder name is required" };
 
-  const { supabase, userId } = await requireUserId();
-  const { error } = await supabase
+  const { admin, userId } = await requireMutationAdmin();
+  const { error } = await admin
     .from("workout_folders")
     .update({ name: trimmed })
     .eq("id", folderId)
@@ -417,8 +417,8 @@ export async function renameWorkoutFolder(folderId: string, name: string) {
 }
 
 export async function deleteWorkoutFolder(folderId: string) {
-  const { supabase, userId } = await requireUserId();
-  const { error } = await supabase
+  const { admin, userId } = await requireMutationAdmin();
+  const { error } = await admin
     .from("workout_folders")
     .delete()
     .eq("id", folderId)
@@ -442,12 +442,12 @@ export async function getWorkoutFoldersForMove(): Promise<{ id: string; name: st
 }
 
 export async function moveWorkoutToFolder(planId: string, targetFolderId: string) {
-  const { supabase, userId } = await requireUserId();
+  const { admin, userId } = await requireMutationAdmin();
   const resolvedTarget =
     targetFolderId === UNCATEGORIZED_FOLDER_ID ? null : targetFolderId;
 
   if (resolvedTarget) {
-    const { data: folder } = await supabase
+    const { data: folder } = await admin
       .from("workout_folders")
       .select("id")
       .eq("id", resolvedTarget)
@@ -456,7 +456,7 @@ export async function moveWorkoutToFolder(planId: string, targetFolderId: string
     if (!folder) return { error: "Folder not found" };
   }
 
-  const { data: plan } = await supabase
+  const { data: plan } = await admin
     .from("workout_plans")
     .select("id, folder_id")
     .eq("id", planId)
@@ -472,7 +472,7 @@ export async function moveWorkoutToFolder(planId: string, targetFolderId: string
     return { success: true };
   }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from("workout_plans")
     .update({ folder_id: resolvedTarget })
     .eq("id", planId)

@@ -23,6 +23,7 @@ import {
   DEFAULT_CHECKOUT_CURRENCY,
   type CheckoutCurrency,
 } from "@/lib/checkout-i18n";
+import { useExchangeRate } from "@/hooks/use-exchange-rate";
 import type { PlanRequest, PlanRequestType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -139,7 +140,8 @@ function CustomPlanDialog({
     };
   }, [open, onClose]);
 
-  const price = getCustomPlanPrice(type, currency);
+  const allPerEur = useExchangeRate();
+  const price = getCustomPlanPrice(type, currency, allPerEur);
 
   const handleCheckout = () => {
     setError(null);
@@ -383,7 +385,8 @@ export function CustomPlanButton({
   const [open, setOpen] = useState(false);
   const [requestOverride, setRequestOverride] = useState<PlanRequest | null>(null);
   const product = CUSTOM_PLAN_PRODUCTS.find((p) => p.type === type)!;
-  const defaultPrice = getCustomPlanPrice(type, DEFAULT_CHECKOUT_CURRENCY);
+  const allPerEur = useExchangeRate();
+  const defaultPrice = getCustomPlanPrice(type, DEFAULT_CHECKOUT_CURRENCY, allPerEur);
 
   const active = requestOverride ?? findPlanRequest(requests, type);
 
