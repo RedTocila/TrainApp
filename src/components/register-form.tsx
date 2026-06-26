@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Sparkles } from "lucide-react";
-import { completeRegistration } from "@/lib/actions/auth";
+import { signUpAccount } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 import { BrandWordmark } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 import { loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
-import { formatUserError, isEmailDeliverySignupError } from "@/lib/format-user-error";
+import { formatUserError } from "@/lib/format-user-error";
 
 const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
 
@@ -63,73 +63,28 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
       const password = new FormData(form).get("password") as string;
 
       const supabase = createClient();
-      const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(ONBOARDING_PRICING)}`;
 
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            phone,
-            ...(referralCode ? { referral_code: referralCode } : {}),
-          },
-          emailRedirectTo,
-        },
-      });
-
-      if (signUpError) {
-        if (isEmailDeliverySignupError(signUpError)) {
-          setError(
-            "We could not send the confirmation email. Your account may not be created yet — try again in a few minutes, or contact support if this keeps happening."
-          );
-        } else {
-          setError(formatUserError(signUpError, "Could not create account."));
-        }
-        return;
-      }
-
-      if (signUpData.user?.identities?.length === 0) {
-        setError("This email is already registered. Sign in instead.");
-        return;
-      }
-
-      let hasSession = Boolean(signUpData.session);
-
-      if (!hasSession) {
-        const { data: signInData, error: signInError } =
-          await supabase.auth.signInWithPassword({ email, password });
-
-        if (signInError) {
-          setConfirmationEmail(email);
-          setNeedsEmailConfirmation(true);
-          return;
-        }
-
-        hasSession = Boolean(signInData.session);
-      }
-
-      if (!hasSession) {
-        setConfirmationEmail(email);
-        setNeedsEmailConfirmation(true);
-        return;
-      }
-
-      router.refresh();
-
-      const result = await completeRegistration({
+      const signUpResult = await signUpAccount({
         fullName,
         email,
         phone,
+        password,
         intakeJson,
         referralCode,
       });
 
-      if (result?.error) {
+      if (signUpResult?.error) {
+        setError(signUpResult.error);
+        return;
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (signInError) {
         setError(
           formatUserError(
-            result.error,
-            "Account created but setup failed. Try signing in — your profile may already be ready."
+            signInError,
+            "Account created. Sign in with your email and password."
           )
         );
         return;
@@ -138,7 +93,7 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
       clearIntakeDraft();
       router.refresh();
 
-      if (result.role === "admin") {
+      if (signUpResult.role === "admin") {
         router.push("/admin");
       } else {
         router.push(ONBOARDING_PRICING);
