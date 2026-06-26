@@ -40,6 +40,7 @@ import { progressMonthKey } from "@/lib/progress-photo-utils";
 import { formatDateKey } from "@/lib/utils";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
 import { DashboardDateHeading } from "@/components/dashboard-date-heading";
+import { DashboardDateLoadingProvider } from "@/components/dashboard-date-loading";
 import { DashboardWorkoutCard } from "@/components/dashboard-workout-card";
 import { DashboardCardioCard } from "@/components/dashboard-cardio-card";
 import { DayTasksPanel } from "@/components/day-tasks-panel";
@@ -231,6 +232,7 @@ export default async function DashboardPage() {
           initialEnrichment={initialEnrichment}
         />
 
+        <DashboardDateLoadingProvider>
         <DashboardOverview
           clientId={profile.id}
           initialLog={dailyLog}
@@ -277,6 +279,7 @@ export default async function DashboardPage() {
           initialHabits={habits}
           suggestedHabits={suggestedHabits}
         />
+        </DashboardDateLoadingProvider>
       </div>
     </>
   );

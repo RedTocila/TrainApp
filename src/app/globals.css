@@ -212,6 +212,19 @@ body:has(.dashboard-shell) {
   animation: coach-alex-nav-ring 1.4s linear infinite;
 }
 
+.start-workout-loading-ring {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 250deg,
+    hsl(var(--primary) / 0.55) 280deg,
+    hsl(var(--primary)) 310deg,
+    transparent 340deg
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  animation: coach-alex-nav-ring 0.9s linear infinite;
+}
+
 .coach-alex-nav-loading__orbit {
   animation: coach-alex-nav-orbit 2.2s linear infinite;
 }

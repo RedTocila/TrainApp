@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Play } from "lucide-react";
+import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { startWorkoutAndRedirect } from "@/lib/actions/workout-sessions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ export function StartWorkoutButton({
   const [error, setError] = useState<string | null>(null);
 
   const handleStart = () => {
+    if (isPending) return;
     setError(null);
     startTransition(async () => {
       const result = await startWorkoutAndRedirect({
@@ -47,15 +49,18 @@ export function StartWorkoutButton({
 
   return (
     <div className={cn("inline-flex flex-col items-end gap-1", className)}>
-      <Button
-        size={size}
-        variant={variant}
-        disabled={isPending}
-        onClick={handleStart}
-      >
-        <Play className="mr-1 h-3.5 w-3.5" />
-        {isPending ? "Opening…" : label}
-      </Button>
+      <StartWorkoutLoadingShell isLoading={isPending} ringInset="-inset-0.5">
+        <Button
+          size={size}
+          variant={variant}
+          disabled={isPending}
+          onClick={handleStart}
+          aria-busy={isPending}
+        >
+          <Play className={cn("mr-1 h-3.5 w-3.5", isPending && "opacity-50")} />
+          {isPending ? "Opening…" : label}
+        </Button>
+      </StartWorkoutLoadingShell>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );

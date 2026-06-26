@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
+import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { DailyTracker } from "@/components/daily-tracker";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import { getDailyLog } from "@/lib/actions/logs";
@@ -51,38 +52,38 @@ export function DashboardOverview({
   coachNutritionPlanState: CoachNutritionPlanViewState;
 }) {
   const { selectedDate } = useSelectedDate();
+  const dateKey = formatDateKey(selectedDate);
   const [log, setLog] = useState(initialLog);
   const [dailyMeals, setDailyMeals] = useState(initialDailyMeals);
   const [targets, setTargets] = useState(initialTargets);
   const [waterGoalMl, setWaterGoalMl] = useState(initialWaterGoalMl);
   const [nutritionPlan, setNutritionPlan] = useState(initialNutritionPlan);
-  const [, startTransition] = useTransition();
 
-  useEffect(() => {
-    const dateKey = formatDateKey(selectedDate);
+  const loadOverview = useCallback(async () => {
+    setLog(null);
+    setDailyMeals([]);
+    const [fetchedLog, fetchedMeals, planForDate] = await Promise.all([
+      getDailyLog(clientId, dateKey),
+      getDailyMealLogs(clientId, dateKey),
+      getNutritionPlanForDate(clientId, dateKey),
+    ]);
+    setLog(fetchedLog);
+    setDailyMeals(fetchedMeals);
 
-    startTransition(async () => {
-      const [fetchedLog, fetchedMeals, planForDate] = await Promise.all([
-        getDailyLog(clientId, dateKey),
-        getDailyMealLogs(clientId, dateKey),
-        getNutritionPlanForDate(clientId, dateKey),
-      ]);
-      setLog(fetchedLog);
-      setDailyMeals(fetchedMeals);
+    if (planForDate?.meals?.length) {
+      setNutritionPlan({
+        title: planForDate.title,
+        meals: planForDate.meals as Meal[],
+        scheduled: planForDate.scheduled,
+        activeSlots: planForDate.activeSlots,
+        kind: planForDate.kind,
+      });
+    } else {
+      setNutritionPlan(null);
+    }
+  }, [clientId, dateKey]);
 
-      if (planForDate?.meals?.length) {
-        setNutritionPlan({
-          title: planForDate.title,
-          meals: planForDate.meals as Meal[],
-          scheduled: planForDate.scheduled,
-          activeSlots: planForDate.activeSlots,
-          kind: planForDate.kind,
-        });
-      } else {
-        setNutritionPlan(null);
-      }
-    });
-  }, [selectedDate, clientId]);
+  useDashboardDateFetch(dateKey, loadOverview);
 
   return (
     <DailyTracker

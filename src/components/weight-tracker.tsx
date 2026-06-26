@@ -3,8 +3,9 @@ import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/loca
 
 import { format, isToday } from "date-fns";
 import { Plus, Scale } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useSelectedDate } from "@/components/date-provider";
+import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { WeightChartLazy } from "@/components/weight-chart-lazy";
 import {
   deleteBodyWeightLog,
@@ -50,21 +51,21 @@ export function WeightTracker({
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
-  useEffect(() => {
+  const loadWeight = useCallback(async () => {
     setTodayLog(null);
     setWeightInput("");
     setFormOpen(false);
-    startTransition(async () => {
-      const [log, fetchedHistory] = await Promise.all([
-        getBodyWeightLog(clientId, dateKey),
-        getBodyWeightHistory(clientId),
-      ]);
-      setTodayLog(log);
-      setWeightInput(log ? String(log.weight_kg) : "");
-      setHistory(fetchedHistory);
-      onHistoryChange?.(fetchedHistory);
-    });
+    const [log, fetchedHistory] = await Promise.all([
+      getBodyWeightLog(clientId, dateKey),
+      getBodyWeightHistory(clientId),
+    ]);
+    setTodayLog(log);
+    setWeightInput(log ? String(log.weight_kg) : "");
+    setHistory(fetchedHistory);
+    onHistoryChange?.(fetchedHistory);
   }, [clientId, dateKey, onHistoryChange]);
+
+  useDashboardDateFetch(dateKey, loadWeight);
 
   const dateLabel = isToday(selectedDate)
     ? platform.common.today

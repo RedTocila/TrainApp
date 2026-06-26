@@ -5,6 +5,7 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { Check, Dumbbell } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
+import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import {
@@ -50,31 +51,28 @@ export function DashboardWorkoutCard({
     initialWorkoutCompleted
   );
 
-  // Sync SSR props only when the server revalidates — not when the calendar day rolls over.
+  // Sync SSR props only when the server revalidates.
   useEffect(() => {
     setWorkout(initialWorkout);
     setWorkoutCompleted(initialWorkoutCompleted);
   }, [initialWorkout, initialWorkoutCompleted]);
 
-  const refreshWorkout = useCallback(() => {
+  const refreshWorkout = useCallback(async () => {
+    setWorkout(null);
+    setWorkoutCompleted(false);
     const dateKey = formatDateKey(selectedDate);
-    return Promise.all([
+    const [resolved, completed] = await Promise.all([
       resolveWorkoutForDate(clientId, dateKey),
       isWorkoutCompletedOnDate(clientId, dateKey),
     ]);
+    setWorkout(resolved);
+    setWorkoutCompleted(completed);
   }, [clientId, selectedDate]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void refreshWorkout().then(([resolved, completed]) => {
-      if (cancelled) return;
-      setWorkout(resolved);
-      setWorkoutCompleted(completed);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshWorkout, todayKey, version]);
+  useDashboardDateFetch(
+    `${formatDateKey(selectedDate)}:${version}:${todayKey}`,
+    refreshWorkout
+  );
 
   const dateKey = formatDateKey(selectedDate);
   const workoutMissed =

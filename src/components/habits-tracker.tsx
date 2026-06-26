@@ -5,6 +5,7 @@ import { format, isToday } from "date-fns";
 import { Check, ListChecks, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
+import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { HabitFormDialog } from "@/components/habit-form-dialog";
 import {
   applyHabitSuggestion,
@@ -56,13 +57,13 @@ export function HabitsTracker({
     setSuggestions(suggestedHabits);
   }, [suggestedHabits]);
 
-  const refresh = useCallback(() => {
-    void getHabitsWithCompletions(clientId, dateKey).then(setHabits);
+  const refresh = useCallback(async () => {
+    setHabits([]);
+    const data = await getHabitsWithCompletions(clientId, dateKey);
+    setHabits(data);
   }, [clientId, dateKey]);
 
-  useEffect(() => {
-    refresh();
-  }, [dateKey, todayKey, refresh]);
+  useDashboardDateFetch(`${dateKey}:${todayKey}`, refresh);
 
   useEffect(() => {
     if (!isToday(selectedDate)) return;

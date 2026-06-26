@@ -6,6 +6,7 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { Check, HeartPulse } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
+import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import {
@@ -55,24 +56,21 @@ export function DashboardCardioCard({
     setCompleted(initialCompleted);
   }, [initialScheduled, initialCompleted]);
 
-  const refreshCardio = useCallback(() => {
-    return Promise.all([
+  const refreshCardio = useCallback(async () => {
+    setScheduled(null);
+    setCompleted(false);
+    const [entry, ids] = await Promise.all([
       getScheduledCardioForDate(clientId, dateKey),
       getTaskCompletionsForDate(clientId, dateKey),
     ]);
-  }, [clientId, dateKey]);
+    setScheduled(entry);
+    setCompleted(ids.has(taskId));
+  }, [clientId, dateKey, taskId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void refreshCardio().then(([entry, ids]) => {
-      if (cancelled) return;
-      setScheduled(entry);
-      setCompleted(ids.has(taskId));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshCardio, taskId, todayKey, version]);
+  useDashboardDateFetch(
+    `${dateKey}:${taskId}:${todayKey}:${version}`,
+    refreshCardio
+  );
 
   const handleToggle = () => {
     const next = !completed;
