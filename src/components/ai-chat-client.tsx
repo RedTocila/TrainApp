@@ -1,13 +1,14 @@
 "use client";
 
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, ExternalLink, Globe, Loader2, UserRound } from "lucide-react";
+import { ArrowUp, ExternalLink, Globe, Loader2, Paperclip, UserRound, X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { ChatMessage, WebSource } from "@/lib/ai/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { compressImageFile, fileToDataUrl } from "@/lib/image-compress";
 import { cn } from "@/lib/utils";
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
@@ -165,6 +166,11 @@ function ChatCommandBar({
   canSend,
   isStreaming,
   sendAriaLabel,
+  attachAriaLabel,
+  removeAttachmentAriaLabel,
+  attachmentPreviewUrl,
+  onAttachSelect,
+  onAttachmentClear,
 }: {
   input: string;
   onInputChange: (value: string) => void;
@@ -175,12 +181,60 @@ function ChatCommandBar({
   canSend: boolean;
   isStreaming: boolean;
   sendAriaLabel: string;
+  attachAriaLabel: string;
+  removeAttachmentAriaLabel: string;
+  attachmentPreviewUrl: string | null;
+  onAttachSelect: (file: File) => void;
+  onAttachmentClear: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <form onSubmit={onSubmit}>
-      <div className="flex items-end gap-1.5 rounded-full border border-border/70 bg-secondary/60 p-1.5 pl-4 shadow-sm backdrop-blur-sm">
+    <form onSubmit={onSubmit} className="space-y-2">
+      {attachmentPreviewUrl && (
+        <div className="flex items-center gap-2 px-1">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-border/70 bg-secondary/40">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={attachmentPreviewUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+            <button
+              type="button"
+              onClick={onAttachmentClear}
+              disabled={disabled}
+              aria-label={removeAttachmentAriaLabel}
+              className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="flex items-end gap-1 rounded-full border border-border/70 bg-secondary/60 p-1.5 pl-2 shadow-sm backdrop-blur-sm">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={disabled}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onAttachSelect(file);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled}
+          aria-label={attachAriaLabel}
+          className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <Paperclip className="h-4 w-4" strokeWidth={2} />
+        </button>
         <Textarea
           ref={textareaRef}
           value={input}
@@ -221,11 +275,26 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingWebSearch, setPendingWebSearch] = useState(false);
+  const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const handleAttachSelect = async (file: File) => {
+    try {
+      const compressed = await compressImageFile(file);
+      setAttachmentPreviewUrl(await fileToDataUrl(compressed));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : platform.photos.uploadFailed);
+    }
+  };
+
+  const handleAttachmentClear = () => {
+    setAttachmentPreviewUrl(null);
+  };
+
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, isStreaming]);
 
   useEffect(() => {
@@ -425,6 +494,11 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               canSend={canSend}
               isStreaming={isStreaming}
               sendAriaLabel={platform.aria.sendMessage}
+              attachAriaLabel={platform.aria.attachFile}
+              removeAttachmentAriaLabel={platform.aria.removeAttachment}
+              attachmentPreviewUrl={attachmentPreviewUrl}
+              onAttachSelect={(file) => void handleAttachSelect(file)}
+              onAttachmentClear={handleAttachmentClear}
             />
           </div>
         </div>
@@ -498,6 +572,11 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               canSend={canSend}
               isStreaming={isStreaming}
               sendAriaLabel={platform.aria.sendMessage}
+              attachAriaLabel={platform.aria.attachFile}
+              removeAttachmentAriaLabel={platform.aria.removeAttachment}
+              attachmentPreviewUrl={attachmentPreviewUrl}
+              onAttachSelect={(file) => void handleAttachSelect(file)}
+              onAttachmentClear={handleAttachmentClear}
             />
           </div>
         </CardContent>

@@ -93,7 +93,7 @@ export function LandingPageClient() {
     theme === "light" ? LANDING_BACKGROUND_IMAGE_LIGHT : LANDING_BACKGROUND_IMAGE;
 
   return (
-    <div className="landing-page relative flex min-h-dvh flex-col scroll-smooth">
+    <div className="landing-page relative flex min-h-dvh flex-col">
       <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
         <Image
           key={backgroundImage}

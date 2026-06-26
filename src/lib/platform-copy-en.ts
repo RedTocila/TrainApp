@@ -170,6 +170,8 @@ export const platformCopyEn = {
     editHabit: "Edit habit",
     removeHabit: "Remove habit",
     sendMessage: "Send message",
+    attachFile: "Attach image",
+    removeAttachment: "Remove attachment",
     webSources: (n: number) => `${n} web sources`,
     deleteItem: (name: string) => `Delete ${name}`,
     deleteMeal: "Delete meal",

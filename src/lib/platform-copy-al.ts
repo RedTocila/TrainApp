@@ -171,6 +171,8 @@ export const platformCopyAl = {
     editHabit: "Ndrysho zakonin",
     removeHabit: "Hiq zakonin",
     sendMessage: "Dërgo mesazhin",
+    attachFile: "Bashkëngjit foto",
+    removeAttachment: "Hiq bashkëngjitjen",
     webSources: (n: number) => `${n} burime në internet`,
     deleteItem: (name: string) => `Fshi ${name}`,
     deleteMeal: "Fshi vaktin",

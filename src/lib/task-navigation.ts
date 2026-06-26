@@ -50,7 +50,19 @@ export function scrollToSection(sectionId: string): boolean {
   const el = document.getElementById(sectionId);
   if (!el) return false;
 
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  const main = document.querySelector<HTMLElement>(".dashboard-main");
+  if (main) {
+    const header = main.querySelector<HTMLElement>("header");
+    const headerHeight = header?.offsetHeight ?? 0;
+    const mainRect = main.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const targetTop = main.scrollTop + (elRect.top - mainRect.top) - headerHeight - 8;
+
+    main.scrollTo({ top: Math.max(0, targetTop) });
+  } else {
+    el.scrollIntoView({ block: "start" });
+  }
+
   el.classList.add("section-highlight");
   window.setTimeout(() => el.classList.remove("section-highlight"), 2000);
   return true;

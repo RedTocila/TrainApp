@@ -12,7 +12,7 @@ export default async function AdminLayout({
   const unreadCount = await getUnreadCount(profile.id);
 
   return (
-    <div className="flex h-dvh min-h-0 overflow-hidden bg-background">
+    <div className="app-shell flex h-dvh min-h-0 overflow-hidden bg-background">
       <AdminNav fullName={profile.full_name} unreadCount={unreadCount} />
       <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background pb-20 [-webkit-overflow-scrolling:touch] lg:pb-0">
         <AdminMobileHeader unreadCount={unreadCount} />

@@ -21,6 +21,11 @@ export function DashboardMainReset() {
 
   useEffect(() => {
     clearDashboardMainInlineStyles();
+
+    const main = document.querySelector<HTMLElement>(".dashboard-main");
+    if (main) {
+      main.scrollTop = 0;
+    }
   }, [pathname]);
 
   return null;

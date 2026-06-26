@@ -30,7 +30,7 @@ export function LandingNav({ overlay = false }: { overlay?: boolean }) {
     <header
       className={cn(
         "top-0 z-50 border-b transition-colors duration-300",
-        overlay ? "fixed inset-x-0" : "sticky",
+        overlay ? "fixed inset-x-0 pt-[var(--safe-area-top)]" : "sticky",
         solid
           ? overlay
             ? "border-border/40 bg-background/30 backdrop-blur-sm"

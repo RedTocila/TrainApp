@@ -14,11 +14,10 @@ const headerIconButton =
 
 export function DashboardMobileHeader() {
   return (
-    <header className="sticky top-0 z-40 bg-transparent lg:hidden">
+    <header className="sticky top-0 z-40 border-b border-transparent bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
       <div
         className={cn(
-          "flex items-center justify-between gap-2 px-3 pb-2.5 sm:px-4 sm:pb-3",
-          "pt-[max(0.625rem,env(safe-area-inset-top,0px))]"
+          "flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3"
         )}
       >
         <AppLogo href="/dashboard" size="sm" />
