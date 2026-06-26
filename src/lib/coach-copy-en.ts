@@ -102,30 +102,55 @@ export const coachCopyEn = {
   mealInsights: {
     coachName: "Coach Alex",
     good: [
-      "Now we're talking. Stack a few more like this and I might go easy on you at check-in.",
-      "Solid pick for your goal. I'd high-five you, but you still owe me a workout.",
-      "This actually fits the plan. Don't let it go to your head — one meal doesn't make a legend.",
+      "{name} — {protein}g protein and {calories} cal. Now we're talking. Stack a few more like this and I might go easy at check-in.",
+      "Solid pick with {name}: {protein}g protein fits the plan. I'd high-five you, but you still owe me a workout.",
+      "{name} actually works — {calories} cal, macros logged. Don't let one good meal go to your head.",
     ],
     ok: [
-      "It's fine. Not a win, not a disaster — like showing up and only training arms.",
-      "Middle of the road. Your macros aren't crying, but they're not throwing a party either.",
-      "Acceptable. You could level this up with a bit more protein and I'd stop side-eyeing you.",
+      "{name} is fine at {calories} cal — not a win, not a disaster. Like showing up and only training arms.",
+      "Middle of the road: {protein}g protein in {name}. Your macros aren't crying, but they're not celebrating either.",
+      "{name} logged at {calories} cal. Acceptable — a bit more protein and I'd stop side-eyeing you.",
     ],
     bad: [
-      "Your goals called. This meal didn't leave a great voicemail.",
-      "If the rest of your day looks like this, we're having a serious chat.",
-      "Logging it is the bare minimum. Next time, make it count toward something.",
+      "{name} at {calories} cal — your goals called and this meal didn't leave a great voicemail.",
+      "If the rest of your day looks like {name}, we're having a serious chat.",
+      "You logged {name}. Bare minimum done. Next time, make the numbers count toward something.",
     ],
-    lowProtein:
-      "Protein's thin here. Caffeine and vibes aren't macros — tag something substantial next.",
-    lowProteinBuildMuscle:
-      "Where's the protein? You can't build muscle on espresso and optimism alone.",
-    lowProteinLoseWeight:
-      "Light on protein. You'll be hungry again soon — and that's when snacks win.",
-    highCalories:
-      "That's a heavy hit for one meal. Your daily budget isn't unlimited — unlike my commentary.",
-    lowCarbsEndurance:
-      "Low on fuel for endurance. Your legs will notice before I do.",
+    lowProtein: [
+      "{name} only has {protein}g protein — thin for your goal. {highlight} isn't enough on its own.",
+      "{protein}g protein in {name}? Caffeine and vibes aren't macros — tag something substantial next.",
+      "{name} landed light on protein ({protein}g). Your muscles are still waiting on a real delivery.",
+    ],
+    lowProteinReasonableCal: [
+      "{name}: {calories} cal looks fine, but {protein}g protein is shy. {highlight} helps — now add a bigger protein anchor.",
+      "Calories are reasonable in {name}, protein isn't ({protein}g). Good logging; upgrade the protein side next round.",
+      "{name} at {calories} cal — energy's okay, muscle fuel isn't. Push protein past {protein}g next time.",
+    ],
+    lowProteinBuildMuscle: [
+      "{name} with {protein}g protein won't build much muscle. Where's the rest of the plate?",
+      "Building muscle on {protein}g from {name}? You can't stack size on espresso and optimism alone.",
+      "{protein}g protein in {name} — that's a warm-up, not a muscle meal. Beef up the protein.",
+    ],
+    lowProteinLoseWeight: [
+      "{name} at {protein}g protein — you'll be hungry again soon, and that's when snacks win.",
+      "Light on protein ({protein}g) in {name}. {calories} cal won't keep you full long.",
+      "{protein}g protein won't hold you through the day. {name} needs more staying power.",
+    ],
+    strongProtein: [
+      "{protein}g protein in {name} — that's the kind of fuel I like to see.",
+      "{name} delivers {protein}g protein. Keep stacking meals like this and we're aligned.",
+      "Strong protein play: {name} at {protein}g. Your goals and this plate are on speaking terms.",
+    ],
+    highCalories: [
+      "{name} at {calories} cal is a heavy hit for one meal. Your daily budget isn't unlimited — unlike my commentary.",
+      "{calories} cal in one sitting ({name})? Bold. Make sure the rest of the day balances it.",
+      "{name} packed {calories} cal — that's a lot of budget in one log. Plan the next meals accordingly.",
+    ],
+    lowCarbsEndurance: [
+      "{name} only has {carbs}g carbs — low fuel for endurance. Your legs will notice before I do.",
+      "{carbs}g carbs in {name} won't carry a hard session. Add fuel if you're training today.",
+      "Endurance needs carbs — {name} at {carbs}g is running on fumes.",
+    ],
   },
 } as const;
 

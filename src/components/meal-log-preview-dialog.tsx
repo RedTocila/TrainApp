@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Target, X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useCoachCopy } from "@/components/locale-provider";
@@ -31,6 +31,11 @@ export function MealLogPreviewDialog({
   variant?: "new" | "view";
 }) {
   const coachCopy = useCoachCopy();
+  const [adviceKey, setAdviceKey] = useState(0);
+
+  useEffect(() => {
+    if (open && meal) setAdviceKey(Date.now());
+  }, [open, meal]);
 
   useEffect(() => {
     if (!open) return;
@@ -55,11 +60,12 @@ export function MealLogPreviewDialog({
     return getCoachMealAdvice({
       copy: coachCopy,
       score: score.score,
-      mealName: meal.name,
+      meal,
       reasons: score.reasons,
       goal,
+      variationKey: adviceKey,
     });
-  }, [coachCopy, meal, score, goal]);
+  }, [adviceKey, coachCopy, meal, score, goal]);
 
   const adviceTier = score ? getMealAdviceTier(score.score) : "ok";
   const tierStyles = getMealScoreTierStyles(adviceTier);

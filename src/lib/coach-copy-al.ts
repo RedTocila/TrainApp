@@ -102,30 +102,55 @@ export const coachCopyAl = {
   mealInsights: {
     coachName: "Coach Alex",
     good: [
-      "Tani po flasim. Bëni edhe disa të tilla dhe ndoshta do t'ju lehtësoj në kontroll.",
-      "Zgjedhje e mirë për qëllimin tuaj. Do t'ju duartrokisja, por ende më keni një stërvitje borxh.",
-      "Kjo përshtatet me planin. Mos u mbani shumë — një vakt nuk ju bën legjendë.",
+      "{name} — {protein}g proteinë dhe {calories} kal. Tani po flasim. Bëni edhe disa të tilla dhe ndoshta do t'ju lehtësoj në kontroll.",
+      "Zgjedhje e mirë me {name}: {protein}g proteinë përshtaten me planin. Do t'ju duartrokisja, por ende më keni një stërvitje borxh.",
+      "{name} funksionon — {calories} kal, makro të regjistruara. Mos u mbani shumë për një vakt të mirë.",
     ],
     ok: [
-      "Është në rregull. As fitore, as katastrofë — si të vish në palestër dhe të stërvitësh vetëm krahët.",
-      "Mesatar. Makronutrientët nuk po qajnë, por as nuk po festojnë.",
-      "E pranueshme. Mund ta përmirësoni me pak më shumë proteinë dhe do pushoj së ju shikuar me skepticizëm.",
+      "{name} është në rregull me {calories} kal — as fitore, as katastrofë. Si të stërvitësh vetëm krahët.",
+      "Mesatar: {protein}g proteinë në {name}. Makronutrientët nuk po festojnë, por as nuk po qajnë.",
+      "{name} u regjistrua me {calories} kal. E pranueshme — pak më shumë proteinë dhe do pushoj së ju shikuar me skepticizëm.",
     ],
     bad: [
-      "Qëllimet tuaja telefonuan. Ky vakt nuk la një mesazh të mirë.",
-      "Nëse pjesa tjetër e ditës duket kështu, do të kemi një bisedë serioze.",
-      "Regjistrimi është minimumi. Herën tjetër, bëjeni të numërojë për diçka.",
+      "{name} me {calories} kal — qëllimet telefonuan dhe ky vakt nuk la një mesazh të mirë.",
+      "Nëse pjesa tjetër e ditës duket si {name}, do të kemi një bisedë serioze.",
+      "Regjistruat {name}. Minimumi u bë. Herën tjetër, bëni që numrat të numërojnë.",
     ],
-    lowProtein:
-      "Proteinat janë pak këtu. Kafeina dhe motivimi nuk janë makro — shtoni diçka substanciale.",
-    lowProteinBuildMuscle:
-      "Ku janë proteinat? Nuk ndërtoni muskuj vetëm me espresso dhe optimizëm.",
-    lowProteinLoseWeight:
-      "Pak proteinë. Do të keni uri përsëri shpejt — dhe atëherë fitojnë snackët.",
-    highCalories:
-      "Shumë kalori për një vakt. Buxheti ditor nuk është i pafund — si komentet e mia.",
-    lowCarbsEndurance:
-      "Pak karbohidrate për qëndrueshmëri. Këmbët do ta vërejë para se unë.",
+    lowProtein: [
+      "{name} ka vetëm {protein}g proteinë — pak për qëllimin tuaj. {highlight} nuk mjafton vetëm.",
+      "{protein}g proteinë në {name}? Kafeina dhe motivimi nuk janë makro — shtoni diçka substanciale.",
+      "{name} mbeti i lehtë në proteinë ({protein}g). Muskujt ende presin furnizim real.",
+    ],
+    lowProteinReasonableCal: [
+      "{name}: {calories} kal duken mirë, por {protein}g proteinë janë pak. {highlight} ndihmon — shtoni një burim më të fortë proteinash.",
+      "Kaloritë janë në rregull në {name}, proteinat jo ({protein}g). Regjistrim i mirë; përmirësoni anën e proteinave.",
+      "{name} me {calories} kal — energjia ok, karburanti për muskuj jo. Shtyni proteinën mbi {protein}g herën tjetër.",
+    ],
+    lowProteinBuildMuscle: [
+      "{name} me {protein}g proteinë nuk ndërton shumë muskul. Ku është pjesa tjetër e pjatës?",
+      "Ndërtim muskujsh me {protein}g nga {name}? Nuk mjafton vetëm optimizmi.",
+      "{protein}g proteinë në {name} — kjo është ngrohje, jo vakt muskulor. Shtoni proteinë.",
+    ],
+    lowProteinLoseWeight: [
+      "{name} me {protein}g proteinë — do të keni uri përsëri shpejt, dhe atëherë fitojnë snackët.",
+      "Pak proteinë ({protein}g) në {name}. {calories} kal nuk do t'ju mbajnë gjatë.",
+      "{protein}g proteinë nuk mban ditën. {name} ka nevojë për më shumë qëndrueshmëri.",
+    ],
+    strongProtein: [
+      "{protein}g proteinë në {name} — ky është karburanti që dua të shoh.",
+      "{name} sjell {protein}g proteinë. Vazhdoni kështu dhe jemi në linjë.",
+      "Proteinë e fortë: {name} me {protein}g. Qëllimet dhe kjo pjatë flasin së bashku.",
+    ],
+    highCalories: [
+      "{name} me {calories} kal është goditje e rëndë për një vakt. Buxheti ditor nuk është i pafund.",
+      "{calories} kal në një vakt ({name})? E guximshme. Balanconi pjesën tjetër të ditës.",
+      "{name} mbushi {calories} kal — shumë buxhet në një regjistrim. Planifikoni vaktet e ardhshme.",
+    ],
+    lowCarbsEndurance: [
+      "{name} ka vetëm {carbs}g karbohidrate — pak karburant për qëndrueshmëri. Këmbët do ta vërejë para meje.",
+      "{carbs}g karbo në {name} nuk mbajnë një seancë të rëndë. Shtoni karburant nëse stërviteni sot.",
+      "Qëndrueshmëria ka nevojë për karbo — {name} me {carbs}g po ecën me rezerva të ulëta.",
+    ],
   },
 } as const;
 
