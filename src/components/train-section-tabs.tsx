@@ -7,6 +7,9 @@ import { InstantNavLink } from "@/components/instant-nav-link";
 import { isTrainTabActive, trainTabs } from "@/lib/train-nav";
 import { cn } from "@/lib/utils";
 
+const inactiveTabClass =
+  "border-transparent bg-secondary/40 text-muted-foreground active:bg-secondary active:text-foreground [@media(hover:hover)]:hover:bg-secondary [@media(hover:hover)]:hover:text-foreground";
+
 export function TrainSectionTabs() {
   const pathname = usePathname();
   const platform = usePlatformCopy();
@@ -38,9 +41,7 @@ export function TrainSectionTabs() {
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex flex-1 flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90",
-              active
-                ? config.activeClass
-                : "border-transparent bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              active ? config.activeClass : inactiveTabClass
             )}
           >
             <Icon className="h-6 w-6" />

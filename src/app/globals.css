@@ -126,6 +126,15 @@ body:has(.dashboard-shell) {
   -webkit-tap-highlight-color: transparent;
 }
 
+.dashboard-instant-nav--scroll {
+  touch-action: pan-x;
+}
+
+.dashboard-instant-nav--scroll a,
+.dashboard-instant-nav--scroll button {
+  touch-action: manipulation;
+}
+
 .app-logo-badge {
   color: #ffffff;
   background: rgba(var(--primary-rgb), 0.72);

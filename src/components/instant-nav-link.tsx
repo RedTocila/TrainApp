@@ -1,40 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import type { ComponentProps, MouseEvent, ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
+import { useInstantNavigate } from "@/components/use-instant-navigate";
 
-type InstantNavLinkProps = Omit<ComponentProps<typeof Link>, "href" | "onClick"> & {
+type InstantNavLinkProps = Omit<
+  ComponentProps<typeof Link>,
+  "href" | "onClick" | "onPointerDown" | "onPointerUp" | "onPointerCancel"
+> & {
   href: string;
   children: ReactNode;
+  tapSlop?: number;
 };
 
 export function InstantNavLink({
   href,
   children,
   prefetch = true,
+  tapSlop,
   ...props
 }: InstantNavLinkProps) {
-  const router = useRouter();
-
-  const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (
-      e.defaultPrevented ||
-      e.button !== 0 ||
-      e.metaKey ||
-      e.ctrlKey ||
-      e.shiftKey ||
-      e.altKey
-    ) {
-      return;
-    }
-
-    e.preventDefault();
-    router.push(href);
-  };
+  const {
+    handlePointerDown,
+    handlePointerUp,
+    handlePointerCancel,
+    handleClick,
+  } = useInstantNavigate(href, tapSlop);
 
   return (
-    <Link href={href} prefetch={prefetch} onClick={handleClick} {...props}>
+    <Link
+      href={href}
+      prefetch={prefetch}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onClick={handleClick}
+      {...props}
+    >
       {children}
     </Link>
   );

@@ -128,6 +128,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
 
           <InstantNavLink
             href={programsNavItem.href}
+            tapSlop={16}
             className={cn(
               mobileNavLinkClass,
               programsActive ? "text-primary" : "text-muted-foreground"
@@ -143,6 +144,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
               <InstantNavLink
                 key={item.href}
                 href={item.href}
+                tapSlop={item.href.startsWith("/dashboard/ai") ? 16 : undefined}
                 className={cn(
                   mobileNavLinkClass,
                   active ? "text-primary" : "text-muted-foreground"
