@@ -28,7 +28,9 @@ For each row: open the template in Supabase, paste the **subject** from the `.tx
 | Change email address | [`change-email-subject.txt`](./change-email-subject.txt) | [`change-email.html`](./change-email.html) |
 | Invite user | [`invite-user-subject.txt`](./invite-user-subject.txt) | [`invite-user.html`](./invite-user.html) |
 
-All templates use the same RUTINA branding (red header, white card, primary CTA button).
+All templates use the same RUTINA branding (red header, logo, white card, primary CTA button).
+
+Logo image: [`public/email-logo.png`](../../public/email-logo.png) — served at `https://rutina.al/email-logo.png` (deploy required for emails to show the image).
 
 ## Test
 
