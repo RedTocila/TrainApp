@@ -1,14 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 export function usePrefetchRoutes(routes: readonly string[]) {
   const router = useRouter();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     for (const href of routes) {
-      router.prefetch(href);
+      try {
+        router.prefetch(href);
+      } catch {
+        // Prefetch is best-effort.
+      }
     }
   }, [router, routes]);
 }

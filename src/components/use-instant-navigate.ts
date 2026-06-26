@@ -14,6 +14,7 @@ type InstantNavigateOptions = {
   tapSlop?: number;
   /** Navigate on finger down — more reliable on mobile tab bars. */
   pressToNavigate?: boolean;
+  onNavigateStart?: (href: string) => void;
 };
 
 export function useInstantNavigate(
@@ -24,26 +25,39 @@ export function useInstantNavigate(
     typeof tapSlopOrOptions === "number"
       ? { tapSlop: tapSlopOrOptions }
       : tapSlopOrOptions;
-  const { tapSlop = 12, pressToNavigate = false } = options;
+  const { tapSlop = 12, pressToNavigate = false, onNavigateStart } = options;
 
   const router = useRouter();
   const pathname = usePathname();
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const navigated = useRef(false);
 
+  const warmRoute = useCallback(() => {
+    try {
+      router.prefetch(href);
+    } catch {
+      // Prefetch is best-effort.
+    }
+  }, [href, router]);
+
   const navigate = useCallback(() => {
     if (isCurrentRoute(pathname, href)) return;
     if (navigated.current) return;
     navigated.current = true;
+    onNavigateStart?.(href);
+    warmRoute();
     router.push(href);
     window.setTimeout(() => {
       navigated.current = false;
     }, NAVIGATE_DEBOUNCE_MS);
-  }, [href, pathname, router]);
+  }, [href, onNavigateStart, pathname, router, warmRoute]);
 
   const handlePointerDown = useCallback(
     (e: PointerEvent) => {
       if (e.button !== 0) return;
+      if (!isCurrentRoute(pathname, href)) {
+        warmRoute();
+      }
       if (pressToNavigate) {
         e.preventDefault();
         navigate();
@@ -51,7 +65,7 @@ export function useInstantNavigate(
       }
       pointerStart.current = { x: e.clientX, y: e.clientY };
     },
-    [navigate, pressToNavigate]
+    [href, navigate, pathname, pressToNavigate, warmRoute]
   );
 
   const handlePointerUp = useCallback(

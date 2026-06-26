@@ -24,6 +24,10 @@ export const metadata: Metadata = {
   description:
     "Your personalized workout, nutrition, and fitness coaching platform with AI coach and live sessions.",
   applicationName: PLATFORM_NAME,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport = {

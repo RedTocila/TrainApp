@@ -5,8 +5,7 @@
 
 :root {
   --radius: 0.75rem;
-  --safe-area-top: env(safe-area-inset-top, 0px);
-  --dashboard-mobile-header-height: calc(3.25rem + 0.625rem);
+  --dashboard-mobile-header-height: calc(3.25rem + 0.625rem + env(safe-area-inset-top, 0px));
   --dashboard-mobile-nav-height: calc(2.875rem + max(0.5rem, env(safe-area-inset-bottom, 0px)));
 }
 
@@ -100,8 +99,11 @@ body:has(.dashboard-shell) {
   box-sizing: border-box;
   height: 100svh;
   height: 100dvh;
-  padding-top: var(--safe-area-top);
   background: var(--background);
+}
+
+.mobile-top-safe {
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .dashboard-main {
@@ -113,7 +115,6 @@ body:has(.dashboard-shell) {
 
 .app-shell {
   box-sizing: border-box;
-  padding-top: var(--safe-area-top);
 }
 
 .dashboard-mobile-nav {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   Bot,
@@ -24,8 +24,14 @@ const mobileNavLinkClass =
 
 export function ClientNav({ fullName }: { fullName: string }) {
   const pathname = usePathname();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const platform = usePlatformCopy();
-  const programsActive = isTrainPath(pathname);
+  const activePath = pendingHref ?? pathname;
+  const programsActive = isTrainPath(activePath);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   const standardNavItems = [
     { href: "/dashboard", label: platform.nav.home, mobileLabel: platform.nav.home, icon: Home, exact: true as const },
@@ -79,13 +85,18 @@ export function ClientNav({ fullName }: { fullName: string }) {
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-4">
-          <InstantNavLink href="/dashboard" className={sidebarLinkClass(pathname === "/dashboard")}>
+          <InstantNavLink
+            href="/dashboard"
+            onNavigateStart={setPendingHref}
+            className={sidebarLinkClass(activePath === "/dashboard")}
+          >
             <Home className="h-4 w-4" />
             {platform.nav.home}
           </InstantNavLink>
 
           <InstantNavLink
             href={programsNavItem.href}
+            onNavigateStart={setPendingHref}
             className={sidebarLinkClass(programsActive)}
           >
             <Dumbbell className="h-4 w-4" />
@@ -93,9 +104,14 @@ export function ClientNav({ fullName }: { fullName: string }) {
           </InstantNavLink>
 
           {standardNavItems.slice(1).map((item) => {
-            const active = isNavItemActive(pathname, item.href);
+            const active = isNavItemActive(activePath, item.href);
             return (
-              <InstantNavLink key={item.href} href={item.href} className={sidebarLinkClass(active)}>
+              <InstantNavLink
+                key={item.href}
+                href={item.href}
+                onNavigateStart={setPendingHref}
+                className={sidebarLinkClass(active)}
+              >
                 <item.icon className="h-4 w-4" />
                 {item.label}
               </InstantNavLink>
@@ -118,9 +134,10 @@ export function ClientNav({ fullName }: { fullName: string }) {
           <InstantNavLink
             href="/dashboard"
             pressToNavigate
+            onNavigateStart={setPendingHref}
             className={cn(
               mobileNavLinkClass,
-              pathname === "/dashboard" ? "text-primary" : "text-muted-foreground"
+              activePath === "/dashboard" ? "text-primary" : "text-muted-foreground"
             )}
           >
             <Home className="h-5 w-5" />
@@ -131,6 +148,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
             href={programsNavItem.href}
             pressToNavigate
             tapSlop={16}
+            onNavigateStart={setPendingHref}
             className={cn(
               mobileNavLinkClass,
               programsActive ? "text-primary" : "text-muted-foreground"
@@ -141,12 +159,13 @@ export function ClientNav({ fullName }: { fullName: string }) {
           </InstantNavLink>
 
           {standardNavItems.slice(1).map((item) => {
-            const active = isNavItemActive(pathname, item.href);
+            const active = isNavItemActive(activePath, item.href);
             return (
               <InstantNavLink
                 key={item.href}
                 href={item.href}
                 pressToNavigate
+                onNavigateStart={setPendingHref}
                 tapSlop={item.href.startsWith("/dashboard/ai") ? 16 : undefined}
                 className={cn(
                   mobileNavLinkClass,
