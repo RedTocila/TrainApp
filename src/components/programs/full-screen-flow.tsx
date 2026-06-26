@@ -42,7 +42,7 @@ export function FullScreenFlow({
       aria-modal="true"
       aria-label={title}
     >
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
+      <header className="mobile-top-safe flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
         <div className="min-w-0">
           {subtitle && (
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">

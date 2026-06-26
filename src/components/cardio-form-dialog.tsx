@@ -8,6 +8,7 @@ import {
   type SaveCardioInput,
 } from "@/lib/actions/user-cardio";
 import { isValidYoutubeUrl } from "@/lib/youtube";
+import type { CardioType } from "@/lib/cardio-catalog";
 import type { ClientCardio } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,8 @@ import { Textarea } from "@/components/ui/textarea";
 interface CardioFormDialogProps {
   open: boolean;
   cardio?: ClientCardio | null;
+  preset?: CardioType | null;
+  presetTitle?: string;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -24,6 +27,8 @@ interface CardioFormDialogProps {
 export function CardioFormDialog({
   open,
   cardio,
+  preset,
+  presetTitle,
   onClose,
   onSaved,
 }: CardioFormDialogProps) {
@@ -36,14 +41,18 @@ export function CardioFormDialog({
 
   useEffect(() => {
     if (!open) return;
-    setTitle(cardio?.title ?? "");
+    setTitle(cardio?.title ?? presetTitle ?? "");
     setDescription(cardio?.description ?? "");
     setYoutubeUrl(cardio?.youtube_url ?? "");
     setDurationMinutes(
-      cardio?.duration_minutes != null ? String(cardio.duration_minutes) : ""
+      cardio?.duration_minutes != null
+        ? String(cardio.duration_minutes)
+        : preset?.defaultDuration != null
+          ? String(preset.defaultDuration)
+          : ""
     );
     setError(null);
-  }, [open, cardio]);
+  }, [open, cardio, preset, presetTitle]);
 
   useEffect(() => {
     if (!open) return;

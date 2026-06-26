@@ -105,7 +105,7 @@ export function DashboardCardioCard({
         <div className="flex shrink-0 items-center gap-2">
           <Link href="/dashboard/workout/cardio">
             <Button size="sm" variant="outline">
-              {platform.workout.myCardio}
+              {platform.cardio.myCardio}
             </Button>
           </Link>
           {cardio && (
@@ -149,7 +149,7 @@ export function DashboardCardioCard({
             <p className="text-sm text-muted-foreground">{coachLabels.noCardioToday}</p>
             <Link href="/dashboard/workout/cardio" className="mt-2 inline-block">
               <Button size="sm" variant="outline" className="mt-2">
-                {platform.workout.addScheduleCardio}
+                {platform.cardio.addScheduleCardio}
               </Button>
             </Link>
           </div>

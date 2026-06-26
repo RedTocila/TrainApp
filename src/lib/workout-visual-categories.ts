@@ -182,7 +182,6 @@ const INFERENCE_CATEGORIES: WorkoutCategory[] = [
   "pull",
   "legs",
   "full",
-  "cardio",
   "core",
   "upper",
   "rest",

@@ -8,7 +8,6 @@ import {
   Calendar,
   Dumbbell,
   Folder,
-  HeartPulse,
   Library,
   List,
   Pencil,
@@ -114,8 +113,7 @@ export function WorkoutFoldersPage({
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-        <ProgramQuickTile href="/dashboard/workout/cardio" icon={HeartPulse} label={platform.workout.cardioTile} accentClass="text-orange-400" bgClass="bg-orange-500/10" />
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-4">
         <ProgramQuickTile href="/dashboard/workout/workouts" icon={List} label={platform.workout.allTile} />
         <ProgramQuickTile href="/dashboard/workout/exercises" icon={Library} label={platform.workout.exercisesTile} accentClass="text-violet-400" bgClass="bg-violet-500/10" />
         <ProgramQuickTile href="/dashboard/ai/plans/workout" icon={Sparkles} label={platform.workout.aiPlanTile} accentClass="text-primary" bgClass="bg-primary/10" />

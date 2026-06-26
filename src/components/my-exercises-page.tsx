@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ChevronDown, Dumbbell, ExternalLink } from "lucide-react";
+import { ChevronDown, Dumbbell } from "lucide-react";
 import type { PersonalExerciseLibraryItem } from "@/lib/actions/user-workouts";
 import {
   EXERCISE_CATALOG,
@@ -260,18 +260,6 @@ export function MyExercisesPage({
               Load more ({filteredCatalog.length - visibleCount} remaining)
             </Button>
           )}
-          <p className="text-center text-[11px] text-muted-foreground">
-            Exercise data from{" "}
-            <a
-              href={EXERCISE_CATALOG.source}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline"
-            >
-              exercemus/exercises
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          </p>
         </div>
       ) : (
         <MyWorkoutExercises exercises={initialExercises} query={query} />

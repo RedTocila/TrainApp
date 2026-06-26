@@ -6,7 +6,9 @@ import { useState, useTransition } from "react";
 import { Calendar, HeartPulse, Pencil, Plus, Trash2 } from "lucide-react";
 import { CardioFormDialog } from "@/components/cardio-form-dialog";
 import { CardioScheduleDialog } from "@/components/cardio-schedule-dialog";
+import { CardioTypeGrid } from "@/components/cardio-type-grid";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
+import type { CardioType } from "@/lib/cardio-catalog";
 import { deleteClientCardio } from "@/lib/actions/user-cardio";
 import type { ClientCardio } from "@/lib/types";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
@@ -22,6 +24,8 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
   const [formOpen, setFormOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [editing, setEditing] = useState<ClientCardio | null>(null);
+  const [preset, setPreset] = useState<CardioType | null>(null);
+  const [presetTitle, setPresetTitle] = useState("");
   const [scheduling, setScheduling] = useState<ClientCardio | null>(null);
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
@@ -37,11 +41,22 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
 
   const openAdd = () => {
     setEditing(null);
+    setPreset(null);
+    setPresetTitle("");
+    setFormOpen(true);
+  };
+
+  const openFromType = (type: CardioType) => {
+    setEditing(null);
+    setPreset(type);
+    setPresetTitle(platform.cardio.types[type.id as keyof typeof platform.cardio.types] ?? type.id);
     setFormOpen(true);
   };
 
   const openEdit = (item: ClientCardio) => {
     setEditing(item);
+    setPreset(null);
+    setPresetTitle("");
     setFormOpen(true);
   };
 
@@ -77,6 +92,14 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
           {platform.common.add}
         </Button>
       </div>
+
+      <CardioTypeGrid onSelect={openFromType} />
+
+      {cardioList.length > 0 && (
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          {platform.cardio.mySessions}
+        </h2>
+      )}
 
       {cardioList.length === 0 ? (
         <Card>
@@ -155,6 +178,8 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
       <CardioFormDialog
         open={formOpen}
         cardio={editing}
+        preset={preset}
+        presetTitle={presetTitle}
         onClose={() => setFormOpen(false)}
         onSaved={refresh}
       />

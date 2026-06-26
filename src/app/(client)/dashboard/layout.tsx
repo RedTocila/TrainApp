@@ -35,15 +35,17 @@ export default async function DashboardLayout({
         <div className="dashboard-shell flex min-h-0 overflow-hidden bg-background">
           <ClientNav fullName={profile.full_name} />
           <FullCalendarProvider>
-            <main className="dashboard-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background px-0 pb-[var(--dashboard-mobile-nav-height,4.25rem)] pt-0 [-webkit-overflow-scrolling:touch] lg:px-0 lg:pb-0">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
               <DashboardMobileHeader />
+              <main className="dashboard-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background px-0 pb-[var(--dashboard-mobile-nav-height,4.25rem)] pt-[var(--dashboard-mobile-header-height)] [-webkit-overflow-scrolling:touch] lg:px-0 lg:pb-0 lg:pt-0">
               <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
                 <SubscriptionBanner profile={profile} />
                 <DashboardNavPendingContent>
                   <TrainSectionShell>{children}</TrainSectionShell>
                 </DashboardNavPendingContent>
               </div>
-            </main>
+              </main>
+            </div>
           </FullCalendarProvider>
         </div>
         </DashboardNavPendingProvider>
