@@ -24,7 +24,7 @@ export function PendingIntakeSync({ intakeComplete }: { intakeComplete: boolean 
     synced.current = true;
 
     void applyPendingIntakeDraft(JSON.stringify(draft)).then((result) => {
-      if (result?.success) {
+      if (result && "success" in result && result.success) {
         clearIntakeDraft();
         router.refresh();
       }
