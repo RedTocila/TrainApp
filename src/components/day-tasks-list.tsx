@@ -72,10 +72,10 @@ export function TaskRow({ task }: { task: DailyTask }) {
         type="button"
         onClick={() => navigate(task)}
         className={cn(
-          "relative flex w-full items-center gap-2.5 rounded-2xl border border-border bg-secondary/40 px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-secondary/70 sm:items-start sm:gap-3 sm:px-3 sm:py-2.5",
-          task.completed && "border-green-500/30 bg-green-500/5 hover:border-green-500/40",
-          isMissed && "border-red-500/30 bg-red-500/5 hover:border-red-500/40",
-          isInProgress && "border-primary/20"
+          "relative flex w-full touch-manipulation select-none items-center gap-2.5 rounded-2xl border border-border bg-secondary/40 px-2.5 py-2 text-left transition-colors [-webkit-tap-highlight-color:transparent] active:opacity-90 sm:items-start sm:gap-3 sm:px-3 sm:py-2.5",
+          task.completed && "border-green-500/30 bg-green-500/5 [@media(hover:hover)]:hover:border-green-500/40",
+          isMissed && "border-red-500/30 bg-red-500/5 [@media(hover:hover)]:hover:border-red-500/40",
+          isInProgress && "border-primary/20 [@media(hover:hover)]:hover:border-primary/40 [@media(hover:hover)]:hover:bg-secondary/70"
         )}
       >
         <span

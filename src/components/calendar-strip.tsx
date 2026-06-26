@@ -1,10 +1,8 @@
 "use client";
 
-import { addDays, isBefore, isSameDay, startOfDay } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDayCard } from "@/components/calendar-day-card";
-import { Button } from "@/components/ui/button";
+import { addDays, isSameDay, startOfDay } from "date-fns";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CalendarStripDay, isInactiveCalendarDay } from "@/components/calendar-strip-day";
 import {
   type ClientSchedule,
   type DailyTask,
@@ -34,6 +32,8 @@ export function CalendarStrip({
   daysCount = 28,
 }: CalendarStripProps) {
   const [now, setNow] = useState(() => new Date());
+  const selectedRef = useRef<HTMLButtonElement>(null);
+
   const activeFrom = useMemo(() => {
     if (!enrichment.accountCreatedAt) return null;
     const d = new Date(enrichment.accountCreatedAt);
@@ -51,10 +51,10 @@ export function CalendarStrip({
     return Array.from({ length: daysCount }, (_, i) => {
       const day = addDays(rangeStart, i);
       const rawTasks = enrichTasksForDate(day, schedule, enrichment, now);
-      const beforeActive = activeFrom ? isBefore(day, activeFrom) : false;
-      const tasks = beforeActive ? [] : rawTasks;
+      const inactive = isInactiveCalendarDay(day, activeFrom, now);
+      const tasks = inactive ? [] : rawTasks;
       const dayStatus = getCalendarDayStatus(tasks, day, now);
-      return { day, tasks, dayStatus };
+      return { day, tasks, dayStatus, inactive };
     });
   }, [daysCount, schedule, enrichment, now, activeFrom]);
 
@@ -77,74 +77,55 @@ export function CalendarStrip({
     return startForIndex(selectedIndex);
   }, [selectedIndex, startForIndex]);
 
-  const navigateDay = (direction: "prev" | "next") => {
-    if (selectedIndex === -1) return;
-
-    const delta = direction === "prev" ? -1 : 1;
-    const nextIndex = selectedIndex + delta;
-    if (nextIndex < 0 || nextIndex >= dayItems.length) return;
-
-    onSelectDate(dayItems[nextIndex].day);
-  };
-
   const visibleDays = dayItems.slice(startIndex, startIndex + VISIBLE_DAYS);
-  const canGoPrev = selectedIndex > 0;
-  const canGoNext = selectedIndex >= 0 && selectedIndex < dayItems.length - 1;
+
+  useEffect(() => {
+    const node = selectedRef.current;
+    if (!node) return;
+
+    const frame = requestAnimationFrame(() => {
+      node.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [selectedDate, startIndex]);
 
   return (
-    <div className="flex items-stretch gap-1 px-1.5 py-2 sm:gap-2 sm:px-4 sm:py-4">
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        className="hidden h-8 w-8 shrink-0 self-center sm:h-9 sm:w-9 lg:inline-flex"
-        disabled={!canGoPrev}
-        aria-label="Previous day"
-        onClick={() => navigateDay("prev")}
-      >
-        <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-      </Button>
+    <div className="calendar-strip bg-background/80 backdrop-blur-sm">
+      {/* Mobile / tablet: scrollable week strip */}
+      <div className="flex min-w-0 items-stretch gap-0 overflow-x-auto overscroll-x-contain px-2 py-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3 md:px-4 lg:hidden [&::-webkit-scrollbar]:hidden">
+        {dayItems.map(({ day, tasks, dayStatus, inactive }) => (
+          <CalendarStripDay
+            key={day.toISOString()}
+            buttonRef={isSameDay(day, selectedDate) ? selectedRef : undefined}
+            date={day}
+            selected={isSameDay(day, selectedDate)}
+            tasks={tasks}
+            dayStatus={dayStatus}
+            inactive={inactive}
+            onSelect={() => onSelectDate(day)}
+          />
+        ))}
+      </div>
 
-      <div className="hidden min-w-0 flex-1 grid-cols-7 gap-1 sm:gap-1.5 md:gap-2 lg:grid lg:gap-3">
-        {visibleDays.map(({ day, tasks, dayStatus }) => (
-          <CalendarDayCard
+      {/* Desktop: fixed 7-day window centered on selection */}
+      <div className="hidden min-w-0 grid-cols-7 items-stretch px-6 py-1 lg:grid">
+        {visibleDays.map(({ day, tasks, dayStatus, inactive }) => (
+          <CalendarStripDay
             key={day.toISOString()}
             date={day}
             selected={isSameDay(day, selectedDate)}
             tasks={tasks}
             dayStatus={dayStatus}
+            inactive={inactive}
             onSelect={() => onSelectDate(day)}
-            strip
           />
         ))}
       </div>
-
-      <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-2 lg:hidden [&::-webkit-scrollbar]:hidden">
-        {dayItems.map(({ day, tasks, dayStatus }) => (
-          <div key={day.toISOString()} className="w-[3.75rem] shrink-0 sm:w-[4.75rem]">
-            <CalendarDayCard
-              date={day}
-              selected={isSameDay(day, selectedDate)}
-              tasks={tasks}
-              dayStatus={dayStatus}
-              onSelect={() => onSelectDate(day)}
-              strip
-            />
-          </div>
-        ))}
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        className="hidden h-8 w-8 shrink-0 self-center sm:h-9 sm:w-9 lg:inline-flex"
-        disabled={!canGoNext}
-        aria-label="Next day"
-        onClick={() => navigateDay("next")}
-      >
-        <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-      </Button>
     </div>
   );
 }

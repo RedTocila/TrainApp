@@ -1,7 +1,7 @@
 "use client";
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format, isToday } from "date-fns";
 import { Apple, Check, ClipboardList, Plus } from "lucide-react";
 import { formatDateKey } from "@/lib/utils";
@@ -71,7 +71,6 @@ export function DailyTracker({
 }: DailyTrackerProps) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
-  const [isPending, startTransition] = useTransition();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [mealPlanOpen, setMealPlanOpen] = useState(false);
   const [pdfPlanOpen, setPdfPlanOpen] = useState(false);
@@ -79,7 +78,7 @@ export function DailyTracker({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewVariant, setPreviewVariant] = useState<"new" | "view">("new");
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
-  const { patchDashboard, notifySync } = useDashboardSync();
+  const { patchDashboard } = useDashboardSync();
   const dateKey = formatDateKey(date);
 
   useEffect(() => {
@@ -147,14 +146,11 @@ export function DailyTracker({
       patchDashboard({ dateKey, waterMl: next });
       return next;
     });
-    notifySync();
-    startTransition(() => {
-      void addWater(clientId, dateKey, amount).catch(() => {
-        setLocalWaterMl((prev) => {
-          const reverted = prev - amount;
-          patchDashboard({ dateKey, waterMl: reverted });
-          return reverted;
-        });
+    void addWater(clientId, dateKey, amount).catch(() => {
+      setLocalWaterMl((prev) => {
+        const reverted = prev - amount;
+        patchDashboard({ dateKey, waterMl: reverted });
+        return reverted;
       });
     });
   };
@@ -162,9 +158,7 @@ export function DailyTracker({
   const handleDeleteMeal = (logId: string) => {
     const previous = dailyMeals;
     onDailyMealsChange(dailyMeals.filter((meal) => meal.id !== logId));
-    notifySync();
-    startTransition(async () => {
-      const result = await deleteDailyMealLog(clientId, dateKey, logId);
+    void deleteDailyMealLog(clientId, dateKey, logId).then((result) => {
       if (result.error) {
         onDailyMealsChange(previous);
       }
@@ -172,12 +166,9 @@ export function DailyTracker({
   };
 
   const refreshMeals = () => {
-    notifySync();
-    startTransition(async () => {
-      const { getDailyMealLogs } = await import("@/lib/actions/daily-meals");
-      const meals = await getDailyMealLogs(clientId, dateKey);
-      onDailyMealsChange(meals);
-    });
+    void import("@/lib/actions/daily-meals").then(({ getDailyMealLogs }) =>
+      getDailyMealLogs(clientId, dateKey).then(onDailyMealsChange)
+    );
   };
 
   const handleLogged = (preview?: MealFormData) => {
@@ -276,7 +267,6 @@ export function DailyTracker({
             waterMl={localWaterMl}
             waterGoalMl={waterGoalMl}
             onAddWater={handleAddWater}
-            waterLoading={isPending}
           />
 
           {waterCompleted && (
@@ -292,7 +282,6 @@ export function DailyTracker({
             onDelete={handleDeleteMeal}
             onSelect={handleSelectMeal}
             onAdd={() => setLogMealOpen(true)}
-            isPending={isPending}
             showHeaderAdd={false}
             emptyHint={platform.nutrition.logFirstMealHint}
           />

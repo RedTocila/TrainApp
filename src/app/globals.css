@@ -118,6 +118,7 @@ body:has(.dashboard-shell) {
 
 .dashboard-mobile-nav {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  touch-action: none;
 }
 
 .dashboard-instant-nav a,

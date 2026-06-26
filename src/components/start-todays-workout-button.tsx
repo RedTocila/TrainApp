@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Play } from "lucide-react";
 import { startTodaysWorkoutAndRedirect } from "@/lib/actions/workout-sessions";
 import { formatDateKey } from "@/lib/utils";
@@ -15,18 +15,21 @@ export function StartTodaysWorkoutButton({
   disabled?: boolean;
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleStart = () => {
+    if (disabled || isStarting) return;
     setError(null);
-    startTransition(async () => {
-      const result = await startTodaysWorkoutAndRedirect(formatDateKey(date));
-      if (result && "error" in result && result.error) {
-        setError(result.error);
-        router.refresh();
-      }
-    });
+    setIsStarting(true);
+    void startTodaysWorkoutAndRedirect(formatDateKey(date))
+      .then((result) => {
+        if (result && "error" in result && result.error) {
+          setError(result.error);
+          router.refresh();
+        }
+      })
+      .finally(() => setIsStarting(false));
   };
 
   return (
@@ -34,9 +37,9 @@ export function StartTodaysWorkoutButton({
       <Button
         size="icon"
         className="h-9 w-9 rounded-full"
-        disabled={disabled || isPending}
+        disabled={disabled || isStarting}
         onClick={handleStart}
-        aria-label={isPending ? "Starting workout" : "Start workout"}
+        aria-label={isStarting ? "Starting workout" : "Start workout"}
       >
         <Play className="h-4 w-4" />
       </Button>

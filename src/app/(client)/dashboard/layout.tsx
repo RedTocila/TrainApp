@@ -27,9 +27,9 @@ export default async function DashboardLayout({
       <DashboardMainReset />
       <DateProvider>
         <DashboardSyncProvider>
-        <FullCalendarProvider>
-          <div className="dashboard-shell flex min-h-0 overflow-hidden bg-background">
-            <ClientNav fullName={profile.full_name} />
+        <div className="dashboard-shell flex min-h-0 overflow-hidden bg-background">
+          <ClientNav fullName={profile.full_name} />
+          <FullCalendarProvider>
             <main className="dashboard-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background px-0 pb-[var(--dashboard-mobile-nav-height,4.25rem)] pt-0 [-webkit-overflow-scrolling:touch] lg:px-0 lg:pb-0">
               <DashboardMobileHeader />
               <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
@@ -37,8 +37,8 @@ export default async function DashboardLayout({
                 <TrainSectionShell>{children}</TrainSectionShell>
               </div>
             </main>
-          </div>
-        </FullCalendarProvider>
+          </FullCalendarProvider>
+        </div>
         </DashboardSyncProvider>
       </DateProvider>
     </LocaleProvider>

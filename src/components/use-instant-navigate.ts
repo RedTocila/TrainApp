@@ -1,31 +1,62 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useRef, type MouseEvent, type PointerEvent } from "react";
 
 const NAVIGATE_DEBOUNCE_MS = 300;
 
-export function useInstantNavigate(href: string, tapSlop = 12) {
+function isCurrentRoute(pathname: string, href: string) {
+  if (href === "/dashboard") return pathname === "/dashboard";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+type InstantNavigateOptions = {
+  tapSlop?: number;
+  /** Navigate on finger down — more reliable on mobile tab bars. */
+  pressToNavigate?: boolean;
+};
+
+export function useInstantNavigate(
+  href: string,
+  tapSlopOrOptions: number | InstantNavigateOptions = 12
+) {
+  const options =
+    typeof tapSlopOrOptions === "number"
+      ? { tapSlop: tapSlopOrOptions }
+      : tapSlopOrOptions;
+  const { tapSlop = 12, pressToNavigate = false } = options;
+
   const router = useRouter();
+  const pathname = usePathname();
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const navigated = useRef(false);
 
   const navigate = useCallback(() => {
+    if (isCurrentRoute(pathname, href)) return;
     if (navigated.current) return;
     navigated.current = true;
     router.push(href);
     window.setTimeout(() => {
       navigated.current = false;
     }, NAVIGATE_DEBOUNCE_MS);
-  }, [href, router]);
+  }, [href, pathname, router]);
 
-  const handlePointerDown = useCallback((e: PointerEvent) => {
-    if (e.button !== 0) return;
-    pointerStart.current = { x: e.clientX, y: e.clientY };
-  }, []);
+  const handlePointerDown = useCallback(
+    (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      if (pressToNavigate) {
+        e.preventDefault();
+        navigate();
+        return;
+      }
+      pointerStart.current = { x: e.clientX, y: e.clientY };
+    },
+    [navigate, pressToNavigate]
+  );
 
   const handlePointerUp = useCallback(
     (e: PointerEvent) => {
+      if (pressToNavigate) return;
       if (e.button !== 0 || !pointerStart.current) return;
       const dx = Math.abs(e.clientX - pointerStart.current.x);
       const dy = Math.abs(e.clientY - pointerStart.current.y);
@@ -34,7 +65,7 @@ export function useInstantNavigate(href: string, tapSlop = 12) {
       e.preventDefault();
       navigate();
     },
-    [navigate, tapSlop]
+    [navigate, pressToNavigate, tapSlop]
   );
 
   const handlePointerCancel = useCallback(() => {
@@ -43,6 +74,10 @@ export function useInstantNavigate(href: string, tapSlop = 12) {
 
   const handleClick = useCallback(
     (e: MouseEvent) => {
+      if (pressToNavigate) {
+        e.preventDefault();
+        return;
+      }
       if (e.detail === 0) return;
       if (
         e.defaultPrevented ||
@@ -57,7 +92,7 @@ export function useInstantNavigate(href: string, tapSlop = 12) {
       e.preventDefault();
       navigate();
     },
-    [navigate]
+    [navigate, pressToNavigate]
   );
 
   return {
@@ -69,7 +104,16 @@ export function useInstantNavigate(href: string, tapSlop = 12) {
   };
 }
 
-export function useInstantAction(action: () => void, tapSlop = 12) {
+export function useInstantAction(
+  action: () => void,
+  tapSlopOrOptions: number | InstantNavigateOptions = 12
+) {
+  const options =
+    typeof tapSlopOrOptions === "number"
+      ? { tapSlop: tapSlopOrOptions }
+      : tapSlopOrOptions;
+  const { tapSlop = 12, pressToNavigate = false } = options;
+
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const fired = useRef(false);
 
@@ -82,13 +126,22 @@ export function useInstantAction(action: () => void, tapSlop = 12) {
     }, NAVIGATE_DEBOUNCE_MS);
   }, [action]);
 
-  const handlePointerDown = useCallback((e: PointerEvent) => {
-    if (e.button !== 0) return;
-    pointerStart.current = { x: e.clientX, y: e.clientY };
-  }, []);
+  const handlePointerDown = useCallback(
+    (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      if (pressToNavigate) {
+        e.preventDefault();
+        run();
+        return;
+      }
+      pointerStart.current = { x: e.clientX, y: e.clientY };
+    },
+    [pressToNavigate, run]
+  );
 
   const handlePointerUp = useCallback(
     (e: PointerEvent) => {
+      if (pressToNavigate) return;
       if (e.button !== 0 || !pointerStart.current) return;
       const dx = Math.abs(e.clientX - pointerStart.current.x);
       const dy = Math.abs(e.clientY - pointerStart.current.y);
@@ -97,7 +150,7 @@ export function useInstantAction(action: () => void, tapSlop = 12) {
       e.preventDefault();
       run();
     },
-    [run, tapSlop]
+    [pressToNavigate, run, tapSlop]
   );
 
   const handlePointerCancel = useCallback(() => {
@@ -106,12 +159,16 @@ export function useInstantAction(action: () => void, tapSlop = 12) {
 
   const handleClick = useCallback(
     (e: MouseEvent) => {
+      if (pressToNavigate) {
+        e.preventDefault();
+        return;
+      }
       if (e.detail === 0) return;
       if (e.defaultPrevented || e.button !== 0) return;
       e.preventDefault();
       run();
     },
-    [run]
+    [pressToNavigate, run]
   );
 
   return {

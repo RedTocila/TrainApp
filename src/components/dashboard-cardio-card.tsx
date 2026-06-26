@@ -4,7 +4,7 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 import Link from "next/link";
 import { format, isToday, isTomorrow } from "date-fns";
 import { Check, HeartPulse } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
@@ -31,40 +31,47 @@ export function DashboardCardioCard({ clientId }: { clientId: string }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const { selectedDate } = useSelectedDate();
-  const { version, patchDashboard, notifySync } = useDashboardSync();
+  const { version, patchDashboard } = useDashboardSync();
   const [scheduled, setScheduled] = useState<ScheduledCardio | null>(null);
   const [completed, setCompleted] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [isToggling, setIsToggling] = useState(false);
   const dateKey = formatDateKey(selectedDate);
   const taskId = `${dateKey}-cardio`;
   const cardio = scheduled?.client_cardio ?? null;
 
   useEffect(() => {
-    startTransition(async () => {
-      const [entry, ids] = await Promise.all([
-        getScheduledCardioForDate(clientId, dateKey),
-        getTaskCompletionsForDate(clientId, dateKey),
-      ]);
+    let cancelled = false;
+
+    void Promise.all([
+      getScheduledCardioForDate(clientId, dateKey),
+      getTaskCompletionsForDate(clientId, dateKey),
+    ]).then(([entry, ids]) => {
+      if (cancelled) return;
       setScheduled(entry);
       setCompleted(ids.has(taskId));
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, [clientId, dateKey, taskId, version]);
 
   const handleToggle = () => {
     const next = !completed;
     setCompleted(next);
     patchDashboard({ dateKey, taskId, completed: next });
-    notifySync();
+    setIsToggling(true);
 
-    startTransition(async () => {
-      const result = await toggleScheduleTaskCompletion(clientId, dateKey, taskId);
-      if (result.error) {
-        setCompleted(!next);
-        patchDashboard({ dateKey, taskId, completed: !next });
-        return;
-      }
-      setCompleted(result.completed ?? false);
-    });
+    void toggleScheduleTaskCompletion(clientId, dateKey, taskId)
+      .then((result) => {
+        if (result.error) {
+          setCompleted(!next);
+          patchDashboard({ dateKey, taskId, completed: !next });
+          return;
+        }
+        setCompleted(result.completed ?? false);
+      })
+      .finally(() => setIsToggling(false));
   };
 
   return (
@@ -93,7 +100,7 @@ export function DashboardCardioCard({ clientId }: { clientId: string }) {
                 <Check className="h-4 w-4" />
               </span>
             ) : (
-              <Button size="sm" disabled={isPending} onClick={handleToggle}>
+              <Button size="sm" disabled={isToggling} onClick={handleToggle}>
                 {platform.common.done}
               </Button>
             )

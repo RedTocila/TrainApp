@@ -80,7 +80,6 @@ export function CalendarDayCard({
     <motion.button
       type="button"
       onClick={onSelect}
-      whileTap={{ scale: 0.98 }}
       className={cn(
         "calendar-day flex flex-col border text-left transition-colors",
         strip

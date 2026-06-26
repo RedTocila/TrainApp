@@ -113,10 +113,11 @@ export function ClientNav({ fullName }: { fullName: string }) {
         </div>
       </aside>
 
-      <nav className="dashboard-mobile-nav dashboard-instant-nav pointer-events-auto fixed bottom-0 left-0 right-0 z-[100] border-t border-border bg-card/95 backdrop-blur lg:hidden">
+      <nav className="dashboard-mobile-nav dashboard-instant-nav pointer-events-auto fixed bottom-0 left-0 right-0 z-[100] isolate border-t border-border bg-card/95 backdrop-blur lg:hidden">
         <div className="flex justify-around px-1 pt-1.5">
           <InstantNavLink
             href="/dashboard"
+            pressToNavigate
             className={cn(
               mobileNavLinkClass,
               pathname === "/dashboard" ? "text-primary" : "text-muted-foreground"
@@ -128,6 +129,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
 
           <InstantNavLink
             href={programsNavItem.href}
+            pressToNavigate
             tapSlop={16}
             className={cn(
               mobileNavLinkClass,
@@ -144,6 +146,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
               <InstantNavLink
                 key={item.href}
                 href={item.href}
+                pressToNavigate
                 tapSlop={item.href.startsWith("/dashboard/ai") ? 16 : undefined}
                 className={cn(
                   mobileNavLinkClass,

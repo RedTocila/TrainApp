@@ -56,13 +56,11 @@ export function DashboardCalendar({
   useRegisterDashboardCalendar(schedule, mergedEnrichment);
 
   return (
-    <div className="bg-card/50">
-      <CalendarStrip
+    <CalendarStrip
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         schedule={schedule}
         enrichment={mergedEnrichment}
       />
-    </div>
   );
 }

@@ -11,6 +11,7 @@ type InstantNavLinkProps = Omit<
   href: string;
   children: ReactNode;
   tapSlop?: number;
+  pressToNavigate?: boolean;
 };
 
 export function InstantNavLink({
@@ -18,6 +19,7 @@ export function InstantNavLink({
   children,
   prefetch = true,
   tapSlop,
+  pressToNavigate,
   ...props
 }: InstantNavLinkProps) {
   const {
@@ -25,7 +27,7 @@ export function InstantNavLink({
     handlePointerUp,
     handlePointerCancel,
     handleClick,
-  } = useInstantNavigate(href, tapSlop);
+  } = useInstantNavigate(href, { tapSlop, pressToNavigate });
 
   return (
     <Link

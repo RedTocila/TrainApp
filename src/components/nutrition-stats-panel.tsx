@@ -17,14 +17,12 @@ export function NutritionStatsPanel({
   waterMl,
   waterGoalMl,
   onAddWater,
-  waterLoading,
 }: {
   current: MacroTotals;
   targets: MacroTotals;
   waterMl: number;
   waterGoalMl: number;
   onAddWater?: (amount: number) => void;
-  waterLoading?: boolean;
 }) {
   const caloriesLeft = Math.max(0, targets.calories - current.calories);
   const caloriesConsumed = current.calories;
@@ -141,9 +139,8 @@ export function NutritionStatsPanel({
                 <button
                   key={amount}
                   type="button"
-                  disabled={waterLoading}
                   onClick={() => onAddWater(amount)}
-                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-full border border-border bg-secondary/60 px-2 py-1.5 text-[11px] font-semibold transition-colors hover:border-cyan-500/40 hover:bg-cyan-500/10 disabled:opacity-50 sm:text-xs"
+                  className="inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1 rounded-full border border-border bg-secondary/60 px-2 py-1.5 text-[11px] font-semibold transition-colors [-webkit-tap-highlight-color:transparent] active:opacity-90 [@media(hover:hover)]:hover:border-cyan-500/40 [@media(hover:hover)]:hover:bg-cyan-500/10 sm:text-xs"
                 >
                   <GlassWater className="h-3 w-3 shrink-0 text-cyan-400" />
                   +{amount}

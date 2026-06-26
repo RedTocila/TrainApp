@@ -3,7 +3,7 @@ import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/loca
 
 import { format, isToday } from "date-fns";
 import { Check, ListChecks, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { HabitFormDialog } from "@/components/habit-form-dialog";
 import {
@@ -46,9 +46,10 @@ export function HabitsTracker({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<ClientHabit | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [suggestionsPending, setSuggestionsPending] = useState(false);
   const [tick, setTick] = useState(0);
+  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
   const { patchDashboard, notifySync } = useDashboardSync();
 
   useEffect(() => {
@@ -56,10 +57,7 @@ export function HabitsTracker({
   }, [suggestedHabits]);
 
   const refresh = useCallback(() => {
-    startTransition(async () => {
-      const fetched = await getHabitsWithCompletions(clientId, dateKey);
-      setHabits(fetched);
-    });
+    void getHabitsWithCompletions(clientId, dateKey).then(setHabits);
   }, [clientId, dateKey]);
 
   useEffect(() => {
@@ -116,27 +114,29 @@ export function HabitsTracker({
       taskId: `habit-${habitId}`,
       completed: true,
     });
-    notifySync();
 
-    startTransition(async () => {
-      const result = await toggleHabitCompletion(habitId, dateKey);
-      if (result.error) {
-        setError(result.error);
-        setHabits((prev) =>
-          prev.map((h) =>
-            h.id === habitId
-              ? { ...h, completed: false, status: getHabitDayStatus(h, dateKey, false) }
-              : h
-          )
-        );
-        patchDashboard({
-          dateKey,
-          taskId: `habit-${habitId}`,
-          completed: false,
-        });
-        return;
-      }
-    });
+    setTogglingId(habitId);
+    void toggleHabitCompletion(habitId, dateKey)
+      .then((result) => {
+        if (result.error) {
+          setError(result.error);
+          setHabits((prev) =>
+            prev.map((h) =>
+              h.id === habitId
+                ? { ...h, completed: false, status: getHabitDayStatus(h, dateKey, false) }
+                : h
+            )
+          );
+          patchDashboard({
+            dateKey,
+            taskId: `habit-${habitId}`,
+            completed: false,
+          });
+        }
+      })
+      .finally(() => {
+        setTogglingId((current) => (current === habitId ? null : current));
+      });
   };
 
   const handleDelete = (habitId: string) => {
@@ -155,23 +155,24 @@ export function HabitsTracker({
 
   const handleAddSuggestion = (suggestionId: string) => {
     setError(null);
-    startTransition(async () => {
-      const result = await applyHabitSuggestion(suggestionId);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
-      refresh();
-      notifySync();
-    });
+    setSuggestionsPending(true);
+    void applyHabitSuggestion(suggestionId)
+      .then((result) => {
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
+        refresh();
+        notifySync();
+      })
+      .finally(() => setSuggestionsPending(false));
   };
 
   const handleDismissSuggestion = (suggestionId: string) => {
     setError(null);
     setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
-    startTransition(async () => {
-      const result = await dismissHabitSuggestion(suggestionId);
+    void dismissHabitSuggestion(suggestionId).then((result) => {
       if (result.error) {
         setError(result.error);
       }
@@ -231,7 +232,7 @@ export function HabitsTracker({
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={isPending}
+                        disabled={suggestionsPending}
                         onClick={() => handleAddSuggestion(suggestion.id)}
                       >
                         {platform.common.add}
@@ -241,7 +242,7 @@ export function HabitsTracker({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        disabled={isPending}
+                        disabled={suggestionsPending}
                         onClick={() => handleDismissSuggestion(suggestion.id)}
                         aria-label={platform.aria.dismissSuggestion}
                       >
@@ -295,7 +296,7 @@ export function HabitsTracker({
                       ) : canComplete ? (
                         <Button
                           size="sm"
-                          disabled={isPending}
+                          disabled={togglingId === habit.id}
                           onClick={() => handleComplete(habit.id)}
                         >
                           {platform.habits.done}
@@ -306,7 +307,6 @@ export function HabitsTracker({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 shrink-0"
-                        disabled={isPending}
                         onClick={() => openEdit(habit)}
                         aria-label={platform.aria.editHabit}
                       >
@@ -317,7 +317,6 @@ export function HabitsTracker({
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 shrink-0"
-                        disabled={isPending}
                         onClick={() => handleDelete(habit.id)}
                         aria-label={platform.aria.removeHabit}
                       >

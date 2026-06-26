@@ -3,7 +3,7 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { format, isToday, isTomorrow } from "date-fns";
 import { Check, Dumbbell } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
@@ -45,18 +45,23 @@ export function DashboardWorkoutCard({
   const { version } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
-  const [, startTransition] = useTransition();
 
   useEffect(() => {
     const dateKey = formatDateKey(selectedDate);
-    startTransition(async () => {
-      const [resolved, completed] = await Promise.all([
-        resolveWorkoutForDate(clientId, dateKey),
-        isWorkoutCompletedOnDate(clientId, dateKey),
-      ]);
+    let cancelled = false;
+
+    void Promise.all([
+      resolveWorkoutForDate(clientId, dateKey),
+      isWorkoutCompletedOnDate(clientId, dateKey),
+    ]).then(([resolved, completed]) => {
+      if (cancelled) return;
       setWorkout(resolved);
       setWorkoutCompleted(completed);
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedDate, clientId, version]);
 
   const dateKey = formatDateKey(selectedDate);

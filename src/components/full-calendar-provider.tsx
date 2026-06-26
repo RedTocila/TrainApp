@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -38,20 +39,27 @@ const FullCalendarContext = createContext<FullCalendarContextValue | null>(null)
 export function FullCalendarProvider({ children }: { children: ReactNode }) {
   const { selectedDate, setSelectedDate } = useSelectedDate();
   const [open, setOpen] = useState(false);
-  const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
+  const [hasCalendar, setHasCalendar] = useState(false);
+  const calendarDataRef = useRef<CalendarData | null>(null);
 
   const registerCalendarData = useCallback((data: CalendarData | null) => {
-    setCalendarData(data);
+    calendarDataRef.current = data;
+    setHasCalendar((current) => {
+      const next = data !== null;
+      return current === next ? current : next;
+    });
   }, []);
 
   const value = useMemo(
     () => ({
       openCalendar: () => setOpen(true),
-      hasCalendar: calendarData !== null,
+      hasCalendar,
       registerCalendarData,
     }),
-    [calendarData, registerCalendarData]
+    [hasCalendar, registerCalendarData]
   );
+
+  const calendarData = calendarDataRef.current;
 
   return (
     <FullCalendarContext.Provider value={value}>
@@ -89,5 +97,5 @@ export function useRegisterDashboardCalendar(
   useEffect(() => {
     registerCalendarData({ schedule, enrichment });
     return () => registerCalendarData(null);
-  }, [schedule, serialized, registerCalendarData, enrichment]);
+  }, [schedule, serialized, registerCalendarData]);
 }
