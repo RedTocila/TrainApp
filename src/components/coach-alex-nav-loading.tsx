@@ -19,7 +19,7 @@ export function CoachAlexNavLoading() {
       aria-live="polite"
       aria-busy="true"
     >
-      <div className="coach-alex-nav-loading__stage relative mx-auto mb-8 h-32 w-32 sm:h-36 sm:w-36">
+      <div className="coach-alex-nav-loading__stage relative mx-auto mb-4 h-32 w-32 sm:h-36 sm:w-36">
         <div
           className="coach-alex-nav-loading__ring pointer-events-none absolute inset-0 rounded-full"
           aria-hidden
@@ -40,6 +40,12 @@ export function CoachAlexNavLoading() {
             priority
           />
         </div>
+      </div>
+
+      <div className="coach-alex-nav-loading__dots mb-6" aria-hidden>
+        <span className="coach-alex-nav-loading__pulse-dot" />
+        <span className="coach-alex-nav-loading__pulse-dot" />
+        <span className="coach-alex-nav-loading__pulse-dot" />
       </div>
 
       <div className="max-w-sm text-center">
