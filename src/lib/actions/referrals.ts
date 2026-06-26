@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAppBaseUrl } from "@/lib/app-url";
 import {
   getAmbassadorTier,
   getFreeMonthProgress,
@@ -20,7 +19,6 @@ export type ReferralLeaderboardEntry = {
 
 export type ReferralDashboardData = {
   referralCode: string;
-  referralLink: string;
   totalReferrals: number;
   qualifiedCount: number;
   pendingCount: number;
@@ -131,7 +129,6 @@ export async function getReferralDashboardData(): Promise<
 
   return {
     referralCode: profile.referral_code,
-    referralLink: `${getAppBaseUrl()}/register?ref=${profile.referral_code}`,
     totalReferrals: totalCount ?? 0,
     qualifiedCount: qualified,
     pendingCount: pendingCount ?? 0,

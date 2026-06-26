@@ -40,7 +40,7 @@ export function WorkoutTabBanner({
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
-  const { selectedDate } = useSelectedDate();
+  const { selectedDate, todayKey } = useSelectedDate();
   const { version } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
   const [workoutCompleted, setWorkoutCompleted] = useState(initialWorkoutCompleted);
@@ -63,7 +63,7 @@ export function WorkoutTabBanner({
       setInProgressStarted(inProgress?.started_at != null);
       setWorkoutCompleted(completed);
     });
-  }, [selectedDate, clientId, version]);
+  }, [selectedDate, todayKey, clientId, version]);
 
   if (inProgressSessionId) {
     return (

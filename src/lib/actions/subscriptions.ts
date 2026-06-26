@@ -15,7 +15,7 @@ import {
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
 import { addBillingPeriod, hasPaidAccess } from "@/lib/subscription";
-import { qualifyReferralForUser } from "@/lib/referral";
+import { qualifyReferralForUser, attachReferralOnSignup, normalizeReferralCode, validateReferralCodeForUser } from "@/lib/referral";
 import {
   calculateCreditApplication,
   getReferralCreditBalance,
@@ -100,7 +100,8 @@ async function completeSubscriptionOrder(
 
 export async function createCheckoutOrder(
   planId: SubscriptionPlanId,
-  interval: BillingInterval
+  interval: BillingInterval,
+  referralCode?: string | null
 ) {
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -108,6 +109,18 @@ export async function createCheckoutOrder(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  const code = normalizeReferralCode(referralCode);
+  if (code) {
+    const validation = await validateReferralCodeForUser(user.id, code);
+    if ("error" in validation) {
+      if (validation.error === "own_referral_code") {
+        return { error: "own_referral_code" };
+      }
+      return { error: "invalid_referral_code" };
+    }
+    await attachReferralOnSignup(supabase, user.id, code);
+  }
 
   const plan = getPlan(planId);
   if (!plan) return { error: "Invalid plan" };

@@ -11,10 +11,9 @@ import {
   Coins,
   Copy,
   Gift,
-  Link2,
   PiggyBank,
-  Share2,
   Sparkles,
+  Tag,
   Trophy,
   UserCheck,
   UserPlus,
@@ -32,7 +31,7 @@ import type { ReferralDashboardData } from "@/lib/actions/referrals";
 import { cn } from "@/lib/utils";
 import { buildReferralsHref } from "@/lib/referrals-nav";
 
-const FLOW_ICONS = [Link2, UserPlus, Coins] as const;
+const FLOW_ICONS = [Tag, UserPlus, Coins] as const;
 
 function StatTile({
   icon: Icon,
@@ -94,7 +93,6 @@ export function ReferralProgram({
   copy: ReferralProgramCopy;
   compact?: boolean;
 }) {
-  const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const pathname = usePathname();
   const referralsHref = buildReferralsHref(pathname);
@@ -105,35 +103,14 @@ export function ReferralProgram({
     return (current / target) * 100;
   }, [data.freeMonthProgress, data.qualifiedCount]);
 
-  const handleCopy = async (text: string, type: "link" | "code") => {
+  const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      if (type === "link") {
-        setCopiedLink(true);
-        window.setTimeout(() => setCopiedLink(false), 2000);
-      } else {
-        setCopiedCode(true);
-        window.setTimeout(() => setCopiedCode(false), 2000);
-      }
+      setCopiedCode(true);
+      window.setTimeout(() => setCopiedCode(false), 2000);
     } catch {
       // ignore clipboard errors
     }
-  };
-
-  const handleShare = async () => {
-    if (typeof navigator.share === "function") {
-      try {
-        await navigator.share({
-          title: copy.title,
-          text: copy.subtitle,
-          url: data.referralLink,
-        });
-        return;
-      } catch {
-        // user cancelled or share failed
-      }
-    }
-    void handleCopy(data.referralLink, "link");
   };
 
   return (
@@ -213,31 +190,6 @@ export function ReferralProgram({
 
       <div className="space-y-2">
         <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          <Share2 className="h-3.5 w-3.5" />
-          {copy.yourLink}
-        </div>
-        <div className="flex gap-2">
-          <Input readOnly value={data.referralLink} className="font-mono text-xs" />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void handleCopy(data.referralLink, "link")}
-            className="shrink-0 gap-2"
-          >
-            {copiedLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            <span className="sr-only sm:not-sr-only">
-              {copiedLink ? copy.copied : copy.copyLink}
-            </span>
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => void handleShare()} className="shrink-0 gap-2">
-            <Share2 className="h-4 w-4" />
-            <span className="sr-only sm:not-sr-only">{copy.share}</span>
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           <Award className="h-3.5 w-3.5" />
           {copy.yourCode}
         </div>
@@ -246,7 +198,7 @@ export function ReferralProgram({
           <Button
             type="button"
             variant="outline"
-            onClick={() => void handleCopy(data.referralCode, "code")}
+            onClick={() => void handleCopy(data.referralCode)}
             className="shrink-0 gap-2"
           >
             {copiedCode ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}

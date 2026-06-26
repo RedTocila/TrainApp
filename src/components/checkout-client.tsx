@@ -14,7 +14,10 @@ import {
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
 import type { PlanPrice } from "@/lib/subscription-plans";
+import { loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
@@ -56,6 +59,8 @@ export function CheckoutClient({
 }) {
   const platform = usePlatformCopy();
   const router = useRouter();
+  const [referralCode, setReferralCode] = useState("");
+  const [checkoutStarted, setCheckoutStarted] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [localOrderId, setLocalOrderId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,9 +70,31 @@ export function CheckoutClient({
   const price = displayPrice;
 
   useEffect(() => {
+    const saved = loadReferralCode();
+    if (saved) setReferralCode(saved);
+  }, []);
+
+  const startCheckout = () => {
+    setError(null);
+    const trimmedCode = referralCode.trim();
+    if (trimmedCode) saveReferralCode(trimmedCode);
+    else saveReferralCode("");
+
     startTransition(async () => {
-      const result = await createCheckoutOrder(planId, interval);
+      const result = await createCheckoutOrder(
+        planId,
+        interval,
+        trimmedCode || null
+      );
       if ("error" in result && result.error) {
+        if (result.error === "invalid_referral_code") {
+          setError(platform.checkout.referralCodeInvalid);
+          return;
+        }
+        if (result.error === "own_referral_code") {
+          setError(platform.checkout.referralCodeOwn);
+          return;
+        }
         setError(result.error);
         return;
       }
@@ -79,9 +106,10 @@ export function CheckoutClient({
       if ("orderId" in result && result.orderId) {
         setOrderId(result.orderId);
         setLocalOrderId(result.localOrderId ?? null);
+        setCheckoutStarted(true);
       }
     });
-  }, [planId, interval]);
+  };
 
   const handleSuccess = () => {
     if (localOrderId) {
@@ -117,6 +145,23 @@ export function CheckoutClient({
             </div>
           </div>
 
+          {!checkoutStarted && (
+            <div className="space-y-2 rounded-2xl border border-border bg-secondary/20 p-4">
+              <Label htmlFor="referral-code">{platform.checkout.referralCodeLabel}</Label>
+              <Input
+                id="referral-code"
+                value={referralCode}
+                onChange={(event) => setReferralCode(event.target.value)}
+                placeholder={platform.checkout.referralCodePlaceholder}
+                className="font-mono tracking-widest"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+              <p className="text-xs text-muted-foreground">{platform.checkout.referralCodeHint}</p>
+            </div>
+          )}
+
           {plan?.features?.length ? (
             <div className="space-y-2">
               <p className="text-sm font-semibold text-muted-foreground">Includes</p>
@@ -147,7 +192,20 @@ export function CheckoutClient({
       }
       payment={
         <>
-          {isPending && !orderId && (
+          {!checkoutStarted && (
+            <Button className="w-full" onClick={startCheckout} disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Preparing secure checkout…
+                </>
+              ) : (
+                platform.checkout.continueToPayment
+              )}
+            </Button>
+          )}
+
+          {checkoutStarted && isPending && !orderId && (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 py-10 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
               Preparing secure checkout…
@@ -158,13 +216,23 @@ export function CheckoutClient({
             <div className="space-y-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
               <p className="text-sm font-medium text-red-300">We couldn’t start checkout.</p>
               <p className="text-sm text-red-200/90">{error}</p>
-              <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setError(null);
+                  if (checkoutStarted) {
+                    setCheckoutStarted(false);
+                    setOrderId(null);
+                  }
+                }}
+              >
                 Try again
               </Button>
             </div>
           )}
 
-          {orderId && !error && (
+          {checkoutStarted && orderId && !error && (
             <div
               className={cn(
                 "pokpay-checkout rounded-2xl border border-border bg-card/70 p-4 backdrop-blur",
@@ -186,9 +254,11 @@ export function CheckoutClient({
             </div>
           )}
 
-          <p className="text-center text-xs text-muted-foreground">
-            Payments are processed by PokPay.
-          </p>
+          {checkoutStarted ? (
+            <p className="text-center text-xs text-muted-foreground">
+              Payments are processed by PokPay.
+            </p>
+          ) : null}
         </>
       }
     />

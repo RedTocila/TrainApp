@@ -1,10 +1,14 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowRight, CreditCard, ExternalLink, Share2, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Check, Copy, CreditCard, ExternalLink, Sparkles } from "lucide-react";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { REFERRAL_CHECKOUT_PATH } from "@/lib/referral-config";
 import { hasAiAccess } from "@/lib/subscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import type { Profile } from "@/lib/types";
 
 export type ReferralPackageCopy = {
@@ -18,18 +22,32 @@ export type ReferralPackageCopy = {
   inviteFriends: string;
   inviteFriendAi: string;
   qualifyingPlanNote: string;
+  yourCode: string;
+  copyCode: string;
+  copied: string;
 };
 
 export function ReferralPackageActions({
   profile,
-  referralLink,
+  referralCode,
   copy,
 }: {
   profile: Profile;
-  referralLink: string;
+  referralCode: string;
   copy: ReferralPackageCopy;
 }) {
   const onAi = hasAiAccess(profile);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(referralCode);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore clipboard errors
+    }
+  };
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -81,7 +99,7 @@ export function ReferralPackageActions({
         <CardContent className="flex h-full flex-col p-4">
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-              <Share2 className="h-5 w-5 text-primary" />
+              <Copy className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0">
               <p className="text-sm font-black">{copy.inviteFriends}</p>
@@ -89,12 +107,29 @@ export function ReferralPackageActions({
             </div>
           </div>
 
-          <Link href={referralLink} className="mt-auto block">
-            <Button variant="secondary" className="w-full gap-2">
-              <Share2 className="h-4 w-4" />
-              {copy.inviteFriends}
-            </Button>
-          </Link>
+          <div className="mt-auto space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {copy.yourCode}
+            </p>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={referralCode}
+                className="font-mono text-sm font-bold tracking-widest"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void handleCopy()}
+                className="shrink-0 gap-2"
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                <span className="sr-only sm:not-sr-only">
+                  {copied ? copy.copied : copy.copyCode}
+                </span>
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

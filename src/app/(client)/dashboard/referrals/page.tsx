@@ -53,7 +53,7 @@ export default async function ReferralsPage() {
 
         <ReferralPackageActions
           profile={profile}
-          referralLink={data.referralLink}
+          referralCode={data.referralCode}
           copy={{
             activatePackagesTitle: platform.referrals.activatePackagesTitle,
             activatePackagesHint: platform.referrals.activatePackagesHint,
@@ -65,6 +65,9 @@ export default async function ReferralsPage() {
             inviteFriends: platform.referrals.inviteFriends,
             inviteFriendAi: platform.referrals.inviteFriendAi,
             qualifyingPlanNote: platform.referrals.qualifyingPlanNote,
+            yourCode: platform.referrals.yourCode,
+            copyCode: platform.referrals.copyCode,
+            copied: platform.referrals.copied,
           }}
         />
       </div>

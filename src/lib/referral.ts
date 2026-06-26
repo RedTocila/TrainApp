@@ -23,6 +23,26 @@ export function normalizeReferralCode(code: string | null | undefined): string |
   return trimmed ? trimmed : null;
 }
 
+export async function validateReferralCodeForUser(
+  userId: string,
+  referralCode: string
+): Promise<{ ok: true } | { error: string }> {
+  const code = normalizeReferralCode(referralCode);
+  if (!code) return { error: "invalid_referral_code" };
+
+  const admin = createAdminClient();
+  const { data: referrer } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("referral_code", code)
+    .maybeSingle();
+
+  if (!referrer) return { error: "invalid_referral_code" };
+  if (referrer.id === userId) return { error: "own_referral_code" };
+
+  return { ok: true };
+}
+
 export async function attachReferralOnSignup(
   supabase: SupabaseClient,
   userId: string,

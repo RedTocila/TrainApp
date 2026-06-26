@@ -4,7 +4,7 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 import Link from "next/link";
 import { format, isToday, isTomorrow } from "date-fns";
 import { Check, HeartPulse } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
@@ -48,38 +48,31 @@ export function DashboardCardioCard({
   const dateKey = formatDateKey(selectedDate);
   const taskId = `${dateKey}-cardio`;
   const cardio = scheduled?.client_cardio ?? null;
-  const hasHydrated = useRef(false);
 
+  // Sync SSR props only when the server revalidates — not when the calendar day rolls over.
   useEffect(() => {
-    if (dateKey === todayKey) {
-      setScheduled(initialScheduled);
-      setCompleted(initialCompleted);
-    }
-  }, [initialScheduled, initialCompleted, dateKey, todayKey]);
+    setScheduled(initialScheduled);
+    setCompleted(initialCompleted);
+  }, [initialScheduled, initialCompleted]);
 
-  useEffect(() => {
-    const isViewingToday = dateKey === todayKey;
-
-    if (!hasHydrated.current) {
-      hasHydrated.current = true;
-      if (isViewingToday && version === 0) return;
-    }
-
-    let cancelled = false;
-
-    void Promise.all([
+  const refreshCardio = useCallback(() => {
+    return Promise.all([
       getScheduledCardioForDate(clientId, dateKey),
       getTaskCompletionsForDate(clientId, dateKey),
-    ]).then(([entry, ids]) => {
+    ]);
+  }, [clientId, dateKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void refreshCardio().then(([entry, ids]) => {
       if (cancelled) return;
       setScheduled(entry);
       setCompleted(ids.has(taskId));
     });
-
     return () => {
       cancelled = true;
     };
-  }, [clientId, dateKey, taskId, todayKey, version]);
+  }, [refreshCardio, taskId, todayKey, version]);
 
   const handleToggle = () => {
     const next = !completed;

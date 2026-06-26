@@ -6,12 +6,9 @@ import { AMBASSADOR_TIERS } from "@/lib/referral-rewards";
 export type ReferralProgramCopy = {
   title: string;
   subtitle: string;
-  yourLink: string;
   yourCode: string;
-  copyLink: string;
   copyCode: string;
   copied: string;
-  share: string;
   totalReferrals: string;
   successfulReferrals: string;
   pendingReferrals: string;
@@ -58,12 +55,9 @@ export function getReferralProgramCopy(
   return {
     title: r.title,
     subtitle: r.subtitle,
-    yourLink: r.yourLink,
     yourCode: r.yourCode,
-    copyLink: r.copyLink,
     copyCode: r.copyCode,
     copied: r.copied,
-    share: r.share,
     totalReferrals: r.totalReferrals,
     successfulReferrals: r.successfulReferrals,
     pendingReferrals: r.pendingReferrals,

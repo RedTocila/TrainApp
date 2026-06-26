@@ -33,12 +33,9 @@ export const platformCopyAl = {
   referrals: {
     title: "Refero miqtë, fito kredite",
     subtitle: "Çdo mik që paguan ju sjell €5 kredite referimi për abonimin tuaj.",
-    yourLink: "Linku i referimit",
     yourCode: "Kodi i referimit",
-    copyLink: "Kopjo linkun",
     copyCode: "Kopjo kodin",
     copied: "U kopjua!",
-    share: "Ndaj",
     totalReferrals: "Referime totale",
     successfulReferrals: "Referime me pagesë",
     pendingReferrals: "Në pritje",
@@ -66,7 +63,7 @@ export const platformCopyAl = {
       `${remaining} referime të tjera me pagesë → Ambassador ${tier.charAt(0).toUpperCase()}${tier.slice(1)}`,
     howItWorksTitle: "Si funksionon",
     howItWorks: [
-      "Ndaj linkun ose kodin",
+      "Ndaj kodin tënd",
       "Miku abonohet në AI €20/muaj",
       "Ju fitoni €5 kredite secili",
     ],
@@ -87,7 +84,7 @@ export const platformCopyAl = {
     currentPlanLabel: "Aktiv",
     yourPackages: "Abonimi",
     inviteFriends: "Fto miq",
-    inviteFriendAi: "Ndaj linkun e referimit",
+    inviteFriendAi: "Miqtë fusin kodin tënd në pagesë",
     qualifyingPlanNote: "Vetëm faturimi mujor AI · vjetori përjashtohet",
     back: "Kthehu",
   },
@@ -571,6 +568,12 @@ export const platformCopyAl = {
     missingOrder: "Mungon referenca e porosisë.",
     paymentUnconfirmed:
       "Nuk mundëm të konfirmojmë pagesën. Nëse u debituat, kontaktoni mbështetjen.",
+    referralCodeLabel: "Kodi i referimit",
+    referralCodePlaceholder: "Fusni kodin e një miku",
+    referralCodeHint: "Opsionale — fuseni para se të paguani.",
+    referralCodeInvalid: "Ky kod referimi nuk është i vlefshëm.",
+    referralCodeOwn: "Nuk mund të përdorni kodin tuaj të referimit.",
+    continueToPayment: "Vazhdo te pagesa",
   },
   bmi: {
     title: "BMI",

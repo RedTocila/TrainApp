@@ -3,7 +3,7 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { format, isToday, isTomorrow } from "date-fns";
 import { Check, Dumbbell } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
@@ -49,40 +49,32 @@ export function DashboardWorkoutCard({
   const [workoutCompleted, setWorkoutCompleted] = useState(
     initialWorkoutCompleted
   );
-  const hasHydrated = useRef(false);
 
+  // Sync SSR props only when the server revalidates — not when the calendar day rolls over.
   useEffect(() => {
+    setWorkout(initialWorkout);
+    setWorkoutCompleted(initialWorkoutCompleted);
+  }, [initialWorkout, initialWorkoutCompleted]);
+
+  const refreshWorkout = useCallback(() => {
     const dateKey = formatDateKey(selectedDate);
-    if (dateKey === todayKey) {
-      setWorkout(initialWorkout);
-      setWorkoutCompleted(initialWorkoutCompleted);
-    }
-  }, [initialWorkout, initialWorkoutCompleted, selectedDate, todayKey]);
-
-  useEffect(() => {
-    const dateKey = formatDateKey(selectedDate);
-    const isViewingToday = dateKey === todayKey;
-
-    if (!hasHydrated.current) {
-      hasHydrated.current = true;
-      if (isViewingToday && version === 0) return;
-    }
-
-    let cancelled = false;
-
-    void Promise.all([
+    return Promise.all([
       resolveWorkoutForDate(clientId, dateKey),
       isWorkoutCompletedOnDate(clientId, dateKey),
-    ]).then(([resolved, completed]) => {
+    ]);
+  }, [clientId, selectedDate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void refreshWorkout().then(([resolved, completed]) => {
       if (cancelled) return;
       setWorkout(resolved);
       setWorkoutCompleted(completed);
     });
-
     return () => {
       cancelled = true;
     };
-  }, [selectedDate, todayKey, clientId, version]);
+  }, [refreshWorkout, todayKey, version]);
 
   const dateKey = formatDateKey(selectedDate);
   const workoutMissed =

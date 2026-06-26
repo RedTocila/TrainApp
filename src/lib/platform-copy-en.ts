@@ -33,12 +33,9 @@ export const platformCopyEn = {
   referrals: {
     title: "Refer friends, earn credits",
     subtitle: "Each paying friend earns you €5 in referral credits toward your subscription.",
-    yourLink: "Your referral link",
     yourCode: "Your referral code",
-    copyLink: "Copy link",
     copyCode: "Copy code",
     copied: "Copied!",
-    share: "Share",
     totalReferrals: "Total referrals",
     successfulReferrals: "Paying referrals",
     pendingReferrals: "Pending",
@@ -66,7 +63,7 @@ export const platformCopyEn = {
       `${remaining} more paying referrals → ${tier.charAt(0).toUpperCase()}${tier.slice(1)} Ambassador`,
     howItWorksTitle: "How it works",
     howItWorks: [
-      "Share your link or code",
+      "Share your code",
       "Friend subscribes to AI €20/mo",
       "You earn €5 credits each",
     ],
@@ -87,7 +84,7 @@ export const platformCopyEn = {
     currentPlanLabel: "Active",
     yourPackages: "Subscription",
     inviteFriends: "Invite friends",
-    inviteFriendAi: "Share your referral link",
+    inviteFriendAi: "Friends enter your code at checkout",
     qualifyingPlanNote: "Monthly AI billing only · annual excluded",
     back: "Back",
   },
@@ -568,6 +565,12 @@ export const platformCopyEn = {
     missingOrder: "Missing order reference.",
     paymentUnconfirmed:
       "We could not confirm your payment yet. If you were charged, contact support.",
+    referralCodeLabel: "Referral code",
+    referralCodePlaceholder: "Enter a friend's code",
+    referralCodeHint: "Optional — enter it before you pay.",
+    referralCodeInvalid: "That referral code is not valid.",
+    referralCodeOwn: "You cannot use your own referral code.",
+    continueToPayment: "Continue to payment",
   },
   bmi: {
     title: "BMI",
