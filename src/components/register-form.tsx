@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 import { loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
+import { formatUserError } from "@/lib/format-user-error";
 
 const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
 
@@ -54,78 +55,92 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
     setNeedsEmailConfirmation(false);
     setIsPending(true);
 
-    const form = e.currentTarget;
-    const fullName = (new FormData(form).get("full_name") as string).trim();
-    const email = (new FormData(form).get("email") as string).trim();
-    const phone = ((new FormData(form).get("phone") as string) || "").trim() || null;
-    const password = new FormData(form).get("password") as string;
+    try {
+      const form = e.currentTarget;
+      const fullName = (new FormData(form).get("full_name") as string).trim();
+      const email = (new FormData(form).get("email") as string).trim();
+      const phone = ((new FormData(form).get("phone") as string) || "").trim() || null;
+      const password = new FormData(form).get("password") as string;
 
-    const supabase = createClient();
-    const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(ONBOARDING_PRICING)}`;
+      const supabase = createClient();
+      const emailRedirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(ONBOARDING_PRICING)}`;
 
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          phone,
-          ...(referralCode ? { referral_code: referralCode } : {}),
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            phone,
+            ...(referralCode ? { referral_code: referralCode } : {}),
+          },
+          emailRedirectTo,
         },
-        emailRedirectTo,
-      },
-    });
+      });
 
-    if (signUpError) {
-      setError(signUpError.message);
-      setIsPending(false);
-      return;
-    }
-
-    let hasSession = Boolean(signUpData.session);
-
-    if (!hasSession) {
-      const { data: signInData, error: signInError } =
-        await supabase.auth.signInWithPassword({ email, password });
-
-      if (signInError) {
-        setConfirmationEmail(email);
-        setNeedsEmailConfirmation(true);
-        setIsPending(false);
+      if (signUpError) {
+        setError(formatUserError(signUpError.message ?? signUpError, "Could not create account."));
         return;
       }
 
-      hasSession = Boolean(signInData.session);
-    }
+      if (signUpData.user?.identities?.length === 0) {
+        setError("This email is already registered. Sign in instead.");
+        return;
+      }
 
-    if (!hasSession) {
-      setConfirmationEmail(email);
-      setNeedsEmailConfirmation(true);
+      let hasSession = Boolean(signUpData.session);
+
+      if (!hasSession) {
+        const { data: signInData, error: signInError } =
+          await supabase.auth.signInWithPassword({ email, password });
+
+        if (signInError) {
+          setConfirmationEmail(email);
+          setNeedsEmailConfirmation(true);
+          return;
+        }
+
+        hasSession = Boolean(signInData.session);
+      }
+
+      if (!hasSession) {
+        setConfirmationEmail(email);
+        setNeedsEmailConfirmation(true);
+        return;
+      }
+
+      router.refresh();
+
+      const result = await completeRegistration({
+        fullName,
+        email,
+        phone,
+        intakeJson,
+        referralCode,
+      });
+
+      if (result?.error) {
+        setError(
+          formatUserError(
+            result.error,
+            "Account created but setup failed. Try signing in — your profile may already be ready."
+          )
+        );
+        return;
+      }
+
+      clearIntakeDraft();
+      router.refresh();
+
+      if (result.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push(ONBOARDING_PRICING);
+      }
+    } catch (err) {
+      setError(formatUserError(err, "Could not create account. Please try again."));
+    } finally {
       setIsPending(false);
-      return;
-    }
-
-    const result = await completeRegistration({
-      fullName,
-      email,
-      phone,
-      intakeJson,
-      referralCode,
-    });
-
-    if (result?.error) {
-      setError(result.error);
-      setIsPending(false);
-      return;
-    }
-
-    clearIntakeDraft();
-    router.refresh();
-
-    if (result.role === "admin") {
-      router.push("/admin");
-    } else {
-      router.push(ONBOARDING_PRICING);
     }
   };
 

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/cached-profile";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
 import { attachReferralOnSignup, normalizeReferralCode } from "@/lib/referral";
+import { formatUserError } from "@/lib/format-user-error";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
 /** Apply profile + intake after the browser client has established an auth session. */
@@ -49,11 +50,24 @@ export async function completeRegistration(input: {
     .eq("id", user.id);
 
   if (profileError) {
-    return { error: profileError.message };
+    return {
+      error: formatUserError(
+        profileError.message,
+        "Could not update your profile. Please try signing in or contact support."
+      ),
+    };
   }
 
   if (intakeResponses) {
-    await applyIntakeToProfile(user.id, supabase, intakeResponses);
+    const intakeError = await applyIntakeToProfile(user.id, supabase, intakeResponses);
+    if (intakeError) {
+      return {
+        error: formatUserError(
+          intakeError,
+          "Could not save your health profile. You can update it later in your dashboard."
+        ),
+      };
+    }
   }
 
   const referralCode =
@@ -63,7 +77,12 @@ export async function completeRegistration(input: {
         ? user.user_metadata.referral_code
         : null
     );
-  await attachReferralOnSignup(supabase, user.id, referralCode);
+
+  try {
+    await attachReferralOnSignup(supabase, user.id, referralCode);
+  } catch (referralError) {
+    console.error("[completeRegistration] referral attach failed", referralError);
+  }
 
   const { data: profile } = await supabase
     .from("profiles")

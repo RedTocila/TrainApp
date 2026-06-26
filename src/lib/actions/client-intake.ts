@@ -158,7 +158,7 @@ export async function applyIntakeToProfile(
   userId: string,
   supabase: Awaited<ReturnType<typeof createClient>>,
   responses: IntakeResponses
-) {
+): Promise<string | null> {
   const intakeFields = responsesToProfileFields(responses);
   const mergedProfile = intakeFields as Profile;
   const resolved = await resolveMacroTargets(mergedProfile, responses);
@@ -171,7 +171,8 @@ export async function applyIntakeToProfile(
     profileUpdate.target_fat = resolved.targets.fat;
   }
 
-  await supabase.from("profiles").update(profileUpdate).eq("id", userId);
+  const { error } = await supabase.from("profiles").update(profileUpdate).eq("id", userId);
+  return error?.message ?? null;
 }
 
 export async function dismissHabitSuggestion(suggestionId: string) {
