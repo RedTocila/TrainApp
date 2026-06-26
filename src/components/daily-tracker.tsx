@@ -3,7 +3,7 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { useEffect, useMemo, useState } from "react";
 import { format, isToday } from "date-fns";
-import { Apple, Check, ClipboardList, Plus } from "lucide-react";
+import { Apple, ClipboardList, Plus } from "lucide-react";
 import { formatDateKey } from "@/lib/utils";
 import { addWater } from "@/lib/actions/logs";
 import { deleteDailyMealLog } from "@/lib/actions/daily-meals";
@@ -13,8 +13,6 @@ import {
   dailyMacrosExceededUpperLimit,
   dailyMacrosWithinTarget,
   formatExceededMacroSummary,
-  macroExceededAttentionMessage,
-  macroExceededDailyUpperLimit,
 } from "@/lib/macro-targets";
 import type { MealFormData } from "@/lib/meal-utils";
 import type { MacroTargets } from "@/lib/meal-score";
@@ -141,7 +139,6 @@ export function DailyTracker({
   const waterCompleted = localWaterMl >= waterGoalMl;
   const macrosMet = dailyMacrosWithinTarget(current, targets);
   const macrosExceeded = dailyMacrosExceededUpperLimit(current, targets);
-  const macrosExceededMessage = macroExceededAttentionMessage(current, targets);
   const nutritionCompleted = macrosMet && waterCompleted && !macrosExceeded;
 
   const nutritionTitle = isToday(date) ? platform.dashboard.nutrition : format(date, "MMM d");
@@ -295,19 +292,6 @@ export function DailyTracker({
             waterGoalMl={waterGoalMl}
             onAddWater={handleAddWater}
           />
-
-          {macrosExceeded && macrosExceededMessage && (
-            <div className="flex items-center justify-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm font-medium text-orange-300">
-              {macrosExceededMessage}
-            </div>
-          )}
-
-          {waterCompleted && (
-            <div className="flex items-center justify-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm font-medium text-green-400">
-              <Check className="h-4 w-4" />
-              {platform.nutrition.waterGoalReached}
-            </div>
-          )}
 
           <RecentMealsList
             title={platform.nutrition.mealsLogged}

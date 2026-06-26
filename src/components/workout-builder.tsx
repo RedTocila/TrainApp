@@ -4,6 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import {
+  getWorkoutCategoryStyle,
+  inferDayCategory,
+} from "@/lib/workout-visual-categories";
+import { cn } from "@/lib/utils";
+import {
   createWorkoutPlan,
   saveWorkoutDay,
   assignWorkoutPlan,
@@ -240,9 +245,28 @@ export function WorkoutBuilder({
         </CardContent>
       </Card>
 
-      {days.map((day, dayIdx) => (
-        <Card key={dayIdx}>
-          <CardHeader>
+      {days.map((day, dayIdx) => {
+        const dayCategory = inferDayCategory({
+          title: day.title,
+          exercises: day.exercises,
+        });
+        const dayStyle = getWorkoutCategoryStyle(dayCategory);
+        const DayIcon = dayStyle.icon;
+
+        return (
+        <Card key={dayIdx} className={cn("overflow-hidden border-2", dayStyle.cardBorder)}>
+          <div className={cn("h-1.5 w-full", dayStyle.stripe)} aria-hidden />
+          <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-3">
+            <span
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border",
+                dayStyle.chip,
+                dayStyle.chipText
+              )}
+              title={dayStyle.label}
+            >
+              <DayIcon className="h-4 w-4" aria-hidden />
+            </span>
             <Input
               value={day.title}
               onChange={(e) => {
@@ -250,7 +274,7 @@ export function WorkoutBuilder({
                 updated[dayIdx].title = e.target.value;
                 setDays(updated);
               }}
-              className="text-lg font-bold"
+              className="border-0 bg-transparent px-0 text-lg font-bold shadow-none focus-visible:ring-0"
             />
           </CardHeader>
           <CardContent className="space-y-3">
@@ -341,7 +365,8 @@ export function WorkoutBuilder({
             </Button>
           </CardContent>
         </Card>
-      ))}
+        );
+      })}
 
       <div className="flex gap-3">
         <Button type="button" variant="secondary" onClick={addDay}>

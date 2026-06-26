@@ -1,6 +1,11 @@
 import { prepareFitnessCoachChatWithSearch } from "@/lib/ai/fitness-chat";
 import { validateChatImage } from "@/lib/ai/chat-image";
-import { streamChatCompletion } from "@/lib/ai/providers";
+import {
+  canUseCoachChatTools,
+  runCoachChatWithTools,
+} from "@/lib/ai/coach-chat-with-tools";
+import { TOOL_STATUS_LABELS } from "@/lib/ai/coach-chat-tools";
+import { streamChatCompletion, getConfiguredProviders } from "@/lib/ai/providers";
 import { SUBSCRIPTION_ACCESS_COLUMNS } from "@/lib/db-selects";
 import { createClient } from "@/lib/supabase/server";
 import { hasPaidAccess } from "@/lib/subscription";
@@ -8,6 +13,14 @@ import type { ChatImageAttachment, ChatMessage } from "@/lib/ai/types";
 import type { Profile } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+function chunkText(text: string, size = 24): string[] {
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += size) {
+    chunks.push(text.slice(i, i + size));
+  }
+  return chunks;
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -61,35 +74,69 @@ export async function POST(request: Request) {
   }
 
   const { messages: chatMessages, sources, searchedWeb } = prepared;
+  const useTools =
+    canUseCoachChatTools(chatMessages) && getConfiguredProviders().includes("openai");
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      const enqueue = (payload: unknown) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+      };
+
       try {
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ meta: { searchedWeb } })}\n\n`
-          )
-        );
-        for await (const chunk of streamChatCompletion(chatMessages, {
-          maxTokens: 900,
-          signal: request.signal,
-        })) {
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`)
+        enqueue({ meta: { searchedWeb } });
+
+        if (useTools) {
+          const fullProfile = profile as Profile;
+          const { data: full } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+          const profileForTools = (full ?? profile) as Profile;
+
+          const result = await runCoachChatWithTools(
+            chatMessages,
+            profileForTools,
+            (event) => {
+              if (event.type === "tool_start") {
+                const label = TOOL_STATUS_LABELS[event.name] ?? `Running ${event.name.replace(/_/g, " ")}…`;
+                enqueue({ toolStatus: label });
+              }
+              if (event.type === "plan_preview") {
+                enqueue({ planPreview: event.preview });
+              }
+              if (event.type === "rich_blocks") {
+                enqueue({ richBlocks: event.blocks });
+              }
+            },
+            { maxTokens: 900, signal: request.signal }
           );
+
+          for (const chunk of chunkText(result.reply)) {
+            enqueue({ text: chunk });
+          }
+
+          if (result.planPreview) {
+            enqueue({ planPreview: result.planPreview });
+          }
+        } else {
+          for await (const chunk of streamChatCompletion(chatMessages, {
+            maxTokens: 900,
+            signal: request.signal,
+          })) {
+            enqueue({ text: chunk });
+          }
         }
+
         if (sources.length > 0) {
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ sources })}\n\n`)
-          );
+          enqueue({ sources });
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Stream failed";
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`)
-        );
+        enqueue({ error: msg });
       } finally {
         controller.close();
       }

@@ -39,18 +39,82 @@ type PoseUrls = Record<ProgressPhotoPose, string | null>;
 
 const EMPTY_URLS: PoseUrls = { front: null, back: null, side: null };
 
+type PhotoPreview = { url: string; label: string };
+
+function PhotoPreviewOverlay({
+  preview,
+  onClose,
+}: {
+  preview: PhotoPreview;
+  onClose: () => void;
+}) {
+  const platform = usePlatformCopy();
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label={platform.aria.close}
+        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={platform.aria.viewPhoto(preview.label)}
+        className="relative z-10 flex max-h-[min(92vh,48rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+      >
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <p className="text-sm font-semibold">{preview.label}</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label={platform.aria.close}
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-black/40 p-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={preview.url}
+            alt={preview.label}
+            className="max-h-[min(75vh,40rem)] w-full object-contain"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PhotoSlot({
   label,
   url,
   uploading,
   onPick,
   onRemove,
+  onPreview,
 }: {
   label: string;
   url: string | null;
   uploading: boolean;
   onPick: (file: File) => void;
   onRemove: () => void;
+  onPreview: () => void;
 }) {
   const platform = usePlatformCopy();
   return (
@@ -62,14 +126,21 @@ function PhotoSlot({
         )}
       >
         {url ? (
-          <Image
-            src={url}
-            alt={label}
-            fill
-            unoptimized
-            sizes="(max-width: 640px) 120px, 150px"
-            className="object-cover"
-          />
+          <button
+            type="button"
+            onClick={onPreview}
+            aria-label={platform.aria.viewPhoto(label)}
+            className="absolute inset-0 cursor-zoom-in"
+          >
+            <Image
+              src={url}
+              alt={label}
+              fill
+              unoptimized
+              sizes="(max-width: 640px) 120px, 150px"
+              className="object-cover"
+            />
+          </button>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground">
             {uploading ? (
@@ -91,13 +162,16 @@ function PhotoSlot({
           <>
             <button
               type="button"
-              onClick={onRemove}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
               aria-label={platform.aria.removePhoto(label)}
-              className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
+              className="absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
             >
               <X className="h-3.5 w-3.5" />
             </button>
-            <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white">
+            <span className="pointer-events-none absolute right-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white">
               <Check className="h-3 w-3" />
             </span>
           </>
@@ -138,6 +212,7 @@ export function ProgressPhotosCard({
   const [historyIndex, setHistoryIndex] = useState(0);
   const [historyUrls, setHistoryUrls] = useState<PoseUrls>(EMPTY_URLS);
   const [uploadingPose, setUploadingPose] = useState<ProgressPhotoPose | null>(null);
+  const [preview, setPreview] = useState<PhotoPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
@@ -311,6 +386,10 @@ export function ProgressPhotosCard({
                     onConfirm: () => handleRemove(pose),
                   });
                 }}
+                onPreview={() => {
+                  const url = currentUrls[pose];
+                  if (url) setPreview({ url, label });
+                }}
               />
             ))}
           </div>
@@ -357,20 +436,30 @@ export function ProgressPhotosCard({
               <div className="grid grid-cols-3 gap-3">
                 {photoPoses.map(({ pose, label }) => (
                   <div key={pose} className="space-y-1.5">
-                    <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-border bg-secondary/20">
-                      {historyUrls[pose] ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+                    {historyUrls[pose] ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreview({
+                            url: historyUrls[pose]!,
+                            label: `${label} · ${format(selectedHistory.month_key, "MMM yyyy")}`,
+                          })
+                        }
+                        aria-label={platform.aria.viewPhoto(label)}
+                        className="aspect-[3/4] w-full cursor-zoom-in overflow-hidden rounded-2xl border border-border bg-secondary/20"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={historyUrls[pose]!}
                           alt={`${label} ${format(selectedHistory.month_key, "MMM yyyy")}`}
                           className="h-full w-full object-cover"
                         />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                          {platform.photos.noPhoto}
-                        </div>
-                      )}
-                    </div>
+                      </button>
+                    ) : (
+                      <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-2xl border border-border bg-secondary/20 text-xs text-muted-foreground">
+                        {platform.photos.noPhoto}
+                      </div>
+                    )}
                     <p className="text-center text-[11px] font-medium text-muted-foreground">
                       {label}
                     </p>
@@ -384,6 +473,9 @@ export function ProgressPhotosCard({
         {error && <p className="text-sm text-red-400">{error}</p>}
       </CardContent>
       {giveUpDialog}
+      {preview && (
+        <PhotoPreviewOverlay preview={preview} onClose={() => setPreview(null)} />
+      )}
     </Card>
   );
 }

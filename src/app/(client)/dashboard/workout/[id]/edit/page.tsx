@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { ArrowLeft } from "lucide-react";
 import { requireClient } from "@/lib/actions/auth";
 import {
@@ -40,12 +41,14 @@ export default async function EditWorkoutPage({
             <p className="text-sm text-muted-foreground">{plan.title}</p>
           </div>
         </div>
-        <EditWorkoutClient
-          plan={plan}
-          days={days}
-          initialSchedule={initialSchedule}
-          folders={folders}
-        />
+        <Suspense fallback={<div className="h-40 animate-pulse rounded-2xl bg-secondary/40" />}>
+          <EditWorkoutClient
+            plan={plan}
+            days={days}
+            initialSchedule={initialSchedule}
+            folders={folders}
+          />
+        </Suspense>
       </div>
     </PageTransition>
   );

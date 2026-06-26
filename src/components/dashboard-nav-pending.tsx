@@ -12,6 +12,14 @@ import { usePathname } from "next/navigation";
 import { CoachAlexNavLoading } from "@/components/coach-alex-nav-loading";
 import { isNavRouteMatch } from "@/lib/nav-route-match";
 
+/** List roots that should only match the pathname exactly (not child edit routes). */
+const EXACT_PENDING_HREFS = new Set(["/dashboard/workout", "/dashboard/nutrition"]);
+
+function pendingRouteSatisfied(pathname: string, pendingHref: string) {
+  const exact = EXACT_PENDING_HREFS.has(pendingHref);
+  return isNavRouteMatch(pathname, pendingHref, exact);
+}
+
 interface DashboardNavPendingContextValue {
   pendingHref: string | null;
   setPendingHref: (href: string | null) => void;
@@ -25,7 +33,7 @@ export function DashboardNavPendingProvider({ children }: { children: ReactNode 
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   useEffect(() => {
-    if (pendingHref && isNavRouteMatch(pathname, pendingHref)) {
+    if (pendingHref && pendingRouteSatisfied(pathname, pendingHref)) {
       setPendingHref(null);
     }
   }, [pathname, pendingHref]);
@@ -56,7 +64,7 @@ export function DashboardNavPendingContent({ children }: { children: ReactNode }
   const pathname = usePathname();
   const { pendingHref } = useDashboardNavPending();
   const isNavigating =
-    pendingHref !== null && !isNavRouteMatch(pathname, pendingHref);
+    pendingHref !== null && !pendingRouteSatisfied(pathname, pendingHref);
 
   useEffect(() => {
     if (!isNavigating) return;

@@ -24,19 +24,18 @@ export function PricingPageClient({
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const subscribed = hasPaidAccess(profile);
 
-  // Email-confirmation path: intake draft may still be in sessionStorage
+  // After email confirmation, finish profile setup (intake draft, referral, phone).
   useEffect(() => {
     if (!onboarding) return;
     const draft = loadIntakeDraft();
-    if (!draft) return;
 
     void completeRegistration({
       fullName: profile.full_name,
       email: "",
       phone: profile.phone ?? null,
-      intakeJson: JSON.stringify(draft),
+      intakeJson: draft ? JSON.stringify(draft) : null,
     }).then((result) => {
-      if (result.success) clearIntakeDraft();
+      if (result.success && draft) clearIntakeDraft();
     });
   }, [onboarding, profile.full_name, profile.phone]);
 

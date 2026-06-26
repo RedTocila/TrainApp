@@ -1,4 +1,5 @@
 import { getCoachContext } from "@/lib/ai/coach-context";
+import { summarizeActivePlans } from "@/lib/ai/coach-chat-plans";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
 import type { ChatImageAttachment, ChatMessage, ChatTurn, WebSource } from "@/lib/ai/types";
@@ -9,6 +10,7 @@ import {
 } from "@/lib/ai/web-search";
 import { PLATFORM_NAME } from "@/lib/brand";
 import { formatExceededMacroSummary } from "@/lib/macro-targets";
+import { hasAiAccess } from "@/lib/subscription";
 import { formatDateKey } from "@/lib/utils";
 
 const MAX_HISTORY = 12;
@@ -40,10 +42,13 @@ function buildSystemPrompt(
       overTolerance: boolean;
       surplus: { calories: number; protein: number; carbs: number; fat: number };
     };
+    activePlansSummary?: string;
   },
   preferredLocale?: string | null,
   hasWebSources = false,
-  hasImage = false
+  hasImage = false,
+  hasAiPlanTools = false,
+  hasCoachDashboardTools = false
 ): string {
   const { consumed, overTolerance, surplus } = stats.macroGap;
   const overSummary = overTolerance
@@ -83,6 +88,29 @@ How to coach:
 - If stats are mixed, acknowledge what's working (brief compliment) and call out what isn't — both with specifics.
 - Be concise. Short paragraphs or tight bullet points. One clear recommendation beats five vague options.
 - If you lack information, ask one sharp clarifying question — don't guess.
+${hasAiPlanTools
+    ? `
+Plan building & editing (you have tools):
+- You can generate and edit full workout and nutrition plans with your tools — same power as the AI plan builders in the app.
+- When they ask to build, change, update, or fix their program, call the right tool (get_my_active_plans first if you need context).
+- generate_workout_plan / generate_nutrition_plan: brand-new programs.
+- edit_workout_plan / edit_nutrition_plan: tweak their current active plan (swap exercises, adjust meals, lower calories, etc.).
+- After a plan is generated, a preview card appears in chat. Tell them to tap "Apply to my program" to save it — do NOT say it's already saved until they apply.
+- Keep your reply short after using a tool; the preview card shows the details.`
+    : `
+Plan building:
+- If they ask you to build or edit full workout/nutrition plans in chat, tell them to upgrade to the AI plan tier — or use Dashboard → AI → Plans.`}
+${hasCoachDashboardTools
+    ? `
+Coach dashboard visuals (you have tools — same as the AI Coach tab):
+- show_today_snapshot: today's macro rings, insight, workouts & tracking stats, weekly score gauges.
+- show_weekly_report: full weekly report card with score gauges, highlights, concerns, recommendations.
+- show_meal_ideas: meal suggestions with macro rings based on remaining macros.
+- show_weight_trend: weight chart, goal progress gauge, weekly change, projection.
+- show_coaching_tips: last-7-days stat bars and personalized tip cards.
+- When they ask for reports, trends, meals, tips, macros, or "how am I doing", call the matching tool.
+- Rich visual cards appear in chat — keep your text reply short; the cards show charts, rings, and colors.`
+    : ""}
 
 Medical & health boundaries (critical):
 - You are NOT a doctor and cannot give medical advice, diagnoses, or prescriptions.
@@ -129,7 +157,7 @@ Recent activity (last 7 days):
       ? `
 - MACRO STATUS: OVER TOLERANCE (${overSummary}). This is NOT a hit and NOT a miss — they ate too much. Do NOT suggest more food today. Advise smaller portions tomorrow, review today's meals, and trim calorie-dense extras.`
       : ""
-  }`;
+  }${stats.activePlansSummary ? `\n\nActive programs:\n${stats.activePlansSummary}` : ""}`;
 }
 
 export async function prepareFitnessCoachChatMessages(
@@ -156,14 +184,17 @@ export async function prepareFitnessCoachChatMessages(
   if (!ctx.profile) return { error: "Profile not found." };
 
   const intakeContext = buildIntakeContextForAi(ctx.profile);
+  const activePlansSummary = await summarizeActivePlans(clientId);
   const webContext = formatWebSourcesForPrompt(webSources);
   const systemPrompt =
     buildSystemPrompt(
       intakeContext,
-      ctx,
+      { ...ctx, activePlansSummary },
       preferredLocale,
       webSources.length > 0,
-      hasImage
+      hasImage,
+      hasAiAccess(ctx.profile),
+      true
     ) + (webContext ? `\n\n${webContext}` : "");
   const recentHistory = history.slice(-MAX_HISTORY);
 

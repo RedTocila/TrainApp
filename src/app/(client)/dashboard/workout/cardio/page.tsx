@@ -1,11 +1,8 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { requireClient } from "@/lib/actions/auth";
 import { getClientCardioList } from "@/lib/actions/user-cardio";
 import { CardioListPage } from "@/components/cardio-list-page";
 import { WorkoutSectionTabs } from "@/components/workout-section-tabs";
 import { PageTransition } from "@/components/page-transition";
-import { Button } from "@/components/ui/button";
 
 export default async function WorkoutCardioPage() {
   await requireClient();
@@ -13,14 +10,11 @@ export default async function WorkoutCardioPage() {
 
   return (
     <PageTransition>
-      <div className="mx-auto max-w-3xl space-y-6">
-        <WorkoutSectionTabs />
-        <Link href="/dashboard/workout">
-          <Button variant="ghost" size="sm" className="-ml-2 w-fit">
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back to workouts
-          </Button>
-        </Link>
+      <div className="mx-auto max-w-3xl space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-lg font-black">Cardio</h1>
+          <WorkoutSectionTabs />
+        </div>
         <CardioListPage initialCardio={cardio} />
       </div>
     </PageTransition>

@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { ArrowLeft, List } from "lucide-react";
 import { requireClient } from "@/lib/actions/auth";
-import { getPersonalWorkoutsWithSchedules } from "@/lib/actions/user-workouts";
+import { getPersonalWorkoutsWithSchedules, getWorkoutFoldersForMove } from "@/lib/actions/user-workouts";
 import { AllWorkoutsPage } from "@/components/all-workouts-page";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 
 export default async function AllWorkoutsRoute() {
   await requireClient();
-  const workouts = await getPersonalWorkoutsWithSchedules();
+  const [workouts, folders] = await Promise.all([
+    getPersonalWorkoutsWithSchedules(),
+    getWorkoutFoldersForMove(),
+  ]);
 
   return (
     <PageTransition>
@@ -28,7 +31,7 @@ export default async function AllWorkoutsRoute() {
             <p className="text-xs text-muted-foreground">Every program</p>
           </div>
         </div>
-        <AllWorkoutsPage workouts={workouts} />
+        <AllWorkoutsPage workouts={workouts} folders={folders} />
       </div>
     </PageTransition>
   );

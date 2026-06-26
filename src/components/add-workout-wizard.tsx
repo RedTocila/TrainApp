@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
 import { getPersonalWorkoutPlanWithDetails } from "@/lib/actions/user-workouts";
 import { WorkoutBuilder } from "@/components/workout-builder";
 import { WorkoutScheduleForm } from "@/components/workout-schedule-form";
-import { Button } from "@/components/ui/button";
+import { FullScreenFlow } from "@/components/programs/full-screen-flow";
 
 interface AddWorkoutWizardProps {
   open: boolean;
@@ -34,48 +33,33 @@ export function AddWorkoutWizard({ open, folderId, onClose, onComplete }: AddWor
     setStep(2);
   };
 
-  if (!open) return null;
-
   return (
-    <div className="overlay-backdrop fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
-      <div className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl sm:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Step {step} of 2
-            </p>
-            <h2 className="text-lg font-black">
-              {step === 1 ? "Build workout" : "Schedule workout"}
-            </h2>
-          </div>
-          <Button type="button" variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="overflow-y-auto px-4 py-4 sm:px-6">
-          {step === 1 ? (
-            <WorkoutBuilder
-              mode="client"
-              wizard
-              folderId={folderId}
-              onWizardComplete={handleBuilt}
-            />
-          ) : planId ? (
-            <WorkoutScheduleForm
-              planId={planId}
-              days={days}
-              initialSchedule={null}
-              showBackButton
-              onBack={() => setStep(1)}
-              onSaved={() => {
-                onComplete();
-                onClose();
-              }}
-            />
-          ) : null}
-        </div>
-      </div>
-    </div>
+    <FullScreenFlow
+      open={open}
+      onClose={onClose}
+      subtitle={`Step ${step} of 2`}
+      title={step === 1 ? "Build workout" : "Schedule workout"}
+    >
+      {step === 1 ? (
+        <WorkoutBuilder
+          mode="client"
+          wizard
+          folderId={folderId}
+          onWizardComplete={handleBuilt}
+        />
+      ) : planId ? (
+        <WorkoutScheduleForm
+          planId={planId}
+          days={days}
+          initialSchedule={null}
+          showBackButton
+          onBack={() => setStep(1)}
+          onSaved={() => {
+            onComplete();
+            onClose();
+          }}
+        />
+      ) : null}
+    </FullScreenFlow>
   );
 }

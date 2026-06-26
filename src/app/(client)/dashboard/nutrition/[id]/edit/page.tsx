@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { ArrowLeft } from "lucide-react";
 import { requireClient } from "@/lib/actions/auth";
 import {
@@ -32,13 +33,7 @@ export default async function EditNutritionPage({
     <PageTransition>
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex items-center gap-3">
-          <Link
-            href={
-              plan.folder_id
-                ? `/dashboard/nutrition/folder/${plan.folder_id}`
-                : "/dashboard/nutrition/folder/uncategorized"
-            }
-          >
+          <Link href="/dashboard/workout">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -48,13 +43,15 @@ export default async function EditNutritionPage({
             <p className="text-sm text-muted-foreground">{plan.title}</p>
           </div>
         </div>
-        <EditNutritionClient
-          plan={plan}
-          meals={meals}
-          folders={folders}
-          mealLibrary={mealLibrary}
-          scheduledDates={scheduledDates}
-        />
+        <Suspense fallback={<div className="h-40 animate-pulse rounded-2xl bg-secondary/40" />}>
+          <EditNutritionClient
+            plan={plan}
+            meals={meals}
+            folders={folders}
+            mealLibrary={mealLibrary}
+            scheduledDates={scheduledDates}
+          />
+        </Suspense>
       </div>
     </PageTransition>
   );

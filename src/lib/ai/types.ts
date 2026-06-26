@@ -1,3 +1,5 @@
+import type { ChatPlanPreview } from "@/lib/ai/coach-chat-tools";
+import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
 import type { MealType } from "@/lib/types";
 import type { MealIngredient } from "@/lib/meal-utils";
 
@@ -15,6 +17,9 @@ export interface ChatMessage {
   content: string;
   sources?: WebSource[];
   image?: ChatImageAttachment;
+  planPreview?: ChatPlanPreview;
+  toolStatus?: string;
+  richBlocks?: CoachChatRichBlock[];
 }
 
 export interface WebSource {

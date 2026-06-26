@@ -124,6 +124,7 @@ export async function applyAiWorkoutPlanAction(
 
   revalidatePath("/dashboard/workout");
   revalidatePath("/dashboard/ai/plans/workout");
+  revalidatePath("/dashboard");
   return { planId };
 }
 
@@ -186,4 +187,20 @@ export async function applyAiNutritionPlanAction(
   revalidatePath("/dashboard/ai/plans/nutrition");
   revalidatePath("/dashboard");
   return { planId };
+}
+
+/** Apply a plan preview from AI coach chat (same as plan builder apply). */
+export async function applyChatPlanPreviewAction(
+  type: "workout" | "nutrition",
+  plan: AiGeneratedWorkoutPlan | AiGeneratedNutritionPlan
+): Promise<{ planId: string; editPath: string } | { error: string }> {
+  if (type === "workout") {
+    const result = await applyAiWorkoutPlanAction(plan as AiGeneratedWorkoutPlan);
+    if ("error" in result) return result;
+    return { planId: result.planId, editPath: `/dashboard/workout/${result.planId}/edit` };
+  }
+
+  const result = await applyAiNutritionPlanAction(plan as AiGeneratedNutritionPlan);
+  if ("error" in result) return result;
+  return { planId: result.planId, editPath: `/dashboard/nutrition/${result.planId}/edit` };
 }

@@ -158,7 +158,19 @@ export async function completeRegistration(input: RegistrationInput) {
     return { error: "Session not established. Please try signing in." };
   }
 
-  return finalizeNewUserProfile(supabase, user.id, user.user_metadata, input);
+  const metadata = user.user_metadata as Record<string, unknown> | undefined;
+
+  return finalizeNewUserProfile(supabase, user.id, metadata, {
+    ...input,
+    email: input.email?.trim() || user.email || "",
+    fullName:
+      input.fullName?.trim() ||
+      (typeof metadata?.full_name === "string" ? metadata.full_name : "") ||
+      "",
+    phone:
+      input.phone ??
+      (typeof metadata?.phone === "string" ? metadata.phone : null),
+  });
 }
 
 async function recoverExistingSignupUser(

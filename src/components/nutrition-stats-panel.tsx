@@ -1,6 +1,6 @@
 "use client";
 
-import { Beef, Egg, Flame, GlassWater, Wheat } from "lucide-react";
+import { Beef, Check, Egg, Flame, GlassWater, Wheat } from "lucide-react";
 import { MacroRing } from "@/components/macro-ring";
 import { macroExceededDailyUpperLimit, macroExceededAttentionMessage } from "@/lib/macro-targets";
 import type { MealMacros } from "@/lib/meal-utils";
@@ -32,6 +32,7 @@ export function NutritionStatsPanel({
     "calories"
   );
   const macrosExceededMessage = macroExceededAttentionMessage(current, targets);
+  const waterCompleted = waterGoalMl > 0 && waterMl >= waterGoalMl;
 
   return (
     <div className="space-y-4">
@@ -157,7 +158,15 @@ export function NutritionStatsPanel({
             )}
           />
         </div>
-        <div className="flex flex-col items-center rounded-2xl border border-border bg-card/80 p-3 sm:p-4">
+        <div className="relative flex flex-col items-center rounded-2xl border border-border bg-card/80 p-3 sm:p-4">
+          {waterCompleted && (
+            <div
+              className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-green-500/20 text-green-400"
+              aria-label="Water goal reached"
+            >
+              <Check className="h-3 w-3" strokeWidth={3} />
+            </div>
+          )}
           <MacroRing
             size="sm"
             value={waterMl}

@@ -4,12 +4,18 @@ import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/loca
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ArrowLeft, Calendar, Dumbbell, Pencil, Play, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, Dumbbell, Pencil, Trash2 } from "lucide-react";
 import { deletePersonalWorkoutPlan } from "@/lib/actions/user-workouts";
 import type { PersonalWorkoutListItem, WorkoutPickItem } from "@/lib/actions/user-workouts";
 import { AddToFolderMenu } from "@/components/add-to-folder-menu";
+import { WorkoutDayChip, WorkoutCategoryIcon } from "@/components/programs/workout-day-chip";
 import { StartWorkoutDayButton } from "@/components/start-workout-day-button";
 import { MoveWorkoutButton } from "@/components/move-workout-dialog";
+import {
+  getWorkoutCategoryStyle,
+  inferProgramCategory,
+} from "@/lib/workout-visual-categories";
+import { cn } from "@/lib/utils";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -92,25 +98,34 @@ export function FolderWorkoutsPage({
               (sum, day) => sum + (day.exercises?.length ?? 0),
               0
             );
+            const programCategory = inferProgramCategory(plan.title, days);
+            const programStyle = getWorkoutCategoryStyle(programCategory);
 
             return (
-              <Card key={plan.id}>
+              <Card
+                key={plan.id}
+                className={cn("overflow-hidden border-2", programStyle.cardBorder, programStyle.cardBg)}
+              >
+                <div className={cn("h-1.5 w-full", programStyle.stripe)} aria-hidden />
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold">{plan.title}</p>
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        <Badge variant="secondary" className="text-[10px]">
-                          {platform.workout.daysBadge(days.length)}
-                        </Badge>
-                        <Badge variant="outline" className="text-[10px]">
-                          {platform.workout.exBadge(exerciseTotal)}
-                        </Badge>
-                        {upcomingCount > 0 && (
-                          <Badge className="bg-primary/15 text-[10px] text-primary">
-                            {platform.workout.scheduledBadge(upcomingCount)}
+                    <div className="flex min-w-0 items-start gap-3">
+                      <WorkoutCategoryIcon category={programCategory} size="sm" />
+                      <div>
+                        <p className="font-semibold">{plan.title}</p>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          <Badge variant="secondary" className="text-[10px]">
+                            {platform.workout.daysBadge(days.length)}
                           </Badge>
-                        )}
+                          <Badge variant="outline" className="text-[10px]">
+                            {platform.workout.exBadge(exerciseTotal)}
+                          </Badge>
+                          {upcomingCount > 0 && (
+                            <Badge className={cn("text-[10px]", programStyle.scheduleBg, programStyle.scheduleText)}>
+                              {platform.workout.scheduledBadge(upcomingCount)}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-1">
@@ -130,16 +145,7 @@ export function FolderWorkoutsPage({
 
                   <div className="flex flex-wrap gap-1.5">
                     {days.map((day) => (
-                      <div
-                        key={day.id}
-                        className="flex items-center gap-1 rounded-lg bg-secondary/50 px-2 py-1 text-[11px]"
-                      >
-                        <Play className="h-3 w-3 text-primary" />
-                        <span className="font-medium">{day.title}</span>
-                        <span className="text-muted-foreground">
-                          {day.exercises?.length ?? 0}
-                        </span>
-                      </div>
+                      <WorkoutDayChip key={day.id} day={day} />
                     ))}
                   </div>
 

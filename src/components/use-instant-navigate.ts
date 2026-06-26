@@ -11,6 +11,8 @@ type InstantNavigateOptions = {
   /** Navigate on finger down — more reliable on mobile tab bars. */
   pressToNavigate?: boolean;
   onNavigateStart?: (href: string) => void;
+  /** Only treat the route as current when pathname equals href exactly. */
+  exactMatch?: boolean;
 };
 
 export function useInstantNavigate(
@@ -21,7 +23,7 @@ export function useInstantNavigate(
     typeof tapSlopOrOptions === "number"
       ? { tapSlop: tapSlopOrOptions }
       : tapSlopOrOptions;
-  const { tapSlop = 12, pressToNavigate = false, onNavigateStart } = options;
+  const { tapSlop = 12, pressToNavigate = false, onNavigateStart, exactMatch = false } = options;
 
   const router = useRouter();
   const pathname = usePathname();
@@ -37,7 +39,7 @@ export function useInstantNavigate(
   }, [href, router]);
 
   const navigate = useCallback(() => {
-    if (isNavRouteMatch(pathname, href)) return;
+    if (isNavRouteMatch(pathname, href, exactMatch)) return;
     if (navigated.current) return;
     navigated.current = true;
     onNavigateStart?.(href);
@@ -46,12 +48,12 @@ export function useInstantNavigate(
     window.setTimeout(() => {
       navigated.current = false;
     }, NAVIGATE_DEBOUNCE_MS);
-  }, [href, onNavigateStart, pathname, router, warmRoute]);
+  }, [exactMatch, href, onNavigateStart, pathname, router, warmRoute]);
 
   const handlePointerDown = useCallback(
     (e: PointerEvent) => {
       if (e.button !== 0) return;
-      if (!isNavRouteMatch(pathname, href)) {
+      if (!isNavRouteMatch(pathname, href, exactMatch)) {
         warmRoute();
       }
       if (pressToNavigate) {
@@ -61,7 +63,7 @@ export function useInstantNavigate(
       }
       pointerStart.current = { x: e.clientX, y: e.clientY };
     },
-    [href, navigate, pathname, pressToNavigate, warmRoute]
+    [exactMatch, href, navigate, pathname, pressToNavigate, warmRoute]
   );
 
   const handlePointerUp = useCallback(

@@ -4,52 +4,50 @@ import { usePathname } from "next/navigation";
 import { Apple, Dumbbell } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
-import { InstantNavLink } from "@/components/instant-nav-link";
+import { CompactSegment } from "@/components/programs/compact-nav";
 import { isTrainTabActive, trainTabs } from "@/lib/train-nav";
-import { cn } from "@/lib/utils";
 
-const inactiveTabClass =
-  "border-transparent bg-secondary/40 text-muted-foreground active:bg-secondary active:text-foreground [@media(hover:hover)]:hover:bg-secondary [@media(hover:hover)]:hover:text-foreground";
+const tabConfig = {
+  "/dashboard/workout": {
+    icon: Dumbbell,
+    activeClass: "bg-primary/20 text-primary",
+  },
+  "/dashboard/nutrition": {
+    icon: Apple,
+    activeClass: "bg-emerald-500/20 text-emerald-400",
+  },
+} as const;
 
 export function TrainSectionTabs() {
   const pathname = usePathname();
   const platform = usePlatformCopy();
   const { setPendingHref } = useDashboardNavPending();
 
-  const tabConfig = {
-    "/dashboard/workout": {
-      label: platform.trainTabs.workout,
-      icon: Dumbbell,
-      activeClass: "border-primary/40 bg-primary/15 text-primary",
-    },
-    "/dashboard/nutrition": {
-      label: platform.trainTabs.nutrition,
-      icon: Apple,
-      activeClass: "border-emerald-500/40 bg-emerald-500/15 text-emerald-400",
-    },
+  const labels = {
+    "/dashboard/workout": platform.trainTabs.workout,
+    "/dashboard/nutrition": platform.trainTabs.nutrition,
   } as const;
 
   return (
-    <nav className="dashboard-instant-nav mb-5 flex gap-2">
+    <nav
+      className="dashboard-instant-nav mb-3 flex rounded-full bg-secondary/50 p-1"
+      aria-label="Programs"
+    >
       {trainTabs.map((tab) => {
         const active = isTrainTabActive(pathname, tab.href);
         const config = tabConfig[tab.href];
-        const Icon = config.icon;
 
         return (
-          <InstantNavLink
+          <CompactSegment
             key={tab.href}
             href={tab.href}
+            label={labels[tab.href]}
+            icon={config.icon}
+            active={active}
+            activeClass={config.activeClass}
             onNavigateStart={setPendingHref}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "flex flex-1 flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90",
-              active ? config.activeClass : inactiveTabClass
-            )}
-          >
-            <Icon className="h-6 w-6" />
-            <span className="text-xs font-bold">{config.label}</span>
-          </InstantNavLink>
+            exactMatch
+          />
         );
       })}
     </nav>

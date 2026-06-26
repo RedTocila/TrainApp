@@ -12,6 +12,10 @@ import { cn } from "@/lib/utils";
 import { useSpeechRecognition } from "@/lib/use-speech-recognition";
 import { VoiceListeningIndicator } from "@/components/voice-listening-indicator";
 import { ChatCommandInput } from "@/components/chat-command-input";
+import { ChatPlanPreviewCard } from "@/components/chat-plan-preview";
+import { ChatRichBlocks } from "@/components/chat-rich-blocks";
+import type { ChatPlanPreview } from "@/lib/ai/coach-chat-tools";
+import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
 
@@ -115,7 +119,13 @@ const ChatBubble = memo(function ChatBubble({
   sourcesLabel: (n: number) => string;
   webSourcesAria: (n: number) => string;
 }) {
-  if (message.role === "assistant" && !message.content.trim()) {
+  if (
+    message.role === "assistant" &&
+    !message.content.trim() &&
+    !message.planPreview &&
+    !message.toolStatus &&
+    !message.richBlocks?.length
+  ) {
     return null;
   }
 
@@ -146,6 +156,15 @@ const ChatBubble = memo(function ChatBubble({
             ? renderLinkedText(message.content)
             : message.content}
         </p>
+        {message.role === "assistant" && message.toolStatus && !message.content.trim() && (
+          <p className="text-xs text-muted-foreground">{message.toolStatus}</p>
+        )}
+        {message.role === "assistant" && message.planPreview && (
+          <ChatPlanPreviewCard preview={message.planPreview} />
+        )}
+        {message.role === "assistant" && message.richBlocks && message.richBlocks.length > 0 && (
+          <ChatRichBlocks blocks={message.richBlocks} />
+        )}
         {message.role === "user" && message.image && (
           <div className="mt-2 overflow-hidden rounded-xl border border-primary-foreground/20">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -453,10 +472,55 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             error?: string;
             sources?: WebSource[];
             meta?: { searchedWeb?: boolean };
+            planPreview?: ChatPlanPreview;
+            toolStatus?: string;
+            richBlocks?: CoachChatRichBlock[];
           };
           if (parsed.error) throw new Error(parsed.error);
           if (parsed.meta?.searchedWeb !== undefined) {
             setPendingWebSearch(parsed.meta.searchedWeb);
+            continue;
+          }
+          if (parsed.toolStatus) {
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last?.role === "assistant") {
+                next[next.length - 1] = { ...last, toolStatus: parsed.toolStatus };
+              }
+              return next;
+            });
+            continue;
+          }
+          if (parsed.planPreview) {
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last?.role === "assistant") {
+                next[next.length - 1] = {
+                  ...last,
+                  planPreview: parsed.planPreview,
+                  toolStatus: undefined,
+                };
+              }
+              return next;
+            });
+            continue;
+          }
+          if (parsed.richBlocks?.length) {
+            setMessages((prev) => {
+              const next = [...prev];
+              const last = next[next.length - 1];
+              if (last?.role === "assistant") {
+                const existing = last.richBlocks ?? [];
+                next[next.length - 1] = {
+                  ...last,
+                  richBlocks: [...existing, ...parsed.richBlocks!],
+                  toolStatus: undefined,
+                };
+              }
+              return next;
+            });
             continue;
           }
           if (parsed.sources?.length) {
@@ -476,7 +540,11 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             const next = [...prev];
             const last = next[next.length - 1];
             if (last?.role === "assistant") {
-              next[next.length - 1] = { ...last, content: last.content + parsed.text };
+              next[next.length - 1] = {
+                ...last,
+                content: last.content + parsed.text!,
+                toolStatus: undefined,
+              };
             }
             return next;
           });

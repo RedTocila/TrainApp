@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Sparkles } from "lucide-react";
-import { signUpAccount } from "@/lib/actions/auth";
+import { completeRegistration, signUpAccount } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 import { BrandWordmark } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 import { getOrCreateDeviceHash, loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
-import { formatUserError } from "@/lib/format-user-error";
+import { formatUserError, isEmailDeliverySignupError } from "@/lib/format-user-error";
 
 const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
 
@@ -27,6 +27,8 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
   const [isPending, setIsPending] = useState(false);
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
   const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [resendPending, setResendPending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,9 +51,45 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
     }
   }, [initialReferralCode]);
 
+  const emailRedirectTo =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(ONBOARDING_PRICING)}`
+      : undefined;
+
+  const handleResendConfirmation = async () => {
+    if (!confirmationEmail || !emailRedirectTo) return;
+    setResendPending(true);
+    setResendMessage(null);
+    setError(null);
+
+    try {
+      const supabase = createClient();
+      const { error: resendError } = await supabase.auth.resend({
+        type: "signup",
+        email: confirmationEmail,
+        options: { emailRedirectTo },
+      });
+
+      if (resendError) {
+        setResendMessage(
+          formatUserError(
+            resendError,
+            "Could not resend the confirmation email. Try again in a few minutes."
+          )
+        );
+        return;
+      }
+
+      setResendMessage("Confirmation email sent again. Check your inbox and spam folder.");
+    } finally {
+      setResendPending(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
+    setResendMessage(null);
     setNeedsEmailConfirmation(false);
     setIsPending(true);
 
@@ -61,31 +99,111 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
       const email = (new FormData(form).get("email") as string).trim();
       const phone = ((new FormData(form).get("phone") as string) || "").trim() || null;
       const password = new FormData(form).get("password") as string;
+      const deviceHash = getOrCreateDeviceHash();
 
       const supabase = createClient();
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(ONBOARDING_PRICING)}`;
 
-      const signUpResult = await signUpAccount({
-        fullName,
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
-        phone,
         password,
-        intakeJson,
-        referralCode,
-        deviceHash: getOrCreateDeviceHash(),
+        options: {
+          data: {
+            full_name: fullName,
+            phone,
+            device_hash: deviceHash,
+            ...(referralCode ? { referral_code: referralCode } : {}),
+          },
+          emailRedirectTo: redirectTo,
+        },
       });
 
-      if (signUpResult?.error) {
-        setError(signUpResult.error);
+      if (signUpError) {
+        if (isEmailDeliverySignupError(signUpError)) {
+          const fallback = await signUpAccount({
+            fullName,
+            email,
+            phone,
+            password,
+            intakeJson,
+            referralCode,
+            deviceHash,
+          });
+
+          if (fallback?.error) {
+            setError(
+              "We could not send the confirmation email and could not finish creating your account. Try again in a few minutes or contact support."
+            );
+            return;
+          }
+
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (signInError) {
+            setError(
+              formatUserError(
+                signInError,
+                "Account created. Sign in with your email and password."
+              )
+            );
+            return;
+          }
+
+          clearIntakeDraft();
+          router.refresh();
+          router.push(fallback.role === "admin" ? "/admin" : ONBOARDING_PRICING);
+          return;
+        }
+
+        setError(formatUserError(signUpError, "Could not create account."));
         return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signUpData.user?.identities?.length === 0) {
+        setError("This email is already registered. Sign in instead.");
+        return;
+      }
 
-      if (signInError) {
+      let hasSession = Boolean(signUpData.session);
+
+      if (!hasSession) {
+        const { data: signInData, error: signInError } =
+          await supabase.auth.signInWithPassword({ email, password });
+
+        if (signInError) {
+          setConfirmationEmail(email);
+          setNeedsEmailConfirmation(true);
+          return;
+        }
+
+        hasSession = Boolean(signInData.session);
+      }
+
+      if (!hasSession) {
+        setConfirmationEmail(email);
+        setNeedsEmailConfirmation(true);
+        return;
+      }
+
+      router.refresh();
+
+      const result = await completeRegistration({
+        fullName,
+        email,
+        phone,
+        intakeJson,
+        referralCode,
+        deviceHash,
+      });
+
+      if (result?.error) {
         setError(
           formatUserError(
-            signInError,
-            "Account created. Sign in with your email and password."
+            result.error,
+            "Account created but setup failed. Try signing in — your profile may already be ready."
           )
         );
         return;
@@ -94,7 +212,7 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
       clearIntakeDraft();
       router.refresh();
 
-      if (signUpResult.role === "admin") {
+      if (result.role === "admin") {
         router.push("/admin");
       } else {
         router.push(ONBOARDING_PRICING);
@@ -122,6 +240,20 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
         </CardHeader>
         <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
           <p>Your questionnaire answers are saved — they&apos;ll attach when you confirm.</p>
+          {resendMessage && (
+            <p className={resendMessage.includes("sent again") ? "text-green-400" : "text-red-400"}>
+              {resendMessage}
+            </p>
+          )}
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            disabled={resendPending}
+            onClick={() => void handleResendConfirmation()}
+          >
+            {resendPending ? "Sending..." : "Resend confirmation email"}
+          </Button>
           <Link href="/login">
             <Button variant="outline" className="w-full">
               Already confirmed? Sign in

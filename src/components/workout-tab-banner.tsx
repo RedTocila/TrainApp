@@ -4,6 +4,11 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { Check, Dumbbell } from "lucide-react";
+import {
+  getWorkoutCategoryStyle,
+  inferWorkoutCategoryFromText,
+} from "@/lib/workout-visual-categories";
+import { WorkoutCategoryIcon } from "@/components/programs/workout-day-chip";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
@@ -19,7 +24,6 @@ import {
 } from "@/lib/actions/workout-sessions";
 import { formatDateKey } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -96,35 +100,61 @@ export function WorkoutTabBanner({
 
   if (!workout) return null;
 
+  const category = inferWorkoutCategoryFromText(
+    workout.dayTitle,
+    workout.planTitle,
+    ...workout.exercises.map((e) => e.name)
+  );
+  const style = getWorkoutCategoryStyle(category);
+
   return (
     <Card
       id="dashboard-workout"
-      className={sectionCompletedCardClass(workoutCompleted)}
+      className={cn(
+        "overflow-hidden border-2",
+        sectionCompletedCardClass(workoutCompleted),
+        !workoutCompleted && style.cardBorder,
+        !workoutCompleted && style.cardBg
+      )}
     >
+      {!workoutCompleted && <div className={cn("h-1.5 w-full", style.stripe)} aria-hidden />}
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-start gap-3">
+          {!workoutCompleted && <WorkoutCategoryIcon category={category} />}
+          <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              {platform.workout.scheduledWorkout}
-            </p>
             {workoutCompleted && <SectionCompletedBadge />}
           </div>
-          <p className={cn("font-semibold", workoutCompleted && "text-green-400")}>
+          <p className={cn("font-bold", workoutCompleted && "text-green-400")}>
             {workout.dayTitle}
           </p>
           <p className="text-sm text-muted-foreground">
             {workout.planTitle}
-            {workoutCompleted ? ` ${platform.workout.completedSuffix}` : ""}
           </p>
-          <div className="mt-2 flex flex-wrap gap-1">
-            {workout.exercises.slice(0, 4).map((ex) => (
-              <Badge key={ex.id} variant="secondary">
-                {ex.name}
-              </Badge>
-            ))}
-            {workout.exercises.length > 4 && (
-              <Badge variant="outline">+{workout.exercises.length - 4}</Badge>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {workout.exercises.slice(0, 5).map((ex) => {
+              const exStyle = getWorkoutCategoryStyle(
+                inferWorkoutCategoryFromText(ex.name)
+              );
+              return (
+                <span
+                  key={ex.id}
+                  className={cn(
+                    "rounded-lg border px-2 py-0.5 text-[11px] font-medium",
+                    exStyle.chip,
+                    exStyle.chipText
+                  )}
+                >
+                  {ex.name}
+                </span>
+              );
+            })}
+            {workout.exercises.length > 5 && (
+              <span className="rounded-lg bg-secondary/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+                +{workout.exercises.length - 5}
+              </span>
             )}
+          </div>
           </div>
         </div>
         {workoutCompleted ? (
