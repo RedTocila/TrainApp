@@ -3,7 +3,7 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { format, isToday, isTomorrow } from "date-fns";
 import { Check, Dumbbell } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
@@ -35,19 +35,30 @@ function workoutTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>) 
 export function DashboardWorkoutCard({
   clientId,
   initialWorkout,
+  initialWorkoutCompleted = false,
 }: {
   clientId: string;
   initialWorkout: TodaysWorkoutInfo | null;
+  initialWorkoutCompleted?: boolean;
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const { selectedDate } = useSelectedDate();
   const { version } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
-  const [workoutCompleted, setWorkoutCompleted] = useState(false);
+  const [workoutCompleted, setWorkoutCompleted] = useState(
+    initialWorkoutCompleted
+  );
+  const usedInitialTodayData = useRef(false);
 
   useEffect(() => {
     const dateKey = formatDateKey(selectedDate);
+    const isToday = dateKey === formatDateKey(new Date());
+    if (!usedInitialTodayData.current && isToday && version === 0) {
+      usedInitialTodayData.current = true;
+      return;
+    }
+
     let cancelled = false;
 
     void Promise.all([

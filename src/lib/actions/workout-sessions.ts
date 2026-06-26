@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireSubscribedMutationAdmin } from "@/lib/actions/auth-client";
+import { requireSubscribedMutationAdmin, requireOwnedClient } from "@/lib/actions/auth-client";
 import {
   WORKOUT_SESSION_COLUMNS,
   WORKOUT_SESSION_EXERCISE_COLUMNS,
@@ -31,6 +31,12 @@ async function requireUserId() {
 async function requireMutationAdmin() {
   const mutation = await requireSubscribedMutationAdmin();
   if ("error" in mutation) throw new Error(mutation.error);
+  return { admin: mutation.admin, userId: mutation.userId };
+}
+
+async function tryMutationAdmin() {
+  const mutation = await requireSubscribedMutationAdmin();
+  if ("error" in mutation) return null;
   return { admin: mutation.admin, userId: mutation.userId };
 }
 
@@ -261,9 +267,9 @@ export async function getInProgressSession(): Promise<WorkoutSession | null> {
 }
 
 async function getSessionWithDetails(sessionId: string) {
-  const { admin, userId } = await requireMutationAdmin();
+  const { supabase, userId } = await requireUserId();
 
-  const { data: session } = await admin
+  const { data: session } = await supabase
     .from("workout_sessions")
     .select(WORKOUT_SESSION_COLUMNS)
     .eq("id", sessionId)
@@ -271,6 +277,10 @@ async function getSessionWithDetails(sessionId: string) {
     .single();
 
   if (!session) return null;
+
+  const auth = await requireOwnedClient(userId);
+  if ("error" in auth) return null;
+  const { admin } = auth;
 
   let mappedExercises = await mapSessionExercises(admin, sessionId);
 
@@ -280,14 +290,17 @@ async function getSessionWithDetails(sessionId: string) {
     session.day_id &&
     session.status === "in_progress"
   ) {
-    const planExercises = await loadPlanDayExercises(
-      admin,
-      session.plan_id,
-      session.day_id
-    );
-    if (planExercises.length > 0) {
-      await seedSessionExercisesFromPlan(admin, sessionId, planExercises);
-      mappedExercises = await mapSessionExercises(admin, sessionId);
+    const mutation = await tryMutationAdmin();
+    if (mutation) {
+      const planExercises = await loadPlanDayExercises(
+        mutation.admin,
+        session.plan_id,
+        session.day_id
+      );
+      if (planExercises.length > 0) {
+        await seedSessionExercisesFromPlan(mutation.admin, sessionId, planExercises);
+        mappedExercises = await mapSessionExercises(admin, sessionId);
+      }
     }
   }
 
@@ -399,13 +412,11 @@ export async function startWorkout({
       }
     }
 
-    const startedAt = new Date().toISOString();
-    await admin
-      .from("workout_sessions")
-      .update({ started_at: startedAt })
-      .eq("id", existing.id);
-
-    return { sessionId: existing.id, resumed: true };
+    return {
+      sessionId: existing.id,
+      resumed: true,
+      started: existing.started_at != null,
+    };
   }
 
   const { data: day } = await admin
@@ -431,6 +442,7 @@ export async function startWorkout({
       day_title: day.title,
       plan_title: planTitle,
       status: "in_progress",
+      started_at: null,
     })
     .select()
     .single();
@@ -449,15 +461,41 @@ export async function startWorkout({
     return { error: seedResult.error };
   }
 
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/workout");
+  return { sessionId: session.id, resumed: false, started: false };
+}
+
+export async function beginWorkoutSession(sessionId: string) {
+  const { admin, userId } = await requireMutationAdmin();
+
+  const { data: session } = await admin
+    .from("workout_sessions")
+    .select("id, client_id, status, started_at")
+    .eq("id", sessionId)
+    .eq("client_id", userId)
+    .single();
+
+  if (!session) return { error: "Session not found" };
+  if (session.status !== "in_progress") {
+    return { error: "Workout is no longer in progress" };
+  }
+  if (session.started_at) {
+    return { success: true, alreadyStarted: true };
+  }
+
   const startedAt = new Date().toISOString();
-  await admin
+  const { error } = await admin
     .from("workout_sessions")
     .update({ started_at: startedAt })
-    .eq("id", session.id);
+    .eq("id", sessionId);
+
+  if (error) return { error: error.message };
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");
-  return { sessionId: session.id, resumed: false };
+  revalidatePath(`/dashboard/workout/session/${sessionId}`);
+  return { success: true };
 }
 
 export async function startWorkoutAndRedirect({
@@ -473,7 +511,7 @@ export async function startWorkoutAndRedirect({
   if ("error" in result && result.error) {
     return { error: result.error };
   }
-  redirect(`/dashboard/workout/session/${result.sessionId}?fresh=1`);
+  redirect(`/dashboard/workout/session/${result.sessionId}`);
 }
 
 export async function startTodaysWorkoutAndRedirect(dateKey: string) {
@@ -513,7 +551,7 @@ export async function updateSessionSet(
 
   const { data: session } = await admin
     .from("workout_sessions")
-    .select("client_id, status")
+    .select("client_id, status, started_at")
     .eq("id", exercise.session_id)
     .single();
 
@@ -522,6 +560,9 @@ export async function updateSessionSet(
   }
   if (session.status !== "in_progress") {
     return { error: "Workout is no longer in progress" };
+  }
+  if (!session.started_at) {
+    return { error: "Start the workout before logging sets" };
   }
 
   const { error } = await admin
@@ -546,7 +587,7 @@ export async function addSessionSet(sessionExerciseId: string) {
 
   const { data: session } = await admin
     .from("workout_sessions")
-    .select("client_id, status")
+    .select("client_id, status, started_at")
     .eq("id", exercise.session_id)
     .single();
 
@@ -555,6 +596,9 @@ export async function addSessionSet(sessionExerciseId: string) {
   }
   if (session.status !== "in_progress") {
     return { error: "Workout is no longer in progress" };
+  }
+  if (!session.started_at) {
+    return { error: "Start the workout before logging sets" };
   }
 
   const { data: existingSets } = await admin
@@ -588,7 +632,7 @@ export async function addSessionExercise(sessionId: string, name: string) {
 
   const { data: session } = await admin
     .from("workout_sessions")
-    .select("id, status")
+    .select("id, status, started_at")
     .eq("id", sessionId)
     .eq("client_id", userId)
     .single();
@@ -596,6 +640,9 @@ export async function addSessionExercise(sessionId: string, name: string) {
   if (!session) return { error: "Session not found" };
   if (session.status !== "in_progress") {
     return { error: "Workout is no longer in progress" };
+  }
+  if (!session.started_at) {
+    return { error: "Start the workout before adding exercises" };
   }
 
   const { data: last } = await admin

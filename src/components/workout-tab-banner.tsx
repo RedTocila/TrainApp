@@ -43,6 +43,7 @@ export function WorkoutTabBanner({
   const [inProgressSessionId, setInProgressSessionId] = useState(
     initialInProgressSessionId
   );
+  const [inProgressStarted, setInProgressStarted] = useState(false);
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export function WorkoutTabBanner({
       ]);
       setWorkout(resolved);
       setInProgressSessionId(inProgress?.id ?? null);
+      setInProgressStarted(inProgress?.started_at != null);
       setWorkoutCompleted(completed);
     });
   }, [selectedDate, clientId, version]);
@@ -68,12 +70,24 @@ export function WorkoutTabBanner({
               <Dumbbell className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="font-semibold">{coachLabels.workoutInProgress}</p>
-              <p className="text-sm text-muted-foreground">{coachLabels.pickUpWorkout}</p>
+              <p className="font-semibold">
+                {inProgressStarted
+                  ? coachLabels.workoutInProgress
+                  : platform.workout.readyToStart}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {inProgressStarted
+                  ? coachLabels.pickUpWorkout
+                  : platform.workout.startWorkout}
+              </p>
             </div>
           </div>
           <Link href={`/dashboard/workout/session/${inProgressSessionId}`}>
-            <Button size="sm">{coachLabels.getBackInThere}</Button>
+            <Button size="sm">
+              {inProgressStarted
+                ? coachLabels.getBackInThere
+                : platform.workout.startWorkout}
+            </Button>
           </Link>
         </CardContent>
       </Card>

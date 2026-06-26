@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Sparkles, Square } from "lucide-react";
 import {
   ACTIVITY_OPTIONS,
   ALCOHOL_OPTIONS,
@@ -12,6 +12,8 @@ import {
   DAILY_STEPS_OPTIONS,
   DIET_TYPE_OPTIONS,
   EMPTY_INTAKE_RESPONSES,
+  normalizeIntakeResponses,
+  toggleIntakeMultiSelectValue,
   ENERGY_OPTIONS,
   EQUIPMENT_OPTIONS,
   GOAL_OPTIONS,
@@ -52,23 +54,20 @@ function OptionGrid({
   multi?: boolean;
 }) {
   const selected = multi ? (Array.isArray(value) ? value : []) : value;
+  const multiValueRef = useRef<string[]>(Array.isArray(value) ? value : []);
+
+  if (multi) {
+    multiValueRef.current = Array.isArray(value) ? value : [];
+  }
 
   const toggle = (optionValue: string) => {
     if (!multi) {
       onChange(optionValue);
       return;
     }
-    const current = Array.isArray(selected) ? selected : [];
-    if (optionValue === "none") {
-      onChange(["none"]);
-      return;
-    }
-    const withoutNone = current.filter((v) => v !== "none");
-    if (withoutNone.includes(optionValue)) {
-      onChange(withoutNone.filter((v) => v !== optionValue));
-    } else {
-      onChange([...withoutNone, optionValue]);
-    }
+    const next = toggleIntakeMultiSelectValue(multiValueRef.current, optionValue);
+    multiValueRef.current = next;
+    onChange(next);
   };
 
   const isSelected = (optionValue: string) => {
@@ -77,30 +76,47 @@ function OptionGrid({
   };
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => toggle(option.value)}
-          className={cn(
-            "flex items-start gap-3 rounded-xl border p-3 text-left transition-all",
-            isSelected(option.value)
-              ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
-              : "border-border bg-secondary/40 hover:border-primary/40 hover:bg-secondary/70"
-          )}
-        >
-          <span className="text-xl leading-none">{option.emoji}</span>
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold">{option.label}</span>
-            {option.description && (
-              <span className="mt-0.5 block text-xs text-muted-foreground">
-                {option.description}
-              </span>
+    <div
+      className="grid gap-2 sm:grid-cols-2"
+      role={multi ? "group" : undefined}
+      aria-label={multi ? "Multiple selections allowed" : undefined}
+    >
+      {options.map((option) => {
+        const active = isSelected(option.value);
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={multi ? active : undefined}
+            onClick={() => toggle(option.value)}
+            className={cn(
+              "flex items-start gap-3 rounded-xl border p-3 text-left transition-all",
+              active
+                ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
+                : "border-border bg-secondary/40 hover:border-primary/40 hover:bg-secondary/70"
             )}
-          </span>
-        </button>
-      ))}
+          >
+            {multi ? (
+              <span className="mt-0.5 shrink-0 text-primary">
+                {active ? (
+                  <Check className="h-4 w-4" aria-hidden />
+                ) : (
+                  <Square className="h-4 w-4 text-muted-foreground/70" aria-hidden />
+                )}
+              </span>
+            ) : null}
+            <span className="text-xl leading-none">{option.emoji}</span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">{option.label}</span>
+              {option.description && (
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {option.description}
+                </span>
+              )}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -243,7 +259,7 @@ function StepFields({
             />
           </div>
           <div className="space-y-2">
-            <Label>Other activities</Label>
+            <Label>Other activities (pick all that apply)</Label>
             <OptionGrid
               multi
               options={ACTIVITY_OPTIONS}
@@ -361,7 +377,10 @@ function StepFields({
             />
           </div>
           <div className="space-y-2">
-            <Label>Food allergies (pick all)</Label>
+            <Label>Food allergies (pick all that apply)</Label>
+            <p className="text-xs text-muted-foreground">
+              Select every allergy that applies. Pick &quot;None&quot; only if you have no allergies.
+            </p>
             <OptionGrid
               multi
               options={ALLERGY_OPTIONS}
@@ -386,6 +405,9 @@ function StepFields({
         <div className="space-y-5">
           <div className="space-y-2">
             <Label>Injury areas (pick all that apply)</Label>
+            <p className="text-xs text-muted-foreground">
+              Select every area that is affected. Pick &quot;None&quot; only if you have no injuries.
+            </p>
             <OptionGrid
               multi
               options={INJURY_AREA_OPTIONS}
@@ -404,7 +426,10 @@ function StepFields({
             />
           </div>
           <div className="space-y-2">
-            <Label>Health conditions</Label>
+            <Label>Health conditions (pick all that apply)</Label>
+            <p className="text-xs text-muted-foreground">
+              Select every condition that applies. Pick &quot;None&quot; only if you have no conditions.
+            </p>
             <OptionGrid
               multi
               options={HEALTH_CONDITION_OPTIONS}
@@ -492,7 +517,9 @@ export function IntakeQuestionnaireWizard({
   completeLabel?: string;
 }) {
   const [step, setStep] = useState(0);
-  const [responses, setResponses] = useState<IntakeResponses>(initialResponses);
+  const [responses, setResponses] = useState<IntakeResponses>(() =>
+    normalizeIntakeResponses(initialResponses)
+  );
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const serverSnapshot = useRef(JSON.stringify(initialResponses));
@@ -501,7 +528,7 @@ export function IntakeQuestionnaireWizard({
     const nextSnapshot = JSON.stringify(initialResponses);
     if (serverSnapshot.current !== nextSnapshot) {
       serverSnapshot.current = nextSnapshot;
-      setResponses(initialResponses);
+      setResponses(normalizeIntakeResponses(initialResponses));
     }
   }, [initialResponses]);
 

@@ -26,7 +26,7 @@ export function StartWorkoutDayButton({ planId }: { planId: string }) {
     <div className="inline-flex flex-col items-end gap-1">
       <Button size="sm" disabled={isPending} onClick={handleStart}>
         <Play className="mr-1 h-3 w-3" />
-        {isPending ? "Starting…" : "Start"}
+        {isPending ? "Opening…" : "Start"}
       </Button>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>

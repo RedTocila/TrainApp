@@ -1,7 +1,7 @@
 "use client";
 
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
-import { INTAKE_STORAGE_KEY } from "@/lib/intake-questionnaire";
+import { INTAKE_STORAGE_KEY, normalizeIntakeResponses } from "@/lib/intake-questionnaire";
 
 function readStorage(storage: Storage): string | null {
   return storage.getItem(INTAKE_STORAGE_KEY);
@@ -27,7 +27,7 @@ export function loadIntakeDraft(): IntakeResponses | null {
 
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as IntakeResponses;
+    return normalizeIntakeResponses(JSON.parse(raw) as IntakeResponses);
   } catch {
     return null;
   }

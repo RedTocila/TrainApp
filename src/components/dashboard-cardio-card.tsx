@@ -4,7 +4,7 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 import Link from "next/link";
 import { format, isToday, isTomorrow } from "date-fns";
 import { Check, HeartPulse } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
@@ -27,19 +27,36 @@ function cardioTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>) {
   return platform.dashboard.cardioOnDay(format(date, "EEEE"));
 }
 
-export function DashboardCardioCard({ clientId }: { clientId: string }) {
+export function DashboardCardioCard({
+  clientId,
+  initialScheduled = null,
+  initialCompleted = false,
+}: {
+  clientId: string;
+  initialScheduled?: ScheduledCardio | null;
+  initialCompleted?: boolean;
+}) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const { selectedDate } = useSelectedDate();
   const { version, patchDashboard } = useDashboardSync();
-  const [scheduled, setScheduled] = useState<ScheduledCardio | null>(null);
-  const [completed, setCompleted] = useState(false);
+  const [scheduled, setScheduled] = useState<ScheduledCardio | null>(
+    initialScheduled
+  );
+  const [completed, setCompleted] = useState(initialCompleted);
   const [isToggling, setIsToggling] = useState(false);
   const dateKey = formatDateKey(selectedDate);
   const taskId = `${dateKey}-cardio`;
   const cardio = scheduled?.client_cardio ?? null;
+  const usedInitialTodayData = useRef(false);
 
   useEffect(() => {
+    const isToday = dateKey === formatDateKey(new Date());
+    if (!usedInitialTodayData.current && isToday && version === 0) {
+      usedInitialTodayData.current = true;
+      return;
+    }
+
     let cancelled = false;
 
     void Promise.all([

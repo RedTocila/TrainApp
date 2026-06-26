@@ -3,7 +3,7 @@ import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-pr
 
 import { format } from "date-fns";
 import { Check, CalendarClock, ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { compressImageFile } from "@/lib/image-compress";
 import {
@@ -120,9 +120,11 @@ function PhotoSlot({
 export function ProgressPhotosCard({
   clientId,
   initialSets,
+  initialCurrentUrls,
 }: {
   clientId: string;
   initialSets: ProgressPhotoSet[];
+  initialCurrentUrls?: PoseUrls;
 }) {
   const coachCopy = useCoachCopy();
   const platform = usePlatformCopy();
@@ -130,13 +132,16 @@ export function ProgressPhotosCard({
   const photoPoses = getProgressPhotoPoses(locale);
   const currentMonth = progressMonthKey();
   const [sets, setSets] = useState(initialSets);
-  const [currentUrls, setCurrentUrls] = useState<PoseUrls>(EMPTY_URLS);
+  const [currentUrls, setCurrentUrls] = useState<PoseUrls>(
+    initialCurrentUrls ?? EMPTY_URLS
+  );
   const [historyIndex, setHistoryIndex] = useState(0);
   const [historyUrls, setHistoryUrls] = useState<PoseUrls>(EMPTY_URLS);
   const [uploadingPose, setUploadingPose] = useState<ProgressPhotoPose | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
+  const skippedInitialUrlLoad = useRef(Boolean(initialCurrentUrls));
 
   const currentSet = useMemo(
     () => sets.find((s) => s.month_key === currentMonth) ?? null,
@@ -172,6 +177,10 @@ export function ProgressPhotosCard({
   );
 
   useEffect(() => {
+    if (skippedInitialUrlLoad.current) {
+      skippedInitialUrlLoad.current = false;
+      return;
+    }
     void loadUrls(currentSet, "current");
   }, [currentSet, loadUrls]);
 

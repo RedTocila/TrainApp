@@ -16,6 +16,15 @@ export function isActiveWorkoutSessionPath(pathname: string) {
   return /^\/dashboard\/workout\/session\/[^/]+$/.test(pathname);
 }
 
+/** Active workout sessions are opened from Home — don't highlight Programs. */
+export function isProgramsNavActive(pathname: string) {
+  return isTrainPath(pathname) && !isActiveWorkoutSessionPath(pathname);
+}
+
+export function isHomeNavActive(pathname: string) {
+  return pathname === "/dashboard" || isActiveWorkoutSessionPath(pathname);
+}
+
 export function isTrainTabActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }

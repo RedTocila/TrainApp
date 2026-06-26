@@ -11,7 +11,10 @@ import {
   getBodyWeightHistory,
   getBodyWeightLog,
 } from "@/lib/actions/weight-logs";
-import { getProgressPhotoSets } from "@/lib/actions/progress-photos";
+import {
+  getProgressPhotoSets,
+  getSignedProgressPhotoUrls,
+} from "@/lib/actions/progress-photos";
 import {
   ensureHabitSchedules,
   getClientHabits,
@@ -20,13 +23,20 @@ import {
   getHabitsWithCompletions,
 } from "@/lib/actions/habits";
 import { fetchDashboardEnrichmentFields } from "@/lib/actions/dashboard-enrichment";
-import { getTaskCompletionsInRange } from "@/lib/actions/task-completions";
+import { getTaskCompletionsInRange, getTaskCompletionsForDate } from "@/lib/actions/task-completions";
 import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
-import { getScheduledCardioInRange } from "@/lib/actions/user-cardio";
+import { getScheduledCardioInRange, getScheduledCardioForDate } from "@/lib/actions/user-cardio";
 import { scheduledCardioByDateMap } from "@/lib/cardio-utils";
-import { getScheduledNutritionInRange, getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
+import {
+  getScheduledNutritionInRange,
+  getNutritionPlanForDate,
+} from "@/lib/actions/user-nutrition-schedule";
 import { getCoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
-import { resolveWorkoutForDate } from "@/lib/actions/workout-sessions";
+import {
+  resolveWorkoutForDate,
+  isWorkoutCompletedOnDate,
+} from "@/lib/actions/workout-sessions";
+import { progressMonthKey } from "@/lib/progress-photo-utils";
 import { formatDateKey } from "@/lib/utils";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
 import { DashboardDateHeading } from "@/components/dashboard-date-heading";
@@ -42,6 +52,13 @@ import { hasAiAccess } from "@/lib/subscription";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 import { getHabitSuggestionsForProfile } from "@/lib/habit-suggestions";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
+import type { ProgressPhotoPose } from "@/lib/types";
+
+const EMPTY_PHOTO_URLS: Record<ProgressPhotoPose, string | null> = {
+  front: null,
+  back: null,
+  side: null,
+};
 
 export default async function DashboardPage() {
   const profile = await requireClient();
@@ -74,6 +91,9 @@ export default async function DashboardPage() {
     scheduledPlanForToday,
     coachNutritionPlanState,
     allHabits,
+    initialWorkoutCompleted,
+    initialCardio,
+    initialCompletions,
   ] = await Promise.all([
     getClientWorkoutAssignment(profile.id),
     getClientNutritionAssignment(profile.id),
@@ -96,7 +116,19 @@ export default async function DashboardPage() {
     getNutritionPlanForDate(profile.id, dateKey),
     getCoachNutritionPlanViewState(profile.id),
     getClientHabits(profile.id),
+    isWorkoutCompletedOnDate(profile.id, dateKey),
+    getScheduledCardioForDate(profile.id, dateKey),
+    getTaskCompletionsForDate(profile.id, dateKey),
   ]);
+
+  const currentMonth = progressMonthKey();
+  const currentPhotoSet =
+    progressPhotoSets.find((s) => s.month_key === currentMonth) ?? null;
+  const initialCurrentUrls = currentPhotoSet
+    ? await getSignedProgressPhotoUrls(profile.id, currentPhotoSet)
+    : EMPTY_PHOTO_URLS;
+
+  const initialCardioCompleted = initialCompletions.has(`${dateKey}-cardio`);
 
   const habitsByDate: Record<
     string,
@@ -169,21 +201,23 @@ export default async function DashboardPage() {
       )
     : [];
 
+  const schedule = {
+    workoutAssignment,
+    nutritionAssignment,
+    scheduledWorkouts,
+    scheduledNutritionDays,
+    scheduledCardioByDate,
+    habitsByDate,
+    waterGoalMl,
+    macroTargets: targets,
+  };
+
   return (
     <>
       <div className="-mx-3 -mt-3 mb-4 sm:-mx-4 sm:-mt-4 sm:mb-6 md:-mx-6 md:-mt-6">
         <DashboardCalendar
           clientId={profile.id}
-          schedule={{
-            workoutAssignment,
-            nutritionAssignment,
-            scheduledWorkouts,
-            scheduledNutritionDays,
-            scheduledCardioByDate,
-            habitsByDate,
-            waterGoalMl,
-            macroTargets: targets,
-          }}
+          schedule={schedule}
           initialEnrichment={initialEnrichment}
         />
       </div>
@@ -193,16 +227,7 @@ export default async function DashboardPage() {
 
         <DayTasksPanel
           clientId={profile.id}
-          schedule={{
-            workoutAssignment,
-            nutritionAssignment,
-            scheduledWorkouts,
-            scheduledNutritionDays,
-            scheduledCardioByDate,
-            habitsByDate,
-            waterGoalMl,
-            macroTargets: targets,
-          }}
+          schedule={schedule}
           initialEnrichment={initialEnrichment}
         />
 
@@ -223,9 +248,14 @@ export default async function DashboardPage() {
         <DashboardWorkoutCard
           clientId={profile.id}
           initialWorkout={initialWorkout}
+          initialWorkoutCompleted={initialWorkoutCompleted}
         />
 
-        <DashboardCardioCard clientId={profile.id} />
+        <DashboardCardioCard
+          clientId={profile.id}
+          initialScheduled={initialCardio}
+          initialCompleted={initialCardioCompleted}
+        />
 
         <BodyMetricsSection
           clientId={profile.id}
@@ -239,6 +269,7 @@ export default async function DashboardPage() {
         <ProgressPhotosCard
           clientId={profile.id}
           initialSets={progressPhotoSets}
+          initialCurrentUrls={initialCurrentUrls}
         />
 
         <HabitsTracker

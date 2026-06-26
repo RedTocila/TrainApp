@@ -18,7 +18,7 @@ import { ReferralNavButton } from "@/components/full-calendar-nav-button";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { isTrainPath } from "@/lib/train-nav";
+import { isHomeNavActive, isProgramsNavActive } from "@/lib/train-nav";
 
 const mobileNavLinkClass =
   "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90";
@@ -28,7 +28,8 @@ export function ClientNav({ fullName }: { fullName: string }) {
   const { pendingHref, setPendingHref } = useDashboardNavPending();
   const platform = usePlatformCopy();
   const activePath = pendingHref ?? pathname;
-  const programsActive = isTrainPath(activePath);
+  const programsActive = isProgramsNavActive(activePath);
+  const homeActive = isHomeNavActive(activePath);
 
   const standardNavItems = [
     { href: "/dashboard", label: platform.nav.home, mobileLabel: platform.nav.home, icon: Home, exact: true as const },
@@ -85,7 +86,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
           <InstantNavLink
             href="/dashboard"
             onNavigateStart={setPendingHref}
-            className={sidebarLinkClass(activePath === "/dashboard")}
+            className={sidebarLinkClass(homeActive)}
           >
             <Home className="h-4 w-4" />
             {platform.nav.home}
@@ -134,7 +135,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
             onNavigateStart={setPendingHref}
             className={cn(
               mobileNavLinkClass,
-              activePath === "/dashboard" ? "text-primary" : "text-muted-foreground"
+              homeActive ? "text-primary" : "text-muted-foreground"
             )}
           >
             <Home className="h-5 w-5" />

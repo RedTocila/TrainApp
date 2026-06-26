@@ -39,7 +39,7 @@ export function StartTodaysWorkoutButton({
         className="h-9 w-9 rounded-full"
         disabled={disabled || isStarting}
         onClick={handleStart}
-        aria-label={isStarting ? "Starting workout" : "Start workout"}
+        aria-label={isStarting ? "Opening workout" : "Open workout"}
       >
         <Play className="h-4 w-4" />
       </Button>

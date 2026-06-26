@@ -61,8 +61,9 @@ export function HabitsTracker({
   }, [clientId, dateKey]);
 
   useEffect(() => {
+    if (dateKey === formatDateKey(new Date())) return;
     refresh();
-  }, [refresh]);
+  }, [dateKey, refresh]);
 
   useEffect(() => {
     if (!isToday(selectedDate)) return;

@@ -4,10 +4,11 @@ import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/loca
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowLeft, Check, Clock, Play, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Clock, Play, Plus, Square } from "lucide-react";
 import {
   addSessionExercise,
   addSessionSet,
+  beginWorkoutSession,
   cancelWorkoutSession,
   completeWorkoutSession,
   updateSessionSet,
@@ -69,12 +70,17 @@ function useElapsedSeconds(anchorMs: number | null) {
   return Math.max(0, Math.floor((now - anchorMs) / 1000));
 }
 
-function useWorkoutTimerAnchor(sessionId: string, dbStartedAt: string) {
+function useWorkoutTimerAnchor(sessionId: string, dbStartedAt: string | null) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [anchorMs, setAnchorMs] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!dbStartedAt) {
+      setAnchorMs(null);
+      return;
+    }
+
     const fresh = searchParams.get("fresh") === "1";
     let anchor: number;
 
@@ -196,10 +202,12 @@ function SessionExerciseCard({
   exercise,
   history,
   onUpdate,
+  readOnly = false,
 }: {
   exercise: WorkoutSessionExercise;
   history: ExerciseHistoryEntry | null;
   onUpdate: () => void;
+  readOnly?: boolean;
 }) {
   const platform = usePlatformCopy();
   const [isPending, startTransition] = useTransition();
@@ -280,6 +288,7 @@ function SessionExerciseCard({
           </div>
         )}
       </CardHeader>
+      {!readOnly && (
       <CardContent className="space-y-3">
         <div className="grid grid-cols-[2.5rem_1fr_1fr] gap-2 text-xs font-medium text-muted-foreground">
           <span>{platform.workout.set}</span>
@@ -326,6 +335,7 @@ function SessionExerciseCard({
           {platform.workout.addSet}
         </Button>
       </CardContent>
+      )}
     </Card>
   );
 }
@@ -352,9 +362,35 @@ export function ActiveWorkoutClient({
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog, isPending: isGivingUp } =
     useSarcasticConfirm();
+  const isStarted = session.started_at != null;
   const timerAnchorMs = useWorkoutTimerAnchor(session.id, session.started_at);
 
   const refresh = () => router.refresh();
+
+  const handleBeginWorkout = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await beginWorkoutSession(session.id);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.push(`/dashboard/workout/session/${session.id}?fresh=1`);
+      router.refresh();
+    });
+  };
+
+  const handleStopWorkout = () => {
+    confirmGiveUp({
+      ...coachCopy.discardWorkout,
+      onConfirm: async () => {
+        await cancelWorkoutSession(session.id);
+        clearWorkoutTimerAnchor(session.id);
+        router.push("/dashboard");
+        router.refresh();
+      },
+    });
+  };
 
   const handleAddExercise = () => {
     if (!newExerciseName.trim()) return;
@@ -391,45 +427,55 @@ export function ActiveWorkoutClient({
         completed: true,
         workoutCompleted: true,
       });
-      router.push("/dashboard/workout");
-    });
-  };
-
-  const handleCancel = () => {
-    confirmGiveUp({
-      ...coachCopy.discardWorkout,
-      onConfirm: async () => {
-        await cancelWorkoutSession(session.id);
-        clearWorkoutTimerAnchor(session.id);
-        router.push("/dashboard/workout");
-        router.refresh();
-      },
+      router.push("/dashboard");
     });
   };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-8">
       <div className="flex flex-col gap-3">
-        <Link href="/dashboard/workout">
+        <Link href="/dashboard">
           <Button variant="ghost" size="sm" className="-ml-2 w-fit">
             <ArrowLeft className="mr-1 h-4 w-4" />
             {platform.common.back}
           </Button>
         </Link>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            {platform.workout.stillInGym}
-          </p>
-          <h1 className="text-2xl font-black">
-            {session.day_title ?? platform.workout.fallbackTitle}
-          </h1>
-          {session.plan_title && (
-            <p className="text-sm text-muted-foreground">{session.plan_title}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              {isStarted ? platform.workout.stillInGym : platform.workout.readyToStart}
+            </p>
+            <h1 className="text-2xl font-black">
+              {session.day_title ?? platform.workout.fallbackTitle}
+            </h1>
+            {session.plan_title && (
+              <p className="text-sm text-muted-foreground">{session.plan_title}</p>
+            )}
+          </div>
+          {isStarted && (
+            <div className="flex shrink-0 items-center gap-2 self-start pt-0.5">
+              <span className="text-sm font-medium text-muted-foreground">
+                {platform.workout.stop}
+              </span>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="h-10 w-10 shrink-0 rounded-full"
+                disabled={isPending || isGivingUp}
+                onClick={handleStopWorkout}
+                aria-label={platform.workout.stopWorkout}
+              >
+                <Square className="h-4 w-4 fill-current" />
+              </Button>
+            </div>
           )}
         </div>
       </div>
 
-      <WorkoutTimerCard anchorMs={timerAnchorMs} exercises={initialExercises} />
+      {isStarted && (
+        <WorkoutTimerCard anchorMs={timerAnchorMs} exercises={initialExercises} />
+      )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
@@ -452,55 +498,67 @@ export function ActiveWorkoutClient({
                 exercise={exercise}
                 history={histories[historyKey] ?? null}
                 onUpdate={refresh}
+                readOnly={!isStarted}
               />
             );
           })
         )}
       </div>
 
-      {showAddExercise ? (
-        <Card>
-          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-1">
-              <Label htmlFor="new-exercise">{platform.workout.exerciseName}</Label>
-              <Input
-                id="new-exercise"
-                placeholder={platform.workout.exercisePlaceholder}
-                value={newExerciseName}
-                onChange={(e) => setNewExerciseName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddExercise()}
-                autoFocus
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleAddExercise} disabled={isPending || !newExerciseName.trim()}>
-                {platform.common.add}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAddExercise(false);
-                  setNewExerciseName("");
-                }}
-              >
-                {platform.common.cancel}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => setShowAddExercise(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {platform.workout.addExercise}
-        </Button>
-      )}
+      {isStarted &&
+        (showAddExercise ? (
+          <Card>
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="new-exercise">{platform.workout.exerciseName}</Label>
+                <Input
+                  id="new-exercise"
+                  placeholder={platform.workout.exercisePlaceholder}
+                  value={newExerciseName}
+                  onChange={(e) => setNewExerciseName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddExercise()}
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleAddExercise} disabled={isPending || !newExerciseName.trim()}>
+                  {platform.common.add}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAddExercise(false);
+                    setNewExerciseName("");
+                  }}
+                >
+                  {platform.common.cancel}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowAddExercise(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {platform.workout.addExercise}
+          </Button>
+        ))}
 
       <div className="space-y-4 border-t border-border pt-6">
-        {showCompleteStep ? (
+        {!isStarted ? (
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={isPending}
+            onClick={handleBeginWorkout}
+          >
+            <Play className="mr-2 h-4 w-4" />
+            {isPending ? platform.common.saving : platform.workout.startWorkout}
+          </Button>
+        ) : showCompleteStep ? (
           <Card className="border-primary/30 bg-primary/5">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">{coachLabels.actuallyFinish}</CardTitle>
@@ -569,16 +627,6 @@ export function ActiveWorkoutClient({
           </Button>
         )}
       </div>
-
-      <Button
-        variant="outline"
-        className="w-full text-muted-foreground"
-        disabled={isPending || isGivingUp}
-        onClick={handleCancel}
-      >
-        <Trash2 className="mr-2 h-4 w-4" />
-        {coachLabels.bailOnWorkout}
-      </Button>
 
       {giveUpDialog}
     </div>

@@ -39,6 +39,51 @@ export interface IntakeResponses {
   water_habits?: string;
 }
 
+/** Questionnaire fields where users may pick more than one option. */
+export const INTAKE_MULTI_SELECT_KEYS = [
+  "equipment_access",
+  "current_activities",
+  "food_allergies",
+  "injury_areas",
+  "health_conditions",
+] as const satisfies readonly (keyof IntakeResponses)[];
+
+export type IntakeMultiSelectKey = (typeof INTAKE_MULTI_SELECT_KEYS)[number];
+
+export function normalizeIntakeMultiSelectValue(
+  value: unknown
+): string[] | undefined {
+  if (value == null) return undefined;
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  }
+  if (typeof value === "string" && value.trim()) return [value.trim()];
+  return undefined;
+}
+
+export function normalizeIntakeResponses(responses: IntakeResponses): IntakeResponses {
+  const normalized = { ...responses };
+  for (const key of INTAKE_MULTI_SELECT_KEYS) {
+    const next = normalizeIntakeMultiSelectValue(responses[key]);
+    if (next?.length) normalized[key] = next;
+    else delete normalized[key];
+  }
+  return normalized;
+}
+
+export function toggleIntakeMultiSelectValue(
+  current: string[] | undefined,
+  optionValue: string
+): string[] {
+  const selected = Array.isArray(current) ? current : [];
+  if (optionValue === "none") return ["none"];
+  const withoutNone = selected.filter((v) => v !== "none");
+  if (withoutNone.includes(optionValue)) {
+    return withoutNone.filter((v) => v !== optionValue);
+  }
+  return [...withoutNone, optionValue];
+}
+
 export interface IntakeOption {
   value: string;
   label: string;
@@ -393,7 +438,7 @@ export function responsesToProfileFields(
 
 export function profileToResponses(profile: Profile): IntakeResponses {
   const stored = profile.intake_responses ?? {};
-  return {
+  return normalizeIntakeResponses({
     ...stored,
     age: stored.age ?? profile.age ?? undefined,
     gender: stored.gender ?? profile.gender ?? undefined,
@@ -401,7 +446,7 @@ export function profileToResponses(profile: Profile): IntakeResponses {
     intake_weight_kg:
       stored.intake_weight_kg ?? profile.intake_weight_kg ?? undefined,
     goal: stored.goal || profile.goal || undefined,
-  };
+  });
 }
 
 function hasResponseValue(value: unknown): boolean {

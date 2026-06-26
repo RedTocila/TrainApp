@@ -10,6 +10,7 @@ import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 import {
   responsesToProfileFields,
   isIntakeResponsesComplete,
+  normalizeIntakeResponses,
   type IntakeResponses,
 } from "@/lib/intake-questionnaire";
 import { resolveMacroTargets } from "@/lib/resolve-macro-targets";
@@ -61,7 +62,7 @@ export async function updateClientIntakeFromResponses(responses: IntakeResponses
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const intakeFields = responsesToProfileFields(responses);
+  const intakeFields = responsesToProfileFields(normalizeIntakeResponses(responses));
 
   const { data: existingProfile } = await supabase
     .from("profiles")
@@ -159,7 +160,7 @@ export async function applyIntakeToProfile(
   supabase: Awaited<ReturnType<typeof createClient>>,
   responses: IntakeResponses
 ): Promise<string | null> {
-  const intakeFields = responsesToProfileFields(responses);
+  const intakeFields = responsesToProfileFields(normalizeIntakeResponses(responses));
   const mergedProfile = intakeFields as Profile;
   const resolved = await resolveMacroTargets(mergedProfile, responses);
 

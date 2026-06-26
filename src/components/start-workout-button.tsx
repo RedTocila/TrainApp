@@ -54,7 +54,7 @@ export function StartWorkoutButton({
         onClick={handleStart}
       >
         <Play className="mr-1 h-3.5 w-3.5" />
-        {isPending ? "Starting…" : label}
+        {isPending ? "Opening…" : label}
       </Button>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>

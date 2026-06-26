@@ -314,7 +314,7 @@ export interface WorkoutSession {
   plan_title: string | null;
   status: WorkoutSessionStatus;
   notes: string | null;
-  started_at: string;
+  started_at: string | null;
   completed_at: string | null;
   created_at: string;
 }
