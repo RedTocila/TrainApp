@@ -9,9 +9,6 @@ import {
   implementTrainerPlan,
   removeTrainerPlanImplementation,
 } from "@/lib/actions/custom-plans";
-import {
-  CheckoutCurrencyToggle,
-} from "@/components/checkout-preferences-toggle";
 import { NutritionPlanPdfViewer } from "@/components/nutrition-plan-pdf-viewer";
 import { SarcasticGiveUpDialog } from "@/components/sarcastic-give-up-dialog";
 import {
@@ -19,11 +16,6 @@ import {
   getCustomPlanPrice,
   TRAINER_NAME,
 } from "@/lib/custom-plan-products";
-import {
-  DEFAULT_CHECKOUT_CURRENCY,
-  type CheckoutCurrency,
-} from "@/lib/checkout-i18n";
-import { useExchangeRate } from "@/hooks/use-exchange-rate";
 import type { PlanRequest, PlanRequestType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -110,7 +102,6 @@ function CustomPlanDialog({
   const product = CUSTOM_PLAN_PRODUCTS.find((p) => p.type === type)!;
   const [request, setRequest] = useState<PlanRequest | null>(initialRequest);
   const [preferences, setPreferences] = useState("");
-  const [currency, setCurrency] = useState<CheckoutCurrency>(DEFAULT_CHECKOUT_CURRENCY);
   const [error, setError] = useState<string | null>(null);
   const [successTitle, setSuccessTitle] = useState<string | null>(null);
   const [giveUpOpen, setGiveUpOpen] = useState(false);
@@ -140,13 +131,12 @@ function CustomPlanDialog({
     };
   }, [open, onClose]);
 
-  const allPerEur = useExchangeRate();
-  const price = getCustomPlanPrice(type, currency, allPerEur);
+  const price = getCustomPlanPrice(type);
 
   const handleCheckout = () => {
     setError(null);
     startTransition(async () => {
-      const result = await createCustomPlanCheckout(type, preferences, currency);
+      const result = await createCustomPlanCheckout(type, preferences);
       if ("error" in result && result.error) {
         setError(result.error);
         return;
@@ -274,9 +264,6 @@ function CustomPlanDialog({
           ) : showOffer ? (
             <>
               <p className="text-sm text-muted-foreground">{product.description}</p>
-              <div className="space-y-3">
-                <CheckoutCurrencyToggle currency={currency} onCurrencyChange={setCurrency} />
-              </div>
               <p className="text-2xl font-black">
                 {price.label}
                 <span className="text-sm font-normal text-muted-foreground"> {platform.trainer.oneTime}</span>
@@ -385,8 +372,7 @@ export function CustomPlanButton({
   const [open, setOpen] = useState(false);
   const [requestOverride, setRequestOverride] = useState<PlanRequest | null>(null);
   const product = CUSTOM_PLAN_PRODUCTS.find((p) => p.type === type)!;
-  const allPerEur = useExchangeRate();
-  const defaultPrice = getCustomPlanPrice(type, DEFAULT_CHECKOUT_CURRENCY, allPerEur);
+  const defaultPrice = getCustomPlanPrice(type);
 
   const active = requestOverride ?? findPlanRequest(requests, type);
 

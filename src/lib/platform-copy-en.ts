@@ -32,7 +32,7 @@ export const platformCopyEn = {
   },
   referrals: {
     title: "Refer friends, earn Premium",
-    subtitle: "Share link → friend buys AI €19/mo → earn rewards",
+    subtitle: "Share link → friend buys AI €20/mo → earn rewards",
     yourLink: "Your link",
     copyLink: "Copy",
     copied: "Copied!",
@@ -55,8 +55,8 @@ export const platformCopyEn = {
     previousReward: "Previous",
     nextRewardNav: "Next",
     activatePackagesTitle: "Your plan",
-    activatePackagesHint: "€19/mo AI plan required",
-    activateAi: "Activate AI — €19/mo",
+    activatePackagesHint: "€20/mo AI plan required",
+    activateAi: "Activate AI — €20/mo",
     upgradeAi: "Upgrade to AI",
     viewAllPlans: "All plans",
     currentPlanLabel: "Active",
@@ -482,8 +482,6 @@ export const platformCopyEn = {
     switchPlan: "Switch plan",
     subscribe: "Subscribe",
     savePerYear: (amount: string) => `Save ${amount}/year`,
-    liveRateNote: (eurPrice: string, allPerEur: number) =>
-      `Prices in ALL — equivalent to ${eurPrice}/mo at 1 EUR = ${allPerEur.toFixed(2)} ALL (live rate)`,
   },
   checkout: {
     paymentFailed: "Payment failed. Please try again.",

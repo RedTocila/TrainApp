@@ -1,5 +1,5 @@
 import { PLATFORM_AI_NAME } from "@/lib/brand";
-import type { CheckoutCurrency, PriceInEur } from "@/lib/checkout-i18n";
+import type { PriceInEur } from "@/lib/checkout-i18n";
 import { getCurrencyPrice } from "@/lib/checkout-i18n";
 
 /** @deprecated Legacy subscribers only — no longer sold. */
@@ -32,8 +32,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     name: PLATFORM_AI_NAME,
     tagline:
       "Full training & nutrition tracking, AI coaching, plan builders, and live sessions.",
-    monthly: { amountEurCents: 1900 },
-    annual: { amountEurCents: 19_000 },
+    monthly: { amountEurCents: 2000 },
+    annual: { amountEurCents: 20_000 },
     highlighted: true,
     badge: "All-in-one",
     features: [
@@ -59,14 +59,12 @@ export function getPlan(planId: string): SubscriptionPlan | undefined {
 
 export function getPlanPrice(
   planId: SubscriptionPlanId,
-  interval: BillingInterval,
-  currency: CheckoutCurrency,
-  allPerEur: number
+  interval: BillingInterval
 ): PlanPrice {
   const plan = getPlan(planId);
   if (!plan) throw new Error("Unknown plan");
   const tier = interval === "monthly" ? plan.monthly : plan.annual;
-  return getCurrencyPrice(tier, currency, allPerEur);
+  return getCurrencyPrice(tier);
 }
 
 export function planIncludesAi(planId: string | null | undefined): boolean {

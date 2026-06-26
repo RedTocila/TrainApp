@@ -52,7 +52,7 @@ export function LandingHero() {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            2-min questionnaire · Free to browse · Plans from €7/mo
+            2-min questionnaire · Free to browse · Plans from €20/mo
           </p>
         </div>
 

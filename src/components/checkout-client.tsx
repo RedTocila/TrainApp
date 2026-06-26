@@ -6,7 +6,7 @@ import { GuestCheckoutForm } from "@nebula-ltd/pok-payments-js/react";
 import type { PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
 import { CreditCard, Lock, Loader2, ShieldCheck } from "lucide-react";
 import { createCheckoutOrder } from "@/lib/actions/subscriptions";
-import type { CheckoutCurrency, CheckoutLocale } from "@/lib/checkout-i18n";
+import type { CheckoutLocale } from "@/lib/checkout-i18n";
 import { getPokPayClientEnv } from "@/lib/pokpay/env";
 import {
   getPlan,
@@ -46,13 +46,11 @@ function formatPokPayError(err: unknown, paymentFailed: string): string {
 export function CheckoutClient({
   planId,
   interval,
-  currency,
   locale,
   displayPrice,
 }: {
   planId: SubscriptionPlanId;
   interval: BillingInterval;
-  currency: CheckoutCurrency;
   locale: CheckoutLocale;
   displayPrice: PlanPrice;
 }) {
@@ -68,7 +66,7 @@ export function CheckoutClient({
 
   useEffect(() => {
     startTransition(async () => {
-      const result = await createCheckoutOrder(planId, interval, currency);
+      const result = await createCheckoutOrder(planId, interval);
       if ("error" in result && result.error) {
         setError(result.error);
         return;
@@ -78,7 +76,7 @@ export function CheckoutClient({
         setLocalOrderId(result.localOrderId ?? null);
       }
     });
-  }, [planId, interval, currency]);
+  }, [planId, interval]);
 
   const handleSuccess = () => {
     if (localOrderId) {

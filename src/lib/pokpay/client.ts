@@ -210,7 +210,7 @@ export async function createSdkOrder(params: {
       },
       body: JSON.stringify({
         amount,
-        currencyCode: params.currencyCode ?? "ALL",
+        currencyCode: params.currencyCode ?? "EUR",
         autoCapture: true,
         products,
         shippingCost: 0,

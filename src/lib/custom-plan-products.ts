@@ -1,4 +1,4 @@
-import type { CheckoutCurrency, PriceInEur } from "@/lib/checkout-i18n";
+import type { PriceInEur } from "@/lib/checkout-i18n";
 import { getCurrencyPrice } from "@/lib/checkout-i18n";
 import type { PlanRequestType } from "@/lib/types";
 
@@ -33,12 +33,8 @@ export function getCustomPlanProduct(type: PlanRequestType): CustomPlanProduct |
   return CUSTOM_PLAN_PRODUCTS.find((product) => product.type === type);
 }
 
-export function getCustomPlanPrice(
-  type: PlanRequestType,
-  currency: CheckoutCurrency,
-  allPerEur: number
-) {
+export function getCustomPlanPrice(type: PlanRequestType) {
   const product = getCustomPlanProduct(type);
   if (!product) throw new Error("Unknown custom plan type");
-  return getCurrencyPrice(product.pricing, currency, allPerEur);
+  return getCurrencyPrice(product.pricing);
 }

@@ -15,11 +15,9 @@ import { hasPaidAccess } from "@/lib/subscription";
 export function PricingPageClient({
   profile,
   onboarding = false,
-  allPerEur,
 }: {
   profile: Profile;
   onboarding?: boolean;
-  allPerEur: number;
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
@@ -60,7 +58,6 @@ export function PricingPageClient({
         onIntervalChange={setInterval}
         currentPlan={profile.subscription_plan}
         subscribed={subscribed}
-        allPerEur={allPerEur}
       />
       {onboarding && !subscribed && (
         <div className="text-center">

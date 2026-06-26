@@ -1,34 +1,9 @@
 "use client";
 
-import type { CheckoutCurrency, CheckoutLocale } from "@/lib/checkout-i18n";
-import {
-  CHECKOUT_CURRENCIES,
-  CHECKOUT_LOCALES,
-} from "@/lib/checkout-i18n";
+import type { CheckoutLocale } from "@/lib/checkout-i18n";
+import { CHECKOUT_LOCALES } from "@/lib/checkout-i18n";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import { cn } from "@/lib/utils";
-
-export function CheckoutCurrencyToggle({
-  currency,
-  onCurrencyChange,
-  className,
-}: {
-  currency: CheckoutCurrency;
-  onCurrencyChange: (currency: CheckoutCurrency) => void;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex justify-center", className)}>
-      <SegmentedToggle
-        value={currency}
-        onChange={onCurrencyChange}
-        aria-label="Currency"
-        className="w-auto"
-        options={CHECKOUT_CURRENCIES}
-      />
-    </div>
-  );
-}
 
 export function CheckoutLocaleToggle({
   locale,

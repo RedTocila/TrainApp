@@ -12,20 +12,16 @@ import {
   SUBSCRIPTION_PLANS,
   type BillingInterval,
 } from "@/lib/subscription-plans";
-import {
-  DEFAULT_CHECKOUT_CURRENCY,
-  formatAnnualSavings,
-  getCurrencyPrice,
-} from "@/lib/checkout-i18n";
+import { formatAnnualSavings, getCurrencyPrice } from "@/lib/checkout-i18n";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-export function LandingPricing({ allPerEur }: { allPerEur: number }) {
+export function LandingPricing() {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
-  const currency = DEFAULT_CHECKOUT_CURRENCY;
-  const eurMonthly = getCurrencyPrice(SUBSCRIPTION_PLANS[0].monthly, "EUR", allPerEur);
+  const monthlyTier = SUBSCRIPTION_PLANS[0].monthly;
+  const headlinePrice = getCurrencyPrice(monthlyTier).label;
 
   return (
     <section id="pricing" className="landing-deferred-section scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">
@@ -35,13 +31,10 @@ export function LandingPricing({ allPerEur }: { allPerEur: number }) {
             Pricing
           </p>
           <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-            {eurMonthly.label}/month — all-in-one
+            {headlinePrice}/month — all-in-one
           </h2>
           <p className="mt-3 text-sm text-muted-foreground">
             Build your program first — subscribe after sign-up (skip anytime)
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            ALL prices use live rate: 1 EUR = {allPerEur.toFixed(2)} ALL
           </p>
         </FadeIn>
 
@@ -62,15 +55,10 @@ export function LandingPricing({ allPerEur }: { allPerEur: number }) {
           <div className="mt-8 grid gap-6 md:max-w-lg md:mx-auto">
             {SUBSCRIPTION_PLANS.map((plan) => {
               const tier = interval === "monthly" ? plan.monthly : plan.annual;
-              const price = getCurrencyPrice(tier, currency, allPerEur);
+              const price = getCurrencyPrice(tier);
               const savings =
                 interval === "annual"
-                  ? formatAnnualSavings(
-                      plan.monthly.amountEurCents,
-                      plan.annual.amountEurCents,
-                      currency,
-                      allPerEur
-                    )
+                  ? formatAnnualSavings(plan.monthly, plan.annual)
                   : null;
 
               return (

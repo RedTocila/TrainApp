@@ -4,11 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomPlanProduct, getCustomPlanPrice, TRAINER_NAME } from "@/lib/custom-plan-products";
-import {
-  parseCheckoutCurrency,
-  type CheckoutCurrency,
-} from "@/lib/checkout-i18n";
-import { getCachedAllPerEur } from "@/lib/exchange-rates";
+import { CHECKOUT_CURRENCY } from "@/lib/checkout-i18n";
 import {
   createSdkOrder,
   getSdkOrder,
@@ -61,8 +57,7 @@ async function activateNutritionAssignment(
 
 export async function createCustomPlanCheckout(
   type: PlanRequestType,
-  preferences: string,
-  currencyCode: CheckoutCurrency = "ALL"
+  preferences: string
 ) {
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -74,9 +69,7 @@ export async function createCustomPlanCheckout(
   const product = getCustomPlanProduct(type);
   if (!product) return { error: "Invalid plan type" };
 
-  const currency = parseCheckoutCurrency(currencyCode);
-  const allPerEur = await getCachedAllPerEur();
-  const price = getCustomPlanPrice(type, currency, allPerEur);
+  const price = getCustomPlanPrice(type);
 
   const trimmed = preferences.trim();
   if (trimmed.length < 10) {
@@ -103,7 +96,7 @@ export async function createCustomPlanCheckout(
       plan: "core",
       billing_interval: "monthly",
       amount_cents: price.amountCents,
-      currency_code: currency,
+      currency_code: CHECKOUT_CURRENCY,
       status: "pending",
       order_kind: product.orderKind,
       metadata: { preferences: trimmed, plan_type: type },
@@ -117,7 +110,7 @@ export async function createCustomPlanCheckout(
 
   try {
     const redirectUrl = `${baseUrl}/dashboard/checkout/custom-success?localOrderId=${orderRow.id}&type=${type}`;
-    const failRedirectUrl = `${baseUrl}/dashboard/checkout/custom?localOrderId=${orderRow.id}&type=${type}&currency=${currency}`;
+    const failRedirectUrl = `${baseUrl}/dashboard/checkout/custom?localOrderId=${orderRow.id}&type=${type}`;
     const webhookUrl = `${baseUrl}/api/payments/pokpay/webhook`;
     const products: PokPaySdkOrderProduct[] = [
       {
@@ -128,7 +121,7 @@ export async function createCustomPlanCheckout(
     ];
     const sdkOrder = await createSdkOrder({
       amountCents: price.amountCents,
-      currencyCode: currency,
+      currencyCode: CHECKOUT_CURRENCY,
       redirectUrl,
       failRedirectUrl,
       webhookUrl,

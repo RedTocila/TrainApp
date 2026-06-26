@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
-import { AiFoodDemoIllustration } from "@/components/ai-food-demo-illustration";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import type { BillingInterval } from "@/lib/subscription-plans";
@@ -10,7 +10,7 @@ import {
   formatAnnualSavingsLocalized,
   getLocalizedSubscriptionPlans,
 } from "@/lib/subscription-plans-i18n";
-import { DEFAULT_CHECKOUT_CURRENCY, getCurrencyPrice } from "@/lib/checkout-i18n";
+import { getCurrencyPrice } from "@/lib/checkout-i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -23,21 +23,17 @@ export function PricingPlans({
   checkoutBasePath = "/dashboard/checkout",
   currentPlan,
   subscribed,
-  allPerEur,
 }: {
   interval: BillingInterval;
   onIntervalChange: (interval: BillingInterval) => void;
   checkoutBasePath?: string;
   currentPlan?: string | null;
   subscribed?: boolean;
-  allPerEur: number;
 }) {
   const locale = useLocale();
   const platform = usePlatformCopy();
   const pricing = platform.pricing;
   const plans = getLocalizedSubscriptionPlans(locale);
-  const currency = DEFAULT_CHECKOUT_CURRENCY;
-  const eurMonthly = getCurrencyPrice(plans[0].monthly, "EUR", allPerEur);
 
   return (
     <div className="space-y-8">
@@ -52,24 +48,15 @@ export function PricingPlans({
             label: key === "monthly" ? pricing.monthly : pricing.annual,
           }))}
         />
-        <p className="text-center text-xs text-muted-foreground">
-          {pricing.liveRateNote(eurMonthly.label, allPerEur)}
-        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-1 md:max-w-lg md:mx-auto">
         {plans.map((plan) => {
           const tier = interval === "monthly" ? plan.monthly : plan.annual;
-          const price = getCurrencyPrice(tier, currency, allPerEur);
+          const price = getCurrencyPrice(tier);
           const savings =
             interval === "annual"
-              ? formatAnnualSavingsLocalized(
-                  plan.monthly.amountEurCents,
-                  plan.annual.amountEurCents,
-                  currency,
-                  allPerEur,
-                  locale
-                )
+              ? formatAnnualSavingsLocalized(plan.monthly, plan.annual, locale)
               : null;
           const isCurrent = subscribed && currentPlan === plan.id;
 
@@ -103,7 +90,6 @@ export function PricingPlans({
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                {plan.id === "ai" && <AiFoodDemoIllustration />}
                 <ul className="space-y-2">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm">
@@ -118,7 +104,7 @@ export function PricingPlans({
                   </Button>
                 ) : (
                   <Link
-                    href={`${checkoutBasePath}?plan=${plan.id}&interval=${interval}&currency=${currency}`}
+                    href={`${checkoutBasePath}?plan=${plan.id}&interval=${interval}`}
                   >
                     <Button className="w-full" variant={plan.highlighted ? "default" : "outline"}>
                       {subscribed ? pricing.switchPlan : pricing.subscribe}

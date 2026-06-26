@@ -32,7 +32,7 @@ export const platformCopyAl = {
   },
   referrals: {
     title: "Refero miqtë, fito Premium",
-    subtitle: "Ndaj linkun → miku blen AI €19/muaj → fito shpërblime",
+    subtitle: "Ndaj linkun → miku blen AI €20/muaj → fito shpërblime",
     yourLink: "Linku juaj",
     copyLink: "Kopjo",
     copied: "U kopjua!",
@@ -55,8 +55,8 @@ export const platformCopyAl = {
     previousReward: "I mëparshmi",
     nextRewardNav: "Tjetri",
     activatePackagesTitle: "Plani juaj",
-    activatePackagesHint: "Kërkohet plani AI €19/muaj",
-    activateAi: "Aktivizo AI — €19/muaj",
+    activatePackagesHint: "Kërkohet plani AI €20/muaj",
+    activateAi: "Aktivizo AI — €20/muaj",
     upgradeAi: "Përmirëso në AI",
     viewAllPlans: "Të gjitha planet",
     currentPlanLabel: "Aktiv",
@@ -485,8 +485,6 @@ export const platformCopyAl = {
     switchPlan: "Ndrysho planin",
     subscribe: "Abonohu",
     savePerYear: (amount: string) => `Kurseni ${amount}/vit`,
-    liveRateNote: (eurPrice: string, allPerEur: number) =>
-      `Çmimet në ALL — ekuivalente me ${eurPrice}/muaj me 1 EUR = ${allPerEur.toFixed(2)} ALL (kursi live)`,
   },
   checkout: {
     paymentFailed: "Pagesa dështoi. Provoni përsëri.",

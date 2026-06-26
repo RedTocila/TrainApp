@@ -4,12 +4,11 @@ import { LandingJsonLd } from "@/components/landing/landing-json-ld";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { SITE_URL } from "@/lib/landing-content";
 import { PLATFORM_NAME } from "@/lib/brand";
-import { getCachedAllPerEur } from "@/lib/exchange-rates";
 
 export const metadata: Metadata = {
   title: `${PLATFORM_NAME} — Workouts, Nutrition & AI Coaching`,
   description:
-    "Premium fitness platform with workout builder, nutrition tracking, AI coach, and live coaching. From €19/month.",
+    "Premium fitness platform with workout builder, nutrition tracking, AI coach, and live coaching. From €20/month.",
   keywords: [
     "fitness app",
     "workout tracker",
@@ -42,13 +41,11 @@ export const metadata: Metadata = {
 };
 
 /** Auth redirect for logged-in users is handled in proxy.ts — keep this page static for fast TTFB. */
-export default async function HomePage() {
-  const allPerEur = await getCachedAllPerEur();
-
+export default function HomePage() {
   return (
     <>
       <LandingJsonLd />
-      <LandingPageClient allPerEur={allPerEur} />
+      <LandingPageClient />
       <LandingFooter />
     </>
   );

@@ -3,10 +3,7 @@ import { CustomPlanCheckoutClient } from "@/components/custom-plan-checkout-clie
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { getCustomPlanProduct } from "@/lib/custom-plan-products";
 import { getPreferredLocale } from "@/lib/actions/profile";
-import {
-  formatCurrencyAmount,
-  parseCheckoutCurrency,
-} from "@/lib/checkout-i18n";
+import { formatCurrencyAmount } from "@/lib/checkout-i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { PlanRequestType } from "@/lib/types";
@@ -41,8 +38,7 @@ export default async function CustomCheckoutPage({
 
   if (!order?.pokpay_order_id) redirect("/dashboard");
 
-  const currency = parseCheckoutCurrency(order.currency_code);
-  const totalLabel = formatCurrencyAmount(order.amount_cents ?? 0, currency);
+  const totalLabel = formatCurrencyAmount(order.amount_cents ?? 0);
 
   return (
     <CheckoutLayout

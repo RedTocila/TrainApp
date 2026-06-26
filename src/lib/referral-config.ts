@@ -1,8 +1,7 @@
 import type { BillingInterval, SubscriptionPlanId } from "@/lib/subscription-plans";
 import { getPlanPrice } from "@/lib/subscription-plans";
-import type { CheckoutCurrency } from "@/lib/checkout-i18n";
 
-/** Referrals count only when the referred user buys monthly AI (€19/mo). */
+/** Referrals count only when the referred user buys monthly AI (€20/mo). */
 export const REFERRAL_QUALIFYING_PLAN: SubscriptionPlanId = "ai";
 export const REFERRAL_QUALIFYING_INTERVAL: BillingInterval = "monthly";
 
@@ -18,15 +17,10 @@ export function orderQualifiesReferral(order: {
   );
 }
 
-export function getReferralQualifyingPriceLabel(
-  allPerEur: number,
-  currency: CheckoutCurrency = "EUR"
-): string {
+export function getReferralQualifyingPriceLabel(): string {
   const price = getPlanPrice(
     REFERRAL_QUALIFYING_PLAN,
-    REFERRAL_QUALIFYING_INTERVAL,
-    currency,
-    allPerEur
+    REFERRAL_QUALIFYING_INTERVAL
   );
   return `${price.label}/mo`;
 }

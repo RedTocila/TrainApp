@@ -1,5 +1,5 @@
-import type { CheckoutCurrency, CheckoutLocale } from "@/lib/checkout-i18n";
-import { formatCurrencyAmount, toCurrencyCents } from "@/lib/checkout-i18n";
+import type { CheckoutLocale, PriceInEur } from "@/lib/checkout-i18n";
+import { formatCurrencyAmount } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import type { SubscriptionPlan } from "@/lib/subscription-plans";
 import { SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
@@ -22,15 +22,12 @@ export function getLocalizedSubscriptionPlans(
 }
 
 export function formatAnnualSavingsLocalized(
-  monthlyEurCents: number,
-  annualEurCents: number,
-  currency: CheckoutCurrency,
-  allPerEur: number,
+  monthly: PriceInEur,
+  annual: PriceInEur,
   locale: CheckoutLocale
 ): string | null {
-  const savedEurCents = monthlyEurCents * 12 - annualEurCents;
-  if (savedEurCents <= 0) return null;
-  const savedCents = toCurrencyCents(savedEurCents, currency, allPerEur);
-  const amount = formatCurrencyAmount(savedCents, currency);
+  const savedCents = monthly.amountEurCents * 12 - annual.amountEurCents;
+  if (savedCents <= 0) return null;
+  const amount = formatCurrencyAmount(savedCents);
   return getPlatformCopy(locale).pricing.savePerYear(amount);
 }
