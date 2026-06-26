@@ -215,6 +215,7 @@ function ChatCommandBar({
   onAttachmentClear: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isMultiline, setIsMultiline] = useState(false);
 
   const { isListening, isSupported, toggleListening, stopListening } = useSpeechRecognition({
     lang: speechLang,
@@ -272,7 +273,12 @@ function ChatCommandBar({
           onStop={stopListening}
         />
       )}
-      <div className="chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-1 overflow-hidden rounded-full border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm">
+      <div
+        className={cn(
+          "chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-1 overflow-hidden border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm transition-[border-radius] duration-200",
+          isMultiline ? "rounded-2xl" : "rounded-full"
+        )}
+      >
         <input
           ref={fileInputRef}
           type="file"
@@ -300,6 +306,7 @@ function ChatCommandBar({
           onKeyDown={onKeyDown}
           placeholder={isListening ? listeningPlaceholder : placeholder}
           disabled={disabled}
+          onMultilineChange={setIsMultiline}
         />
         {showMic && isSupported ? (
           <button
