@@ -120,6 +120,12 @@ body:has(.dashboard-shell) {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
 
+.dashboard-instant-nav a,
+.dashboard-instant-nav button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .app-logo-badge {
   color: #ffffff;
   background: rgba(var(--primary-rgb), 0.72);

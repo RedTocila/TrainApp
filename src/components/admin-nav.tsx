@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Users,
@@ -13,6 +12,8 @@ import {
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 import { NotificationBell } from "@/components/notification-bell";
+import { InstantNavLink } from "@/components/instant-nav-link";
+import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", shortLabel: "Home", icon: LayoutDashboard, exact: true },
@@ -20,6 +21,9 @@ const navItems = [
   { href: "/admin/classes", label: "Classes", shortLabel: "Classes", icon: Video },
   { href: "/admin/clients", label: "Clients", shortLabel: "Clients", icon: Users },
 ];
+
+const mobileNavLinkClass =
+  "flex min-w-0 flex-col items-center gap-0.5 px-1 py-1 text-[9px] font-medium touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90";
 
 function isActive(pathname: string, href: string, exact?: boolean) {
   if (exact) return pathname === href;
@@ -34,6 +38,8 @@ export function AdminNav({
   unreadCount: number;
 }) {
   const pathname = usePathname();
+  const prefetchRoutes = useMemo(() => navItems.map((item) => item.href), []);
+  usePrefetchRoutes(prefetchRoutes);
 
   return (
     <>
@@ -51,11 +57,11 @@ export function AdminNav({
           {navItems.map((item) => {
             const active = isActive(pathname, item.href, item.exact);
             return (
-              <Link
+              <InstantNavLink
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors touch-manipulation",
                   active
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -63,7 +69,7 @@ export function AdminNav({
               >
                 <item.icon className="h-4 w-4" />
                 {item.label}
-              </Link>
+              </InstantNavLink>
             );
           })}
         </nav>
@@ -78,24 +84,22 @@ export function AdminNav({
         </form>
       </aside>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur lg:hidden">
+      <nav className="dashboard-instant-nav pointer-events-auto fixed bottom-0 left-0 right-0 z-[100] border-t border-border bg-card/95 backdrop-blur lg:hidden">
         <div className="grid grid-cols-4 py-2">
           {navItems.map((item) => {
             const active = isActive(pathname, item.href, item.exact);
             return (
-              <Link
+              <InstantNavLink
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex min-w-0 flex-col items-center gap-0.5 px-1 py-1 text-[9px] font-medium",
+                  mobileNavLinkClass,
                   active ? "text-primary" : "text-muted-foreground"
                 )}
               >
-                <motion.div whileTap={{ scale: 0.9 }}>
-                  <item.icon className="h-5 w-5" />
-                </motion.div>
+                <item.icon className="h-5 w-5" />
                 <span className="max-w-full truncate">{item.shortLabel}</span>
-              </Link>
+              </InstantNavLink>
             );
           })}
         </div>

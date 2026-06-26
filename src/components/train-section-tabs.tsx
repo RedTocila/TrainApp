@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Apple, Dumbbell } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { InstantNavLink } from "@/components/instant-nav-link";
 import { isTrainTabActive, trainTabs } from "@/lib/train-nav";
 import { cn } from "@/lib/utils";
 
@@ -25,19 +25,19 @@ export function TrainSectionTabs() {
   } as const;
 
   return (
-    <nav className="mb-5 flex gap-2">
+    <nav className="dashboard-instant-nav mb-5 flex gap-2">
       {trainTabs.map((tab) => {
         const active = isTrainTabActive(pathname, tab.href);
         const config = tabConfig[tab.href];
         const Icon = config.icon;
 
         return (
-          <Link
+          <InstantNavLink
             key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex flex-1 flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 transition-colors",
+              "flex flex-1 flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90",
               active
                 ? config.activeClass
                 : "border-transparent bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -45,7 +45,7 @@ export function TrainSectionTabs() {
           >
             <Icon className="h-6 w-6" />
             <span className="text-xs font-bold">{config.label}</span>
-          </Link>
+          </InstantNavLink>
         );
       })}
     </nav>

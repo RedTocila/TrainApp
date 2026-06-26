@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   Bot,
   Dumbbell,
@@ -15,8 +14,13 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { AppLogo } from "@/components/app-logo";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ReferralNavButton } from "@/components/full-calendar-nav-button";
+import { InstantNavLink } from "@/components/instant-nav-link";
+import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { isTrainPath } from "@/lib/train-nav";
+
+const mobileNavLinkClass =
+  "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90";
 
 export function ClientNav({ fullName }: { fullName: string }) {
   const pathname = usePathname();
@@ -36,6 +40,19 @@ export function ClientNav({ fullName }: { fullName: string }) {
     mobileLabel: platform.nav.programs,
   };
 
+  const prefetchRoutes = useMemo(
+    () => [
+      "/dashboard",
+      "/dashboard/workout",
+      "/dashboard/nutrition",
+      "/dashboard/ai",
+      "/dashboard/classes",
+      "/dashboard/profile",
+    ],
+    []
+  );
+  usePrefetchRoutes(prefetchRoutes);
+
   function isNavItemActive(pathname: string, href: string, exact?: boolean) {
     if (exact) return pathname === href;
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -43,7 +60,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
 
   const sidebarLinkClass = (active: boolean) =>
     cn(
-      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors touch-manipulation",
       active
         ? "bg-primary/10 text-primary"
         : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -62,29 +79,26 @@ export function ClientNav({ fullName }: { fullName: string }) {
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-4">
-          <Link
-            href="/dashboard"
-            className={sidebarLinkClass(pathname === "/dashboard")}
-          >
+          <InstantNavLink href="/dashboard" className={sidebarLinkClass(pathname === "/dashboard")}>
             <Home className="h-4 w-4" />
             {platform.nav.home}
-          </Link>
+          </InstantNavLink>
 
-          <Link
+          <InstantNavLink
             href={programsNavItem.href}
             className={sidebarLinkClass(programsActive)}
           >
             <Dumbbell className="h-4 w-4" />
             {programsNavItem.label}
-          </Link>
+          </InstantNavLink>
 
           {standardNavItems.slice(1).map((item) => {
             const active = isNavItemActive(pathname, item.href);
             return (
-              <Link key={item.href} href={item.href} className={sidebarLinkClass(active)}>
+              <InstantNavLink key={item.href} href={item.href} className={sidebarLinkClass(active)}>
                 <item.icon className="h-4 w-4" />
                 {item.label}
-              </Link>
+              </InstantNavLink>
             );
           })}
         </nav>
@@ -99,50 +113,44 @@ export function ClientNav({ fullName }: { fullName: string }) {
         </div>
       </aside>
 
-      <nav className="dashboard-mobile-nav fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur lg:hidden">
+      <nav className="dashboard-mobile-nav dashboard-instant-nav pointer-events-auto fixed bottom-0 left-0 right-0 z-[100] border-t border-border bg-card/95 backdrop-blur lg:hidden">
         <div className="flex justify-around px-1 pt-1.5">
-          <Link
+          <InstantNavLink
             href="/dashboard"
             className={cn(
-              "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none",
+              mobileNavLinkClass,
               pathname === "/dashboard" ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <motion.div whileTap={{ scale: 0.9 }}>
-              <Home className="h-5 w-5" />
-            </motion.div>
+            <Home className="h-5 w-5" />
             <span className="truncate">{standardNavItems[0].mobileLabel}</span>
-          </Link>
+          </InstantNavLink>
 
-          <Link
+          <InstantNavLink
             href={programsNavItem.href}
             className={cn(
-              "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none",
+              mobileNavLinkClass,
               programsActive ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <motion.div whileTap={{ scale: 0.9 }}>
-              <Dumbbell className="h-5 w-5" />
-            </motion.div>
+            <Dumbbell className="h-5 w-5" />
             <span className="truncate">{programsNavItem.mobileLabel}</span>
-          </Link>
+          </InstantNavLink>
 
           {standardNavItems.slice(1).map((item) => {
             const active = isNavItemActive(pathname, item.href);
             return (
-              <Link
+              <InstantNavLink
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none",
+                  mobileNavLinkClass,
                   active ? "text-primary" : "text-muted-foreground"
                 )}
               >
-                <motion.div whileTap={{ scale: 0.9 }}>
-                  <item.icon className="h-5 w-5" />
-                </motion.div>
+                <item.icon className="h-5 w-5" />
                 <span className="truncate">{item.mobileLabel}</span>
-              </Link>
+              </InstantNavLink>
             );
           })}
         </div>
