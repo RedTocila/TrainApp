@@ -14,7 +14,7 @@ import {
 import { deletePersonalWorkoutPlan } from "@/lib/actions/user-workouts";
 import type { PersonalWorkoutListItem } from "@/lib/actions/user-workouts";
 import { CreateWorkoutButton } from "@/components/programs/create-program-buttons";
-import { WorkoutSectionTabs } from "@/components/workout-section-tabs";
+import { WorkoutPageHeader } from "@/components/workout-page-header";
 import {
   WorkoutCategoryIcon,
   WorkoutDayChip,
@@ -104,13 +104,10 @@ export function AllWorkoutsPage({
   if (workouts.length === 0) {
     return (
       <>
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-lg font-black">Workouts</h1>
-          <div className="flex items-center gap-1">
-            <WorkoutSectionTabs />
-            <CreateWorkoutButton iconOnly variant="outline" />
-          </div>
-        </div>
+        <WorkoutPageHeader
+          title="Workouts"
+          action={<CreateWorkoutButton iconOnly variant="outline" />}
+        />
         <Card className="overflow-hidden border-dashed">
         <div className="flex flex-col items-center gap-4 px-4 py-12 text-center">
           <WorkoutCategoryIcon category="general" size="lg" />
@@ -129,13 +126,10 @@ export function AllWorkoutsPage({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-lg font-black">Workouts</h1>
-        <div className="flex items-center gap-1">
-          <WorkoutSectionTabs />
-          <CreateWorkoutButton iconOnly variant="outline" />
-        </div>
-      </div>
+      <WorkoutPageHeader
+        title="Workouts"
+        action={<CreateWorkoutButton iconOnly variant="outline" />}
+      />
 
       <WorkoutCategoryFilterBar
         workouts={workouts}

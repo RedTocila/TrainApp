@@ -38,7 +38,7 @@ export function WorkoutSectionTabs({ className }: { className?: string }) {
 
   return (
     <nav className={className} aria-label="Workout sections">
-      <div className="flex items-center gap-0.5">
+      <div className="flex w-max flex-nowrap items-center gap-0.5">
         {tabs.map((tab) => (
           <CompactSubLink
             key={tab.href}
