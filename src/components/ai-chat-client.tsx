@@ -272,7 +272,7 @@ function ChatCommandBar({
           onStop={stopListening}
         />
       )}
-      <div className="chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-1 overflow-hidden rounded-2xl border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm">
+      <div className="chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-1 overflow-hidden rounded-full border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm">
         <input
           ref={fileInputRef}
           type="file"
