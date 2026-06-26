@@ -5,10 +5,16 @@ export type AiProvider = "openai" | "anthropic";
 
 export type ChatRole = "system" | "user" | "assistant";
 
+export interface ChatImageAttachment {
+  mimeType: string;
+  base64: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   sources?: WebSource[];
+  image?: ChatImageAttachment;
 }
 
 export interface WebSource {
@@ -21,6 +27,7 @@ export interface WebSource {
 export interface ChatTurn {
   role: ChatRole;
   content: string;
+  image?: ChatImageAttachment;
 }
 
 export interface MealAnalysisResult {

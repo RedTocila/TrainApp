@@ -73,6 +73,10 @@ export interface Profile {
   referral_code?: string;
   referred_by?: string | null;
   founder_badge?: boolean;
+  ambassador_tier?: "bronze" | "silver" | "gold" | "elite" | null;
+  referral_credit_balance_cents?: number;
+  referral_credits_earned_cents?: number;
+  referral_money_saved_cents?: number;
   phone?: string | null;
   dismissed_habit_suggestions?: string[];
   intake_responses?: IntakeResponses;

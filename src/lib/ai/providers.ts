@@ -2,6 +2,55 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import type { AiProvider, ChatTurn } from "@/lib/ai/types";
 
+type AnthropicImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+function toOpenAIMessage(message: ChatTurn): OpenAI.Chat.ChatCompletionMessageParam {
+  if (message.role === "system" || message.role === "assistant" || !message.image) {
+    return { role: message.role, content: message.content };
+  }
+
+  const parts: OpenAI.Chat.ChatCompletionContentPart[] = [];
+  if (message.content.trim()) {
+    parts.push({ type: "text", text: message.content });
+  }
+  parts.push({
+    type: "image_url",
+    image_url: {
+      url: `data:${message.image.mimeType};base64,${message.image.base64}`,
+    },
+  });
+  return { role: "user", content: parts };
+}
+
+function toAnthropicMessage(
+  message: ChatTurn
+): Anthropic.MessageParam | null {
+  if (message.role === "system") return null;
+
+  if (message.role === "assistant" || !message.image) {
+    return {
+      role: message.role,
+      content: message.content,
+    };
+  }
+
+  const mediaType = message.image.mimeType as AnthropicImageMediaType;
+  const parts: Anthropic.ContentBlockParam[] = [
+    {
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: mediaType,
+        data: message.image.base64,
+      },
+    },
+  ];
+  if (message.content.trim()) {
+    parts.push({ type: "text", text: message.content });
+  }
+  return { role: "user", content: parts };
+}
+
 export function getConfiguredProviders(): AiProvider[] {
   const preferred = (process.env.AI_MEAL_PROVIDER ?? "openai") as AiProvider;
   const other: AiProvider = preferred === "openai" ? "anthropic" : "openai";
@@ -96,10 +145,7 @@ export async function runChatCompletion(
         const client = getOpenAIClient();
         const response = await client.chat.completions.create({
           model: process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini",
-          messages: messages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
+          messages: messages.map(toOpenAIMessage),
           max_tokens: options?.maxTokens ?? 900,
         });
         const content = response.choices[0]?.message?.content;
@@ -112,10 +158,9 @@ export async function runChatCompletion(
         model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-20250514",
         max_tokens: options?.maxTokens ?? 900,
         ...(systemMessage ? { system: systemMessage } : {}),
-        messages: conversation.map((message) => ({
-          role: message.role as "user" | "assistant",
-          content: message.content,
-        })),
+        messages: conversation
+          .map(toAnthropicMessage)
+          .filter((message): message is Anthropic.MessageParam => message !== null),
       });
       const textBlock = response.content.find((block) => block.type === "text");
       if (!textBlock || textBlock.type !== "text") {
@@ -150,10 +195,7 @@ export async function* streamChatCompletion(
         const stream = await client.chat.completions.create(
           {
             model: process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini",
-            messages: messages.map((message) => ({
-              role: message.role,
-              content: message.content,
-            })),
+            messages: messages.map(toOpenAIMessage),
             max_tokens: options?.maxTokens ?? 900,
             stream: true,
           },
@@ -172,10 +214,9 @@ export async function* streamChatCompletion(
         model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-20250514",
         max_tokens: options?.maxTokens ?? 900,
         ...(systemMessage ? { system: systemMessage } : {}),
-        messages: conversation.map((message) => ({
-          role: message.role as "user" | "assistant",
-          content: message.content,
-        })),
+        messages: conversation
+          .map(toAnthropicMessage)
+          .filter((message): message is Anthropic.MessageParam => message !== null),
       });
 
       for await (const event of stream) {

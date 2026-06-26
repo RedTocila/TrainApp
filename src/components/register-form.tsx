@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
-import { loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
+import { getOrCreateDeviceHash, loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
 import { formatUserError } from "@/lib/format-user-error";
 
 const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
@@ -71,6 +71,7 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
         password,
         intakeJson,
         referralCode,
+        deviceHash: getOrCreateDeviceHash(),
       });
 
       if (signUpResult?.error) {

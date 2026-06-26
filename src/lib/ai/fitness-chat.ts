@@ -1,7 +1,7 @@
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
-import type { ChatMessage, ChatTurn, WebSource } from "@/lib/ai/types";
+import type { ChatImageAttachment, ChatMessage, ChatTurn, WebSource } from "@/lib/ai/types";
 import {
   formatWebSourcesForPrompt,
   searchWebForCoach,
@@ -39,7 +39,8 @@ function buildSystemPrompt(
     };
   },
   preferredLocale?: string | null,
-  hasWebSources = false
+  hasWebSources = false,
+  hasImage = false
 ): string {
   const { consumed } = stats.macroGap;
   return `You are Coach Alex — a sarcastic, darkly funny personal trainer and nutrition coach inside the ${PLATFORM_NAME} app. You talk like the coach who roasts you between sets but still makes sure you hit your reps. You care about results, not coddling people through bad habits.
@@ -98,6 +99,14 @@ Safety rules:
 - Do not diagnose conditions or prescribe medication.
 - Do not promote extreme diets, dangerous weight-loss targets, or banned substances.
 - Dark humor targets lazy habits, bad logic, and fitness myths — never mock disability, illness, trauma, or appearance in a harmful way.
+${hasImage
+    ? `
+Image attached:
+- The user attached a photo to this message. Look at it carefully before replying.
+- Answer their question about the image in the context of fitness coaching — meals, macros, exercise form, progress photos, equipment, supplements, etc.
+- If they did not ask a specific question, describe what you see and give useful, personalized coaching feedback.
+- Be specific about what is visible; do not invent details that are not in the photo.`
+    : ""}
 
 ${buildLanguageInstructions(preferredLocale)}
 
@@ -117,15 +126,19 @@ export async function prepareFitnessCoachChatMessages(
   message: string,
   history: ChatMessage[],
   webSources: WebSource[] = [],
-  preferredLocale?: string | null
+  preferredLocale?: string | null,
+  image?: ChatImageAttachment | null
 ): Promise<{ messages: ChatTurn[]; sources: WebSource[] } | { error: string }> {
   if (!isAiConfigured()) {
     return { error: "AI Coach is not available right now. Please try again later." };
   }
 
   const trimmed = message.trim();
-  if (!trimmed) return { error: "Enter a message." };
+  const hasImage = Boolean(image?.base64?.trim());
+  if (!trimmed && !hasImage) return { error: "Enter a message." };
   if (trimmed.length > 2000) return { error: "Message is too long (max 2000 characters)." };
+
+  const userContent = trimmed || "What can you tell me about this image?";
 
   const today = formatDateKey(new Date());
   const ctx = await getCoachContext(clientId, today);
@@ -134,8 +147,13 @@ export async function prepareFitnessCoachChatMessages(
   const intakeContext = buildIntakeContextForAi(ctx.profile);
   const webContext = formatWebSourcesForPrompt(webSources);
   const systemPrompt =
-    buildSystemPrompt(intakeContext, ctx, preferredLocale, webSources.length > 0) +
-    (webContext ? `\n\n${webContext}` : "");
+    buildSystemPrompt(
+      intakeContext,
+      ctx,
+      preferredLocale,
+      webSources.length > 0,
+      hasImage
+    ) + (webContext ? `\n\n${webContext}` : "");
   const recentHistory = history.slice(-MAX_HISTORY);
 
   return {
@@ -144,8 +162,13 @@ export async function prepareFitnessCoachChatMessages(
       ...recentHistory.map((turn) => ({
         role: turn.role,
         content: turn.content,
+        ...(turn.image ? { image: turn.image } : {}),
       })),
-      { role: "user", content: trimmed },
+      {
+        role: "user",
+        content: userContent,
+        ...(image ? { image } : {}),
+      },
     ],
     sources: webSources,
   };
@@ -155,19 +178,22 @@ export async function prepareFitnessCoachChatWithSearch(
   clientId: string,
   message: string,
   history: ChatMessage[],
-  preferredLocale?: string | null
+  preferredLocale?: string | null,
+  image?: ChatImageAttachment | null
 ): Promise<
   | { messages: ChatTurn[]; sources: WebSource[]; searchedWeb: boolean }
   | { error: string }
 > {
-  const searchedWeb = shouldSearchWeb(message);
+  const hasImage = Boolean(image?.base64?.trim());
+  const searchedWeb = !hasImage && shouldSearchWeb(message);
   const webSources = searchedWeb ? await searchWebForCoach(message) : [];
   const prepared = await prepareFitnessCoachChatMessages(
     clientId,
     message,
     history,
     webSources,
-    preferredLocale
+    preferredLocale,
+    image
   );
   if ("error" in prepared) return prepared;
   return { ...prepared, searchedWeb };

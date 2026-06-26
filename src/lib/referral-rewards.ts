@@ -1,32 +1,45 @@
-import { PLATFORM_AI_NAME } from "@/lib/brand";
+export type AmbassadorTierId = "bronze" | "silver" | "gold" | "elite";
 
-export type ReferralMilestone = {
+export type AmbassadorTier = {
+  tier: AmbassadorTierId;
   count: number;
-  months: number | null;
-  lifetime?: boolean;
-  founderBadge?: boolean;
   label: string;
 };
 
-export const REFERRAL_MILESTONES: ReferralMilestone[] = [
-  { count: 1, months: 1, label: `1 month ${PLATFORM_AI_NAME}` },
-  { count: 3, months: 2, label: `2 months ${PLATFORM_AI_NAME}` },
-  { count: 5, months: 3, label: `3 months ${PLATFORM_AI_NAME}` },
-  { count: 10, months: 6, label: `6 months ${PLATFORM_AI_NAME}` },
-  { count: 15, months: 12, label: `1 year ${PLATFORM_AI_NAME}` },
-  {
-    count: 25,
-    months: null,
-    lifetime: true,
-    founderBadge: true,
-    label: `Lifetime ${PLATFORM_AI_NAME} + Founder badge`,
-  },
+export const AMBASSADOR_TIERS: AmbassadorTier[] = [
+  { tier: "bronze", count: 5, label: "Bronze Ambassador" },
+  { tier: "silver", count: 15, label: "Silver Ambassador" },
+  { tier: "gold", count: 30, label: "Gold Ambassador" },
+  { tier: "elite", count: 75, label: "Elite Ambassador" },
 ];
 
-export function getNextMilestone(qualifiedCount: number): ReferralMilestone | null {
-  return REFERRAL_MILESTONES.find((m) => m.count > qualifiedCount) ?? null;
+export const REFERRALS_FOR_FREE_MONTH = 4;
+
+export function getAmbassadorTier(qualifiedCount: number): AmbassadorTier | null {
+  let earned: AmbassadorTier | null = null;
+  for (const tier of AMBASSADOR_TIERS) {
+    if (qualifiedCount >= tier.count) earned = tier;
+  }
+  return earned;
 }
 
-export function getEarnedMilestones(qualifiedCount: number): ReferralMilestone[] {
-  return REFERRAL_MILESTONES.filter((m) => m.count <= qualifiedCount);
+export function getNextAmbassadorTier(qualifiedCount: number): AmbassadorTier | null {
+  return AMBASSADOR_TIERS.find((tier) => qualifiedCount < tier.count) ?? null;
+}
+
+export function getFreeMonthProgress(qualifiedCount: number): {
+  current: number;
+  target: number;
+  remaining: number;
+  percent: number;
+} {
+  const current = qualifiedCount % REFERRALS_FOR_FREE_MONTH;
+  const remaining = REFERRALS_FOR_FREE_MONTH - current;
+  const percent = (current / REFERRALS_FOR_FREE_MONTH) * 100;
+  return {
+    current,
+    target: REFERRALS_FOR_FREE_MONTH,
+    remaining: current === 0 && qualifiedCount > 0 ? 0 : remaining,
+    percent: current === 0 && qualifiedCount > 0 ? 100 : percent,
+  };
 }

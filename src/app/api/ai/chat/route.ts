@@ -1,9 +1,10 @@
 import { prepareFitnessCoachChatWithSearch } from "@/lib/ai/fitness-chat";
+import { validateChatImage } from "@/lib/ai/chat-image";
 import { streamChatCompletion } from "@/lib/ai/providers";
 import { SUBSCRIPTION_ACCESS_COLUMNS } from "@/lib/db-selects";
 import { createClient } from "@/lib/supabase/server";
 import { hasPaidAccess } from "@/lib/subscription";
-import type { ChatMessage } from "@/lib/ai/types";
+import type { ChatImageAttachment, ChatMessage } from "@/lib/ai/types";
 import type { Profile } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -28,7 +29,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "Subscription required" }, { status: 403 });
   }
 
-  let body: { message?: string; history?: ChatMessage[] };
+  let body: {
+    message?: string;
+    history?: ChatMessage[];
+    image?: ChatImageAttachment | null;
+  };
   try {
     body = await request.json();
   } catch {
@@ -37,12 +42,19 @@ export async function POST(request: Request) {
 
   const message = body.message ?? "";
   const history = Array.isArray(body.history) ? body.history : [];
+  const imageInput = body.image ?? null;
+  const validatedImage = imageInput ? validateChatImage(imageInput) : null;
+  if (validatedImage && "error" in validatedImage) {
+    return Response.json({ error: validatedImage.error }, { status: 400 });
+  }
+  const image = validatedImage && "image" in validatedImage ? validatedImage.image : null;
 
   const prepared = await prepareFitnessCoachChatWithSearch(
     user.id,
     message,
     history,
-    (profile as Profile).preferred_locale
+    (profile as Profile).preferred_locale,
+    image
   );
   if ("error" in prepared) {
     return Response.json({ error: prepared.error }, { status: 400 });

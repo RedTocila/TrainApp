@@ -71,6 +71,11 @@ export function CheckoutClient({
         setError(result.error);
         return;
       }
+      if ("paidWithCredits" in result && result.paidWithCredits && result.localOrderId) {
+        setLocalOrderId(result.localOrderId);
+        router.push(`/dashboard/checkout/success?localOrderId=${result.localOrderId}`);
+        return;
+      }
       if ("orderId" in result && result.orderId) {
         setOrderId(result.orderId);
         setLocalOrderId(result.localOrderId ?? null);

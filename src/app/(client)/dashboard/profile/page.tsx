@@ -6,6 +6,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { ProfileSettings } from "@/components/profile-settings";
 import { ProfileSubscriptionSection } from "@/components/profile-subscription-section";
 import { ReferralProgram } from "@/components/referral-program";
+import { AmbassadorBadge } from "@/components/ambassador-badge";
 import { ClientIntakeForm } from "@/components/client-intake-form";
 import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,7 +37,16 @@ export default async function ProfilePage() {
               <UserRound className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-lg font-black">{platform.profile.title}</h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-lg font-black">{platform.profile.title}</h1>
+                {profile.ambassador_tier && (
+                  <AmbassadorBadge
+                    tier={profile.ambassador_tier}
+                    label={platform.referrals.ambassadorBadge(profile.ambassador_tier)}
+                    size="sm"
+                  />
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">{platform.profile.subtitle}</p>
             </div>
           </div>

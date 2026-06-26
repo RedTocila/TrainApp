@@ -51,6 +51,15 @@ export async function compressImageFile(
   return new File([blob], `${baseName}.${extension}`, { type: mimeType });
 }
 
+/** Parse a data URL into mime type and raw base64 payload. */
+export function parseDataUrl(
+  dataUrl: string
+): { mimeType: string; base64: string } | null {
+  const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!match) return null;
+  return { mimeType: match[1], base64: match[2] };
+}
+
 /** Read a file as a data URL (for previews and server uploads). */
 export function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

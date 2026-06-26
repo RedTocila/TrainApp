@@ -17,6 +17,7 @@ type RegistrationInput = {
   phone: string | null;
   intakeJson?: string | null;
   referralCode?: string | null;
+  deviceHash?: string | null;
 };
 
 async function finalizeNewUserProfile(
@@ -74,9 +75,12 @@ async function finalizeNewUserProfile(
     normalizeReferralCode(
       typeof userMetadata?.referral_code === "string" ? userMetadata.referral_code : null
     );
+  const deviceHash =
+    input.deviceHash?.trim() ||
+    (typeof userMetadata?.device_hash === "string" ? userMetadata.device_hash : null);
 
   try {
-    await attachReferralOnSignup(supabase, userId, referralCode);
+    await attachReferralOnSignup(supabase, userId, referralCode, deviceHash);
   } catch (referralError) {
     console.error("[finalizeNewUserProfile] referral attach failed", referralError);
   }
@@ -104,6 +108,9 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
   };
   if (input.referralCode) {
     userMetadata.referral_code = normalizeReferralCode(input.referralCode);
+  }
+  if (input.deviceHash?.trim()) {
+    userMetadata.device_hash = input.deviceHash.trim();
   }
 
   const { data: created, error: createError } = await admin.auth.admin.createUser({

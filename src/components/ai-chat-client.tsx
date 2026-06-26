@@ -1,15 +1,16 @@
 "use client";
 
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, ExternalLink, Globe, Loader2, Paperclip, UserRound, X } from "lucide-react";
+import { ArrowUp, ExternalLink, Globe, Loader2, Mic, Paperclip, UserRound, X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
-import { usePlatformCopy } from "@/components/locale-provider";
-import type { ChatMessage, WebSource } from "@/lib/ai/types";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
+import type { ChatImageAttachment, ChatMessage, WebSource } from "@/lib/ai/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { compressImageFile, fileToDataUrl } from "@/lib/image-compress";
+import { compressImageFile, fileToDataUrl, parseDataUrl } from "@/lib/image-compress";
 import { cn } from "@/lib/utils";
+import { useSpeechRecognition } from "@/lib/use-speech-recognition";
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
 
@@ -144,6 +145,16 @@ const ChatBubble = memo(function ChatBubble({
             ? renderLinkedText(message.content)
             : message.content}
         </p>
+        {message.role === "user" && message.image && (
+          <div className="mt-2 overflow-hidden rounded-xl border border-primary-foreground/20">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`data:${message.image.mimeType};base64,${message.image.base64}`}
+              alt=""
+              className="max-h-48 w-full object-cover"
+            />
+          </div>
+        )}
         {message.role === "assistant" && message.sources && message.sources.length > 0 && (
           <ChatSources
             sources={message.sources}
@@ -162,12 +173,18 @@ function ChatCommandBar({
   onKeyDown,
   onSubmit,
   placeholder,
+  listeningPlaceholder,
   disabled,
   canSend,
   isStreaming,
   sendAriaLabel,
   attachAriaLabel,
   removeAttachmentAriaLabel,
+  startVoiceAriaLabel,
+  stopVoiceAriaLabel,
+  speechLang,
+  onVoiceError,
+  onVoiceSend,
   attachmentPreviewUrl,
   onAttachSelect,
   onAttachmentClear,
@@ -177,21 +194,49 @@ function ChatCommandBar({
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: (e: React.FormEvent) => void;
   placeholder: string;
+  listeningPlaceholder: string;
   disabled: boolean;
   canSend: boolean;
   isStreaming: boolean;
   sendAriaLabel: string;
   attachAriaLabel: string;
   removeAttachmentAriaLabel: string;
+  startVoiceAriaLabel: string;
+  stopVoiceAriaLabel: string;
+  speechLang: string;
+  onVoiceError: (message: string) => void;
+  onVoiceSend: (text: string) => void;
   attachmentPreviewUrl: string | null;
   onAttachSelect: (file: File) => void;
   onAttachmentClear: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasText = Boolean(input.trim());
+  const showMic =
+    !isStreaming && !hasText && !attachmentPreviewUrl && !disabled;
+
+  const { isListening, isSupported, toggleListening, stopListening } = useSpeechRecognition({
+    lang: speechLang,
+    onTranscript: onInputChange,
+    onSilence: onVoiceSend,
+    onError: onVoiceError,
+  });
+
+  useEffect(() => {
+    if (disabled || isStreaming) {
+      stopListening();
+    }
+  }, [disabled, isStreaming, stopListening]);
 
   return (
-    <form onSubmit={onSubmit} className="space-y-2">
+    <form
+      onSubmit={(e) => {
+        stopListening();
+        onSubmit(e);
+      }}
+      className="space-y-2"
+    >
       {attachmentPreviewUrl && (
         <div className="flex items-center gap-2 px-1">
           <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-border/70 bg-secondary/40">
@@ -213,7 +258,7 @@ function ChatCommandBar({
           </div>
         </div>
       )}
-      <div className="flex items-end gap-1 rounded-full border border-border/70 bg-secondary/60 p-1.5 pl-2 shadow-sm backdrop-blur-sm">
+      <div className="flex items-center gap-0.5 rounded-full border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm">
         <input
           ref={fileInputRef}
           type="file"
@@ -231,7 +276,7 @@ function ChatCommandBar({
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled}
           aria-label={attachAriaLabel}
-          className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45"
         >
           <Paperclip className="h-4 w-4" strokeWidth={2} />
         </button>
@@ -240,26 +285,44 @@ function ChatCommandBar({
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={placeholder}
+          placeholder={isListening ? listeningPlaceholder : placeholder}
           rows={1}
           disabled={disabled}
-          className="max-h-32 min-h-[40px] flex-1 resize-none border-0 bg-transparent px-0 py-2.5 shadow-none focus-visible:ring-0"
+          className="max-h-32 min-h-[32px] flex-1 resize-none border-0 bg-transparent px-0 py-1.5 shadow-none focus-visible:ring-0"
         />
-        <button
-          type="submit"
-          disabled={!canSend}
-          aria-label={sendAriaLabel}
-          className={cn(
-            "mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
-            canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
-          )}
-        >
-          {isStreaming ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-          )}
-        </button>
+        {showMic && isSupported ? (
+          <button
+            type="button"
+            onClick={() => toggleListening(input)}
+            disabled={disabled}
+            aria-label={isListening ? stopVoiceAriaLabel : startVoiceAriaLabel}
+            aria-pressed={isListening}
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+              isListening
+                ? "bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)]"
+                : "bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] hover:opacity-90"
+            )}
+          >
+            <Mic className={cn("h-4 w-4", isListening && "animate-pulse")} strokeWidth={2.25} />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!canSend}
+            aria-label={sendAriaLabel}
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+              canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
+            )}
+          >
+            {isStreaming ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+            )}
+          </button>
+        )}
       </div>
     </form>
   );
@@ -267,7 +330,9 @@ function ChatCommandBar({
 
 export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const platform = usePlatformCopy();
+  const locale = useLocale();
   const ai = platform.ai;
+  const speechLang = locale === "al" ? "sq-AL" : "en-US";
   const { openReadMe, canChat } = useAiCoachChat();
   const starterPrompts = [...ai.starterPrompts];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -303,13 +368,21 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
 
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || isStreaming || !canChat) return;
+    const attachment = attachmentPreviewUrl ? parseDataUrl(attachmentPreviewUrl) : null;
+    if ((!trimmed && !attachment) || isStreaming || !canChat) return;
 
     setError(null);
     setInput("");
-    const userMessage: ChatMessage = { role: "user", content: trimmed };
+    const image: ChatImageAttachment | undefined = attachment ?? undefined;
+    const messageContent = trimmed || (image ? ai.imageOnlyPrompt : "");
+    const userMessage: ChatMessage = {
+      role: "user",
+      content: messageContent,
+      ...(image ? { image } : {}),
+    };
     const history = messages;
     setMessages((prev) => [...prev, userMessage]);
+    setAttachmentPreviewUrl(null);
     setIsStreaming(true);
     setPendingWebSearch(false);
 
@@ -321,7 +394,11 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, history }),
+        body: JSON.stringify({
+          message: messageContent,
+          history,
+          ...(image ? { image } : {}),
+        }),
         signal: controller.signal,
       });
 
@@ -403,6 +480,11 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
         return next;
       });
       setInput(trimmed);
+      if (image) {
+        setAttachmentPreviewUrl(
+          `data:${image.mimeType};base64,${image.base64}`
+        );
+      }
     } finally {
       setIsStreaming(false);
       abortRef.current = null;
@@ -421,7 +503,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     }
   };
 
-  const canSend = Boolean(input.trim() && !isStreaming && canChat);
+  const canSend = Boolean((input.trim() || attachmentPreviewUrl) && !isStreaming && canChat);
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", !embedded && "min-h-[calc(100dvh-14rem)] gap-4")}>
@@ -494,6 +576,12 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               canSend={canSend}
               isStreaming={isStreaming}
               sendAriaLabel={platform.aria.sendMessage}
+              startVoiceAriaLabel={platform.aria.startVoiceInput}
+              stopVoiceAriaLabel={platform.aria.stopVoiceInput}
+              speechLang={speechLang}
+              onVoiceError={setError}
+              onVoiceSend={(text) => void sendMessage(text)}
+              listeningPlaceholder={ai.listening}
               attachAriaLabel={platform.aria.attachFile}
               removeAttachmentAriaLabel={platform.aria.removeAttachment}
               attachmentPreviewUrl={attachmentPreviewUrl}
@@ -572,6 +660,12 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               canSend={canSend}
               isStreaming={isStreaming}
               sendAriaLabel={platform.aria.sendMessage}
+              startVoiceAriaLabel={platform.aria.startVoiceInput}
+              stopVoiceAriaLabel={platform.aria.stopVoiceInput}
+              speechLang={speechLang}
+              onVoiceError={setError}
+              onVoiceSend={(text) => void sendMessage(text)}
+              listeningPlaceholder={ai.listening}
               attachAriaLabel={platform.aria.attachFile}
               removeAttachmentAriaLabel={platform.aria.removeAttachment}
               attachmentPreviewUrl={attachmentPreviewUrl}

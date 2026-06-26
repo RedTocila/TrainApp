@@ -5,6 +5,15 @@ import { getPlanPrice } from "@/lib/subscription-plans";
 export const REFERRAL_QUALIFYING_PLAN: SubscriptionPlanId = "ai";
 export const REFERRAL_QUALIFYING_INTERVAL: BillingInterval = "monthly";
 
+/** €5 credit per successful paying referral. */
+export const REFERRAL_CREDIT_CENTS = 500;
+
+/** Monthly AI subscription price in cents. */
+export const MONTHLY_SUBSCRIPTION_CENTS = 2000;
+
+/** Bonus premium days for users who join via referral after first payment. */
+export const NEW_USER_REFERRAL_BONUS_DAYS = 7;
+
 export function orderQualifiesReferral(order: {
   plan: string;
   billing_interval: string;
