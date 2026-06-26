@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 import { loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
-import { formatUserError } from "@/lib/format-user-error";
+import { formatUserError, isEmailDeliverySignupError } from "@/lib/format-user-error";
 
 const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
 
@@ -79,7 +79,13 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
       });
 
       if (signUpError) {
-        setError(formatUserError(signUpError.message ?? signUpError, "Could not create account."));
+        if (isEmailDeliverySignupError(signUpError)) {
+          setError(
+            "We could not send the confirmation email. Your account may not be created yet — try again in a few minutes, or contact support if this keeps happening."
+          );
+        } else {
+          setError(formatUserError(signUpError, "Could not create account."));
+        }
         return;
       }
 
