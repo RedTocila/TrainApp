@@ -30,7 +30,7 @@ export function formatElapsedClock(totalSeconds: number): string {
   if (hours > 0) {
     return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   }
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 export function formatWorkoutDurationShort(totalSeconds: number): string {

@@ -398,6 +398,13 @@ export async function startWorkout({
         }
       }
     }
+
+    const startedAt = new Date().toISOString();
+    await admin
+      .from("workout_sessions")
+      .update({ started_at: startedAt })
+      .eq("id", existing.id);
+
     return { sessionId: existing.id, resumed: true };
   }
 
@@ -442,6 +449,12 @@ export async function startWorkout({
     return { error: seedResult.error };
   }
 
+  const startedAt = new Date().toISOString();
+  await admin
+    .from("workout_sessions")
+    .update({ started_at: startedAt })
+    .eq("id", session.id);
+
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");
   return { sessionId: session.id, resumed: false };
@@ -460,7 +473,7 @@ export async function startWorkoutAndRedirect({
   if ("error" in result && result.error) {
     return { error: result.error };
   }
-  redirect(`/dashboard/workout/session/${result.sessionId}`);
+  redirect(`/dashboard/workout/session/${result.sessionId}?fresh=1`);
 }
 
 export async function startTodaysWorkoutAndRedirect(dateKey: string) {

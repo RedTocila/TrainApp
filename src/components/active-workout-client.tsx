@@ -2,7 +2,7 @@
 import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { ArrowLeft, Check, Clock, Play, Plus, Trash2 } from "lucide-react";
 import {
@@ -28,6 +28,11 @@ import {
   formatWorkoutDurationShort,
   getWorkoutSetStats,
 } from "@/lib/workout-duration";
+import {
+  clearWorkoutTimerAnchor,
+  getWorkoutTimerAnchor,
+  setWorkoutTimerAnchor,
+} from "@/lib/workout-timer-storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -51,7 +56,7 @@ function formatHistory(
   return lastLabel(parts.join(", "));
 }
 
-function useElapsedSeconds(startedAt: string) {
+function useElapsedSeconds(anchorMs: number | null) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -59,21 +64,45 @@ function useElapsedSeconds(startedAt: string) {
     return () => clearInterval(interval);
   }, []);
 
-  return Math.max(
-    0,
-    Math.floor((now - new Date(startedAt).getTime()) / 1000)
-  );
+  if (anchorMs == null) return 0;
+
+  return Math.max(0, Math.floor((now - anchorMs) / 1000));
+}
+
+function useWorkoutTimerAnchor(sessionId: string, dbStartedAt: string) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [anchorMs, setAnchorMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fresh = searchParams.get("fresh") === "1";
+    let anchor: number;
+
+    if (fresh) {
+      anchor = Date.now();
+      setWorkoutTimerAnchor(sessionId, anchor);
+      router.replace(`/dashboard/workout/session/${sessionId}`, { scroll: false });
+    } else {
+      anchor =
+        getWorkoutTimerAnchor(sessionId) ?? new Date(dbStartedAt).getTime();
+      setWorkoutTimerAnchor(sessionId, anchor);
+    }
+
+    setAnchorMs(anchor);
+  }, [dbStartedAt, router, searchParams, sessionId]);
+
+  return anchorMs;
 }
 
 function WorkoutTimerCard({
-  startedAt,
+  anchorMs,
   exercises,
 }: {
-  startedAt: string;
+  anchorMs: number | null;
   exercises: WorkoutSessionExercise[];
 }) {
   const platform = usePlatformCopy();
-  const elapsedSeconds = useElapsedSeconds(startedAt);
+  const elapsedSeconds = useElapsedSeconds(anchorMs);
   const estimatedSeconds = useMemo(
     () => estimateWorkoutDurationSeconds(exercises),
     [exercises]
@@ -110,16 +139,16 @@ function WorkoutTimerCard({
 }
 
 function WorkoutFinishSummary({
-  startedAt,
+  anchorMs,
   exercises,
   session,
 }: {
-  startedAt: string;
+  anchorMs: number | null;
   exercises: WorkoutSessionExercise[];
   session: WorkoutSession;
 }) {
   const platform = usePlatformCopy();
-  const elapsedSeconds = useElapsedSeconds(startedAt);
+  const elapsedSeconds = useElapsedSeconds(anchorMs);
   const estimatedSeconds = estimateWorkoutDurationSeconds(exercises);
   const { exerciseCount, totalSets, loggedSets } = getWorkoutSetStats(exercises);
 
@@ -323,6 +352,7 @@ export function ActiveWorkoutClient({
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog, isPending: isGivingUp } =
     useSarcasticConfirm();
+  const timerAnchorMs = useWorkoutTimerAnchor(session.id, session.started_at);
 
   const refresh = () => router.refresh();
 
@@ -352,6 +382,7 @@ export function ActiveWorkoutClient({
         setError(result.error);
         return;
       }
+      clearWorkoutTimerAnchor(session.id);
       const dateKey = session.scheduled_date ?? formatDateKey(new Date());
       notifySync();
       patchDashboard({
@@ -369,6 +400,7 @@ export function ActiveWorkoutClient({
       ...coachCopy.discardWorkout,
       onConfirm: async () => {
         await cancelWorkoutSession(session.id);
+        clearWorkoutTimerAnchor(session.id);
         router.push("/dashboard/workout");
         router.refresh();
       },
@@ -397,7 +429,7 @@ export function ActiveWorkoutClient({
         </div>
       </div>
 
-      <WorkoutTimerCard startedAt={session.started_at} exercises={initialExercises} />
+      <WorkoutTimerCard anchorMs={timerAnchorMs} exercises={initialExercises} />
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
@@ -478,7 +510,7 @@ export function ActiveWorkoutClient({
             </CardHeader>
             <CardContent className="space-y-4">
               <WorkoutFinishSummary
-                startedAt={session.started_at}
+                anchorMs={timerAnchorMs}
                 exercises={initialExercises}
                 session={session}
               />
