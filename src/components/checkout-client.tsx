@@ -118,7 +118,7 @@ export function CheckoutClient({
             <div className="space-y-2">
               <p className="text-sm font-semibold text-muted-foreground">Includes</p>
               <ul className="space-y-2">
-                {plan.features.slice(0, 6).map((feature) => (
+                {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-sm">
                     <span className="mt-0.5 grid h-5 w-5 place-items-center rounded-full bg-primary/15 text-primary">
                       <ShieldCheck className="h-3.5 w-3.5" />
