@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
+import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import {
   Bot,
   Dumbbell,
@@ -24,14 +25,10 @@ const mobileNavLinkClass =
 
 export function ClientNav({ fullName }: { fullName: string }) {
   const pathname = usePathname();
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const { pendingHref, setPendingHref } = useDashboardNavPending();
   const platform = usePlatformCopy();
   const activePath = pendingHref ?? pathname;
   const programsActive = isTrainPath(activePath);
-
-  useEffect(() => {
-    setPendingHref(null);
-  }, [pathname]);
 
   const standardNavItems = [
     { href: "/dashboard", label: platform.nav.home, mobileLabel: platform.nav.home, icon: Home, exact: true as const },

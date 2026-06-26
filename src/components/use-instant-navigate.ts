@@ -2,13 +2,9 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useRef, type MouseEvent, type PointerEvent } from "react";
+import { isNavRouteMatch } from "@/lib/nav-route-match";
 
 const NAVIGATE_DEBOUNCE_MS = 300;
-
-function isCurrentRoute(pathname: string, href: string) {
-  if (href === "/dashboard") return pathname === "/dashboard";
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 type InstantNavigateOptions = {
   tapSlop?: number;
@@ -41,7 +37,7 @@ export function useInstantNavigate(
   }, [href, router]);
 
   const navigate = useCallback(() => {
-    if (isCurrentRoute(pathname, href)) return;
+    if (isNavRouteMatch(pathname, href)) return;
     if (navigated.current) return;
     navigated.current = true;
     onNavigateStart?.(href);
@@ -55,7 +51,7 @@ export function useInstantNavigate(
   const handlePointerDown = useCallback(
     (e: PointerEvent) => {
       if (e.button !== 0) return;
-      if (!isCurrentRoute(pathname, href)) {
+      if (!isNavRouteMatch(pathname, href)) {
         warmRoute();
       }
       if (pressToNavigate) {

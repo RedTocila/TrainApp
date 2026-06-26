@@ -8,6 +8,10 @@ import { DateProvider } from "@/components/date-provider";
 import { DashboardSyncProvider } from "@/components/dashboard-sync";
 import { FullCalendarProvider } from "@/components/full-calendar-provider";
 import { DashboardMainReset } from "@/components/dashboard-main-reset";
+import {
+  DashboardNavPendingContent,
+  DashboardNavPendingProvider,
+} from "@/components/dashboard-nav-pending";
 import { TrainSectionShell } from "@/components/train-section-shell";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
@@ -27,6 +31,7 @@ export default async function DashboardLayout({
       <DashboardMainReset />
       <DateProvider>
         <DashboardSyncProvider>
+        <DashboardNavPendingProvider>
         <div className="dashboard-shell flex min-h-0 overflow-hidden bg-background">
           <ClientNav fullName={profile.full_name} />
           <FullCalendarProvider>
@@ -34,11 +39,14 @@ export default async function DashboardLayout({
               <DashboardMobileHeader />
               <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
                 <SubscriptionBanner profile={profile} />
-                <TrainSectionShell>{children}</TrainSectionShell>
+                <DashboardNavPendingContent>
+                  <TrainSectionShell>{children}</TrainSectionShell>
+                </DashboardNavPendingContent>
               </div>
             </main>
           </FullCalendarProvider>
         </div>
+        </DashboardNavPendingProvider>
         </DashboardSyncProvider>
       </DateProvider>
     </LocaleProvider>
