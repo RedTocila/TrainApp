@@ -14,6 +14,7 @@ import { getReferralProgramCopy } from "@/lib/referral-program-copy";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import { cn } from "@/lib/utils";
 import { getClientIntakeStatus } from "@/lib/client-intake-utils";
+import { resolveProfileGoal } from "@/lib/intake-display";
 
 export default async function ProfilePage() {
   const profile = await getProfileWithEmail();
@@ -91,7 +92,7 @@ export default async function ProfilePage() {
                 fullName={profile.full_name}
                 email={profile.email}
                 phone={profile.phone}
-                goal={profile.goal ?? null}
+                goal={resolveProfileGoal(profile)}
                 preferredLocale={profile.preferred_locale ?? "al"}
                 unitSystem={profile.unit_system ?? "metric"}
                 showHeader={false}

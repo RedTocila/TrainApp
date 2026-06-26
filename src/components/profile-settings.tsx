@@ -14,6 +14,7 @@ import { SegmentedToggle } from "@/components/segmented-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -267,20 +268,18 @@ export function ProfileSettings({
           <form action={handlePasswordSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="new_password">{platform.settings.newPassword}</Label>
-              <Input
+              <PasswordInput
                 id="new_password"
                 name="new_password"
-                type="password"
                 minLength={6}
                 required
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm_password">{platform.settings.confirmPassword}</Label>
-              <Input
+              <PasswordInput
                 id="confirm_password"
                 name="confirm_password"
-                type="password"
                 minLength={6}
                 required
               />

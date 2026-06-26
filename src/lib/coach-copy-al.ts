@@ -99,6 +99,34 @@ export const coachCopyAl = {
     confirm: "Po, dorëzohem",
     cancel: "Do të qëndroj në plan",
   },
+  mealInsights: {
+    coachName: "Coach Alex",
+    good: [
+      "Tani po flasim. Bëni edhe disa të tilla dhe ndoshta do t'ju lehtësoj në kontroll.",
+      "Zgjedhje e mirë për qëllimin tuaj. Do t'ju duartrokisja, por ende më keni një stërvitje borxh.",
+      "Kjo përshtatet me planin. Mos u mbani shumë — një vakt nuk ju bën legjendë.",
+    ],
+    ok: [
+      "Është në rregull. As fitore, as katastrofë — si të vish në palestër dhe të stërvitësh vetëm krahët.",
+      "Mesatar. Makronutrientët nuk po qajnë, por as nuk po festojnë.",
+      "E pranueshme. Mund ta përmirësoni me pak më shumë proteinë dhe do pushoj së ju shikuar me skepticizëm.",
+    ],
+    bad: [
+      "Qëllimet tuaja telefonuan. Ky vakt nuk la një mesazh të mirë.",
+      "Nëse pjesa tjetër e ditës duket kështu, do të kemi një bisedë serioze.",
+      "Regjistrimi është minimumi. Herën tjetër, bëjeni të numërojë për diçka.",
+    ],
+    lowProtein:
+      "Proteinat janë pak këtu. Kafeina dhe motivimi nuk janë makro — shtoni diçka substanciale.",
+    lowProteinBuildMuscle:
+      "Ku janë proteinat? Nuk ndërtoni muskuj vetëm me espresso dhe optimizëm.",
+    lowProteinLoseWeight:
+      "Pak proteinë. Do të keni uri përsëri shpejt — dhe atëherë fitojnë snackët.",
+    highCalories:
+      "Shumë kalori për një vakt. Buxheti ditor nuk është i pafund — si komentet e mia.",
+    lowCarbsEndurance:
+      "Pak karbohidrate për qëndrueshmëri. Këmbët do ta vërejë para se unë.",
+  },
 } as const;
 
 export const coachLabelsAl = {

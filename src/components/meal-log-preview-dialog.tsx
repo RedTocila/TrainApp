@@ -2,14 +2,18 @@
 
 import { useEffect, useMemo } from "react";
 import { CheckCircle2, Target, X } from "lucide-react";
+import { AiCoachAvatar } from "@/components/ai-coach-avatar";
+import { useCoachCopy } from "@/components/locale-provider";
 import type { MealFormData } from "@/lib/meal-utils";
 import type { MacroTargets } from "@/lib/meal-score";
 import { scoreMeal } from "@/lib/meal-score";
+import { getCoachMealAdvice, getMealAdviceTier, getMealScoreTierStyles } from "@/lib/meal-coach-advice";
 import { formatMealMacrosSummary } from "@/lib/meal-utils";
 import { ScoreGauge } from "@/components/ai/score-gauge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export function MealLogPreviewDialog({
   open,
@@ -26,6 +30,8 @@ export function MealLogPreviewDialog({
   onClose: () => void;
   variant?: "new" | "view";
 }) {
+  const coachCopy = useCoachCopy();
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -43,6 +49,20 @@ export function MealLogPreviewDialog({
     if (!meal) return null;
     return scoreMeal({ meal, targets, goal });
   }, [meal, targets, goal]);
+
+  const coachAdvice = useMemo(() => {
+    if (!meal || !score) return null;
+    return getCoachMealAdvice({
+      copy: coachCopy,
+      score: score.score,
+      mealName: meal.name,
+      reasons: score.reasons,
+      goal,
+    });
+  }, [coachCopy, meal, score, goal]);
+
+  const adviceTier = score ? getMealAdviceTier(score.score) : "ok";
+  const tierStyles = getMealScoreTierStyles(adviceTier);
 
   if (!open || !meal || !score) return null;
   const summary = formatMealMacrosSummary(meal.macros);
@@ -81,26 +101,51 @@ export function MealLogPreviewDialog({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
-            <ScoreGauge
-              score={score.score}
-              label={`${score.label} fit`}
-              icon={Target}
-              colorClass={score.score >= 85 ? "text-emerald-400" : score.score >= 70 ? "text-primary" : "text-orange-400"}
-              size="md"
-            />
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">Why this score</p>
-              <ul className="space-y-1 text-sm text-muted-foreground">
-                {score.reasons.map((r, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/60" />
-                    <span>{r}</span>
-                  </li>
-                ))}
-              </ul>
+          <Card className={cn("border", tierStyles.card)}>
+            <CardContent className="grid gap-3 p-4 sm:grid-cols-[auto_1fr] sm:items-center">
+              <ScoreGauge
+                score={score.score}
+                label={`${score.label} fit`}
+                icon={Target}
+                colorClass={tierStyles.gauge}
+                size="md"
+              />
+              <div className="space-y-2">
+                <p className="text-sm font-semibold">Why this score</p>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {score.reasons.map((r, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span
+                        className={cn("mt-2 h-1.5 w-1.5 shrink-0 rounded-full", tierStyles.bullet)}
+                      />
+                      <span>{r}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+
+          {coachAdvice && (
+            <div
+              className={cn(
+                "mt-4 rounded-xl border p-4",
+                tierStyles.coachCard
+              )}
+            >
+              <div className="flex gap-3">
+                <AiCoachAvatar size="sm" />
+                <div className="min-w-0 space-y-1">
+                  <p className={cn("text-sm font-bold", tierStyles.accent)}>
+                    {coachCopy.mealInsights.coachName}
+                  </p>
+                  <p className={cn("text-sm leading-relaxed", tierStyles.quote)}>
+                    &ldquo;{coachAdvice}&rdquo;
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
           {meal.ingredients?.length > 0 && (
             <Card className="mt-4">

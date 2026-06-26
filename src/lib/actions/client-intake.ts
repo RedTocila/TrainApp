@@ -9,6 +9,7 @@ import { formatGoal } from "@/lib/intake-display";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 import {
   responsesToProfileFields,
+  isIntakeResponsesComplete,
   type IntakeResponses,
 } from "@/lib/intake-questionnaire";
 import { resolveMacroTargets } from "@/lib/resolve-macro-targets";
@@ -105,6 +106,39 @@ export async function updateClientIntakeFromResponses(responses: IntakeResponses
     macroSource: resolved?.source,
     macroRationale: resolved?.rationale,
   };
+}
+
+export async function applyPendingIntakeDraft(intakeJson: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  let responses: IntakeResponses;
+  try {
+    responses = JSON.parse(intakeJson) as IntakeResponses;
+  } catch {
+    return { error: "Invalid health profile data" };
+  }
+
+  if (!isIntakeResponsesComplete(responses)) {
+    return { skipped: true as const };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) return { error: "Profile not found" };
+
+  if (isClientIntakeComplete(profile as Profile)) {
+    return { skipped: true as const };
+  }
+
+  return updateClientIntakeFromResponses(responses);
 }
 
 /** @deprecated Use updateClientIntakeFromResponses */

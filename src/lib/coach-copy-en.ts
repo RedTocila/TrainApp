@@ -99,6 +99,34 @@ export const coachCopyEn = {
     confirm: "Yeah, I give up",
     cancel: "I'll stay on the plan",
   },
+  mealInsights: {
+    coachName: "Coach Alex",
+    good: [
+      "Now we're talking. Stack a few more like this and I might go easy on you at check-in.",
+      "Solid pick for your goal. I'd high-five you, but you still owe me a workout.",
+      "This actually fits the plan. Don't let it go to your head — one meal doesn't make a legend.",
+    ],
+    ok: [
+      "It's fine. Not a win, not a disaster — like showing up and only training arms.",
+      "Middle of the road. Your macros aren't crying, but they're not throwing a party either.",
+      "Acceptable. You could level this up with a bit more protein and I'd stop side-eyeing you.",
+    ],
+    bad: [
+      "Your goals called. This meal didn't leave a great voicemail.",
+      "If the rest of your day looks like this, we're having a serious chat.",
+      "Logging it is the bare minimum. Next time, make it count toward something.",
+    ],
+    lowProtein:
+      "Protein's thin here. Caffeine and vibes aren't macros — tag something substantial next.",
+    lowProteinBuildMuscle:
+      "Where's the protein? You can't build muscle on espresso and optimism alone.",
+    lowProteinLoseWeight:
+      "Light on protein. You'll be hungry again soon — and that's when snacks win.",
+    highCalories:
+      "That's a heavy hit for one meal. Your daily budget isn't unlimited — unlike my commentary.",
+    lowCarbsEndurance:
+      "Low on fuel for endurance. Your legs will notice before I do.",
+  },
 } as const;
 
 export const coachLabelsEn = {

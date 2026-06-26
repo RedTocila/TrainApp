@@ -301,21 +301,23 @@ function StepFields({
               onChange={(v) => onChange({ sleep_hours: v as string })}
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="q-wake">Usual wake time</Label>
               <Input
                 id="q-wake"
                 type="time"
+                className="relative w-full"
                 value={responses.wake_time ?? ""}
                 onChange={(e) => onChange({ wake_time: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label htmlFor="q-bed">Usual bedtime</Label>
               <Input
                 id="q-bed"
                 type="time"
+                className="relative w-full"
                 value={responses.bedtime ?? ""}
                 onChange={(e) => onChange({ bedtime: e.target.value })}
               />
@@ -535,7 +537,7 @@ export function IntakeQuestionnaireWizard({
   };
 
   return (
-    <div className={cn("space-y-6", compact && "space-y-4")}>
+    <div className={cn("min-w-0 space-y-6", compact && "space-y-4")}>
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
           <span>
@@ -562,7 +564,7 @@ export function IntakeQuestionnaireWizard({
           transition={{ duration: 0.25 }}
           className="space-y-4"
         >
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <p className="text-2xl">{current.emoji}</p>
             <h2 className="text-xl font-black tracking-tight sm:text-2xl">
               {current.title}

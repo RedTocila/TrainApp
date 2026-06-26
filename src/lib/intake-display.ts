@@ -30,6 +30,14 @@ export function formatGoal(value: string | null | undefined): string | null {
   return GOAL_LABELS[value] ?? value;
 }
 
+export function resolveProfileGoal(
+  profile: Pick<Profile, "goal" | "intake_responses">
+): string | null {
+  if (profile.goal) return profile.goal;
+  const fromIntake = profile.intake_responses?.goal;
+  return typeof fromIntake === "string" && fromIntake.length > 0 ? fromIntake : null;
+}
+
 export interface IntakeSummaryItem {
   label: string;
   value: string;

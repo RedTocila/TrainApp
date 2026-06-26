@@ -3,14 +3,28 @@
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 import { INTAKE_STORAGE_KEY } from "@/lib/intake-questionnaire";
 
+function readStorage(storage: Storage): string | null {
+  return storage.getItem(INTAKE_STORAGE_KEY);
+}
+
 export function saveIntakeDraft(responses: IntakeResponses) {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(INTAKE_STORAGE_KEY, JSON.stringify(responses));
+  localStorage.setItem(INTAKE_STORAGE_KEY, JSON.stringify(responses));
+  sessionStorage.removeItem(INTAKE_STORAGE_KEY);
 }
 
 export function loadIntakeDraft(): IntakeResponses | null {
   if (typeof window === "undefined") return null;
-  const raw = sessionStorage.getItem(INTAKE_STORAGE_KEY);
+
+  let raw = readStorage(localStorage);
+  if (!raw) {
+    raw = readStorage(sessionStorage);
+    if (raw) {
+      localStorage.setItem(INTAKE_STORAGE_KEY, raw);
+      sessionStorage.removeItem(INTAKE_STORAGE_KEY);
+    }
+  }
+
   if (!raw) return null;
   try {
     return JSON.parse(raw) as IntakeResponses;
@@ -21,6 +35,7 @@ export function loadIntakeDraft(): IntakeResponses | null {
 
 export function clearIntakeDraft() {
   if (typeof window === "undefined") return;
+  localStorage.removeItem(INTAKE_STORAGE_KEY);
   sessionStorage.removeItem(INTAKE_STORAGE_KEY);
 }
 

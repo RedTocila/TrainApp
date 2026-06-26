@@ -6,11 +6,23 @@ import { X } from "lucide-react";
 import { AiChatClientLazy } from "@/components/ai-chat-client-lazy";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
+import { CoachReadMeDialog } from "@/components/coach-read-me-dialog";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { SupportContactButton } from "@/components/support-contact-button";
 import { Button } from "@/components/ui/button";
 
 export function AiCoachChatDialog() {
-  const { isOpen, closeChat } = useAiCoachChat();
+  const {
+    isOpen,
+    closeChat,
+    readMeOpen,
+    openReadMe,
+    closeReadMe,
+    hasAcknowledgedReadMe,
+    acknowledgeReadMe,
+  } = useAiCoachChat();
+  const platform = usePlatformCopy();
+  const ai = platform.ai;
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -39,7 +51,10 @@ export function AiCoachChatDialog() {
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeChat();
+      if (e.key === "Escape") {
+        if (readMeOpen && hasAcknowledgedReadMe) closeReadMe();
+        else if (!readMeOpen) closeChat();
+      }
     };
     document.addEventListener("keydown", onKeyDown);
 
@@ -53,7 +68,7 @@ export function AiCoachChatDialog() {
         main.scrollTop = scrollY;
       }
     };
-  }, [isOpen, closeChat]);
+  }, [isOpen, closeChat, readMeOpen, closeReadMe, hasAcknowledgedReadMe]);
 
   if (!isOpen || !mounted) return null;
 
@@ -74,6 +89,13 @@ export function AiCoachChatDialog() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            onClick={openReadMe}
+            className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            {ai.readMeButton}
+          </button>
           <SupportContactButton />
           <Button
             type="button"
@@ -90,6 +112,16 @@ export function AiCoachChatDialog() {
       <div className="flex min-h-0 flex-1 flex-col pb-[var(--dashboard-mobile-nav-height,3.375rem)] lg:pb-0">
         <AiChatClientLazy embedded />
       </div>
+      <CoachReadMeDialog
+        open={readMeOpen}
+        onClose={closeReadMe}
+        onAccept={acknowledgeReadMe}
+        title={ai.readMeTitle}
+        points={ai.readMeBody}
+        gotItLabel={ai.readMeGotIt}
+        agreeLabel={ai.readMeAgreeLabel}
+        required={!hasAcknowledgedReadMe}
+      />
     </div>,
     document.body
   );

@@ -35,7 +35,7 @@ export function MissedButton({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "shrink-0 rounded-md border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/20",
+          "max-w-full shrink-0 rounded-md border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase leading-snug tracking-wide text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/20",
           className
         )}
       >

@@ -22,14 +22,18 @@ export function AiCoachAvatar({
             : 56;
 
   return (
-    <Image
-      src={AI_COACH_AVATAR_SRC}
-      alt="AI Coach"
-      width={dimension}
-      height={dimension}
-      className={cn("rounded-full object-cover", className)}
-      sizes={`${dimension}px`}
-      priority={size === "fab"}
-    />
+    <div
+      className={cn("relative shrink-0 overflow-hidden rounded-full", className)}
+      style={{ width: dimension, height: dimension }}
+    >
+      <Image
+        src={AI_COACH_AVATAR_SRC}
+        alt="Coach Alex"
+        fill
+        className="object-cover object-top"
+        sizes={`${dimension}px`}
+        priority={size === "fab"}
+      />
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useLayoutEffect,
   useState,
 } from "react";
 import {
@@ -43,9 +44,15 @@ function applyAccentColor(color: AccentColor, theme: Theme = readInitialTheme())
   }
 }
 
-function readInitialTheme(): Theme {
+function readStoredTheme(): Theme {
   if (typeof window === "undefined") return "dark";
+  const stored = localStorage.getItem("theme");
+  if (stored === "light" || stored === "dark") return stored;
   return document.documentElement.classList.contains("light") ? "light" : "dark";
+}
+
+function readInitialTheme(): Theme {
+  return readStoredTheme();
 }
 
 function readInitialAccent(): AccentColor {
@@ -55,25 +62,36 @@ function readInitialAccent(): AccentColor {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(readInitialTheme);
-  const [accentColor, setAccentColorState] = useState<AccentColor>(readInitialAccent);
+  const [theme, setThemeState] = useState<Theme>("dark");
+  const [accentColor, setAccentColorState] = useState<AccentColor>("red");
 
-  const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
-    localStorage.setItem("theme", next);
-    applyTheme(next);
-    const storedAccent = localStorage.getItem("accent-color");
-    applyAccentColor(isAccentColor(storedAccent) ? storedAccent : "red", next);
+  useLayoutEffect(() => {
+    const storedTheme = readStoredTheme();
+    const storedAccent = readInitialAccent();
+    applyTheme(storedTheme);
+    applyAccentColor(storedAccent, storedTheme);
+    setThemeState(storedTheme);
+    setAccentColorState(storedAccent);
   }, []);
 
-  const setAccentColor = useCallback((next: AccentColor) => {
-    setAccentColorState(next);
-    localStorage.setItem("accent-color", next);
-    const theme = document.documentElement.classList.contains("light")
-      ? "light"
-      : "dark";
-    applyAccentColor(next, theme);
-  }, []);
+  const setTheme = useCallback(
+    (next: Theme) => {
+      setThemeState(next);
+      localStorage.setItem("theme", next);
+      applyTheme(next);
+      applyAccentColor(accentColor, next);
+    },
+    [accentColor]
+  );
+
+  const setAccentColor = useCallback(
+    (next: AccentColor) => {
+      setAccentColorState(next);
+      localStorage.setItem("accent-color", next);
+      applyAccentColor(next, theme);
+    },
+    [theme]
+  );
 
   return (
     <ThemeContext.Provider

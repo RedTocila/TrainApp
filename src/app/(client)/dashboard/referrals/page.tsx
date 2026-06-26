@@ -24,7 +24,7 @@ export default async function ReferralsPage() {
 
   return (
     <PageTransition>
-      <div className="mx-auto max-w-2xl space-y-5">
+      <div className="mx-auto max-w-2xl space-y-4">
         <Suspense
           fallback={
             <div className="h-8 w-16 animate-pulse rounded-md bg-muted/50" aria-hidden />
@@ -32,18 +32,21 @@ export default async function ReferralsPage() {
         >
           <ReferralsBackButton />
         </Suspense>
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <Gift className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-black">{platform.referrals.title}</h1>
-            <p className="text-xs text-muted-foreground">{platform.referrals.subtitle}</p>
+
+        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-5">
+          <div className="relative flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/20">
+              <Gift className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-black">{platform.referrals.title}</h1>
+              <p className="mt-0.5 text-xs text-muted-foreground">{platform.referrals.subtitle}</p>
+            </div>
           </div>
         </div>
 
         <Card>
-          <CardContent className="p-4 sm:p-6">
+          <CardContent className="p-4 sm:p-5">
             <ReferralProgram data={data} copy={referralCopy} />
           </CardContent>
         </Card>

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
 :root {
   --radius: 0.75rem;
   --dashboard-mobile-nav-height: calc(2.875rem + max(0.5rem, env(safe-area-inset-bottom, 0px)));
@@ -431,4 +434,22 @@ html.light .landing-page :where(svg.text-primary, .text-primary svg) {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+input[type="time"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+input[type="time"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+  min-width: 0;
+}
+
+input[type="time"]::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
 }

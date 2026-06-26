@@ -2,12 +2,14 @@ import { requireClient } from "@/lib/actions/auth";
 import { ClientNav } from "@/components/client-nav";
 import { DashboardMobileHeader } from "@/components/dashboard-mobile-header";
 import { LocaleProvider } from "@/components/locale-provider";
+import { PendingIntakeSync } from "@/components/pending-intake-sync";
 import { SubscriptionBanner } from "@/components/subscription-banner";
 import { DateProvider } from "@/components/date-provider";
 import { DashboardSyncProvider } from "@/components/dashboard-sync";
 import { FullCalendarProvider } from "@/components/full-calendar-provider";
 import { TrainSectionShell } from "@/components/train-section-shell";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
+import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 
 export default async function DashboardLayout({
   children,
@@ -16,9 +18,11 @@ export default async function DashboardLayout({
 }) {
   const profile = await requireClient();
   const locale = parseCheckoutLocale(profile.preferred_locale);
+  const intakeComplete = isClientIntakeComplete(profile);
 
   return (
     <LocaleProvider locale={locale}>
+      <PendingIntakeSync intakeComplete={intakeComplete} />
       <DateProvider>
         <DashboardSyncProvider>
         <FullCalendarProvider>

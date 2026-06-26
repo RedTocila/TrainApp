@@ -76,20 +76,24 @@ export function DayTasksPanel({
   return (
     <Card>
       <CardHeader className="p-0">
-        <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
-          <button
-            type="button"
-            onClick={() => setOpen((prev) => !prev)}
-            className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            aria-expanded={open}
-          >
-            <ListChecks className="h-4 w-4 shrink-0 text-primary sm:h-5 sm:w-5" />
-            <span className="text-base font-bold sm:text-lg">{panelTitle(selectedDate, platform)}</span>
+        <div className="flex w-full items-start gap-2 px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
+          <div className="min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={() => setOpen((prev) => !prev)}
+              className="flex w-full min-w-0 items-center gap-2 text-left"
+              aria-expanded={open}
+            >
+              <ListChecks className="h-4 w-4 shrink-0 text-primary sm:h-5 sm:w-5" />
+              <span className="min-w-0 text-base font-bold leading-snug sm:text-lg">
+                {panelTitle(selectedDate, platform)}
+              </span>
+            </button>
             {tasks.length > 0 && (
-              <>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 pl-6 sm:pl-7">
                 <span
                   className={cn(
-                    "text-sm font-semibold",
+                    "text-sm font-semibold leading-snug",
                     allDone
                       ? "text-green-400"
                       : dayEnded
@@ -97,34 +101,36 @@ export function DayTasksPanel({
                         : "text-amber-400"
                   )}
                 >
-                  {allDone ? platform.common.completed : dayEnded ? platform.common.incomplete : platform.common.inProgress}
+                  {allDone
+                    ? platform.common.completed
+                    : dayEnded
+                      ? platform.common.incomplete
+                      : platform.common.inProgress}
                 </span>
                 {!allDone && (
-                  <span className="text-sm font-medium text-muted-foreground">
+                  <span className="text-sm font-medium leading-snug text-muted-foreground">
                     {platform.common.completedCount(completed.length, tasks.length)}
                   </span>
                 )}
-              </>
+                <MissedButton
+                  count={missed.length}
+                  title={coachLabels.missedTasks}
+                  hint={coachLabels.tasksMissedHint}
+                  items={missedTaskItems}
+                />
+              </div>
             )}
-          </button>
-          <div className="flex shrink-0 items-center gap-2">
-            <MissedButton
-              count={missed.length}
-              title={coachLabels.missedTasks}
-              hint={coachLabels.tasksMissedHint}
-              items={missedTaskItems}
-            />
-            <button
-              type="button"
-              onClick={() => setOpen((prev) => !prev)}
-              className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              aria-label={open ? platform.aria.collapseTasks : platform.aria.expandTasks}
-            >
-              <ChevronDown
-                className={cn("h-5 w-5 transition-transform", open && "rotate-180")}
-              />
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={() => setOpen((prev) => !prev)}
+            className="mt-0.5 shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            aria-label={open ? platform.aria.collapseTasks : platform.aria.expandTasks}
+          >
+            <ChevronDown
+              className={cn("h-5 w-5 transition-transform", open && "rotate-180")}
+            />
+          </button>
         </div>
       </CardHeader>
       {open && (

@@ -3,6 +3,7 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUp, ExternalLink, Globe, Loader2, UserRound } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
+import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { ChatMessage, WebSource } from "@/lib/ai/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -154,9 +155,66 @@ const ChatBubble = memo(function ChatBubble({
   );
 });
 
+function ChatCommandBar({
+  input,
+  onInputChange,
+  onKeyDown,
+  onSubmit,
+  placeholder,
+  disabled,
+  canSend,
+  isStreaming,
+  sendAriaLabel,
+}: {
+  input: string;
+  onInputChange: (value: string) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  placeholder: string;
+  disabled: boolean;
+  canSend: boolean;
+  isStreaming: boolean;
+  sendAriaLabel: string;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  return (
+    <form onSubmit={onSubmit}>
+      <div className="flex items-end gap-1.5 rounded-full border border-border/70 bg-secondary/60 p-1.5 pl-4 shadow-sm backdrop-blur-sm">
+        <Textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => onInputChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          rows={1}
+          disabled={disabled}
+          className="max-h-32 min-h-[40px] flex-1 resize-none border-0 bg-transparent px-0 py-2.5 shadow-none focus-visible:ring-0"
+        />
+        <button
+          type="submit"
+          disabled={!canSend}
+          aria-label={sendAriaLabel}
+          className={cn(
+            "mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+            canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
+          )}
+        >
+          {isStreaming ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+          )}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const platform = usePlatformCopy();
   const ai = platform.ai;
+  const { openReadMe, canChat } = useAiCoachChat();
   const starterPrompts = [...ai.starterPrompts];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -164,7 +222,6 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingWebSearch, setPendingWebSearch] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -177,7 +234,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
 
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || isStreaming) return;
+    if (!trimmed || isStreaming || !canChat) return;
 
     setError(null);
     setInput("");
@@ -295,6 +352,8 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     }
   };
 
+  const canSend = Boolean(input.trim() && !isStreaming && canChat);
+
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", !embedded && "min-h-[calc(100dvh-14rem)] gap-4")}>
       {embedded ? (
@@ -308,6 +367,13 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
                 <div>
                   <p className="font-bold">{ai.askAlex}</p>
+                  <button
+                    type="button"
+                    onClick={openReadMe}
+                    className="mt-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
+                  >
+                    {ai.readMeButton}
+                  </button>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
                   {starterPrompts.map((prompt) => (
@@ -315,8 +381,8 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                       key={prompt}
                       type="button"
                       onClick={() => void sendMessage(prompt)}
-                      disabled={isStreaming}
-                      className="rounded-full border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      disabled={isStreaming || !canChat}
+                      className="rounded-full border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {prompt}
                     </button>
@@ -347,41 +413,20 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="shrink-0 border-t border-border bg-background px-4 pt-3 pb-2">
+          <div className="shrink-0 bg-background px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2">
             {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
-            <div className="relative rounded-2xl border border-border bg-background shadow-sm">
-              <Textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={ai.placeholder}
-                rows={1}
-                disabled={isStreaming}
-                className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3.5 pr-12 shadow-none focus-visible:ring-0"
-              />
-              <button
-                type="submit"
-                disabled={isStreaming || !input.trim()}
-                aria-label={platform.aria.sendMessage}
-                className={cn(
-                  "absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full transition-colors",
-                  input.trim() && !isStreaming
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "cursor-not-allowed bg-muted text-muted-foreground"
-                )}
-              >
-                {isStreaming ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-                )}
-              </button>
-            </div>
-            <p className="mt-2 bg-amber-50 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:bg-amber-500/10">
-              {ai.medicalDisclaimer}
-            </p>
-          </form>
+            <ChatCommandBar
+              input={input}
+              onInputChange={setInput}
+              onKeyDown={handleKeyDown}
+              onSubmit={handleSubmit}
+              placeholder={canChat ? ai.placeholder : ai.readMeRequiredPlaceholder}
+              disabled={isStreaming || !canChat}
+              canSend={canSend}
+              isStreaming={isStreaming}
+              sendAriaLabel={platform.aria.sendMessage}
+            />
+          </div>
         </div>
       ) : (
       <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -395,6 +440,13 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
                 <div>
                   <p className="font-bold">{ai.askAlex}</p>
+                  <button
+                    type="button"
+                    onClick={openReadMe}
+                    className="mt-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
+                  >
+                    {ai.readMeButton}
+                  </button>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
                   {starterPrompts.map((prompt) => (
@@ -402,8 +454,8 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                       key={prompt}
                       type="button"
                       onClick={() => void sendMessage(prompt)}
-                      disabled={isStreaming}
-                      className="rounded-full border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      disabled={isStreaming || !canChat}
+                      className="rounded-full border border-border bg-secondary/40 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {prompt}
                     </button>
@@ -434,44 +486,20 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             )}
           </div>
 
-          <form
-            onSubmit={handleSubmit}
-            className="border-t border-border bg-card p-4"
-          >
+          <div className="border-t border-border/50 bg-card p-4">
             {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
-            <div className="relative rounded-2xl border border-border bg-background shadow-sm">
-              <Textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={ai.placeholder}
-                rows={1}
-                disabled={isStreaming}
-                className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3.5 pr-12 shadow-none focus-visible:ring-0"
-              />
-              <button
-                type="submit"
-                disabled={isStreaming || !input.trim()}
-                aria-label={platform.aria.sendMessage}
-                className={cn(
-                  "absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full transition-colors",
-                  input.trim() && !isStreaming
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "cursor-not-allowed bg-muted text-muted-foreground"
-                )}
-              >
-                {isStreaming ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-                )}
-              </button>
-            </div>
-            <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-[10px] text-muted-foreground dark:bg-amber-500/10">
-              {ai.medicalDisclaimer}
-            </p>
-          </form>
+            <ChatCommandBar
+              input={input}
+              onInputChange={setInput}
+              onKeyDown={handleKeyDown}
+              onSubmit={handleSubmit}
+              placeholder={canChat ? ai.placeholder : ai.readMeRequiredPlaceholder}
+              disabled={isStreaming || !canChat}
+              canSend={canSend}
+              isStreaming={isStreaming}
+              sendAriaLabel={platform.aria.sendMessage}
+            />
+          </div>
         </CardContent>
       </Card>
       )}
