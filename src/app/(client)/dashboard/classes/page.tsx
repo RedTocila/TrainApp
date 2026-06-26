@@ -1,48 +1,22 @@
-import { createClient } from "@/lib/supabase/server";
+import { Video } from "lucide-react";
 import { requireClient } from "@/lib/actions/auth";
-import { getPublishedClasses } from "@/lib/actions/classes";
-import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
-import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
-import { ClassesCatalog } from "@/components/classes-catalog";
 import { PageTransition } from "@/components/page-transition";
-import { hasAiAccess } from "@/lib/subscription";
 
 export default async function ClassesPage() {
-  await requireClient();
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user!.id)
-    .single();
-
-  const platform = getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale));
-
-  if (!profile || !hasAiAccess(profile)) {
-    return (
-      <PageTransition>
-        <div className="mx-auto max-w-2xl">
-          <AiUpgradeGate
-            title={`${PLATFORM_AI_NAME} required for live coaching`}
-            description={platform.classes.upgradeDescription}
-          />
-        </div>
-      </PageTransition>
-    );
-  }
-
-  const classes = await getPublishedClasses();
+  const profile = await requireClient();
+  const platform = getPlatformCopy(parseCheckoutLocale(profile.preferred_locale));
 
   return (
     <PageTransition>
-      <div className="mx-auto max-w-5xl">
-        <ClassesCatalog classes={classes} />
+      <div className="flex min-h-[min(60vh,24rem)] flex-col items-center justify-center px-4 py-16 text-center">
+        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+          <Video className="h-8 w-8 text-primary" aria-hidden />
+        </div>
+        <p className="text-lg font-semibold tracking-tight text-foreground">
+          {platform.classes.comingSoon}
+        </p>
       </div>
     </PageTransition>
   );

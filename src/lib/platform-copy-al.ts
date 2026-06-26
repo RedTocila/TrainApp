@@ -586,6 +586,7 @@ export const platformCopyAl = {
     ],
   },
   classes: {
+    comingSoon: "Së shpejti.",
     upgradeDescription:
       "Përmirëso planin në AI për të marrë pjesë në seanca live dhe për të parë regjistrimet.",
     upgradeDescriptionShort:

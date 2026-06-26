@@ -583,6 +583,7 @@ export const platformCopyEn = {
     ],
   },
   classes: {
+    comingSoon: "Coming Soon.",
     upgradeDescription:
       "Upgrade to the AI plan to join live coaching sessions and watch replays anytime.",
     upgradeDescriptionShort:
