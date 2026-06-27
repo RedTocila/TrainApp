@@ -11,6 +11,8 @@ import {
 } from "@/lib/db-selects";
 import { getClientWorkoutAssignment } from "@/lib/actions/plans";
 import { getScheduledWorkoutForDate } from "@/lib/actions/user-workouts";
+import { getTaskCompletionsForDate } from "@/lib/actions/task-completions";
+import { formatDateKey } from "@/lib/utils";
 import type {
   Exercise,
   ExerciseHistoryEntry,
@@ -237,12 +239,13 @@ export async function resolveWorkoutForDate(
   };
 }
 
-export async function isWorkoutCompletedOnDate(
+async function findCompletedSessionIdForDate(
   clientId: string,
   dateKey: string
-): Promise<boolean> {
+): Promise<string | null> {
   const supabase = await createClient();
-  const { data } = await supabase
+
+  const { data: bySchedule } = await supabase
     .from("workout_sessions")
     .select("id")
     .eq("client_id", clientId)
@@ -250,7 +253,110 @@ export async function isWorkoutCompletedOnDate(
     .eq("scheduled_date", dateKey)
     .limit(1)
     .maybeSingle();
-  return !!data;
+  if (bySchedule) return bySchedule.id;
+
+  const workout = await resolveWorkoutForDate(clientId, dateKey);
+  if (!workout) return null;
+
+  const { data: sessions } = await supabase
+    .from("workout_sessions")
+    .select("id, completed_at, scheduled_date")
+    .eq("client_id", clientId)
+    .eq("status", "completed")
+    .eq("plan_id", workout.planId)
+    .eq("day_id", workout.dayId)
+    .order("completed_at", { ascending: false })
+    .limit(5);
+
+  for (const session of sessions ?? []) {
+    if (session.scheduled_date === dateKey) return session.id;
+    if (
+      session.completed_at &&
+      formatDateKey(new Date(session.completed_at)) === dateKey
+    ) {
+      return session.id;
+    }
+  }
+
+  return null;
+}
+
+export interface CompletedWorkoutResults {
+  sessionId: string;
+  dayTitle: string | null;
+  planTitle: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  notes: string | null;
+  exercises: {
+    id: string;
+    name: string;
+    targetReps: string;
+    sets: {
+      setNumber: number;
+      reps: number | null;
+      weightKg: number | null;
+    }[];
+  }[];
+}
+
+export async function getCompletedWorkoutResultsForDate(
+  clientId: string,
+  dateKey: string
+): Promise<CompletedWorkoutResults | null> {
+  const sessionId = await findCompletedSessionIdForDate(clientId, dateKey);
+  if (!sessionId) return null;
+
+  const supabase = await createClient();
+  const { data: session } = await supabase
+    .from("workout_sessions")
+    .select(WORKOUT_SESSION_COLUMNS)
+    .eq("id", sessionId)
+    .eq("client_id", clientId)
+    .single();
+
+  if (!session) return null;
+
+  const { data: exercises } = await supabase
+    .from("workout_session_exercises")
+    .select(
+      `id, name, target_reps, order_index, workout_session_sets(${WORKOUT_SESSION_SET_COLUMNS})`
+    )
+    .eq("session_id", sessionId)
+    .order("order_index");
+
+  return {
+    sessionId: session.id,
+    dayTitle: session.day_title,
+    planTitle: session.plan_title,
+    startedAt: session.started_at,
+    completedAt: session.completed_at,
+    notes: session.notes,
+    exercises: (exercises ?? []).map((exercise) => ({
+      id: exercise.id,
+      name: exercise.name,
+      targetReps: exercise.target_reps,
+      sets: (
+        (exercise.workout_session_sets as WorkoutSessionSet[]) ?? []
+      )
+        .sort((a, b) => a.set_number - b.set_number)
+        .map((set) => ({
+          setNumber: set.set_number,
+          reps: set.reps,
+          weightKg: set.weight_kg != null ? Number(set.weight_kg) : null,
+        })),
+    })),
+  };
+}
+
+export async function isWorkoutCompletedOnDate(
+  clientId: string,
+  dateKey: string
+): Promise<boolean> {
+  if (await findCompletedSessionIdForDate(clientId, dateKey)) return true;
+
+  const taskCompletions = await getTaskCompletionsForDate(clientId, dateKey);
+  return taskCompletions.has(`${dateKey}-workout`);
 }
 
 export async function getInProgressSession(): Promise<WorkoutSession | null> {
@@ -523,7 +629,7 @@ export async function startTodaysWorkoutAndRedirect(dateKey: string) {
   return startWorkoutAndRedirect({
     planId: workout.planId,
     dayId: workout.dayId,
-    scheduledDate: workout.scheduledDate,
+    scheduledDate: dateKey,
   });
 }
 
@@ -688,7 +794,7 @@ export async function completeWorkoutSession(
 
   const { data: session } = await admin
     .from("workout_sessions")
-    .select("id, status")
+    .select("id, status, scheduled_date, started_at")
     .eq("id", sessionId)
     .eq("client_id", userId)
     .single();
@@ -721,18 +827,39 @@ export async function completeWorkoutSession(
     }
   }
 
+  const completedAt = new Date().toISOString();
+  const scheduledDate =
+    session.scheduled_date ??
+    (session.started_at
+      ? formatDateKey(new Date(session.started_at))
+      : formatDateKey(new Date()));
+
   const { error } = await admin
     .from("workout_sessions")
     .update({
       status: "completed",
-      completed_at: new Date().toISOString(),
+      completed_at: completedAt,
+      scheduled_date: scheduledDate,
       notes: notes?.trim() || null,
     })
     .eq("id", sessionId);
 
   if (error) return { error: error.message };
 
-  return { success: true };
+  await admin.from("schedule_task_completions").upsert(
+    {
+      client_id: userId,
+      date: scheduledDate,
+      task_id: `${scheduledDate}-workout`,
+      completed_at: completedAt,
+    },
+    { onConflict: "client_id,date,task_id" }
+  );
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/workout");
+
+  return { success: true, scheduledDate };
 }
 
 export async function cancelWorkoutSession(sessionId: string) {

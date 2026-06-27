@@ -11,6 +11,7 @@ import {
 import { WorkoutCategoryIcon } from "@/components/programs/workout-day-chip";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { isWorkoutCompletedFromPatches } from "@/lib/dashboard-enrichment-utils";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import {
   SectionCompletedBadge,
@@ -41,7 +42,7 @@ export function WorkoutTabBanner({
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
-  const { version } = useDashboardSync();
+  const { version, patches } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
   const [workoutCompleted, setWorkoutCompleted] = useState(initialWorkoutCompleted);
   const [inProgressSessionId, setInProgressSessionId] = useState(
@@ -100,6 +101,10 @@ export function WorkoutTabBanner({
 
   if (!workout) return null;
 
+  const dateKey = formatDateKey(selectedDate);
+  const workoutCompletedForDay =
+    workoutCompleted || isWorkoutCompletedFromPatches(patches, dateKey);
+
   const category = inferWorkoutCategoryFromText(
     workout.dayTitle,
     workout.planTitle,
@@ -112,20 +117,20 @@ export function WorkoutTabBanner({
       id="dashboard-workout"
       className={cn(
         "overflow-hidden border-2",
-        sectionCompletedCardClass(workoutCompleted),
-        !workoutCompleted && style.cardBorder,
-        !workoutCompleted && style.cardBg
+        sectionCompletedCardClass(workoutCompletedForDay),
+        !workoutCompletedForDay && style.cardBorder,
+        !workoutCompletedForDay && style.cardBg
       )}
     >
-      {!workoutCompleted && <div className={cn("h-1.5 w-full", style.stripe)} aria-hidden />}
+      {!workoutCompletedForDay && <div className={cn("h-1.5 w-full", style.stripe)} aria-hidden />}
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
-          {!workoutCompleted && <WorkoutCategoryIcon category={category} />}
+          {!workoutCompletedForDay && <WorkoutCategoryIcon category={category} />}
           <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            {workoutCompleted && <SectionCompletedBadge />}
+            {workoutCompletedForDay && <SectionCompletedBadge />}
           </div>
-          <p className={cn("font-bold", workoutCompleted && "text-green-400")}>
+          <p className={cn("font-bold", workoutCompletedForDay && "text-green-400")}>
             {workout.dayTitle}
           </p>
           <p className="text-sm text-muted-foreground">
@@ -157,7 +162,7 @@ export function WorkoutTabBanner({
           </div>
           </div>
         </div>
-        {workoutCompleted ? (
+        {workoutCompletedForDay ? (
           <span
             className="flex h-8 w-8 shrink-0 items-center justify-center self-end rounded-full border border-green-500 bg-green-500 text-white sm:self-center"
             aria-label={platform.aria.completed}

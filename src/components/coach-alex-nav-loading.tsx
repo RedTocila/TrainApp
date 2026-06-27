@@ -14,7 +14,7 @@ export function CoachAlexNavLoading() {
 
   return (
     <div
-      className="flex min-h-[min(50vh,22rem)] flex-col items-center justify-center px-4 py-10"
+      className="flex min-h-[calc(100dvh-var(--dashboard-mobile-nav-height))] w-full flex-col items-center justify-center px-4 lg:min-h-[100dvh]"
       role="status"
       aria-live="polite"
       aria-busy="true"

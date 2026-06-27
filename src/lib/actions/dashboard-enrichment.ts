@@ -5,6 +5,7 @@ import { getTaskCompletionsInRange } from "@/lib/actions/task-completions";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 import { createClient } from "@/lib/supabase/server";
 import type { DailyMealLog } from "@/lib/types";
+import { formatDateKey } from "@/lib/utils";
 
 function mergeCompletionMaps(
   ...maps: Record<string, Set<string>>[]
@@ -37,7 +38,8 @@ export async function fetchDashboardEnrichmentFields(
 > {
   const supabase = await createClient();
 
-  const [logsResult, mealsResult, workoutsResult] = await Promise.all([
+  const [logsResult, mealsResult, scheduledWorkoutsResult, unscheduledWorkoutsResult] =
+    await Promise.all([
     supabase
       .from("daily_logs")
       .select("date, water_ml")
@@ -53,11 +55,19 @@ export async function fetchDashboardEnrichmentFields(
       .order("logged_at"),
     supabase
       .from("workout_sessions")
-      .select("scheduled_date")
+      .select("scheduled_date, completed_at")
       .eq("client_id", clientId)
       .eq("status", "completed")
       .gte("scheduled_date", from)
       .lte("scheduled_date", to),
+    supabase
+      .from("workout_sessions")
+      .select("scheduled_date, completed_at")
+      .eq("client_id", clientId)
+      .eq("status", "completed")
+      .is("scheduled_date", null)
+      .gte("completed_at", `${from}T00:00:00`)
+      .lte("completed_at", `${to}T23:59:59.999Z`),
   ]);
 
   const waterByDate: Record<string, number> = {};
@@ -72,7 +82,14 @@ export async function fetchDashboardEnrichmentFields(
   }
 
   const workoutCompletedDates = [
-    ...new Set((workoutsResult.data ?? []).map((row) => row.scheduled_date)),
+    ...new Set(
+      [...(scheduledWorkoutsResult.data ?? []), ...(unscheduledWorkoutsResult.data ?? [])]
+        .map((row) =>
+          row.scheduled_date ??
+          (row.completed_at ? formatDateKey(new Date(row.completed_at)) : null)
+        )
+        .filter((dateKey): dateKey is string => !!dateKey)
+    ),
   ];
 
   return { waterByDate, mealsByDate, workoutCompletedDates };

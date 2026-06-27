@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { isWorkoutCompletedFromPatches } from "@/lib/dashboard-enrichment-utils";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import {
   SectionCompletedBadge,
@@ -15,8 +16,11 @@ import {
 import {
   resolveWorkoutForDate,
   isWorkoutCompletedOnDate,
+  getCompletedWorkoutResultsForDate,
   type TodaysWorkoutInfo,
+  type CompletedWorkoutResults,
 } from "@/lib/actions/workout-sessions";
+import { WorkoutResultsDropdown } from "@/components/workout-results-dropdown";
 import { formatDateKey } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,11 +49,13 @@ export function DashboardWorkoutCard({
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
-  const { version } = useDashboardSync();
+  const { version, patches } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
   const [workoutCompleted, setWorkoutCompleted] = useState(
     initialWorkoutCompleted
   );
+  const [workoutResults, setWorkoutResults] =
+    useState<CompletedWorkoutResults | null>(null);
 
   // Sync SSR props only when the server revalidates.
   useEffect(() => {
@@ -65,6 +71,12 @@ export function DashboardWorkoutCard({
     ]);
     setWorkout(resolved);
     setWorkoutCompleted(completed);
+    if (completed) {
+      const results = await getCompletedWorkoutResultsForDate(clientId, dateKey);
+      setWorkoutResults(results);
+    } else {
+      setWorkoutResults(null);
+    }
   }, [clientId, selectedDate]);
 
   const isReady = useDashboardDateFetch(formatDateKey(selectedDate), refreshWorkout, [
@@ -75,7 +87,16 @@ export function DashboardWorkoutCard({
 
   const dateKey = formatDateKey(selectedDate);
   const workoutForDay = isReady ? workout : null;
-  const workoutCompletedForDay = isReady && workoutCompleted;
+  const patchedComplete = isWorkoutCompletedFromPatches(patches, dateKey);
+  const workoutCompletedForDay =
+    isReady && (workoutCompleted || patchedComplete);
+  useEffect(() => {
+    if (!workoutCompletedForDay || workoutResults) return;
+    void getCompletedWorkoutResultsForDate(clientId, dateKey).then((results) => {
+      if (results) setWorkoutResults(results);
+    });
+  }, [workoutCompletedForDay, workoutResults, clientId, dateKey]);
+
   const workoutMissed =
     !!workoutForDay &&
     !workoutCompletedForDay &&
@@ -148,6 +169,11 @@ export function DashboardWorkoutCard({
                 </Badge>
               ))}
             </div>
+            {workoutCompletedForDay && workoutResults ? (
+              <div className="mt-4">
+                <WorkoutResultsDropdown results={workoutResults} />
+              </div>
+            ) : null}
           </div>
         ) : isReady ? (
           <p className="text-sm text-muted-foreground">

@@ -420,7 +420,10 @@ export function ActiveWorkoutClient({
         return;
       }
       clearWorkoutTimerAnchor(session.id);
-      const dateKey = session.scheduled_date ?? formatDateKey(new Date());
+      const dateKey =
+        result.scheduledDate ??
+        session.scheduled_date ??
+        formatDateKey(new Date());
       notifySync();
       patchDashboard({
         dateKey,

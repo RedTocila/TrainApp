@@ -53,6 +53,15 @@ export function applyLivePatch(
   return next;
 }
 
+export function isWorkoutCompletedFromPatches(
+  patches: DashboardPatchState,
+  dateKey: string
+): boolean {
+  if (patches.workoutCompleted[dateKey]) return true;
+  const taskId = `${dateKey}-workout`;
+  return patches.completions[dateKey]?.[taskId] === true;
+}
+
 export function mergeEnrichmentWithPatches(
   data: DashboardEnrichmentData,
   patches: DashboardPatchState

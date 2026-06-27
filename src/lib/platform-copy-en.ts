@@ -178,6 +178,8 @@ export const platformCopyEn = {
     expandTasks: "Expand tasks",
     collapseMeals: "Collapse logged meals",
     expandMeals: "Expand logged meals",
+    collapseWorkoutResults: "Collapse workout results",
+    expandWorkoutResults: "Expand workout results",
     viewMealPlan: "View meal plan",
     logMeal: "Log meal",
     logWeight: "Log weight",
@@ -304,6 +306,8 @@ export const platformCopyEn = {
     scheduledWorkout: "Scheduled workout",
     completedSuffix: "· completed",
     completeBy: (deadline: string) => `· complete by ${deadline}`,
+    workoutResults: "Workout results",
+    noResultsLogged: "No sets were logged for this workout.",
     foldersMeta: (folders: number, programs: number) =>
       `${folders} folder${folders === 1 ? "" : "s"} · ${programs} program${programs === 1 ? "" : "s"}`,
     flowFolder: "Folder",

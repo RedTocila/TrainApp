@@ -179,6 +179,8 @@ export const platformCopyAl = {
     expandTasks: "Shfaq detyrat",
     collapseMeals: "Mbyll vaktet e regjistruara",
     expandMeals: "Shfaq vaktet e regjistruara",
+    collapseWorkoutResults: "Mbyll rezultatet e stërvitjes",
+    expandWorkoutResults: "Shfaq rezultatet e stërvitjes",
     viewMealPlan: "Shiko menunë",
     logMeal: "Regjistro vaktin",
     logWeight: "Regjistro peshën",
@@ -306,6 +308,8 @@ export const platformCopyAl = {
     scheduledWorkout: "Stërvitje e planifikuar",
     completedSuffix: "· e përfunduar",
     completeBy: (deadline: string) => `· përfundo deri në ${deadline}`,
+    workoutResults: "Rezultatet e stërvitjes",
+    noResultsLogged: "Nuk u regjistruan seri për këtë stërvitje.",
     foldersMeta: (folders: number, programs: number) =>
       `${folders} dosje · ${programs} program${programs === 1 ? "" : "e"}`,
     flowFolder: "Dosja",
