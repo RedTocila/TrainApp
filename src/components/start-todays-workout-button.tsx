@@ -52,7 +52,7 @@ export function StartTodaysWorkoutButton({
 
   return (
     <div className={cn("inline-flex flex-col items-end gap-1", className)}>
-      <StartWorkoutLoadingShell isLoading={isStarting}>
+      <StartWorkoutLoadingShell isLoading={isStarting} ring={display === "icon"}>
         {display === "text" ? (
           <Button
             size="sm"
@@ -73,7 +73,7 @@ export function StartTodaysWorkoutButton({
             aria-busy={isStarting}
             aria-label={isStarting ? "Opening workout" : "Open workout"}
           >
-            <Play className={cn("h-4 w-4", isStarting && "opacity-50")} />
+            <Play className={cn("h-4 w-4", isStarting && "opacity-60")} />
           </Button>
         )}
       </StartWorkoutLoadingShell>

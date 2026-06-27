@@ -458,22 +458,18 @@ export function ActiveWorkoutClient({
             )}
           </div>
           {isStarted && (
-            <div className="flex shrink-0 items-center gap-2 self-start pt-0.5">
-              <span className="text-sm font-medium text-muted-foreground">
-                {platform.workout.stop}
-              </span>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="h-10 w-10 shrink-0 rounded-full"
-                disabled={isPending || isGivingUp}
-                onClick={handleStopWorkout}
-                aria-label={platform.workout.stopWorkout}
-              >
-                <Square className="h-4 w-4 fill-current" />
-              </Button>
-            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold"
+              disabled={isPending || isGivingUp}
+              onClick={handleStopWorkout}
+              aria-label={platform.workout.stopWorkout}
+            >
+              <Square className="h-3.5 w-3.5 fill-current" />
+              {platform.workout.stop}
+            </Button>
           )}
         </div>
       </div>

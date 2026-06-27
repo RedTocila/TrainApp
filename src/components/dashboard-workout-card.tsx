@@ -47,6 +47,12 @@ import type { Profile } from "@/lib/types";
 
 const WORKOUT_RESULTS_RETRY_MS = [0, 400, 800, 1500, 2500, 4000, 6000];
 
+type WorkoutDayCache = {
+  workout: TodaysWorkoutInfo | null;
+  completed: boolean;
+  results: CompletedWorkoutResults | null;
+};
+
 async function loadWorkoutResults(
   clientId: string,
   dateKey: string,
@@ -88,54 +94,100 @@ export function DashboardWorkoutCard({
   );
   const [workoutResults, setWorkoutResults] =
     useState<CompletedWorkoutResults | null>(initialWorkoutResults);
+  const [loadedDateKey, setLoadedDateKey] = useState(dateKey);
+  const workoutCacheRef = useRef<Map<string, WorkoutDayCache>>(new Map());
 
-  // Sync SSR props only when the server revalidates.
   useEffect(() => {
-    setWorkout(initialWorkout);
-    setWorkoutCompleted(initialWorkoutCompleted);
+    workoutCacheRef.current.set(dateKey, {
+      workout: initialWorkout,
+      completed: initialWorkoutCompleted,
+      results: initialWorkoutResults,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed SSR snapshot once
+  }, []);
+
+  // Sync SSR props when the server revalidates for today only.
+  useEffect(() => {
+    if (dateKey !== todayKey) return;
+    const snapshot: WorkoutDayCache = {
+      workout: initialWorkout,
+      completed: initialWorkoutCompleted,
+      results: initialWorkoutResults,
+    };
+    workoutCacheRef.current.set(dateKey, snapshot);
+    setWorkout(snapshot.workout);
+    setWorkoutCompleted(snapshot.completed);
     if (initialWorkoutResults) setWorkoutResults(initialWorkoutResults);
-  }, [initialWorkout, initialWorkoutCompleted, initialWorkoutResults]);
+    setLoadedDateKey(dateKey);
+  }, [initialWorkout, initialWorkoutCompleted, initialWorkoutResults, dateKey, todayKey]);
 
   const prevDateKeyRef = useRef(dateKey);
   useEffect(() => {
     if (prevDateKeyRef.current === dateKey) return;
     prevDateKeyRef.current = dateKey;
+
+    const cached = workoutCacheRef.current.get(dateKey);
+    if (cached) {
+      setWorkout(cached.workout);
+      setWorkoutCompleted(cached.completed);
+      setWorkoutResults(cached.results);
+      setLoadedDateKey(dateKey);
+      return;
+    }
+
+    setWorkout(null);
+    setWorkoutCompleted(false);
     setWorkoutResults(null);
   }, [dateKey]);
 
   const refreshWorkout = useCallback(async () => {
-    const dateKey = formatDateKey(selectedDate);
+    const key = formatDateKey(selectedDate);
     const [resolved, completed] = await Promise.all([
-      resolveWorkoutForDate(clientId, dateKey),
-      isWorkoutCompletedOnDate(clientId, dateKey),
+      resolveWorkoutForDate(clientId, key),
+      isWorkoutCompletedOnDate(clientId, key),
     ]);
+
+    if (formatDateKey(selectedDate) !== key) return;
+
+    const dayComplete =
+      completed || isWorkoutCompletedFromPatches(patches, key);
+    const previous = workoutCacheRef.current.get(key);
+
+    workoutCacheRef.current.set(key, {
+      workout: resolved,
+      completed,
+      results: dayComplete ? (previous?.results ?? null) : null,
+    });
+
     setWorkout(resolved);
     setWorkoutCompleted(completed);
-    const dayComplete =
-      completed || isWorkoutCompletedFromPatches(patches, dateKey);
-    if (dayComplete) {
-      const results = await loadWorkoutResults(
-        clientId,
-        dateKey,
-        patches.workoutSessionIds[dateKey]
-      );
-      if (results) setWorkoutResults(results);
-    } else {
+    setLoadedDateKey(key);
+
+    if (!dayComplete) {
       setWorkoutResults(null);
+      return;
     }
+
+    void loadWorkoutResults(
+      clientId,
+      key,
+      patches.workoutSessionIds[key]
+    ).then((results) => {
+      if (formatDateKey(selectedDate) !== key) return;
+      setWorkoutResults(results);
+      const cached = workoutCacheRef.current.get(key);
+      if (cached) cached.results = results;
+    });
   }, [clientId, selectedDate, patches]);
 
-  const isReady = useDashboardDateFetch(dateKey, refreshWorkout, [
-    clientId,
-    version,
-    todayKey,
-  ]);
+  useDashboardDateFetch(dateKey, refreshWorkout, [clientId, version]);
 
-  const workoutForDay = isReady ? workout : null;
+  const isDayLoaded = loadedDateKey === dateKey;
+  const workoutForDay = isDayLoaded ? workout : null;
   const patchedComplete = isWorkoutCompletedFromPatches(patches, dateKey);
   const patchedSessionId = patches.workoutSessionIds[dateKey];
   const workoutCompletedForDay =
-    isReady && (workoutCompleted || patchedComplete);
+    isDayLoaded && (workoutCompleted || patchedComplete);
   const displayWorkout = workoutForDay ?? (patchedComplete ? workout : null);
   const showCompletedState = workoutCompletedForDay || patchedComplete;
 
@@ -196,7 +248,7 @@ export function DashboardWorkoutCard({
     !workoutCompletedForDay &&
     isDeadlinePassed(WORKOUT_DEADLINE, dateKey);
 
-  const startDisabled = !displayWorkout || (!isReady && !patchedComplete);
+  const startDisabled = !displayWorkout || (!isDayLoaded && !patchedComplete);
   const { start: startWorkout, isStarting: isStartingWorkout } = useStartTodaysWorkout(
     selectedDate,
     startDisabled
@@ -273,7 +325,7 @@ export function DashboardWorkoutCard({
           >
             <StartTodaysWorkoutButton
               date={selectedDate}
-              disabled={!displayWorkout || (!isReady && !patchedComplete)}
+              disabled={!displayWorkout || (!isDayLoaded && !patchedComplete)}
             />
           </div>
         )}
@@ -352,7 +404,7 @@ export function DashboardWorkoutCard({
                   </>
                 ) : null}
               </div>
-            ) : isReady ? (
+            ) : isDayLoaded ? (
               <p className="text-sm text-muted-foreground">{coachLabels.noWorkoutToday}</p>
             ) : null}
           </div>
@@ -437,7 +489,7 @@ export function DashboardWorkoutCard({
               <WorkoutExerciseList exercises={displayWorkout.exercises} />
             )}
           </>
-        ) : isReady ? (
+        ) : isDayLoaded ? (
           <DashboardEmptyState>{coachLabels.noWorkoutToday}</DashboardEmptyState>
         ) : null}
       </div>
@@ -472,7 +524,7 @@ export function DashboardWorkoutCard({
         ) : (
           <StartTodaysWorkoutButton
             date={selectedDate}
-            disabled={!displayWorkout || (!isReady && !patchedComplete)}
+            disabled={!displayWorkout || (!isDayLoaded && !patchedComplete)}
           />
         )}
       </CardHeader>
@@ -530,7 +582,7 @@ export function DashboardWorkoutCard({
               </div>
             ) : null}
           </>
-        ) : isReady ? (
+        ) : isDayLoaded ? (
           <DashboardEmptyState>{coachLabels.noWorkoutToday}</DashboardEmptyState>
         ) : null}
       </CardContent>
