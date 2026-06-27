@@ -252,7 +252,7 @@ export default async function DashboardPage() {
             />
           </div>
 
-          <div className="h-full min-h-[16rem] w-full sm:min-h-[18rem]">
+          <div className="h-full min-h-[15rem] w-full sm:min-h-[16rem]">
             <DashboardWorkoutCard
               clientId={profile.id}
               gender={profile.gender}

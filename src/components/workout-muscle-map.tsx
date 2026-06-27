@@ -1,7 +1,7 @@
 "use client";
 
 import Body from "@mjcdev/react-body-highlighter";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import {
   resolveBodyMapGender,
@@ -11,6 +11,62 @@ import {
 import { cn } from "@/lib/utils";
 
 const HIGHLIGHT_COLORS = ["#fca5a5", "#ef4444"] as const;
+const BODY_RENDER_WIDTH = 200;
+const BODY_RENDER_HEIGHT = 400;
+
+function CompactMuscleMapBody({
+  highlightData,
+  bodyGender,
+  className,
+}: {
+  highlightData: ReturnType<typeof toBodyHighlighterData>;
+  bodyGender: "male" | "female";
+  className?: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.5);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const updateScale = () => {
+      const { width, height } = node.getBoundingClientRect();
+      if (width < 1 || height < 1) return;
+
+      const fitScale = Math.min(
+        width / BODY_RENDER_WIDTH,
+        height / BODY_RENDER_HEIGHT
+      );
+      setScale(Math.max(0.25, fitScale * 0.98));
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn(
+        "flex h-full w-full min-h-[10rem] items-center justify-center",
+        className
+      )}
+      aria-hidden
+    >
+      <Body
+        data={highlightData}
+        gender={bodyGender}
+        side="front"
+        scale={scale}
+        colors={HIGHLIGHT_COLORS}
+        border="none"
+      />
+    </div>
+  );
+}
 
 export function WorkoutMuscleMap({
   exercises,
@@ -39,21 +95,11 @@ export function WorkoutMuscleMap({
 
   if (variant === "compact") {
     return (
-      <div
-        className={cn("relative h-full w-full", className)}
-        aria-hidden
-      >
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Body
-            data={highlightData}
-            gender={bodyGender}
-            side="front"
-            scale={0.64}
-            colors={HIGHLIGHT_COLORS}
-            border="none"
-          />
-        </div>
-      </div>
+      <CompactMuscleMapBody
+        highlightData={highlightData}
+        bodyGender={bodyGender}
+        className={className}
+      />
     );
   }
 

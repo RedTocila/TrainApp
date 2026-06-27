@@ -96,7 +96,7 @@ export function WorkoutDifficultyExplainDialog({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <button
         type="button"
         aria-label={platform.aria.close}
@@ -107,7 +107,7 @@ export function WorkoutDifficultyExplainDialog({
         role="dialog"
         aria-modal="true"
         aria-label={platform.workout.difficultyExplainTitle}
-        className="relative z-10 flex max-h-[min(85dvh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl sm:rounded-2xl"
+        className="relative z-10 flex max-h-[min(85dvh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start gap-3 border-b border-border px-4 py-4 sm:px-5">

@@ -24,22 +24,24 @@ export function DashboardWorkoutCompactStats({
   const durationLabel = formatWorkoutDurationShort(durationSeconds);
 
   return (
-    <div className={cn(dashboard.tile, "flex items-center gap-2.5 p-2.5", className)}>
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-500/10">
-        <Clock className="h-4 w-4 text-cyan-400" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-base font-black tabular-nums leading-none">{durationLabel}</p>
-        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {platform.workout.estimatedTime}
+    <div className={cn(dashboard.tile, "flex flex-col gap-2 p-2.5", className)}>
+      <div className="flex items-center gap-2">
+        <Clock className="h-3.5 w-3.5 shrink-0 text-cyan-400" aria-hidden />
+        <p className="min-w-0 text-sm leading-tight">
+          <span className="font-black tabular-nums">{durationLabel}</span>
+          <span className="ml-1.5 text-[11px] text-muted-foreground">
+            {platform.workout.estimatedTimeCompact}
+          </span>
         </p>
       </div>
-      <div className="flex items-center gap-2 border-l border-border/60 pl-2.5">
-        <Layers className="h-4 w-4 shrink-0 text-violet-400" />
-        <div>
-          <p className="text-sm font-black tabular-nums leading-none">{totalSets}</p>
-          <p className="text-[10px] text-muted-foreground">{platform.workout.totalSetsLabel}</p>
-        </div>
+      <div className="flex items-center gap-2">
+        <Layers className="h-3.5 w-3.5 shrink-0 text-violet-400" aria-hidden />
+        <p className="min-w-0 text-sm leading-tight">
+          <span className="font-black tabular-nums">{totalSets}</span>
+          <span className="ml-1.5 text-[11px] text-muted-foreground">
+            {platform.workout.totalSetsCompact}
+          </span>
+        </p>
       </div>
     </div>
   );

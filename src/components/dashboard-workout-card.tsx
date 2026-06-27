@@ -1,7 +1,7 @@
 "use client";
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
-import { ChevronRight, Clock, Dumbbell } from "lucide-react";
+import { ChevronRight, Dumbbell } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSelectedDate } from "@/components/date-provider";
@@ -259,7 +259,7 @@ export function DashboardWorkoutCard({
             router.push(DASHBOARD_DAY_WORKOUT_PATH);
           }
         }}
-        className="relative flex h-full min-h-[16rem] w-full cursor-pointer flex-col gap-3 p-4 pt-12 sm:min-h-[18rem] transition-opacity hover:opacity-95 active:opacity-90"
+        className="relative flex h-full min-h-[15rem] w-full cursor-pointer flex-col p-4 pt-12 sm:min-h-[16rem] transition-opacity hover:opacity-95 active:opacity-90"
       >
         {showCompletedState && displayWorkout ? (
           <div className="absolute right-3 top-3 z-20">
@@ -277,17 +277,10 @@ export function DashboardWorkoutCard({
           <span className="shrink-0 text-lg font-black leading-none">
             {platform.trainTabs.workout}
           </span>
-          {displayWorkout && displayWorkout.exercises.length > 0 ? (
-            <WorkoutDifficultyInsightButton
-              exercises={displayWorkout.exercises}
-              intakeProfile={intakeProfile}
-              size="compact"
-            />
-          ) : null}
         </div>
 
-        <div className="flex min-h-0 flex-1 gap-3">
-          <div className="w-[7.25rem] shrink-0 self-stretch overflow-hidden sm:w-32">
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(7.25rem,34%)_1fr] items-stretch gap-2">
+          <div className="relative flex min-h-[10rem] items-stretch">
             {hasMuscleMap ? (
               <WorkoutMuscleMap
                 variant="compact"
@@ -297,7 +290,7 @@ export function DashboardWorkoutCard({
                 className="h-full w-full"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center">
+              <div className="flex h-full min-h-[10rem] w-full items-center justify-center">
                 <Dumbbell
                   className="h-10 w-10 text-muted-foreground/40 sm:h-11 sm:w-11"
                   aria-hidden
@@ -306,9 +299,9 @@ export function DashboardWorkoutCard({
             )}
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch pr-7">
+          <div className="flex min-h-0 min-w-0 flex-col justify-between pr-6">
             {displayWorkout ? (
-              <>
+              <div className="min-w-0">
                 <p
                   className={cn(
                     "text-base font-bold leading-snug",
@@ -317,47 +310,53 @@ export function DashboardWorkoutCard({
                 >
                   {displayWorkout.dayTitle}
                 </p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
+                <p
+                  className={cn(
+                    "mt-0.5 text-sm text-muted-foreground",
+                    showCompletedState && "line-through"
+                  )}
+                >
                   {displayWorkout.planTitle}
-                  {displayWorkout.exercises.length > 0
+                  {!showCompletedState && displayWorkout.exercises.length > 0
                     ? ` · ${platform.common.exercises(displayWorkout.exercises.length)}`
                     : null}
                 </p>
-                {!showCompletedState && displayWorkout.exercises.length > 0 ? (
-                  <DashboardWorkoutCompactStats
-                    exercises={displayWorkout.exercises}
-                    className="mt-2"
-                  />
-                ) : showCompletedState ? (
-                  <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
-                    {displayWorkout.exercises.length > 0 && (
-                      <p>{platform.common.exercises(displayWorkout.exercises.length)}</p>
-                    )}
-                    {estimatedDurationLabel ? (
-                      <p className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 shrink-0 text-cyan-400" aria-hidden />
-                        <span>{estimatedDurationLabel}</span>
-                      </p>
-                    ) : null}
-                  </div>
+                {displayWorkout.exercises.length > 0 ? (
+                  <>
+                    <DashboardWorkoutCompactStats
+                      exercises={displayWorkout.exercises}
+                      className="mt-2"
+                    />
+                    <div
+                      className="mt-2"
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
+                      <WorkoutDifficultyInsightButton
+                        exercises={displayWorkout.exercises}
+                        intakeProfile={intakeProfile}
+                        size="compact"
+                      />
+                    </div>
+                  </>
                 ) : null}
-              </>
+              </div>
             ) : isReady ? (
               <p className="text-sm text-muted-foreground">{coachLabels.noWorkoutToday}</p>
             ) : null}
 
-            <div
-              className="mt-auto pt-3"
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => event.stopPropagation()}
-            >
-              {!showCompletedState ? (
+            {!showCompletedState ? (
+              <div
+                className="mt-3"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
                 <StartTodaysWorkoutButton
                   date={selectedDate}
                   disabled={!displayWorkout || (!isReady && !patchedComplete)}
                 />
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
         </div>
 

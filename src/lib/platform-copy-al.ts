@@ -298,6 +298,7 @@ export const platformCopyAl = {
     hideVideo: "Fshih videon",
     preview: "Parapamje",
     setsTarget: (n: number) => `${n} seri synim`,
+    setsCount: (n: number) => `${n} seri`,
     repsTarget: (n: string | number) => `${n} përsëritje synim`,
     set: "Seria",
     reps: "Përsëritje",
@@ -306,8 +307,10 @@ export const platformCopyAl = {
     addExercise: "Shto ushtrim",
     elapsed: "Kohë e kaluar",
     estimatedTime: "Koha e vlerësuar",
+    estimatedTimeCompact: "vler.",
     estTotal: (duration: string) => `Përaf. ~${duration}`,
     totalSetsLabel: "Seri gjithsej",
+    totalSetsCompact: "seri gjithsej",
     moreExercises: (count: number) =>
       `+${count} ushtrim${count === 1 ? "" : "e"} të tjera`,
     difficultyForYou: "Për ty",
