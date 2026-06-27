@@ -7,9 +7,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCachedProfile } from "@/lib/cached-profile";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
 import { attachReferralOnSignup, normalizeReferralCode } from "@/lib/referral";
-import { formatUserError } from "@/lib/format-user-error";
+import { formatUserError, isEmailNotConfirmedError } from "@/lib/format-user-error";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 type RegistrationInput = {
   fullName: string;
@@ -20,12 +20,118 @@ type RegistrationInput = {
   deviceHash?: string | null;
 };
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+async function findAuthUserByEmail(
+  admin: AdminClient,
+  email: string
+): Promise<User | null> {
+  const normalized = email.trim().toLowerCase();
+
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error || !data.users.length) break;
+
+    const match = data.users.find((user) => user.email?.toLowerCase() === normalized);
+    if (match) return match;
+
+    if (data.users.length < 200) break;
+  }
+
+  return null;
+}
+
+async function confirmAuthUserEmail(email: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const user = await findAuthUserByEmail(admin, email);
+    if (!user) return false;
+
+    const { error } = await admin.auth.admin.updateUserById(user.id, {
+      email_confirm: true,
+    });
+    return !error;
+  } catch (error) {
+    console.error("[confirmAuthUserEmail] failed", error);
+    return false;
+  }
+}
+
+async function signInWithRecovery(email: string, password: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const supabase = await createClient();
+
+  let { error } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  });
+
+  if (error && isEmailNotConfirmedError(error)) {
+    const confirmed = await confirmAuthUserEmail(normalizedEmail);
+    if (confirmed) {
+      ({ error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      }));
+    }
+  }
+
+  if (error) {
+    return { error: formatUserError(error, "Sign in failed. Check your email and password.") };
+  }
+
+  return { error: null as null };
+}
+
+async function ensureProfileExists(
+  supabase: SupabaseClient,
+  userId: string,
+  input: { fullName: string; email: string }
+): Promise<string | null> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const { data } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
+    if (data) return null;
+    await new Promise((resolve) => setTimeout(resolve, 75 * (attempt + 1)));
+  }
+
+  const referralCode = userId.replace(/-/g, "").slice(0, 8).toLowerCase();
+  const role =
+    process.env.ADMIN_EMAIL && input.email === process.env.ADMIN_EMAIL ? "admin" : "client";
+
+  const { error } = await supabase.from("profiles").insert({
+    id: userId,
+    full_name: input.fullName || input.email.split("@")[0] || "Member",
+    referral_code: referralCode,
+    role,
+  });
+
+  if (error && !error.message.toLowerCase().includes("duplicate")) {
+    return error.message;
+  }
+
+  return null;
+}
+
 async function finalizeNewUserProfile(
   supabase: SupabaseClient,
   userId: string,
   userMetadata: Record<string, unknown> | undefined,
   input: RegistrationInput
 ) {
+  const email = input.email.trim().toLowerCase();
+
+  const profileBootstrapError = await ensureProfileExists(supabase, userId, {
+    fullName: input.fullName,
+    email,
+  });
+  if (profileBootstrapError) {
+    return {
+      error: formatUserError(
+        profileBootstrapError,
+        "Could not create your profile. Please try signing in or contact support."
+      ),
+    };
+  }
   let intakeResponses: IntakeResponses | null = null;
   const intakeRaw = input.intakeJson?.trim();
   if (intakeRaw) {
@@ -44,10 +150,11 @@ async function finalizeNewUserProfile(
     profileUpdate.role = "admin";
   }
 
-  const { error: profileError } = await supabase
+  const { data: updatedRows, error: profileError } = await supabase
     .from("profiles")
     .update(profileUpdate)
-    .eq("id", userId);
+    .eq("id", userId)
+    .select("id");
 
   if (profileError) {
     return {
@@ -55,6 +162,12 @@ async function finalizeNewUserProfile(
         profileError.message,
         "Could not update your profile. Please try signing in or contact support."
       ),
+    };
+  }
+
+  if (!updatedRows?.length) {
+    return {
+      error: "Could not update your profile. Please try signing in or contact support.",
     };
   }
 
@@ -126,7 +239,10 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
   if (createError) {
     console.error("[signUpAccount] createUser failed", createError.message, createError);
     const message = createError.message.toLowerCase();
-    if (message.includes("already") && message.includes("registered")) {
+    if (
+      (message.includes("already") && message.includes("registered")) ||
+      message.includes("database error")
+    ) {
       const recovered = await recoverExistingSignupUser(admin, email, input.password, userMetadata);
       if (recovered) {
         return finalizeNewUserProfile(admin, recovered.id, recovered.user_metadata, {
@@ -134,7 +250,9 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
           email,
         });
       }
-      return { error: "This email is already registered. Sign in instead." };
+      if (message.includes("already")) {
+        return { error: "This email is already registered. Sign in instead." };
+      }
     }
     return {
       error: formatUserError(createError.message, "Could not create account."),
@@ -178,44 +296,42 @@ export async function completeRegistration(input: RegistrationInput) {
 }
 
 async function recoverExistingSignupUser(
-  admin: ReturnType<typeof createAdminClient>,
+  admin: AdminClient,
   email: string,
   password: string,
   userMetadata: Record<string, string>
 ) {
-  for (let page = 1; page <= 5; page++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-    if (error || !data.users.length) break;
+  const existing = await findAuthUserByEmail(admin, email);
+  if (!existing) return null;
 
-    const existing = data.users.find((user) => user.email?.toLowerCase() === email);
-    if (existing) {
-      const { data: updated, error: updateError } = await admin.auth.admin.updateUserById(
-        existing.id,
-        {
-          password,
-          email_confirm: true,
-          user_metadata: { ...existing.user_metadata, ...userMetadata },
-        }
-      );
-      if (updateError) return null;
-      return updated.user;
+  const { data: updated, error: updateError } = await admin.auth.admin.updateUserById(
+    existing.id,
+    {
+      password,
+      email_confirm: true,
+      user_metadata: { ...existing.user_metadata, ...userMetadata },
     }
+  );
+  if (updateError) return null;
+  return updated.user;
+}
 
-    if (data.users.length < 200) break;
-  }
-
-  return null;
+/** Sign in after registration — auto-confirms email if Supabase left it unverified. */
+export async function signInAfterRegistration(email: string, password: string) {
+  return signInWithRecovery(email, password);
 }
 
 export async function signIn(formData: FormData) {
-  const supabase = await createClient();
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: error.message };
+  const { error } = await signInWithRecovery(email, password);
+  if (error) return { error };
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return { error: "Login failed" };
 
   const { data: profile } = await supabase

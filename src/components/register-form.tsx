@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Sparkles } from "lucide-react";
-import { completeRegistration, signUpAccount } from "@/lib/actions/auth";
+import { completeRegistration, signInAfterRegistration, signUpAccount } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 import { BrandWordmark } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
@@ -98,16 +98,10 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
   };
 
   const signInAfterSignup = async (email: string, password: string) => {
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const result = await signInAfterRegistration(email, password);
 
-    if (signInError) {
-      setError(
-        formatUserError(
-          signInError,
-          "Account created. Sign in with your email and password."
-        )
-      );
+    if (result.error) {
+      setError(result.error);
       return false;
     }
 
@@ -235,16 +229,16 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
       let hasSession = Boolean(signUpData.session);
 
       if (!hasSession) {
-        const { data: signInData, error: signInError } =
-          await supabase.auth.signInWithPassword({ email, password });
+        const signInResult = await signInAfterRegistration(email, password);
 
-        if (signInError) {
+        if (signInResult.error) {
           setConfirmationEmail(email);
           setNeedsEmailConfirmation(true);
+          setError(signInResult.error);
           return;
         }
 
-        hasSession = Boolean(signInData.session);
+        hasSession = true;
       }
 
       if (!hasSession) {

@@ -10,8 +10,16 @@ import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function LoginForm() {
-  const [error, setError] = useState<string | null>(null);
+export function LoginForm({ authError }: { authError?: string }) {
+  const [error, setError] = useState<string | null>(() => {
+    if (authError === "auth") {
+      return "Email confirmation failed or the link expired. Sign in below or register again.";
+    }
+    if (authError === "config") {
+      return "Sign-in is temporarily unavailable. Please try again later.";
+    }
+    return null;
+  });
   const [isPending, startTransition] = useTransition();
 
   const handleSubmit = (formData: FormData) => {
