@@ -1,5 +1,5 @@
-import { DashboardPageSkeleton } from "@/components/dashboard-page-skeleton";
+import { DashboardRouteLoading } from "@/components/dashboard-route-loading";
 
 export default function Loading() {
-  return <DashboardPageSkeleton />;
+  return <DashboardRouteLoading />;
 }

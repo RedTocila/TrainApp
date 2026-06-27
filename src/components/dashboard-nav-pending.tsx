@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -9,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { CoachAlexNavLoading } from "@/components/coach-alex-nav-loading";
 import { isNavRouteMatch } from "@/lib/nav-route-match";
 
 /** List roots that should only match the pathname exactly (not child edit routes). */
@@ -23,6 +23,9 @@ function pendingRouteSatisfied(pathname: string, pendingHref: string) {
 interface DashboardNavPendingContextValue {
   pendingHref: string | null;
   setPendingHref: (href: string | null) => void;
+  routeLoadingCount: number;
+  beginRouteLoading: () => void;
+  endRouteLoading: () => void;
 }
 
 const DashboardNavPendingContext =
@@ -31,16 +34,31 @@ const DashboardNavPendingContext =
 export function DashboardNavPendingProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [routeLoadingCount, setRouteLoadingCount] = useState(0);
+
+  const beginRouteLoading = useCallback(() => {
+    setRouteLoadingCount((count) => count + 1);
+  }, []);
+
+  const endRouteLoading = useCallback(() => {
+    setRouteLoadingCount((count) => Math.max(0, count - 1));
+  }, []);
 
   useEffect(() => {
-    if (pendingHref && pendingRouteSatisfied(pathname, pendingHref)) {
-      setPendingHref(null);
-    }
-  }, [pathname, pendingHref]);
+    if (!pendingHref || !pendingRouteSatisfied(pathname, pendingHref)) return;
+    if (routeLoadingCount > 0) return;
+    setPendingHref(null);
+  }, [pathname, pendingHref, routeLoadingCount]);
 
   const value = useMemo(
-    () => ({ pendingHref, setPendingHref }),
-    [pendingHref]
+    () => ({
+      pendingHref,
+      setPendingHref,
+      routeLoadingCount,
+      beginRouteLoading,
+      endRouteLoading,
+    }),
+    [pendingHref, routeLoadingCount, beginRouteLoading, endRouteLoading]
   );
 
   return (
@@ -58,23 +76,4 @@ export function useDashboardNavPending() {
     );
   }
   return ctx;
-}
-
-export function DashboardNavPendingContent({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  const { pendingHref } = useDashboardNavPending();
-  const isNavigating =
-    pendingHref !== null && !pendingRouteSatisfied(pathname, pendingHref);
-
-  useEffect(() => {
-    if (!isNavigating) return;
-    const main = document.querySelector<HTMLElement>(".dashboard-main");
-    if (main) main.scrollTop = 0;
-  }, [isNavigating]);
-
-  if (isNavigating) {
-    return <CoachAlexNavLoading />;
-  }
-
-  return children;
 }

@@ -1,6 +1,6 @@
 import { requireClient } from "@/lib/actions/auth";
 import { ClientNav } from "@/components/client-nav";
-import { DashboardMobileChrome } from "@/components/dashboard-mobile-chrome";
+import { DashboardMainArea } from "@/components/dashboard-main-area";
 import { LocaleProvider } from "@/components/locale-provider";
 import { PendingIntakeSync } from "@/components/pending-intake-sync";
 import { SubscriptionBanner } from "@/components/subscription-banner";
@@ -10,11 +10,7 @@ import { FullCalendarProvider } from "@/components/full-calendar-provider";
 import { DashboardMainReset } from "@/components/dashboard-main-reset";
 import { DashboardDayRollover } from "@/components/dashboard-day-rollover";
 import { DashboardDateLoadingProvider } from "@/components/dashboard-date-loading";
-import {
-  DashboardNavPendingContent,
-  DashboardNavPendingProvider,
-} from "@/components/dashboard-nav-pending";
-import { TrainSectionShell } from "@/components/train-section-shell";
+import { DashboardNavPendingProvider } from "@/components/dashboard-nav-pending";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 
@@ -43,13 +39,11 @@ export default async function DashboardLayout({
               <main
                 className="dashboard-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background px-0 pb-[var(--dashboard-mobile-nav-height,4.25rem)] [-webkit-overflow-scrolling:touch] lg:pb-0"
               >
-              <DashboardMobileChrome />
-              <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
-                <SubscriptionBanner profile={profile} />
-                <DashboardNavPendingContent>
-                  <TrainSectionShell>{children}</TrainSectionShell>
-                </DashboardNavPendingContent>
-              </div>
+              <DashboardMainArea
+                subscriptionBanner={<SubscriptionBanner profile={profile} />}
+              >
+                {children}
+              </DashboardMainArea>
               </main>
             </div>
           </FullCalendarProvider>
