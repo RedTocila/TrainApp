@@ -9,6 +9,7 @@ import { DashboardSyncProvider } from "@/components/dashboard-sync";
 import { FullCalendarProvider } from "@/components/full-calendar-provider";
 import { DashboardMainReset } from "@/components/dashboard-main-reset";
 import { DashboardDayRollover } from "@/components/dashboard-day-rollover";
+import { DashboardDateLoadingProvider } from "@/components/dashboard-date-loading";
 import {
   DashboardNavPendingContent,
   DashboardNavPendingProvider,
@@ -33,6 +34,7 @@ export default async function DashboardLayout({
       <DateProvider>
         <DashboardDayRollover />
         <DashboardSyncProvider>
+        <DashboardDateLoadingProvider>
         <DashboardNavPendingProvider>
         <div className="dashboard-shell flex min-h-0 overflow-hidden bg-background">
           <ClientNav fullName={profile.full_name} />
@@ -53,6 +55,7 @@ export default async function DashboardLayout({
           </FullCalendarProvider>
         </div>
         </DashboardNavPendingProvider>
+        </DashboardDateLoadingProvider>
         </DashboardSyncProvider>
       </DateProvider>
     </LocaleProvider>
