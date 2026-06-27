@@ -21,7 +21,8 @@ export default async function AdminChallengesPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-black">Challenges</h1>
             <p className="text-muted-foreground">
-              Schedule LiveKit community rooms for challenge kickoffs and group check-ins
+              Tournament challenges with Zoom calls — winners chosen by who transformed the most on
+              video, not checkmark totals
             </p>
           </div>
           <Link href="/admin/challenges/new" className="shrink-0">
@@ -49,14 +50,18 @@ export default async function AdminChallengesPage() {
                       <CardTitle className="text-base">{challenge.title}</CardTitle>
                       <p className="text-sm text-muted-foreground">
                         {format(new Date(challenge.scheduled_at), "MMM d, yyyy · h:mm a")} ·{" "}
-                        {challenge.duration_minutes} min
+                        {challenge.duration_minutes} min · groups of {challenge.group_size}
                       </p>
-                      <p className="text-xs text-muted-foreground">Room: {challenge.room_name}</p>
                       <div className="flex flex-wrap gap-2 pt-1">
                         <Badge variant="outline">{status}</Badge>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      <Link href={`/admin/challenges/${challenge.id}/bracket`}>
+                        <Button variant="default" size="sm">
+                          Bracket
+                        </Button>
+                      </Link>
                       <Link href={`/admin/challenges/${challenge.id}/edit`}>
                         <Button variant="outline" size="sm">
                           Edit

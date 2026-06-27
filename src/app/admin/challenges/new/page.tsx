@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/actions/auth";
 import { createChallenge } from "@/lib/actions/challenges";
 import { PageTransition } from "@/components/page-transition";
@@ -16,7 +17,8 @@ export default async function NewChallengePage() {
         <div>
           <h1 className="text-2xl font-black">New challenge</h1>
           <p className="text-sm text-muted-foreground">
-            Members join a LiveKit video room from the Live tab when the session is open.
+            Members register, join Zoom group calls (~10 people), and advance based on who
+            transformed the most on camera — not app checkmarks alone.
           </p>
         </div>
         <Card>
@@ -27,13 +29,13 @@ export default async function NewChallengePage() {
             <form action={createChallenge} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
-                <Input id="title" name="title" required placeholder="30-day squat challenge kickoff" />
+                <Input id="title" name="title" required placeholder="100-person fitness challenge" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="slug">Slug</Label>
-                <Input id="slug" name="slug" required placeholder="squat-challenge-july" />
+                <Input id="slug" name="slug" required placeholder="summer-challenge-2026" />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="scheduled_at">Start date & time</Label>
                   <Input id="scheduled_at" name="scheduled_at" type="datetime-local" required />
@@ -50,13 +52,25 @@ export default async function NewChallengePage() {
                     required
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="group_size">Group size (Zoom calls)</Label>
+                  <Input
+                    id="group_size"
+                    name="group_size"
+                    type="number"
+                    min={2}
+                    max={50}
+                    defaultValue={10}
+                    required
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="room_name">LiveKit room name (optional)</Label>
+                <Label htmlFor="final_zoom_url">Final round Zoom link (optional)</Label>
                 <Input
-                  id="room_name"
-                  name="room_name"
-                  placeholder="Defaults to slug if empty"
+                  id="final_zoom_url"
+                  name="final_zoom_url"
+                  placeholder="https://zoom.us/j/..."
                 />
               </div>
               <div className="space-y-2">
@@ -65,7 +79,7 @@ export default async function NewChallengePage() {
                   id="description"
                   name="description"
                   rows={6}
-                  placeholder="What to prepare, challenge rules, goals..."
+                  placeholder="Rules, prizes, dates — remind members to log honestly; winners are chosen on Zoom by visible transformation."
                 />
               </div>
               <div className="flex items-center gap-2">

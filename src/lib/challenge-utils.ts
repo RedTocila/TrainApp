@@ -50,7 +50,3 @@ export function partitionChallenges(challenges: Challenge[]) {
 
   return { live, upcoming, ended };
 }
-
-export function challengeRoomName(challenge: Challenge): string {
-  return challenge.room_name.trim() || challenge.slug;
-}

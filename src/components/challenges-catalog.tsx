@@ -14,6 +14,7 @@ import {
   partitionChallenges,
 } from "@/lib/challenge-utils";
 import type { Challenge } from "@/lib/types";
+import { DEMO_CHALLENGE_SLUG } from "@/lib/challenge-demo";
 import { cn } from "@/lib/utils";
 
 function ChallengeStatusBadge({ challenge }: { challenge: Challenge }) {
@@ -50,13 +51,13 @@ function LiveChallengeCard({ challenge }: { challenge: Challenge }) {
           <div className="space-y-3">
             <Badge className="border-violet-400/40 bg-violet-500/25 text-violet-100">
               <Radio className="mr-1 h-3 w-3 animate-pulse" />
-              Community live
+              {challenge.slug === DEMO_CHALLENGE_SLUG ? "Demo · Live" : "Community live"}
             </Badge>
             <h3 className="text-xl font-black text-white sm:text-2xl">{challenge.title}</h3>
             <p className="max-w-xl text-sm text-white/80">{challengeExcerpt(challenge.description)}</p>
           </div>
           <span className="mt-4 inline-flex items-center gap-2 self-start rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm">
-            Join room
+            View bracket
             <ArrowRight className="h-4 w-4" />
           </span>
         </div>

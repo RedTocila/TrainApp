@@ -646,6 +646,22 @@ export const platformCopyAl = {
     upgradeDescriptionShort:
       "Përmirëso planin në AI për seanca live dhe regjistrime.",
   },
+  challenges: {
+    rulesTitle: "Rregullat e sfidës",
+    rulesButton: "Rregullat e sfidës",
+    rulesClose: "E kuptova",
+    rulesIntro:
+      "Kjo sfidë vlerëson transformimin real — jo kush ka shënuar më shumë kuti në aplikacion.",
+    rules: [
+      "Regjistro stërvitjet, vaktet, peshën dhe zakone me ndershmëri gjatë gjithë sfidës. Të dhënat e sakta ndihmojnë trajnerin dhe e mbajnë garën të drejtë.",
+      "Mos manipulo platformën (regjistrime false, shënime të nxituara ose numra të fryrë vetëm për të dalë më mirë). Trajnerët mund të shqyrtojnë modelet dhe të përjashtojnë pjesëmarrës që duken jo të ndershëm.",
+      "Fituesit zgjidhen në thirrje live Zoom. Trajneri krahason transformimin e dukshëm të secilit — fizikun, energjinë, qëndrueshmërinë dhe përpjekjen — jo vetëm statistikat në app.",
+      "Thirrjet në grupe (~10 persona) përzgjedhin një finaliste secila. Finalistët takohen në thirrjen finale ku kurorohet një kampion.",
+    ],
+    bracketTitle: "Grafiku i turneut",
+    bracketIntro:
+      "Të gjithë ndahen në grupe Zoom prej rreth {groupSize} personash. Pas çdo thirrjeje, trajneri kalon atë që është transformuar më shumë. Fituesit e grupeve takohen në finalen për kampionin.",
+  },
   aiPages: {
     goalProgress: "Progresi i qëllimit",
     predictionsTitle: "Parashikime progresi me AI",

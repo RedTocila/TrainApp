@@ -13,7 +13,9 @@ export function TrainSectionShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <TrainSectionTabs />
+      <div className="hidden lg:block">
+        <TrainSectionTabs />
+      </div>
       {children}
     </>
   );

@@ -30,11 +30,18 @@ export default async function EditChallengePage({
   return (
     <PageTransition>
       <div className="mx-auto max-w-3xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-black">Edit challenge</h1>
-          <p className="text-sm text-muted-foreground">
-            Update schedule or room name for this community session.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black">Edit challenge</h1>
+            <p className="text-sm text-muted-foreground">
+              Update schedule, group size, or final Zoom link.
+            </p>
+          </div>
+          <Link href={`/admin/challenges/${id}/bracket`}>
+            <Button variant="outline" size="sm">
+              Manage bracket
+            </Button>
+          </Link>
         </div>
         <Card>
           <CardHeader>
@@ -50,7 +57,7 @@ export default async function EditChallengePage({
                 <Label htmlFor="slug">Slug</Label>
                 <Input id="slug" name="slug" required defaultValue={challenge.slug} />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="scheduled_at">Start date & time</Label>
                   <Input
@@ -73,13 +80,26 @@ export default async function EditChallengePage({
                     defaultValue={challenge.duration_minutes}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="group_size">Group size</Label>
+                  <Input
+                    id="group_size"
+                    name="group_size"
+                    type="number"
+                    min={2}
+                    max={50}
+                    required
+                    defaultValue={challenge.group_size}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="room_name">LiveKit room name</Label>
+                <Label htmlFor="final_zoom_url">Final round Zoom link</Label>
                 <Input
-                  id="room_name"
-                  name="room_name"
-                  defaultValue={challenge.room_name}
+                  id="final_zoom_url"
+                  name="final_zoom_url"
+                  defaultValue={challenge.final_zoom_url ?? ""}
+                  placeholder="https://zoom.us/j/..."
                 />
               </div>
               <div className="space-y-2">

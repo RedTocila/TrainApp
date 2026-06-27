@@ -3,6 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getDemoChallengeBySlug,
+  getDemoChallenges,
+  isDemoChallengeId,
+} from "@/lib/challenge-demo";
 import type { Challenge } from "@/lib/types";
 
 function parseScheduledAt(value: FormDataEntryValue | null): string {
@@ -25,8 +30,12 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
   return row as unknown as Challenge;
 }
 
-function slugToRoomName(slug: string): string {
-  return slug.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64);
+function mergeWithDemoChallenges(dbChallenges: Challenge[]): Challenge[] {
+  const dbSlugs = new Set(dbChallenges.map((c) => c.slug));
+  const demos = getDemoChallenges().filter((d) => !dbSlugs.has(d.slug));
+  return [...dbChallenges, ...demos].sort(
+    (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
+  );
 }
 
 export async function getPublishedChallenges(): Promise<Challenge[]> {
@@ -37,8 +46,8 @@ export async function getPublishedChallenges(): Promise<Challenge[]> {
     .eq("published", true)
     .order("scheduled_at", { ascending: false });
 
-  if (error) return [];
-  return (data ?? []).map(rowToChallenge);
+  if (error) return getDemoChallenges();
+  return mergeWithDemoChallenges((data ?? []).map(rowToChallenge));
 }
 
 export async function getAllChallenges(): Promise<Challenge[]> {
@@ -52,6 +61,9 @@ export async function getAllChallenges(): Promise<Challenge[]> {
 }
 
 export async function getChallengeBySlug(slug: string): Promise<Challenge | null> {
+  const demo = getDemoChallengeBySlug(slug);
+  if (demo) return demo;
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("challenges")
@@ -78,11 +90,14 @@ export async function createChallenge(formData: FormData) {
   const description = String(formData.get("description") ?? "").trim();
   const scheduled_at = parseScheduledAt(formData.get("scheduled_at"));
   const duration_minutes = parseDuration(formData.get("duration_minutes"));
-  const room_name =
-    String(formData.get("room_name") ?? "").trim() || slugToRoomName(slug);
+  const group_size = Number.parseInt(String(formData.get("group_size") ?? "10"), 10);
+  const final_zoom_url = String(formData.get("final_zoom_url") ?? "").trim() || null;
   const published = formData.get("published") === "on";
 
   if (!title || !slug) throw new Error("Title and slug are required.");
+  if (!Number.isFinite(group_size) || group_size <= 0) {
+    throw new Error("Group size must be a positive number.");
+  }
 
   const { error } = await supabase.from("challenges").insert({
     title,
@@ -90,7 +105,8 @@ export async function createChallenge(formData: FormData) {
     description,
     scheduled_at,
     duration_minutes,
-    room_name,
+    group_size,
+    final_zoom_url,
     published,
   });
 
@@ -107,11 +123,14 @@ export async function updateChallenge(id: string, formData: FormData) {
   const description = String(formData.get("description") ?? "").trim();
   const scheduled_at = parseScheduledAt(formData.get("scheduled_at"));
   const duration_minutes = parseDuration(formData.get("duration_minutes"));
-  const room_name =
-    String(formData.get("room_name") ?? "").trim() || slugToRoomName(slug);
+  const group_size = Number.parseInt(String(formData.get("group_size") ?? "10"), 10);
+  const final_zoom_url = String(formData.get("final_zoom_url") ?? "").trim() || null;
   const published = formData.get("published") === "on";
 
   if (!title || !slug) throw new Error("Title and slug are required.");
+  if (!Number.isFinite(group_size) || group_size <= 0) {
+    throw new Error("Group size must be a positive number.");
+  }
 
   const { error } = await supabase
     .from("challenges")
@@ -121,7 +140,8 @@ export async function updateChallenge(id: string, formData: FormData) {
       description,
       scheduled_at,
       duration_minutes,
-      room_name,
+      group_size,
+      final_zoom_url,
       published,
     })
     .eq("id", id);
@@ -133,6 +153,7 @@ export async function updateChallenge(id: string, formData: FormData) {
 }
 
 export async function deleteChallenge(id: string) {
+  if (isDemoChallengeId(id)) return;
   const supabase = await createClient();
   await supabase.from("challenges").delete().eq("id", id);
   revalidatePath("/admin/challenges");

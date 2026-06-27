@@ -378,9 +378,57 @@ export interface Challenge {
   description: string;
   scheduled_at: string;
   duration_minutes: number;
-  room_name: string;
+  group_size: number;
+  final_zoom_url: string | null;
+  champion_participant_id: string | null;
   published: boolean;
   created_at: string;
+}
+
+export interface ChallengeParticipant {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  display_name: string;
+  created_at: string;
+}
+
+export interface ChallengeGroup {
+  id: string;
+  challenge_id: string;
+  round: 1 | 2;
+  group_number: number;
+  zoom_url: string | null;
+  winner_participant_id: string | null;
+  created_at: string;
+}
+
+export interface ChallengeGroupMember {
+  id: string;
+  group_id: string;
+  participant_id: string;
+}
+
+export interface ChallengeBracketParticipant extends ChallengeParticipant {
+  is_champion: boolean;
+  is_group_winner: boolean;
+  group_id: string | null;
+  group_number: number | null;
+  round: 1 | 2 | null;
+}
+
+export interface ChallengeBracketGroup extends ChallengeGroup {
+  members: ChallengeBracketParticipant[];
+  winner: ChallengeBracketParticipant | null;
+}
+
+export interface ChallengeBracketData {
+  challenge: Challenge;
+  participants: ChallengeParticipant[];
+  groupStage: ChallengeBracketGroup[];
+  finalRound: ChallengeBracketGroup | null;
+  champion: ChallengeParticipant | null;
+  currentUserParticipantId: string | null;
 }
 
 export interface ClientCardio {

@@ -5,6 +5,7 @@ import { Apple, Dumbbell } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { CompactSegment } from "@/components/programs/compact-nav";
+import { cn } from "@/lib/utils";
 import { isTrainTabActive, trainTabs } from "@/lib/train-nav";
 
 const tabConfig = {
@@ -18,7 +19,7 @@ const tabConfig = {
   },
 } as const;
 
-export function TrainSectionTabs() {
+export function TrainSectionTabs({ className }: { className?: string }) {
   const pathname = usePathname();
   const platform = usePlatformCopy();
   const { setPendingHref } = useDashboardNavPending();
@@ -30,7 +31,10 @@ export function TrainSectionTabs() {
 
   return (
     <nav
-      className="dashboard-instant-nav mb-3 flex rounded-full bg-secondary/50 p-1"
+      className={cn(
+        "dashboard-instant-nav mb-3 flex rounded-full bg-secondary/50 p-1",
+        className
+      )}
       aria-label="Programs"
     >
       {trainTabs.map((tab) => {

@@ -643,6 +643,22 @@ export const platformCopyEn = {
     upgradeDescriptionShort:
       "Upgrade to the AI plan to join live coaching sessions and watch replays.",
   },
+  challenges: {
+    rulesTitle: "Challenge rules",
+    rulesButton: "Challenge rules",
+    rulesClose: "Got it",
+    rulesIntro:
+      "This challenge rewards real transformation — not who checked the most boxes in the app.",
+    rules: [
+      "Log workouts, meals, weight, and habits honestly throughout the challenge. Accurate data helps your coach and keeps the competition fair.",
+      "Do not game the platform (fake logs, rushed check-offs, or inflated numbers just to rank higher). Coaches may review patterns and disqualify entries that look dishonest.",
+      "Winners are chosen on live Zoom calls. The coach compares each person’s visible transformation — physique, energy, consistency, and effort — not just app stats.",
+      "Group calls (~10 people) pick one finalist each. Those finalists meet on a final call where one champion is crowned.",
+    ],
+    bracketTitle: "Tournament bracket",
+    bracketIntro:
+      "Everyone is split into Zoom groups of about {groupSize}. After each group call, the coach advances whoever transformed the most. Group winners meet on a final call for the champion.",
+  },
   aiPages: {
     goalProgress: "Goal progress",
     predictionsTitle: "AI progress predictions",
