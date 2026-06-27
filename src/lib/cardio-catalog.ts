@@ -89,3 +89,51 @@ export function getCardioByLocation(location: CardioLocation): CardioType[] {
 export function getCardioType(id: string): CardioType | undefined {
   return CARDIO_CATALOG.find((item) => item.id === id);
 }
+
+const CARDIO_LOCATION_STYLES: Record<
+  CardioLocation,
+  { accentClass: string; bgClass: string }
+> = {
+  gym: { accentClass: "text-blue-400", bgClass: "bg-blue-500/10" },
+  outdoor: { accentClass: "text-green-400", bgClass: "bg-green-500/10" },
+  everywhere: { accentClass: "text-violet-400", bgClass: "bg-violet-500/10" },
+};
+
+/** Match saved cardio title to catalog preset (e.g. from type picker). */
+export function resolveCardioTypeFromTitle(
+  title: string,
+  typeLabels: Record<string, string>
+): CardioType | undefined {
+  const normalized = title.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  for (const type of CARDIO_CATALOG) {
+    const label = typeLabels[type.id];
+    if (label && label.trim().toLowerCase() === normalized) {
+      return type;
+    }
+  }
+
+  for (const type of CARDIO_CATALOG) {
+    const label = typeLabels[type.id];
+    if (label && normalized.includes(label.trim().toLowerCase())) {
+      return type;
+    }
+  }
+
+  return undefined;
+}
+
+export function getCardioTypeDisplay(
+  title: string,
+  typeLabels: Record<string, string>
+) {
+  const type = resolveCardioTypeFromTitle(title, typeLabels);
+  if (!type) return null;
+
+  return {
+    type,
+    icon: type.icon,
+    ...CARDIO_LOCATION_STYLES[type.location],
+  };
+}

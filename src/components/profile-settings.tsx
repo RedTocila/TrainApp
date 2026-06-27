@@ -251,7 +251,7 @@ export function ProfileSettings({
         <CardContent className="space-y-6">
           <div>
             <p className="mb-3 text-sm text-muted-foreground">{platform.settings.theme}</p>
-            <ThemeToggle variant="segmented" />
+            <ThemeToggle />
           </div>
           <div>
             <p className="mb-3 text-sm text-muted-foreground">{platform.settings.accentColor}</p>

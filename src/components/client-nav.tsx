@@ -11,7 +11,6 @@ import {
   Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { AppLogo } from "@/components/app-logo";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ReferralNavButton } from "@/components/full-calendar-nav-button";
@@ -117,12 +116,6 @@ export function ClientNav({ fullName }: { fullName: string }) {
             );
           })}
         </nav>
-        <div className="border-t border-border p-4">
-          <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {platform.nav.theme}
-          </p>
-          <ThemeToggle variant="segmented" />
-        </div>
         <div className="border-t border-border p-4">
           <SignOutButton />
         </div>

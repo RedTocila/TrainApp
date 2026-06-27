@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   GET_STARTED_CTA,
@@ -54,7 +53,6 @@ export function LandingNav({ overlay = false }: { overlay?: boolean }) {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <ThemeToggle />
           <Link href="/login">
             <Button variant="ghost" size="sm">
               Sign in
@@ -66,7 +64,6 @@ export function LandingNav({ overlay = false }: { overlay?: boolean }) {
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
-          <ThemeToggle />
           <button
             type="button"
             className="rounded-lg p-2 text-muted-foreground"
@@ -97,7 +94,6 @@ export function LandingNav({ overlay = false }: { overlay?: boolean }) {
               </Link>
             ))}
             <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
-              <ThemeToggle variant="segmented" />
               <Link href="/login" onClick={() => setMobileOpen(false)}>
                 <Button variant="outline" className="w-full">
                   Sign in

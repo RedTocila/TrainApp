@@ -1,4 +1,8 @@
 import type { DailyTask } from "@/lib/daily-tasks";
+import {
+  DASHBOARD_DAY_NUTRITION_PATH,
+  DASHBOARD_DAY_WORKOUT_PATH,
+} from "@/lib/dashboard-day-routes";
 
 export interface TaskDestination {
   href: string;
@@ -9,34 +13,28 @@ export function getTaskDestination(task: DailyTask): TaskDestination {
   switch (task.category) {
     case "workout":
       return {
-        href: "/dashboard/workout",
+        href: DASHBOARD_DAY_WORKOUT_PATH,
         sectionId: "dashboard-workout",
       };
     case "nutrition":
-      if (task.id.endsWith("-nutrition-pending")) {
-        return {
-          href: "/dashboard/nutrition",
-          sectionId: "dashboard-nutrition",
-        };
-      }
       return {
-        href: "/dashboard#dashboard-nutrition",
+        href: DASHBOARD_DAY_NUTRITION_PATH,
         sectionId: "dashboard-nutrition",
       };
     case "cardio":
       return {
-        href: "/dashboard/workout/cardio",
+        href: "/dashboard#dashboard-cardio",
         sectionId: "dashboard-cardio",
       };
     case "habits":
       return {
-        href: `/dashboard#${task.id}`,
-        sectionId: task.id,
+        href: "/dashboard#dashboard-habits",
+        sectionId: "dashboard-habits",
       };
     case "water":
       return {
-        href: "/dashboard#dashboard-water",
-        sectionId: "dashboard-water",
+        href: DASHBOARD_DAY_NUTRITION_PATH,
+        sectionId: "dashboard-nutrition",
       };
     default:
       return {
@@ -44,6 +42,12 @@ export function getTaskDestination(task: DailyTask): TaskDestination {
         sectionId: "dashboard-overview",
       };
   }
+}
+
+export function isDashboardDayDetailHref(href: string): boolean {
+  return (
+    href === DASHBOARD_DAY_NUTRITION_PATH || href === DASHBOARD_DAY_WORKOUT_PATH
+  );
 }
 
 export function scrollToSection(sectionId: string): boolean {

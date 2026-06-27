@@ -13,6 +13,7 @@ import {
 } from "@/lib/schedule-utils";
 import type { ClientHabit } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,7 @@ interface HabitFormDialogProps {
   habit?: ClientHabit | null;
   onClose: () => void;
   onSaved: () => void;
+  onDelete?: () => void;
 }
 
 export function HabitFormDialog({
@@ -31,7 +33,9 @@ export function HabitFormDialog({
   habit,
   onClose,
   onSaved,
+  onDelete,
 }: HabitFormDialogProps) {
+  const platform = usePlatformCopy();
   const [title, setTitle] = useState("");
   const [timeStart, setTimeStart] = useState("");
   const [timeEnd, setTimeEnd] = useState("");
@@ -256,17 +260,30 @@ export function HabitFormDialog({
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
 
-        <div className="flex gap-2 border-t border-border px-5 py-4">
-          <Button variant="outline" className="flex-1" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            className="flex-1"
-            disabled={isPending || !title.trim() || weekdays.length === 0}
-            onClick={handleSave}
-          >
-            {isPending ? "Saving…" : habit ? "Save changes" : "Add habit"}
-          </Button>
+        <div className="flex flex-col gap-2 border-t border-border px-5 py-4">
+          {habit && onDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full justify-start text-red-400 hover:bg-red-500/10 hover:text-red-400"
+              disabled={isPending}
+              onClick={onDelete}
+            >
+              {platform.aria.removeHabit}
+            </Button>
+          ) : null}
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              disabled={isPending || !title.trim() || weekdays.length === 0}
+              onClick={handleSave}
+            >
+              {isPending ? "Saving…" : habit ? "Save changes" : "Add habit"}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

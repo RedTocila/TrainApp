@@ -2,7 +2,7 @@
 import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { format, isToday } from "date-fns";
-import { Check, ListChecks, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ListChecks, Pencil, Plus, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
@@ -19,13 +19,14 @@ import {
 } from "@/lib/actions/habits";
 import { getHabitDayStatus, canCompleteHabit } from "@/lib/habit-utils";
 import { MissedButton } from "@/components/missed-items-dialog";
+import { dashboard, DashboardEmptyState, DashboardSectionHeader } from "@/components/dashboard-ui";
+import { DashboardStatusIcon } from "@/components/section-completed-badge";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import type { ClientHabit } from "@/lib/types";
 import type { HabitSuggestion } from "@/lib/habit-suggestions";
 import { formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export function HabitsTracker({
@@ -153,7 +154,9 @@ export function HabitsTracker({
           setError(result.error);
           return;
         }
+        setDialogOpen(false);
         reloadHabits();
+        notifySync();
       },
     });
   };
@@ -186,37 +189,38 @@ export function HabitsTracker({
 
   return (
     <>
-      <Card id="dashboard-habits">
-        <CardHeader className="flex flex-row items-start justify-between gap-3">
-          <div>
-            <CardTitle className="flex flex-wrap items-center gap-2">
-              <ListChecks className="h-5 w-5 text-violet-400" />
-              {platform.habits.title}
-              <MissedButton
-                count={missedCount}
-                title={coachLabels.missedHabits}
-                hint={coachLabels.habitsMissedHint}
-                items={missedHabitItems}
-              />
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {isReady && habitsForDay.length === 0
-                ? coachLabels.addHabitsHint
-                : isReady
-                  ? platform.common.doneForDate(doneCount, habitsForDay.length, dateLabel)
-                  : ""}
-            </p>
-          </div>
-          <Button
-            size="icon"
-            className="h-9 w-9 shrink-0 rounded-full"
-            onClick={openAdd}
-            aria-label={platform.aria.addHabit}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div id="dashboard-habits" className={cn(dashboard.tile, "p-4")}>
+        <DashboardSectionHeader
+          icon={ListChecks}
+          iconClassName="text-violet-400"
+          title={platform.habits.title}
+          badge={
+            <MissedButton
+              count={missedCount}
+              title={coachLabels.missedHabits}
+              hint={coachLabels.habitsMissedHint}
+              items={missedHabitItems}
+            />
+          }
+          action={
+            <Button
+              size="sm"
+              className="h-8 rounded-full px-3 text-xs"
+              onClick={openAdd}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {platform.common.add}
+            </Button>
+          }
+          subtitle={
+            isReady && habitsForDay.length === 0
+              ? coachLabels.addHabitsHint
+              : isReady
+                ? platform.common.doneForDate(doneCount, habitsForDay.length, dateLabel)
+                : ""
+          }
+        />
+        <div className="mt-4 space-y-4">
           {isReady && suggestions.length > 0 && (
             <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-violet-300">
@@ -263,9 +267,7 @@ export function HabitsTracker({
           )}
 
           {isReady && habitsForDay.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-6 text-center text-sm text-muted-foreground">
-              {coachLabels.noHabitsToday}
-            </div>
+            <DashboardEmptyState>{coachLabels.noHabitsToday}</DashboardEmptyState>
           ) : isReady ? (
             <ul className="space-y-2">
               {displayHabits.map((habit) => {
@@ -275,34 +277,22 @@ export function HabitsTracker({
                   <li
                     key={habit.id}
                     id={`habit-${habit.id}`}
-                    className={cn(
-                      "flex items-center justify-between gap-3 rounded-2xl border border-border bg-secondary/40 px-3 py-2.5",
-                      habit.completed && "border-green-500/30 bg-green-500/5",
-                      habit.status === "missed" &&
-                        !habit.completed &&
-                        "border-red-500/30 bg-red-500/5"
-                    )}
+                    className={cn(dashboard.listRow, "items-center gap-3 py-2.5 px-3")}
                   >
                     <p
                       className={cn(
-                        "min-w-0 flex-1 text-sm font-medium",
-                        habit.completed && "text-green-400 line-through",
-                        habit.status === "missed" && !habit.completed && "text-red-400"
+                        "min-w-0 flex-1 text-sm font-medium leading-snug",
+                        habit.completed && "text-muted-foreground line-through",
+                        habit.status === "missed" && !habit.completed && "text-muted-foreground line-through"
                       )}
                     >
                       {habit.title}
                     </p>
                     <div className="flex shrink-0 items-center gap-1">
-                      {habit.completed ? (
-                        <span
-                          className="flex h-8 w-8 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
-                          aria-label={platform.aria.completed}
-                        >
-                          <Check className="h-4 w-4" />
-                        </span>
-                      ) : canComplete ? (
+                      {!habit.completed && habit.status !== "missed" && canComplete ? (
                         <Button
                           size="sm"
+                          className="h-8 shrink-0 rounded-full px-3 text-xs"
                           disabled={togglingId === habit.id}
                           onClick={() => handleComplete(habit.id)}
                         >
@@ -319,16 +309,11 @@ export function HabitsTracker({
                       >
                         <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0"
-                        onClick={() => handleDelete(habit.id)}
-                        aria-label={platform.aria.removeHabit}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
+                      {habit.completed ? (
+                        <DashboardStatusIcon status="completed" aria-label={platform.aria.completed} />
+                      ) : habit.status === "missed" ? (
+                        <DashboardStatusIcon status="missed" aria-label="Missed" />
+                      ) : null}
                     </div>
                   </li>
                 );
@@ -337,8 +322,8 @@ export function HabitsTracker({
           ) : null}
 
           {error && <p className="text-sm text-red-400">{error}</p>}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <HabitFormDialog
         open={dialogOpen}
@@ -349,6 +334,11 @@ export function HabitsTracker({
           reloadHabits();
           notifySync();
         }}
+        onDelete={
+          editingHabit
+            ? () => handleDelete(editingHabit.id)
+            : undefined
+        }
       />
       {giveUpDialog}
     </>

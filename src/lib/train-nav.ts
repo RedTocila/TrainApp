@@ -22,7 +22,11 @@ export function isProgramsNavActive(pathname: string) {
 }
 
 export function isHomeNavActive(pathname: string) {
-  return pathname === "/dashboard" || isActiveWorkoutSessionPath(pathname);
+  return (
+    pathname === "/dashboard" ||
+    pathname.startsWith("/dashboard/day/") ||
+    isActiveWorkoutSessionPath(pathname)
+  );
 }
 
 export function isTrainTabActive(pathname: string, href: string) {

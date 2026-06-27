@@ -169,6 +169,20 @@ export const coachCopyAl = {
       "Po ngarkohet. Mos rifreskoni — seria juaj nuk e përballon një reset tjetër.",
     ],
   },
+  nutritionDay: {
+    goodTitle: "Në rregull",
+    badTitle: "Jashtë objektivit",
+    goodAdvice: [
+      "Makrot dhe uji janë në rregull. Mbaj porcionet të qëndrueshme — mos festoni me një byrek të rastit.",
+      "Arritët objektivat sot. Regjistroni nesër para mesditës që të di se nuk ishte rastësi.",
+      "Ditë e mirë: kalori, proteinë dhe hidratim të regjistruar. Përsëriteni nesër.",
+    ],
+    badAdvice: [
+      "Jeni jashtë objektivit sot — ngushtoni porcionet në vaktin tjetër dhe shtoni proteinë.",
+      "Numrat nuk përputhen. Regjistroni vaktin tjetër si duhet në vend që të hamendësoni.",
+      "Nuk është katastrofë, por as fitore. Planifikoni pjatën tjetër para se të keni uri.",
+    ],
+  },
 } as const;
 
 export const coachLabelsAl = {

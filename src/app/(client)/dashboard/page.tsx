@@ -40,7 +40,6 @@ import {
 import { progressMonthKey } from "@/lib/progress-photo-utils";
 import { formatDateKey } from "@/lib/utils";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
-import { DashboardDateHeading } from "@/components/dashboard-date-heading";
 import { DashboardWorkoutCard } from "@/components/dashboard-workout-card";
 import { DashboardCardioCard } from "@/components/dashboard-cardio-card";
 import { DayTasksPanel } from "@/components/day-tasks-panel";
@@ -49,6 +48,7 @@ import { HabitsTracker } from "@/components/habits-tracker";
 import { BodyMetricsSection } from "@/components/body-metrics-section";
 import { ProgressPhotosCard } from "@/components/progress-photos-card";
 import { DashboardOverview } from "@/components/dashboard-overview";
+import { DashboardWaterCard } from "@/components/dashboard-water-card";
 import { hasAiAccess } from "@/lib/subscription";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 import { getHabitSuggestionsForProfile } from "@/lib/habit-suggestions";
@@ -228,41 +228,61 @@ export default async function DashboardPage() {
       </div>
       <ScrollToHash />
       <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
-        <DashboardDateHeading />
-
         <DayTasksPanel
           clientId={profile.id}
           schedule={schedule}
           initialEnrichment={initialEnrichment}
         />
 
-        <DashboardOverview
-          clientId={profile.id}
-          initialLog={dailyLog}
-          initialDailyMeals={dailyMeals}
-          mealLibrary={mealLibrary}
-          hasAiAccess={aiAccess}
-          targets={targets}
-          personalPlanId={personalNutritionPlanId}
-          initialWaterGoalMl={profile.water_goal_ml ?? 2500}
-          nutritionPlan={nutritionSummary}
-          coachNutritionPlanState={coachNutritionPlanState}
-          goal={profile.goal ?? null}
-        />
+        <div className="grid items-stretch gap-3 sm:grid-cols-2">
+          <div className="h-full min-h-0 w-full">
+            <DashboardOverview
+              clientId={profile.id}
+              initialLog={dailyLog}
+              initialDailyMeals={dailyMeals}
+              mealLibrary={mealLibrary}
+              hasAiAccess={aiAccess}
+              targets={targets}
+              personalPlanId={personalNutritionPlanId}
+              initialWaterGoalMl={profile.water_goal_ml ?? 2500}
+              nutritionPlan={nutritionSummary}
+              coachNutritionPlanState={coachNutritionPlanState}
+              goal={profile.goal ?? null}
+              variant="compact"
+            />
+          </div>
 
-        <DashboardWorkoutCard
-          clientId={profile.id}
-          gender={profile.gender}
-          initialWorkout={initialWorkout}
-          initialWorkoutCompleted={initialWorkoutCompleted}
-          initialWorkoutResults={initialWorkoutResults}
-        />
+          <div className="h-full min-h-[16rem] w-full sm:min-h-[18rem]">
+            <DashboardWorkoutCard
+              clientId={profile.id}
+              gender={profile.gender}
+              intakeProfile={{
+                age: profile.age,
+                intake_responses: profile.intake_responses,
+              }}
+              initialWorkout={initialWorkout}
+              initialWorkoutCompleted={initialWorkoutCompleted}
+              initialWorkoutResults={initialWorkoutResults}
+              variant="compact"
+            />
+          </div>
+        </div>
 
-        <DashboardCardioCard
-          clientId={profile.id}
-          initialScheduled={initialCardio}
-          initialCompleted={initialCardioCompleted}
-        />
+        <div className="grid grid-cols-2 items-stretch gap-3">
+          <DashboardWaterCard
+            clientId={profile.id}
+            initialWaterMl={dailyLog?.water_ml ?? 0}
+            waterGoalMl={profile.water_goal_ml ?? 2500}
+            variant="compact"
+          />
+
+          <DashboardCardioCard
+            clientId={profile.id}
+            initialScheduled={initialCardio}
+            initialCompleted={initialCardioCompleted}
+            variant="compact"
+          />
+        </div>
 
         <BodyMetricsSection
           clientId={profile.id}

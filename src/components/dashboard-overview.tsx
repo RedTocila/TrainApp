@@ -32,6 +32,8 @@ export function DashboardOverview({
   nutritionPlan: initialNutritionPlan,
   coachNutritionPlanState,
   goal,
+  variant = "full",
+  layout = "card",
 }: {
   clientId: string;
   initialLog: DailyLog | null;
@@ -50,6 +52,8 @@ export function DashboardOverview({
     kind?: MealPlanViewKind;
   } | null;
   coachNutritionPlanState: CoachNutritionPlanViewState;
+  variant?: "full" | "compact";
+  layout?: "card" | "detail";
 }) {
   const { selectedDate } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
@@ -102,6 +106,8 @@ export function DashboardOverview({
       nutritionPlan={isReady ? nutritionPlan : null}
       coachNutritionPlanState={coachNutritionPlanState}
       goal={goal}
+      variant={variant}
+      layout={layout}
     />
   );
 }

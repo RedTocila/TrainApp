@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CircleHelp } from "lucide-react";
+import { Activity, CircleHelp } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import {
   BMI_CATEGORIES,
@@ -14,7 +14,8 @@ import {
   type BmiCategory,
 } from "@/lib/bmi-utils";
 import type { BodyWeightLog } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { dashboard, DashboardSectionHeader } from "@/components/dashboard-ui";
 import { cn } from "@/lib/utils";
 
 function bmiCategoryLabel(
@@ -77,38 +78,42 @@ export function BmiCard({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
-        <CardTitle>{platform.bmi.title}</CardTitle>
-        <div ref={helpRef} className="relative z-10 shrink-0">
-          <button
-            type="button"
-            className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            onClick={() => setHelpOpen((value) => !value)}
-            aria-label={platform.bmi.whatIsBmi}
-            aria-expanded={helpOpen}
-            aria-haspopup="dialog"
-          >
-            <CircleHelp className="h-4 w-4" />
-          </button>
-          {helpOpen && (
-            <div
-              role="dialog"
-              aria-label={platform.bmi.whatIsBmi}
-              className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-border bg-card p-3 shadow-lg"
-            >
-              <p className="text-xs font-semibold text-foreground">{platform.bmi.bodyMassIndex}</p>
-              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                {platform.bmi.helpText}
-              </p>
+      <CardContent className="space-y-5 p-4">
+        <DashboardSectionHeader
+          icon={Activity}
+          iconClassName="text-primary"
+          title={platform.bmi.title}
+          action={
+            <div ref={helpRef} className="relative z-10 shrink-0">
+              <button
+                type="button"
+                className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                onClick={() => setHelpOpen((value) => !value)}
+                aria-label={platform.bmi.whatIsBmi}
+                aria-expanded={helpOpen}
+                aria-haspopup="dialog"
+              >
+                <CircleHelp className="h-4 w-4" />
+              </button>
+              {helpOpen && (
+                <div
+                  role="dialog"
+                  aria-label={platform.bmi.whatIsBmi}
+                  className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-border bg-card p-3 shadow-lg"
+                >
+                  <p className="text-xs font-semibold text-foreground">{platform.bmi.bodyMassIndex}</p>
+                  <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                    {platform.bmi.helpText}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5">
+          }
+        />
         {bmi != null && category && categoryStyle ? (
           <>
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-              <span className="text-4xl font-bold tracking-tight sm:text-5xl">
+              <span className={dashboard.heroValue}>
                 {bmi.toFixed(1)}
               </span>
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

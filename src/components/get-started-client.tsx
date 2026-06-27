@@ -9,7 +9,6 @@ import {
   IntakeQuestionnaireWizard,
 } from "@/components/intake-questionnaire-wizard";
 import { AppLogo } from "@/components/app-logo";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
@@ -59,7 +58,6 @@ export function GetStartedClient({ initialReferralCode }: { initialReferralCode?
           <Link href="/" className="inline-flex">
             <AppLogo />
           </Link>
-          <ThemeToggle />
         </header>
 
         {phase === "intro" && (

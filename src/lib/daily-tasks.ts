@@ -172,7 +172,24 @@ export function buildDailyTasks(
     label: `Drink ${waterGoal} ml water`,
   });
 
-  return tasks;
+  return sortDailyTasks(tasks);
+}
+
+const TASK_CATEGORY_ORDER: Record<TaskCategory, number> = {
+  nutrition: 0,
+  workout: 1,
+  cardio: 2,
+  water: 3,
+  habits: 4,
+};
+
+export function sortDailyTasks(tasks: DailyTask[]): DailyTask[] {
+  return [...tasks].sort((a, b) => {
+    const order =
+      TASK_CATEGORY_ORDER[a.category] - TASK_CATEGORY_ORDER[b.category];
+    if (order !== 0) return order;
+    return a.id.localeCompare(b.id);
+  });
 }
 
 export const TASK_CATEGORY_LABELS: Record<TaskCategory, string> = {

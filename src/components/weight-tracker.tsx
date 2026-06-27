@@ -17,9 +17,10 @@ import type { BodyWeightLog } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { dashboard, DashboardSectionHeader } from "@/components/dashboard-ui";
+import { cn } from "@/lib/utils";
 
 export function WeightTracker({
   clientId,
@@ -120,32 +121,30 @@ export function WeightTracker({
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-3">
-        <div>
-          <CardTitle className="flex items-center gap-2">
-            <Scale className="h-5 w-5 text-primary" />
-            {platform.weight.title}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {todayLogForDay
-              ? platform.weight.loggedForDate(String(todayLogForDay.weight_kg), dateLabel)
-              : platform.weight.subtitle}
-          </p>
-        </div>
-        {!formOpen && (
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-9 w-9 shrink-0 rounded-full"
-            onClick={openForm}
-            aria-label={platform.aria.logWeight}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className={cn(dashboard.tile, "p-4")}>
+      <DashboardSectionHeader
+        icon={Scale}
+        iconClassName="text-primary"
+        title={platform.weight.title}
+        subtitle={
+          todayLogForDay
+            ? platform.weight.loggedForDate(String(todayLogForDay.weight_kg), dateLabel)
+            : platform.weight.subtitle
+        }
+        action={
+          !formOpen ? (
+            <Button
+              size="sm"
+              className="h-8 rounded-full px-3 text-xs"
+              onClick={openForm}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {platform.weight.logWeight}
+            </Button>
+          ) : undefined
+        }
+      />
+      <div className="mt-4 space-y-6">
         {isReady ? (
           <>
         <WeightChartLazy
@@ -192,8 +191,8 @@ export function WeightTracker({
         {error && <p className="text-sm text-red-400">{error}</p>}
           </>
         ) : null}
-      </CardContent>
+      </div>
       {giveUpDialog}
-    </Card>
+    </div>
   );
 }

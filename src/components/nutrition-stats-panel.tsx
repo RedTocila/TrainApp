@@ -1,7 +1,9 @@
 "use client";
 
-import { Beef, Check, Egg, Flame, GlassWater, Wheat } from "lucide-react";
+import { Beef, Egg, Flame, GlassWater, Wheat } from "lucide-react";
 import { MacroRing } from "@/components/macro-ring";
+import { dashboard } from "@/components/dashboard-ui";
+import { DashboardStatusCheck } from "@/components/section-completed-badge";
 import { macroExceededDailyUpperLimit, macroExceededAttentionMessage } from "@/lib/macro-targets";
 import type { MealMacros } from "@/lib/meal-utils";
 import { cn } from "@/lib/utils";
@@ -14,12 +16,14 @@ export function NutritionStatsPanel({
   waterMl,
   waterGoalMl,
   onAddWater,
+  variant = "card",
 }: {
   current: MacroTotals;
   targets: MacroTotals;
   waterMl: number;
   waterGoalMl: number;
   onAddWater?: (amount: number) => void;
+  variant?: "card" | "flat";
 }) {
   const caloriesLeft = Math.max(0, targets.calories - current.calories);
   const caloriesConsumed = current.calories;
@@ -33,6 +37,7 @@ export function NutritionStatsPanel({
   );
   const macrosExceededMessage = macroExceededAttentionMessage(current, targets);
   const waterCompleted = waterGoalMl > 0 && waterMl >= waterGoalMl;
+  const flat = variant === "flat";
 
   return (
     <div className="space-y-4">
@@ -41,14 +46,16 @@ export function NutritionStatsPanel({
           {macrosExceededMessage}
         </div>
       )}
-      <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-secondary/30 p-4 sm:p-5">
+      <div
+        className={cn(
+          flat ? "px-1" : dashboard.heroTile
+        )}
+      >
         <div className="min-w-0 space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Daily calories
-          </p>
+          <p className={dashboard.label}>Daily calories</p>
           <p
             className={cn(
-              "text-4xl font-black tracking-tight sm:text-5xl",
+              dashboard.heroValue,
               caloriesUnrecoverable
                 ? "text-red-400"
                 : caloriesOver && "text-amber-400"
@@ -109,8 +116,8 @@ export function NutritionStatsPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        <div className="rounded-2xl border border-border bg-card/80 p-3 sm:p-4">
+      <div className={cn("grid grid-cols-2 gap-3 sm:grid-cols-4", flat ? "sm:gap-3" : "sm:gap-4")}>
+        <div className={cn(flat ? "px-1" : dashboard.metricTile)}>
           <MacroRing
             size="sm"
             value={current.protein}
@@ -126,7 +133,7 @@ export function NutritionStatsPanel({
             )}
           />
         </div>
-        <div className="rounded-2xl border border-border bg-card/80 p-3 sm:p-4">
+        <div className={cn(flat ? "px-1" : dashboard.metricTile)}>
           <MacroRing
             size="sm"
             value={current.carbs}
@@ -142,7 +149,7 @@ export function NutritionStatsPanel({
             )}
           />
         </div>
-        <div className="rounded-2xl border border-border bg-card/80 p-3 sm:p-4">
+        <div className={cn(flat ? "px-1" : dashboard.metricTile)}>
           <MacroRing
             size="sm"
             value={current.fat}
@@ -158,13 +165,15 @@ export function NutritionStatsPanel({
             )}
           />
         </div>
-        <div className="relative flex flex-col items-center rounded-2xl border border-border bg-card/80 p-3 sm:p-4">
+        <div
+          className={cn(
+            "relative flex flex-col items-center",
+            flat ? "px-1" : dashboard.metricTile
+          )}
+        >
           {waterCompleted && (
-            <div
-              className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-green-500/20 text-green-400"
-              aria-label="Water goal reached"
-            >
-              <Check className="h-3 w-3" strokeWidth={3} />
+            <div className="absolute right-2 top-2">
+              <DashboardStatusCheck aria-label="Water goal reached" className="h-5 w-5" />
             </div>
           )}
           <MacroRing
@@ -184,7 +193,7 @@ export function NutritionStatsPanel({
                   key={amount}
                   type="button"
                   onClick={() => onAddWater(amount)}
-                  className="inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1 rounded-full border border-border bg-secondary/60 px-2 py-1.5 text-[11px] font-semibold transition-colors [-webkit-tap-highlight-color:transparent] active:opacity-90 [@media(hover:hover)]:hover:border-cyan-500/40 [@media(hover:hover)]:hover:bg-cyan-500/10 sm:text-xs"
+                  className={cn(dashboard.chipButton, "px-2 py-1.5 text-[11px] sm:text-xs")}
                 >
                   <GlassWater className="h-3 w-3 shrink-0 text-cyan-400" />
                   +{amount}

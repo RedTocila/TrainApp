@@ -2,7 +2,7 @@
 import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import { format } from "date-fns";
-import { Check, CalendarClock, ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { compressImageFile } from "@/lib/image-compress";
@@ -32,7 +32,11 @@ import type { ProgressPhotoSet } from "@/lib/types";
 import { ImageSourceButtons } from "@/components/image-source-buttons";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  dashboard,
+  DashboardSectionHeader,
+} from "@/components/dashboard-ui";
+import { DashboardStatusIcon } from "@/components/section-completed-badge";
 import { cn } from "@/lib/utils";
 
 type PoseUrls = Record<ProgressPhotoPose, string | null>;
@@ -171,8 +175,8 @@ function PhotoSlot({
             >
               <X className="h-3.5 w-3.5" />
             </button>
-            <span className="pointer-events-none absolute right-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white">
-              <Check className="h-3 w-3" />
+            <span className="pointer-events-none absolute right-1.5 top-1.5 z-10">
+              <DashboardStatusIcon status="completed" className="h-5 w-5" aria-label="Uploaded" />
             </span>
           </>
         )}
@@ -337,24 +341,22 @@ export function ProgressPhotosCard({
   }, [currentSet, currentMonth]);
 
   return (
-    <Card id="dashboard-progress-photos">
-      <CardHeader className="flex flex-row items-start justify-between gap-3">
-        <div>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            <ImageIcon className="h-5 w-5 text-primary" />
-            {platform.photos.title}
-            {currentComplete && (
-              <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-400">
-                {platform.photos.monthComplete}
-              </span>
-            )}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {platform.photos.description}
-          </p>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div id="dashboard-progress-photos" className={cn(dashboard.tile, "p-4")}>
+      <DashboardSectionHeader
+        icon={ImageIcon}
+        iconClassName="text-primary"
+        title={platform.photos.title}
+        subtitle={platform.photos.description}
+        action={
+          currentComplete ? (
+            <DashboardStatusIcon
+              status="completed"
+              aria-label={platform.photos.monthComplete}
+            />
+          ) : undefined
+        }
+      />
+      <div className="mt-4 space-y-6">
         <div>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-bold">{cycleLabel}</p>
@@ -471,11 +473,11 @@ export function ProgressPhotosCard({
         )}
 
         {error && <p className="text-sm text-red-400">{error}</p>}
-      </CardContent>
+      </div>
       {giveUpDialog}
       {preview && (
         <PhotoPreviewOverlay preview={preview} onClose={() => setPreview(null)} />
       )}
-    </Card>
+    </div>
   );
 }

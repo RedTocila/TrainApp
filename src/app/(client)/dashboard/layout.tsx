@@ -1,5 +1,6 @@
 import { requireClient } from "@/lib/actions/auth";
 import { ClientNav } from "@/components/client-nav";
+import { DashboardAiCoachProvider } from "@/components/dashboard-ai-coach-provider";
 import { DashboardMainArea } from "@/components/dashboard-main-area";
 import { LocaleProvider } from "@/components/locale-provider";
 import { PendingIntakeSync } from "@/components/pending-intake-sync";
@@ -34,6 +35,7 @@ export default async function DashboardLayout({
         <DashboardNavPendingProvider>
         <div className="dashboard-shell flex min-h-0 overflow-hidden bg-background">
           <ClientNav fullName={profile.full_name} />
+          <DashboardAiCoachProvider>
           <FullCalendarProvider>
             <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
               <main
@@ -47,6 +49,7 @@ export default async function DashboardLayout({
               </main>
             </div>
           </FullCalendarProvider>
+          </DashboardAiCoachProvider>
         </div>
         </DashboardNavPendingProvider>
         </DashboardDateLoadingProvider>

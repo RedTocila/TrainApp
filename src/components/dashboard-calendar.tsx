@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { CalendarStrip } from "@/components/calendar-strip";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
 import { useRegisterDashboardCalendar } from "@/components/full-calendar-provider";
 import { fetchDashboardEnrichmentData } from "@/lib/actions/dashboard-enrichment";
 import type { ClientSchedule } from "@/lib/daily-tasks";
@@ -71,11 +72,16 @@ export function DashboardCalendar({
   useRegisterDashboardCalendar(schedule, mergedEnrichment);
 
   return (
-    <CalendarStrip
+    <div className="relative">
+      <div className="absolute right-3 top-2 z-10 hidden lg:block md:right-6">
+        <FullCalendarNavButton className="h-9 w-9 rounded-full border border-border/60 bg-background/80 shadow-sm backdrop-blur-sm" />
+      </div>
+      <CalendarStrip
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         schedule={schedule}
         enrichment={mergedEnrichment}
       />
+    </div>
   );
 }

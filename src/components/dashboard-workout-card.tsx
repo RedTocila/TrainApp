@@ -1,17 +1,25 @@
 "use client";
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
-import { Check, Dumbbell } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronRight, Clock, Dumbbell } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { isWorkoutCompletedFromPatches } from "@/lib/dashboard-enrichment-utils";
-import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import {
-  SectionCompletedBadge,
-  sectionCompletedCardClass,
+  StartTodaysWorkoutButton,
+  useStartTodaysWorkout,
+} from "@/components/start-todays-workout-button";
+import { WorkoutExerciseList } from "@/components/workout-exercise-list";
+import { DashboardWorkoutCompactStats } from "@/components/dashboard-workout-compact-meta";
+import { WorkoutDifficultyInsightButton } from "@/components/workout-difficulty-insight-button";
+import { useRegisterWorkoutPageChrome } from "@/components/workout-page-chrome-context";
+import {
+  DashboardStatusCheck,
 } from "@/components/section-completed-badge";
+import { dashboard, DashboardEmptyState } from "@/components/dashboard-ui";
 import {
   resolveWorkoutForDate,
   isWorkoutCompletedOnDate,
@@ -23,6 +31,11 @@ import {
 import { WorkoutResultsDropdown } from "@/components/workout-results-dropdown";
 import { WorkoutMuscleMap } from "@/components/workout-muscle-map";
 import { formatDateKey, cn } from "@/lib/utils";
+import {
+  estimateWorkoutDurationSeconds,
+  formatWorkoutDurationShort,
+} from "@/lib/workout-duration";
+import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MissedButton } from "@/components/missed-items-dialog";
@@ -30,6 +43,7 @@ import {
   isDeadlinePassed,
   WORKOUT_DEADLINE,
 } from "@/lib/meal-times";
+import type { Profile } from "@/lib/types";
 
 const WORKOUT_RESULTS_RETRY_MS = [0, 400, 800, 1500, 2500, 4000, 6000];
 
@@ -48,18 +62,23 @@ async function loadWorkoutResults(
 export function DashboardWorkoutCard({
   clientId,
   gender,
+  intakeProfile,
   initialWorkout,
   initialWorkoutCompleted = false,
   initialWorkoutResults = null,
+  variant = "full",
 }: {
   clientId: string;
   gender?: string | null;
+  intakeProfile?: Pick<Profile, "age" | "intake_responses"> | null;
   initialWorkout: TodaysWorkoutInfo | null;
   initialWorkoutCompleted?: boolean;
   initialWorkoutResults?: CompletedWorkoutResults | null;
+  variant?: "full" | "compact" | "detail";
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
+  const router = useRouter();
   const { selectedDate, todayKey } = useSelectedDate();
   const { version, patches } = useDashboardSync();
   const dateKey = formatDateKey(selectedDate);
@@ -177,16 +196,263 @@ export function DashboardWorkoutCard({
     !workoutCompletedForDay &&
     isDeadlinePassed(WORKOUT_DEADLINE, dateKey);
 
+  const startDisabled = !displayWorkout || (!isReady && !patchedComplete);
+  const { start: startWorkout, isStarting: isStartingWorkout } = useStartTodaysWorkout(
+    selectedDate,
+    startDisabled
+  );
+
+  const workoutChromeActions = useMemo(
+    () =>
+      variant === "detail"
+        ? {
+            onStartWorkout: startWorkout,
+            showStart: !showCompletedState && !!displayWorkout,
+            showCompleted: showCompletedState && !!displayWorkout,
+            disabled: startDisabled,
+            isStarting: isStartingWorkout,
+            difficultyExercises:
+              displayWorkout && displayWorkout.exercises.length > 0
+                ? displayWorkout.exercises
+                : null,
+            intakeProfile,
+          }
+        : null,
+    [
+      variant,
+      startWorkout,
+      showCompletedState,
+      displayWorkout,
+      startDisabled,
+      isStartingWorkout,
+      intakeProfile,
+    ]
+  );
+  useRegisterWorkoutPageChrome(workoutChromeActions);
+
+  const estimatedDurationLabel =
+    displayWorkout && displayWorkout.exercises.length > 0
+      ? platform.workout.estTotal(
+          formatWorkoutDurationShort(
+            estimateWorkoutDurationSeconds(
+              displayWorkout.exercises.map((exercise) => ({
+                target_sets: exercise.sets,
+              }))
+            )
+          )
+        )
+      : null;
+
+  if (variant === "compact") {
+    const hasMuscleMap =
+      !!displayWorkout && displayWorkout.exercises.length > 0;
+
+    return (
+      <Card
+        id="dashboard-workout"
+        role="button"
+        tabIndex={0}
+        onClick={() => router.push(DASHBOARD_DAY_WORKOUT_PATH)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            router.push(DASHBOARD_DAY_WORKOUT_PATH);
+          }
+        }}
+        className="relative flex h-full min-h-[16rem] w-full cursor-pointer flex-col gap-3 p-4 pt-12 sm:min-h-[18rem] transition-opacity hover:opacity-95 active:opacity-90"
+      >
+        {showCompletedState && displayWorkout ? (
+          <div className="absolute right-3 top-3 z-20">
+            <DashboardStatusCheck aria-label={platform.aria.completed} />
+          </div>
+        ) : null}
+
+        <div
+          className={cn(
+            "absolute inset-x-4 top-4 z-10 flex min-w-0 items-center gap-2",
+            showCompletedState && displayWorkout && "pr-9"
+          )}
+        >
+          <Dumbbell className="h-5 w-5 shrink-0 text-primary" />
+          <span className="shrink-0 text-lg font-black leading-none">
+            {platform.trainTabs.workout}
+          </span>
+          {displayWorkout && displayWorkout.exercises.length > 0 ? (
+            <WorkoutDifficultyInsightButton
+              exercises={displayWorkout.exercises}
+              intakeProfile={intakeProfile}
+              size="compact"
+            />
+          ) : null}
+        </div>
+
+        <div className="flex min-h-0 flex-1 gap-3">
+          <div className="w-[7.25rem] shrink-0 self-stretch overflow-hidden sm:w-32">
+            {hasMuscleMap ? (
+              <WorkoutMuscleMap
+                variant="compact"
+                exercises={displayWorkout.exercises}
+                dayTitle={displayWorkout.dayTitle}
+                gender={gender}
+                className="h-full w-full"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <Dumbbell
+                  className="h-10 w-10 text-muted-foreground/40 sm:h-11 sm:w-11"
+                  aria-hidden
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col self-stretch pr-7">
+            {displayWorkout ? (
+              <>
+                <p
+                  className={cn(
+                    "text-base font-bold leading-snug",
+                    showCompletedState && "text-muted-foreground line-through"
+                  )}
+                >
+                  {displayWorkout.dayTitle}
+                </p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {displayWorkout.planTitle}
+                  {displayWorkout.exercises.length > 0
+                    ? ` · ${platform.common.exercises(displayWorkout.exercises.length)}`
+                    : null}
+                </p>
+                {!showCompletedState && displayWorkout.exercises.length > 0 ? (
+                  <DashboardWorkoutCompactStats
+                    exercises={displayWorkout.exercises}
+                    className="mt-2"
+                  />
+                ) : showCompletedState ? (
+                  <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                    {displayWorkout.exercises.length > 0 && (
+                      <p>{platform.common.exercises(displayWorkout.exercises.length)}</p>
+                    )}
+                    {estimatedDurationLabel ? (
+                      <p className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-cyan-400" aria-hidden />
+                        <span>{estimatedDurationLabel}</span>
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            ) : isReady ? (
+              <p className="text-sm text-muted-foreground">{coachLabels.noWorkoutToday}</p>
+            ) : null}
+
+            <div
+              className="mt-auto pt-3"
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              {!showCompletedState ? (
+                <StartTodaysWorkoutButton
+                  date={selectedDate}
+                  disabled={!displayWorkout || (!isReady && !patchedComplete)}
+                />
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <ChevronRight
+          className="pointer-events-none absolute bottom-4 right-4 h-5 w-5 text-muted-foreground"
+          aria-hidden
+        />
+      </Card>
+    );
+  }
+
+  if (variant === "detail") {
+    return (
+      <div id="dashboard-workout" className={dashboard.section}>
+        <div className="hidden items-center justify-end gap-2 lg:flex">
+          {showCompletedState && displayWorkout ? (
+            <DashboardStatusCheck aria-label={platform.aria.completed} />
+          ) : displayWorkout ? (
+            <StartTodaysWorkoutButton
+              date={selectedDate}
+              disabled={startDisabled}
+              display="text"
+            />
+          ) : null}
+        </div>
+        {displayWorkout ? (
+          <>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1
+                  className={cn(
+                    dashboard.pageTitle,
+                    showCompletedState && "text-muted-foreground line-through"
+                  )}
+                >
+                  {displayWorkout.dayTitle}
+                </h1>
+                {displayWorkout.exercises.length > 0 ? (
+                  <WorkoutDifficultyInsightButton
+                    exercises={displayWorkout.exercises}
+                    intakeProfile={intakeProfile}
+                    size="compact"
+                  />
+                ) : null}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {displayWorkout.planTitle}
+                {displayWorkout.exercises.length > 0 &&
+                  ` · ${platform.common.exercises(displayWorkout.exercises.length)}`}
+              </p>
+              {estimatedDurationLabel ? (
+                <p className="mt-0.5 text-sm text-muted-foreground">{estimatedDurationLabel}</p>
+              ) : null}
+            </div>
+
+            <div className={cn(dashboard.tile, "p-4 sm:p-5")}>
+              <WorkoutMuscleMap
+                exercises={displayWorkout.exercises}
+                dayTitle={displayWorkout.dayTitle}
+                gender={gender}
+              />
+            </div>
+
+            {showCompletedState ? (
+              workoutResults ? (
+                <WorkoutResultsDropdown results={workoutResults} variant="open" />
+              ) : (
+                <div
+                  className={cn(dashboard.listRow, "justify-center py-6")}
+                  role="status"
+                  aria-live="polite"
+                  aria-busy="true"
+                >
+                  <span className="coach-alex-nav-loading__pulse-dot" />
+                  <span className="coach-alex-nav-loading__pulse-dot" />
+                  <span className="coach-alex-nav-loading__pulse-dot" />
+                </div>
+              )
+            ) : (
+              <WorkoutExerciseList exercises={displayWorkout.exercises} />
+            )}
+          </>
+        ) : isReady ? (
+          <DashboardEmptyState>{coachLabels.noWorkoutToday}</DashboardEmptyState>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
-    <Card
-      id="dashboard-workout"
-      className={sectionCompletedCardClass(showCompletedState && !!displayWorkout)}
-    >
+    <Card id="dashboard-workout">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle className="flex flex-wrap items-center gap-2">
           <Dumbbell className="h-5 w-5 text-primary" />
           {platform.dashboard.todaysWorkout}
-          {showCompletedState && displayWorkout && <SectionCompletedBadge />}
           <MissedButton
             count={workoutForDay && !workoutCompletedForDay && workoutMissed ? 1 : 0}
             title={coachLabels.missedWorkout}
@@ -205,12 +471,7 @@ export function DashboardWorkoutCard({
           />
         </CardTitle>
         {showCompletedState && displayWorkout ? (
-          <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
-            aria-label={platform.aria.completed}
-          >
-            <Check className="h-4 w-4" />
-          </span>
+          <DashboardStatusCheck aria-label={platform.aria.completed} />
         ) : (
           <StartTodaysWorkoutButton
             date={selectedDate}
@@ -225,7 +486,7 @@ export function DashboardWorkoutCard({
               <p
                 className={cn(
                   "font-semibold",
-                  showCompletedState && "text-green-400"
+                  showCompletedState && "text-muted-foreground line-through"
                 )}
               >
                 {displayWorkout.dayTitle}
@@ -259,7 +520,7 @@ export function DashboardWorkoutCard({
                   <WorkoutResultsDropdown results={workoutResults} />
                 ) : (
                   <div
-                    className="flex items-center gap-2 rounded-2xl border border-green-500/20 bg-green-500/5 px-3 py-3 text-sm text-muted-foreground sm:px-4"
+                    className="flex items-center gap-2 rounded-2xl border border-border/60 bg-card/80 px-3 py-3 text-sm text-muted-foreground sm:px-4"
                     role="status"
                     aria-live="polite"
                     aria-busy="true"
@@ -273,9 +534,7 @@ export function DashboardWorkoutCard({
             ) : null}
           </>
         ) : isReady ? (
-          <p className="text-sm text-muted-foreground">
-            {coachLabels.noWorkoutToday}
-          </p>
+          <DashboardEmptyState>{coachLabels.noWorkoutToday}</DashboardEmptyState>
         ) : null}
       </CardContent>
     </Card>

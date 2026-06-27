@@ -169,6 +169,20 @@ export const coachCopyEn = {
       "Loading. Try not to refresh — your streak can't handle another reset.",
     ],
   },
+  nutritionDay: {
+    goodTitle: "On track",
+    badTitle: "Off track",
+    goodAdvice: [
+      "Macros and water are in range. Keep portions steady — don't celebrate with a random pastry.",
+      "You actually hit your targets today. Log tomorrow before noon so I know it wasn't a fluke.",
+      "Solid day: calories, protein, and hydration logged. Repeat it tomorrow.",
+    ],
+    badAdvice: [
+      "You're off target today — tighten portions at your next meal and lean on protein.",
+      "Numbers aren't lining up. Log the next meal properly instead of guessing from memory.",
+      "Not a disaster, but not a win either. Plan the next plate before you're starving.",
+    ],
+  },
 } as const;
 
 export const coachLabelsEn = {

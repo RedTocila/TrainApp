@@ -107,6 +107,8 @@ export const platformCopyAl = {
     metricToggle: "kg / cm",
     imperialToggle: "lb / ft",
     theme: "Tema",
+    lightMode: "Modaliteti i ndritshëm",
+    darkMode: "Modaliteti i errët",
     accentColor: "Ngjyra e theksit",
     newPassword: "Fjalëkalimi i ri",
     confirmPassword: "Konfirmo fjalëkalimin",
@@ -138,6 +140,8 @@ export const platformCopyAl = {
     toDoOnDay: (day: string) => `Detyrat · ${day}`,
     toDoToday: "Detyrat e sotme",
     toDoTomorrow: "Detyrat e nesërme",
+    myProgress: "Progresi im",
+    viewDetails: "Shiko detajet",
   },
   common: {
     back: "Kthehu",
@@ -189,8 +193,6 @@ export const platformCopyAl = {
     editHabit: "Ndrysho zakonin",
     removeHabit: "Hiq zakonin",
     sendMessage: "Dërgo mesazhin",
-    startVoiceInput: "Fillo hyrjen me zë",
-    stopVoiceInput: "Ndalo dëgjimin",
     attachFile: "Bashkëngjit foto",
     removeAttachment: "Hiq bashkëngjitjen",
     webSources: (n: number) => `${n} burime në internet`,
@@ -206,6 +208,12 @@ export const platformCopyAl = {
   nutrition: {
     mealsLogged: "Vaktet e regjistruara",
     recentlyLogged: "Regjistruar së fundmi",
+    recentlyUploaded: "Ngarkuar së fundmi",
+    caloriesLeft: "Kalori të mbetura",
+    caloriesUnit: "kalori",
+    proteinLeft: "Proteinë",
+    carbsLeft: "Karbohidrate",
+    fatLeft: "Yndyrë",
     logFirstMealHint: "Prek + për të regjistruar vaktin e parë",
     waterGoalReached: "Objektivi i ujit u arrit",
     aiCoachPlan: "Plani i Coach AI",
@@ -217,6 +225,17 @@ export const platformCopyAl = {
     coachPdfEmpty:
       "Plani PDF i trajnerit po përgatitet. Krijoni ose aktivizoni një plan personal ose me AI te Programet → Ushqimi, ose regjistroni vakte me +.",
     drinkWater: (ml: number) => `Pini ${ml.toLocaleString()} ml ujë`,
+    fiber: "Fibra",
+    sugar: "Sheqer",
+    sodium: "Natrium",
+    healthScore: "Shëndeti i ditës",
+    healthScoreInnerBefore: "shëndet",
+    healthScoreInnerAfter: "pikë",
+    macros: "Makro",
+    microNutrients: "Mikro ushqyes",
+    water: "Ujë",
+    logMeal: "Regjistro vakt",
+    viewDietPlan: "Plani ushqimor",
     waterLogged: (logged: number, goal: number, deadline: string) =>
       `${logged.toLocaleString()} ml të regjistruara · objektivi deri në ${deadline}`,
     eatBetween: (window: string) => `Hani ndërmjet ${window}`,
@@ -288,6 +307,90 @@ export const platformCopyAl = {
     elapsed: "Kohë e kaluar",
     estimatedTime: "Koha e vlerësuar",
     estTotal: (duration: string) => `Përaf. ~${duration}`,
+    totalSetsLabel: "Seri gjithsej",
+    moreExercises: (count: number) =>
+      `+${count} ushtrim${count === 1 ? "" : "e"} të tjera`,
+    difficultyForYou: "Për ty",
+    difficultyExplainTitle: "Pse ky vlerësim?",
+    difficultyWorkoutLoad: "Ngarkesa e stërvitjes",
+    difficultyYourCapacity: "Kapaciteti yt",
+    difficultyHarderFactors: "Çfarë e rrit vështirësinë",
+    difficultyEasierFactors: "Çfarë të favorizon",
+    difficultyBalancedProfile: "Profili yt dhe kjo stërvitje përputhen mirë.",
+    tapToSeeWhy: "Prek për të parë pse",
+    personalDifficulty: {
+      easy: {
+        label: "E lehtë",
+        tagline: "Duhet ta përfundosh rehat.",
+        summary:
+          "Kjo seancë është më e lehtë se sa sugjeron profili yt që mund ta përballosh sot.",
+      },
+      intermediate: {
+        label: "Mesatare",
+        tagline: "Sfide e mirë.",
+        summary:
+          "Përputhet me përvojën dhe stilin tënd të jetës — prit punë, jo vuajtje.",
+      },
+      hard: {
+        label: "E vështirë",
+        tagline: "Respekto seancën.",
+        summary: "Volumi, faktoret e rikuperimit ose profili yt e bëjnë këtë ditë të rëndë.",
+      },
+      impossible: {
+        label: "E pamundur",
+        tagline: "Ji i zgjuar — ul volumin nëse duhet.",
+        summary:
+          "Sipas profilit tënd shëndetësor dhe të stilit të jetës, kjo tejkalon kapacitetin realistik për momentin.",
+      },
+    },
+    personalDifficultyReasons: {
+      beginnerExperience:
+        "Nivel fillestar — volumi i lartë ndihet më i rëndë ndërsa po ndërton kapacitetin.",
+      intermediateExperience: "Përvoja mesatare ndihmon ta përballosh këtë ngarkesë.",
+      advancedExperience: "Përvoja e avancuar e bën këtë volum më të menaxhueshëm.",
+      lowTrainingFrequency: "Stërvitesh rrallë, prandaj çdo seancë ndihet më e rëndë.",
+      highTrainingFrequency: "Stërvitesh shpesh, trupi yt është më i mësuar me volum.",
+      injuries: (params: { areas: string }) =>
+        `Zonat e lëndimit (${params.areas}) mund ta rrisin vështirësinë ose kërkojnë modifikime.`,
+      injuryDetails: "Shënimet e lëndimit në profil sugjerojnë kujdes shtesë sot.",
+      healthConditions: (params: { conditions: string }) =>
+        `Kushtet shëndetësore (${params.conditions}) mund ta rrisin ngarkesën e ndjerë.`,
+      healthDetails: "Detajet shtesë shëndetësore e rrisin sfidën.",
+      medications: "Medikamentet në profil mund të ndikojnë energjinë dhe rikuperimin.",
+      veryYoungAge: (params: { age: string }) =>
+        `Mosha ${params.age} — toleranca ndaj ngarkesës është ende në zhvillim.`,
+      youngAge: (params: { age: string }) =>
+        `Mosha ${params.age} — ruaj formën dhe mos e shty deri në fund të gjithë.`,
+      olderAge: (params: { age: string }) =>
+        `Mosha ${params.age} — rikuperimi më i gjatë mund ta bëjë më të vështirë.`,
+      seniorAge: (params: { age: string }) =>
+        `Mosha ${params.age} — prioritizo sigurinë dhe konsidero uljen e volumit.`,
+      lowEnergy: "Energji e ulët në anketë e bën seancën më të vështirë.",
+      highEnergy: "Nivele të larta energjie të japin më shumë hapësirë për të shtyrë.",
+      poorSleep: "Më pak se 6 orë gjumë rrit lodhjen dhe rëndon setet.",
+      goodSleep: "Zakone të mira gjumi mbështesin rikuperimin për këtë seancë.",
+      highStress: "Stresi i lartë nga profili yt mund të ulë performancën.",
+      smoking: "Duhani ditor mund të ulë qëndrueshmërinë.",
+      alcohol: "Alkooli i shpeshtë mund të ulë rikuperimin dhe energjinë.",
+      lowSteps: "Lëvizje e pakët gjatë ditës e bën stërvitjen më të rëndë.",
+      activeLifestyle: (params: { activities: string }) =>
+        `Stil jetese aktiv (${params.activities}) mbështet kapacitetin tënd.`,
+      manyExercises: (params: { count: string }) =>
+        `${params.count} ushtrime janë shumë volum në një seancë.`,
+      manySets: (params: { count: string }) => `${params.count} seri gjithsej e rrisin intensitetin.`,
+      longDuration: (params: { minutes: string }) =>
+        `~${params.minutes} min të vlerësuara — seancë e gjatë.`,
+      shortSession: "Seancë më e shkurtër me më pak elementë — më e menaxhueshme.",
+      incompleteProfile:
+        "Plotëso anketën e shëndetit dhe stilit të jetës për një vlerësim më të saktë.",
+    },
+    difficulty: {
+      easy: { label: "E lehtë", tagline: "Punë e lehtë. Dil dhe lëviz." },
+      moderate: { label: "Mesatare", tagline: "Seancë e vërtetë. Qëndro i fokusuar." },
+      hard: { label: "E vështirë", tagline: "Ditë e rëndë. Merre dushun me meritë." },
+      brutal: { label: "Brutale", tagline: "Modalitet bishë. Pa justifikime." },
+      legend: { label: "E pamundur", tagline: "Nivel legjende. Dërgo ndihmë." },
+    },
     timeRemaining: (duration: string) => `~${duration} mbeten`,
     finishSummaryTitle: "Përmbledhje seance",
     setsLogged: (done: number, total: number) => `${done}/${total} seri të regjistruara`,
@@ -481,8 +584,6 @@ export const platformCopyAl = {
       "Më ndërto një plan stërvitjeje për këtë javë",
     ],
     thinking: "Duke menduar…",
-    listening: "Duke dëgjuar…",
-    stopVoice: "Ndalo",
     searching: "Duke kërkuar dhe menduar…",
     placeholder: "Pyet për stërvitje, ushqim, rikuperim…",
     imageOnlyPrompt: "Çfarë mund të më thuash për këtë foto?",
@@ -499,7 +600,6 @@ export const platformCopyAl = {
     readMeGotIt: "E kuptova — le të bisedojmë",
     readMeAgreeLabel: "E kam lexuar dhe pajtohem",
     readMeRequiredPlaceholder: "Lexo dhe prano para se të bisedosh…",
-    voiceUnsupported: "Hyrja me zë nuk mbështetet në këtë shfletues.",
     chatUnreachable: "Nuk u arrit Coach AI",
     noStream: "Nuk ka përgjigje nga serveri",
     requestFailed: "Kërkesa AI dështoi",

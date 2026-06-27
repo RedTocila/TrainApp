@@ -1,16 +1,14 @@
 "use client";
 
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, ExternalLink, Globe, Loader2, Mic, Paperclip, UserRound, X } from "lucide-react";
+import { ArrowUp, ExternalLink, Globe, Loader2, Paperclip, UserRound, X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
-import { useLocale, usePlatformCopy } from "@/components/locale-provider";
+import { usePlatformCopy } from "@/components/locale-provider";
 import type { ChatImageAttachment, ChatMessage, WebSource } from "@/lib/ai/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { compressImageFile, fileToDataUrl, parseDataUrl } from "@/lib/image-compress";
 import { cn } from "@/lib/utils";
-import { useSpeechRecognition } from "@/lib/use-speech-recognition";
-import { VoiceListeningIndicator } from "@/components/voice-listening-indicator";
 import { ChatCommandInput } from "@/components/chat-command-input";
 import { ChatPlanPreviewCard } from "@/components/chat-plan-preview";
 import { ChatRichBlocks } from "@/components/chat-rich-blocks";
@@ -194,19 +192,12 @@ function ChatCommandBar({
   onKeyDown,
   onSubmit,
   placeholder,
-  listeningPlaceholder,
-  stopVoiceLabel,
   disabled,
   canSend,
   isStreaming,
   sendAriaLabel,
   attachAriaLabel,
   removeAttachmentAriaLabel,
-  startVoiceAriaLabel,
-  stopVoiceAriaLabel,
-  speechLang,
-  onVoiceError,
-  onVoiceSend,
   attachmentPreviewUrl,
   onAttachSelect,
   onAttachmentClear,
@@ -216,19 +207,12 @@ function ChatCommandBar({
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onSubmit: (e: React.FormEvent) => void;
   placeholder: string;
-  listeningPlaceholder: string;
-  stopVoiceLabel: string;
   disabled: boolean;
   canSend: boolean;
   isStreaming: boolean;
   sendAriaLabel: string;
   attachAriaLabel: string;
   removeAttachmentAriaLabel: string;
-  startVoiceAriaLabel: string;
-  stopVoiceAriaLabel: string;
-  speechLang: string;
-  onVoiceError: (message: string) => void;
-  onVoiceSend: (text: string) => void;
   attachmentPreviewUrl: string | null;
   onAttachSelect: (file: File) => void;
   onAttachmentClear: () => void;
@@ -236,34 +220,8 @@ function ChatCommandBar({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMultiline, setIsMultiline] = useState(false);
 
-  const { isListening, isSupported, toggleListening, stopListening } = useSpeechRecognition({
-    lang: speechLang,
-    onTranscript: onInputChange,
-    onSilence: onVoiceSend,
-    onError: onVoiceError,
-  });
-
-  const hasText = Boolean(input.trim());
-  const showMic =
-    !isStreaming &&
-    !attachmentPreviewUrl &&
-    !disabled &&
-    (!hasText || isListening);
-
-  useEffect(() => {
-    if (disabled || isStreaming) {
-      stopListening();
-    }
-  }, [disabled, isStreaming, stopListening]);
-
   return (
-    <form
-      onSubmit={(e) => {
-        stopListening();
-        onSubmit(e);
-      }}
-      className="min-w-0 w-full space-y-2"
-    >
+    <form onSubmit={onSubmit} className="min-w-0 w-full space-y-2">
       {attachmentPreviewUrl && (
         <div className="flex items-center gap-2 px-1">
           <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-border/70 bg-secondary/40">
@@ -284,13 +242,6 @@ function ChatCommandBar({
             </button>
           </div>
         </div>
-      )}
-      {isListening && (
-        <VoiceListeningIndicator
-          label={listeningPlaceholder}
-          stopLabel={stopVoiceLabel}
-          onStop={stopListening}
-        />
       )}
       <div
         className={cn(
@@ -323,43 +274,25 @@ function ChatCommandBar({
           value={input}
           onChange={onInputChange}
           onKeyDown={onKeyDown}
-          placeholder={isListening ? listeningPlaceholder : placeholder}
+          placeholder={placeholder}
           disabled={disabled}
           onMultilineChange={setIsMultiline}
         />
-        {showMic && isSupported ? (
-          <button
-            type="button"
-            onClick={() => (isListening ? stopListening() : void toggleListening(input))}
-            disabled={disabled}
-            aria-label={isListening ? stopVoiceAriaLabel : startVoiceAriaLabel}
-            aria-pressed={isListening}
-            className={cn(
-              "col-start-3 mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
-              isListening
-                ? "bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.5)] ring-2 ring-primary/30"
-                : "bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] hover:opacity-90"
-            )}
-          >
-            <Mic className="h-4 w-4" strokeWidth={2.25} />
-          </button>
-        ) : (
-          <button
-            type="submit"
-            disabled={!canSend}
-            aria-label={sendAriaLabel}
-            className={cn(
-              "col-start-3 mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
-              canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
-            )}
-          >
-            {isStreaming ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-            )}
-          </button>
-        )}
+        <button
+          type="submit"
+          disabled={!canSend}
+          aria-label={sendAriaLabel}
+          className={cn(
+            "col-start-3 mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+            canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
+          )}
+        >
+          {isStreaming ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+          )}
+        </button>
       </div>
     </form>
   );
@@ -367,9 +300,7 @@ function ChatCommandBar({
 
 export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const platform = usePlatformCopy();
-  const locale = useLocale();
   const ai = platform.ai;
-  const speechLang = locale === "al" ? "sq-AL" : "en-US";
   const { openReadMe, canChat } = useAiCoachChat();
   const starterPrompts = [...ai.starterPrompts];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -662,13 +593,6 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               canSend={canSend}
               isStreaming={isStreaming}
               sendAriaLabel={platform.aria.sendMessage}
-              startVoiceAriaLabel={platform.aria.startVoiceInput}
-              stopVoiceAriaLabel={platform.aria.stopVoiceInput}
-              speechLang={speechLang}
-              onVoiceError={setError}
-              onVoiceSend={(text) => void sendMessage(text)}
-              listeningPlaceholder={ai.listening}
-              stopVoiceLabel={ai.stopVoice}
               attachAriaLabel={platform.aria.attachFile}
               removeAttachmentAriaLabel={platform.aria.removeAttachment}
               attachmentPreviewUrl={attachmentPreviewUrl}
@@ -747,13 +671,6 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               canSend={canSend}
               isStreaming={isStreaming}
               sendAriaLabel={platform.aria.sendMessage}
-              startVoiceAriaLabel={platform.aria.startVoiceInput}
-              stopVoiceAriaLabel={platform.aria.stopVoiceInput}
-              speechLang={speechLang}
-              onVoiceError={setError}
-              onVoiceSend={(text) => void sendMessage(text)}
-              listeningPlaceholder={ai.listening}
-              stopVoiceLabel={ai.stopVoice}
               attachAriaLabel={platform.aria.attachFile}
               removeAttachmentAriaLabel={platform.aria.removeAttachment}
               attachmentPreviewUrl={attachmentPreviewUrl}
