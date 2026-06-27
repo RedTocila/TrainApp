@@ -83,7 +83,7 @@ function MacroVerticalCard({
   );
 }
 
-function HealthScoreCard({
+function HealthScoreHeroCard({
   score,
   before,
   after,
@@ -95,22 +95,46 @@ function HealthScoreCard({
   const progress = Math.min(Math.max(score, 0), 100) / 100;
 
   return (
-    <div className={dashboard.metricTile}>
-      <div>
-        <p className="text-2xl font-black tabular-nums leading-none">{score}</p>
-        <p className="mt-1 text-xs lowercase text-muted-foreground">
-          {before} {after}
-        </p>
+    <div className={dashboard.heroTile}>
+      <div className="min-w-0 space-y-2">
+        <div>
+          <p className="text-4xl font-black tabular-nums tracking-tight sm:text-5xl">
+            {score}
+          </p>
+          <p className="mt-0.5 text-sm lowercase text-muted-foreground">
+            {before} {after}
+          </p>
+        </div>
       </div>
-      <div className="flex justify-center pt-3">
-        <MiniProgressRing
-          progress={progress}
-          icon={Heart}
-          size={52}
-          stroke={4}
-          ringClass="text-emerald-500"
-          iconClass="text-emerald-400"
-        />
+      <div className="relative h-24 w-24 shrink-0 sm:h-28 sm:w-28">
+        <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
+          <circle
+            cx="50"
+            cy="50"
+            r="42"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="6"
+            className="text-secondary/80"
+          />
+          <circle
+            cx="50"
+            cy="50"
+            r="42"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="6"
+            strokeLinecap="round"
+            className="text-emerald-500"
+            strokeDasharray={2 * Math.PI * 42}
+            strokeDashoffset={2 * Math.PI * 42 * (1 - progress)}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary/80 sm:h-16 sm:w-16">
+            <Heart className="h-7 w-7 text-emerald-400 sm:h-8 sm:w-8" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -261,76 +285,59 @@ export function NutritionDetailView({
 
   return (
     <div className={cn("space-y-4", className)}>
-      <CaloriesHeroCard
-        current={current.calories}
-        target={targets.calories}
-        caloriesLeftLabel={platform.nutrition.caloriesLeft}
-      />
-
       <div className="space-y-3">
         <div className="overflow-hidden">
           {slide === 0 ? (
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {SLIDE_ONE.map(({ key, icon, ringClass, iconClass, labelKey }) => {
-                const target = targets[key];
-                const value = current[key];
-                const over = target > 0 && value > target;
-                return (
-                  <MacroVerticalCard
-                    key={key}
-                    value={value}
-                    target={target}
-                    label={platform.nutrition[labelKey]}
-                    icon={icon}
-                    ringClass={ringClass}
-                    iconClass={iconClass}
-                    over={over}
-                  />
-                );
-              })}
+            <div className="space-y-3">
+              <CaloriesHeroCard
+                current={current.calories}
+                target={targets.calories}
+                caloriesLeftLabel={platform.nutrition.caloriesLeft}
+              />
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {SLIDE_ONE.map(({ key, icon, ringClass, iconClass, labelKey }) => {
+                  const target = targets[key];
+                  const value = current[key];
+                  const over = target > 0 && value > target;
+                  return (
+                    <MacroVerticalCard
+                      key={key}
+                      value={value}
+                      target={target}
+                      label={platform.nutrition[labelKey]}
+                      icon={icon}
+                      ringClass={ringClass}
+                      iconClass={iconClass}
+                      over={over}
+                    />
+                  );
+                })}
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-              {microCells.map(({ key, icon, ringClass, iconClass, label, overWhenHigh, unit }) => {
-                const target = DAILY_MICRO_TARGETS[key];
-                const value = micros[key];
-                const over = overWhenHigh ? target > 0 && value > target : false;
-                const remaining = Math.max(0, target - value);
-                const display = over ? value - target : remaining;
-                const progress = target > 0 ? Math.min(value / target, 1) : 0;
-                const resolvedUnit = unit ?? "g";
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                {microCells.map(({ key, icon, ringClass, iconClass, label, overWhenHigh, unit }) => {
+                  const target = DAILY_MICRO_TARGETS[key];
+                  const value = micros[key];
+                  const over = overWhenHigh ? target > 0 && value > target : false;
 
-                return (
-                  <div
-                    key={key}
-                    className={dashboard.metricTile}
-                  >
-                    <div>
-                      <p
-                        className={cn(
-                          "text-2xl font-black tabular-nums leading-none",
-                          over ? "text-red-400" : "text-foreground"
-                        )}
-                      >
-                        {Math.round(display)}
-                        {resolvedUnit}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-                    </div>
-                    <div className="flex justify-center pt-3">
-                      <MiniProgressRing
-                        progress={progress}
-                        icon={icon}
-                        size={52}
-                        stroke={4}
-                        ringClass={over ? OVER_RING : ringClass}
-                        iconClass={over ? OVER_ICON : iconClass}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-              <HealthScoreCard
+                  return (
+                    <MacroVerticalCard
+                      key={key}
+                      value={value}
+                      target={target}
+                      label={label}
+                      unit={unit ?? "g"}
+                      icon={icon}
+                      ringClass={ringClass}
+                      iconClass={iconClass}
+                      over={over}
+                    />
+                  );
+                })}
+              </div>
+              <HealthScoreHeroCard
                 score={health.score}
                 before={platform.nutrition.healthScoreInnerBefore}
                 after={platform.nutrition.healthScoreInnerAfter}

@@ -343,7 +343,7 @@ export function DashboardWorkoutCard({
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(7.25rem,34%)_1fr] items-stretch gap-2">
-          <div className="relative flex min-h-[10rem] items-stretch">
+          <div className="muscle-map-surface surface-texture relative flex min-h-[10rem] items-stretch">
             {hasMuscleMap ? (
               <WorkoutMuscleMap
                 variant="compact"
@@ -462,7 +462,7 @@ export function DashboardWorkoutCard({
               ) : null}
             </div>
 
-            <div className={cn(dashboard.tile, "p-4 sm:p-5")}>
+            <div className={cn(dashboard.tile, "muscle-map-surface surface-texture overflow-hidden p-4 sm:p-5")}>
               <WorkoutMuscleMap
                 exercises={displayWorkout.exercises}
                 dayTitle={displayWorkout.dayTitle}

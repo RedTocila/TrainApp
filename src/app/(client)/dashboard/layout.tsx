@@ -39,7 +39,7 @@ export default async function DashboardLayout({
           <FullCalendarProvider>
             <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
               <main
-                className="dashboard-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background px-0 pb-[var(--dashboard-mobile-nav-height,4.25rem)] [-webkit-overflow-scrolling:touch] lg:pb-0"
+                className="dashboard-main dashboard-texture min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background px-0 pb-[var(--dashboard-mobile-nav-height,4.25rem)] [-webkit-overflow-scrolling:touch] lg:pb-0"
               >
               <DashboardMainArea
                 subscriptionBanner={<SubscriptionBanner profile={profile} />}

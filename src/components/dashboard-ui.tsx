@@ -87,13 +87,23 @@ export function DashboardCarouselDots({
         <button
           key={index}
           type="button"
-          onClick={() => onSelect(index)}
-          className={cn(
-            "h-1.5 rounded-full transition-all",
-            active === index ? "w-5 bg-foreground" : "w-1.5 bg-muted-foreground/40"
-          )}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect(index);
+          }}
+          className="flex h-8 min-w-8 touch-manipulation items-center justify-center rounded-full"
           aria-label={getLabel?.(index) ?? `Slide ${index + 1}`}
-        />
+          aria-current={active === index ? "true" : undefined}
+        >
+          <span
+            className={cn(
+              "rounded-full transition-all",
+              active === index
+                ? "h-1.5 w-5 bg-foreground"
+                : "h-1.5 w-1.5 bg-muted-foreground/40"
+            )}
+          />
+        </button>
       ))}
     </div>
   );
