@@ -8,13 +8,14 @@ import { formatDateKey } from "@/lib/utils";
 import { addWater } from "@/lib/actions/logs";
 import { deleteDailyMealLog } from "@/lib/actions/daily-meals";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
+import type { MealFormData } from "@/lib/meal-utils";
 import { sumMealMacros, mealFormFromMeal } from "@/lib/meal-utils";
+import { isActionError, runServerAction } from "@/lib/run-server-action";
 import {
   dailyMacrosExceededUpperLimit,
   dailyMacrosWithinTarget,
   formatExceededMacroSummary,
 } from "@/lib/macro-targets";
-import type { MealFormData } from "@/lib/meal-utils";
 import type { MacroTargets } from "@/lib/meal-score";
 import { NutritionStatsPanel } from "@/components/nutrition-stats-panel";
 import { RecentMealsList } from "@/components/recent-meals-list";
@@ -164,32 +165,46 @@ export function DailyTracker({
   const handleDeleteMeal = (logId: string) => {
     const previous = dailyMeals;
     onDailyMealsChange(dailyMeals.filter((meal) => meal.id !== logId));
-    void deleteDailyMealLog(clientId, dateKey, logId).then((result) => {
-      if (result.error) {
-        onDailyMealsChange(previous);
+    void runServerAction(() => deleteDailyMealLog(clientId, dateKey, logId)).then(
+      (result) => {
+        if (isActionError(result) || ("error" in result && result.error)) {
+          onDailyMealsChange(previous);
+        }
       }
-    });
+    );
   };
 
   const refreshMeals = () => {
-    void import("@/lib/actions/daily-meals").then(({ getDailyMealLogs }) =>
-      getDailyMealLogs(clientId, dateKey).then(onDailyMealsChange)
-    );
+    void runServerAction(() =>
+      import("@/lib/actions/daily-meals").then(({ getDailyMealLogs }) =>
+        getDailyMealLogs(clientId, dateKey)
+      )
+    ).then((result) => {
+      if (isActionError(result)) return;
+      if (Array.isArray(result)) onDailyMealsChange(result);
+    });
   };
 
   const handleLogged = (preview?: MealFormData) => {
     refreshMeals();
-    if (preview) {
+    if (!preview) return;
+    try {
       setPreviewVariant("new");
       setPreviewMeal(preview);
       setPreviewOpen(true);
+    } catch {
+      setPreviewOpen(false);
     }
   };
 
   const handleSelectMeal = (meal: DailyMealLog) => {
-    setPreviewVariant("view");
-    setPreviewMeal(mealFormFromMeal(meal));
-    setPreviewOpen(true);
+    try {
+      setPreviewVariant("view");
+      setPreviewMeal(mealFormFromMeal(meal));
+      setPreviewOpen(true);
+    } catch {
+      setPreviewOpen(false);
+    }
   };
 
   return (

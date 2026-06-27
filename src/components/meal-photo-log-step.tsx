@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { analyzeMealPhotoAction } from "@/lib/actions/ai-meal";
+import { isActionError, runServerAction } from "@/lib/run-server-action";
 import { compressImageFile, fileToDataUrl } from "@/lib/image-compress";
 import { type MealFormData } from "@/lib/meal-utils";
 import { MealAnalysisSummary } from "@/components/meal-analysis-summary";
@@ -81,8 +82,10 @@ export function MealPhotoLogStep({
 
     startTransition(async () => {
       try {
-        const response = await analyzeMealPhotoAction(imageBase64, mimeType);
-        if ("error" in response) {
+        const response = await runServerAction(() =>
+          analyzeMealPhotoAction(imageBase64, mimeType)
+        );
+        if (isActionError(response)) {
           onError(response.error);
           setPhaseWithReady("capture");
           return;

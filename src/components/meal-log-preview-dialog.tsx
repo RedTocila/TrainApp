@@ -52,25 +52,34 @@ export function MealLogPreviewDialog({
 
   const score = useMemo(() => {
     if (!meal) return null;
-    return scoreMeal({ meal, targets, goal });
+    try {
+      return scoreMeal({ meal, targets, goal });
+    } catch {
+      return null;
+    }
   }, [meal, targets, goal]);
 
   const coachAdvice = useMemo(() => {
     if (!meal || !score) return null;
-    return getCoachMealAdvice({
-      copy: coachCopy,
-      score: score.score,
-      meal,
-      reasons: score.reasons,
-      goal,
-      variationKey: adviceKey,
-    });
+    try {
+      return getCoachMealAdvice({
+        copy: coachCopy,
+        score: score.score,
+        meal,
+        reasons: score.reasons,
+        goal,
+        variationKey: adviceKey,
+      });
+    } catch {
+      return null;
+    }
   }, [adviceKey, coachCopy, meal, score, goal]);
 
   const adviceTier = score ? getMealAdviceTier(score.score) : "ok";
   const tierStyles = getMealScoreTierStyles(adviceTier);
 
-  if (!open || !meal || !score) return null;
+  if (!open || !meal) return null;
+
   const summary = formatMealMacrosSummary(meal.macros);
 
   return (
@@ -107,30 +116,38 @@ export function MealLogPreviewDialog({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          <Card className={cn("border", tierStyles.card)}>
-            <CardContent className="grid gap-3 p-4 sm:grid-cols-[auto_1fr] sm:items-center">
-              <ScoreGauge
-                score={score.score}
-                label={`${score.label} fit`}
-                icon={Target}
-                colorClass={tierStyles.gauge}
-                size="md"
-              />
-              <div className="space-y-2">
-                <p className="text-sm font-semibold">Why this score</p>
-                <ul className="space-y-1 text-sm text-muted-foreground">
-                  {score.reasons.map((r, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span
-                        className={cn("mt-2 h-1.5 w-1.5 shrink-0 rounded-full", tierStyles.bullet)}
-                      />
-                      <span>{r}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+          {score ? (
+            <Card className={cn("border", tierStyles.card)}>
+              <CardContent className="grid gap-3 p-4 sm:grid-cols-[auto_1fr] sm:items-center">
+                <ScoreGauge
+                  score={score.score}
+                  label={`${score.label} fit`}
+                  icon={Target}
+                  colorClass={tierStyles.gauge}
+                  size="md"
+                />
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">Why this score</p>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    {score.reasons.map((r, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span
+                          className={cn("mt-2 h-1.5 w-1.5 shrink-0 rounded-full", tierStyles.bullet)}
+                        />
+                        <span>{r}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-4 text-sm text-muted-foreground">
+                Meal logged successfully. Insights are unavailable for this entry right now.
+              </CardContent>
+            </Card>
+          )}
 
           {coachAdvice && (
             <div

@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { logCustomMeal, logMealFromLibrary } from "@/lib/actions/daily-meals";
+import { isActionError, runServerAction } from "@/lib/run-server-action";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import {
   emptyMealForm,
@@ -126,6 +127,18 @@ export function LogMealDialog({
     },
   ];
 
+  const finishMealLog = (preview?: Parameters<typeof onLogged>[0]) => {
+    try {
+      onLogged(preview);
+      onClose();
+    } catch {
+      setError(
+        "Meal saved, but the screen couldn't update. Reload to see your latest log."
+      );
+      onClose();
+    }
+  };
+
   const handleLogCustom = () => {
     if (!form.name.trim()) {
       setError(platform.mealLog.nameRequired);
@@ -133,47 +146,55 @@ export function LogMealDialog({
     }
     setError(null);
     startTransition(async () => {
-      const result = await logCustomMeal(clientId, dateKey, form);
-      if (result.error) {
+      const result = await runServerAction(() =>
+        logCustomMeal(clientId, dateKey, form)
+      );
+      if (isActionError(result)) {
         setError(result.error);
         return;
       }
-      onLogged(form);
-      onClose();
+      finishMealLog(form);
     });
   };
 
   const handleLogFromCatalog = (recipeId: string) => {
     setError(null);
     startTransition(async () => {
-      const res = await fetch(`/api/recipe-catalog?id=${encodeURIComponent(recipeId)}`);
-      if (!res.ok) {
-        setError("Recipe not found");
-        return;
+      try {
+        const res = await fetch(`/api/recipe-catalog?id=${encodeURIComponent(recipeId)}`);
+        if (!res.ok) {
+          setError("Recipe not found");
+          return;
+        }
+        const data = (await res.json()) as { recipe: CatalogRecipe };
+        const mealForm = catalogRecipeToMealForm(data.recipe);
+        const result = await runServerAction(() =>
+          logCustomMeal(clientId, dateKey, mealForm)
+        );
+        if (isActionError(result)) {
+          setError(result.error);
+          return;
+        }
+        finishMealLog(mealForm);
+      } catch {
+        setError(platform.mealLog.processFailed);
       }
-      const data = (await res.json()) as { recipe: CatalogRecipe };
-      const mealForm = catalogRecipeToMealForm(data.recipe);
-      const result = await logCustomMeal(clientId, dateKey, mealForm);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      onLogged(mealForm);
-      onClose();
     });
   };
 
   const handleLogFromLibrary = (mealId: string) => {
     setError(null);
     startTransition(async () => {
-      const result = await logMealFromLibrary(clientId, dateKey, mealId);
-      if (result.error) {
+      const result = await runServerAction(() =>
+        logMealFromLibrary(clientId, dateKey, mealId)
+      );
+      if (isActionError(result)) {
         setError(result.error);
         return;
       }
       const item = library.find((i) => i.meal.id === mealId);
       if (item) {
-        onLogged({
+        finishMealLog({
           meal_type: item.meal.meal_type,
           name: item.meal.name,
           description: item.meal.description ?? "",
@@ -185,9 +206,8 @@ export function LogMealDialog({
           })),
         });
       } else {
-        onLogged();
+        finishMealLog();
       }
-      onClose();
     });
   };
 

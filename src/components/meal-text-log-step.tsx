@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { analyzeMealTextAction } from "@/lib/actions/ai-meal";
+import { isActionError, runServerAction } from "@/lib/run-server-action";
 import {
   formatMealMacrosSummary,
   type MealFormData,
@@ -47,8 +48,10 @@ export function MealTextLogStep({
     setPhaseWithReady("analyzing");
 
     startTransition(async () => {
-      const response = await analyzeMealTextAction(input.trim());
-      if ("error" in response) {
+      const response = await runServerAction(() =>
+        analyzeMealTextAction(input.trim())
+      );
+      if (isActionError(response)) {
         onError(response.error);
         setPhaseWithReady("input");
         return;
