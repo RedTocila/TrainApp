@@ -41,7 +41,7 @@ export function HabitsTracker({
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
-  const { selectedDate, todayKey } = useSelectedDate();
+  const { selectedDate } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
   const [habits, setHabits] = useState(initialHabits);
   const [suggestions, setSuggestions] = useState(suggestedHabits);
@@ -55,6 +55,10 @@ export function HabitsTracker({
   const { patchDashboard, notifySync } = useDashboardSync();
 
   useEffect(() => {
+    setHabits(initialHabits);
+  }, [initialHabits]);
+
+  useEffect(() => {
     setSuggestions(suggestedHabits);
   }, [suggestedHabits]);
 
@@ -63,8 +67,8 @@ export function HabitsTracker({
     setHabits(data);
   }, [clientId, dateKey]);
 
-  const isReady = useDashboardDateFetch(dateKey, refresh, [clientId, todayKey]);
-  const habitsForDay = isReady ? habits : [];
+  const isReady = useDashboardDateFetch(dateKey, refresh, [clientId]);
+  const habitsForDay = habits;
 
   const reloadHabits = useCallback(() => {
     void refresh();
@@ -122,8 +126,13 @@ export function HabitsTracker({
     });
 
     setTogglingId(habitId);
-    void toggleHabitCompletion(habitId, dateKey)
+    void toggleHabitCompletion(habitId, dateKey, new Date().getTimezoneOffset())
       .then((result) => {
+        if (result.completed) {
+          setError(null);
+          notifySync();
+          return;
+        }
         if (result.error) {
           setError(result.error);
           setHabits((prev) =>
@@ -268,7 +277,7 @@ export function HabitsTracker({
 
           {isReady && habitsForDay.length === 0 ? (
             <DashboardEmptyState>{coachLabels.noHabitsToday}</DashboardEmptyState>
-          ) : isReady ? (
+          ) : habitsForDay.length > 0 ? (
             <ul className="space-y-2">
               {displayHabits.map((habit) => {
                 const canComplete = canCompleteHabit(habit, dateKey, habit.completed);

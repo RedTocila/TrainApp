@@ -11,11 +11,10 @@ import {
   type ScheduleStartMode,
 } from "@/lib/schedule-utils";
 import { CLIENT_HABIT_COLUMNS } from "@/lib/db-selects";
-import { formatDateKey } from "@/lib/utils";
+import { formatDateKey, getDateKeyForTimezoneOffset, getWallClockDate } from "@/lib/utils";
 import type { ClientHabit } from "@/lib/types";
 import { findHabitSuggestionById } from "@/lib/habit-suggestions";
 import {
-  canCompleteHabit,
   getHabitDayStatus,
   type HabitDayStatus,
 } from "@/lib/habit-utils";
@@ -148,6 +147,47 @@ export async function getHabitsScheduledInRange(
   return map;
 }
 
+async function ensureHabitScheduledForDate(
+  admin: SupabaseClient,
+  habitId: string,
+  clientId: string,
+  date: string
+): Promise<boolean> {
+  const { data: existing } = await admin
+    .from("habit_scheduled_dates")
+    .select("scheduled_date")
+    .eq("habit_id", habitId)
+    .eq("client_id", clientId)
+    .eq("scheduled_date", date)
+    .maybeSingle();
+
+  if (existing) return true;
+
+  const { data: habit } = await admin
+    .from("client_habits")
+    .select("weekdays")
+    .eq("id", habitId)
+    .eq("client_id", clientId)
+    .single();
+
+  if (!habit) return false;
+
+  const weekdays = (habit.weekdays as number[]) ?? [0, 1, 2, 3, 4, 5, 6];
+  const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
+  if (!weekdays.includes(dayOfWeek)) return false;
+
+  const { error } = await admin.from("habit_scheduled_dates").upsert(
+    {
+      habit_id: habitId,
+      client_id: clientId,
+      scheduled_date: date,
+    },
+    { onConflict: "habit_id,scheduled_date" }
+  );
+
+  return !error;
+}
+
 async function replaceHabitSchedule(
   admin: SupabaseClient,
   habitId: string,
@@ -180,7 +220,7 @@ async function replaceHabitSchedule(
 
   if (updateError) return { error: formatDbError(updateError.message) };
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = formatDateKey(new Date());
   await admin
     .from("habit_scheduled_dates")
     .delete()
@@ -322,7 +362,11 @@ export async function deleteHabit(habitId: string) {
   return { success: true };
 }
 
-export async function toggleHabitCompletion(habitId: string, date: string) {
+export async function toggleHabitCompletion(
+  habitId: string,
+  date: string,
+  timezoneOffsetMinutes?: number
+) {
   const access = await ensureSubscribedMutation();
   if ("error" in access) return { error: access.error };
 
@@ -348,18 +392,44 @@ export async function toggleHabitCompletion(habitId: string, date: string) {
     .maybeSingle();
 
   if (existing) {
-    return { error: "Completed habits cannot be unmarked", completed: true };
+    revalidatePath("/dashboard");
+    return { completed: true };
   }
 
-  if (!canCompleteHabit(habit, date, false)) {
-    const status = getHabitDayStatus(habit, date, false);
-    if (status === "missed") {
-      return { error: "This habit was missed — the time window has passed", completed: false };
-    }
+  await ensureHabitScheduledForDate(admin, habitId, clientId, date);
+
+  const { data: scheduled } = await admin
+    .from("habit_scheduled_dates")
+    .select("scheduled_date")
+    .eq("habit_id", habitId)
+    .eq("client_id", clientId)
+    .eq("scheduled_date", date)
+    .maybeSingle();
+
+  if (!scheduled) {
+    return { error: "This habit is not scheduled for this day", completed: false };
+  }
+
+  const todayKey =
+    timezoneOffsetMinutes !== undefined
+      ? getDateKeyForTimezoneOffset(timezoneOffsetMinutes)
+      : formatDateKey(new Date());
+  const now =
+    timezoneOffsetMinutes !== undefined
+      ? getWallClockDate(timezoneOffsetMinutes)
+      : new Date();
+
+  if (date !== todayKey) {
+    const status = getHabitDayStatus(habit, date, false, now);
     if (status === "upcoming") {
       return { error: "You can only complete habits scheduled for today", completed: false };
     }
     return { error: "Cannot complete this habit right now", completed: false };
+  }
+
+  const status = getHabitDayStatus(habit, date, false, now);
+  if (status === "missed") {
+    return { error: "This habit was missed — the time window has passed", completed: false };
   }
 
   const { error } = await admin.from("habit_completions").insert({
@@ -367,8 +437,9 @@ export async function toggleHabitCompletion(habitId: string, date: string) {
     client_id: clientId,
     date,
   });
-  if (error) return { error: formatDbError(error.message), completed: true };
+  if (error) return { error: formatDbError(error.message), completed: false };
 
+  revalidatePath("/dashboard");
   return { completed: true };
 }
 

@@ -265,12 +265,23 @@ export function DashboardWorkoutCard({
           <div className="absolute right-3 top-3 z-20">
             <DashboardStatusCheck aria-label={platform.aria.completed} />
           </div>
-        ) : null}
+        ) : (
+          <div
+            className="absolute right-3 top-3 z-20"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            <StartTodaysWorkoutButton
+              date={selectedDate}
+              disabled={!displayWorkout || (!isReady && !patchedComplete)}
+            />
+          </div>
+        )}
 
         <div
           className={cn(
             "absolute inset-x-4 top-4 z-10 flex min-w-0 items-center gap-2",
-            showCompletedState && displayWorkout && "pr-9"
+            showCompletedState && displayWorkout ? "pr-9" : "pr-10"
           )}
         >
           <Dumbbell className="h-5 w-5 shrink-0 text-primary" />
@@ -299,7 +310,7 @@ export function DashboardWorkoutCard({
             )}
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-col justify-between pr-6">
+          <div className="flex min-h-0 min-w-0 flex-col pr-6">
             {displayWorkout ? (
               <div className="min-w-0">
                 <p
@@ -343,19 +354,6 @@ export function DashboardWorkoutCard({
               </div>
             ) : isReady ? (
               <p className="text-sm text-muted-foreground">{coachLabels.noWorkoutToday}</p>
-            ) : null}
-
-            {!showCompletedState ? (
-              <div
-                className="mt-3"
-                onClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => event.stopPropagation()}
-              >
-                <StartTodaysWorkoutButton
-                  date={selectedDate}
-                  disabled={!displayWorkout || (!isReady && !patchedComplete)}
-                />
-              </div>
             ) : null}
           </div>
         </div>

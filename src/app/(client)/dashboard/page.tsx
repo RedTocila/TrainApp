@@ -68,7 +68,7 @@ export default async function DashboardPage() {
   const rangeStart = format(addDays(today, -3), "yyyy-MM-dd");
   const rangeEnd = format(addDays(today, 28), "yyyy-MM-dd");
 
-  void ensureHabitSchedules(profile.id);
+  await ensureHabitSchedules(profile.id);
 
   const [
     workoutAssignment,
