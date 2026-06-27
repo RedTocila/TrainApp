@@ -5,10 +5,11 @@ import { getYoutubeEmbedUrl } from "@/lib/youtube";
 interface ExerciseVideoPlayerProps {
   videoUrl?: string | null;
   title: string;
+  autoplay?: boolean;
 }
 
-export function ExerciseVideoPlayer({ videoUrl, title }: ExerciseVideoPlayerProps) {
-  const embedUrl = videoUrl ? getYoutubeEmbedUrl(videoUrl) : null;
+export function ExerciseVideoPlayer({ videoUrl, title, autoplay = false }: ExerciseVideoPlayerProps) {
+  const embedUrl = videoUrl ? getYoutubeEmbedUrl(videoUrl, { autoplay }) : null;
 
   if (!embedUrl) return null;
 

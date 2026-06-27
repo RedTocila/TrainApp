@@ -371,6 +371,18 @@ export interface FitnessClass {
   created_at: string;
 }
 
+export interface Challenge {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  scheduled_at: string;
+  duration_minutes: number;
+  room_name: string;
+  published: boolean;
+  created_at: string;
+}
+
 export interface ClientCardio {
   id: string;
   client_id: string;

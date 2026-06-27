@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/actions/auth";
-import { getClassById, updateClass } from "@/lib/actions/classes";
-import { CLASS_CATEGORIES } from "@/lib/class-utils";
+import { getChallengeById, updateChallenge } from "@/lib/actions/challenges";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,65 +15,50 @@ function toDatetimeLocalValue(iso: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export default async function EditClassPage({
+export default async function EditChallengePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   await requireAdmin();
   const { id } = await params;
-  const fitnessClass = await getClassById(id);
-  if (!fitnessClass) notFound();
+  const challenge = await getChallengeById(id);
+  if (!challenge) notFound();
 
-  const updateWithId = updateClass.bind(null, id);
+  const updateWithId = updateChallenge.bind(null, id);
 
   return (
     <PageTransition>
       <div className="mx-auto max-w-3xl space-y-6">
         <div>
-          <h1 className="text-2xl font-black">Edit class</h1>
+          <h1 className="text-2xl font-black">Edit challenge</h1>
           <p className="text-sm text-muted-foreground">
-            Add or update the YouTube replay link after the live session ends.
+            Update schedule or room name for this community session.
           </p>
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>{fitnessClass.title}</CardTitle>
+            <CardTitle>{challenge.title}</CardTitle>
           </CardHeader>
           <CardContent>
             <form action={updateWithId} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
-                <Input id="title" name="title" required defaultValue={fitnessClass.title} />
+                <Input id="title" name="title" required defaultValue={challenge.title} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="slug">Slug</Label>
-                <Input id="slug" name="slug" required defaultValue={fitnessClass.slug} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <select
-                  id="category"
-                  name="category"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  defaultValue={fitnessClass.category}
-                >
-                  {CLASS_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                <Input id="slug" name="slug" required defaultValue={challenge.slug} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="scheduled_at">Live date & time</Label>
+                  <Label htmlFor="scheduled_at">Start date & time</Label>
                   <Input
                     id="scheduled_at"
                     name="scheduled_at"
                     type="datetime-local"
                     required
-                    defaultValue={toDatetimeLocalValue(fitnessClass.scheduled_at)}
+                    defaultValue={toDatetimeLocalValue(challenge.scheduled_at)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -86,36 +70,16 @@ export default async function EditClassPage({
                     min={15}
                     step={15}
                     required
-                    defaultValue={fitnessClass.duration_minutes}
+                    defaultValue={challenge.duration_minutes}
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="meeting_url">YouTube Live URL</Label>
+                <Label htmlFor="room_name">LiveKit room name</Label>
                 <Input
-                  id="meeting_url"
-                  name="meeting_url"
-                  type="url"
-                  defaultValue={fitnessClass.meeting_url ?? ""}
-                  placeholder="https://youtube.com/watch?v=..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="replay_url">Replay link (YouTube)</Label>
-                <Input
-                  id="replay_url"
-                  name="replay_url"
-                  type="url"
-                  defaultValue={fitnessClass.replay_url ?? ""}
-                  placeholder="https://youtube.com/watch?v=..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cover_image">Cover image URL (optional)</Label>
-                <Input
-                  id="cover_image"
-                  name="cover_image"
-                  defaultValue={fitnessClass.cover_image ?? ""}
+                  id="room_name"
+                  name="room_name"
+                  defaultValue={challenge.room_name}
                 />
               </div>
               <div className="space-y-2">
@@ -123,8 +87,8 @@ export default async function EditClassPage({
                 <Textarea
                   id="description"
                   name="description"
-                  rows={8}
-                  defaultValue={fitnessClass.description}
+                  rows={6}
+                  defaultValue={challenge.description}
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -133,13 +97,13 @@ export default async function EditClassPage({
                   id="published"
                   name="published"
                   className="rounded"
-                  defaultChecked={fitnessClass.published}
+                  defaultChecked={challenge.published}
                 />
                 <Label htmlFor="published">Published</Label>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-2">
                 <Button type="submit">Save changes</Button>
-                <Link href="/admin/classes">
+                <Link href="/admin/challenges">
                   <Button type="button" variant="outline">
                     Cancel
                   </Button>

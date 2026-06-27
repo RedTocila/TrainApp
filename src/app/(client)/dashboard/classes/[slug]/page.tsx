@@ -68,7 +68,7 @@ export default async function ClassDetailPage({
         <Link href="/dashboard/classes">
           <Button variant="ghost" size="sm" className="-ml-2">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Live coaching
+            Back to Live
           </Button>
         </Link>
 

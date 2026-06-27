@@ -40,6 +40,9 @@ export function getReferralsReturnLabel(
   if (returnPath === "/dashboard/classes" || returnPath.startsWith("/dashboard/classes/")) {
     return labels.liveCoaching;
   }
+  if (returnPath.startsWith("/dashboard/challenges/")) {
+    return labels.liveCoaching;
+  }
   if (returnPath === "/dashboard/profile" || returnPath.startsWith("/dashboard/profile/")) {
     return labels.profile;
   }

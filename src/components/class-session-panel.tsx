@@ -12,7 +12,9 @@ import {
   getClassStatus,
   type ClassStatus,
 } from "@/lib/class-utils";
+import { getClassStreamUrl } from "@/lib/class-stream";
 import type { FitnessClass } from "@/lib/types";
+import { isValidYoutubeUrl } from "@/lib/youtube";
 import { cn } from "@/lib/utils";
 
 const statusLabels: Record<ClassStatus, string> = {
@@ -32,6 +34,16 @@ const statusStyles: Record<ClassStatus, string> = {
 export function ClassSessionPanel({ fitnessClass }: { fitnessClass: FitnessClass }) {
   const status = getClassStatus(fitnessClass);
   const joinable = canJoinLive(fitnessClass);
+  const youtubeLive =
+    joinable &&
+    status !== "replay" &&
+    !!fitnessClass.meeting_url &&
+    isValidYoutubeUrl(fitnessClass.meeting_url);
+  const streamUrl = getClassStreamUrl(
+    fitnessClass.meeting_url,
+    fitnessClass.replay_url,
+    status === "replay"
+  );
 
   return (
     <div className="space-y-4">
@@ -46,11 +58,15 @@ export function ClassSessionPanel({ fitnessClass }: { fitnessClass: FitnessClass
         </span>
       </div>
 
-      {status === "replay" && fitnessClass.replay_url && (
-        <ExerciseVideoPlayer videoUrl={fitnessClass.replay_url} title={fitnessClass.title} />
+      {streamUrl && (status === "replay" || youtubeLive) && (
+        <ExerciseVideoPlayer
+          videoUrl={streamUrl}
+          title={fitnessClass.title}
+          autoplay={status === "live"}
+        />
       )}
 
-      {status !== "replay" && joinable && fitnessClass.meeting_url && (
+      {status !== "replay" && joinable && fitnessClass.meeting_url && !youtubeLive && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
@@ -58,7 +74,7 @@ export function ClassSessionPanel({ fitnessClass }: { fitnessClass: FitnessClass
                 {status === "live" ? "Class is live — join now" : "Join link is open"}
               </p>
               <p className="text-sm text-muted-foreground">
-                Opens in Zoom or your meeting app. Link becomes available 15 minutes before start.
+                Opens in your meeting app. Link becomes available 15 minutes before start.
               </p>
             </div>
             <a
@@ -74,12 +90,26 @@ export function ClassSessionPanel({ fitnessClass }: { fitnessClass: FitnessClass
         </Card>
       )}
 
+      {youtubeLive && status === "live" && (
+        <p className="text-xs text-muted-foreground">
+          Stream not loading?{" "}
+          <a
+            href={fitnessClass.meeting_url!}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            Open on YouTube
+          </a>
+        </p>
+      )}
+
       {status === "upcoming" && !joinable && fitnessClass.meeting_url && (
         <Card>
           <CardContent className="flex items-start gap-3 p-4 text-sm text-muted-foreground">
             <Video className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              The join button appears 15 minutes before the class starts. Add this session to your
+              The live stream appears 15 minutes before the class starts. Add this session to your
               calendar so you don&apos;t miss it.
             </p>
           </CardContent>
@@ -91,7 +121,7 @@ export function ClassSessionPanel({ fitnessClass }: { fitnessClass: FitnessClass
           <CardContent className="flex items-start gap-3 p-4 text-sm text-muted-foreground">
             <PlayCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              This session has ended. The replay will appear here once your coach uploads the
+              This session has ended. The replay will appear here once your coach adds the YouTube
               recording link.
             </p>
           </CardContent>
@@ -107,7 +137,7 @@ export function ClassSessionPanel({ fitnessClass }: { fitnessClass: FitnessClass
             rel="noopener noreferrer"
             className="text-primary underline-offset-4 hover:underline"
           >
-            Original meeting link
+            Original YouTube link
           </a>
         </p>
       )}

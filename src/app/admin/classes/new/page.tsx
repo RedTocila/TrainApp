@@ -17,8 +17,8 @@ export default async function NewClassPage() {
         <div>
           <h1 className="text-2xl font-black">New live class</h1>
           <p className="text-sm text-muted-foreground">
-            Add a Zoom or Google Meet link for the live session. After class, paste a YouTube replay
-            URL so clients can watch later.
+            Add a YouTube Live URL for the stream. After class, paste the same or updated YouTube
+            link as the replay so clients can watch later.
           </p>
         </div>
         <Card>
@@ -69,16 +69,16 @@ export default async function NewClassPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="meeting_url">Live meeting link (Zoom / Meet)</Label>
+                <Label htmlFor="meeting_url">YouTube Live URL</Label>
                 <Input
                   id="meeting_url"
                   name="meeting_url"
                   type="url"
-                  placeholder="https://zoom.us/j/..."
+                  placeholder="https://youtube.com/watch?v=..."
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="replay_url">Replay link (YouTube — add after class)</Label>
+                <Label htmlFor="replay_url">Replay link (YouTube — add after class ends)</Label>
                 <Input
                   id="replay_url"
                   name="replay_url"

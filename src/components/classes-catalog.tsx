@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import {
@@ -14,16 +14,13 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ClassStatusBadge } from "@/components/class-session-panel";
-import { FlowStep } from "@/components/ai/feature-tile";
-import { Card, CardContent } from "@/components/ui/card";
 import {
-  CLASS_CATEGORIES,
   categoryStyles,
   classExcerpt,
   getClassStatus,
   partitionClasses,
 } from "@/lib/class-utils";
-import type { ClassCategory, FitnessClass } from "@/lib/types";
+import type { FitnessClass } from "@/lib/types";
 
 function LiveClassCard({ fitnessClass }: { fitnessClass: FitnessClass }) {
   const styles = categoryStyles[fitnessClass.category];
@@ -153,96 +150,28 @@ function ClassCard({ fitnessClass }: { fitnessClass: FitnessClass }) {
 }
 
 export function ClassesCatalog({ classes }: { classes: FitnessClass[] }) {
-  const [activeCategory, setActiveCategory] = useState<ClassCategory | "All">("All");
-
-  const filtered = useMemo(() => {
-    if (activeCategory === "All") return classes;
-    return classes.filter((c) => c.category === activeCategory);
-  }, [classes, activeCategory]);
-
   const { live, upcoming, replays, ended } = useMemo(
-    () => partitionClasses(filtered),
-    [filtered]
+    () => partitionClasses(classes),
+    [classes]
   );
 
   const hasContent = live.length + upcoming.length + replays.length + ended.length > 0;
 
   return (
     <div className="space-y-8">
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <Video className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-lg font-black">Live coaching</h1>
-              <p className="text-xs text-muted-foreground">Join live · schedule · watch replays</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-1 font-semibold text-red-300">
-              <Radio className="h-3.5 w-3.5" />
-              Live {live.length}
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-semibold text-primary">
-              <Calendar className="h-3.5 w-3.5" />
-              Next {upcoming.length}
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-secondary/50 px-2 py-1 font-semibold text-muted-foreground">
-              <Video className="h-3.5 w-3.5" />
-              Replays {replays.length}
-            </span>
-          </div>
-        </div>
-
-        <Card className="border-border bg-secondary/20">
-          <CardContent className="flex items-center justify-between gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <FlowStep icon={Calendar} label="Pick" />
-                <div className="h-px w-8 bg-border" />
-                <FlowStep icon={Radio} label="Join" active={live.length > 0} />
-                <div className="h-px w-8 bg-border" />
-                <FlowStep icon={Video} label="Replay" />
-              </div>
-            </div>
-            <p className="hidden text-xs text-muted-foreground sm:block">
-              Tap any card below to open details.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveCategory("All")}
-          className={cn(
-            "rounded-full px-4 py-1.5 text-sm font-medium transition-all",
-            activeCategory === "All"
-              ? "border border-primary/30 bg-primary/10 text-primary"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
-          )}
-        >
-          All topics
-        </button>
-        {CLASS_CATEGORIES.map((cat) => (
-          <button
-            key={cat}
-            type="button"
-            onClick={() => setActiveCategory(cat)}
-            className={cn(
-              "rounded-full border px-4 py-1.5 text-sm font-medium transition-all",
-              activeCategory === cat
-                ? cn("shadow-md", categoryStyles[cat].badge)
-                : "border-transparent bg-muted text-muted-foreground hover:bg-muted/80"
-            )}
-          >
-            {cat}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-1 font-semibold text-red-300">
+          <Radio className="h-3.5 w-3.5" />
+          Live {live.length}
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 font-semibold text-primary">
+          <Calendar className="h-3.5 w-3.5" />
+          Next {upcoming.length}
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-secondary/50 px-2 py-1 font-semibold text-muted-foreground">
+          <Video className="h-3.5 w-3.5" />
+          Replays {replays.length}
+        </span>
       </div>
 
       {!hasContent ? (

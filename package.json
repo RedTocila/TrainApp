@@ -17,6 +17,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
     "@hookform/resolvers": "^5.4.0",
+    "@livekit/components-react": "^2.9.21",
+    "@livekit/components-styles": "^1.2.0",
     "@nebula-ltd/pok-payments-js": "^2.0.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
@@ -24,6 +26,8 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "framer-motion": "^12.40.0",
+    "livekit-client": "^2.20.0",
+    "livekit-server-sdk": "^2.15.5",
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
     "openai": "^6.44.0",

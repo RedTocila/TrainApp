@@ -51,6 +51,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
       "/dashboard/nutrition",
       "/dashboard/ai",
       "/dashboard/classes",
+      "/dashboard/challenges",
       "/dashboard/profile",
     ],
     []

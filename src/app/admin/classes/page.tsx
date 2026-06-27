@@ -22,7 +22,7 @@ export default async function AdminClassesPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-black">Live Classes</h1>
             <p className="text-muted-foreground">
-              Schedule Zoom/Meet sessions and add YouTube replays for {PLATFORM_AI_NAME} clients
+              Schedule YouTube Live streams and add replay links for {PLATFORM_AI_NAME} clients
             </p>
           </div>
           <Link href="/admin/classes/new" className="shrink-0">

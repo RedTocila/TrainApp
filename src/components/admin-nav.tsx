@@ -8,6 +8,7 @@ import {
   Video,
   Bell,
   LogOut,
+  Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", shortLabel: "Home", icon: LayoutDashboard, exact: true },
   { href: "/admin/requests", label: "Requests", shortLabel: "Requests", icon: Bell },
   { href: "/admin/classes", label: "Classes", shortLabel: "Classes", icon: Video },
+  { href: "/admin/challenges", label: "Challenges", shortLabel: "Challenges", icon: Trophy },
   { href: "/admin/clients", label: "Clients", shortLabel: "Clients", icon: Users },
 ];
 
@@ -85,7 +87,7 @@ export function AdminNav({
       </aside>
 
       <nav className="dashboard-instant-nav pointer-events-auto fixed bottom-0 left-0 right-0 z-[100] border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        <div className="grid grid-cols-4 py-2">
+        <div className="grid grid-cols-5 py-2">
           {navItems.map((item) => {
             const active = isActive(pathname, item.href, item.exact);
             return (

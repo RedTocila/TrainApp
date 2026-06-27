@@ -14,7 +14,7 @@ export function extractYoutubeId(url: string): string | null {
   return null;
 }
 
-export function getYoutubeEmbedUrl(url: string): string | null {
+export function getYoutubeEmbedUrl(url: string, options?: { autoplay?: boolean }): string | null {
   const id = extractYoutubeId(url);
   if (!id) return null;
 
@@ -23,6 +23,12 @@ export function getYoutubeEmbedUrl(url: string): string | null {
 
   const params = new URLSearchParams();
   if (start) params.set("start", start);
+  if (options?.autoplay) {
+    params.set("autoplay", "1");
+    params.set("mute", "0");
+  }
+  params.set("rel", "0");
+  params.set("modestbranding", "1");
 
   const qs = params.toString();
   return `https://www.youtube.com/embed/${id}${qs ? `?${qs}` : ""}`;

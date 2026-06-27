@@ -43,7 +43,7 @@ function FilterChip({
     >
       <span
         className={cn(
-          "relative flex h-11 w-11 items-center justify-center rounded-full border-2 transition-shadow",
+          "relative flex h-11 w-11 items-center justify-center rounded-[18px] border-2 transition-shadow",
           style ? cn(style.chip, style.chipText) : "border-border bg-secondary/60 text-muted-foreground",
           active && "shadow-lg ring-2 ring-white/25 ring-offset-2 ring-offset-background"
         )}

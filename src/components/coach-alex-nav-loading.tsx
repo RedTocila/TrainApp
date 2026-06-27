@@ -21,16 +21,10 @@ export function CoachAlexNavLoading() {
     >
       <div className="coach-alex-nav-loading__stage relative mx-auto mb-4 h-32 w-32 sm:h-36 sm:w-36">
         <div
-          className="coach-alex-nav-loading__ring pointer-events-none absolute inset-0 rounded-full"
+          className="pointer-events-none absolute inset-0 z-[2] animate-spin rounded-full border-[3px] border-primary/25 border-t-primary sm:border-4"
           aria-hidden
         />
-        <div
-          className="coach-alex-nav-loading__orbit pointer-events-none absolute inset-0"
-          aria-hidden
-        >
-          <span className="coach-alex-nav-loading__dot" />
-        </div>
-        <div className="coach-alex-nav-loading__avatar absolute inset-3 overflow-hidden rounded-full border-2 border-primary/30 shadow-lg shadow-primary/10">
+        <div className="coach-alex-nav-loading__avatar absolute inset-4 overflow-hidden rounded-full border-2 border-primary/30 shadow-lg shadow-primary/10">
           <Image
             src={AI_COACH_AVATAR_SRC}
             alt=""
