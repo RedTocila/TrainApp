@@ -33,11 +33,13 @@ export function AiCoachChatDialog() {
     if (!isOpen) return;
 
     const main = document.querySelector<HTMLElement>(".dashboard-main");
-    const prevOverflow = main?.style.overflow ?? "";
+    const prevMainOverflow = main?.style.overflow ?? "";
+    const prevBodyOverflow = document.body.style.overflow;
 
     if (main) {
       main.style.overflow = "hidden";
     }
+    document.body.style.overflow = "hidden";
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -50,8 +52,9 @@ export function AiCoachChatDialog() {
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       if (main) {
-        main.style.overflow = prevOverflow;
+        main.style.overflow = prevMainOverflow;
       }
+      document.body.style.overflow = prevBodyOverflow;
     };
   }, [isOpen, closeChat, readMeOpen, closeReadMe, hasAcknowledgedReadMe]);
 
@@ -62,7 +65,7 @@ export function AiCoachChatDialog() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="ai-coach-chat-title"
-      className="fixed inset-0 z-40 flex flex-col overflow-hidden bg-background"
+      className="fixed inset-x-0 top-0 bottom-[var(--dashboard-mobile-nav-height,3.375rem)] z-[90] flex flex-col overflow-hidden bg-background lg:bottom-0"
     >
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -94,7 +97,7 @@ export function AiCoachChatDialog() {
           </Button>
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col pb-[var(--dashboard-mobile-nav-height,3.375rem)] lg:pb-0">
+      <div className="flex min-h-0 flex-1 flex-col">
         <AiChatClientLazy embedded />
       </div>
       <CoachReadMeDialog

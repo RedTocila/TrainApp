@@ -27,11 +27,13 @@ export function DashboardDateLoadingProvider({
 }: {
   children: ReactNode;
 }) {
-  const { selectedDate } = useSelectedDate();
+  const { selectedDate, todayKey } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
   const [pendingByDate, setPendingByDate] = useState<Record<string, number>>({});
   const [lastSettledDate, setLastSettledDate] = useState<string | null>(null);
+  const [awaitingNonTodayLoad, setAwaitingNonTodayLoad] = useState(false);
   const hadPendingForDateRef = useRef(false);
+  const prevDateKeyRef = useRef<string | null>(null);
 
   const markLoading = useCallback((forDateKey: string) => {
     setPendingByDate((prev) => ({
@@ -52,6 +54,23 @@ export function DashboardDateLoadingProvider({
 
   const pendingForCurrentDate = pendingByDate[dateKey] ?? 0;
 
+  useLayoutEffect(() => {
+    const previousDateKey = prevDateKeyRef.current;
+    prevDateKeyRef.current = dateKey;
+
+    if (previousDateKey === null) {
+      setLastSettledDate(dateKey);
+      setAwaitingNonTodayLoad(false);
+      hadPendingForDateRef.current = false;
+      return;
+    }
+
+    if (previousDateKey === dateKey) return;
+
+    hadPendingForDateRef.current = false;
+    setAwaitingNonTodayLoad(dateKey !== todayKey);
+  }, [dateKey, todayKey]);
+
   useEffect(() => {
     if (pendingForCurrentDate > 0) {
       hadPendingForDateRef.current = true;
@@ -67,15 +86,13 @@ export function DashboardDateLoadingProvider({
 
     hadPendingForDateRef.current = false;
     setLastSettledDate(dateKey);
+    setAwaitingNonTodayLoad(false);
   }, [pendingForCurrentDate, dateKey, lastSettledDate]);
 
-  useLayoutEffect(() => {
-    hadPendingForDateRef.current = false;
-  }, [dateKey]);
-
   const isDateLoading =
-    pendingForCurrentDate > 0 ||
-    (lastSettledDate !== null && lastSettledDate !== dateKey);
+    awaitingNonTodayLoad &&
+    (pendingForCurrentDate > 0 ||
+      (lastSettledDate !== null && lastSettledDate !== dateKey));
 
   const value = useMemo<DashboardDateLoadingContextValue>(
     () => ({ markLoading, isDateLoading }),
