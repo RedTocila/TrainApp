@@ -1,9 +1,11 @@
 "use client";
 
-import { Beef, Egg, Flame, GlassWater, Wheat } from "lucide-react";
+import { Beef, Egg, Flame, GlassWater, Pencil, Wheat } from "lucide-react";
+import { useState } from "react";
 import { MacroRing } from "@/components/macro-ring";
 import { dashboard } from "@/components/dashboard-ui";
 import { DashboardStatusCheck } from "@/components/section-completed-badge";
+import { WaterIntakeEditDialog } from "@/components/water-intake-edit-dialog";
 import { macroExceededDailyUpperLimit, macroExceededAttentionMessage } from "@/lib/macro-targets";
 import type { MealMacros } from "@/lib/meal-utils";
 import { cn } from "@/lib/utils";
@@ -16,6 +18,7 @@ export function NutritionStatsPanel({
   waterMl,
   waterGoalMl,
   onAddWater,
+  onSetWater,
   variant = "card",
 }: {
   current: MacroTotals;
@@ -23,8 +26,10 @@ export function NutritionStatsPanel({
   waterMl: number;
   waterGoalMl: number;
   onAddWater?: (amount: number) => void;
+  onSetWater?: (waterMl: number) => Promise<{ error?: string } | void>;
   variant?: "card" | "flat";
 }) {
+  const [editWaterOpen, setEditWaterOpen] = useState(false);
   const caloriesLeft = Math.max(0, targets.calories - current.calories);
   const caloriesConsumed = current.calories;
   const calorieProgress =
@@ -171,11 +176,21 @@ export function NutritionStatsPanel({
             flat ? "px-1" : dashboard.metricTile
           )}
         >
-          {waterCompleted && (
-            <div className="absolute right-2 top-2">
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
+            {waterCompleted ? (
               <DashboardStatusCheck aria-label="Water goal reached" className="h-5 w-5" />
-            </div>
-          )}
+            ) : null}
+            {onSetWater ? (
+              <button
+                type="button"
+                onClick={() => setEditWaterOpen(true)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
+                aria-label="Edit water intake"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
           <MacroRing
             size="sm"
             value={waterMl}
@@ -203,6 +218,15 @@ export function NutritionStatsPanel({
           )}
         </div>
       </div>
+      {onSetWater ? (
+        <WaterIntakeEditDialog
+          open={editWaterOpen}
+          onClose={() => setEditWaterOpen(false)}
+          currentMl={waterMl}
+          waterGoalMl={waterGoalMl}
+          onSave={onSetWater}
+        />
+      ) : null}
     </div>
   );
 }

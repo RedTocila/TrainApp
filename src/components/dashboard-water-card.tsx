@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { GlassWater } from "lucide-react";
+import { GlassWater, Pencil } from "lucide-react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { useDashboardSync } from "@/components/dashboard-sync";
@@ -9,9 +9,10 @@ import { dashboard } from "@/components/dashboard-ui";
 import { DashboardStatusIcon } from "@/components/section-completed-badge";
 import { MiniProgressRing } from "@/components/nutrition-macro-rings";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { addWater, getDailyLog } from "@/lib/actions/logs";
+import { addWater, getDailyLog, setWater } from "@/lib/actions/logs";
 import { formatDateKey } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { WaterIntakeEditDialog } from "@/components/water-intake-edit-dialog";
 
 export function DashboardWaterCard({
   clientId,
@@ -29,6 +30,7 @@ export function DashboardWaterCard({
   const { patchDashboard } = useDashboardSync();
   const dateKey = formatDateKey(selectedDate);
   const [waterMl, setWaterMl] = useState(initialWaterMl);
+  const [editOpen, setEditOpen] = useState(false);
   const compact = variant === "compact";
 
   useEffect(() => {
@@ -79,6 +81,18 @@ export function DashboardWaterCard({
     });
   };
 
+  const handleSetWater = async (nextMl: number) => {
+    const previous = waterMl;
+    setWaterMl(nextMl);
+    patchDashboard({ dateKey, waterMl: nextMl });
+    const result = await setWater(clientId, dateKey, nextMl);
+    if ("error" in result && result.error) {
+      setWaterMl(previous);
+      patchDashboard({ dateKey, waterMl: previous });
+      return { error: result.error };
+    }
+  };
+
   const addButtons = (
     <div className={cn("flex gap-1.5", compact ? "mt-auto pt-2" : "mt-4")}>
       {[250, 500].map((amount) => (
@@ -101,17 +115,30 @@ export function DashboardWaterCard({
     </div>
   );
 
+  const cornerActions = (
+    <div className="absolute right-2 top-2 z-10 flex items-center gap-1 sm:right-3 sm:top-3">
+      {waterCompleted ? (
+        <DashboardStatusIcon
+          status="completed"
+          aria-label={platform.nutrition.waterGoalReached}
+        />
+      ) : null}
+      <button
+        type="button"
+        onClick={() => setEditOpen(true)}
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
+        aria-label="Edit water intake"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+
   if (compact) {
     return (
+      <>
       <div id="dashboard-water" className={cn(dashboard.tile, dashboard.pairTile)}>
-        {waterCompleted ? (
-          <div className="absolute right-2 top-2 z-10 sm:right-3 sm:top-3">
-            <DashboardStatusIcon
-              status="completed"
-              aria-label={platform.nutrition.waterGoalReached}
-            />
-          </div>
-        ) : null}
+        {cornerActions}
         <div className="flex items-center gap-2 pr-8">
           <GlassWater className="h-5 w-5 shrink-0 text-cyan-400" />
           <p className="truncate text-sm font-black">{platform.nutrition.water}</p>
@@ -126,19 +153,21 @@ export function DashboardWaterCard({
         </div>
         {addButtons}
       </div>
+      <WaterIntakeEditDialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        currentMl={waterMl}
+        waterGoalMl={waterGoalMl}
+        onSave={handleSetWater}
+      />
+      </>
     );
   }
 
   return (
+    <>
     <div id="dashboard-water" className={cn(dashboard.tile, "relative p-4")}>
-      {waterCompleted ? (
-        <div className="absolute right-3 top-3 z-10">
-          <DashboardStatusIcon
-            status="completed"
-            aria-label={platform.nutrition.waterGoalReached}
-          />
-        </div>
-      ) : null}
+      {cornerActions}
       <div className="flex items-center gap-2 pr-8">
         <GlassWater className="h-5 w-5 text-cyan-400" />
         <p className="text-lg font-black">{platform.nutrition.water}</p>
@@ -158,5 +187,13 @@ export function DashboardWaterCard({
       </div>
       {addButtons}
     </div>
+    <WaterIntakeEditDialog
+      open={editOpen}
+      onClose={() => setEditOpen(false)}
+      currentMl={waterMl}
+      waterGoalMl={waterGoalMl}
+      onSave={handleSetWater}
+    />
+    </>
   );
 }

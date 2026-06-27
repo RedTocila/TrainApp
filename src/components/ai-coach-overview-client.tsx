@@ -153,8 +153,8 @@ export function AiCoachOverviewClient({
                 target={gap.targets.fat}
                 label={platform.ai.fat}
                 icon={Flame}
-                accentClass="text-rose-400"
-                ringClass="text-rose-400"
+                accentClass="text-sky-400"
+                ringClass="text-sky-500"
                 exceededTolerance={macroExceededDailyUpperLimit(
                   gap.consumed.fat,
                   gap.targets.fat,

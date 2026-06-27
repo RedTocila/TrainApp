@@ -57,9 +57,9 @@ function macroRows(platform: ReturnType<typeof usePlatformCopy>) {
       key: "fat" as const,
       label: platform.ai.fat,
       icon: Droplets,
-      text: "text-rose-400",
-      bar: "bg-rose-500",
-      track: "bg-rose-500/15",
+      text: "text-blue-400",
+      bar: "bg-blue-500",
+      track: "bg-blue-500/15",
     },
   ];
 }
@@ -88,7 +88,7 @@ function MacroDonut({
   const segments = [
     { value: split.protein, color: "#0ea5e9" },
     { value: split.carbs, color: "#f59e0b" },
-    { value: split.fat, color: "#f43f5e" },
+    { value: split.fat, color: "#3b82f6" },
   ];
 
   let offset = 0;

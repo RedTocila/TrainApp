@@ -64,6 +64,13 @@ export async function addWater(clientId: string, date: string, amount: number) {
   return upsertDailyLog(clientId, date, { water_ml: current + amount });
 }
 
+export async function setWater(clientId: string, date: string, waterMl: number) {
+  if (!Number.isFinite(waterMl) || waterMl < 0 || waterMl > 15000) {
+    return { error: "Water intake must be between 0 and 15000 ml" };
+  }
+  return upsertDailyLog(clientId, date, { water_ml: Math.round(waterMl) });
+}
+
 export async function getWaterGoal(clientId: string): Promise<number> {
   const supabase = await createClient();
   const { data } = await supabase

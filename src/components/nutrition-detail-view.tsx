@@ -232,8 +232,8 @@ const SLIDE_ONE: {
   {
     key: "fat",
     icon: Egg,
-    ringClass: "text-yellow-400",
-    iconClass: "text-yellow-300",
+    ringClass: "text-sky-500",
+    iconClass: "text-sky-400",
     labelKey: "fatLeft",
   },
 ];

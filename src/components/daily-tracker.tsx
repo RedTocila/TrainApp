@@ -7,7 +7,7 @@ import { Apple, Camera, ChevronRight, ClipboardList } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatDateKey } from "@/lib/utils";
 import { DASHBOARD_DAY_NUTRITION_PATH } from "@/lib/dashboard-day-routes";
-import { addWater } from "@/lib/actions/logs";
+import { addWater, setWater } from "@/lib/actions/logs";
 import { deleteDailyMealLog } from "@/lib/actions/daily-meals";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import type { MealFormData } from "@/lib/meal-utils";
@@ -175,6 +175,18 @@ export function DailyTracker({
         return reverted;
       });
     });
+  };
+
+  const handleSetWater = async (nextMl: number) => {
+    const previous = localWaterMl;
+    setLocalWaterMl(nextMl);
+    patchDashboard({ dateKey, waterMl: nextMl });
+    const result = await setWater(clientId, dateKey, nextMl);
+    if ("error" in result && result.error) {
+      setLocalWaterMl(previous);
+      patchDashboard({ dateKey, waterMl: previous });
+      return { error: result.error };
+    }
   };
 
   const handleDeleteMeal = (logId: string) => {
@@ -564,6 +576,7 @@ export function DailyTracker({
             waterMl={localWaterMl}
             waterGoalMl={waterGoalMl}
             onAddWater={handleAddWater}
+            onSetWater={handleSetWater}
           />
 
           <RecentMealsList

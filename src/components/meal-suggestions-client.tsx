@@ -100,8 +100,8 @@ export function MealSuggestionsClient({
               target={gap.targets.fat}
               label="Fat"
               icon={Flame}
-              accentClass="text-rose-400"
-              ringClass="text-rose-400"
+              accentClass="text-sky-400"
+              ringClass="text-sky-500"
               exceededTolerance={macroExceededDailyUpperLimit(
                 gap.consumed.fat,
                 gap.targets.fat,

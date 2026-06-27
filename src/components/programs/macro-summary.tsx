@@ -15,7 +15,7 @@ export function MacroSummary({
     { label: "Cal", value: calories, color: "bg-orange-500", max: 3000 },
     { label: "P", value: protein, color: "bg-blue-500", max: 250 },
     { label: "C", value: carbs, color: "bg-amber-500", max: 400 },
-    { label: "F", value: fat, color: "bg-rose-500", max: 120 },
+    { label: "F", value: fat, color: "bg-sky-500", max: 120 },
   ];
 
   if (compact) {
