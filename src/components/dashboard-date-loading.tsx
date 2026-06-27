@@ -96,11 +96,9 @@ export function useDashboardDateLoading() {
 
 export function DashboardDateLoadingDots({
   className,
-  showLabel = false,
   variant = "inline",
 }: {
   className?: string;
-  showLabel?: boolean;
   variant?: "inline" | "container";
 }) {
   const isDateLoading = useDashboardDateLoading();
@@ -111,11 +109,6 @@ export function DashboardDateLoadingDots({
       <span className="coach-alex-nav-loading__pulse-dot" />
       <span className="coach-alex-nav-loading__pulse-dot" />
       <span className="coach-alex-nav-loading__pulse-dot" />
-      {showLabel && (
-        <span className="text-xs font-medium text-primary">
-          Loading results…
-        </span>
-      )}
     </>
   );
 
@@ -123,13 +116,13 @@ export function DashboardDateLoadingDots({
     return (
       <div className="mt-3 flex justify-center">
         <div
-          className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-4 py-2 shadow-sm shadow-primary/5"
+          className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-2 shadow-sm shadow-primary/5"
           role="status"
           aria-live="polite"
           aria-busy="true"
           aria-label="Loading day"
         >
-          <div className="coach-alex-nav-loading__dots justify-center gap-2">
+          <div className="coach-alex-nav-loading__dots justify-center">
             {dots}
           </div>
         </div>
@@ -156,12 +149,14 @@ export function DashboardDateLoadingDots({
 export function useDashboardDateFetch(
   dateKey: string,
   fetcher: () => Promise<void>,
-  deps: unknown[] = []
+  deps: unknown[] = [],
+  options?: { trackGlobalLoading?: boolean }
 ): boolean {
   const ctx = useContext(DashboardDateLoadingContext);
-  const markLoading = ctx?.markLoading;
+  const markLoading = options?.trackGlobalLoading ? ctx?.markLoading : undefined;
   const [settledKey, setSettledKey] = useState(dateKey);
   const depsKey = JSON.stringify(deps);
+  const trackGlobalLoading = options?.trackGlobalLoading ?? false;
 
   useLayoutEffect(() => {
     let cancelled = false;
@@ -177,7 +172,7 @@ export function useDashboardDateFetch(
       unregister();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- depsKey encodes refresh triggers
-  }, [dateKey, depsKey, fetcher, markLoading]);
+  }, [dateKey, depsKey, fetcher, markLoading, trackGlobalLoading]);
 
   return settledKey === dateKey;
 }

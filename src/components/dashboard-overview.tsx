@@ -81,7 +81,9 @@ export function DashboardOverview({
     }
   }, [clientId, dateKey]);
 
-  const isReady = useDashboardDateFetch(dateKey, loadOverview, [clientId]);
+  const isReady = useDashboardDateFetch(dateKey, loadOverview, [clientId], {
+    trackGlobalLoading: true,
+  });
 
   return (
     <DailyTracker

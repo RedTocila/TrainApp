@@ -32,7 +32,7 @@ export function DashboardDateHeading() {
           </Button>
         )}
       </div>
-      <DashboardDateLoadingDots showLabel variant="container" />
+      <DashboardDateLoadingDots variant="container" />
     </div>
   );
 }
