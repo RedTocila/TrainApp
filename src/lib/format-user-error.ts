@@ -46,12 +46,39 @@ function humanizeErrorCode(code: string): string {
       return "Too many emails sent. Please wait a few minutes and try again.";
     case "signup_disabled":
       return "New signups are temporarily disabled.";
+    case "invalid_email":
+    case "email_address_invalid":
+    case "validation_failed":
+      return "Enter a valid email address.";
+    case "user_banned":
+      return "This account cannot be created. Contact support if you need help.";
     default:
       return `Could not continue (${code}). Please try again.`;
   }
 }
 
+export function isMissingAdminCredentialsError(value: unknown): boolean {
+  const message = formatUserError(value, "").toLowerCase();
+  return message.includes("missing supabase admin credentials");
+}
+
+export function isDirectSignupRejection(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("already registered") ||
+    lower.includes("weak password") ||
+    lower.includes("too weak") ||
+    lower.includes("invalid health profile") ||
+    lower.includes("temporarily disabled") ||
+    lower.includes("valid email")
+  );
+}
+
 export function isEmailDeliverySignupError(value: unknown): boolean {
   const text = formatUserError(value, "").toLowerCase();
-  return text.includes("confirmation email") || text.includes("error sending");
+  return (
+    text.includes("confirmation email") ||
+    text.includes("error sending") ||
+    text.includes("email rate limit")
+  );
 }

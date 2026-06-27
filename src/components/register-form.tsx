@@ -15,7 +15,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 import { getOrCreateDeviceHash, loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
-import { formatUserError, isEmailDeliverySignupError } from "@/lib/format-user-error";
+import {
+  formatUserError,
+  isDirectSignupRejection,
+  isEmailDeliverySignupError,
+  isMissingAdminCredentialsError,
+} from "@/lib/format-user-error";
 
 const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
 
@@ -86,6 +91,29 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
     }
   };
 
+  const finishSignup = (role?: string) => {
+    clearIntakeDraft();
+    router.refresh();
+    router.push(role === "admin" ? "/admin" : ONBOARDING_PRICING);
+  };
+
+  const signInAfterSignup = async (email: string, password: string) => {
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (signInError) {
+      setError(
+        formatUserError(
+          signInError,
+          "Account created. Sign in with your email and password."
+        )
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
@@ -96,10 +124,57 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
     try {
       const form = e.currentTarget;
       const fullName = (new FormData(form).get("full_name") as string).trim();
-      const email = (new FormData(form).get("email") as string).trim();
+      const email = (new FormData(form).get("email") as string).trim().toLowerCase();
       const phone = ((new FormData(form).get("phone") as string) || "").trim() || null;
       const password = new FormData(form).get("password") as string;
       const deviceHash = getOrCreateDeviceHash();
+
+      const registrationInput = {
+        fullName,
+        email,
+        phone,
+        intakeJson,
+        referralCode,
+        deviceHash,
+      };
+
+      let serverSignupError: string | null = null;
+      let useClientSignup = false;
+
+      try {
+        const serverResult = await signUpAccount({
+          ...registrationInput,
+          password,
+        });
+
+        if (!serverResult?.error) {
+          const signedIn = await signInAfterSignup(email, password);
+          if (signedIn) {
+            finishSignup(serverResult.role);
+          }
+          return;
+        }
+
+        serverSignupError = serverResult.error;
+        if (isDirectSignupRejection(serverSignupError)) {
+          setError(serverSignupError);
+          return;
+        }
+
+        useClientSignup = true;
+      } catch (err) {
+        if (isMissingAdminCredentialsError(err)) {
+          useClientSignup = true;
+        } else {
+          setError(formatUserError(err, "Could not create account. Please try again."));
+          return;
+        }
+      }
+
+      if (!useClientSignup) {
+        setError(serverSignupError ?? "Could not create account. Please try again.");
+        return;
+      }
 
       const supabase = createClient();
       const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(ONBOARDING_PRICING)}`;
@@ -110,7 +185,7 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
         options: {
           data: {
             full_name: fullName,
-            phone,
+            ...(phone ? { phone } : {}),
             device_hash: deviceHash,
             ...(referralCode ? { referral_code: referralCode } : {}),
           },
@@ -121,44 +196,34 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
       if (signUpError) {
         if (isEmailDeliverySignupError(signUpError)) {
           const fallback = await signUpAccount({
-            fullName,
-            email,
-            phone,
+            ...registrationInput,
             password,
-            intakeJson,
-            referralCode,
-            deviceHash,
           });
 
           if (fallback?.error) {
             setError(
-              "We could not send the confirmation email and could not finish creating your account. Try again in a few minutes or contact support."
+              serverSignupError ??
+                formatUserError(
+                  fallback.error,
+                  "We could not finish creating your account. Try again in a few minutes or contact support."
+                )
             );
             return;
           }
 
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (signInError) {
-            setError(
-              formatUserError(
-                signInError,
-                "Account created. Sign in with your email and password."
-              )
-            );
-            return;
+          const signedIn = await signInAfterSignup(email, password);
+          if (signedIn) {
+            finishSignup(fallback.role);
           }
-
-          clearIntakeDraft();
-          router.refresh();
-          router.push(fallback.role === "admin" ? "/admin" : ONBOARDING_PRICING);
           return;
         }
 
-        setError(formatUserError(signUpError, "Could not create account."));
+        setError(
+          formatUserError(
+            signUpError,
+            serverSignupError ?? "Could not create account."
+          )
+        );
         return;
       }
 
@@ -190,14 +255,7 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
 
       router.refresh();
 
-      const result = await completeRegistration({
-        fullName,
-        email,
-        phone,
-        intakeJson,
-        referralCode,
-        deviceHash,
-      });
+      const result = await completeRegistration(registrationInput);
 
       if (result?.error) {
         setError(
@@ -209,14 +267,7 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
         return;
       }
 
-      clearIntakeDraft();
-      router.refresh();
-
-      if (result.role === "admin") {
-        router.push("/admin");
-      } else {
-        router.push(ONBOARDING_PRICING);
-      }
+      finishSignup(result.role);
     } catch (err) {
       setError(formatUserError(err, "Could not create account. Please try again."));
     } finally {

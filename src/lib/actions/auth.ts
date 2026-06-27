@@ -102,12 +102,15 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
   const email = input.email.trim().toLowerCase();
   const admin = createAdminClient();
 
-  const userMetadata: Record<string, string | null> = {
+  const userMetadata: Record<string, string> = {
     full_name: input.fullName,
-    phone: input.phone,
   };
+  if (input.phone) {
+    userMetadata.phone = input.phone;
+  }
   if (input.referralCode) {
-    userMetadata.referral_code = normalizeReferralCode(input.referralCode);
+    const code = normalizeReferralCode(input.referralCode);
+    if (code) userMetadata.referral_code = code;
   }
   if (input.deviceHash?.trim()) {
     userMetadata.device_hash = input.deviceHash.trim();
@@ -121,6 +124,7 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
   });
 
   if (createError) {
+    console.error("[signUpAccount] createUser failed", createError.message, createError);
     const message = createError.message.toLowerCase();
     if (message.includes("already") && message.includes("registered")) {
       const recovered = await recoverExistingSignupUser(admin, email, input.password, userMetadata);
@@ -177,7 +181,7 @@ async function recoverExistingSignupUser(
   admin: ReturnType<typeof createAdminClient>,
   email: string,
   password: string,
-  userMetadata: Record<string, string | null>
+  userMetadata: Record<string, string>
 ) {
   for (let page = 1; page <= 5; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
