@@ -178,6 +178,16 @@ body:has(.dashboard-shell) {
   gap: 0.5rem;
 }
 
+.coach-alex-nav-loading__dots--prominent {
+  min-height: 2rem;
+  background: color-mix(in oklch, var(--primary) 8%, transparent);
+}
+
+.coach-alex-nav-loading__dots--prominent .coach-alex-nav-loading__pulse-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
 .coach-alex-nav-loading__pulse-dot {
   width: 0.5rem;
   height: 0.5rem;

@@ -2,6 +2,7 @@
 
 import { format, isToday } from "date-fns";
 import { useSelectedDate } from "@/components/date-provider";
+import { DashboardDateLoadingDots } from "@/components/dashboard-date-loading";
 import { FullCalendarOpenButton } from "@/components/full-calendar-nav-button";
 import { Button } from "@/components/ui/button";
 
@@ -10,25 +11,28 @@ export function DashboardDateHeading() {
   const viewingToday = isToday(selectedDate);
 
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl font-black tracking-tight sm:text-2xl md:text-3xl">
-            {format(selectedDate, "EEEE, MMMM d")}
-          </h1>
-          <FullCalendarOpenButton />
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-xl font-black tracking-tight sm:text-2xl md:text-3xl">
+              {format(selectedDate, "EEEE, MMMM d")}
+            </h1>
+            <FullCalendarOpenButton />
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {viewingToday
+              ? "Your daily overview"
+              : `Overview for ${format(selectedDate, "MMMM d, yyyy")}`}
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {viewingToday
-            ? "Your daily overview"
-            : `Overview for ${format(selectedDate, "MMMM d, yyyy")}`}
-        </p>
+        {!viewingToday && (
+          <Button type="button" variant="outline" size="sm" onClick={goToToday}>
+            Today
+          </Button>
+        )}
       </div>
-      {!viewingToday && (
-        <Button type="button" variant="outline" size="sm" onClick={goToToday}>
-          Today
-        </Button>
-      )}
+      <DashboardDateLoadingDots showLabel variant="container" />
     </div>
   );
 }

@@ -8,11 +8,11 @@ import {
   CalendarClock,
   Dumbbell,
   Pencil,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import { deletePersonalWorkoutPlan } from "@/lib/actions/user-workouts";
 import type { PersonalWorkoutListItem } from "@/lib/actions/user-workouts";
+import { AiBuildPlanButton } from "@/components/ai-build-plan-button";
 import { CreateWorkoutButton } from "@/components/programs/create-program-buttons";
 import { WorkoutPageHeader } from "@/components/workout-page-header";
 import {
@@ -112,12 +112,7 @@ export function AllWorkoutsPage({
         <div className="flex flex-col items-center gap-4 px-4 py-12 text-center">
           <WorkoutCategoryIcon category="general" size="lg" />
           <CreateWorkoutButton label="New workout" />
-          <Link href="/dashboard/ai/plans/workout">
-            <Button size="sm" variant="secondary">
-              <Sparkles className="mr-1.5 h-4 w-4" />
-              AI
-            </Button>
-          </Link>
+          <AiBuildPlanButton type="workout" />
         </div>
         </Card>
       </>

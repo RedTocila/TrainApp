@@ -3,9 +3,9 @@
 import type { ReactNode } from "react";
 import { AiBuildPlanButton } from "@/components/ai-build-plan-button";
 import { ProgramsPageHeader } from "@/components/programs/programs-page-header";
-import { WorkoutSectionTabs } from "@/components/workout-section-tabs";
+import { NutritionSectionTabs } from "@/components/nutrition-section-tabs";
 
-export function WorkoutPageHeader({
+export function NutritionPageHeader({
   title,
   action,
 }: {
@@ -15,10 +15,10 @@ export function WorkoutPageHeader({
   return (
     <ProgramsPageHeader
       title={title}
-      tabs={<WorkoutSectionTabs />}
+      tabs={<NutritionSectionTabs />}
       actions={
         <>
-          <AiBuildPlanButton type="workout" iconOnly />
+          <AiBuildPlanButton type="nutrition" iconOnly />
           {action}
         </>
       }

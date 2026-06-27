@@ -44,7 +44,7 @@ export function DashboardMobileChrome() {
     isTrainPath(pathname) && !isActiveWorkoutSessionPath(pathname);
 
   return (
-    <div className="mobile-top-safe shrink-0 bg-background lg:hidden">
+    <div className="mobile-top-safe relative z-50 shrink-0 bg-background lg:hidden">
       <DashboardMobileHeaderBar />
       {showTrainTabs ? (
         <div className="px-3 pb-3 sm:px-4">

@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -28,27 +29,53 @@ export function DashboardDateLoadingProvider({
 }) {
   const { selectedDate } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
-  const [loads, setLoads] = useState<{ id: string; dateKey: string }[]>([]);
-  const [settledDateKey, setSettledDateKey] = useState<string | null>(null);
-  const hasInitialized = useRef(false);
+  const [pendingByDate, setPendingByDate] = useState<Record<string, number>>({});
+  const [lastSettledDate, setLastSettledDate] = useState<string | null>(null);
+  const hadPendingForDateRef = useRef(false);
 
   const markLoading = useCallback((forDateKey: string) => {
-    const id = crypto.randomUUID();
-    setLoads((prev) => [...prev, { id, dateKey: forDateKey }]);
-    return () => setLoads((prev) => prev.filter((load) => load.id !== id));
+    setPendingByDate((prev) => ({
+      ...prev,
+      [forDateKey]: (prev[forDateKey] ?? 0) + 1,
+    }));
+    return () => {
+      setPendingByDate((prev) => {
+        const next = (prev[forDateKey] ?? 1) - 1;
+        if (next <= 0) {
+          const { [forDateKey]: _removed, ...rest } = prev;
+          return rest;
+        }
+        return { ...prev, [forDateKey]: next };
+      });
+    };
   }, []);
 
-  const pendingForCurrentDate = loads.filter((load) => load.dateKey === dateKey).length;
+  const pendingForCurrentDate = pendingByDate[dateKey] ?? 0;
 
   useEffect(() => {
-    if (pendingForCurrentDate === 0) {
-      setSettledDateKey(dateKey);
-      hasInitialized.current = true;
+    if (pendingForCurrentDate > 0) {
+      hadPendingForDateRef.current = true;
+      return;
     }
-  }, [pendingForCurrentDate, dateKey]);
+
+    if (lastSettledDate === null) {
+      setLastSettledDate(dateKey);
+      return;
+    }
+
+    if (!hadPendingForDateRef.current) return;
+
+    hadPendingForDateRef.current = false;
+    setLastSettledDate(dateKey);
+  }, [pendingForCurrentDate, dateKey, lastSettledDate]);
+
+  useLayoutEffect(() => {
+    hadPendingForDateRef.current = false;
+  }, [dateKey]);
 
   const isDateLoading =
-    hasInitialized.current && settledDateKey !== dateKey;
+    pendingForCurrentDate > 0 ||
+    (lastSettledDate !== null && lastSettledDate !== dateKey);
 
   const value = useMemo<DashboardDateLoadingContextValue>(
     () => ({ markLoading, isDateLoading }),
@@ -62,21 +89,66 @@ export function DashboardDateLoadingProvider({
   );
 }
 
-export function DashboardDateLoadingDots() {
+export function useDashboardDateLoading() {
   const ctx = useContext(DashboardDateLoadingContext);
-  if (!ctx?.isDateLoading) return null;
+  return ctx?.isDateLoading ?? false;
+}
+
+export function DashboardDateLoadingDots({
+  className,
+  showLabel = false,
+  variant = "inline",
+}: {
+  className?: string;
+  showLabel?: boolean;
+  variant?: "inline" | "container";
+}) {
+  const isDateLoading = useDashboardDateLoading();
+  if (!isDateLoading) return null;
+
+  const dots = (
+    <>
+      <span className="coach-alex-nav-loading__pulse-dot" />
+      <span className="coach-alex-nav-loading__pulse-dot" />
+      <span className="coach-alex-nav-loading__pulse-dot" />
+      {showLabel && (
+        <span className="text-xs font-medium text-primary">
+          Loading results…
+        </span>
+      )}
+    </>
+  );
+
+  if (variant === "container") {
+    return (
+      <div className="mt-3 flex justify-center">
+        <div
+          className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-4 py-2 shadow-sm shadow-primary/5"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+          aria-label="Loading day"
+        >
+          <div className="coach-alex-nav-loading__dots justify-center gap-2">
+            {dots}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
-      className="coach-alex-nav-loading__dots justify-start py-1"
+      className={
+        className ??
+        "coach-alex-nav-loading__dots justify-start py-1"
+      }
       role="status"
       aria-live="polite"
       aria-busy="true"
       aria-label="Loading day"
     >
-      <span className="coach-alex-nav-loading__pulse-dot" />
-      <span className="coach-alex-nav-loading__pulse-dot" />
-      <span className="coach-alex-nav-loading__pulse-dot" />
+      {dots}
     </div>
   );
 }
@@ -91,7 +163,7 @@ export function useDashboardDateFetch(
   const [settledKey, setSettledKey] = useState(dateKey);
   const depsKey = JSON.stringify(deps);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let cancelled = false;
     const unregister = markLoading?.(dateKey) ?? (() => {});
 

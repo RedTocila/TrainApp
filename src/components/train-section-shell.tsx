@@ -13,8 +13,8 @@ export function TrainSectionShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="hidden lg:block">
-        <TrainSectionTabs />
+      <div className="mb-3 hidden lg:block">
+        <TrainSectionTabs className="mb-0" />
       </div>
       {children}
     </>

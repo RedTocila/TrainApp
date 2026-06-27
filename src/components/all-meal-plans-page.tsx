@@ -8,7 +8,6 @@ import {
   Calendar,
   Check,
   Pencil,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import {
@@ -16,9 +15,10 @@ import {
   deletePersonalNutritionPlan,
   type PersonalNutritionListItem,
 } from "@/lib/actions/user-nutrition";
+import { AiBuildPlanButton } from "@/components/ai-build-plan-button";
+import { NutritionPageHeader } from "@/components/nutrition-page-header";
 import { MacroSummary } from "@/components/programs/macro-summary";
 import { CreateMealPlanButton } from "@/components/programs/create-program-buttons";
-import { NutritionSectionTabs } from "@/components/nutrition-section-tabs";
 import { MoveNutritionButton } from "@/components/move-nutrition-dialog";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { useCoachCopy } from "@/components/locale-provider";
@@ -66,13 +66,12 @@ export function AllMealPlansPage({
   if (plans.length === 0) {
     return (
       <>
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-lg font-black">Day menus</h1>
-          <div className="flex items-center gap-1">
-            <NutritionSectionTabs />
+        <NutritionPageHeader
+          title="Day menus"
+          action={
             <CreateMealPlanButton iconOnly variant="outline" label="New day menu" />
-          </div>
-        </div>
+          }
+        />
       <Card>
         <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10">
@@ -86,12 +85,7 @@ export function AllMealPlansPage({
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <CreateMealPlanButton />
-            <Link href="/dashboard/ai/plans/nutrition">
-              <Button size="sm" variant="secondary">
-                <Sparkles className="mr-1.5 h-4 w-4" />
-                Build with AI
-              </Button>
-            </Link>
+            <AiBuildPlanButton type="nutrition" />
           </div>
         </CardContent>
       </Card>
@@ -101,13 +95,12 @@ export function AllMealPlansPage({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-lg font-black">Day menus</h1>
-        <div className="flex items-center gap-1">
-          <NutritionSectionTabs />
+      <NutritionPageHeader
+        title="Day menus"
+        action={
           <CreateMealPlanButton iconOnly variant="outline" label="New day menu" />
-        </div>
-      </div>
+        }
+      />
       <ul className="space-y-3">
         {plans.map(({ plan, meals }) => {
           const isActive = !!activePlanId && plan.id === activePlanId;
