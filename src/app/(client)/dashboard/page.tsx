@@ -35,6 +35,7 @@ import { getCoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf
 import {
   resolveWorkoutForDate,
   isWorkoutCompletedOnDate,
+  getCompletedWorkoutResultsForDate,
 } from "@/lib/actions/workout-sessions";
 import { progressMonthKey } from "@/lib/progress-photo-utils";
 import { formatDateKey } from "@/lib/utils";
@@ -129,6 +130,10 @@ export default async function DashboardPage() {
     : EMPTY_PHOTO_URLS;
 
   const initialCardioCompleted = initialCompletions.has(`${dateKey}-cardio`);
+
+  const initialWorkoutResults = initialWorkoutCompleted
+    ? await getCompletedWorkoutResultsForDate(profile.id, dateKey)
+    : null;
 
   const habitsByDate: Record<
     string,
@@ -247,8 +252,10 @@ export default async function DashboardPage() {
 
         <DashboardWorkoutCard
           clientId={profile.id}
+          gender={profile.gender}
           initialWorkout={initialWorkout}
           initialWorkoutCompleted={initialWorkoutCompleted}
+          initialWorkoutResults={initialWorkoutResults}
         />
 
         <DashboardCardioCard

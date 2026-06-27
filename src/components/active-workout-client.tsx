@@ -430,6 +430,7 @@ export function ActiveWorkoutClient({
         taskId: `${dateKey}-workout`,
         completed: true,
         workoutCompleted: true,
+        workoutSessionId: session.id,
       });
       router.push("/dashboard");
     });

@@ -7,6 +7,7 @@ export interface DashboardLivePatch {
   completed?: boolean;
   waterMl?: number;
   workoutCompleted?: boolean;
+  workoutSessionId?: string;
   dailyMeals?: DailyMealLog[];
 }
 
@@ -14,11 +15,18 @@ export interface DashboardPatchState {
   completions: Record<string, Record<string, boolean>>;
   water: Record<string, number>;
   workoutCompleted: Record<string, boolean>;
+  workoutSessionIds: Record<string, string>;
   meals: Record<string, DailyMealLog[]>;
 }
 
 export function emptyPatchState(): DashboardPatchState {
-  return { completions: {}, water: {}, workoutCompleted: {}, meals: {} };
+  return {
+    completions: {},
+    water: {},
+    workoutCompleted: {},
+    workoutSessionIds: {},
+    meals: {},
+  };
 }
 
 export function applyLivePatch(
@@ -29,6 +37,7 @@ export function applyLivePatch(
     completions: { ...state.completions },
     water: { ...state.water },
     workoutCompleted: { ...state.workoutCompleted },
+    workoutSessionIds: { ...state.workoutSessionIds },
     meals: { ...state.meals },
   };
 
@@ -44,6 +53,10 @@ export function applyLivePatch(
 
   if (patch.workoutCompleted !== undefined) {
     next.workoutCompleted[patch.dateKey] = patch.workoutCompleted;
+  }
+
+  if (patch.workoutSessionId !== undefined) {
+    next.workoutSessionIds[patch.dateKey] = patch.workoutSessionId;
   }
 
   if (patch.dailyMeals !== undefined) {

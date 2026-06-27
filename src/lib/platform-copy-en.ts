@@ -306,7 +306,11 @@ export const platformCopyEn = {
     scheduledWorkout: "Scheduled workout",
     completedSuffix: "· completed",
     completeBy: (deadline: string) => `· complete by ${deadline}`,
+    workoutPlan: "Workout plan",
     workoutResults: "Workout results",
+    musclesTargetedToday: "Muscles targeted today",
+    muscleMapFront: "Front",
+    muscleMapBack: "Back",
     noResultsLogged: "No sets were logged for this workout.",
     foldersMeta: (folders: number, programs: number) =>
       `${folders} folder${folders === 1 ? "" : "s"} · ${programs} program${programs === 1 ? "" : "s"}`,

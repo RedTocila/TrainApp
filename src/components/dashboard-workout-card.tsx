@@ -1,9 +1,8 @@
 "use client";
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
-import { format, isToday, isTomorrow } from "date-fns";
 import { Check, Dumbbell } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { useDashboardSync } from "@/components/dashboard-sync";
@@ -17,11 +16,13 @@ import {
   resolveWorkoutForDate,
   isWorkoutCompletedOnDate,
   getCompletedWorkoutResultsForDate,
+  getCompletedWorkoutResultsForSession,
   type TodaysWorkoutInfo,
   type CompletedWorkoutResults,
 } from "@/lib/actions/workout-sessions";
 import { WorkoutResultsDropdown } from "@/components/workout-results-dropdown";
-import { formatDateKey } from "@/lib/utils";
+import { WorkoutMuscleMap } from "@/components/workout-muscle-map";
+import { formatDateKey, cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MissedButton } from "@/components/missed-items-dialog";
@@ -29,39 +30,59 @@ import {
   isDeadlinePassed,
   WORKOUT_DEADLINE,
 } from "@/lib/meal-times";
-import { cn } from "@/lib/utils";
 
-function workoutTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>) {
-  if (isToday(date)) return platform.dashboard.todaysWorkout;
-  if (isTomorrow(date)) return platform.dashboard.tomorrowsWorkout;
-  return platform.dashboard.workoutOnDay(format(date, "EEEE"));
+const WORKOUT_RESULTS_RETRY_MS = [0, 400, 800, 1500, 2500, 4000, 6000];
+
+async function loadWorkoutResults(
+  clientId: string,
+  dateKey: string,
+  sessionId?: string
+): Promise<CompletedWorkoutResults | null> {
+  if (sessionId) {
+    const bySession = await getCompletedWorkoutResultsForSession(sessionId);
+    if (bySession) return bySession;
+  }
+  return getCompletedWorkoutResultsForDate(clientId, dateKey);
 }
 
 export function DashboardWorkoutCard({
   clientId,
+  gender,
   initialWorkout,
   initialWorkoutCompleted = false,
+  initialWorkoutResults = null,
 }: {
   clientId: string;
+  gender?: string | null;
   initialWorkout: TodaysWorkoutInfo | null;
   initialWorkoutCompleted?: boolean;
+  initialWorkoutResults?: CompletedWorkoutResults | null;
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
   const { version, patches } = useDashboardSync();
+  const dateKey = formatDateKey(selectedDate);
   const [workout, setWorkout] = useState(initialWorkout);
   const [workoutCompleted, setWorkoutCompleted] = useState(
     initialWorkoutCompleted
   );
   const [workoutResults, setWorkoutResults] =
-    useState<CompletedWorkoutResults | null>(null);
+    useState<CompletedWorkoutResults | null>(initialWorkoutResults);
 
   // Sync SSR props only when the server revalidates.
   useEffect(() => {
     setWorkout(initialWorkout);
     setWorkoutCompleted(initialWorkoutCompleted);
-  }, [initialWorkout, initialWorkoutCompleted]);
+    if (initialWorkoutResults) setWorkoutResults(initialWorkoutResults);
+  }, [initialWorkout, initialWorkoutCompleted, initialWorkoutResults]);
+
+  const prevDateKeyRef = useRef(dateKey);
+  useEffect(() => {
+    if (prevDateKeyRef.current === dateKey) return;
+    prevDateKeyRef.current = dateKey;
+    setWorkoutResults(null);
+  }, [dateKey]);
 
   const refreshWorkout = useCallback(async () => {
     const dateKey = formatDateKey(selectedDate);
@@ -71,31 +92,85 @@ export function DashboardWorkoutCard({
     ]);
     setWorkout(resolved);
     setWorkoutCompleted(completed);
-    if (completed) {
-      const results = await getCompletedWorkoutResultsForDate(clientId, dateKey);
-      setWorkoutResults(results);
+    const dayComplete =
+      completed || isWorkoutCompletedFromPatches(patches, dateKey);
+    if (dayComplete) {
+      const results = await loadWorkoutResults(
+        clientId,
+        dateKey,
+        patches.workoutSessionIds[dateKey]
+      );
+      if (results) setWorkoutResults(results);
     } else {
       setWorkoutResults(null);
     }
-  }, [clientId, selectedDate]);
+  }, [clientId, selectedDate, patches]);
 
-  const isReady = useDashboardDateFetch(formatDateKey(selectedDate), refreshWorkout, [
+  const isReady = useDashboardDateFetch(dateKey, refreshWorkout, [
     clientId,
     version,
     todayKey,
   ]);
 
-  const dateKey = formatDateKey(selectedDate);
   const workoutForDay = isReady ? workout : null;
   const patchedComplete = isWorkoutCompletedFromPatches(patches, dateKey);
+  const patchedSessionId = patches.workoutSessionIds[dateKey];
   const workoutCompletedForDay =
     isReady && (workoutCompleted || patchedComplete);
+  const displayWorkout = workoutForDay ?? (patchedComplete ? workout : null);
+  const showCompletedState = workoutCompletedForDay || patchedComplete;
+
   useEffect(() => {
-    if (!workoutCompletedForDay || workoutResults) return;
-    void getCompletedWorkoutResultsForDate(clientId, dateKey).then((results) => {
-      if (results) setWorkoutResults(results);
+    if (!patchedSessionId || workoutResults) return;
+    let cancelled = false;
+    void getCompletedWorkoutResultsForSession(patchedSessionId).then((results) => {
+      if (!cancelled && results) setWorkoutResults(results);
     });
-  }, [workoutCompletedForDay, workoutResults, clientId, dateKey]);
+    return () => {
+      cancelled = true;
+    };
+  }, [patchedSessionId, workoutResults]);
+
+  useEffect(() => {
+    if (!showCompletedState || workoutResults) return;
+
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    async function attempt(retryIndex: number) {
+      if (cancelled) return;
+      const results = await loadWorkoutResults(
+        clientId,
+        dateKey,
+        patches.workoutSessionIds[dateKey]
+      );
+      if (cancelled) return;
+      if (results) {
+        setWorkoutResults(results);
+        return;
+      }
+      const nextIndex = retryIndex + 1;
+      if (nextIndex < WORKOUT_RESULTS_RETRY_MS.length) {
+        retryTimer = setTimeout(
+          () => void attempt(nextIndex),
+          WORKOUT_RESULTS_RETRY_MS[nextIndex]
+        );
+      }
+    }
+
+    void attempt(0);
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [
+    showCompletedState,
+    workoutResults,
+    clientId,
+    dateKey,
+    patchedSessionId,
+    patches.workoutSessionIds,
+  ]);
 
   const workoutMissed =
     !!workoutForDay &&
@@ -105,13 +180,13 @@ export function DashboardWorkoutCard({
   return (
     <Card
       id="dashboard-workout"
-      className={sectionCompletedCardClass(workoutCompletedForDay && !!workoutForDay)}
+      className={sectionCompletedCardClass(showCompletedState && !!displayWorkout)}
     >
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle className="flex flex-wrap items-center gap-2">
           <Dumbbell className="h-5 w-5 text-primary" />
-          {workoutTitle(selectedDate, platform)}
-          {workoutCompletedForDay && workoutForDay && <SectionCompletedBadge />}
+          {platform.dashboard.todaysWorkout}
+          {showCompletedState && displayWorkout && <SectionCompletedBadge />}
           <MissedButton
             count={workoutForDay && !workoutCompletedForDay && workoutMissed ? 1 : 0}
             title={coachLabels.missedWorkout}
@@ -129,7 +204,7 @@ export function DashboardWorkoutCard({
             }
           />
         </CardTitle>
-        {workoutCompletedForDay && workoutForDay ? (
+        {showCompletedState && displayWorkout ? (
           <span
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-green-500 bg-green-500 text-white"
             aria-label={platform.aria.completed}
@@ -139,42 +214,64 @@ export function DashboardWorkoutCard({
         ) : (
           <StartTodaysWorkoutButton
             date={selectedDate}
-            disabled={!workoutForDay || !isReady}
+            disabled={!displayWorkout || (!isReady && !patchedComplete)}
           />
         )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {isReady && workoutForDay ? (
-          <div>
-            <p
-              className={cn(
-                "font-semibold",
-                workoutCompletedForDay && "text-green-400"
-              )}
-            >
-              {workoutForDay.dayTitle}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {workoutForDay.planTitle}
-              {workoutForDay.exercises.length > 0 &&
-                ` · ${platform.common.exercises(workoutForDay.exercises.length)}`}
-              {workoutCompletedForDay
-                ? ` ${platform.workout.completedSuffix}`
-                : ` ${platform.workout.completeBy(WORKOUT_DEADLINE)}`}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-1">
-              {workoutForDay.exercises.slice(0, 3).map((ex) => (
-                <Badge key={ex.id} variant="secondary">
-                  {ex.name}
-                </Badge>
-              ))}
+        {displayWorkout ? (
+          <>
+            <div>
+              <p
+                className={cn(
+                  "font-semibold",
+                  showCompletedState && "text-green-400"
+                )}
+              >
+                {displayWorkout.dayTitle}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {displayWorkout.planTitle}
+                {displayWorkout.exercises.length > 0 &&
+                  ` · ${platform.common.exercises(displayWorkout.exercises.length)}`}
+                {showCompletedState
+                  ? ` ${platform.workout.completedSuffix}`
+                  : ` ${platform.workout.completeBy(WORKOUT_DEADLINE)}`}
+              </p>
+              {!showCompletedState ? (
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {displayWorkout.exercises.slice(0, 3).map((ex) => (
+                    <Badge key={ex.id} variant="secondary">
+                      {ex.name}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
             </div>
-            {workoutCompletedForDay && workoutResults ? (
-              <div className="mt-4">
-                <WorkoutResultsDropdown results={workoutResults} />
+            <WorkoutMuscleMap
+              exercises={displayWorkout.exercises}
+              dayTitle={displayWorkout.dayTitle}
+              gender={gender}
+            />
+            {showCompletedState ? (
+              <div>
+                {workoutResults ? (
+                  <WorkoutResultsDropdown results={workoutResults} />
+                ) : (
+                  <div
+                    className="flex items-center gap-2 rounded-2xl border border-green-500/20 bg-green-500/5 px-3 py-3 text-sm text-muted-foreground sm:px-4"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                  >
+                    <span className="coach-alex-nav-loading__pulse-dot" />
+                    <span className="coach-alex-nav-loading__pulse-dot" />
+                    <span className="coach-alex-nav-loading__pulse-dot" />
+                  </div>
+                )}
               </div>
             ) : null}
-          </div>
+          </>
         ) : isReady ? (
           <p className="text-sm text-muted-foreground">
             {coachLabels.noWorkoutToday}

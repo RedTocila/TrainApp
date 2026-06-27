@@ -255,6 +255,18 @@ async function findCompletedSessionIdForDate(
     .maybeSingle();
   if (bySchedule) return bySchedule.id;
 
+  const { data: byCompletedAt } = await supabase
+    .from("workout_sessions")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("status", "completed")
+    .gte("completed_at", `${dateKey}T00:00:00`)
+    .lte("completed_at", `${dateKey}T23:59:59.999Z`)
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (byCompletedAt) return byCompletedAt.id;
+
   const workout = await resolveWorkoutForDate(clientId, dateKey);
   if (!workout) return null;
 
@@ -300,19 +312,21 @@ export interface CompletedWorkoutResults {
   }[];
 }
 
-export async function getCompletedWorkoutResultsForDate(
-  clientId: string,
-  dateKey: string
+export async function getCompletedWorkoutResultsForSession(
+  sessionId: string
 ): Promise<CompletedWorkoutResults | null> {
-  const sessionId = await findCompletedSessionIdForDate(clientId, dateKey);
-  if (!sessionId) return null;
-
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
   const { data: session } = await supabase
     .from("workout_sessions")
     .select(WORKOUT_SESSION_COLUMNS)
     .eq("id", sessionId)
-    .eq("client_id", clientId)
+    .eq("client_id", user.id)
+    .eq("status", "completed")
     .single();
 
   if (!session) return null;
@@ -347,6 +361,15 @@ export async function getCompletedWorkoutResultsForDate(
         })),
     })),
   };
+}
+
+export async function getCompletedWorkoutResultsForDate(
+  clientId: string,
+  dateKey: string
+): Promise<CompletedWorkoutResults | null> {
+  const sessionId = await findCompletedSessionIdForDate(clientId, dateKey);
+  if (!sessionId) return null;
+  return getCompletedWorkoutResultsForSession(sessionId);
 }
 
 export async function isWorkoutCompletedOnDate(
@@ -859,7 +882,7 @@ export async function completeWorkoutSession(
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");
 
-  return { success: true, scheduledDate };
+  return { success: true, scheduledDate, sessionId };
 }
 
 export async function cancelWorkoutSession(sessionId: string) {

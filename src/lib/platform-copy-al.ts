@@ -308,7 +308,11 @@ export const platformCopyAl = {
     scheduledWorkout: "Stërvitje e planifikuar",
     completedSuffix: "· e përfunduar",
     completeBy: (deadline: string) => `· përfundo deri në ${deadline}`,
+    workoutPlan: "Plani i stërvitjes",
     workoutResults: "Rezultatet e stërvitjes",
+    musclesTargetedToday: "Muskujt e synuar sot",
+    muscleMapFront: "Para",
+    muscleMapBack: "Prapa",
     noResultsLogged: "Nuk u regjistruan seri për këtë stërvitje.",
     foldersMeta: (folders: number, programs: number) =>
       `${folders} dosje · ${programs} program${programs === 1 ? "" : "e"}`,
