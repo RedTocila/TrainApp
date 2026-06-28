@@ -144,14 +144,8 @@ export function DashboardWaterCard({
     </div>
   );
 
-  const cornerActions = (
-    <div className="absolute right-2 top-2 z-10 flex items-center gap-1 sm:right-3 sm:top-3">
-      {waterCompleted ? (
-        <DashboardStatusIcon
-          status="completed"
-          aria-label={platform.nutrition.waterGoalReached}
-        />
-      ) : null}
+  const titleActions = (
+    <div className={cn("flex shrink-0 items-center gap-1", dashboardInteractive)}>
       <button
         type="button"
         onClick={() => setEditOpen(true)}
@@ -160,6 +154,24 @@ export function DashboardWaterCard({
       >
         <Pencil className="h-3.5 w-3.5" />
       </button>
+      {waterCompleted ? (
+        <DashboardStatusIcon
+          status="completed"
+          aria-label={platform.nutrition.waterGoalReached}
+        />
+      ) : null}
+    </div>
+  );
+
+  const titleRow = (titleClassName: string) => (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <GlassWater className="h-5 w-5 shrink-0 text-cyan-400" />
+        <p className={cn("truncate font-black", titleClassName)}>
+          {platform.nutrition.water}
+        </p>
+      </div>
+      {titleActions}
     </div>
   );
 
@@ -181,11 +193,7 @@ export function DashboardWaterCard({
             ariaLabel={platform.nutrition.water}
           />
           <DashboardCardNavBody className="flex h-full flex-col">
-          {cornerActions}
-          <div className="flex items-center gap-2 pr-8">
-            <GlassWater className="h-5 w-5 shrink-0 text-cyan-400" />
-            <p className="truncate text-sm font-black">{platform.nutrition.water}</p>
-          </div>
+          {titleRow("text-sm")}
           <div className="flex flex-1 flex-col items-center justify-center py-2">
             {waterVisual(80)}
             {!waterCompleted && remaining > 0 && (
@@ -205,11 +213,7 @@ export function DashboardWaterCard({
   return (
     <>
       <div id="dashboard-water" className={cn(dashboard.tile, "relative p-4")}>
-        {cornerActions}
-        <div className="flex items-center gap-2 pr-8">
-          <GlassWater className="h-5 w-5 text-cyan-400" />
-          <p className="text-lg font-black">{platform.nutrition.water}</p>
-        </div>
+        {titleRow("text-lg")}
         <div className="mt-4 flex flex-col items-center">
           {waterVisual(96)}
           {!waterCompleted && remaining > 0 && (

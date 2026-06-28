@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { ArrowRight, Calendar, Clock, Radio, Users } from "lucide-react";
+import { ChallengePrizePool } from "@/components/challenge-prize-pool";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -39,6 +40,8 @@ function ChallengeStatusBadge({ challenge }: { challenge: Challenge }) {
 }
 
 function LiveChallengeCard({ challenge }: { challenge: Challenge }) {
+  const participantCount = challenge.participant_count ?? 0;
+
   return (
     <Link href={`/dashboard/challenges/${challenge.slug}`} className="group block">
       <motion.article
@@ -55,6 +58,12 @@ function LiveChallengeCard({ challenge }: { challenge: Challenge }) {
             </Badge>
             <h3 className="text-xl font-black text-white sm:text-2xl">{challenge.title}</h3>
             <p className="max-w-xl text-sm text-white/80">{challengeExcerpt(challenge.description)}</p>
+            <ChallengePrizePool
+              challenge={challenge}
+              participantCount={participantCount}
+              variant="hero"
+              className="max-w-xs"
+            />
           </div>
           <span className="mt-4 inline-flex items-center gap-2 self-start rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm">
             View bracket
@@ -69,6 +78,7 @@ function LiveChallengeCard({ challenge }: { challenge: Challenge }) {
 function ChallengeCard({ challenge }: { challenge: Challenge }) {
   const status = getChallengeStatus(challenge);
   const joinable = canJoinChallenge(challenge);
+  const participantCount = challenge.participant_count ?? 0;
 
   return (
     <Link href={`/dashboard/challenges/${challenge.slug}`} className="group block h-full">
@@ -79,6 +89,11 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
       >
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <ChallengeStatusBadge challenge={challenge} />
+          <ChallengePrizePool
+            challenge={challenge}
+            participantCount={participantCount}
+            variant="compact"
+          />
           {joinable && status !== "ended" && (
             <Badge variant="secondary" className="text-xs">
               <Users className="mr-1 h-3 w-3" />

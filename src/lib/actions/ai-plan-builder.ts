@@ -6,14 +6,15 @@ import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiAccess } from "@/lib/subscription";
 import { isAiConfigured } from "@/lib/ai/providers";
-import { generateWorkoutPlanFromProfile } from "@/lib/ai/generate-workout-plan";
+import { generateWorkoutDayFromProfile, generateWorkoutPlanFromProfile } from "@/lib/ai/generate-workout-plan";
 import { generateNutritionPlanFromProfile } from "@/lib/ai/generate-nutrition-plan";
 import type {
   AiGeneratedNutritionPlan,
+  AiGeneratedWorkoutDay,
   AiGeneratedWorkoutPlan,
 } from "@/lib/ai/plan-builder-types";
 import { saveWorkoutDay } from "@/lib/actions/plans";
-import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan } from "@/lib/actions/user-workouts";
+import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan, addWorkoutToDay } from "@/lib/actions/user-workouts";
 import {
   createPersonalNutritionPlan,
   assignPersonalNutritionPlan,
@@ -77,6 +78,52 @@ export async function generateAiWorkoutPlanAction(
       error: error instanceof Error ? error.message : "Failed to generate workout plan",
     };
   }
+}
+
+export async function generateAiWorkoutDayAction(
+  prompt: string
+): Promise<{ workout: AiGeneratedWorkoutDay } | { error: string }> {
+  const access = await requireAiPlanBuilder();
+  if (!access.success) return { error: access.error };
+
+  try {
+    const workout = await generateWorkoutDayFromProfile(access.profile, prompt);
+    return { workout };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to generate workout",
+    };
+  }
+}
+
+export async function applyAiWorkoutDayToDateAction(
+  dateKey: string,
+  workout: AiGeneratedWorkoutDay
+): Promise<{ planId: string } | { error: string }> {
+  const access = await requireAiPlanBuilder();
+  if (!access.success) return { error: access.error };
+
+  if (!workout.exercises?.length) return { error: "No exercises to add" };
+
+  const created = await createPersonalWorkoutPlan(
+    workout.title,
+    workout.description || "AI Coach · one-off session"
+  );
+  if (created.error || !created.data) {
+    return { error: created.error ?? "Could not create workout" };
+  }
+
+  const planId = created.data.id;
+  const saved = await saveWorkoutDay(planId, 0, workout.title, workout.exercises);
+  if (saved.error) return { error: saved.error };
+  if (!saved.dayId) return { error: "Could not save workout day" };
+
+  const scheduled = await addWorkoutToDay(dateKey, planId, saved.dayId);
+  if (scheduled.error) return { error: scheduled.error };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/workout");
+  return { planId };
 }
 
 export async function generateAiNutritionPlanAction(

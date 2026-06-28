@@ -27,12 +27,13 @@ export function StartWorkoutDayButton({ planId }: { planId: string }) {
 
   return (
     <div className="inline-flex flex-col items-end gap-1">
-      <StartWorkoutLoadingShell isLoading={isPending}>
+      <StartWorkoutLoadingShell isLoading={isPending} ring={false}>
         <Button
           size="sm"
           disabled={isPending}
           onClick={handleStart}
           aria-busy={isPending}
+          className="min-w-[5.75rem] justify-center"
         >
           <Play className={cn("mr-1 h-3 w-3", isPending && "opacity-50")} />
           {isPending ? "Opening…" : "Start"}

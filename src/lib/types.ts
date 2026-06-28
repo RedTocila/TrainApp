@@ -178,6 +178,7 @@ export interface ScheduledWorkout {
   scheduled_date: string;
   plan_id: string;
   day_id: string;
+  order_index?: number;
   created_at: string;
   workout_plans?: WorkoutPlan;
   workout_days?: WorkoutDay & { exercises?: Exercise[] };
@@ -310,6 +311,7 @@ export interface WorkoutSession {
   plan_id: string | null;
   day_id: string | null;
   scheduled_date: string | null;
+  scheduled_workout_id?: string | null;
   day_title: string | null;
   plan_title: string | null;
   status: WorkoutSessionStatus;
@@ -371,6 +373,25 @@ export interface FitnessClass {
   created_at: string;
 }
 
+export type ChallengeRound = 1 | 2 | 3;
+
+export type ChallengeMemberOutcome =
+  | "pending"
+  | "advanced"
+  | "eliminated"
+  | "group_winner"
+  | "champion";
+
+export type ChallengeParticipantStatus =
+  | "registered"
+  | "active"
+  | "eliminated"
+  | "finalist"
+  | "champion";
+
+/** 0=registration, 1=month1, 2=month2, 3=final, 4=completed */
+export type ChallengePhase = 0 | 1 | 2 | 3 | 4;
+
 export interface Challenge {
   id: string;
   title: string;
@@ -378,11 +399,32 @@ export interface Challenge {
   description: string;
   scheduled_at: string;
   duration_minutes: number;
+  /** Total tournament length in months — one Zoom elimination round per month. */
+  duration_months: number;
   group_size: number;
   final_zoom_url: string | null;
   champion_participant_id: string | null;
+  /** Cents added to the prize pool per registered participant (e.g. 1000 = €10). */
+  prize_pool_cents_per_participant: number;
+  /** Populated when participant totals are loaded for display. */
+  participant_count?: number;
+  round_1_zoom_at: string | null;
+  round_2_zoom_at: string | null;
+  round_3_zoom_at: string | null;
+  prize_paid_at: string | null;
+  current_phase: ChallengePhase;
   published: boolean;
   created_at: string;
+}
+
+export interface ChallengeAnnouncement {
+  id: string;
+  challenge_id: string;
+  title: string;
+  body: string;
+  published: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ChallengeParticipant {
@@ -390,15 +432,18 @@ export interface ChallengeParticipant {
   challenge_id: string;
   user_id: string;
   display_name: string;
+  status: ChallengeParticipantStatus;
+  eliminated_round: ChallengeRound | null;
   created_at: string;
 }
 
 export interface ChallengeGroup {
   id: string;
   challenge_id: string;
-  round: 1 | 2;
+  round: ChallengeRound;
   group_number: number;
   zoom_url: string | null;
+  scheduled_at: string | null;
   winner_participant_id: string | null;
   created_at: string;
 }
@@ -407,14 +452,16 @@ export interface ChallengeGroupMember {
   id: string;
   group_id: string;
   participant_id: string;
+  outcome: ChallengeMemberOutcome;
 }
 
 export interface ChallengeBracketParticipant extends ChallengeParticipant {
+  outcome: ChallengeMemberOutcome;
   is_champion: boolean;
   is_group_winner: boolean;
   group_id: string | null;
   group_number: number | null;
-  round: 1 | 2 | null;
+  round: ChallengeRound | null;
 }
 
 export interface ChallengeBracketGroup extends ChallengeGroup {
@@ -425,10 +472,16 @@ export interface ChallengeBracketGroup extends ChallengeGroup {
 export interface ChallengeBracketData {
   challenge: Challenge;
   participants: ChallengeParticipant[];
-  groupStage: ChallengeBracketGroup[];
-  finalRound: ChallengeBracketGroup | null;
+  round1Groups: ChallengeBracketGroup[];
+  round2Groups: ChallengeBracketGroup[];
+  round3Group: ChallengeBracketGroup | null;
   champion: ChallengeParticipant | null;
   currentUserParticipantId: string | null;
+  currentPhase: ChallengePhase;
+  /** @deprecated use round1Groups */
+  groupStage: ChallengeBracketGroup[];
+  /** @deprecated use round3Group */
+  finalRound: ChallengeBracketGroup | null;
 }
 
 export interface ClientCardio {

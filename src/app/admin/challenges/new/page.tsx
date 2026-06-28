@@ -17,8 +17,8 @@ export default async function NewChallengePage() {
         <div>
           <h1 className="text-2xl font-black">New challenge</h1>
           <p className="text-sm text-muted-foreground">
-            Members register, join Zoom group calls (~10 people), and advance based on who
-            transformed the most on camera — not app checkmarks alone.
+            Set the tournament length (1–24 months). Three elimination Zoom days are scheduled across
+            that period — Round 1 (10→5), Round 2 (1 winner per group), then the champion final.
           </p>
         </div>
         <Card>
@@ -35,13 +35,28 @@ export default async function NewChallengePage() {
                 <Label htmlFor="slug">Slug</Label>
                 <Input id="slug" name="slug" required placeholder="summer-challenge-2026" />
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
                   <Label htmlFor="scheduled_at">Start date & time</Label>
                   <Input id="scheduled_at" name="scheduled_at" type="datetime-local" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="duration_minutes">Duration (minutes)</Label>
+                  <Label htmlFor="duration_months">Tournament length (months)</Label>
+                  <Input
+                    id="duration_months"
+                    name="duration_months"
+                    type="number"
+                    min={1}
+                    max={24}
+                    defaultValue={3}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    1, 2, 3, 6, 12, etc. Three elimination Zoom days are spread across this period.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="duration_minutes">Zoom call length (minutes)</Label>
                   <Input
                     id="duration_minutes"
                     name="duration_minutes"
@@ -65,6 +80,23 @@ export default async function NewChallengePage() {
                   />
                 </div>
               </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="round_1_zoom_at">Round 1 Zoom day (first group hour)</Label>
+                  <Input id="round_1_zoom_at" name="round_1_zoom_at" type="datetime-local" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="round_2_zoom_at">Round 2 Zoom day (first group hour)</Label>
+                  <Input id="round_2_zoom_at" name="round_2_zoom_at" type="datetime-local" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="round_3_zoom_at">Champion final Zoom</Label>
+                  <Input id="round_3_zoom_at" name="round_3_zoom_at" type="datetime-local" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Zoom dates optional — leave blank to auto-schedule across the tournament length.
+              </p>
               <div className="space-y-2">
                 <Label htmlFor="final_zoom_url">Final round Zoom link (optional)</Label>
                 <Input
@@ -74,12 +106,29 @@ export default async function NewChallengePage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="prize_pool_euros_per_participant">
+                  Prize pool per participant (€)
+                </Label>
+                <Input
+                  id="prize_pool_euros_per_participant"
+                  name="prize_pool_euros_per_participant"
+                  type="number"
+                  min={0}
+                  step={1}
+                  defaultValue={10}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Display-only prize pool (no in-app payment). Champion paid manually offline.
+                </p>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="description">Description (Markdown)</Label>
                 <Textarea
                   id="description"
                   name="description"
                   rows={6}
-                  placeholder="Rules, prizes, dates — remind members to log honestly; winners are chosen on Zoom by visible transformation."
+                  placeholder="Rules, prizes, dates — monthly Zoom eliminations; winners from platform reports + live peer voting."
                 />
               </div>
               <div className="flex items-center gap-2">

@@ -12,8 +12,10 @@ import type { Meal, MealSlot, ProgressPhotoSet } from "@/lib/types";
 import type { ProgressPhotoPose } from "@/lib/supabase/storage";
 
 export type WorkoutDayCache = {
-  workout: TodaysWorkoutInfo | null;
-  completed: boolean;
+  workouts: TodaysWorkoutInfo[];
+  completedByTaskId: Record<string, boolean>;
+  sessionIdByTaskId?: Record<string, string | null>;
+  allCompleted: boolean;
   results: CompletedWorkoutResults | null;
 };
 

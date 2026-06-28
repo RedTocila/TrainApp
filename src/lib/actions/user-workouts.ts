@@ -234,11 +234,35 @@ export async function scheduleWorkoutSeries({
     day_id: dayId,
   }));
 
-  const { error } = await admin.from("scheduled_workouts").upsert(rows, {
-    onConflict: "client_id,scheduled_date",
-  });
+  for (const row of rows) {
+    const { data: existing } = await admin
+      .from("scheduled_workouts")
+      .select("id")
+      .eq("client_id", userId)
+      .eq("scheduled_date", row.scheduled_date)
+      .eq("plan_id", planId)
+      .eq("day_id", dayId)
+      .maybeSingle();
 
-  if (error) return { error: error.message };
+    if (existing) continue;
+
+    const { data: siblings } = await admin
+      .from("scheduled_workouts")
+      .select("order_index")
+      .eq("client_id", userId)
+      .eq("scheduled_date", row.scheduled_date)
+      .order("order_index", { ascending: false })
+      .limit(1);
+
+    const orderIndex = (siblings?.[0]?.order_index ?? -1) + 1;
+
+    const { error: insertError } = await admin.from("scheduled_workouts").insert({
+      ...row,
+      order_index: orderIndex,
+    });
+
+    if (insertError) return { error: insertError.message };
+  }
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");
   revalidatePath(`/dashboard/workout/${planId}/edit`);
@@ -298,19 +322,110 @@ export async function replacePlanSchedule({
   return scheduleWorkoutSeries({ startDate, weekdays, weeks, planId, dayId });
 }
 
-export async function unscheduleWorkout(scheduledDate: string) {
+export async function unscheduleWorkout(
+  scheduledDate: string,
+  scheduledWorkoutId?: string
+) {
   const { supabase, userId } = await requireUserId();
 
-  const { error } = await supabase
+  let query = supabase
     .from("scheduled_workouts")
     .delete()
-    .eq("client_id", userId)
-    .eq("scheduled_date", scheduledDate);
+    .eq("client_id", userId);
+
+  if (scheduledWorkoutId) {
+    query = query.eq("id", scheduledWorkoutId);
+  } else {
+    query = query.eq("scheduled_date", scheduledDate);
+  }
+
+  const { error } = await query;
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");
   return { success: true };
+}
+
+export async function addWorkoutToDay(
+  scheduledDate: string,
+  planId: string,
+  dayId: string
+) {
+  const { admin, userId } = await requireMutationAdmin();
+
+  const { data: plan } = await admin
+    .from("workout_plans")
+    .select("id, is_personal, created_by")
+    .eq("id", planId)
+    .single();
+
+  if (!plan) return { error: "Plan not found" };
+
+  const isOwnPersonal = plan.is_personal && plan.created_by === userId;
+  let canSchedule = isOwnPersonal;
+
+  if (!canSchedule) {
+    const { data: assignment } = await admin
+      .from("workout_assignments")
+      .select("id")
+      .eq("client_id", userId)
+      .eq("plan_id", planId)
+      .eq("active", true)
+      .maybeSingle();
+    canSchedule = !!assignment;
+  }
+
+  if (!canSchedule) return { error: "You cannot schedule this workout" };
+
+  const { data: day } = await admin
+    .from("workout_days")
+    .select("id")
+    .eq("id", dayId)
+    .eq("plan_id", planId)
+    .single();
+
+  if (!day) return { error: "Workout day not found" };
+
+  const { data: existing } = await admin
+    .from("scheduled_workouts")
+    .select("id")
+    .eq("client_id", userId)
+    .eq("scheduled_date", scheduledDate)
+    .eq("plan_id", planId)
+    .eq("day_id", dayId)
+    .maybeSingle();
+
+  if (existing) {
+    return { data: existing, alreadyScheduled: true as const };
+  }
+
+  const { data: siblings } = await admin
+    .from("scheduled_workouts")
+    .select("order_index")
+    .eq("client_id", userId)
+    .eq("scheduled_date", scheduledDate)
+    .order("order_index", { ascending: false })
+    .limit(1);
+
+  const orderIndex = (siblings?.[0]?.order_index ?? -1) + 1;
+
+  const { data, error } = await admin
+    .from("scheduled_workouts")
+    .insert({
+      client_id: userId,
+      scheduled_date: scheduledDate,
+      plan_id: planId,
+      day_id: dayId,
+      order_index: orderIndex,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/workout");
+  return { data, alreadyScheduled: false as const };
 }
 
 export async function getScheduledWorkoutsInRange(from: string, to: string) {
@@ -324,7 +439,9 @@ export async function getScheduledWorkoutsInRange(from: string, to: string) {
     .eq("client_id", userId)
     .gte("scheduled_date", from)
     .lte("scheduled_date", to)
-    .order("scheduled_date");
+    .order("scheduled_date")
+    .order("order_index")
+    .order("created_at");
 
   return (data ?? []) as ScheduledWorkout[];
 }
@@ -641,20 +758,18 @@ export async function getPersonalExercisesLibrary(): Promise<PersonalExerciseLib
   return items.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function getScheduledWorkoutForDate(
-  clientId: string,
-  date: string
-): Promise<ScheduledWorkout | null> {
-  const supabase = await createClient();
-
-  const { data } = await supabase
-    .from("scheduled_workouts")
-    .select(`id, client_id, scheduled_date, plan_id, day_id, created_at, workout_plans(${WORKOUT_PLAN_LIST_COLUMNS}), workout_days(${WORKOUT_DAY_WITH_EXERCISES})`)
-    .eq("client_id", clientId)
-    .eq("scheduled_date", date)
-    .maybeSingle();
-
-  if (!data?.workout_days) return data as ScheduledWorkout | null;
+function mapScheduledWorkoutRow(data: {
+  id: string;
+  client_id: string;
+  scheduled_date: string;
+  plan_id: string;
+  day_id: string;
+  order_index?: number;
+  created_at: string;
+  workout_plans?: unknown;
+  workout_days?: unknown;
+}): ScheduledWorkout | null {
+  if (!data.workout_days) return data as ScheduledWorkout;
 
   const rawDay = data.workout_days;
   const day = (Array.isArray(rawDay) ? rawDay[0] : rawDay) as WorkoutDay & {
@@ -669,6 +784,7 @@ export async function getScheduledWorkoutForDate(
     scheduled_date: data.scheduled_date,
     plan_id: data.plan_id,
     day_id: data.day_id,
+    order_index: data.order_index,
     created_at: data.created_at,
     workout_plans: workoutPlan ?? undefined,
     workout_days: {
@@ -678,4 +794,33 @@ export async function getScheduledWorkoutForDate(
       ),
     },
   } satisfies ScheduledWorkout;
+}
+
+export async function getScheduledWorkoutsForDate(
+  clientId: string,
+  date: string
+): Promise<ScheduledWorkout[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("scheduled_workouts")
+    .select(
+      `id, client_id, scheduled_date, plan_id, day_id, order_index, created_at, workout_plans(${WORKOUT_PLAN_LIST_COLUMNS}), workout_days(${WORKOUT_DAY_WITH_EXERCISES})`
+    )
+    .eq("client_id", clientId)
+    .eq("scheduled_date", date)
+    .order("order_index")
+    .order("created_at");
+
+  return (data ?? [])
+    .map((row) => mapScheduledWorkoutRow(row))
+    .filter((row): row is ScheduledWorkout => row != null);
+}
+
+export async function getScheduledWorkoutForDate(
+  clientId: string,
+  date: string
+): Promise<ScheduledWorkout | null> {
+  const scheduled = await getScheduledWorkoutsForDate(clientId, date);
+  return scheduled[0] ?? null;
 }

@@ -6,9 +6,9 @@ import {
   Apple,
   CheckCircle2,
   Dumbbell,
-  Scale,
   Sparkles,
 } from "lucide-react";
+import { ElectronicScale } from "@/components/icons/electronic-scale";
 import type { ClientActivityItem, ClientActivityType } from "@/lib/actions/client-activity";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ const TYPE_META: Record<
 > = {
   meal: { label: "Meal", icon: Apple, className: "text-emerald-400 bg-emerald-500/10" },
   workout: { label: "Workout", icon: Dumbbell, className: "text-primary bg-primary/10" },
-  weight: { label: "Weight", icon: Scale, className: "text-sky-400 bg-sky-500/10" },
+  weight: { label: "Weight", icon: ElectronicScale, className: "text-sky-400 bg-sky-500/10" },
   habit: { label: "Habit", icon: CheckCircle2, className: "text-amber-400 bg-amber-500/10" },
   task: { label: "Task", icon: Sparkles, className: "text-violet-400 bg-violet-500/10" },
 };

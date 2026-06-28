@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 export function WorkoutExerciseList({
   exercises,
   className,
+  variant = "default",
 }: {
   exercises: {
     id: string;
@@ -18,11 +19,38 @@ export function WorkoutExerciseList({
     notes: string | null;
   }[];
   className?: string;
+  variant?: "default" | "dropdown";
 }) {
   const platform = usePlatformCopy();
 
   if (exercises.length === 0) {
     return null;
+  }
+
+  if (variant === "dropdown") {
+    return (
+      <ul className={cn("divide-y divide-border/60", className)}>
+        {exercises.map((exercise) => (
+          <li
+            key={exercise.id}
+            className="flex items-start justify-between gap-2 py-2.5 text-sm"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold leading-snug">{exercise.name}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {platform.workout.setsTarget(exercise.sets)} ·{" "}
+                {platform.workout.repsTarget(exercise.reps)}
+              </p>
+              {exercise.notes ? (
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {exercise.notes}
+                </p>
+              ) : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
   }
 
   return (

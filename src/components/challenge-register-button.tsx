@@ -16,11 +16,7 @@ export function ChallengeRegisterButton({
   const [error, setError] = useState<string | null>(null);
 
   if (isRegistered) {
-    return (
-      <p className="text-sm font-medium text-emerald-400">
-        You are registered for this challenge.
-      </p>
-    );
+    return null;
   }
 
   return (
@@ -37,7 +33,7 @@ export function ChallengeRegisterButton({
         }}
       >
         <UserPlus className="mr-2 h-4 w-4" />
-        {isPending ? "Registering…" : "Register for challenge"}
+        {isPending ? "Registering…" : "Register (Elite · free)"}
       </Button>
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>

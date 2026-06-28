@@ -1,9 +1,13 @@
+import { groupScheduledAt } from "@/lib/challenge-utils";
 import type {
   Challenge,
+  ChallengeAnnouncement,
   ChallengeBracketData,
   ChallengeBracketGroup,
   ChallengeBracketParticipant,
+  ChallengeMemberOutcome,
   ChallengeParticipant,
+  ChallengeParticipantStatus,
 } from "@/lib/types";
 
 export const DEMO_CHALLENGE_SLUG = "demo-summer-challenge";
@@ -12,6 +16,7 @@ const DEMO_CHALLENGE_ID = "00000000-0000-4000-8000-000000000002";
 const DEMO_GROUP_COUNT = 10;
 const DEMO_GROUP_SIZE = 10;
 const DEMO_PARTICIPANT_COUNT = DEMO_GROUP_COUNT * DEMO_GROUP_SIZE;
+export { DEMO_PARTICIPANT_COUNT };
 const DEMO_ZOOM = "https://zoom.us/j/00000000000?pwd=demo";
 const DEMO_FINAL_ZOOM = "https://zoom.us/j/11111111111?pwd=demo-final";
 
@@ -41,18 +46,18 @@ const DEMO_LAST_NAMES = [
   "Nguyen",
 ] as const;
 
-function demoScheduledAt(): string {
+function demoStartAt(): Date {
   const d = new Date();
   d.setMinutes(d.getMinutes() - 10);
-  return d.toISOString();
+  return d;
 }
 
 function participantId(index: number): string {
   return `00000000-0000-4000-8001-${String(index + 1).padStart(12, "0")}`;
 }
 
-function groupId(index: number): string {
-  return `00000000-0000-4000-8002-${String(index + 1).padStart(12, "0")}`;
+function groupId(round: number, index: number): string {
+  return `00000000-0000-4000-800${round}-${String(index + 1).padStart(12, "0")}`;
 }
 
 function demoParticipantName(index: number): string {
@@ -61,37 +66,71 @@ function demoParticipantName(index: number): string {
   return `${first} ${last}`;
 }
 
+const start = demoStartAt();
+const round1Base = new Date(start);
+round1Base.setMonth(round1Base.getMonth() + 1);
+const round2Base = new Date(start);
+round2Base.setMonth(round2Base.getMonth() + 2);
+const round3Base = new Date(start);
+round3Base.setMonth(round3Base.getMonth() + 3);
+
 /** Shown when no challenges exist in the database yet (or alongside real challenges). */
 export const DEMO_CHALLENGE: Challenge = {
   id: DEMO_CHALLENGE_ID,
   title: "Demo: 100-Person Summer Challenge",
   slug: DEMO_CHALLENGE_SLUG,
-  description: `## Preview the tournament bracket
+  description: `## Preview the tournament
 
-This is a **demo challenge** showing how large community events work in RUTINA.
+This **demo challenge** shows the full elimination flow over **3 months** (you can set 1–24 months on real challenges):
 
-Winners are picked on **live Zoom calls** based on who **transformed the most** — not who logged the most checkmarks. Use the platform honestly throughout; the video calls are where the coach compares real results.
+1. **Round 1** — 100 entrants in 10 Zoom groups of 10. Eliminate 5 per group → **50 advance**
+2. **Round 2** — Survivors regrouped into 5 groups of 10. Pick **1 winner per group** → **5 finalists**
+3. **Champion final** — Live vote → **1 champion** wins the **€1,000** prize pool
 
-### How it works
-1. **Register** and track workouts, meals, and habits accurately
-2. **Group stage** — **10 Zoom groups** of **10**; coach picks whoever transformed the most in each call
-3. **Final round** — group winners meet on one final Zoom call
-4. **Champion** — crowned for the best overall transformation
-
-### This demo includes
-- **100 participants** in **10 groups** (expand each group to browse)
-- Group winners and a crowned champion on the bracket
-- Sample **Join Zoom** buttons
+Log honestly all month. AI weekly reports help coaches prepare, but **Zoom verifies real transformation**.
 
 Create real challenges in **Admin → Challenges**.`,
-  scheduled_at: demoScheduledAt(),
-  duration_minutes: 120,
+  scheduled_at: start.toISOString(),
+  duration_minutes: 60,
+  duration_months: 3,
   group_size: DEMO_GROUP_SIZE,
   final_zoom_url: DEMO_FINAL_ZOOM,
   champion_participant_id: participantId(1),
+  prize_pool_cents_per_participant: 1000,
+  round_1_zoom_at: round1Base.toISOString(),
+  round_2_zoom_at: round2Base.toISOString(),
+  round_3_zoom_at: round3Base.toISOString(),
+  prize_paid_at: null,
+  current_phase: 4,
   published: true,
   created_at: new Date().toISOString(),
 };
+
+const DEMO_ANNOUNCEMENT_ID = "00000000-0000-4000-8003-000000000001";
+
+export const DEMO_CHALLENGE_ANNOUNCEMENTS: ChallengeAnnouncement[] = [
+  {
+    id: DEMO_ANNOUNCEMENT_ID,
+    challenge_id: DEMO_CHALLENGE_ID,
+    title: "Round 1 Zoom groups are live",
+    body: `Hey everyone — **Red here.**
+
+Your **Group 2** slot is confirmed. Join on camera this Saturday and be ready to show your transformation progress.
+
+- Check the challenge page for your **Zoom link**
+- Have progress photos ready (front + side)
+- Round 1 eliminates 5 per group — **5 advance**
+
+Questions? Reply in the community chat. Let's go.`,
+    published: true,
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export function getDemoChallengeAnnouncements(): ChallengeAnnouncement[] {
+  return DEMO_CHALLENGE_ANNOUNCEMENTS;
+}
 
 export function isDemoChallengeSlug(slug: string): boolean {
   return slug === DEMO_CHALLENGE_SLUG;
@@ -112,57 +151,115 @@ export function getDemoChallengeBySlug(slug: string): Challenge | undefined {
 function buildParticipants(viewerUserId?: string | null): ChallengeParticipant[] {
   const now = new Date().toISOString();
   const viewerSlot = 14;
+  const championId = DEMO_CHALLENGE.champion_participant_id!;
+  const finalistIds = new Set(
+    Array.from({ length: DEMO_GROUP_COUNT / 2 }, (_, i) => participantId(i * DEMO_GROUP_SIZE + 1))
+  );
 
-  return Array.from({ length: DEMO_PARTICIPANT_COUNT }, (_, index) => ({
-    id: participantId(index),
-    challenge_id: DEMO_CHALLENGE_ID,
-    user_id:
-      viewerUserId && index === viewerSlot
-        ? viewerUserId
-        : `00000000-0000-4000-8099-${String(index + 1).padStart(12, "0")}`,
-    display_name: viewerUserId && index === viewerSlot ? "You (demo)" : demoParticipantName(index),
-    created_at: now,
-  }));
+  return Array.from({ length: DEMO_PARTICIPANT_COUNT }, (_, index) => {
+    const id = participantId(index);
+    let status: ChallengeParticipantStatus = "active";
+    let eliminated_round: 1 | 2 | 3 | null = null;
+
+    if (id === championId) {
+      status = "champion";
+    } else if (finalistIds.has(id)) {
+      status = "finalist";
+    } else if (index % DEMO_GROUP_SIZE >= 5) {
+      status = "eliminated";
+      eliminated_round = 1;
+    }
+
+    return {
+      id,
+      challenge_id: DEMO_CHALLENGE_ID,
+      user_id:
+        viewerUserId && index === viewerSlot
+          ? viewerUserId
+          : `00000000-0000-4000-8099-${String(index + 1).padStart(12, "0")}`,
+      display_name: viewerUserId && index === viewerSlot ? "You (demo)" : demoParticipantName(index),
+      status,
+      eliminated_round,
+      created_at: now,
+    };
+  });
 }
 
 function toBracketParticipant(
   p: ChallengeParticipant,
   opts: {
-    championId: string;
+    outcome: ChallengeMemberOutcome;
+    groupId: string;
+    groupNumber: number;
+    round: 1 | 2 | 3;
     winnerId?: string | null;
-    groupId?: string | null;
-    groupNumber?: number | null;
-    round?: 1 | 2 | null;
   }
 ): ChallengeBracketParticipant {
+  const championId = DEMO_CHALLENGE.champion_participant_id!;
   return {
     ...p,
-    is_champion: p.id === opts.championId,
-    is_group_winner: !!opts.winnerId && p.id === opts.winnerId,
-    group_id: opts.groupId ?? null,
-    group_number: opts.groupNumber ?? null,
-    round: opts.round ?? null,
+    outcome: opts.outcome,
+    is_champion: p.id === championId,
+    is_group_winner: opts.outcome === "group_winner" || opts.outcome === "champion",
+    group_id: opts.groupId,
+    group_number: opts.groupNumber,
+    round: opts.round,
   };
 }
 
-function buildGroupStage(participants: ChallengeParticipant[]): ChallengeBracketGroup[] {
-  const championId = DEMO_CHALLENGE.champion_participant_id!;
-
+function buildRound1Groups(participants: ChallengeParticipant[]): ChallengeBracketGroup[] {
   return Array.from({ length: DEMO_GROUP_COUNT }, (_, groupIndex) => {
     const slice = participants.slice(
       groupIndex * DEMO_GROUP_SIZE,
       groupIndex * DEMO_GROUP_SIZE + DEMO_GROUP_SIZE
     );
-    const gid = groupId(groupIndex);
-    const winnerId = participantId(groupIndex * DEMO_GROUP_SIZE + 1);
+    const gid = groupId(1, groupIndex);
+    const scheduledAt = groupScheduledAt(DEMO_CHALLENGE.round_1_zoom_at, groupIndex);
 
-    const members = slice.map((p) =>
+    const members = slice.map((p, i) =>
       toBracketParticipant(p, {
-        championId,
-        winnerId,
+        outcome: i < 5 ? "advanced" : "eliminated",
         groupId: gid,
         groupNumber: groupIndex + 1,
         round: 1,
+      })
+    );
+
+    return {
+      id: gid,
+      challenge_id: DEMO_CHALLENGE_ID,
+      round: 1,
+      group_number: groupIndex + 1,
+      zoom_url: DEMO_ZOOM,
+      scheduled_at: scheduledAt,
+      winner_participant_id: null,
+      created_at: new Date().toISOString(),
+      members,
+      winner: null,
+    };
+  });
+}
+
+function buildRound2Groups(participants: ChallengeParticipant[]): ChallengeBracketGroup[] {
+  const advanced = participants.filter((p) => p.status === "active" || p.status === "finalist" || p.status === "champion");
+  const r2GroupCount = DEMO_GROUP_COUNT / 2;
+
+  return Array.from({ length: r2GroupCount }, (_, groupIndex) => {
+    const slice = advanced.slice(
+      groupIndex * DEMO_GROUP_SIZE,
+      groupIndex * DEMO_GROUP_SIZE + DEMO_GROUP_SIZE
+    );
+    const gid = groupId(2, groupIndex);
+    const winnerId = slice[0]?.id ?? null;
+    const scheduledAt = groupScheduledAt(DEMO_CHALLENGE.round_2_zoom_at, groupIndex);
+
+    const members = slice.map((p) =>
+      toBracketParticipant(p, {
+        outcome: p.id === winnerId ? "group_winner" : "eliminated",
+        groupId: gid,
+        groupNumber: groupIndex + 1,
+        round: 2,
+        winnerId,
       })
     );
 
@@ -171,9 +268,10 @@ function buildGroupStage(participants: ChallengeParticipant[]): ChallengeBracket
     return {
       id: gid,
       challenge_id: DEMO_CHALLENGE_ID,
-      round: 1 as const,
+      round: 2,
       group_number: groupIndex + 1,
       zoom_url: DEMO_ZOOM,
+      scheduled_at: scheduledAt,
       winner_participant_id: winnerId,
       created_at: new Date().toISOString(),
       members,
@@ -182,26 +280,23 @@ function buildGroupStage(participants: ChallengeParticipant[]): ChallengeBracket
   });
 }
 
-function buildFinalRound(
-  participants: ChallengeParticipant[],
-  groupStage: ChallengeBracketGroup[]
-): ChallengeBracketGroup {
+function buildRound3Group(participants: ChallengeParticipant[]): ChallengeBracketGroup {
   const championId = DEMO_CHALLENGE.champion_participant_id!;
-  const gid = groupId(DEMO_GROUP_COUNT);
-  const finalistIds = groupStage
-    .map((g) => g.winner_participant_id)
-    .filter((id): id is string => !!id);
+  const gid = groupId(3, 0);
+  const finalistIds = Array.from({ length: DEMO_GROUP_COUNT / 2 }, (_, i) =>
+    participantId(i * DEMO_GROUP_SIZE + 1)
+  );
 
   const members = finalistIds
     .map((id) => participants.find((p) => p.id === id))
     .filter((p): p is ChallengeParticipant => !!p)
     .map((p) =>
       toBracketParticipant(p, {
-        championId,
-        winnerId: championId,
+        outcome: p.id === championId ? "champion" : "eliminated",
         groupId: gid,
         groupNumber: 1,
-        round: 2,
+        round: 3,
+        winnerId: championId,
       })
     );
 
@@ -210,9 +305,10 @@ function buildFinalRound(
   return {
     id: gid,
     challenge_id: DEMO_CHALLENGE_ID,
-    round: 2,
+    round: 3,
     group_number: 1,
     zoom_url: DEMO_FINAL_ZOOM,
+    scheduled_at: DEMO_CHALLENGE.round_3_zoom_at,
     winner_participant_id: championId,
     created_at: new Date().toISOString(),
     members,
@@ -224,8 +320,9 @@ export function getDemoChallengeBracket(
   viewerUserId?: string | null
 ): ChallengeBracketData {
   const participants = buildParticipants(viewerUserId);
-  const groupStage = buildGroupStage(participants);
-  const finalRound = buildFinalRound(participants, groupStage);
+  const round1Groups = buildRound1Groups(participants);
+  const round2Groups = buildRound2Groups(participants);
+  const round3Group = buildRound3Group(participants);
   const champion =
     participants.find((p) => p.id === DEMO_CHALLENGE.champion_participant_id) ?? null;
 
@@ -236,9 +333,13 @@ export function getDemoChallengeBracket(
   return {
     challenge: DEMO_CHALLENGE,
     participants,
-    groupStage,
-    finalRound,
+    round1Groups,
+    round2Groups,
+    round3Group,
     champion,
     currentUserParticipantId,
+    currentPhase: 4,
+    groupStage: round1Groups,
+    finalRound: round3Group,
   };
 }

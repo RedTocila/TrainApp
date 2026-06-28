@@ -46,6 +46,7 @@ export function WorkoutBuilder({
   requestId,
   mode = "admin",
   wizard = false,
+  singleDay = false,
   onWizardComplete,
   stayOnPage = false,
   onSaved,
@@ -59,6 +60,7 @@ export function WorkoutBuilder({
   requestId?: string;
   mode?: "admin" | "client";
   wizard?: boolean;
+  singleDay?: boolean;
   onWizardComplete?: (planId: string) => void;
   stayOnPage?: boolean;
   onSaved?: () => void;
@@ -369,12 +371,16 @@ export function WorkoutBuilder({
       })}
 
       <div className="flex gap-3">
-        <Button type="button" variant="secondary" onClick={addDay}>
-          <Plus className="mr-2 h-4 w-4" /> Add Day
-        </Button>
+        {!singleDay ? (
+          <Button type="button" variant="secondary" onClick={addDay}>
+            <Plus className="mr-2 h-4 w-4" /> Add Day
+          </Button>
+        ) : null}
         <Button onClick={handleSave} disabled={isPending || !title.trim()}>
           {wizard
-            ? "Next: Schedule"
+            ? singleDay
+              ? "Add to day"
+              : "Next: Schedule"
             : clientId
               ? "Save & Assign to Client"
               : mode === "client"

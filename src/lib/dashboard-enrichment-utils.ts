@@ -56,7 +56,8 @@ export function applyLivePatch(
   }
 
   if (patch.workoutSessionId !== undefined) {
-    next.workoutSessionIds[patch.dateKey] = patch.workoutSessionId;
+    const sessionKey = patch.taskId ?? patch.dateKey;
+    next.workoutSessionIds[sessionKey] = patch.workoutSessionId;
   }
 
   if (patch.dailyMeals !== undefined) {

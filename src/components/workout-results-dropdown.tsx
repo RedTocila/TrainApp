@@ -32,7 +32,7 @@ function WorkoutStatCard({
   );
 }
 
-function WorkoutResultsContent({
+export function WorkoutResultsContent({
   results,
   variant,
 }: {

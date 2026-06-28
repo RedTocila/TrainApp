@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DeleteChallengeButton } from "@/components/delete-challenge-button";
-import { getChallengeStatus } from "@/lib/challenge-utils";
+import { getChallengeStatus, getChallengePrizePoolCents, getChallengeDurationMonths, getPrizePoolCentsPerParticipant } from "@/lib/challenge-utils";
+import { formatEurosFromCents } from "@/lib/referral-credits";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
 
@@ -21,8 +22,8 @@ export default async function AdminChallengesPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-black">Challenges</h1>
             <p className="text-muted-foreground">
-              Tournament challenges with Zoom calls — winners chosen by who transformed the most on
-              video, not checkmark totals
+              Multi-month transformation tournaments — monthly Zoom eliminations in groups of 10,
+              winners from platform reports and live peer voting
             </p>
           </div>
           <Link href="/admin/challenges/new" className="shrink-0">
@@ -43,6 +44,11 @@ export default async function AdminChallengesPage() {
           <div className="space-y-3">
             {challenges.map((challenge) => {
               const status = getChallengeStatus(challenge);
+              const participantCount = challenge.participant_count ?? 0;
+              const perEntry = formatEurosFromCents(getPrizePoolCentsPerParticipant(challenge));
+              const pool = formatEurosFromCents(
+                getChallengePrizePoolCents(challenge, participantCount)
+              );
               return (
                 <Card key={challenge.id}>
                   <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -50,7 +56,11 @@ export default async function AdminChallengesPage() {
                       <CardTitle className="text-base">{challenge.title}</CardTitle>
                       <p className="text-sm text-muted-foreground">
                         {format(new Date(challenge.scheduled_at), "MMM d, yyyy · h:mm a")} ·{" "}
-                        {challenge.duration_minutes} min · groups of {challenge.group_size}
+                        {getChallengeDurationMonths(challenge)}-month tournament ·{" "}
+                        {challenge.duration_minutes} min calls · groups of {challenge.group_size}
+                      </p>
+                      <p className="text-sm text-amber-200/90">
+                        Prize pool: {pool} · +{perEntry}/entry · {participantCount} registered
                       </p>
                       <div className="flex flex-wrap gap-2 pt-1">
                         <Badge variant="outline">{status}</Badge>

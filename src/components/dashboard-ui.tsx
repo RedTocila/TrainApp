@@ -27,6 +27,22 @@ export const dashboard = {
     "inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1.5 rounded-full border border-border bg-secondary/60 px-3 py-2 text-sm font-semibold transition-colors [-webkit-tap-highlight-color:transparent] active:opacity-90 hover:border-primary/30 hover:bg-secondary/80",
   pairTile:
     "relative flex h-full min-h-[13rem] flex-col p-3 sm:min-h-[14rem] sm:p-4",
+  /** One line below trigger; aligned to the end (icon menus). */
+  dropdownPanelBelowEnd: "absolute right-0 top-full z-30 mt-1",
+  /** Cursor-style stack: main bar + attached tail sharing one outer border. */
+  attachedDropdown:
+    "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-sm",
+  attachedDropdownMain:
+    "flex items-start gap-3 px-3 py-2.5",
+  attachedDropdownTail:
+    "border-t border-border/60 bg-secondary/25",
+  attachedDropdownTailToggle:
+    "flex w-full touch-manipulation select-none items-center gap-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/40 active:bg-secondary/50",
+  dropdownItem:
+    "flex w-full touch-manipulation select-none items-start gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-secondary/80 active:bg-secondary/60",
+  /** Detached menu surface (floats outside the trigger border box). */
+  dropdownPanel:
+    "overflow-hidden rounded-xl border border-border bg-card shadow-xl ring-1 ring-border/30",
 } as const;
 
 export function DashboardTile({

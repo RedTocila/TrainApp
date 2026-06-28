@@ -33,7 +33,7 @@ import {
 } from "@/lib/actions/user-nutrition-schedule";
 import { getCoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
 import {
-  resolveWorkoutForDate,
+  resolveWorkoutsForDate,
   isWorkoutCompletedOnDate,
   getCompletedWorkoutResultsForDate,
 } from "@/lib/actions/workout-sessions";
@@ -89,7 +89,7 @@ export default async function DashboardPage() {
     mealLibrary,
     progressPhotoSets,
     enrichmentFields,
-    initialWorkout,
+    initialWorkouts,
     scheduledPlanForToday,
     coachNutritionPlanState,
     allHabits,
@@ -114,7 +114,7 @@ export default async function DashboardPage() {
     getPersonalMealsLibrary(),
     getProgressPhotoSets(profile.id),
     fetchDashboardEnrichmentFields(profile.id, rangeStart, rangeEnd),
-    resolveWorkoutForDate(profile.id, dateKey),
+    resolveWorkoutsForDate(profile.id, dateKey),
     getNutritionPlanForDate(profile.id, dateKey),
     getCoachNutritionPlanViewState(profile.id),
     getClientHabits(profile.id),
@@ -253,15 +253,12 @@ export default async function DashboardPage() {
             />
           </div>
 
-          <div className="h-full min-h-[15rem] w-full sm:min-h-[16rem]">
+          <div className="h-full min-h-[18rem] w-full sm:min-h-[19rem]">
             <DashboardWorkoutCard
               clientId={profile.id}
               gender={profile.gender}
-              intakeProfile={{
-                age: profile.age,
-                intake_responses: profile.intake_responses,
-              }}
-              initialWorkout={initialWorkout}
+              initialWorkout={initialWorkouts[0] ?? null}
+              initialWorkouts={initialWorkouts}
               initialWorkoutCompleted={initialWorkoutCompleted}
               initialWorkoutResults={initialWorkoutResults}
               variant="compact"

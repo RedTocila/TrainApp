@@ -56,7 +56,7 @@ export function enrichDailyTasks(
 
     if (task.category === "workout" && !task.id.endsWith("-pending")) {
       const deadlinePassed = isDeadlinePassed(WORKOUT_DEADLINE, ctx.dateKey, now);
-      const completed = task.completed || ctx.workoutCompleted;
+      const completed = task.completed;
       const detailBase = task.detail ?? "";
       const deadlineNote = `Complete by ${WORKOUT_DEADLINE}`;
 

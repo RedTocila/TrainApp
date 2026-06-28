@@ -5,4 +5,6 @@ export const PLATFORM_AI_PRO_NAME = `${PLATFORM_NAME} AI Pro`;
 export const PLATFORM_AI_NAME = PLATFORM_AI_PRO_NAME;
 export const PLATFORM_CORE_NAME = `${PLATFORM_NAME} Core`;
 export const PLATFORM_ELITE_NAME = `${PLATFORM_NAME} Elite`;
+/** Display name for admin-authored challenge announcements. */
+export const PLATFORM_ADMIN_DISPLAY_NAME = "Red";
 export const PLATFORM_TAGLINE = "Premium Personal Training";

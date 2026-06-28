@@ -2,7 +2,8 @@
 import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { format, isToday } from "date-fns";
-import { Plus, Scale } from "lucide-react";
+import { Plus } from "lucide-react";
+import { ElectronicScale } from "@/components/icons/electronic-scale";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { WeightChartLazy } from "@/components/weight-chart-lazy";
@@ -135,7 +136,7 @@ export function WeightTracker({
   return (
     <div className={cn(dashboard.tile, "p-4")}>
       <DashboardSectionHeader
-        icon={Scale}
+        icon={ElectronicScale}
         iconClassName="text-primary"
         title={platform.weight.title}
         subtitle={

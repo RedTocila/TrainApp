@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { format } from "date-fns";
 import {
   ArrowDown,
   ChevronDown,
@@ -16,8 +17,20 @@ import type {
   ChallengeBracketData,
   ChallengeBracketGroup,
   ChallengeBracketParticipant,
+  ChallengeMemberOutcome,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+function outcomeHighlight(
+  outcome: ChallengeMemberOutcome,
+  isWinner: boolean
+): "winner" | "champion" | "advanced" | "eliminated" | undefined {
+  if (outcome === "champion") return "champion";
+  if (outcome === "group_winner" || isWinner) return "winner";
+  if (outcome === "advanced") return "advanced";
+  if (outcome === "eliminated") return "eliminated";
+  return undefined;
+}
 
 function ParticipantChip({
   participant,
@@ -27,7 +40,7 @@ function ParticipantChip({
   selectable,
 }: {
   participant: ChallengeBracketParticipant;
-  highlight?: "winner" | "champion" | "you";
+  highlight?: "winner" | "champion" | "advanced" | "eliminated";
   isYou?: boolean;
   onClick?: () => void;
   selectable?: boolean;
@@ -41,20 +54,18 @@ function ParticipantChip({
       className={cn(
         "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-sm transition-colors",
         highlight === "champion" &&
-          "border-amber-400/60 bg-amber-500/15 font-semibold text-amber-100 shadow-md shadow-amber-500/10",
+          "border-amber-400/60 bg-amber-500/15 font-semibold text-amber-100",
         highlight === "winner" &&
           "border-violet-400/50 bg-violet-500/15 font-medium text-violet-100",
+        highlight === "advanced" &&
+          "border-emerald-500/40 bg-emerald-500/10 text-emerald-100",
+        highlight === "eliminated" && "border-border/50 bg-muted/30 opacity-50",
         isYou && !highlight && "border-primary/40 bg-primary/10",
         !highlight && !isYou && "border-border bg-card/80",
         selectable && "cursor-pointer hover:border-primary/50 hover:bg-primary/5"
       )}
     >
-      <span
-        className={cn(
-          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-          highlight === "champion" ? "bg-amber-500/25" : "bg-muted"
-        )}
-      >
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
         {highlight === "champion" ? (
           <Crown className="h-3.5 w-3.5 text-amber-300" />
         ) : highlight === "winner" ? (
@@ -79,36 +90,40 @@ export function ChallengeGroupAccordion({
   adminMode = false,
   onSelectWinner,
   footer,
+  roundLabel,
 }: {
   group: ChallengeBracketGroup;
   youId?: string | null;
   adminMode?: boolean;
   onSelectWinner?: (groupId: string, participantId: string) => void;
   footer?: ReactNode;
+  roundLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const isYourGroup = group.members.some((m) => m.id === youId);
+  const advancedCount = group.members.filter((m) => m.outcome === "advanced").length;
 
   return (
-    <Card
-      className={cn(
-        "overflow-hidden",
-        isYourGroup && "ring-1 ring-primary/40",
-        open && "border-border"
-      )}
-    >
+    <Card className={cn("overflow-hidden", isYourGroup && "ring-1 ring-primary/40")}>
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
-        className="flex w-full items-center gap-3 border-b border-transparent px-4 py-3 text-left transition-colors hover:bg-muted/30 sm:px-5"
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30 sm:px-5"
       >
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-bold">Group {group.group_number}</span>
+            <span className="text-sm font-bold">
+              {roundLabel ? `${roundLabel} · ` : ""}Group {group.group_number}
+            </span>
             <Badge variant="secondary" className="text-[10px]">
               {group.members.length} members
             </Badge>
+            {group.scheduled_at && (
+              <Badge variant="outline" className="text-[10px]">
+                {format(new Date(group.scheduled_at), "MMM d · h:mm a")}
+              </Badge>
+            )}
             {isYourGroup && (
               <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">
                 Your group
@@ -116,14 +131,11 @@ export function ChallengeGroupAccordion({
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            {group.winner ? (
-              <span className="inline-flex items-center gap-1 text-violet-300">
-                <Medal className="h-3 w-3" />
-                {group.winner.display_name}
-              </span>
-            ) : (
-              "Winner not selected yet"
-            )}
+            {group.round === 1 && advancedCount > 0
+              ? `${advancedCount} advanced`
+              : group.winner
+                ? group.winner.display_name
+                : "Pending"}
           </p>
         </div>
         <ChevronDown
@@ -141,11 +153,14 @@ export function ChallengeGroupAccordion({
               <ParticipantChip
                 key={member.id}
                 participant={member}
-                highlight={group.winner_participant_id === member.id ? "winner" : undefined}
+                highlight={outcomeHighlight(
+                  member.outcome,
+                  group.winner_participant_id === member.id
+                )}
                 isYou={member.id === youId}
-                selectable={adminMode && !!onSelectWinner}
+                selectable={adminMode && !!onSelectWinner && group.round !== 1}
                 onClick={
-                  adminMode && onSelectWinner
+                  adminMode && onSelectWinner && group.round !== 1
                     ? () => onSelectWinner(group.id, member.id)
                     : undefined
                 }
@@ -156,6 +171,42 @@ export function ChallengeGroupAccordion({
         </CardContent>
       ) : null}
     </Card>
+  );
+}
+
+function RoundSection({
+  title,
+  groups,
+  youId,
+  adminMode,
+  onSelectWinner,
+}: {
+  title: string;
+  groups: ChallengeBracketGroup[];
+  youId?: string | null;
+  adminMode?: boolean;
+  onSelectWinner?: (groupId: string, participantId: string) => void;
+}) {
+  if (groups.length === 0) return null;
+
+  return (
+    <section className="space-y-3">
+      <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-muted-foreground">
+        <Users className="h-4 w-4" />
+        {title}
+      </h3>
+      <div className="space-y-2">
+        {groups.map((group) => (
+          <ChallengeGroupAccordion
+            key={group.id}
+            group={group}
+            youId={youId}
+            adminMode={adminMode}
+            onSelectWinner={onSelectWinner}
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -170,21 +221,20 @@ export function ChallengeBracketDiagram({
   onSelectWinner?: (groupId: string, participantId: string) => void;
   adminMode?: boolean;
 }) {
-  const { groupStage, finalRound, champion, participants, challenge } = bracket;
+  const { round1Groups, round2Groups, round3Group, champion, participants, challenge } = bracket;
   const youId = currentUserParticipantId ?? bracket.currentUserParticipantId;
 
   if (participants.length === 0) {
     return (
       <Card className="border-dashed">
         <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          No participants yet. Members register from this page; the coach then builds groups of{" "}
-          {challenge.group_size}.
+          No participants yet. Elite members register from the challenge page.
         </CardContent>
       </Card>
     );
   }
 
-  if (groupStage.length === 0) {
+  if (round1Groups.length === 0) {
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -194,25 +244,9 @@ export function ChallengeBracketDiagram({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {participants.map((p) => (
-              <ParticipantChip
-                key={p.id}
-                participant={{
-                  ...p,
-                  is_champion: false,
-                  is_group_winner: false,
-                  group_id: null,
-                  group_number: null,
-                  round: null,
-                }}
-                isYou={p.id === youId}
-              />
-            ))}
-          </div>
-          <p className="mt-4 text-sm text-muted-foreground">
-            Waiting for the coach to split everyone into groups of {challenge.group_size} and assign
-            Zoom links.
+          <p className="text-sm text-muted-foreground">
+            Waiting for groups of {challenge.group_size} to be drawn before the first elimination
+            day.
           </p>
         </CardContent>
       </Card>
@@ -231,32 +265,23 @@ export function ChallengeBracketDiagram({
         </section>
       )}
 
-      {finalRound && (
+      {round3Group && (
         <section className="space-y-3">
           <div className="flex items-center justify-center gap-2 text-sm font-bold uppercase tracking-wider text-muted-foreground">
-            <span>Final round</span>
-            <Badge variant="outline">{finalRound.members.length} finalists</Badge>
+            Champion final
+            <Badge variant="outline">{round3Group.members.length} finalists</Badge>
           </div>
           <Card className="border-amber-500/30">
             <CardContent className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
-              {finalRound.members.map((member) => (
+              {round3Group.members.map((member) => (
                 <ParticipantChip
                   key={member.id}
                   participant={member}
-                  highlight={
-                    champion?.id === member.id
-                      ? "champion"
-                      : finalRound.winner_participant_id === member.id
-                        ? "winner"
-                        : undefined
-                  }
+                  highlight={outcomeHighlight(
+                    member.outcome,
+                    round3Group.winner_participant_id === member.id
+                  )}
                   isYou={member.id === youId}
-                  selectable={adminMode && !!onSelectWinner}
-                  onClick={
-                    adminMode && onSelectWinner
-                      ? () => onSelectWinner(finalRound.id, member.id)
-                      : undefined
-                  }
                 />
               ))}
             </CardContent>
@@ -267,27 +292,27 @@ export function ChallengeBracketDiagram({
         </section>
       )}
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-muted-foreground">
-            <Users className="h-4 w-4" />
-            Group stage · {groupStage.length} groups × ~{challenge.group_size}
-          </h3>
-          <Badge variant="secondary">{participants.length} total</Badge>
-        </div>
+      <RoundSection
+        title={`Round 2 · ${round2Groups.length} groups`}
+        groups={round2Groups}
+        youId={youId}
+        adminMode={adminMode}
+        onSelectWinner={onSelectWinner}
+      />
 
-        <div className="space-y-2">
-          {groupStage.map((group) => (
-            <ChallengeGroupAccordion
-              key={group.id}
-              group={group}
-              youId={youId}
-              adminMode={adminMode}
-              onSelectWinner={onSelectWinner}
-            />
-          ))}
+      {round2Groups.length > 0 && round1Groups.length > 0 && (
+        <div className="flex justify-center text-muted-foreground">
+          <ArrowDown className="h-5 w-5" />
         </div>
-      </section>
+      )}
+
+      <RoundSection
+        title={`Round 1 · ${round1Groups.length} groups × ~${challenge.group_size}`}
+        groups={round1Groups}
+        youId={youId}
+        adminMode={adminMode}
+        onSelectWinner={onSelectWinner}
+      />
     </div>
   );
 }

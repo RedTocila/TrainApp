@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { ElectronicScale } from "@/components/icons/electronic-scale";
 import {
   Award,
   BarChart3,
@@ -16,7 +17,6 @@ import {
   MessageCircle,
   Mic,
   Ruler,
-  Scale,
   Sparkles,
   Target,
   Trophy,
@@ -30,7 +30,7 @@ import {
 const FEATURE_ICON_RULES: { pattern: RegExp; icon: LucideIcon }[] = [
   { pattern: /workout plan|workout generator|workout logging|workout history|workout adjustment|exclusive workout/i, icon: Dumbbell },
   { pattern: /nutrition plan|nutrition coach|meal log|meal suggestion|calorie|macro/i, icon: Utensils },
-  { pattern: /weight tracking|body measurement/i, icon: Scale },
+  { pattern: /weight tracking|body measurement/i, icon: ElectronicScale },
   { pattern: /progress photo/i, icon: Camera },
   { pattern: /progress stat|progress report|leaderboard/i, icon: BarChart3 },
   { pattern: /streak/i, icon: Flame },

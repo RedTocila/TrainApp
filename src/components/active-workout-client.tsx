@@ -202,51 +202,92 @@ function WorkoutFinishSummary({
 function SessionExerciseCard({
   exercise,
   history,
-  onUpdate,
+  onSetsChange,
+  onSaveError,
   readOnly = false,
 }: {
   exercise: WorkoutSessionExercise;
   history: ExerciseHistoryEntry | null;
-  onUpdate: () => void;
+  onSetsChange: (sets: WorkoutSessionSet[]) => void;
+  onSaveError?: (message: string) => void;
   readOnly?: boolean;
 }) {
   const platform = usePlatformCopy();
-  const [isPending, startTransition] = useTransition();
+  const [isAddingSet, setIsAddingSet] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   const historyLabel = formatHistory(history, platform.workout.lastSets);
   const hasVideo = !!exercise.video_url;
+  const sets = exercise.sets ?? [];
 
-  const handleSetBlur = (
-    set: WorkoutSessionSet,
+  const parseField = (field: "reps" | "weight_kg", rawValue: string) =>
+    field === "reps"
+      ? rawValue === ""
+        ? null
+        : parseInt(rawValue, 10)
+      : rawValue === ""
+        ? null
+        : parseFloat(rawValue);
+
+  const updateSetField = (
+    setId: string,
     field: "reps" | "weight_kg",
-    value: string
+    rawValue: string
   ) => {
-    const parsed =
-      field === "reps"
-        ? value === ""
-          ? null
-          : parseInt(value, 10) || 0
-        : value === ""
-          ? null
-          : parseFloat(value) || 0;
+    const parsed = parseField(field, rawValue);
 
-    const current =
-      field === "reps" ? set.reps : set.weight_kg != null ? Number(set.weight_kg) : null;
-    if (parsed === current) return;
+    if (rawValue !== "" && (parsed == null || Number.isNaN(parsed))) return;
 
-    startTransition(async () => {
-      await updateSessionSet(set.id, {
-        [field]: parsed,
-        completed: parsed != null,
-      });
-      onUpdate();
+    const nextSets = sets.map((set) => {
+      if (set.id !== setId) return set;
+      const next = { ...set, [field]: parsed };
+      next.completed = next.reps != null || next.weight_kg != null;
+      return next;
+    });
+    onSetsChange(nextSets);
+  };
+
+  const persistSetField = (
+    setId: string,
+    field: "reps" | "weight_kg",
+    rawValue: string
+  ) => {
+    const parsed = parseField(field, rawValue);
+    if (rawValue !== "" && (parsed == null || Number.isNaN(parsed))) return;
+
+    const currentSet = sets.find((set) => set.id === setId);
+    if (!currentSet) return;
+
+    const reps = field === "reps" ? parsed : currentSet.reps;
+    const weight_kg =
+      field === "weight_kg"
+        ? parsed
+        : currentSet.weight_kg != null
+          ? Number(currentSet.weight_kg)
+          : null;
+    const completed = reps != null || weight_kg != null;
+
+    updateSetField(setId, field, rawValue);
+
+    void updateSessionSet(setId, {
+      reps,
+      weight_kg,
+      completed,
+    }).then((result) => {
+      if (result.error) onSaveError?.(result.error);
     });
   };
 
   const handleAddSet = () => {
-    startTransition(async () => {
-      await addSessionSet(exercise.id);
-      onUpdate();
+    setIsAddingSet(true);
+    void addSessionSet(exercise.id).then((result) => {
+      setIsAddingSet(false);
+      if (result.error) {
+        onSaveError?.(result.error);
+        return;
+      }
+      if (result.data) {
+        onSetsChange([...sets, result.data]);
+      }
     });
   };
 
@@ -296,7 +337,7 @@ function SessionExerciseCard({
           <span>{platform.workout.reps}</span>
           <span>{platform.workout.weightKg}</span>
         </div>
-        {(exercise.sets ?? []).map((set) => (
+        {sets.map((set) => (
           <div
             key={set.id}
             className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-2"
@@ -308,9 +349,9 @@ function SessionExerciseCard({
               type="number"
               inputMode="numeric"
               placeholder={exercise.target_reps}
-              defaultValue={set.reps ?? ""}
-              disabled={isPending}
-              onBlur={(e) => handleSetBlur(set, "reps", e.target.value)}
+              value={set.reps ?? ""}
+              onChange={(e) => updateSetField(set.id, "reps", e.target.value)}
+              onBlur={(e) => persistSetField(set.id, "reps", e.target.value)}
               className="h-9"
             />
             <Input
@@ -318,9 +359,9 @@ function SessionExerciseCard({
               inputMode="decimal"
               step="0.5"
               placeholder="—"
-              defaultValue={set.weight_kg ?? ""}
-              disabled={isPending}
-              onBlur={(e) => handleSetBlur(set, "weight_kg", e.target.value)}
+              value={set.weight_kg ?? ""}
+              onChange={(e) => updateSetField(set.id, "weight_kg", e.target.value)}
+              onBlur={(e) => persistSetField(set.id, "weight_kg", e.target.value)}
               className="h-9"
             />
           </div>
@@ -329,7 +370,7 @@ function SessionExerciseCard({
           type="button"
           variant="outline"
           size="sm"
-          disabled={isPending}
+          disabled={isAddingSet}
           onClick={handleAddSet}
         >
           <Plus className="mr-1 h-3.5 w-3.5" />
@@ -361,10 +402,23 @@ export function ActiveWorkoutClient({
   const [sessionNote, setSessionNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [exercises, setExercises] = useState(initialExercises);
   const { confirm: confirmGiveUp, dialog: giveUpDialog, isPending: isGivingUp } =
     useSarcasticConfirm();
   const isStarted = session.started_at != null;
   const timerAnchorMs = useWorkoutTimerAnchor(session.id, session.started_at);
+
+  useEffect(() => {
+    setExercises(initialExercises);
+  }, [initialExercises]);
+
+  const patchExerciseSets = (exerciseId: string, sets: WorkoutSessionSet[]) => {
+    setExercises((prev) =>
+      prev.map((exercise) =>
+        exercise.id === exerciseId ? { ...exercise, sets } : exercise
+      )
+    );
+  };
 
   const refresh = () => router.refresh();
 
@@ -427,9 +481,8 @@ export function ActiveWorkoutClient({
       notifySync();
       patchDashboard({
         dateKey,
-        taskId: `${dateKey}-workout`,
+        taskId: result.taskId,
         completed: true,
-        workoutCompleted: true,
         workoutSessionId: session.id,
       });
       router.push("/dashboard");
@@ -475,13 +528,13 @@ export function ActiveWorkoutClient({
       </div>
 
       {isStarted && (
-        <WorkoutTimerCard anchorMs={timerAnchorMs} exercises={initialExercises} />
+        <WorkoutTimerCard anchorMs={timerAnchorMs} exercises={exercises} />
       )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="space-y-4">
-        {initialExercises.length === 0 ? (
+        {exercises.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="space-y-1 p-6 text-center">
               <p className="font-medium">{platform.workout.noExercisesTitle}</p>
@@ -491,14 +544,15 @@ export function ActiveWorkoutClient({
             </CardContent>
           </Card>
         ) : (
-          initialExercises.map((exercise) => {
+          exercises.map((exercise) => {
             const historyKey = exercise.exercise_id ?? exercise.name;
             return (
               <SessionExerciseCard
                 key={exercise.id}
                 exercise={exercise}
                 history={histories[historyKey] ?? null}
-                onUpdate={refresh}
+                onSetsChange={(sets) => patchExerciseSets(exercise.id, sets)}
+                onSaveError={setError}
                 readOnly={!isStarted}
               />
             );
@@ -573,7 +627,7 @@ export function ActiveWorkoutClient({
             <CardContent className="space-y-4">
               <WorkoutFinishSummary
                 anchorMs={timerAnchorMs}
-                exercises={initialExercises}
+                exercises={exercises}
                 session={session}
               />
               <div className="space-y-1">

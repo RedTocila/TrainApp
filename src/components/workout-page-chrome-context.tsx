@@ -41,11 +41,11 @@ export function useWorkoutPageChromeActions() {
 }
 
 export function useRegisterWorkoutPageChrome(actions: WorkoutPageChromeActions | null) {
-  const context = useContext(WorkoutPageChromeContext);
+  const setActions = useContext(WorkoutPageChromeContext)?.setActions;
 
   useEffect(() => {
-    if (!context) return;
-    context.setActions(actions);
-    return () => context.setActions(null);
-  }, [context, actions]);
+    if (!setActions) return;
+    setActions(actions);
+    return () => setActions(null);
+  }, [setActions, actions]);
 }

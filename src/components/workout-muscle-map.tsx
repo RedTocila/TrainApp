@@ -17,10 +17,12 @@ const BODY_RENDER_HEIGHT = 400;
 function CompactMuscleMapBody({
   highlightData,
   bodyGender,
+  side,
   className,
 }: {
   highlightData: ReturnType<typeof toBodyHighlighterData>;
   bodyGender: "male" | "female";
+  side: "front" | "back";
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,7 +40,7 @@ function CompactMuscleMapBody({
         width / BODY_RENDER_WIDTH,
         height / BODY_RENDER_HEIGHT
       );
-      setScale(Math.max(0.25, fitScale * 0.98));
+      setScale(Math.max(0.3, fitScale * 1.1));
     };
 
     updateScale();
@@ -51,7 +53,7 @@ function CompactMuscleMapBody({
     <div
       ref={containerRef}
       className={cn(
-        "flex h-full w-full min-h-[10rem] items-center justify-center",
+        "flex h-full w-full min-h-[10.5rem] max-h-[12rem] items-center justify-center sm:min-h-[11rem] sm:max-h-[12.5rem]",
         className
       )}
       aria-hidden
@@ -59,7 +61,7 @@ function CompactMuscleMapBody({
       <Body
         data={highlightData}
         gender={bodyGender}
-        side="front"
+        side={side}
         scale={scale}
         colors={HIGHLIGHT_COLORS}
         border="none"
@@ -95,11 +97,18 @@ export function WorkoutMuscleMap({
 
   if (variant === "compact") {
     return (
-      <CompactMuscleMapBody
-        highlightData={highlightData}
-        bodyGender={bodyGender}
-        className={className}
-      />
+      <div className={cn("grid w-full grid-cols-2 gap-1", className)}>
+        <CompactMuscleMapBody
+          highlightData={highlightData}
+          bodyGender={bodyGender}
+          side="front"
+        />
+        <CompactMuscleMapBody
+          highlightData={highlightData}
+          bodyGender={bodyGender}
+          side="back"
+        />
+      </div>
     );
   }
 

@@ -10,6 +10,7 @@ import {
   User,
   Video,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppLogo } from "@/components/app-logo";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -22,7 +23,32 @@ import { isHomeNavActive, isProgramsNavActive } from "@/lib/train-nav";
 const mobileNavLinkClass =
   "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90";
 
-export function ClientNav({ fullName }: { fullName: string }) {
+function NavLiveIcon({
+  icon: Icon,
+  showDot,
+  className,
+}: {
+  icon: LucideIcon;
+  showDot: boolean;
+  className?: string;
+}) {
+  return (
+    <span className="relative inline-flex">
+      <Icon className={className} />
+      {showDot ? (
+        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-card animate-pulse" />
+      ) : null}
+    </span>
+  );
+}
+
+export function ClientNav({
+  fullName,
+  liveChallengeActive = false,
+}: {
+  fullName: string;
+  liveChallengeActive?: boolean;
+}) {
   const pathname = usePathname();
   const { pendingHref, setPendingHref } = useDashboardNavPending();
   const platform = usePlatformCopy();
@@ -103,6 +129,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
 
           {standardNavItems.slice(1).map((item) => {
             const active = isNavItemActive(activePath, item.href);
+            const showLiveDot = liveChallengeActive && item.href === "/dashboard/classes";
             return (
               <InstantNavLink
                 key={item.href}
@@ -110,7 +137,11 @@ export function ClientNav({ fullName }: { fullName: string }) {
                 onNavigateStart={setPendingHref}
                 className={sidebarLinkClass(active)}
               >
-                <item.icon className="h-4 w-4" />
+                {showLiveDot ? (
+                  <NavLiveIcon icon={item.icon} showDot className="h-4 w-4" />
+                ) : (
+                  <item.icon className="h-4 w-4" />
+                )}
                 {item.label}
               </InstantNavLink>
             );
@@ -152,6 +183,7 @@ export function ClientNav({ fullName }: { fullName: string }) {
 
           {standardNavItems.slice(1).map((item) => {
             const active = isNavItemActive(activePath, item.href);
+            const showLiveDot = liveChallengeActive && item.href === "/dashboard/classes";
             return (
               <InstantNavLink
                 key={item.href}
@@ -164,7 +196,11 @@ export function ClientNav({ fullName }: { fullName: string }) {
                   active ? "text-primary" : "text-muted-foreground"
                 )}
               >
-                <item.icon className="h-5 w-5" />
+                {showLiveDot ? (
+                  <NavLiveIcon icon={item.icon} showDot className="h-5 w-5" />
+                ) : (
+                  <item.icon className="h-5 w-5" />
+                )}
                 <span className="truncate">{item.mobileLabel}</span>
               </InstantNavLink>
             );

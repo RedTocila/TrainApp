@@ -14,7 +14,7 @@ export const CLIENT_DAY_TASK_COLUMNS =
   "id, client_id, date, title, completed, order_index, created_at";
 
 export const WORKOUT_SESSION_COLUMNS =
-  "id, client_id, plan_id, day_id, scheduled_date, day_title, plan_title, status, notes, started_at, completed_at, created_at";
+  "id, client_id, plan_id, day_id, scheduled_date, scheduled_workout_id, day_title, plan_title, status, notes, started_at, completed_at, created_at";
 
 export const WORKOUT_SESSION_EXERCISE_COLUMNS =
   "id, session_id, exercise_id, name, target_sets, target_reps, order_index, notes";

@@ -1,7 +1,7 @@
 import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
-import type { AiGeneratedWorkoutPlan } from "@/lib/ai/plan-builder-types";
+import type { AiGeneratedWorkoutDay, AiGeneratedWorkoutPlan } from "@/lib/ai/plan-builder-types";
 import type { Profile } from "@/lib/types";
 
 function clampSets(n: unknown): number {
@@ -92,4 +92,76 @@ Respond with ONLY valid JSON:
   }
 
   return plan;
+}
+
+function normalizeWorkoutDay(raw: AiGeneratedWorkoutDay): AiGeneratedWorkoutDay {
+  const exercises = (raw.exercises ?? [])
+    .filter((ex) => ex.name?.trim())
+    .slice(0, 12)
+    .map((ex) => ({
+      name: ex.name.trim(),
+      sets: clampSets(ex.sets),
+      reps: String(ex.reps ?? "10").trim() || "10",
+      rest_seconds: clampRest(ex.rest_seconds),
+      notes: ex.notes?.trim() || undefined,
+    }));
+
+  return {
+    title: raw.title?.trim() || "AI Workout",
+    description: raw.description?.trim() || "",
+    exercises,
+    coach_notes: (raw.coach_notes ?? []).filter((n) => n?.trim()).map((n) => n.trim()),
+  };
+}
+
+export async function generateWorkoutDayFromProfile(
+  profile: Profile,
+  prompt: string
+): Promise<AiGeneratedWorkoutDay> {
+  const intake = buildIntakeContextForAi(profile, prompt);
+  const sessionRequest =
+    prompt.trim() ||
+    "A balanced session that matches my goals, schedule, and available equipment.";
+
+  const aiPrompt = `You are an expert personal trainer. Create ONE workout session for a single training day tailored to this client.
+
+CLIENT PROFILE:
+${intake}
+
+SESSION REQUEST:
+${sessionRequest}
+
+Rules:
+- Return exactly ONE session — not a weekly plan or split.
+- Respect injuries and medical conditions — avoid aggravating movements and suggest alternatives in notes.
+- Match volume to goal, age, schedule, and recovery capacity.
+- Use clear exercise names (no equipment codes).
+- 4–8 exercises per session.
+- Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.
+
+Respond with ONLY valid JSON:
+{
+  "title": "short session name e.g. Upper Push",
+  "description": "1 sentence why this session fits the request",
+  "exercises": [
+    {
+      "name": "Exercise name",
+      "sets": 3,
+      "reps": "8-10",
+      "rest_seconds": 90,
+      "notes": "optional form or modification tip"
+    }
+  ],
+  "coach_notes": ["1-3 short coaching tips for this session"]
+}`;
+
+  const raw = await runTextPrompt(aiPrompt, { maxTokens: 1800, json: true });
+  const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutDay;
+  const workout = normalizeWorkoutDay(parsed);
+
+  if (workout.exercises.length === 0) {
+    throw new Error("AI did not return a valid workout. Try again.");
+  }
+
+  return workout;
 }

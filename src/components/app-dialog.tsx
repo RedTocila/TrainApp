@@ -34,7 +34,7 @@ export function AppDialog({
 
   useLayoutEffect(() => {
     if (!open) {
-      setFullPage(false);
+      setFullPage((prev) => (prev ? false : prev));
       return;
     }
 
@@ -42,7 +42,8 @@ export function AppDialog({
       const panel = panelRef.current;
       if (!panel) return;
       const available = window.innerHeight - 32;
-      setFullPage(panel.scrollHeight > available);
+      const next = panel.scrollHeight > available;
+      setFullPage((prev) => (prev === next ? prev : next));
     };
 
     measure();
@@ -53,7 +54,7 @@ export function AppDialog({
       observer.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [open, title, description, children, footer]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;

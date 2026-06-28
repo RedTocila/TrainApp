@@ -49,13 +49,14 @@ export function StartWorkoutButton({
 
   return (
     <div className={cn("inline-flex flex-col items-end gap-1", className)}>
-      <StartWorkoutLoadingShell isLoading={isPending}>
+      <StartWorkoutLoadingShell isLoading={isPending} ring={false}>
         <Button
           size={size}
           variant={variant}
           disabled={isPending}
           onClick={handleStart}
           aria-busy={isPending}
+          className="min-w-[5.75rem] justify-center"
         >
           <Play className={cn("mr-1 h-3.5 w-3.5", isPending && "opacity-50")} />
           {isPending ? "Opening…" : label}

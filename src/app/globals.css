@@ -587,3 +587,58 @@ input[type="time"]::-webkit-date-and-time-value {
   min-width: 0;
   text-align: left;
 }
+
+@keyframes challenge-announcement-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(248, 113, 113, 0.55),
+      0 0 24px rgba(239, 68, 68, 0.35),
+      0 0 48px rgba(249, 115, 22, 0.15);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(252, 165, 165, 0.85),
+      0 0 32px rgba(239, 68, 68, 0.55),
+      0 0 64px rgba(249, 115, 22, 0.28);
+  }
+}
+
+@keyframes challenge-announcement-shimmer {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+@keyframes challenge-announcement-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.challenge-announcement-flashy {
+  animation: challenge-announcement-glow 2.4s ease-in-out infinite;
+}
+
+.challenge-announcement-flashy__shimmer {
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.14) 50%,
+    transparent 65%
+  );
+  background-size: 200% 100%;
+  animation: challenge-announcement-shimmer 3s linear infinite;
+}
+
+.challenge-announcement-flashy__enter {
+  animation: challenge-announcement-slide-in 0.45s ease-out both;
+}

@@ -1,28 +1,23 @@
 "use client";
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
-import { ChevronRight, Dumbbell, Pencil } from "lucide-react";
+import { ChevronRight, Dumbbell } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { useDashboardSync } from "@/components/dashboard-sync";
-import { isWorkoutCompletedFromPatches } from "@/lib/dashboard-enrichment-utils";
-import {
-  StartTodaysWorkoutButton,
-  useStartTodaysWorkout,
-} from "@/components/start-todays-workout-button";
-import { WorkoutExerciseList } from "@/components/workout-exercise-list";
-import { DashboardWorkoutCompactStats } from "@/components/dashboard-workout-compact-meta";
-import { WorkoutDifficultyInsightButton } from "@/components/workout-difficulty-insight-button";
-import { useRegisterWorkoutPageChrome } from "@/components/workout-page-chrome-context";
+import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
+import { DashboardWorkoutCompactRow } from "@/components/dashboard-workout-compact-row";
+import { DashboardWorkoutDetailSection } from "@/components/dashboard-workout-detail-section";
 import {
   DashboardStatusCheck,
 } from "@/components/section-completed-badge";
 import { dashboard, DashboardEmptyState } from "@/components/dashboard-ui";
 import {
-  resolveWorkoutForDate,
+  resolveWorkoutsForDate,
   isWorkoutCompletedOnDate,
+  getWorkoutCompletionStatusForDate,
   getCompletedWorkoutResultsForDate,
   getCompletedWorkoutResultsForSession,
   type TodaysWorkoutInfo,
@@ -31,10 +26,6 @@ import {
 import { WorkoutResultsDropdown } from "@/components/workout-results-dropdown";
 import { WorkoutMuscleMap } from "@/components/workout-muscle-map";
 import { formatDateKey, cn } from "@/lib/utils";
-import {
-  estimateWorkoutDurationSeconds,
-  formatWorkoutDurationShort,
-} from "@/lib/workout-duration";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import {
   DashboardCardNavBody,
@@ -49,8 +40,9 @@ import {
 import { isDashboardDayCacheFresh } from "@/lib/dashboard-day-cache";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ChangeWorkoutDialog } from "@/components/change-workout-dialog";
+import { DashboardWorkoutPlusMenu } from "@/components/dashboard-workout-plus-menu";
+import { AddWorkoutToDayDialog } from "@/components/add-workout-to-day-dialog";
+import { RemoveWorkoutFromDayDialog } from "@/components/remove-workout-from-day-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
 import {
   isDeadlinePassed,
@@ -59,10 +51,17 @@ import {
 import type { Profile } from "@/lib/types";
 
 const WORKOUT_RESULTS_RETRY_MS = [0, 400, 800, 1500, 2500, 4000, 6000];
+const EMPTY_PATCHED_COMPLETIONS: Record<string, boolean> = {};
+
+function workoutNavKey(workout: TodaysWorkoutInfo) {
+  return workout.scheduledWorkoutId ?? workout.taskId;
+}
 
 type WorkoutDayCache = {
-  workout: TodaysWorkoutInfo | null;
-  completed: boolean;
+  workouts: TodaysWorkoutInfo[];
+  completedByTaskId: Record<string, boolean>;
+  sessionIdByTaskId: Record<string, string | null>;
+  allCompleted: boolean;
   results: CompletedWorkoutResults | null;
 };
 
@@ -83,32 +82,50 @@ export function DashboardWorkoutCard({
   gender,
   intakeProfile,
   initialWorkout,
+  initialWorkouts,
   initialWorkoutCompleted = false,
   initialWorkoutResults = null,
+  selectedWorkoutKey = null,
   variant = "full",
 }: {
   clientId: string;
   gender?: string | null;
   intakeProfile?: Pick<Profile, "age" | "intake_responses"> | null;
   initialWorkout: TodaysWorkoutInfo | null;
+  initialWorkouts?: TodaysWorkoutInfo[];
   initialWorkoutCompleted?: boolean;
   initialWorkoutResults?: CompletedWorkoutResults | null;
+  selectedWorkoutKey?: string | null;
   variant?: "full" | "compact" | "detail";
 }) {
+  const seedWorkouts = initialWorkouts ?? (initialWorkout ? [initialWorkout] : []);
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const router = useRouter();
   const { selectedDate, todayKey } = useSelectedDate();
   const { version, patches } = useDashboardSync();
   const dateKey = formatDateKey(selectedDate);
-  const [workout, setWorkout] = useState(initialWorkout);
-  const [workoutCompleted, setWorkoutCompleted] = useState(
-    initialWorkoutCompleted
+  const [workouts, setWorkouts] = useState(seedWorkouts);
+  const [completedByTaskId, setCompletedByTaskId] = useState<Record<string, boolean>>(
+    () =>
+      Object.fromEntries(
+        seedWorkouts.map((workout) => [
+          workout.taskId,
+          initialWorkoutCompleted,
+        ])
+      )
   );
+  const [sessionIdByTaskId, setSessionIdByTaskId] = useState<
+    Record<string, string | null>
+  >({});
+  const [selectedCompactWorkoutKey, setSelectedCompactWorkoutKey] = useState<
+    string | null
+  >(null);
   const [workoutResults, setWorkoutResults] =
     useState<CompletedWorkoutResults | null>(initialWorkoutResults);
   const [loadedDateKey, setLoadedDateKey] = useState(dateKey);
-  const [changeWorkoutOpen, setChangeWorkoutOpen] = useState(false);
+  const [addWorkoutOpen, setAddWorkoutOpen] = useState(false);
+  const [removeWorkoutOpen, setRemoveWorkoutOpen] = useState(false);
   const workoutCacheRef = useRef<Map<string, WorkoutDayCache>>(new Map());
 
   useEffect(() => {
@@ -116,44 +133,57 @@ export function DashboardWorkoutCard({
   }, [router]);
 
   useEffect(() => {
-    workoutCacheRef.current.set(dateKey, {
-      workout: initialWorkout,
-      completed: initialWorkoutCompleted,
-      results: initialWorkoutResults,
-    });
-    setWorkoutDayCache(clientId, dateKey, {
-      workout: initialWorkout,
-      completed: initialWorkoutCompleted,
-      results: initialWorkoutResults,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed SSR snapshot once
-  }, []);
-
-  // Sync SSR props when the server revalidates for today only.
-  useEffect(() => {
-    if (dateKey !== todayKey) return;
     const snapshot: WorkoutDayCache = {
-      workout: initialWorkout,
-      completed: initialWorkoutCompleted,
+      workouts: seedWorkouts,
+      completedByTaskId: Object.fromEntries(
+        seedWorkouts.map((workout) => [workout.taskId, initialWorkoutCompleted])
+      ),
+      sessionIdByTaskId: {},
+      allCompleted: initialWorkoutCompleted,
       results: initialWorkoutResults,
     };
     workoutCacheRef.current.set(dateKey, snapshot);
     setWorkoutDayCache(clientId, dateKey, snapshot);
-    setWorkout(snapshot.workout);
-    setWorkoutCompleted(snapshot.completed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed SSR snapshot once
+  }, []);
+
+  useEffect(() => {
+    if (dateKey !== todayKey) return;
+    const snapshot: WorkoutDayCache = {
+      workouts: seedWorkouts,
+      completedByTaskId: Object.fromEntries(
+        seedWorkouts.map((workout) => [workout.taskId, initialWorkoutCompleted])
+      ),
+      sessionIdByTaskId: {},
+      allCompleted: initialWorkoutCompleted,
+      results: initialWorkoutResults,
+    };
+    workoutCacheRef.current.set(dateKey, snapshot);
+    setWorkoutDayCache(clientId, dateKey, snapshot);
+    setWorkouts(snapshot.workouts);
+    setCompletedByTaskId(snapshot.completedByTaskId);
     if (initialWorkoutResults) setWorkoutResults(initialWorkoutResults);
     setLoadedDateKey(dateKey);
-  }, [initialWorkout, initialWorkoutCompleted, initialWorkoutResults, dateKey, todayKey]);
+  }, [
+    seedWorkouts,
+    initialWorkoutCompleted,
+    initialWorkoutResults,
+    dateKey,
+    todayKey,
+    clientId,
+  ]);
 
   const prevDateKeyRef = useRef(dateKey);
   useEffect(() => {
     if (prevDateKeyRef.current === dateKey) return;
     prevDateKeyRef.current = dateKey;
+    setSelectedCompactWorkoutKey(null);
 
     const cached = workoutCacheRef.current.get(dateKey);
     if (cached) {
-      setWorkout(cached.workout);
-      setWorkoutCompleted(cached.completed);
+      setWorkouts(cached.workouts);
+      setCompletedByTaskId(cached.completedByTaskId);
+      setSessionIdByTaskId(cached.sessionIdByTaskId);
       setWorkoutResults(cached.results);
       setLoadedDateKey(dateKey);
       return;
@@ -161,58 +191,69 @@ export function DashboardWorkoutCard({
 
     const shared = getWorkoutDayCache(clientId, dateKey);
     if (shared) {
-      workoutCacheRef.current.set(dateKey, shared);
-      setWorkout(shared.workout);
-      setWorkoutCompleted(shared.completed);
+      workoutCacheRef.current.set(dateKey, {
+        ...shared,
+        sessionIdByTaskId: shared.sessionIdByTaskId ?? {},
+      });
+      setWorkouts(shared.workouts);
+      setCompletedByTaskId(shared.completedByTaskId);
+      setSessionIdByTaskId(shared.sessionIdByTaskId ?? {});
       setWorkoutResults(shared.results);
       setLoadedDateKey(dateKey);
       return;
     }
 
-    setWorkout(null);
-    setWorkoutCompleted(false);
+    setWorkouts([]);
+    setCompletedByTaskId({});
+    setSessionIdByTaskId({});
     setWorkoutResults(null);
-  }, [dateKey]);
+  }, [clientId, dateKey]);
 
   const refreshWorkout = useCallback(async () => {
     const key = formatDateKey(selectedDate);
-    const [resolved, completed] = await Promise.all([
-      resolveWorkoutForDate(clientId, key),
+    const [resolved, status, allCompleted] = await Promise.all([
+      resolveWorkoutsForDate(clientId, key),
+      getWorkoutCompletionStatusForDate(clientId, key),
       isWorkoutCompletedOnDate(clientId, key),
     ]);
 
     if (formatDateKey(selectedDate) !== key) return;
 
-    const dayComplete =
-      completed || isWorkoutCompletedFromPatches(patches, key);
+    const completedMap = Object.fromEntries(
+      Object.entries(status).map(([taskId, entry]) => [taskId, entry.completed])
+    );
+    const sessionMap = Object.fromEntries(
+      Object.entries(status).map(([taskId, entry]) => [taskId, entry.sessionId])
+    );
     const previous = workoutCacheRef.current.get(key);
 
     workoutCacheRef.current.set(key, {
-      workout: resolved,
-      completed,
-      results: dayComplete ? (previous?.results ?? null) : null,
+      workouts: resolved,
+      completedByTaskId: completedMap,
+      sessionIdByTaskId: sessionMap,
+      allCompleted,
+      results: allCompleted ? (previous?.results ?? null) : null,
     });
     setWorkoutDayCache(clientId, key, workoutCacheRef.current.get(key)!);
 
-    setWorkout(resolved);
-    setWorkoutCompleted(completed);
+    setWorkouts(resolved);
+    setCompletedByTaskId(completedMap);
+    setSessionIdByTaskId(sessionMap);
     setLoadedDateKey(key);
 
-    if (!dayComplete) {
+    if (!allCompleted) {
       setWorkoutResults(null);
       return;
     }
 
-    void loadWorkoutResults(
-      clientId,
-      key,
-      patches.workoutSessionIds[key]
-    ).then((results) => {
-      if (formatDateKey(selectedDate) !== key) return;
-      setWorkoutResults(results);
-      const cached = workoutCacheRef.current.get(key);
-      if (cached) cached.results = results;
-    });
+    void loadWorkoutResults(clientId, key, patches.workoutSessionIds[key]).then(
+      (results) => {
+        if (formatDateKey(selectedDate) !== key) return;
+        setWorkoutResults(results);
+        const cached = workoutCacheRef.current.get(key);
+        if (cached) cached.results = results;
+      }
+    );
   }, [clientId, selectedDate, patches]);
 
   const skipWorkoutRefresh =
@@ -225,13 +266,40 @@ export function DashboardWorkoutCard({
   });
 
   const isDayLoaded = loadedDateKey === dateKey;
-  const workoutForDay = isDayLoaded ? workout : null;
-  const patchedComplete = isWorkoutCompletedFromPatches(patches, dateKey);
-  const patchedSessionId = patches.workoutSessionIds[dateKey];
-  const workoutCompletedForDay =
-    isDayLoaded && (workoutCompleted || patchedComplete);
-  const displayWorkout = workoutForDay ?? (patchedComplete ? workout : null);
-  const showCompletedState = workoutCompletedForDay || patchedComplete;
+  const workoutsForDay = isDayLoaded ? workouts : [];
+  const patchedCompletions =
+    patches.completions[dateKey] ?? EMPTY_PATCHED_COMPLETIONS;
+
+  const isTaskCompleted = useCallback(
+    (taskId: string) =>
+      completedByTaskId[taskId] === true || patchedCompletions[taskId] === true,
+    [completedByTaskId, patchedCompletions]
+  );
+
+  const getWorkoutSessionId = useCallback(
+    (taskId: string) =>
+      patches.workoutSessionIds[taskId] ?? sessionIdByTaskId[taskId] ?? null,
+    [patches.workoutSessionIds, sessionIdByTaskId]
+  );
+
+  const allWorkoutsComplete =
+    workoutsForDay.length > 0 &&
+    workoutsForDay.every((workout) => isTaskCompleted(workout.taskId));
+  const completedWorkoutCount = workoutsForDay.filter((workout) =>
+    isTaskCompleted(workout.taskId)
+  ).length;
+  const displayWorkout =
+    workoutsForDay.find((workout) => !isTaskCompleted(workout.taskId)) ??
+    workoutsForDay[0] ??
+    null;
+  const removableWorkoutCount = workoutsForDay.filter(
+    (workout) => workout.scheduledWorkoutId
+  ).length;
+  const showCompletedState = allWorkoutsComplete;
+  const resultsReady = variant !== "detail" && showCompletedState;
+  const patchedSessionId =
+    Object.values(patches.workoutSessionIds).find(Boolean) ??
+    patches.workoutSessionIds[dateKey];
 
   useEffect(() => {
     if (!patchedSessionId || workoutResults) return;
@@ -245,7 +313,7 @@ export function DashboardWorkoutCard({
   }, [patchedSessionId, workoutResults]);
 
   useEffect(() => {
-    if (!showCompletedState || workoutResults) return;
+    if (!resultsReady || workoutResults) return;
 
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -277,7 +345,7 @@ export function DashboardWorkoutCard({
       if (retryTimer) clearTimeout(retryTimer);
     };
   }, [
-    showCompletedState,
+    resultsReady,
     workoutResults,
     clientId,
     dateKey,
@@ -286,176 +354,124 @@ export function DashboardWorkoutCard({
   ]);
 
   const workoutMissed =
-    !!workoutForDay &&
-    !workoutCompletedForDay &&
+    workoutsForDay.length > 0 &&
+    !allWorkoutsComplete &&
     isDeadlinePassed(WORKOUT_DEADLINE, dateKey);
 
-  const startDisabled = !displayWorkout || (!isDayLoaded && !patchedComplete);
-  const { start: startWorkout, isStarting: isStartingWorkout } = useStartTodaysWorkout(
-    selectedDate,
-    startDisabled
-  );
-
-  const workoutChromeActions = useMemo(
-    () =>
-      variant === "detail"
-        ? {
-            onStartWorkout: startWorkout,
-            showStart: !showCompletedState && !!displayWorkout,
-            showCompleted: showCompletedState && !!displayWorkout,
-            disabled: startDisabled,
-            isStarting: isStartingWorkout,
-            difficultyExercises:
-              displayWorkout && displayWorkout.exercises.length > 0
-                ? displayWorkout.exercises
-                : null,
-            intakeProfile,
-          }
-        : null,
-    [
-      variant,
-      startWorkout,
-      showCompletedState,
-      displayWorkout,
-      startDisabled,
-      isStartingWorkout,
-      intakeProfile,
-    ]
-  );
-  useRegisterWorkoutPageChrome(workoutChromeActions);
-
-  const estimatedDurationLabel =
-    displayWorkout && displayWorkout.exercises.length > 0
-      ? platform.workout.estTotal(
-          formatWorkoutDurationShort(
-            estimateWorkoutDurationSeconds(
-              displayWorkout.exercises.map((exercise) => ({
-                target_sets: exercise.sets,
-              }))
-            )
-          )
-        )
-      : null;
+  const compactSelectedWorkout = useMemo(() => {
+    if (selectedCompactWorkoutKey) {
+      const match = workoutsForDay.find(
+        (workout) => workoutNavKey(workout) === selectedCompactWorkoutKey
+      );
+      if (match) return match;
+    }
+    return displayWorkout;
+  }, [selectedCompactWorkoutKey, workoutsForDay, displayWorkout]);
 
   if (variant === "compact") {
-    const hasMuscleMap =
-      !!displayWorkout && displayWorkout.exercises.length > 0;
+    const muscleMapExercises = compactSelectedWorkout?.exercises ?? [];
+    const hasMuscleMap = muscleMapExercises.length > 0;
+    const selectedKey = compactSelectedWorkout
+      ? workoutNavKey(compactSelectedWorkout)
+      : null;
 
     return (
       <>
       <Card
         id="dashboard-workout"
-        className="relative flex h-full min-h-[15rem] w-full cursor-pointer flex-col p-4 pt-12 sm:min-h-[16rem] transition-opacity hover:opacity-95 active:opacity-90"
+        className="relative flex h-full min-h-[18rem] w-full cursor-pointer flex-col p-4 pt-12 sm:min-h-[19rem] transition-opacity hover:opacity-95 active:opacity-90"
       >
         <DashboardCardNavLink
           href={DASHBOARD_DAY_WORKOUT_PATH}
           ariaLabel={platform.trainTabs.workout}
         />
         <div className="absolute right-3 top-3 z-20 flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded-full text-muted-foreground"
-            onClick={() => setChangeWorkoutOpen(true)}
-            aria-label="Change workout"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          {showCompletedState && displayWorkout ? (
+          <DashboardWorkoutPlusMenu
+            className={dashboardInteractive}
+            canRemove={removableWorkoutCount > 0}
+            onAddWorkout={() => setAddWorkoutOpen(true)}
+            onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
+          />
+          <ChevronRight
+            className="pointer-events-none h-4 w-4 text-muted-foreground"
+            aria-hidden
+          />
+          {showCompletedState && workoutsForDay.length > 0 ? (
             <DashboardStatusCheck aria-label={platform.aria.completed} />
-          ) : (
-            <StartTodaysWorkoutButton
-              date={selectedDate}
-              disabled={!displayWorkout || (!isDayLoaded && !patchedComplete)}
-            />
-          )}
+          ) : null}
         </div>
 
         <div
           className={cn(
-            "absolute inset-x-4 top-4 z-10 flex min-w-0 items-center gap-2 pr-16"
+            "absolute inset-x-4 top-4 z-10 flex min-w-0 items-center gap-2 pr-24"
           )}
         >
           <Dumbbell className="h-5 w-5 shrink-0 text-primary" />
           <span className="shrink-0 text-lg font-black leading-none">
             {platform.trainTabs.workout}
           </span>
+          {workoutsForDay.length > 0 ? (
+            <Badge variant="secondary" className="text-[10px]">
+              {completedWorkoutCount}/{workoutsForDay.length}
+            </Badge>
+          ) : null}
         </div>
 
-        <DashboardCardNavBody className="grid min-h-0 flex-1 grid-cols-[minmax(7.25rem,34%)_1fr] items-stretch gap-2">
-          <div className="relative flex min-h-[10rem] items-stretch">
-            {hasMuscleMap ? (
+        <DashboardCardNavBody className="flex min-h-0 flex-1 flex-col gap-3">
+          {hasMuscleMap && compactSelectedWorkout ? (
+            <div className="relative w-full">
               <WorkoutMuscleMap
+                key={selectedKey ?? compactSelectedWorkout.taskId}
                 variant="compact"
-                exercises={displayWorkout.exercises}
-                dayTitle={displayWorkout.dayTitle}
+                exercises={muscleMapExercises}
+                dayTitle={compactSelectedWorkout.dayTitle}
                 gender={gender}
-                className="h-full w-full"
               />
-            ) : (
-              <div className="flex h-full min-h-[10rem] w-full items-center justify-center">
-                <Dumbbell
-                  className="h-10 w-10 text-muted-foreground/40 sm:h-11 sm:w-11"
-                  aria-hidden
-                />
-              </div>
-            )}
-          </div>
+            </div>
+          ) : workoutsForDay.length > 0 ? (
+            <div className="flex min-h-[10.5rem] w-full items-center justify-center sm:min-h-[11rem]">
+              <Dumbbell
+                className="h-10 w-10 text-muted-foreground/40 sm:h-11 sm:w-11"
+                aria-hidden
+              />
+            </div>
+          ) : null}
 
-          <div className="flex min-h-0 min-w-0 flex-col pr-6">
-            {displayWorkout ? (
-              <div className="min-w-0">
-                <p
-                  className={cn(
-                    "text-base font-bold leading-snug",
-                    showCompletedState && "text-muted-foreground line-through"
-                  )}
-                >
-                  {displayWorkout.dayTitle}
-                </p>
-                <p
-                  className={cn(
-                    "mt-0.5 text-sm text-muted-foreground",
-                    showCompletedState && "line-through"
-                  )}
-                >
-                  {displayWorkout.planTitle}
-                  {!showCompletedState && displayWorkout.exercises.length > 0
-                    ? ` · ${platform.common.exercises(displayWorkout.exercises.length)}`
-                    : null}
-                </p>
-                {displayWorkout.exercises.length > 0 ? (
-                  <>
-                    <DashboardWorkoutCompactStats
-                      exercises={displayWorkout.exercises}
-                      className="mt-2"
-                    />
-                    <div className={cn("mt-2", dashboardInteractive)}>
-                      <WorkoutDifficultyInsightButton
-                        exercises={displayWorkout.exercises}
-                        intakeProfile={intakeProfile}
-                        size="compact"
-                      />
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            ) : isDayLoaded ? (
-              <p className="text-sm text-muted-foreground">{coachLabels.noWorkoutToday}</p>
-            ) : null}
-          </div>
+          {workoutsForDay.length > 0 ? (
+            <ul className={cn("flex flex-col gap-2", dashboardInteractive)}>
+              {workoutsForDay.map((workout) => {
+                const workoutKey = workoutNavKey(workout);
+                return (
+                  <DashboardWorkoutCompactRow
+                    key={workout.taskId}
+                    workout={workout}
+                    workoutKey={workoutKey}
+                    selected={workoutKey === selectedKey}
+                    done={isTaskCompleted(workout.taskId)}
+                    isDayLoaded={isDayLoaded}
+                    selectedDate={selectedDate}
+                    onSelect={setSelectedCompactWorkoutKey}
+                  />
+                );
+              })}
+            </ul>
+          ) : isDayLoaded ? (
+            <p className="text-sm text-muted-foreground">{coachLabels.noWorkoutToday}</p>
+          ) : null}
         </DashboardCardNavBody>
-
-        <ChevronRight
-          className="pointer-events-none absolute bottom-4 right-4 h-5 w-5 text-muted-foreground"
-          aria-hidden
-        />
       </Card>
-      <ChangeWorkoutDialog
-        open={changeWorkoutOpen}
-        onClose={() => setChangeWorkoutOpen(false)}
-        planId={displayWorkout?.planId}
+      <AddWorkoutToDayDialog
+        open={addWorkoutOpen}
+        onClose={() => setAddWorkoutOpen(false)}
+        dateKey={dateKey}
+        onAdded={() => void refreshWorkout()}
+      />
+      <RemoveWorkoutFromDayDialog
+        open={removeWorkoutOpen}
+        onClose={() => setRemoveWorkoutOpen(false)}
+        dateKey={dateKey}
+        workouts={workoutsForDay}
+        onRemoved={() => void refreshWorkout()}
       />
       </>
     );
@@ -463,79 +479,70 @@ export function DashboardWorkoutCard({
 
   if (variant === "detail") {
     return (
-      <div id="dashboard-workout" className={dashboard.section}>
-        <div className="hidden items-center justify-end gap-2 lg:flex">
-          {showCompletedState && displayWorkout ? (
-            <DashboardStatusCheck aria-label={platform.aria.completed} />
-          ) : displayWorkout ? (
-            <StartTodaysWorkoutButton
-              date={selectedDate}
-              disabled={startDisabled}
-              display="text"
-            />
-          ) : null}
-        </div>
-        {displayWorkout ? (
-          <>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1
-                  className={cn(
-                    dashboard.pageTitle,
-                    showCompletedState && "text-muted-foreground line-through"
-                  )}
-                >
-                  {displayWorkout.dayTitle}
-                </h1>
-                {displayWorkout.exercises.length > 0 ? (
-                  <WorkoutDifficultyInsightButton
-                    exercises={displayWorkout.exercises}
-                    intakeProfile={intakeProfile}
-                    size="compact"
-                  />
-                ) : null}
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {displayWorkout.planTitle}
-                {displayWorkout.exercises.length > 0 &&
-                  ` · ${platform.common.exercises(displayWorkout.exercises.length)}`}
-              </p>
-              {estimatedDurationLabel ? (
-                <p className="mt-0.5 text-sm text-muted-foreground">{estimatedDurationLabel}</p>
+      <>
+        <div id="dashboard-workout" className={dashboard.section}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className={dashboard.pageTitle}>{platform.trainTabs.workout}</h1>
+              {workoutsForDay.length > 0 ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  <span className="tabular-nums">
+                    {completedWorkoutCount}/{workoutsForDay.length}
+                  </span>{" "}
+                  {platform.common.completed.toLowerCase()}
+                </p>
               ) : null}
             </div>
-
-            <div className={cn(dashboard.tile, "p-4 sm:p-5")}>
-              <WorkoutMuscleMap
-                exercises={displayWorkout.exercises}
-                dayTitle={displayWorkout.dayTitle}
-                gender={gender}
+            <div className="flex shrink-0 items-center gap-2">
+              <DashboardWorkoutPlusMenu
+                canRemove={removableWorkoutCount > 0}
+                onAddWorkout={() => setAddWorkoutOpen(true)}
+                onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
               />
+              {allWorkoutsComplete && workoutsForDay.length > 0 ? (
+                <DashboardStatusCheck aria-label={platform.aria.completed} />
+              ) : null}
             </div>
+          </div>
 
-            {showCompletedState ? (
-              workoutResults ? (
-                <WorkoutResultsDropdown results={workoutResults} variant="open" />
-              ) : (
-                <div
-                  className={cn(dashboard.listRow, "justify-center py-6")}
-                  role="status"
-                  aria-live="polite"
-                  aria-busy="true"
-                >
-                  <span className="coach-alex-nav-loading__pulse-dot" />
-                  <span className="coach-alex-nav-loading__pulse-dot" />
-                  <span className="coach-alex-nav-loading__pulse-dot" />
-                </div>
-              )
-            ) : (
-              <WorkoutExerciseList exercises={displayWorkout.exercises} />
-            )}
-          </>
-        ) : isDayLoaded ? (
-          <DashboardEmptyState>{coachLabels.noWorkoutToday}</DashboardEmptyState>
-        ) : null}
-      </div>
+          {workoutsForDay.length > 0 ? (
+            <div className="space-y-4">
+              {workoutsForDay.map((workout) => {
+                const workoutKey = workoutNavKey(workout);
+                return (
+                  <DashboardWorkoutDetailSection
+                    key={workout.taskId}
+                    workout={workout}
+                    workoutKey={workoutKey}
+                    highlighted={selectedWorkoutKey === workoutKey}
+                    done={isTaskCompleted(workout.taskId)}
+                    isDayLoaded={isDayLoaded}
+                    selectedDate={selectedDate}
+                    sessionId={getWorkoutSessionId(workout.taskId)}
+                    gender={gender}
+                    intakeProfile={intakeProfile}
+                  />
+                );
+              })}
+            </div>
+          ) : isDayLoaded ? (
+            <DashboardEmptyState>{coachLabels.noWorkoutToday}</DashboardEmptyState>
+          ) : null}
+        </div>
+        <AddWorkoutToDayDialog
+          open={addWorkoutOpen}
+          onClose={() => setAddWorkoutOpen(false)}
+          dateKey={dateKey}
+          onAdded={() => void refreshWorkout()}
+        />
+        <RemoveWorkoutFromDayDialog
+          open={removeWorkoutOpen}
+          onClose={() => setRemoveWorkoutOpen(false)}
+          dateKey={dateKey}
+          workouts={workoutsForDay}
+          onRemoved={() => void refreshWorkout()}
+        />
+      </>
     );
   }
 
@@ -546,20 +553,20 @@ export function DashboardWorkoutCard({
           <Dumbbell className="h-5 w-5 text-primary" />
           {platform.dashboard.todaysWorkout}
           <MissedButton
-            count={workoutForDay && !workoutCompletedForDay && workoutMissed ? 1 : 0}
+            count={
+              workoutsForDay.filter(
+                (workout) => !isTaskCompleted(workout.taskId) && workoutMissed
+              ).length
+            }
             title={coachLabels.missedWorkout}
             hint={coachLabels.workoutMissedHint}
-            items={
-              workoutForDay && workoutMissed
-                ? [
-                    {
-                      id: "workout",
-                      label: workoutForDay.dayTitle,
-                      detail: `${workoutForDay.planTitle} · was due by ${WORKOUT_DEADLINE}`,
-                    },
-                  ]
-                : []
-            }
+            items={workoutsForDay
+              .filter((workout) => !isTaskCompleted(workout.taskId) && workoutMissed)
+              .map((workout) => ({
+                id: workout.taskId,
+                label: workout.dayTitle,
+                detail: `${workout.planTitle} · was due by ${WORKOUT_DEADLINE}`,
+              }))}
           />
         </CardTitle>
         {showCompletedState && displayWorkout ? (
@@ -567,7 +574,8 @@ export function DashboardWorkoutCard({
         ) : (
           <StartTodaysWorkoutButton
             date={selectedDate}
-            disabled={!displayWorkout || (!isDayLoaded && !patchedComplete)}
+            workout={displayWorkout}
+            disabled={startDisabled}
           />
         )}
       </CardHeader>

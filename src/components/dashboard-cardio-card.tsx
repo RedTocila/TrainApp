@@ -14,7 +14,7 @@ import { useSelectedDate } from "@/components/date-provider";
 import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
-import { DashboardStatusIcon } from "@/components/section-completed-badge";
+import { DashboardStatusCheck } from "@/components/section-completed-badge";
 import { dashboard, DashboardEmptyState } from "@/components/dashboard-ui";
 import { getCardioTypeDisplay } from "@/lib/cardio-catalog";
 import { getScheduledCardioForDate } from "@/lib/actions/user-cardio";
@@ -127,14 +127,14 @@ export function DashboardCardioCard({
           ariaLabel={platform.cardio.title}
         />
         <DashboardCardNavBody className="flex h-full flex-col">
-        {completedForDay && cardioForDay ? (
-          <div className="absolute right-2 top-2 z-10 sm:right-3 sm:top-3">
-            <DashboardStatusIcon status="completed" aria-label={platform.aria.completed} />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <HeartPulse className="h-5 w-5 shrink-0 text-orange-400" />
+            <p className="truncate text-sm font-black">{platform.cardio.title}</p>
           </div>
-        ) : null}
-        <div className="flex items-center gap-2 pr-8">
-          <HeartPulse className="h-5 w-5 shrink-0 text-orange-400" />
-          <p className="truncate text-sm font-black">{platform.cardio.title}</p>
+          {completedForDay && cardioForDay ? (
+            <DashboardStatusCheck aria-label={platform.aria.completed} />
+          ) : null}
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-1.5 py-2">
           {cardioForDay ? (
@@ -194,17 +194,12 @@ export function DashboardCardioCard({
 
   return (
     <div id="dashboard-cardio" className={cn(dashboard.tile, "relative p-4")}>
-      {completedForDay && cardioForDay ? (
-        <div className="absolute right-3 top-3 z-10">
-          <DashboardStatusIcon status="completed" aria-label={platform.aria.completed} />
-        </div>
-      ) : null}
-      <div className="flex items-start justify-between gap-3 pr-8">
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <HeartPulse className="h-5 w-5 text-orange-400" />
           <p className="text-lg font-black">{cardioTitle(selectedDate, platform)}</p>
         </div>
-        <div className="flex shrink-0 items-start gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <Link href="/dashboard/workout/cardio">
             <Button size="sm" variant="outline" className="h-8 rounded-full px-3 text-xs">
               {platform.cardio.myCardio}
@@ -219,6 +214,9 @@ export function DashboardCardioCard({
             >
               {platform.common.done}
             </Button>
+          ) : null}
+          {completedForDay && cardioForDay ? (
+            <DashboardStatusCheck aria-label={platform.aria.completed} />
           ) : null}
         </div>
       </div>

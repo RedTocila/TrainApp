@@ -19,6 +19,14 @@ export interface AiGeneratedWorkoutPlan {
   coach_notes: string[];
 }
 
+/** One-off session for a single calendar day. */
+export interface AiGeneratedWorkoutDay {
+  title: string;
+  description: string;
+  exercises: AiWorkoutExercise[];
+  coach_notes: string[];
+}
+
 export interface AiNutritionMeal {
   slot: "breakfast" | "snack_1" | "lunch" | "snack_2" | "dinner";
   name: string;

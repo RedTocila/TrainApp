@@ -10,9 +10,10 @@ import {
   WORKOUT_SESSION_SET_COLUMNS,
 } from "@/lib/db-selects";
 import { getClientWorkoutAssignment } from "@/lib/actions/plans";
-import { getScheduledWorkoutForDate } from "@/lib/actions/user-workouts";
+import { getScheduledWorkoutsForDate } from "@/lib/actions/user-workouts";
 import { getTaskCompletionsForDate } from "@/lib/actions/task-completions";
 import { formatDateKey } from "@/lib/utils";
+import { workoutTaskId } from "@/lib/workout-task-id";
 import type {
   Exercise,
   ExerciseHistoryEntry,
@@ -174,6 +175,8 @@ export interface TodaysWorkoutInfo {
   planTitle: string;
   dayTitle: string;
   scheduledDate: string | null;
+  scheduledWorkoutId?: string | null;
+  taskId: string;
   exercises: {
     id: string;
     name: string;
@@ -183,52 +186,23 @@ export interface TodaysWorkoutInfo {
   }[];
 }
 
-export async function resolveWorkoutForDate(
-  clientId: string,
+function mapScheduledToWorkoutInfo(
+  scheduled: Awaited<ReturnType<typeof getScheduledWorkoutsForDate>>[number],
   dateKey: string
-): Promise<TodaysWorkoutInfo | null> {
-  const scheduled = await getScheduledWorkoutForDate(clientId, dateKey);
-  if (scheduled?.workout_days && scheduled.plan_id) {
-    const day = scheduled.workout_days;
-    const exercises = (day.exercises ?? []).sort(
-      (a: Exercise, b: Exercise) => a.order_index - b.order_index
-    );
-    return {
-      planId: scheduled.plan_id,
-      dayId: day.id,
-      planTitle: scheduled.workout_plans?.title ?? "Workout",
-      dayTitle: day.title,
-      scheduledDate: dateKey,
-      exercises: exercises.map((ex: Exercise) => ({
-        id: ex.id,
-        name: ex.name,
-        sets: ex.sets,
-        reps: ex.reps,
-        notes: ex.notes,
-      })),
-    };
-  }
-
-  const assignment = await getClientWorkoutAssignment(clientId);
-  const days =
-    assignment?.workout_plans?.workout_days?.sort(
-      (a: { day_index: number }, b: { day_index: number }) =>
-        a.day_index - b.day_index
-    ) ?? [];
-  if (days.length === 0 || !assignment?.plan_id) return null;
-
-  const date = new Date(dateKey + "T12:00:00");
-  const day = days[date.getDay() % days.length];
+): TodaysWorkoutInfo | null {
+  if (!scheduled.workout_days || !scheduled.plan_id) return null;
+  const day = scheduled.workout_days;
   const exercises = (day.exercises ?? []).sort(
     (a: Exercise, b: Exercise) => a.order_index - b.order_index
   );
-
   return {
-    planId: assignment.plan_id,
+    planId: scheduled.plan_id,
     dayId: day.id,
-    planTitle: assignment.workout_plans?.title ?? "Workout",
+    planTitle: scheduled.workout_plans?.title ?? "Workout",
     dayTitle: day.title,
-    scheduledDate: null,
+    scheduledDate: dateKey,
+    scheduledWorkoutId: scheduled.id,
+    taskId: workoutTaskId(dateKey, scheduled.id),
     exercises: exercises.map((ex: Exercise) => ({
       id: ex.id,
       name: ex.name,
@@ -239,18 +213,131 @@ export async function resolveWorkoutForDate(
   };
 }
 
+export async function resolveWorkoutsForDate(
+  clientId: string,
+  dateKey: string
+): Promise<TodaysWorkoutInfo[]> {
+  const scheduled = await getScheduledWorkoutsForDate(clientId, dateKey);
+  if (scheduled.length > 0) {
+    return scheduled
+      .map((entry) => mapScheduledToWorkoutInfo(entry, dateKey))
+      .filter((entry): entry is TodaysWorkoutInfo => entry != null);
+  }
+
+  const assignment = await getClientWorkoutAssignment(clientId);
+  const days =
+    assignment?.workout_plans?.workout_days?.sort(
+      (a: { day_index: number }, b: { day_index: number }) =>
+        a.day_index - b.day_index
+    ) ?? [];
+  if (days.length === 0 || !assignment?.plan_id) return [];
+
+  const date = new Date(dateKey + "T12:00:00");
+  const day = days[date.getDay() % days.length];
+  const exercises = (day.exercises ?? []).sort(
+    (a: Exercise, b: Exercise) => a.order_index - b.order_index
+  );
+
+  return [
+    {
+      planId: assignment.plan_id,
+      dayId: day.id,
+      planTitle: assignment.workout_plans?.title ?? "Workout",
+      dayTitle: day.title,
+      scheduledDate: null,
+      scheduledWorkoutId: null,
+      taskId: workoutTaskId(dateKey, null),
+      exercises: exercises.map((ex: Exercise) => ({
+        id: ex.id,
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        notes: ex.notes,
+      })),
+    },
+  ];
+}
+
+export async function resolveWorkoutForDate(
+  clientId: string,
+  dateKey: string
+): Promise<TodaysWorkoutInfo | null> {
+  const workouts = await resolveWorkoutsForDate(clientId, dateKey);
+  return workouts[0] ?? null;
+}
+
+async function findCompletedSessionIdForWorkout(
+  clientId: string,
+  dateKey: string,
+  workout: TodaysWorkoutInfo
+): Promise<string | null> {
+  const supabase = await createClient();
+
+  if (workout.scheduledWorkoutId) {
+    const { data: byScheduledWorkout } = await supabase
+      .from("workout_sessions")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("status", "completed")
+      .eq("scheduled_workout_id", workout.scheduledWorkoutId)
+      .maybeSingle();
+    if (byScheduledWorkout) return byScheduledWorkout.id;
+  }
+
+  const { data: byPlanDayDate } = await supabase
+    .from("workout_sessions")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("status", "completed")
+    .eq("plan_id", workout.planId)
+    .eq("day_id", workout.dayId)
+    .eq("scheduled_date", dateKey)
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (byPlanDayDate) return byPlanDayDate.id;
+
+  const taskCompletions = await getTaskCompletionsForDate(clientId, dateKey);
+  if (taskCompletions.has(workout.taskId)) {
+    const { data: byTaskDate } = await supabase
+      .from("workout_sessions")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("status", "completed")
+      .eq("plan_id", workout.planId)
+      .eq("day_id", workout.dayId)
+      .eq("scheduled_date", dateKey)
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (byTaskDate) return byTaskDate.id;
+  }
+
+  return null;
+}
+
 async function findCompletedSessionIdForDate(
   clientId: string,
   dateKey: string
 ): Promise<string | null> {
-  const supabase = await createClient();
+  const workouts = await resolveWorkoutsForDate(clientId, dateKey);
+  for (const workout of workouts) {
+    const sessionId = await findCompletedSessionIdForWorkout(
+      clientId,
+      dateKey,
+      workout
+    );
+    if (sessionId) return sessionId;
+  }
 
+  const supabase = await createClient();
   const { data: bySchedule } = await supabase
     .from("workout_sessions")
     .select("id")
     .eq("client_id", clientId)
     .eq("status", "completed")
     .eq("scheduled_date", dateKey)
+    .order("completed_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (bySchedule) return bySchedule.id;
@@ -265,32 +352,41 @@ async function findCompletedSessionIdForDate(
     .order("completed_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (byCompletedAt) return byCompletedAt.id;
+  return byCompletedAt?.id ?? null;
+}
 
-  const workout = await resolveWorkoutForDate(clientId, dateKey);
-  if (!workout) return null;
-
-  const { data: sessions } = await supabase
-    .from("workout_sessions")
-    .select("id, completed_at, scheduled_date")
-    .eq("client_id", clientId)
-    .eq("status", "completed")
-    .eq("plan_id", workout.planId)
-    .eq("day_id", workout.dayId)
-    .order("completed_at", { ascending: false })
-    .limit(5);
-
-  for (const session of sessions ?? []) {
-    if (session.scheduled_date === dateKey) return session.id;
-    if (
-      session.completed_at &&
-      formatDateKey(new Date(session.completed_at)) === dateKey
-    ) {
-      return session.id;
+export async function getWorkoutCompletionStatusForDate(
+  clientId: string,
+  dateKey: string
+): Promise<
+  Record<
+    string,
+    {
+      completed: boolean;
+      sessionId: string | null;
     }
+  >
+> {
+  const workouts = await resolveWorkoutsForDate(clientId, dateKey);
+  const taskCompletions = await getTaskCompletionsForDate(clientId, dateKey);
+  const status: Record<
+    string,
+    { completed: boolean; sessionId: string | null }
+  > = {};
+
+  for (const workout of workouts) {
+    const sessionId = await findCompletedSessionIdForWorkout(
+      clientId,
+      dateKey,
+      workout
+    );
+    status[workout.taskId] = {
+      completed: !!sessionId || taskCompletions.has(workout.taskId),
+      sessionId,
+    };
   }
 
-  return null;
+  return status;
 }
 
 export interface CompletedWorkoutResults {
@@ -376,10 +472,11 @@ export async function isWorkoutCompletedOnDate(
   clientId: string,
   dateKey: string
 ): Promise<boolean> {
-  if (await findCompletedSessionIdForDate(clientId, dateKey)) return true;
+  const workouts = await resolveWorkoutsForDate(clientId, dateKey);
+  if (workouts.length === 0) return false;
 
-  const taskCompletions = await getTaskCompletionsForDate(clientId, dateKey);
-  return taskCompletions.has(`${dateKey}-workout`);
+  const status = await getWorkoutCompletionStatusForDate(clientId, dateKey);
+  return workouts.every((workout) => status[workout.taskId]?.completed);
 }
 
 export async function getInProgressSession(): Promise<WorkoutSession | null> {
@@ -511,15 +608,31 @@ export async function startWorkout({
   planId,
   dayId,
   scheduledDate,
+  scheduledWorkoutId,
 }: {
   planId: string;
   dayId: string;
   scheduledDate?: string | null;
+  scheduledWorkoutId?: string | null;
 }) {
   const { admin, userId } = await requireMutationAdmin();
 
   const existing = await getInProgressSession();
   if (existing) {
+    const sameWorkout =
+      (scheduledWorkoutId &&
+        existing.scheduled_workout_id === scheduledWorkoutId) ||
+      (existing.plan_id === planId &&
+        existing.day_id === dayId &&
+        (existing.scheduled_date ?? null) === (scheduledDate ?? null));
+
+    if (!sameWorkout) {
+      return {
+        error: "Finish your current workout before starting another one",
+        sessionId: existing.id,
+      };
+    }
+
     if (existing.plan_id && existing.day_id) {
       const { count } = await admin
         .from("workout_session_exercises")
@@ -568,6 +681,7 @@ export async function startWorkout({
       plan_id: planId,
       day_id: dayId,
       scheduled_date: scheduledDate ?? null,
+      scheduled_workout_id: scheduledWorkoutId ?? null,
       day_title: day.title,
       plan_title: planTitle,
       status: "in_progress",
@@ -631,28 +745,68 @@ export async function startWorkoutAndRedirect({
   planId,
   dayId,
   scheduledDate,
+  scheduledWorkoutId,
 }: {
   planId: string;
   dayId: string;
   scheduledDate?: string | null;
+  scheduledWorkoutId?: string | null;
 }) {
-  const result = await startWorkout({ planId, dayId, scheduledDate });
+  const result = await startWorkout({
+    planId,
+    dayId,
+    scheduledDate,
+    scheduledWorkoutId,
+  });
   if ("error" in result && result.error) {
-    return { error: result.error };
+    return {
+      error: result.error,
+      sessionId: "sessionId" in result ? result.sessionId : undefined,
+    };
   }
   redirect(`/dashboard/workout/session/${result.sessionId}`);
 }
 
-export async function startTodaysWorkoutAndRedirect(dateKey: string) {
+export async function startTodaysWorkoutAndRedirect(
+  dateKey: string,
+  options?: {
+    scheduledWorkoutId?: string | null;
+    planId?: string;
+    dayId?: string;
+  }
+) {
   const { userId } = await requireUserId();
-  const workout = await resolveWorkoutForDate(userId, dateKey);
-  if (!workout) {
+  const workouts = await resolveWorkoutsForDate(userId, dateKey);
+  if (workouts.length === 0) {
     return { error: "No workout scheduled for this day" };
   }
+
+  const status = await getWorkoutCompletionStatusForDate(userId, dateKey);
+  const targetWorkout =
+    (options?.scheduledWorkoutId
+      ? workouts.find((w) => w.scheduledWorkoutId === options.scheduledWorkoutId)
+      : null) ??
+    (options?.planId && options?.dayId
+      ? workouts.find(
+          (w) => w.planId === options.planId && w.dayId === options.dayId
+        )
+      : null) ??
+    workouts.find((w) => !status[w.taskId]?.completed) ??
+    workouts[0];
+
+  if (!targetWorkout) {
+    return { error: "Workout not found for this day" };
+  }
+
+  if (status[targetWorkout.taskId]?.completed) {
+    return { error: "This workout is already completed" };
+  }
+
   return startWorkoutAndRedirect({
-    planId: workout.planId,
-    dayId: workout.dayId,
-    scheduledDate: dateKey,
+    planId: targetWorkout.planId,
+    dayId: targetWorkout.dayId,
+    scheduledDate: targetWorkout.scheduledDate ?? dateKey,
+    scheduledWorkoutId: targetWorkout.scheduledWorkoutId,
   });
 }
 
@@ -817,7 +971,7 @@ export async function completeWorkoutSession(
 
   const { data: session } = await admin
     .from("workout_sessions")
-    .select("id, status, scheduled_date, started_at")
+    .select("id, status, scheduled_date, scheduled_workout_id, started_at, plan_id, day_id")
     .eq("id", sessionId)
     .eq("client_id", userId)
     .single();
@@ -869,11 +1023,16 @@ export async function completeWorkoutSession(
 
   if (error) return { error: error.message };
 
+  const taskId = workoutTaskId(
+    scheduledDate,
+    session.scheduled_workout_id as string | null | undefined
+  );
+
   await admin.from("schedule_task_completions").upsert(
     {
       client_id: userId,
       date: scheduledDate,
-      task_id: `${scheduledDate}-workout`,
+      task_id: taskId,
       completed_at: completedAt,
     },
     { onConflict: "client_id,date,task_id" }
@@ -882,7 +1041,7 @@ export async function completeWorkoutSession(
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");
 
-  return { success: true, scheduledDate, sessionId };
+  return { success: true, scheduledDate, sessionId, taskId };
 }
 
 export async function cancelWorkoutSession(sessionId: string) {
@@ -919,16 +1078,18 @@ export async function startPlanWorkout(planId: string) {
   const today = new Date().toISOString().split("T")[0];
   const { data: scheduled } = await admin
     .from("scheduled_workouts")
-    .select("scheduled_date")
+    .select("id, scheduled_date, day_id")
     .eq("client_id", userId)
     .eq("plan_id", planId)
     .eq("scheduled_date", today)
+    .eq("day_id", dayId)
     .maybeSingle();
 
   return startWorkoutAndRedirect({
     planId,
     dayId,
-    scheduledDate: scheduled?.scheduled_date ?? null,
+    scheduledDate: scheduled?.scheduled_date ?? today,
+    scheduledWorkoutId: scheduled?.id ?? null,
   });
 }
 

@@ -5,12 +5,19 @@ import { useCallback, useState, type MouseEvent } from "react";
 import { Play } from "lucide-react";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { startTodaysWorkoutAndRedirect } from "@/lib/actions/workout-sessions";
+import {
+  startTodaysWorkoutAndRedirect,
+  type TodaysWorkoutInfo,
+} from "@/lib/actions/workout-sessions";
 import { formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function useStartTodaysWorkout(date: Date, disabled?: boolean) {
+export function useStartWorkout(
+  date: Date,
+  workout?: TodaysWorkoutInfo | null,
+  disabled?: boolean
+) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,40 +26,56 @@ export function useStartTodaysWorkout(date: Date, disabled?: boolean) {
     if (disabled || isStarting) return;
     setError(null);
     setIsStarting(true);
-    void startTodaysWorkoutAndRedirect(formatDateKey(date)).then((result) => {
+    const dateKey = formatDateKey(date);
+    void startTodaysWorkoutAndRedirect(dateKey, {
+      scheduledWorkoutId: workout?.scheduledWorkoutId,
+      planId: workout?.planId,
+      dayId: workout?.dayId,
+    }).then((result) => {
       if (result && "error" in result && result.error) {
         setError(result.error);
         setIsStarting(false);
-        router.refresh();
+        if ("sessionId" in result && result.sessionId) {
+          router.push(`/dashboard/workout/session/${result.sessionId}`);
+        } else {
+          router.refresh();
+        }
       }
     });
-  }, [date, disabled, isStarting, router]);
+  }, [date, disabled, isStarting, router, workout]);
 
   return { start, isStarting, error };
 }
 
-export function StartTodaysWorkoutButton({
+export function useStartTodaysWorkout(date: Date, disabled?: boolean) {
+  return useStartWorkout(date, null, disabled);
+}
+
+export function StartWorkoutButton({
   date,
+  workout,
   disabled,
   display = "icon",
   className,
 }: {
   date: Date;
+  workout?: TodaysWorkoutInfo | null;
   disabled?: boolean;
   display?: "icon" | "text";
   className?: string;
 }) {
   const platform = usePlatformCopy();
-  const { start, isStarting, error } = useStartTodaysWorkout(date, disabled);
+  const { start, isStarting, error } = useStartWorkout(date, workout, disabled);
 
   const handleStart = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
+    event.preventDefault();
     start();
   };
 
   return (
     <div className={cn("inline-flex flex-col items-end gap-1", className)}>
-      <StartWorkoutLoadingShell isLoading={isStarting} ring={display === "icon"}>
+      <StartWorkoutLoadingShell isLoading={isStarting} ring={false}>
         {display === "text" ? (
           <Button
             size="sm"
@@ -79,5 +102,29 @@ export function StartTodaysWorkoutButton({
       </StartWorkoutLoadingShell>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
+  );
+}
+
+export function StartTodaysWorkoutButton({
+  date,
+  workout,
+  disabled,
+  display = "icon",
+  className,
+}: {
+  date: Date;
+  workout?: TodaysWorkoutInfo | null;
+  disabled?: boolean;
+  display?: "icon" | "text";
+  className?: string;
+}) {
+  return (
+    <StartWorkoutButton
+      date={date}
+      workout={workout}
+      disabled={disabled}
+      display={display}
+      className={className}
+    />
   );
 }

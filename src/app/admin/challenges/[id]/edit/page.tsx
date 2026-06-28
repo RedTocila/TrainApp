@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/actions/auth";
 import { getChallengeById, updateChallenge } from "@/lib/actions/challenges";
+import { getChallengeAnnouncements } from "@/lib/actions/challenge-announcements";
+import { ChallengeAnnouncementsAdmin } from "@/components/challenge-announcements-admin";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +27,8 @@ export default async function EditChallengePage({
   const challenge = await getChallengeById(id);
   if (!challenge) notFound();
 
+  const announcements = await getChallengeAnnouncements(id, { includeUnpublished: true });
+
   const updateWithId = updateChallenge.bind(null, id);
 
   return (
@@ -34,7 +38,7 @@ export default async function EditChallengePage({
           <div>
             <h1 className="text-2xl font-black">Edit challenge</h1>
             <p className="text-sm text-muted-foreground">
-              Update schedule, group size, or final Zoom link.
+              Update schedule, tournament length, group size, or final Zoom link.
             </p>
           </div>
           <Link href={`/admin/challenges/${id}/bracket`}>
@@ -57,7 +61,7 @@ export default async function EditChallengePage({
                 <Label htmlFor="slug">Slug</Label>
                 <Input id="slug" name="slug" required defaultValue={challenge.slug} />
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
                   <Label htmlFor="scheduled_at">Start date & time</Label>
                   <Input
@@ -69,7 +73,19 @@ export default async function EditChallengePage({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="duration_minutes">Duration (minutes)</Label>
+                  <Label htmlFor="duration_months">Tournament length (months)</Label>
+                  <Input
+                    id="duration_months"
+                    name="duration_months"
+                    type="number"
+                    min={1}
+                    max={24}
+                    required
+                    defaultValue={challenge.duration_months ?? 3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="duration_minutes">Zoom call length (minutes)</Label>
                   <Input
                     id="duration_minutes"
                     name="duration_minutes"
@@ -93,6 +109,47 @@ export default async function EditChallengePage({
                   />
                 </div>
               </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="round_1_zoom_at">Round 1 Zoom day</Label>
+                  <Input
+                    id="round_1_zoom_at"
+                    name="round_1_zoom_at"
+                    type="datetime-local"
+                    defaultValue={
+                      challenge.round_1_zoom_at
+                        ? toDatetimeLocalValue(challenge.round_1_zoom_at)
+                        : ""
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="round_2_zoom_at">Round 2 Zoom day</Label>
+                  <Input
+                    id="round_2_zoom_at"
+                    name="round_2_zoom_at"
+                    type="datetime-local"
+                    defaultValue={
+                      challenge.round_2_zoom_at
+                        ? toDatetimeLocalValue(challenge.round_2_zoom_at)
+                        : ""
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="round_3_zoom_at">Champion final Zoom</Label>
+                  <Input
+                    id="round_3_zoom_at"
+                    name="round_3_zoom_at"
+                    type="datetime-local"
+                    defaultValue={
+                      challenge.round_3_zoom_at
+                        ? toDatetimeLocalValue(challenge.round_3_zoom_at)
+                        : ""
+                    }
+                  />
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="final_zoom_url">Final round Zoom link</Label>
                 <Input
@@ -101,6 +158,23 @@ export default async function EditChallengePage({
                   defaultValue={challenge.final_zoom_url ?? ""}
                   placeholder="https://zoom.us/j/..."
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="prize_pool_euros_per_participant">
+                  Prize pool per participant (€)
+                </Label>
+                <Input
+                  id="prize_pool_euros_per_participant"
+                  name="prize_pool_euros_per_participant"
+                  type="number"
+                  min={0}
+                  step={1}
+                  required
+                  defaultValue={(challenge.prize_pool_cents_per_participant ?? 1000) / 100}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Display-only prize pool. Champion paid manually offline.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description (Markdown)</Label>
@@ -132,6 +206,11 @@ export default async function EditChallengePage({
             </form>
           </CardContent>
         </Card>
+
+        <ChallengeAnnouncementsAdmin
+          challengeId={id}
+          initialAnnouncements={announcements}
+        />
       </div>
     </PageTransition>
   );

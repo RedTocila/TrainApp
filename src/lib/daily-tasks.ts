@@ -7,6 +7,7 @@ import type {
 } from "@/lib/types";
 import { formatHabitTimeWindow, getHabitWindowPhase } from "@/lib/habit-utils";
 import { formatDateKey } from "@/lib/utils";
+import { workoutTaskId } from "@/lib/workout-task-id";
 
 export type TaskCategory = "workout" | "nutrition" | "cardio" | "habits" | "water";
 
@@ -49,18 +50,32 @@ function getScheduledCardioForDate(
   return schedule.scheduledCardioByDate?.[dateKey] ?? null;
 }
 
+function getScheduledWorkoutDays(
+  date: Date,
+  scheduledWorkouts: ScheduledWorkout[] | undefined
+): (WorkoutDay & { planTitle?: string; scheduledWorkoutId?: string })[] {
+  if (!scheduledWorkouts?.length) return [];
+  const dateKey = formatDateKey(date);
+  return scheduledWorkouts
+    .filter((entry) => entry.scheduled_date === dateKey && entry.workout_days)
+    .sort(
+      (a, b) =>
+        (a.order_index ?? 0) - (b.order_index ?? 0) ||
+        a.created_at.localeCompare(b.created_at)
+    )
+    .map((entry) => ({
+      ...entry.workout_days!,
+      planTitle: entry.workout_plans?.title,
+      scheduledWorkoutId: entry.id,
+    }));
+}
+
 function getScheduledWorkoutDay(
   date: Date,
   scheduledWorkouts: ScheduledWorkout[] | undefined
-): (WorkoutDay & { planTitle?: string }) | null {
-  if (!scheduledWorkouts?.length) return null;
-  const dateKey = formatDateKey(date);
-  const entry = scheduledWorkouts.find((s) => s.scheduled_date === dateKey);
-  if (!entry?.workout_days) return null;
-  return {
-    ...entry.workout_days,
-    planTitle: entry.workout_plans?.title,
-  };
+): (WorkoutDay & { planTitle?: string; scheduledWorkoutId?: string }) | null {
+  const days = getScheduledWorkoutDays(date, scheduledWorkouts);
+  return days[0] ?? null;
 }
 
 function getScheduledNutritionDay(
@@ -92,22 +107,38 @@ export function buildDailyTasks(
   const dateKey = formatDateKey(date);
   const waterGoal = schedule.waterGoalMl ?? 2500;
 
-  const scheduledDay = getScheduledWorkoutDay(date, schedule.scheduledWorkouts);
+  const scheduledDays = getScheduledWorkoutDays(date, schedule.scheduledWorkouts);
   const workoutDay =
-    scheduledDay ?? getWorkoutDayForDate(date, schedule.workoutAssignment);
+    scheduledDays[0] ?? getWorkoutDayForDate(date, schedule.workoutAssignment);
 
-  if (workoutDay) {
+  if (scheduledDays.length > 0) {
+    for (const scheduledDay of scheduledDays) {
+      const exerciseCount = scheduledDay.exercises?.length ?? 0;
+      tasks.push({
+        id: workoutTaskId(dateKey, scheduledDay.scheduledWorkoutId),
+        category: "workout",
+        label: scheduledDay.title,
+        detail:
+          exerciseCount > 0
+            ? `${exerciseCount} exercise${exerciseCount === 1 ? "" : "s"}${
+                scheduledDay.planTitle ? ` · ${scheduledDay.planTitle}` : ""
+              }`
+            : scheduledDay.planTitle,
+      });
+    }
+  } else if (workoutDay) {
     const exerciseCount = workoutDay.exercises?.length ?? 0;
+    const assignmentPlanTitle = schedule.workoutAssignment?.workout_plans?.title;
     tasks.push({
-      id: `${dateKey}-workout`,
+      id: workoutTaskId(dateKey, null),
       category: "workout",
       label: workoutDay.title,
       detail:
         exerciseCount > 0
           ? `${exerciseCount} exercise${exerciseCount === 1 ? "" : "s"}${
-              scheduledDay?.planTitle ? ` · ${scheduledDay.planTitle}` : ""
+              assignmentPlanTitle ? ` · ${assignmentPlanTitle}` : ""
             }`
-          : scheduledDay?.planTitle,
+          : assignmentPlanTitle,
     });
   } else if (!schedule.workoutAssignment && !schedule.scheduledWorkouts?.length) {
     tasks.push({
