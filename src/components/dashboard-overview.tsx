@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
-import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
+import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { DailyTracker } from "@/components/daily-tracker";
+import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import { getDailyLog } from "@/lib/actions/logs";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
@@ -18,6 +19,18 @@ type MacroTargets = {
   protein: number;
   carbs: number;
   fat: number;
+};
+
+type OverviewDayData = {
+  log: DailyLog | null;
+  dailyMeals: DailyMealLog[];
+  nutritionPlan: {
+    title: string;
+    meals: Meal[];
+    scheduled?: boolean;
+    activeSlots?: MealSlot[];
+    kind?: MealPlanViewKind;
+  } | null;
 };
 
 export function DashboardOverview({
@@ -44,58 +57,121 @@ export function DashboardOverview({
   personalPlanId?: string | null;
   initialWaterGoalMl: number;
   goal?: string | null;
-  nutritionPlan?: {
-    title: string;
-    meals: Meal[];
-    scheduled?: boolean;
-    activeSlots?: MealSlot[];
-    kind?: MealPlanViewKind;
-  } | null;
+  nutritionPlan?: OverviewDayData["nutritionPlan"];
   coachNutritionPlanState: CoachNutritionPlanViewState;
   variant?: "full" | "compact";
   layout?: "card" | "detail";
 }) {
-  const { selectedDate } = useSelectedDate();
+  const { selectedDate, todayKey } = useSelectedDate();
+  const enrichmentCtx = useOptionalDashboardEnrichment();
+  const enrichment = enrichmentCtx?.enrichment;
+  const isInEnrichmentRange = enrichmentCtx?.isInEnrichmentRange ?? (() => false);
   const dateKey = formatDateKey(selectedDate);
-  const [log, setLog] = useState(initialLog);
-  const [dailyMeals, setDailyMeals] = useState(initialDailyMeals);
   const [targets, setTargets] = useState(initialTargets);
   const [waterGoalMl, setWaterGoalMl] = useState(initialWaterGoalMl);
-  const [nutritionPlan, setNutritionPlan] = useState(initialNutritionPlan);
+  const [localMeals, setLocalMeals] = useState<DailyMealLog[] | null>(null);
 
-  const loadOverview = useCallback(async () => {
+  useEffect(() => {
+    setLocalMeals(null);
+  }, [dateKey]);
+
+  const enrichmentMeals = enrichment?.mealsByDate[dateKey];
+  const enrichmentWater = enrichment?.waterByDate[dateKey];
+
+  const seedOverview = useMemo((): OverviewDayData | undefined => {
+    const hasEnrichment =
+      isInEnrichmentRange(dateKey) &&
+      (enrichmentMeals !== undefined || enrichmentWater !== undefined);
+
+    if (hasEnrichment) {
+      return {
+        log: {
+          id: initialLog?.id ?? "",
+          client_id: clientId,
+          date: dateKey,
+          water_ml: enrichmentWater ?? 0,
+          calories: initialLog?.calories ?? 0,
+          protein: initialLog?.protein ?? 0,
+          carbs: initialLog?.carbs ?? 0,
+          fat: initialLog?.fat ?? 0,
+        },
+        dailyMeals: enrichmentMeals ?? [],
+        nutritionPlan: dateKey === todayKey ? (initialNutritionPlan ?? null) : null,
+      };
+    }
+
+    if (dateKey === todayKey) {
+      return {
+        log: initialLog,
+        dailyMeals: initialDailyMeals,
+        nutritionPlan: initialNutritionPlan ?? null,
+      };
+    }
+
+    return undefined;
+  }, [
+    clientId,
+    dateKey,
+    enrichmentMeals,
+    enrichmentWater,
+    initialDailyMeals,
+    initialLog,
+    initialNutritionPlan,
+    isInEnrichmentRange,
+    todayKey,
+  ]);
+
+  const loadOverview = useCallback(async (): Promise<OverviewDayData> => {
     const [fetchedLog, fetchedMeals, planForDate] = await Promise.all([
       getDailyLog(clientId, dateKey),
       getDailyMealLogs(clientId, dateKey),
       getNutritionPlanForDate(clientId, dateKey),
     ]);
-    setLog(fetchedLog);
-    setDailyMeals(fetchedMeals);
 
+    let nutritionPlan: OverviewDayData["nutritionPlan"] = null;
     if (planForDate?.meals?.length) {
-      setNutritionPlan({
+      nutritionPlan = {
         title: planForDate.title,
         meals: planForDate.meals as Meal[],
         scheduled: planForDate.scheduled,
         activeSlots: planForDate.activeSlots,
         kind: planForDate.kind,
-      });
-    } else {
-      setNutritionPlan(null);
+      };
     }
+
+    return {
+      log: fetchedLog,
+      dailyMeals: fetchedMeals,
+      nutritionPlan,
+    };
   }, [clientId, dateKey]);
 
-  const isReady = useDashboardDateFetch(dateKey, loadOverview, [clientId], {
+  const { data: overview } = useCachedDashboardDate({
+    clientId,
+    dateKey,
+    namespace: "overview",
+    seed: seedOverview,
+    skipFetch:
+      isInEnrichmentRange(dateKey) &&
+      enrichmentMeals !== undefined &&
+      enrichmentWater !== undefined,
+    fetcher: loadOverview,
     trackGlobalLoading: true,
   });
+
+  const display = overview ?? seedOverview;
+  const dailyMeals =
+    localMeals ?? display?.dailyMeals ?? enrichmentMeals ?? [];
 
   return (
     <DailyTracker
       clientId={clientId}
       date={selectedDate}
-      waterMl={isReady ? (log?.water_ml ?? 0) : 0}
-      dailyMeals={isReady ? dailyMeals : []}
-      onDailyMealsChange={setDailyMeals}
+      waterMl={display?.log?.water_ml ?? enrichmentWater ?? 0}
+      dailyMeals={dailyMeals}
+      onDailyMealsChange={(meals) => {
+        setLocalMeals(meals);
+      }}
       mealLibrary={mealLibrary}
       hasAiAccess={hasAiAccess}
       targets={targets}
@@ -103,7 +179,7 @@ export function DashboardOverview({
       personalPlanId={personalPlanId}
       waterGoalMl={waterGoalMl}
       onWaterGoalChange={setWaterGoalMl}
-      nutritionPlan={isReady ? nutritionPlan : null}
+      nutritionPlan={display?.nutritionPlan ?? null}
       coachNutritionPlanState={coachNutritionPlanState}
       goal={goal}
       variant={variant}

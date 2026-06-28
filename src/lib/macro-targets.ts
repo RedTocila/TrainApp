@@ -72,6 +72,18 @@ export function dailyMacrosExceededUpperLimit(
   return listExceededMacroKeys(current, targets).length > 0;
 }
 
+/** True when any macro is above its daily target (matches red macro UI). */
+export function anyDailyMacroOverTarget(
+  current: MealMacros,
+  targets: MacroTargets
+): boolean {
+  return MACRO_KEYS.some((key) => {
+    const target = targets[key];
+    if (target <= 0) return false;
+    return current[key] > target;
+  });
+}
+
 /** Macro keys currently above the upper tolerance band. */
 export function listExceededMacroKeys(
   current: MealMacros,

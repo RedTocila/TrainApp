@@ -49,6 +49,7 @@ import { BodyMetricsSection } from "@/components/body-metrics-section";
 import { ProgressPhotosCard } from "@/components/progress-photos-card";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { DashboardWaterCard } from "@/components/dashboard-water-card";
+import { DashboardEnrichmentProvider } from "@/components/dashboard-enrichment-provider";
 import { hasAiAccess } from "@/lib/subscription";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 import { getHabitSuggestionsForProfile } from "@/lib/habit-suggestions";
@@ -218,12 +219,14 @@ export default async function DashboardPage() {
   };
 
   return (
-    <>
+    <DashboardEnrichmentProvider
+      clientId={profile.id}
+      initialEnrichment={initialEnrichment}
+    >
       <div className="-mx-3 -mt-3 mb-4 sm:-mx-4 sm:-mt-4 sm:mb-6 md:-mx-6 md:-mt-6">
         <DashboardCalendar
           clientId={profile.id}
           schedule={schedule}
-          initialEnrichment={initialEnrichment}
         />
       </div>
       <ScrollToHash />
@@ -231,7 +234,6 @@ export default async function DashboardPage() {
         <DayTasksPanel
           clientId={profile.id}
           schedule={schedule}
-          initialEnrichment={initialEnrichment}
         />
 
         <div className="grid items-stretch gap-3 sm:grid-cols-2">
@@ -305,6 +307,6 @@ export default async function DashboardPage() {
           suggestedHabits={suggestedHabits}
         />
       </div>
-    </>
+    </DashboardEnrichmentProvider>
   );
 }

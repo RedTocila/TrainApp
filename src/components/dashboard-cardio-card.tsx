@@ -4,9 +4,9 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 import Link from "next/link";
 import { format, isToday, isTomorrow } from "date-fns";
 import { HeartPulse } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
-import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
+import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import { DashboardStatusIcon } from "@/components/section-completed-badge";
@@ -14,6 +14,7 @@ import { dashboard, DashboardEmptyState } from "@/components/dashboard-ui";
 import { getCardioTypeDisplay } from "@/lib/cardio-catalog";
 import { getScheduledCardioForDate } from "@/lib/actions/user-cardio";
 import { getTaskCompletionsForDate, toggleScheduleTaskCompletion } from "@/lib/actions/task-completions";
+import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import type { ScheduledCardio } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,11 @@ function cardioTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>) {
   if (isTomorrow(date)) return platform.dashboard.tomorrowsCardio;
   return platform.dashboard.cardioOnDay(format(date, "EEEE"));
 }
+
+type CardioDayData = {
+  scheduled: ScheduledCardio | null;
+  completed: boolean;
+};
 
 export function DashboardCardioCard({
   clientId,
@@ -41,39 +47,50 @@ export function DashboardCardioCard({
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
   const { version, patchDashboard } = useDashboardSync();
-  const [scheduled, setScheduled] = useState<ScheduledCardio | null>(
-    initialScheduled
-  );
-  const [completed, setCompleted] = useState(initialCompleted);
+  const enrichment = useOptionalDashboardEnrichment()?.enrichment;
   const [isToggling, setIsToggling] = useState(false);
   const dateKey = formatDateKey(selectedDate);
   const taskId = `${dateKey}-cardio`;
-  const cardio = scheduled?.client_cardio ?? null;
   const compact = variant === "compact";
 
-  useEffect(() => {
-    setScheduled(initialScheduled);
-    setCompleted(initialCompleted);
-  }, [initialScheduled, initialCompleted]);
+  const enrichmentCompleted = (enrichment?.completionsByDate[dateKey] ?? []).includes(
+    taskId
+  );
 
-  const refreshCardio = useCallback(async () => {
-    const [entry, ids] = await Promise.all([
-      getScheduledCardioForDate(clientId, dateKey),
-      getTaskCompletionsForDate(clientId, dateKey),
-    ]);
-    setScheduled(entry);
-    setCompleted(ids.has(taskId));
-  }, [clientId, dateKey, taskId]);
+  const seedCardio = useMemo((): CardioDayData | undefined => {
+    if (dateKey === todayKey) {
+      return { scheduled: initialScheduled, completed: initialCompleted };
+    }
+    if (enrichmentCompleted) {
+      return { scheduled: initialScheduled, completed: true };
+    }
+    return undefined;
+  }, [dateKey, todayKey, initialScheduled, initialCompleted, enrichmentCompleted]);
 
-  const isReady = useDashboardDateFetch(dateKey, refreshCardio, [
+  const { data: cardioDay } = useCachedDashboardDate({
     clientId,
-    taskId,
-    version,
-    todayKey,
-  ]);
+    dateKey,
+    namespace: "cardio",
+    seed: seedCardio,
+    deps: [taskId, version],
+    fetcher: async () => {
+      const [entry, ids] = await Promise.all([
+        getScheduledCardioForDate(clientId, dateKey),
+        getTaskCompletionsForDate(clientId, dateKey),
+      ]);
+      return {
+        scheduled: entry,
+        completed: ids.has(taskId),
+      };
+    },
+  });
 
-  const cardioForDay = isReady ? cardio : null;
-  const completedForDay = isReady && completed;
+  const display = cardioDay ?? seedCardio;
+  const scheduled = display?.scheduled ?? null;
+  const completed = display?.completed ?? enrichmentCompleted;
+  const cardio = scheduled?.client_cardio ?? null;
+  const cardioForDay = cardio;
+  const completedForDay = completed;
   const cardioDisplay = cardioForDay
     ? getCardioTypeDisplay(cardioForDay.title, platform.cardio.types)
     : null;
@@ -83,18 +100,16 @@ export function DashboardCardioCard({
 
   const handleToggle = () => {
     const next = !completed;
-    setCompleted(next);
     patchDashboard({ dateKey, taskId, completed: next });
     setIsToggling(true);
 
     void toggleScheduleTaskCompletion(clientId, dateKey, taskId)
       .then((result) => {
         if (result.error) {
-          setCompleted(!next);
           patchDashboard({ dateKey, taskId, completed: !next });
           return;
         }
-        setCompleted(result.completed ?? false);
+        patchDashboard({ dateKey, taskId, completed: result.completed ?? false });
       })
       .finally(() => setIsToggling(false));
   };
@@ -112,7 +127,7 @@ export function DashboardCardioCard({
           <p className="truncate text-sm font-black">{platform.cardio.title}</p>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-1.5 py-2">
-          {isReady && cardioForDay ? (
+          {cardioForDay ? (
             <>
               <div
                 className={cn(
@@ -136,14 +151,14 @@ export function DashboardCardioCard({
                 </Badge>
               )}
             </>
-          ) : isReady ? (
+          ) : (
             <div className="flex flex-col items-center gap-2 text-center">
               <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl bg-secondary/40 sm:h-20 sm:w-20">
                 <HeartPulse className="h-9 w-9 text-muted-foreground/50 sm:h-10 sm:w-10" />
               </div>
               <p className="text-xs text-muted-foreground">{coachLabels.noCardioToday}</p>
             </div>
-          ) : null}
+          )}
         </div>
         <div className="mt-auto flex gap-1.5 pt-2">
           <Link href="/dashboard/workout/cardio" className="flex-1">
@@ -155,7 +170,7 @@ export function DashboardCardioCard({
             <Button
               size="sm"
               className="h-8 flex-1 rounded-full px-2 text-[11px]"
-              disabled={isToggling || !isReady}
+              disabled={isToggling}
               onClick={handleToggle}
             >
               {platform.common.done}
@@ -188,7 +203,7 @@ export function DashboardCardioCard({
             <Button
               size="sm"
               className="h-8 rounded-full px-3 text-xs"
-              disabled={isToggling || !isReady}
+              disabled={isToggling}
               onClick={handleToggle}
             >
               {platform.common.done}
@@ -197,7 +212,7 @@ export function DashboardCardioCard({
         </div>
       </div>
       <div className="mt-4 space-y-4">
-        {isReady && cardioForDay ? (
+        {cardioForDay ? (
           <>
             <div className={dashboard.listRow}>
               <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -235,7 +250,7 @@ export function DashboardCardioCard({
               <ExerciseVideoPlayer videoUrl={cardioForDay.youtube_url} title={cardioForDay.title} />
             )}
           </>
-        ) : isReady ? (
+        ) : (
           <DashboardEmptyState>
             <p>{coachLabels.noCardioToday}</p>
             <Link href="/dashboard/workout/cardio" className="mt-3 inline-block">
@@ -244,7 +259,7 @@ export function DashboardCardioCard({
               </Button>
             </Link>
           </DashboardEmptyState>
-        ) : null}
+        )}
       </div>
     </div>
   );

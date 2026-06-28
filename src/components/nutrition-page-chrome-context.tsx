@@ -13,6 +13,7 @@ export type NutritionPageChromeActions = {
   onLogMeal: () => void;
   onDietPlan: () => void;
   showDietPlan: boolean;
+  status?: "completed" | "over" | null;
 };
 
 const NutritionPageChromeContext = createContext<{

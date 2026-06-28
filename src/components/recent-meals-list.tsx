@@ -3,7 +3,16 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { ChevronDown, Flame, Plus, Salad, Trash2, UtensilsCrossed, Apple } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Flame,
+  Plus,
+  Salad,
+  Trash2,
+  UtensilsCrossed,
+  Apple,
+} from "lucide-react";
 import { formatMealMacrosSummary, normalizeMealMacros } from "@/lib/meal-utils";
 import type { DailyMealLog } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -95,15 +104,30 @@ export function RecentMealsList({
                 <div
                   className={cn(
                     dashboard.listRow,
-                    interactive && "cursor-pointer hover:bg-card"
+                    interactive && dashboard.tileInteractive
                   )}
                 >
-                  <button
-                    type="button"
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                    onClick={() => onSelect?.(meal)}
-                    disabled={!interactive}
-                    aria-label={interactive ? platform.aria.mealInsights(meal.name) : undefined}
+                  <div
+                    role={interactive ? "button" : undefined}
+                    tabIndex={interactive ? 0 : undefined}
+                    className={cn(
+                      "flex min-w-0 flex-1 items-center gap-3 text-left",
+                      interactive && "cursor-pointer"
+                    )}
+                    onClick={interactive ? () => onSelect?.(meal) : undefined}
+                    onKeyDown={
+                      interactive
+                        ? (event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              onSelect?.(meal);
+                            }
+                          }
+                        : undefined
+                    }
+                    aria-label={
+                      interactive ? platform.aria.mealInsights(meal.name) : undefined
+                    }
                   >
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary/80">
                       <Icon className="h-5 w-5 text-primary" />
@@ -122,7 +146,10 @@ export function RecentMealsList({
                         {Math.round(meal.calories)} {platform.nutrition.caloriesUnit}
                       </p>
                     </div>
-                  </button>
+                    {interactive ? (
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    ) : null}
+                  </div>
                   {onDelete && (
                     <Button
                       variant="ghost"
@@ -216,8 +243,7 @@ export function RecentMealsList({
                   <div
                     className={cn(
                       "flex items-center gap-3 rounded-2xl border border-border bg-secondary/30 p-3",
-                      interactive &&
-                        "cursor-pointer transition-colors hover:border-primary/30 hover:bg-secondary/50"
+                      interactive && dashboard.tileInteractive
                     )}
                   >
                     <button
@@ -241,6 +267,9 @@ export function RecentMealsList({
                           <p className="mt-0.5 text-xs text-muted-foreground">{summary}</p>
                         )}
                       </div>
+                      {interactive ? (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      ) : null}
                     </button>
                     {onDelete && (
                       <Button

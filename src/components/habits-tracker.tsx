@@ -1,18 +1,18 @@
 "use client";
-import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { format, isToday } from "date-fns";
 import { ListChecks, Pencil, Plus, Sparkles, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSelectedDate } from "@/components/date-provider";
-import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
-import { HabitFormDialog } from "@/components/habit-form-dialog";
+import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
+import { dashboardDayCacheKey, getDashboardDayCache } from "@/lib/dashboard-day-cache";
 import {
   applyHabitSuggestion,
   dismissHabitSuggestion,
 } from "@/lib/actions/client-intake";
 import {
-  deleteHabit,
   getHabitsWithCompletions,
   toggleHabitCompletion,
   type HabitWithStatus,
@@ -22,10 +22,10 @@ import { MissedButton } from "@/components/missed-items-dialog";
 import { dashboard, DashboardEmptyState, DashboardSectionHeader } from "@/components/dashboard-ui";
 import { DashboardStatusIcon } from "@/components/section-completed-badge";
 import { useDashboardSync } from "@/components/dashboard-sync";
-import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import type { ClientHabit } from "@/lib/types";
 import type { HabitSuggestion } from "@/lib/habit-suggestions";
 import { formatDateKey } from "@/lib/utils";
+import { DASHBOARD_HABITS_NEW_PATH } from "@/lib/dashboard-day-routes";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -38,41 +38,54 @@ export function HabitsTracker({
   initialHabits: HabitWithStatus[];
   suggestedHabits?: HabitSuggestion[];
 }) {
-  const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
+  const router = useRouter();
   const { selectedDate } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
   const [habits, setHabits] = useState(initialHabits);
   const [suggestions, setSuggestions] = useState(suggestedHabits);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingHabit, setEditingHabit] = useState<ClientHabit | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [suggestionsPending, setSuggestionsPending] = useState(false);
   const [tick, setTick] = useState(0);
-  const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
   const { patchDashboard, notifySync } = useDashboardSync();
-
-  useEffect(() => {
-    setHabits(initialHabits);
-  }, [initialHabits]);
+  const { todayKey } = useSelectedDate();
 
   useEffect(() => {
     setSuggestions(suggestedHabits);
   }, [suggestedHabits]);
 
-  const refresh = useCallback(async () => {
-    const data = await getHabitsWithCompletions(clientId, dateKey);
-    setHabits(data);
-  }, [clientId, dateKey]);
+  const seedHabits = dateKey === todayKey ? initialHabits : undefined;
 
-  const isReady = useDashboardDateFetch(dateKey, refresh, [clientId]);
-  const habitsForDay = habits;
+  const { data: habitsForDay } = useCachedDashboardDate({
+    clientId,
+    dateKey,
+    namespace: "habits",
+    seed: seedHabits,
+    fetcher: async () => getHabitsWithCompletions(clientId, dateKey),
+  });
+
+  useLayoutEffect(() => {
+    const cached = getDashboardDayCache<HabitWithStatus[]>(
+      dashboardDayCacheKey(clientId, "habits", dateKey)
+    );
+    if (cached) {
+      setHabits(cached);
+      return;
+    }
+    if (seedHabits) setHabits(seedHabits);
+  }, [clientId, dateKey, seedHabits]);
+
+  useEffect(() => {
+    if (habitsForDay) setHabits(habitsForDay);
+  }, [habitsForDay]);
+
+  const displayHabitsRaw = habits;
 
   const reloadHabits = useCallback(() => {
-    void refresh();
-  }, [refresh]);
+    void getHabitsWithCompletions(clientId, dateKey).then(setHabits);
+  }, [clientId, dateKey]);
 
   useEffect(() => {
     if (!isToday(selectedDate)) return;
@@ -82,11 +95,11 @@ export function HabitsTracker({
 
   const displayHabits = useMemo(
     () =>
-      habitsForDay.map((h) => ({
+      displayHabitsRaw.map((h) => ({
         ...h,
         status: getHabitDayStatus(h, dateKey, h.completed),
       })),
-    [habitsForDay, dateKey, tick]
+    [displayHabitsRaw, dateKey, tick]
   );
 
   const dateLabel = isToday(selectedDate)
@@ -101,13 +114,11 @@ export function HabitsTracker({
   }));
 
   const openAdd = () => {
-    setEditingHabit(null);
-    setDialogOpen(true);
+    router.push(DASHBOARD_HABITS_NEW_PATH);
   };
 
   const openEdit = (habit: ClientHabit) => {
-    setEditingHabit(habit);
-    setDialogOpen(true);
+    router.push(`/dashboard/habits/${habit.id}/edit`);
   };
 
   const handleComplete = (habitId: string) => {
@@ -152,22 +163,6 @@ export function HabitsTracker({
       .finally(() => {
         setTogglingId((current) => (current === habitId ? null : current));
       });
-  };
-
-  const handleDelete = (habitId: string) => {
-    confirmGiveUp({
-      ...coachCopy.removeHabit,
-      onConfirm: async () => {
-        const result = await deleteHabit(habitId);
-        if (result.error) {
-          setError(result.error);
-          return;
-        }
-        setDialogOpen(false);
-        reloadHabits();
-        notifySync();
-      },
-    });
   };
 
   const handleAddSuggestion = (suggestionId: string) => {
@@ -222,15 +217,13 @@ export function HabitsTracker({
             </Button>
           }
           subtitle={
-            isReady && habitsForDay.length === 0
+            displayHabitsRaw.length === 0
               ? coachLabels.addHabitsHint
-              : isReady
-                ? platform.common.doneForDate(doneCount, habitsForDay.length, dateLabel)
-                : ""
+              : platform.common.doneForDate(doneCount, displayHabitsRaw.length, dateLabel)
           }
         />
         <div className="mt-4 space-y-4">
-          {isReady && suggestions.length > 0 && (
+          {suggestions.length > 0 && (
             <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-violet-300">
                 <Sparkles className="h-4 w-4" />
@@ -275,9 +268,9 @@ export function HabitsTracker({
             </div>
           )}
 
-          {isReady && habitsForDay.length === 0 ? (
+          {displayHabitsRaw.length === 0 ? (
             <DashboardEmptyState>{coachLabels.noHabitsToday}</DashboardEmptyState>
-          ) : habitsForDay.length > 0 ? (
+          ) : displayHabitsRaw.length > 0 ? (
             <ul className="space-y-2">
               {displayHabits.map((habit) => {
                 const canComplete = canCompleteHabit(habit, dateKey, habit.completed);
@@ -333,23 +326,6 @@ export function HabitsTracker({
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
       </div>
-
-      <HabitFormDialog
-        open={dialogOpen}
-        clientId={clientId}
-        habit={editingHabit}
-        onClose={() => setDialogOpen(false)}
-        onSaved={() => {
-          reloadHabits();
-          notifySync();
-        }}
-        onDelete={
-          editingHabit
-            ? () => handleDelete(editingHabit.id)
-            : undefined
-        }
-      />
-      {giveUpDialog}
     </>
   );
 }

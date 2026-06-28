@@ -11,7 +11,7 @@ import {
 import { SupportContactButton } from "@/components/support-contact-button";
 import { useNutritionPageChromeActions } from "@/components/nutrition-page-chrome-context";
 import { useWorkoutPageChromeActions } from "@/components/workout-page-chrome-context";
-import { DashboardStatusCheck } from "@/components/section-completed-badge";
+import { DashboardStatusCheck, DashboardStatusIcon } from "@/components/section-completed-badge";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { TrainSectionTabs } from "@/components/train-section-tabs";
@@ -48,11 +48,16 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
       )}
     >
       {isNutritionPage ? (
-        <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
+        <Link href="/dashboard" className="flex min-w-0 flex-1 items-center gap-2">
           <Apple className="h-6 w-6 shrink-0 text-emerald-400" />
           <span className="truncate text-xl font-black tracking-tight">
             {platform.dashboard.nutrition}
           </span>
+          {nutritionActions?.status === "completed" ? (
+            <DashboardStatusCheck aria-label={platform.aria.completed} />
+          ) : nutritionActions?.status === "over" ? (
+            <DashboardStatusIcon status="missed" aria-label="Over limit" />
+          ) : null}
         </Link>
       ) : isWorkoutPage ? (
         <Link href="/dashboard" className="flex min-w-0 items-center gap-2">

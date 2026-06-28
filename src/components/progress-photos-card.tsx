@@ -1,10 +1,9 @@
 "use client";
-import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
-import { format } from "date-fns";
-import { CalendarClock, ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { CalendarClock, ChevronRight, ImageIcon } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { compressImageFile } from "@/lib/image-compress";
 import {
   getProgressPhotoSets,
@@ -30,80 +29,22 @@ import {
 } from "@/lib/supabase/storage";
 import type { ProgressPhotoSet } from "@/lib/types";
 import { ImageSourceButtons } from "@/components/image-source-buttons";
+import { ProgressPhotoEditMenu } from "@/components/progress-photo-edit-menu";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
-import { Button } from "@/components/ui/button";
+import { FullScreenFlow } from "@/components/programs/full-screen-flow";
 import {
   dashboard,
   DashboardSectionHeader,
 } from "@/components/dashboard-ui";
 import { DashboardStatusIcon } from "@/components/section-completed-badge";
+import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
+import { DASHBOARD_PROGRESS_PHOTOS_PATH } from "@/lib/dashboard-day-routes";
 
 type PoseUrls = Record<ProgressPhotoPose, string | null>;
-
 const EMPTY_URLS: PoseUrls = { front: null, back: null, side: null };
 
 type PhotoPreview = { url: string; label: string };
-
-function PhotoPreviewOverlay({
-  preview,
-  onClose,
-}: {
-  preview: PhotoPreview;
-  onClose: () => void;
-}) {
-  const platform = usePlatformCopy();
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label={platform.aria.close}
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={platform.aria.viewPhoto(preview.label)}
-        className="relative z-10 flex max-h-[min(92vh,48rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-      >
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <p className="text-sm font-semibold">{preview.label}</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            aria-label={platform.aria.close}
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-        <div className="flex min-h-0 flex-1 items-center justify-center bg-black/40 p-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={preview.url}
-            alt={preview.label}
-            className="max-h-[min(75vh,40rem)] w-full object-contain"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function PhotoSlot({
   label,
@@ -121,6 +62,7 @@ function PhotoSlot({
   onPreview: () => void;
 }) {
   const platform = usePlatformCopy();
+
   return (
     <div className="flex flex-col items-center gap-2">
       <div
@@ -162,34 +104,15 @@ function PhotoSlot({
             )}
           </div>
         )}
-        {url && !uploading && (
-          <>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-              aria-label={platform.aria.removePhoto(label)}
-              className="absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-            <span className="pointer-events-none absolute right-1.5 top-1.5 z-10">
-              <DashboardStatusIcon status="completed" className="h-5 w-5" aria-label="Uploaded" />
-            </span>
-          </>
-        )}
+        {url && !uploading ? (
+          <ProgressPhotoEditMenu
+            label={label}
+            disabled={uploading}
+            onPick={onPick}
+            onRemove={onRemove}
+          />
+        ) : null}
       </div>
-      {url && !uploading && (
-        <ImageSourceButtons
-          layout="button"
-          disabled={uploading}
-          onSelect={onPick}
-          galleryLabel={platform.photos.replace}
-          className="h-7 w-full max-w-[7.5rem] text-xs sm:max-w-none"
-        />
-      )}
       <span className="text-xs font-semibold text-muted-foreground">{label}</span>
     </div>
   );
@@ -206,6 +129,7 @@ export function ProgressPhotosCard({
 }) {
   const coachCopy = useCoachCopy();
   const platform = usePlatformCopy();
+  const router = useRouter();
   const locale = useLocale();
   const photoPoses = getProgressPhotoPoses(locale);
   const currentMonth = progressMonthKey();
@@ -213,8 +137,6 @@ export function ProgressPhotosCard({
   const [currentUrls, setCurrentUrls] = useState<PoseUrls>(
     initialCurrentUrls ?? EMPTY_URLS
   );
-  const [historyIndex, setHistoryIndex] = useState(0);
-  const [historyUrls, setHistoryUrls] = useState<PoseUrls>(EMPTY_URLS);
   const [uploadingPose, setUploadingPose] = useState<ProgressPhotoPose | null>(null);
   const [preview, setPreview] = useState<PhotoPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -227,13 +149,6 @@ export function ProgressPhotosCard({
     [sets, currentMonth]
   );
 
-  const pastSets = useMemo(
-    () => sets.filter((s) => s.month_key !== currentMonth),
-    [sets, currentMonth]
-  );
-
-  const selectedHistory = pastSets[historyIndex] ?? null;
-
   const refreshSets = useCallback(() => {
     startTransition(async () => {
       const fetched = await getProgressPhotoSets(clientId);
@@ -242,15 +157,13 @@ export function ProgressPhotosCard({
   }, [clientId]);
 
   const loadUrls = useCallback(
-    async (set: ProgressPhotoSet | null, target: "current" | "history") => {
+    async (set: ProgressPhotoSet | null) => {
       if (!set) {
-        if (target === "current") setCurrentUrls(EMPTY_URLS);
-        else setHistoryUrls(EMPTY_URLS);
+        setCurrentUrls(EMPTY_URLS);
         return;
       }
       const urls = await getSignedProgressPhotoUrls(clientId, set);
-      if (target === "current") setCurrentUrls(urls);
-      else setHistoryUrls(urls);
+      setCurrentUrls(urls);
     },
     [clientId]
   );
@@ -260,18 +173,8 @@ export function ProgressPhotosCard({
       skippedInitialUrlLoad.current = false;
       return;
     }
-    void loadUrls(currentSet, "current");
+    void loadUrls(currentSet);
   }, [currentSet, loadUrls]);
-
-  useEffect(() => {
-    void loadUrls(selectedHistory, "history");
-  }, [selectedHistory, loadUrls]);
-
-  useEffect(() => {
-    if (historyIndex >= pastSets.length) {
-      setHistoryIndex(Math.max(0, pastSets.length - 1));
-    }
-  }, [pastSets.length, historyIndex]);
 
   const handleRemove = async (pose: ProgressPhotoPose) => {
     setError(null);
@@ -340,144 +243,115 @@ export function ProgressPhotosCard({
     return formatProgressMonthLabel(currentMonth);
   }, [currentSet, currentMonth]);
 
+  const openHistory = () => {
+    router.push(DASHBOARD_PROGRESS_PHOTOS_PATH);
+  };
+
   return (
-    <div id="dashboard-progress-photos" className={cn(dashboard.tile, "p-4")}>
-      <DashboardSectionHeader
-        icon={ImageIcon}
-        iconClassName="text-primary"
-        title={platform.photos.title}
-        subtitle={platform.photos.description}
-        action={
-          currentComplete ? (
-            <DashboardStatusIcon
-              status="completed"
-              aria-label={platform.photos.monthComplete}
-            />
-          ) : undefined
-        }
-      />
-      <div className="mt-4 space-y-6">
-        <div>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-bold">{cycleLabel}</p>
-            {countdown && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                  countdown.urgency === "complete" && "bg-primary/10 text-primary",
-                  countdown.urgency === "soon" && "bg-amber-500/15 text-amber-400",
-                  countdown.urgency === "normal" && "bg-secondary/50 text-muted-foreground"
-                )}
-              >
-                <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-                {countdown.label}
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {photoPoses.map(({ pose, label }) => (
-              <PhotoSlot
-                key={pose}
-                label={label}
-                url={currentUrls[pose]}
-                uploading={uploadingPose === pose || isPending}
-                onPick={(file) => void handleUpload(pose, file)}
-                onRemove={() => {
-                  confirmGiveUp({
-                    ...coachCopy.removeProgressPhoto(label),
-                    onConfirm: () => handleRemove(pose),
-                  });
-                }}
-                onPreview={() => {
-                  const url = currentUrls[pose];
-                  if (url) setPreview({ url, label });
-                }}
-              />
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {platform.photos.compressHint}
-          </p>
-        </div>
-
-        {pastSets.length > 0 && (
-          <div className="space-y-3 border-t border-border/60 pt-4">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-bold">{platform.photos.previousMonths}</p>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  disabled={historyIndex <= 0}
-                  onClick={() => setHistoryIndex((i) => i - 1)}
-                  aria-label={platform.aria.earlierMonth}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="min-w-[7rem] text-center text-xs text-muted-foreground">
-                  {selectedHistory
-                    ? formatProgressMonthLabel(selectedHistory.month_key)
-                    : "—"}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  disabled={historyIndex >= pastSets.length - 1}
-                  onClick={() => setHistoryIndex((i) => i + 1)}
-                  aria-label={platform.aria.laterMonth}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-            {selectedHistory && (
-              <div className="grid grid-cols-3 gap-3">
-                {photoPoses.map(({ pose, label }) => (
-                  <div key={pose} className="space-y-1.5">
-                    {historyUrls[pose] ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreview({
-                            url: historyUrls[pose]!,
-                            label: `${label} · ${format(selectedHistory.month_key, "MMM yyyy")}`,
-                          })
-                        }
-                        aria-label={platform.aria.viewPhoto(label)}
-                        className="aspect-[3/4] w-full cursor-zoom-in overflow-hidden rounded-2xl border border-border bg-secondary/20"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={historyUrls[pose]!}
-                          alt={`${label} ${format(selectedHistory.month_key, "MMM yyyy")}`}
-                          className="h-full w-full object-cover"
-                        />
-                      </button>
-                    ) : (
-                      <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-2xl border border-border bg-secondary/20 text-xs text-muted-foreground">
-                        {platform.photos.noPhoto}
-                      </div>
-                    )}
-                    <p className="text-center text-[11px] font-medium text-muted-foreground">
-                      {label}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+    <>
+      <div
+        id="dashboard-progress-photos"
+        role="button"
+        tabIndex={0}
+        onClick={openHistory}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openHistory();
+          }
+        }}
+        className={cn(
+          dashboard.tile,
+          "relative cursor-pointer p-4 transition-opacity hover:opacity-95 active:opacity-90"
         )}
+      >
+        <DashboardSectionHeader
+          icon={ImageIcon}
+          iconClassName="text-primary"
+          title={platform.photos.title}
+          subtitle={platform.photos.description}
+          action={
+            currentComplete ? (
+              <DashboardStatusIcon
+                status="completed"
+                aria-label={platform.photos.monthComplete}
+              />
+            ) : null
+          }
+        />
+        <div
+          className="mt-4 space-y-6"
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          <div>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-bold">{cycleLabel}</p>
+              {countdown ? (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                    countdown.urgency === "complete" && "bg-primary/10 text-primary",
+                    countdown.urgency === "soon" && "bg-amber-500/15 text-amber-400",
+                    countdown.urgency === "normal" && "bg-secondary/50 text-muted-foreground"
+                  )}
+                >
+                  <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+                  {countdown.label}
+                </span>
+              ) : null}
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {photoPoses.map(({ pose, label }) => (
+                <PhotoSlot
+                  key={pose}
+                  label={label}
+                  url={currentUrls[pose]}
+                  uploading={uploadingPose === pose || isPending}
+                  onPick={(file) => void handleUpload(pose, file)}
+                  onRemove={() => {
+                    confirmGiveUp({
+                      ...coachCopy.removeProgressPhoto(label),
+                      onConfirm: () => handleRemove(pose),
+                    });
+                  }}
+                  onPreview={() => {
+                    const url = currentUrls[pose];
+                    if (url) setPreview({ url, label });
+                  }}
+                />
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {platform.photos.compressHint}
+            </p>
+          </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        </div>
+        <ChevronRight
+          className="pointer-events-none absolute bottom-4 right-4 h-5 w-5 text-muted-foreground"
+          aria-hidden
+        />
       </div>
+
       {giveUpDialog}
-      {preview && (
-        <PhotoPreviewOverlay preview={preview} onClose={() => setPreview(null)} />
-      )}
-    </div>
+      <FullScreenFlow
+        open={preview !== null}
+        onClose={() => setPreview(null)}
+        title={preview?.label ?? ""}
+      >
+        {preview ? (
+          <div className="flex items-center justify-center py-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={preview.url}
+              alt={preview.label}
+              className="max-h-[min(80vh,48rem)] w-full object-contain"
+            />
+          </div>
+        ) : null}
+      </FullScreenFlow>
+    </>
   );
 }

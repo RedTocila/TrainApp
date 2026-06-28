@@ -48,6 +48,17 @@ export function formatProgressCycleLabel(cycleStart: Date): string {
   return `${format(cycleStart, "MMM d")} – ${format(cycleEnd, "MMM d, yyyy")}`;
 }
 
+/** True while the client may still replace or remove photos for a cycle. */
+export function isProgressPhotoCycleOpen(
+  cycleStart: Date | string,
+  now = new Date()
+): boolean {
+  const start =
+    typeof cycleStart === "string" ? new Date(cycleStart) : cycleStart;
+  const cycleEnd = progressCycleEnd(start);
+  return differenceInCalendarDays(cycleEnd, now) >= 0;
+}
+
 export type ProgressPhotoCountdown = {
   label: string;
   urgency: "complete" | "soon" | "normal";
@@ -55,19 +66,12 @@ export type ProgressPhotoCountdown = {
 
 type ProgressPhotoSetLike = {
   id: string;
+  month_key: string;
   created_at: string;
   front_path: string | null;
   back_path: string | null;
   side_path: string | null;
 };
-
-function findAnchorSet(
-  sets: ProgressPhotoSetLike[],
-  currentSet: ProgressPhotoSetLike | null
-): ProgressPhotoSetLike | null {
-  if (currentSet && progressSetHasPhotos(currentSet)) return currentSet;
-  return sets.find((set) => progressSetHasPhotos(set)) ?? null;
-}
 
 export function getProgressPhotoCountdown(options: {
   sets: ProgressPhotoSetLike[];
@@ -114,4 +118,92 @@ export function getProgressPhotoCountdown(options: {
     label: `Next photos in ${daysUntil} days · ${dueLabel}`,
     urgency: anchorComplete && anchorIsCurrent ? "complete" : "normal",
   };
+}
+
+function findAnchorSet(
+  sets: ProgressPhotoSetLike[],
+  currentSet: ProgressPhotoSetLike | null
+): ProgressPhotoSetLike | null {
+  if (currentSet && progressSetHasPhotos(currentSet)) return currentSet;
+  return sets.find((set) => progressSetHasPhotos(set)) ?? null;
+}
+
+export type ProgressPhotoTimelineRow = {
+  monthKey: string;
+  set: ProgressPhotoSetLike | null;
+  title: string;
+  subtitle?: string;
+  /** Can add photos to empty slots. */
+  canUpload: boolean;
+  /** Can replace or remove existing photos. */
+  canModify: boolean;
+  isUpcoming: boolean;
+};
+
+/** Logged months (newest first), optional active cycle, plus one empty next check-in row. */
+export function getProgressPhotoTimelineRows(
+  sets: ProgressPhotoSetLike[],
+  now = new Date()
+): ProgressPhotoTimelineRow[] {
+  const currentMonth = progressMonthKey(now);
+  const setsByMonth = new Map(sets.map((set) => [set.month_key, set]));
+  const currentSet = setsByMonth.get(currentMonth) ?? null;
+  const anchor = findAnchorSet(sets, currentSet);
+  const countdown = getProgressPhotoCountdown({ sets, currentSet, now });
+
+  const loggedRows: ProgressPhotoTimelineRow[] = [...sets]
+    .filter((set) => progressSetHasPhotos(set) && progressSetComplete(set))
+    .sort((a, b) => b.month_key.localeCompare(a.month_key))
+    .map((set) => ({
+      monthKey: set.month_key,
+      set,
+      title:
+        set.month_key === currentMonth
+          ? formatProgressCycleLabel(new Date(set.created_at))
+          : formatProgressMonthLabel(set.month_key),
+      canUpload: false,
+      canModify: isProgressPhotoCycleOpen(set.created_at, now),
+      isUpcoming: false,
+    }));
+
+  const activeCycleOpen =
+    currentSet && isProgressPhotoCycleOpen(currentSet.created_at, now);
+
+  const activeRow: ProgressPhotoTimelineRow | null =
+    currentSet && progressSetHasPhotos(currentSet) && !progressSetComplete(currentSet)
+      ? {
+          monthKey: currentMonth,
+          set: currentSet,
+          title: formatProgressCycleLabel(new Date(currentSet.created_at)),
+          subtitle: countdown?.label,
+          canUpload: Boolean(activeCycleOpen),
+          canModify: Boolean(activeCycleOpen),
+          isUpcoming: false,
+        }
+      : null;
+
+  const anchorComplete = anchor ? progressSetComplete(anchor) : false;
+  const nextCycleStart = anchor
+    ? progressCycleEnd(new Date(anchor.created_at))
+    : startOfMonth(now);
+  const daysUntil = differenceInCalendarDays(nextCycleStart, now);
+
+  const nextCanUpload =
+    !anchor || (anchorComplete && daysUntil <= 0 && !activeRow);
+
+  const nextTitle = !anchor
+    ? formatProgressMonthLabel(currentMonth)
+    : formatProgressCycleLabel(nextCycleStart);
+
+  const nextRow: ProgressPhotoTimelineRow = {
+    monthKey: currentMonth,
+    set: null,
+    title: nextTitle,
+    subtitle: countdown?.label,
+    canUpload: nextCanUpload,
+    canModify: false,
+    isUpcoming: true,
+  };
+
+  return [...loggedRows, ...(activeRow ? [activeRow] : []), nextRow];
 }

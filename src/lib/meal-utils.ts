@@ -87,23 +87,23 @@ export function emptyMealForm(mealType: MealType = "breakfast"): MealFormData {
 }
 
 export function mealFormFromMeal(meal: {
-  meal_type: MealType;
-  name: string;
+  meal_type?: MealType | null;
+  name?: string | null;
   description?: string | null;
   youtube_url?: string | null;
   calories?: number | null;
   protein?: number | null;
   carbs?: number | null;
   fat?: number | null;
-  foods?: { name: string; amount?: string }[];
+  foods?: { name: string; amount?: string }[] | null;
 }): MealFormData {
   const ingredients = (meal.foods ?? []).map((f) => ({
     name: f.name,
     amount: f.amount ?? "",
   }));
   return {
-    meal_type: meal.meal_type,
-    name: meal.name,
+    meal_type: meal.meal_type ?? "snack",
+    name: meal.name?.trim() || "Logged meal",
     description: meal.description ?? "",
     youtube_url: meal.youtube_url ?? "",
     macros: normalizeMealMacros(meal),

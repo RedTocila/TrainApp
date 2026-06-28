@@ -7,13 +7,14 @@ import { Apple, Camera, ChevronRight, ClipboardList } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatDateKey } from "@/lib/utils";
 import { DASHBOARD_DAY_NUTRITION_PATH } from "@/lib/dashboard-day-routes";
-import { addWater, setWater } from "@/lib/actions/logs";
+import { addWater, updateWaterGoal } from "@/lib/actions/logs";
 import { deleteDailyMealLog } from "@/lib/actions/daily-meals";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import type { MealFormData } from "@/lib/meal-utils";
 import { sumMealMacros, mealFormFromMeal } from "@/lib/meal-utils";
 import { isActionError, runServerAction } from "@/lib/run-server-action";
 import {
+  anyDailyMacroOverTarget,
   dailyMacrosExceededUpperLimit,
   dailyMacrosWithinTarget,
   formatExceededMacroSummary,
@@ -83,6 +84,7 @@ export function DailyTracker({
   hasAiAccess,
   targets,
   waterGoalMl,
+  onWaterGoalChange,
   nutritionPlan,
   coachNutritionPlanState,
   goal,
@@ -155,7 +157,9 @@ export function DailyTracker({
   const waterCompleted = localWaterMl >= waterGoalMl;
   const macrosMet = dailyMacrosWithinTarget(current, targets);
   const macrosExceeded = dailyMacrosExceededUpperLimit(current, targets);
+  const macrosOverTarget = anyDailyMacroOverTarget(current, targets);
   const nutritionCompleted = macrosMet && waterCompleted && !macrosExceeded;
+  const showNutritionStatus = nutritionCompleted || macrosOverTarget;
 
   const nutritionTitle = isToday(date) ? platform.dashboard.nutrition : format(date, "MMM d");
   const mealPlanDialogTitle = isToday(date)
@@ -177,14 +181,12 @@ export function DailyTracker({
     });
   };
 
-  const handleSetWater = async (nextMl: number) => {
-    const previous = localWaterMl;
-    setLocalWaterMl(nextMl);
-    patchDashboard({ dateKey, waterMl: nextMl });
-    const result = await setWater(clientId, dateKey, nextMl);
+  const handleSetWaterGoal = async (nextGoal: number) => {
+    const previous = waterGoalMl;
+    onWaterGoalChange?.(nextGoal);
+    const result = await updateWaterGoal(clientId, nextGoal);
     if ("error" in result && result.error) {
-      setLocalWaterMl(previous);
-      patchDashboard({ dateKey, waterMl: previous });
+      onWaterGoalChange?.(previous);
       return { error: result.error };
     }
   };
@@ -225,13 +227,9 @@ export function DailyTracker({
   };
 
   const handleSelectMeal = (meal: DailyMealLog) => {
-    try {
-      setPreviewVariant("view");
-      setPreviewMeal(mealFormFromMeal(meal));
-      setPreviewOpen(true);
-    } catch {
-      setPreviewOpen(false);
-    }
+    setPreviewVariant("view");
+    setPreviewMeal(mealFormFromMeal(meal));
+    setPreviewOpen(true);
   };
 
   const nutritionContext: NutritionDayContext = {
@@ -253,9 +251,14 @@ export function DailyTracker({
             onLogMeal: () => setLogMealOpen(true),
             onDietPlan: handleMealPlanClick,
             showDietPlan: showMealPlanButton,
+            status: nutritionCompleted
+              ? ("completed" as const)
+              : macrosOverTarget
+                ? ("over" as const)
+                : null,
           }
         : null,
-    [isDetailLayout, showMealPlanButton]
+    [isDetailLayout, showMealPlanButton, nutritionCompleted, macrosOverTarget]
   );
   useRegisterNutritionPageChrome(nutritionChromeActions);
 
@@ -322,12 +325,12 @@ export function DailyTracker({
           }}
           className="relative flex h-full w-full cursor-pointer flex-col transition-opacity hover:opacity-95 active:opacity-90"
         >
-          {(nutritionCompleted || macrosExceeded) && (
+          {showNutritionStatus && (
             <div className="absolute right-3 top-3 z-10">
-              {nutritionCompleted ? (
+              {nutritionCompleted && !macrosOverTarget ? (
                 <DashboardStatusIcon status="completed" aria-label="Completed" />
               ) : (
-                <DashboardStatusIcon status="warning" aria-label="Over limit" />
+                <DashboardStatusIcon status="missed" aria-label="Over limit" />
               )}
             </div>
           )}
@@ -410,6 +413,16 @@ export function DailyTracker({
     return (
       <>
         <div id="dashboard-nutrition" className="space-y-4">
+          {showNutritionStatus ? (
+            <div className="hidden justify-end lg:flex">
+              {nutritionCompleted && !macrosOverTarget ? (
+                <DashboardStatusIcon status="completed" aria-label="Completed" />
+              ) : (
+                <DashboardStatusIcon status="missed" aria-label="Over limit" />
+              )}
+            </div>
+          ) : null}
+
           <div className="hidden items-center justify-end gap-2 lg:flex">
             <Button
               size="sm"
@@ -471,12 +484,12 @@ export function DailyTracker({
   return (
     <>
       <Card id="dashboard-nutrition" className="relative">
-        {(nutritionCompleted || macrosExceeded) && (
+        {showNutritionStatus && (
           <div className="absolute right-3 top-3 z-10">
-            {nutritionCompleted ? (
+            {nutritionCompleted && !macrosOverTarget ? (
               <DashboardStatusIcon status="completed" aria-label="Completed" />
             ) : (
-              <DashboardStatusIcon status="warning" aria-label="Over limit" />
+              <DashboardStatusIcon status="missed" aria-label="Over limit" />
             )}
           </div>
         )}
@@ -494,7 +507,7 @@ export function DailyTracker({
                 title={coachLabels.exceededTasks}
                 hint={coachLabels.macrosExceededHint}
                 buttonLabel={coachLabels.exceeded}
-                tone="warning"
+                tone="missed"
                 items={
                   macrosExceeded
                     ? [
@@ -576,7 +589,7 @@ export function DailyTracker({
             waterMl={localWaterMl}
             waterGoalMl={waterGoalMl}
             onAddWater={handleAddWater}
-            onSetWater={handleSetWater}
+            onSetWaterGoal={onWaterGoalChange ? handleSetWaterGoal : undefined}
           />
 
           <RecentMealsList

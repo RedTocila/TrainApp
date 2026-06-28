@@ -1,17 +1,15 @@
 "use client";
 import { usePlatformCopy } from "@/components/locale-provider";
 
-import { addDays, format, isToday, isTomorrow } from "date-fns";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { format, isToday, isTomorrow } from "date-fns";
+import { useMemo } from "react";
 import { useSelectedDate } from "@/components/date-provider";
-import { useDashboardSync } from "@/components/dashboard-sync";
+import { useDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { DashboardDateLoadingDots } from "@/components/dashboard-date-loading";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { dashboard } from "@/components/dashboard-ui";
-import { fetchDashboardEnrichmentData } from "@/lib/actions/dashboard-enrichment";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import { enrichTasksForDate } from "@/lib/dashboard-task-enrichment";
-import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 import { formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -22,59 +20,24 @@ function panelTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>): s
 }
 
 export function DayTasksPanel({
-  clientId,
+  clientId: _clientId,
   schedule,
-  initialEnrichment,
 }: {
   clientId: string;
   schedule: ClientSchedule;
-  initialEnrichment: DashboardEnrichmentData;
+  initialEnrichment?: unknown;
 }) {
   const platform = usePlatformCopy();
-  const { selectedDate, todayKey, goToToday } = useSelectedDate();
-  const { version, mergeEnrichment } = useDashboardSync();
-  const [enrichment, setEnrichment] =
-    useState<DashboardEnrichmentData>(initialEnrichment);
-  const [, startTransition] = useTransition();
+  const { selectedDate, goToToday } = useSelectedDate();
+  const { enrichment } = useDashboardEnrichment();
   const dateKey = formatDateKey(selectedDate);
-  const previousTodayKey = useRef(todayKey);
-
-  useEffect(() => {
-    if (version === 0) return;
-
-    const from = formatDateKey(addDays(new Date(), -3));
-    const to = formatDateKey(addDays(new Date(), 28));
-
-    startTransition(async () => {
-      const data = await fetchDashboardEnrichmentData(clientId, from, to);
-      setEnrichment(data);
-    });
-  }, [version, clientId]);
-
-  useEffect(() => {
-    if (previousTodayKey.current === todayKey) return;
-    previousTodayKey.current = todayKey;
-
-    const from = formatDateKey(addDays(new Date(), -3));
-    const to = formatDateKey(addDays(new Date(), 28));
-
-    startTransition(async () => {
-      const data = await fetchDashboardEnrichmentData(clientId, from, to);
-      setEnrichment(data);
-    });
-  }, [todayKey, clientId]);
-
-  const mergedEnrichment = useMemo(
-    () => mergeEnrichment(enrichment),
-    [enrichment, mergeEnrichment]
-  );
 
   const tasks = useMemo(() => {
-    return enrichTasksForDate(selectedDate, schedule, mergedEnrichment);
-  }, [schedule, selectedDate, mergedEnrichment]);
+    return enrichTasksForDate(selectedDate, schedule, enrichment);
+  }, [schedule, selectedDate, enrichment]);
 
   const { completed } = groupTasksByStatus(tasks);
-  const dailyMeals = mergedEnrichment.mealsByDate[dateKey] ?? [];
+  const dailyMeals = enrichment.mealsByDate[dateKey] ?? [];
   const viewingToday = isToday(selectedDate);
   const completionPct =
     tasks.length > 0 ? Math.round((completed.length / tasks.length) * 100) : 0;

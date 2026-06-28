@@ -1,7 +1,7 @@
 "use client";
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
-import { ChevronRight, Dumbbell } from "lucide-react";
+import { ChevronRight, Dumbbell, Pencil } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSelectedDate } from "@/components/date-provider";
@@ -38,6 +38,8 @@ import {
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ChangeWorkoutDialog } from "@/components/change-workout-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
 import {
   isDeadlinePassed,
@@ -95,6 +97,7 @@ export function DashboardWorkoutCard({
   const [workoutResults, setWorkoutResults] =
     useState<CompletedWorkoutResults | null>(initialWorkoutResults);
   const [loadedDateKey, setLoadedDateKey] = useState(dateKey);
+  const [changeWorkoutOpen, setChangeWorkoutOpen] = useState(false);
   const workoutCacheRef = useRef<Map<string, WorkoutDayCache>>(new Map());
 
   useEffect(() => {
@@ -300,6 +303,7 @@ export function DashboardWorkoutCard({
       !!displayWorkout && displayWorkout.exercises.length > 0;
 
     return (
+      <>
       <Card
         id="dashboard-workout"
         role="button"
@@ -313,27 +317,34 @@ export function DashboardWorkoutCard({
         }}
         className="relative flex h-full min-h-[15rem] w-full cursor-pointer flex-col p-4 pt-12 sm:min-h-[16rem] transition-opacity hover:opacity-95 active:opacity-90"
       >
-        {showCompletedState && displayWorkout ? (
-          <div className="absolute right-3 top-3 z-20">
-            <DashboardStatusCheck aria-label={platform.aria.completed} />
-          </div>
-        ) : (
-          <div
-            className="absolute right-3 top-3 z-20"
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => event.stopPropagation()}
+        <div
+          className="absolute right-3 top-3 z-20 flex items-center gap-1"
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full text-muted-foreground"
+            onClick={() => setChangeWorkoutOpen(true)}
+            aria-label="Change workout"
           >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          {showCompletedState && displayWorkout ? (
+            <DashboardStatusCheck aria-label={platform.aria.completed} />
+          ) : (
             <StartTodaysWorkoutButton
               date={selectedDate}
               disabled={!displayWorkout || (!isDayLoaded && !patchedComplete)}
             />
-          </div>
-        )}
+          )}
+        </div>
 
         <div
           className={cn(
-            "absolute inset-x-4 top-4 z-10 flex min-w-0 items-center gap-2",
-            showCompletedState && displayWorkout ? "pr-9" : "pr-10"
+            "absolute inset-x-4 top-4 z-10 flex min-w-0 items-center gap-2 pr-16"
           )}
         >
           <Dumbbell className="h-5 w-5 shrink-0 text-primary" />
@@ -415,6 +426,12 @@ export function DashboardWorkoutCard({
           aria-hidden
         />
       </Card>
+      <ChangeWorkoutDialog
+        open={changeWorkoutOpen}
+        onClose={() => setChangeWorkoutOpen(false)}
+        planId={displayWorkout?.planId}
+      />
+      </>
     );
   }
 

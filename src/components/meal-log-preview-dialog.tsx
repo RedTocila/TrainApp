@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { CheckCircle2, Target, X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useCoachCopy } from "@/components/locale-provider";
@@ -32,6 +33,11 @@ export function MealLogPreviewDialog({
 }) {
   const coachCopy = useCoachCopy();
   const [adviceKey, setAdviceKey] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open && meal) setAdviceKey(Date.now());
@@ -78,12 +84,12 @@ export function MealLogPreviewDialog({
   const adviceTier = score ? getMealAdviceTier(score.score) : "ok";
   const tierStyles = getMealScoreTierStyles(adviceTier);
 
-  if (!open || !meal) return null;
+  if (!open || !meal || !mounted) return null;
 
   const summary = formatMealMacrosSummary(meal.macros);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <button
         type="button"
         aria-label="Close"
@@ -198,7 +204,8 @@ export function MealLogPreviewDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

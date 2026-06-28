@@ -41,9 +41,9 @@ function macroRows(platform: ReturnType<typeof usePlatformCopy>) {
       key: "protein" as const,
       label: platform.ai.protein,
       icon: Beef,
-      text: "text-sky-400",
-      bar: "bg-sky-500",
-      track: "bg-sky-500/15",
+      text: "text-rose-400",
+      bar: "bg-rose-500",
+      track: "bg-rose-500/15",
     },
     {
       key: "carbs" as const,
@@ -57,9 +57,9 @@ function macroRows(platform: ReturnType<typeof usePlatformCopy>) {
       key: "fat" as const,
       label: platform.ai.fat,
       icon: Droplets,
-      text: "text-blue-400",
-      bar: "bg-blue-500",
-      track: "bg-blue-500/15",
+      text: "text-sky-400",
+      bar: "bg-sky-500",
+      track: "bg-sky-500/15",
     },
   ];
 }
@@ -86,9 +86,9 @@ function MacroDonut({
   const radius = 34;
   const circumference = 2 * Math.PI * radius;
   const segments = [
-    { value: split.protein, color: "#0ea5e9" },
+    { value: split.protein, color: "#f43f5e" },
     { value: split.carbs, color: "#f59e0b" },
-    { value: split.fat, color: "#3b82f6" },
+    { value: split.fat, color: "#0ea5e9" },
   ];
 
   let offset = 0;
@@ -127,7 +127,7 @@ function MacroDonut({
         })}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-        <Flame className="mb-0.5 h-4 w-4 text-primary" />
+        <Flame className="mb-0.5 h-4 w-4 text-orange-400" />
         {isAdjusting ? (
           <Input
             type="number"

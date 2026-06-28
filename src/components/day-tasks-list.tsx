@@ -100,10 +100,15 @@ function TaskRowStatus({ task }: { task: DailyTask }) {
   }
 
   if (isExceeded) {
-    return <DashboardStatusIcon status="warning" aria-label="Over limit" />;
+    return <DashboardStatusIcon status="missed" aria-label="Over limit" />;
   }
 
-  return null;
+  return (
+    <span
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-muted-foreground/35"
+      aria-label="Not completed"
+    />
+  );
 }
 
 export function TaskRow({

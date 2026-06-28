@@ -79,6 +79,21 @@ export async function getClientHabits(clientId: string): Promise<ClientHabit[]> 
   return (data ?? []).map(normalizeHabit);
 }
 
+export async function getClientHabit(
+  clientId: string,
+  habitId: string
+): Promise<ClientHabit | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("client_habits")
+    .select(CLIENT_HABIT_COLUMNS)
+    .eq("client_id", clientId)
+    .eq("id", habitId)
+    .maybeSingle();
+
+  return data ? normalizeHabit(data) : null;
+}
+
 function normalizeHabit(row: Record<string, unknown>): ClientHabit {
   return {
     ...(row as unknown as ClientHabit),

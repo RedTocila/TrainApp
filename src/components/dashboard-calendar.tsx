@@ -1,75 +1,24 @@
 "use client";
 
-import { addDays, format } from "date-fns";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { CalendarStrip } from "@/components/calendar-strip";
 import { useSelectedDate } from "@/components/date-provider";
-import { useDashboardSync } from "@/components/dashboard-sync";
+import { CalendarStrip } from "@/components/calendar-strip";
+import { useDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
 import { useRegisterDashboardCalendar } from "@/components/full-calendar-provider";
-import { fetchDashboardEnrichmentData } from "@/lib/actions/dashboard-enrichment";
 import type { ClientSchedule } from "@/lib/daily-tasks";
-import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
-
-interface DashboardCalendarProps {
-  clientId: string;
-  schedule: ClientSchedule;
-  initialEnrichment: DashboardEnrichmentData;
-}
 
 export function DashboardCalendar({
-  clientId,
+  clientId: _clientId,
   schedule,
-  initialEnrichment,
-}: DashboardCalendarProps) {
-  const { selectedDate, setSelectedDate, todayKey } = useSelectedDate();
-  const { version, mergeEnrichment } = useDashboardSync();
-  const [enrichment, setEnrichment] =
-    useState<DashboardEnrichmentData>(initialEnrichment);
-  const [, startTransition] = useTransition();
-  const previousTodayKey = useRef(todayKey);
+}: {
+  clientId: string;
+  schedule: ClientSchedule;
+  initialEnrichment?: unknown;
+}) {
+  const { selectedDate, setSelectedDate } = useSelectedDate();
+  const { enrichment } = useDashboardEnrichment();
 
-  const mergedEnrichment = useMemo(
-    () => mergeEnrichment(enrichment),
-    [enrichment, mergeEnrichment]
-  );
-
-  const range = useMemo(() => {
-    const today = new Date();
-    return {
-      from: format(addDays(today, -3), "yyyy-MM-dd"),
-      to: format(addDays(today, 28), "yyyy-MM-dd"),
-    };
-  }, [todayKey]);
-
-  useEffect(() => {
-    if (version === 0) return;
-
-    startTransition(async () => {
-      const data = await fetchDashboardEnrichmentData(
-        clientId,
-        range.from,
-        range.to
-      );
-      setEnrichment(data);
-    });
-  }, [clientId, range.from, range.to, version]);
-
-  useEffect(() => {
-    if (previousTodayKey.current === todayKey) return;
-    previousTodayKey.current = todayKey;
-
-    startTransition(async () => {
-      const data = await fetchDashboardEnrichmentData(
-        clientId,
-        range.from,
-        range.to
-      );
-      setEnrichment(data);
-    });
-  }, [todayKey, clientId, range.from, range.to]);
-
-  useRegisterDashboardCalendar(schedule, mergedEnrichment);
+  useRegisterDashboardCalendar(schedule, enrichment);
 
   return (
     <div className="relative">
@@ -80,7 +29,7 @@ export function DashboardCalendar({
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         schedule={schedule}
-        enrichment={mergedEnrichment}
+        enrichment={enrichment}
       />
     </div>
   );

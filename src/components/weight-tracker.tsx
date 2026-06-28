@@ -3,10 +3,10 @@ import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/loca
 
 import { format, isToday } from "date-fns";
 import { Plus, Scale } from "lucide-react";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useSelectedDate } from "@/components/date-provider";
-import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { WeightChartLazy } from "@/components/weight-chart-lazy";
+import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import {
   deleteBodyWeightLog,
   getBodyWeightHistory,
@@ -40,10 +40,9 @@ export function WeightTracker({
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
-  const { selectedDate } = useSelectedDate();
+  const { selectedDate, todayKey } = useSelectedDate();
   const dateKey = formatDateKey(selectedDate);
   const [history, setHistory] = useState(initialHistory);
-  const [todayLog, setTodayLog] = useState(initialLog);
   const [weightInput, setWeightInput] = useState(
     initialLog ? String(initialLog.weight_kg) : ""
   );
@@ -52,23 +51,43 @@ export function WeightTracker({
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
-  const loadWeight = useCallback(async () => {
-    const [log, fetchedHistory] = await Promise.all([
-      getBodyWeightLog(clientId, dateKey),
-      getBodyWeightHistory(clientId),
-    ]);
-    setTodayLog(log);
-    setWeightInput(log ? String(log.weight_kg) : "");
-    setHistory(fetchedHistory);
-    onHistoryChange?.(fetchedHistory);
-  }, [clientId, dateKey, onHistoryChange]);
+  useEffect(() => {
+    let cancelled = false;
+    void getBodyWeightHistory(clientId).then((fetchedHistory) => {
+      if (cancelled) return;
+      setHistory(fetchedHistory);
+      onHistoryChange?.(fetchedHistory);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, onHistoryChange]);
 
-  const isReady = useDashboardDateFetch(dateKey, loadWeight, [clientId]);
-  const todayLogForDay = isReady ? todayLog : null;
+  const seedLog = dateKey === todayKey ? initialLog : undefined;
+
+  const { data: todayLog } = useCachedDashboardDate({
+    clientId,
+    dateKey,
+    namespace: "weight-log",
+    seed: seedLog,
+    fetcher: async () => getBodyWeightLog(clientId, dateKey),
+  });
+
+  const todayLogForDay = todayLog ?? seedLog ?? null;
+
+  useEffect(() => {
+    setWeightInput(todayLogForDay ? String(todayLogForDay.weight_kg) : "");
+  }, [todayLogForDay?.id, todayLogForDay?.weight_kg, dateKey]);
 
   const dateLabel = isToday(selectedDate)
     ? platform.common.today
     : format(selectedDate, "MMM d");
+
+  const refreshHistory = useCallback(async () => {
+    const fetchedHistory = await getBodyWeightHistory(clientId);
+    setHistory(fetchedHistory);
+    onHistoryChange?.(fetchedHistory);
+  }, [clientId, onHistoryChange]);
 
   const handleSave = () => {
     const parsed = parseFloat(weightInput);
@@ -83,19 +102,15 @@ export function WeightTracker({
         setError(result.error);
         return;
       }
-      const [log, fetchedHistory] = await Promise.all([
-        getBodyWeightLog(clientId, dateKey),
-        getBodyWeightHistory(clientId),
-      ]);
-      setTodayLog(log);
-      setHistory(fetchedHistory);
-      onHistoryChange?.(fetchedHistory);
+      const log = await getBodyWeightLog(clientId, dateKey);
+      setWeightInput(log ? String(log.weight_kg) : "");
+      await refreshHistory();
       setFormOpen(false);
     });
   };
 
   const handleClear = () => {
-    if (!todayLog) return;
+    if (!todayLogForDay) return;
     confirmGiveUp({
       ...coachCopy.clearWeight,
       onConfirm: async () => {
@@ -105,12 +120,9 @@ export function WeightTracker({
           setError(result.error);
           return;
         }
-        setTodayLog(null);
         setWeightInput("");
         setFormOpen(false);
-        const fetchedHistory = await getBodyWeightHistory(clientId);
-        setHistory(fetchedHistory);
-        onHistoryChange?.(fetchedHistory);
+        await refreshHistory();
       },
     });
   };
@@ -145,8 +157,6 @@ export function WeightTracker({
         }
       />
       <div className="mt-4 space-y-6">
-        {isReady ? (
-          <>
         <WeightChartLazy
           entries={history}
           highlightDate={todayLogForDay?.date}
@@ -174,9 +184,9 @@ export function WeightTracker({
             </div>
             <div className="flex gap-2">
               <Button onClick={handleSave} disabled={isPending || !weightInput}>
-                {todayLog ? platform.common.update : platform.weight.logWeight}
+                {todayLogForDay ? platform.common.update : platform.weight.logWeight}
               </Button>
-              {todayLog && (
+              {todayLogForDay && (
                 <Button variant="outline" disabled={isPending} onClick={handleClear}>
                   {coachLabels.clearWeight}
                 </Button>
@@ -189,8 +199,6 @@ export function WeightTracker({
         )}
 
         {error && <p className="text-sm text-red-400">{error}</p>}
-          </>
-        ) : null}
       </div>
       {giveUpDialog}
     </div>

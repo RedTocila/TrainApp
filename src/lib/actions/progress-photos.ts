@@ -8,6 +8,7 @@ import {
   requireSubscribedMutationAdmin,
 } from "@/lib/actions/auth-client";
 import type { ProgressPhotoPose, ProgressPhotoSet } from "@/lib/types";
+import { isProgressPhotoCycleOpen } from "@/lib/progress-photo-utils";
 import { STORAGE_BUCKETS } from "@/lib/supabase/storage";
 
 const POSE_COLUMNS: Record<ProgressPhotoPose, keyof Pick<ProgressPhotoSet, "front_path" | "back_path" | "side_path">> = {
@@ -58,6 +59,9 @@ export async function saveProgressPhotoPath(
   const { admin } = mutation;
 
   if (existing) {
+    if (!isProgressPhotoCycleOpen(existing.created_at)) {
+      return { error: "This photo cycle is locked and can no longer be changed." };
+    }
     const { error } = await admin
       .from("progress_photo_sets")
       .update({
@@ -89,6 +93,10 @@ export async function removeProgressPhotoPath(
 
   const existing = await getProgressPhotoSetForMonth(clientId, monthKey);
   if (!existing) return { success: true as const };
+
+  if (!isProgressPhotoCycleOpen(existing.created_at)) {
+    return { error: "This photo cycle is locked and can no longer be changed." };
+  }
 
   const column = POSE_COLUMNS[pose];
   const storagePath = existing[column];

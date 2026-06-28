@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Beef,
   Candy,
@@ -252,8 +252,46 @@ export function NutritionDetailView({
   className?: string;
 }) {
   const platform = usePlatformCopy();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [slide, setSlide] = useState(0);
   const health = scoreDailyNutrition({ ...context, micros });
+
+  const scrollToSlide = useCallback((index: number) => {
+    slideRefs.current[index]?.scrollIntoView({
+      behavior: "smooth",
+      inline: "start",
+      block: "nearest",
+    });
+    setSlide(index);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      const slides = slideRefs.current.filter((node): node is HTMLDivElement => node !== null);
+      if (slides.length === 0) return;
+
+      const scrollLeft = el.scrollLeft;
+      let closest = 0;
+      let minDistance = Infinity;
+
+      slides.forEach((slideNode, index) => {
+        const distance = Math.abs(slideNode.offsetLeft - scrollLeft);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closest = index;
+        }
+      });
+
+      setSlide(closest);
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
 
   const microCells = [
     {
@@ -286,70 +324,85 @@ export function NutritionDetailView({
   return (
     <div className={cn("space-y-4", className)}>
       <div className="space-y-3">
-        <div className="overflow-hidden">
-          {slide === 0 ? (
-            <div className="space-y-3">
-              <CaloriesHeroCard
-                current={current.calories}
-                target={targets.calories}
-                caloriesLeftLabel={platform.nutrition.caloriesLeft}
-              />
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {SLIDE_ONE.map(({ key, icon, ringClass, iconClass, labelKey }) => {
-                  const target = targets[key];
-                  const value = current[key];
-                  const over = target > 0 && value > target;
-                  return (
-                    <MacroVerticalCard
-                      key={key}
-                      value={value}
-                      target={target}
-                      label={platform.nutrition[labelKey]}
-                      icon={icon}
-                      ringClass={ringClass}
-                      iconClass={iconClass}
-                      over={over}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {microCells.map(({ key, icon, ringClass, iconClass, label, overWhenHigh, unit }) => {
-                  const target = DAILY_MICRO_TARGETS[key];
-                  const value = micros[key];
-                  const over = overWhenHigh ? target > 0 && value > target : false;
-
-                  return (
-                    <MacroVerticalCard
-                      key={key}
-                      value={value}
-                      target={target}
-                      label={label}
-                      unit={unit ?? "g"}
-                      icon={icon}
-                      ringClass={ringClass}
-                      iconClass={iconClass}
-                      over={over}
-                    />
-                  );
-                })}
-              </div>
-              <HealthScoreHeroCard
-                score={health.score}
-                before={platform.nutrition.healthScoreInnerBefore}
-                after={platform.nutrition.healthScoreInnerAfter}
-              />
-            </div>
+        <div
+          ref={scrollRef}
+          className={cn(
+            "flex gap-3 overflow-x-auto snap-x snap-mandatory",
+            "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           )}
+          aria-label={platform.nutrition.macros}
+        >
+          <div
+            ref={(node) => {
+              slideRefs.current[0] = node;
+            }}
+            className="w-full shrink-0 snap-start space-y-3"
+          >
+            <CaloriesHeroCard
+              current={current.calories}
+              target={targets.calories}
+              caloriesLeftLabel={platform.nutrition.caloriesLeft}
+            />
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {SLIDE_ONE.map(({ key, icon, ringClass, iconClass, labelKey }) => {
+                const target = targets[key];
+                const value = current[key];
+                const over = target > 0 && value > target;
+                return (
+                  <MacroVerticalCard
+                    key={key}
+                    value={value}
+                    target={target}
+                    label={platform.nutrition[labelKey]}
+                    icon={icon}
+                    ringClass={ringClass}
+                    iconClass={iconClass}
+                    over={over}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <div
+            ref={(node) => {
+              slideRefs.current[1] = node;
+            }}
+            className="w-full shrink-0 snap-start space-y-3"
+          >
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {microCells.map(({ key, icon, ringClass, iconClass, label, overWhenHigh, unit }) => {
+                const target = DAILY_MICRO_TARGETS[key];
+                const value = micros[key];
+                const over = overWhenHigh ? target > 0 && value > target : false;
+
+                return (
+                  <MacroVerticalCard
+                    key={key}
+                    value={value}
+                    target={target}
+                    label={label}
+                    unit={unit ?? "g"}
+                    icon={icon}
+                    ringClass={ringClass}
+                    iconClass={iconClass}
+                    over={over}
+                  />
+                );
+              })}
+            </div>
+            <HealthScoreHeroCard
+              score={health.score}
+              before={platform.nutrition.healthScoreInnerBefore}
+              after={platform.nutrition.healthScoreInnerAfter}
+            />
+          </div>
         </div>
 
         <DashboardCarouselDots
           count={2}
           active={slide}
-          onSelect={setSlide}
+          onSelect={scrollToSlide}
           getLabel={(index) =>
             index === 0 ? platform.nutrition.macros : platform.nutrition.microNutrients
           }

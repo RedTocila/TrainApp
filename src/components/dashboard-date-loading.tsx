@@ -19,7 +19,7 @@ type DashboardDateLoadingContextValue = {
   isDateLoading: boolean;
 };
 
-const DashboardDateLoadingContext =
+export const DashboardDateLoadingContext =
   createContext<DashboardDateLoadingContextValue | null>(null);
 
 export function DashboardDateLoadingProvider({
