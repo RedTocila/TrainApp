@@ -12,6 +12,7 @@ import {
   getPlan,
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
+import { buildPricingHref } from "@/lib/pricing-nav";
 import type { Profile } from "@/lib/types";
 
 export function ProfileSubscriptionSection({
@@ -67,7 +68,7 @@ export function ProfileSubscriptionSection({
         )}
         <div className="flex flex-wrap gap-2">
           <Link
-            href="/dashboard/pricing"
+            href={buildPricingHref("/dashboard/profile")}
             className={buttonVariants({ variant: "outline", size: "sm" })}
           >
             {plan ? coachLabels.levelUp : coachLabels.pickAPlan}

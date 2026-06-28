@@ -2,9 +2,11 @@
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Sparkles, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { buildPricingHref } from "@/lib/pricing-nav";
 
 export function AiInsightCard({
   message,
@@ -17,6 +19,7 @@ export function AiInsightCard({
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
+  const pathname = usePathname();
   if (!hasAiAccess) {
     return (
       <Card className="border-primary/20 bg-primary/5">
@@ -28,7 +31,7 @@ export function AiInsightCard({
               <p className="text-sm text-muted-foreground">{coachLabels.coachHasOpinions}</p>
             </div>
           </div>
-          <Link href="/dashboard/pricing">
+          <Link href={buildPricingHref(pathname)}>
             <Button size="sm" variant="outline">
               {platform.ai.upgrade}
             </Button>

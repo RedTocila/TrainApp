@@ -7,11 +7,32 @@ export function isSentryEnabled() {
 }
 
 export function getBaseSentryOptions():
-  | Pick<NodeOptions, "dsn" | "enabled" | "environment" | "tracesSampleRate" | "enableLogs">
-  | Pick<EdgeOptions, "dsn" | "enabled" | "environment" | "tracesSampleRate" | "enableLogs">
+  | Pick<
+      NodeOptions,
+      | "dsn"
+      | "enabled"
+      | "environment"
+      | "tracesSampleRate"
+      | "enableLogs"
+      | "initialScope"
+    >
+  | Pick<
+      EdgeOptions,
+      | "dsn"
+      | "enabled"
+      | "environment"
+      | "tracesSampleRate"
+      | "enableLogs"
+      | "initialScope"
+    >
   | Pick<
       BrowserOptions,
-      "dsn" | "enabled" | "environment" | "tracesSampleRate" | "enableLogs"
+      | "dsn"
+      | "enabled"
+      | "environment"
+      | "tracesSampleRate"
+      | "enableLogs"
+      | "initialScope"
     > {
   return {
     dsn,
@@ -19,5 +40,11 @@ export function getBaseSentryOptions():
     environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development",
     tracesSampleRate: process.env.NODE_ENV === "development" ? 1.0 : 0.1,
     enableLogs: true,
+    initialScope: {
+      tags: {
+        app: "train-app",
+        site: "rutina.al",
+      },
+    },
   };
 }

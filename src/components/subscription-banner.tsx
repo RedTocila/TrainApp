@@ -1,14 +1,19 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Crown, Sparkles } from "lucide-react";
 import { hasPaidAccess } from "@/lib/subscription";
 import { subscriptionLabel } from "@/lib/subscription";
 import { getCoachLabels } from "@/lib/coach-copy";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
+import { buildPricingHref } from "@/lib/pricing-nav";
 import type { Profile } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function SubscriptionBanner({ profile }: { profile: Profile }) {
+  const pathname = usePathname();
   const coachLabels = getCoachLabels(parseCheckoutLocale(profile.preferred_locale));
   if (hasPaidAccess(profile)) return null;
 
@@ -24,7 +29,7 @@ export function SubscriptionBanner({ profile }: { profile: Profile }) {
             <p className="text-sm text-muted-foreground">{coachLabels.subscribeBlurb}</p>
           </div>
         </div>
-        <Link href="/dashboard/pricing" className="shrink-0">
+        <Link href={buildPricingHref(pathname)} className="shrink-0">
           <Button>
             <Sparkles className="mr-2 h-4 w-4" />
             {coachLabels.viewPlans}

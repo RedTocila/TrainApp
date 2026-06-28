@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import {
   ArrowLeft,
@@ -24,6 +25,7 @@ import {
   type MealFormData,
 } from "@/lib/meal-utils";
 import { catalogRecipeToMealForm, type CatalogRecipe } from "@/lib/recipe-catalog";
+import { buildPricingHref } from "@/lib/pricing-nav";
 import { useRecipeCatalog } from "@/hooks/use-recipe-catalog";
 import { MealDetailsFields } from "@/components/meal-details-fields";
 import { MealPhotoLogStep } from "@/components/meal-photo-log-step";
@@ -56,6 +58,7 @@ export function LogMealDialog({
   goal?: string | null;
 }) {
   const platform = usePlatformCopy();
+  const pathname = usePathname();
   const [mode, setMode] = useState<LogMode>("picker");
   const [customFromLibrary, setCustomFromLibrary] = useState(false);
   const [form, setForm] = useState<MealFormData>(emptyMealForm());
@@ -495,7 +498,7 @@ export function LogMealDialog({
                   </p>
                 </div>
                 <Link
-                  href="/dashboard/pricing"
+                  href={buildPricingHref(pathname)}
                   className={buttonVariants({ className: "w-full" })}
                   onClick={onClose}
                 >
@@ -526,7 +529,7 @@ export function LogMealDialog({
                   </p>
                 </div>
                 <Link
-                  href="/dashboard/pricing"
+                  href={buildPricingHref(pathname)}
                   className={buttonVariants({ className: "w-full" })}
                   onClick={onClose}
                 >

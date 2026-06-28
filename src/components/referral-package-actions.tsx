@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ArrowRight, Check, Copy, CreditCard, ExternalLink, Sparkles } from "lucide-react";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { REFERRAL_CHECKOUT_PATH } from "@/lib/referral-config";
+import { buildPricingHref } from "@/lib/pricing-nav";
 import { hasAiAccess } from "@/lib/subscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -86,7 +87,7 @@ export function ReferralPackageActions({
             {copy.qualifyingPlanNote}
           </p>
           <Link
-            href="/dashboard/pricing"
+            href={buildPricingHref("/dashboard/referrals")}
             className="mt-1 flex items-center justify-center gap-1 text-[11px] font-medium text-primary hover:underline"
           >
             {copy.viewAllPlans}

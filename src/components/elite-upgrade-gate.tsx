@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Crown, Trophy, Users, Video } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { PLATFORM_ELITE_NAME } from "@/lib/brand";
+import { buildPricingHref } from "@/lib/pricing-nav";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -14,6 +16,7 @@ export function EliteUpgradeGate({
   description?: string;
 }) {
   const platform = usePlatformCopy();
+  const pathname = usePathname();
   const copy = platform.eliteUpgrade;
 
   const features = [
@@ -43,7 +46,7 @@ export function EliteUpgradeGate({
             </div>
           ))}
         </div>
-        <Link href="/dashboard/pricing" className={buttonVariants({ className: "w-full" })}>
+        <Link href={buildPricingHref(pathname)} className={buttonVariants({ className: "w-full" })}>
           {copy.viewElitePlan}
         </Link>
       </CardContent>

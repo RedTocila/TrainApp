@@ -2,8 +2,9 @@
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
+import { PricingBackButton } from "@/components/pricing-back-button";
 import { completeRegistration } from "@/lib/actions/auth";
 import { PricingPlans } from "@/components/pricing-plans";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,13 @@ export function PricingPageClient({
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
+      <Suspense
+        fallback={
+          <div className="h-8 w-16 animate-pulse rounded-md bg-muted/50" aria-hidden />
+        }
+      >
+        <PricingBackButton />
+      </Suspense>
       <div className="space-y-2 text-center">
         {onboarding && (
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">

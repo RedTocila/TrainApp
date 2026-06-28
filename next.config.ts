@@ -23,8 +23,8 @@ const nextConfig: NextConfig = {
 };
 
 export default withSentryConfig(nextConfig, {
-  org: "redtocila",
-  project: "jarvis",
+  org: process.env.SENTRY_ORG ?? "redtocila",
+  project: process.env.SENTRY_PROJECT ?? "rutina",
   silent: !process.env.CI,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   widenClientFileUpload: true,
