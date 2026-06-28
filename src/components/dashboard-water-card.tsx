@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { GlassWater, Pencil } from "lucide-react";
 import { useSelectedDate } from "@/components/date-provider";
-import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
+import {
+  neverInEnrichmentRange,
+  useOptionalDashboardEnrichment,
+} from "@/components/dashboard-enrichment-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { dashboard } from "@/components/dashboard-ui";
 import { DashboardStatusIcon } from "@/components/section-completed-badge";
@@ -31,7 +34,8 @@ export function DashboardWaterCard({
   const { patchDashboard } = useDashboardSync();
   const enrichmentCtx = useOptionalDashboardEnrichment();
   const enrichment = enrichmentCtx?.enrichment;
-  const isInEnrichmentRange = enrichmentCtx?.isInEnrichmentRange ?? (() => false);
+  const isInEnrichmentRange =
+    enrichmentCtx?.isInEnrichmentRange ?? neverInEnrichmentRange;
   const dateKey = formatDateKey(selectedDate);
   const [waterGoalMl, setWaterGoalMl] = useState(initialWaterGoalMl);
   const [editOpen, setEditOpen] = useState(false);

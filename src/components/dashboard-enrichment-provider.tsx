@@ -29,6 +29,11 @@ type DashboardEnrichmentContextValue = {
 const DashboardEnrichmentContext =
   createContext<DashboardEnrichmentContextValue | null>(null);
 
+/** Stable fallback when enrichment provider is not mounted (e.g. day detail routes). */
+export function neverInEnrichmentRange(_dateKey: string) {
+  return false;
+}
+
 function enrichmentRange() {
   const today = new Date();
   return {

@@ -2,7 +2,7 @@
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { useState } from "react";
-import { format, parseISO } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import {
   ChevronDown,
   ChevronRight,
@@ -21,6 +21,13 @@ import { cn } from "@/lib/utils";
 import { dashboard, DashboardSectionHeading } from "@/components/dashboard-ui";
 
 const MEAL_ICONS = [Salad, Apple, UtensilsCrossed] as const;
+
+function formatLoggedTime(loggedAt: string | null | undefined): string | null {
+  if (!loggedAt) return null;
+  const parsed = parseISO(loggedAt);
+  if (!isValid(parsed)) return null;
+  return format(parsed, "h:mm a");
+}
 
 function mealIcon(index: number) {
   return MEAL_ICONS[index % MEAL_ICONS.length];
@@ -95,9 +102,7 @@ export function RecentMealsList({
           {meals.map((meal, index) => {
             const Icon = mealIcon(index);
             const interactive = Boolean(onSelect);
-            const loggedTime = meal.logged_at
-              ? format(parseISO(meal.logged_at), "h:mm a")
-              : null;
+            const loggedTime = formatLoggedTime(meal.logged_at);
 
             return (
               <li key={meal.id}>

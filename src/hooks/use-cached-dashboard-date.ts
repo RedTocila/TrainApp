@@ -40,12 +40,14 @@ export function useCachedDashboardDate<T>({
   const markLoading = trackGlobalLoading ? ctx?.markLoading : undefined;
   const cacheKey = dashboardDayCacheKey(clientId, namespace, dateKey);
   const depsKey = JSON.stringify(deps);
+  const seedRef = useRef(seed);
+  seedRef.current = seed;
 
   const readCache = useCallback((): T | null => {
     const cached = getDashboardDayCache<T>(cacheKey);
     if (cached !== undefined) return cached;
-    return seed ?? null;
-  }, [cacheKey, seed]);
+    return seedRef.current ?? null;
+  }, [cacheKey]);
 
   const [data, setData] = useState<T | null>(readCache);
   const [isRevalidating, setIsRevalidating] = useState(false);
@@ -53,7 +55,8 @@ export function useCachedDashboardDate<T>({
   fetcherRef.current = fetcher;
 
   useLayoutEffect(() => {
-    setData(readCache());
+    const next = readCache();
+    setData((prev) => (Object.is(prev, next) ? prev : next));
   }, [dateKey, readCache]);
 
   useEffect(() => {

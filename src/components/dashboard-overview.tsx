@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSelectedDate } from "@/components/date-provider";
-import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
+import {
+  neverInEnrichmentRange,
+  useOptionalDashboardEnrichment,
+} from "@/components/dashboard-enrichment-provider";
 import { DailyTracker } from "@/components/daily-tracker";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
@@ -65,7 +68,8 @@ export function DashboardOverview({
   const { selectedDate, todayKey } = useSelectedDate();
   const enrichmentCtx = useOptionalDashboardEnrichment();
   const enrichment = enrichmentCtx?.enrichment;
-  const isInEnrichmentRange = enrichmentCtx?.isInEnrichmentRange ?? (() => false);
+  const isInEnrichmentRange =
+    enrichmentCtx?.isInEnrichmentRange ?? neverInEnrichmentRange;
   const dateKey = formatDateKey(selectedDate);
   const [targets, setTargets] = useState(initialTargets);
   const [waterGoalMl, setWaterGoalMl] = useState(initialWaterGoalMl);
