@@ -2,6 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getBodyWeightHistory } from "@/lib/actions/weight-logs";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import type { MacroGap } from "@/lib/ai/types";
+import {
+  buildProgressPhotoContextForAi,
+  getProgressPhotoSetsWithAnalysis,
+  summarizeProgressPhotosForCoach,
+} from "@/lib/ai/progress-photo-context";
 import type { Profile } from "@/lib/types";
 import {
   dailyMacroSurplus,
@@ -80,7 +85,8 @@ export async function getCoachContext(clientId: string, dateKey: string) {
   weekAgo.setDate(weekAgo.getDate() - 7);
   const weekStart = weekAgo.toISOString().split("T")[0];
 
-  const [profile, weightHistory, mealLogs, sessions, habits] = await Promise.all([
+  const [profile, weightHistory, mealLogs, sessions, habits, progressPhotoSets, progressPhotoContextText] =
+    await Promise.all([
     supabase.from("profiles").select("*").eq("id", clientId).single(),
     getBodyWeightHistory(clientId, 90),
     supabase
@@ -101,6 +107,8 @@ export async function getCoachContext(clientId: string, dateKey: string) {
       .eq("client_id", clientId)
       .gte("date", weekStart)
       .lte("date", dateKey),
+    getProgressPhotoSetsWithAnalysis(clientId, 12),
+    buildProgressPhotoContextForAi(clientId),
   ]);
 
   const p = profile.data as Profile | null;
@@ -127,5 +135,8 @@ export async function getCoachContext(clientId: string, dateKey: string) {
     habitCompletions: habits.data?.length ?? 0,
     daysTracked: daysWithMeals,
     avgProtein: Math.round(avgProtein),
+    progressPhotoSets,
+    progressPhotoContextText,
+    progressPhotoSummary: summarizeProgressPhotosForCoach(progressPhotoSets),
   };
 }

@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { CalendarClock, ChevronRight, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { compressImageFile } from "@/lib/image-compress";
+import { uploadProgressPhotoWithAiReview } from "@/lib/progress-photo-upload-flow";
 import {
   getProgressPhotoSets,
   removeProgressPhotoPath,
-  saveProgressPhotoPath,
 } from "@/lib/actions/progress-photos";
 import {
   hasPopulatedUrls,
@@ -23,7 +22,6 @@ import {
   formatProgressMonthLabel,
   getProgressPhotoCountdown,
   getProgressPhotoDisplaySet,
-  progressMonthFolder,
   progressMonthKey,
   progressSetComplete,
   progressSetHasPhotos,
@@ -31,13 +29,10 @@ import {
 } from "@/lib/progress-photo-utils";
 import { getProgressPhotoPoses } from "@/lib/locale-labels";
 import { createClient } from "@/lib/supabase/client";
-import {
-  progressPhotoPath,
-  STORAGE_BUCKETS,
-  type ProgressPhotoPose,
-} from "@/lib/supabase/storage";
+import type { ProgressPhotoPose } from "@/lib/supabase/storage";
 import type { ProgressPhotoSet } from "@/lib/types";
 import { ImageSourceButtons } from "@/components/image-source-buttons";
+import { ProgressPhotoAlexDialog } from "@/components/progress-photo-alex-dialog";
 import { ProgressPhotoEditMenu } from "@/components/progress-photo-edit-menu";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { FullScreenFlow } from "@/components/programs/full-screen-flow";
@@ -113,15 +108,16 @@ function PhotoSlot({
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground">
             {uploading ? (
-              <span className="text-xs font-medium">{platform.photos.uploading}</span>
+              <span className="text-xs font-medium">{platform.photos.analyzing}</span>
             ) : (
               <>
                 <span className="text-[11px] font-medium">{platform.photos.addPhoto}</span>
                 <ImageSourceButtons
                   layout="icon"
+                  cameraOnly
                   disabled={uploading}
                   onSelect={onPick}
-                  galleryLabel={platform.photos.addPosePhoto(label)}
+                  cameraLabel={platform.photos.takePosePhoto(label)}
                 />
               </>
             )}
@@ -173,6 +169,11 @@ export function ProgressPhotosCard({
   const [uploadingPose, setUploadingPose] = useState<ProgressPhotoPose | null>(null);
   const [preview, setPreview] = useState<PhotoPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [alexDialog, setAlexDialog] = useState<{
+    title: string;
+    message: string;
+    primaryLabel?: string;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
@@ -281,39 +282,46 @@ export function ProgressPhotosCard({
   const handleUpload = async (pose: ProgressPhotoPose, file: File) => {
     setError(null);
     setUploadingPose(pose);
-    let previewUrl: string | null = null;
     try {
-      const compressed = await compressImageFile(file);
-      previewUrl = URL.createObjectURL(compressed);
-      setCurrentUrls((prev) => ({ ...prev, [pose]: previewUrl }));
-
-      const monthFolder = progressMonthFolder(currentMonth);
-      const extension = compressed.type === "image/webp" ? "webp" : "jpg";
-      const path = progressPhotoPath(clientId, monthFolder, pose, extension);
-
       const supabase = createClient();
-      const { error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKETS.progressPhotos)
-        .upload(path, compressed, {
-          upsert: true,
-          cacheControl: "31536000",
-          contentType: compressed.type,
+      const result = await uploadProgressPhotoWithAiReview({
+        supabase,
+        clientId,
+        monthKey: currentMonth,
+        pose,
+        file,
+        locale,
+      });
+
+      if (result.status === "rejected") {
+        setAlexDialog({
+          title: platform.photos.alexWrongPhotoTitle,
+          message: result.analysis.alex_message,
+          primaryLabel: platform.photos.retakePhoto,
         });
-
-      if (uploadError) {
-        setCurrentUrls((prev) => ({ ...prev, [pose]: null }));
-        setError(uploadError.message);
         return;
       }
 
-      const result = await saveProgressPhotoPath(clientId, currentMonth, pose, path);
-      if (result.error) {
-        setCurrentUrls((prev) => ({ ...prev, [pose]: null }));
-        setError(result.error);
+      if (result.status === "error") {
+        setError(result.message);
         return;
       }
 
-      const nextSets = upsertPhotoPathInSets(sets, clientId, currentMonth, pose, path);
+      if (result.analysis?.valid && result.analysis.alex_message) {
+        setAlexDialog({
+          title: platform.photos.alexAcceptedTitle,
+          message: result.analysis.alex_message,
+          primaryLabel: platform.common.done,
+        });
+      }
+
+      const nextSets = upsertPhotoPathInSets(
+        sets,
+        clientId,
+        currentMonth,
+        pose,
+        result.path
+      );
       setSets(nextSets);
       setProgressPhotosSetsCache(clientId, nextSets);
 
@@ -333,7 +341,6 @@ export function ProgressPhotosCard({
     } catch (err) {
       setError(err instanceof Error ? err.message : platform.photos.uploadFailed);
     } finally {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setUploadingPose(null);
     }
   };
@@ -432,6 +439,13 @@ export function ProgressPhotosCard({
       </div>
 
       {giveUpDialog}
+      <ProgressPhotoAlexDialog
+        open={alexDialog !== null}
+        onClose={() => setAlexDialog(null)}
+        title={alexDialog?.title ?? ""}
+        message={alexDialog?.message ?? ""}
+        primaryLabel={alexDialog?.primaryLabel}
+      />
       <FullScreenFlow
         open={preview !== null}
         onClose={() => setPreview(null)}

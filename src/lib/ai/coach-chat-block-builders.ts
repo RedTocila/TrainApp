@@ -199,6 +199,29 @@ export async function buildCoachingTipsBlocks(
     });
   }
 
+  if (ctx.progressPhotoSummary.missingPoses.length > 0 && ctx.progressPhotoSummary.latestMonthKey) {
+    tipList.push({
+      icon: "camera",
+      title: "Progress photos",
+      body: `Missing ${ctx.progressPhotoSummary.missingPoses.join(", ")} for ${ctx.progressPhotoSummary.latestMonthKey}. Alex uses these to track physique changes.`,
+      tone: "warning",
+    });
+  } else if (ctx.progressPhotoSummary.focusAreas.length > 0) {
+    tipList.push({
+      icon: "camera",
+      title: "From your photos",
+      body: `Focus more on: ${ctx.progressPhotoSummary.focusAreas.slice(0, 3).join(", ")}.`,
+      tone: "primary",
+    });
+  } else if (!ctx.progressPhotoSummary.hasPhotos) {
+    tipList.push({
+      icon: "camera",
+      title: "Progress photos",
+      body: "Take monthly front, back, and side photos so Alex can analyze visual progress.",
+      tone: "default",
+    });
+  }
+
   if (tipList.length === 0 || tipList.every((t) => t.tone === "success")) {
     tipList.push({
       icon: "sparkles",

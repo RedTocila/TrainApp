@@ -47,7 +47,12 @@ export async function buildWeeklyCoachReport(
 - Weight entries: ${ctx.weightHistory.length}
 - User goal: ${ctx.profile?.goal ?? "general fitness"}
 
+Progress photos (Coach Alex vision analysis):
+${ctx.progressPhotoContextText}
+
 Scores: training ${trainingScore}, nutrition ${nutritionScore}, consistency ${consistencyScore}.
+
+Include physique/progress photo insights when relevant (visual progress, focus areas, missing muscle groups, invalid photos to retake).
 
 Respond with ONLY JSON:
 {
@@ -78,6 +83,14 @@ Respond with ONLY JSON:
     if (ctx.daysTracked >= 5) highlights.push("Good nutrition tracking habit.");
   }
   if (concerns.length === 0) {
+    if (ctx.progressPhotoSummary.invalidCount > 0) {
+      concerns.push("Some progress photos were rejected — retake front, back, and side check-ins properly.");
+    }
+    if (ctx.progressPhotoSummary.missingPoses.length > 0 && ctx.progressPhotoSummary.latestMonthKey) {
+      concerns.push(
+        `Missing progress photo poses this month: ${ctx.progressPhotoSummary.missingPoses.join(", ")}.`
+      );
+    }
     if (ctx.macroGap.overTolerance) {
       concerns.push("Daily macros exceeded your tolerance band — portions were too high.");
     }
@@ -89,6 +102,11 @@ Respond with ONLY JSON:
     }
   }
   if (recommendations.length === 0) {
+    if (ctx.progressPhotoSummary.focusAreas.length > 0) {
+      recommendations.push(
+        `From your progress photos, prioritize: ${ctx.progressPhotoSummary.focusAreas.slice(0, 3).join(", ")}.`
+      );
+    }
     if (ctx.macroGap.overTolerance) {
       recommendations.push(
         "You exceeded your macro ceiling — review today's meals and plan smaller portions tomorrow."

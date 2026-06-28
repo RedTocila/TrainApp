@@ -95,7 +95,12 @@ export async function generateWeeklyCoachReportAction(): Promise<
 - Weight entries: ${ctx.weightHistory.length}
 - User goal: ${ctx.profile?.goal ?? "general fitness"}
 
+Progress photos (Coach Alex vision analysis):
+${ctx.progressPhotoContextText}
+
 Scores: training ${trainingScore}, nutrition ${nutritionScore}, consistency ${consistencyScore}.
+
+Include physique/progress photo insights when relevant (visual progress, focus areas, missing muscle groups, invalid photos to retake).
 
 Respond with ONLY JSON:
 {
@@ -126,6 +131,14 @@ Respond with ONLY JSON:
     if (ctx.daysTracked >= 5) highlights.push("Good nutrition tracking habit.");
   }
   if (concerns.length === 0) {
+    if (ctx.progressPhotoSummary.invalidCount > 0) {
+      concerns.push("Some progress photos were rejected — retake front, back, and side check-ins properly.");
+    }
+    if (ctx.progressPhotoSummary.missingPoses.length > 0 && ctx.progressPhotoSummary.latestMonthKey) {
+      concerns.push(
+        `Missing progress photo poses this month: ${ctx.progressPhotoSummary.missingPoses.join(", ")}.`
+      );
+    }
     if (ctx.macroGap.overTolerance) {
       concerns.push("Daily macros exceeded your tolerance band — portions were too high.");
     }
@@ -135,6 +148,11 @@ Respond with ONLY JSON:
     if (ctx.workoutsCompleted < 2) concerns.push("Few workouts completed — training stimulus was low.");
   }
   if (recommendations.length === 0) {
+    if (ctx.progressPhotoSummary.focusAreas.length > 0) {
+      recommendations.push(
+        `From your progress photos, prioritize: ${ctx.progressPhotoSummary.focusAreas.slice(0, 3).join(", ")}.`
+      );
+    }
     if (ctx.macroGap.overTolerance) {
       recommendations.push(
         "You exceeded your macro ceiling — review today's meals and plan smaller portions tomorrow."
@@ -224,9 +242,17 @@ export async function getDashboardAiInsight(dateKey: string) {
 
   const ctx = await getCoachContext(access.profile.id, dateKey);
   const gap = ctx.macroGap;
+  const photoSummary = ctx.progressPhotoSummary;
 
   let message = "You're on track with nutrition today.";
-  if (gap.overTolerance) {
+  if (photoSummary.invalidCount > 0) {
+    message =
+      "Alex flagged a wrong progress photo — retake your front, back, or side check-in with the camera, not random stuff.";
+  } else if (photoSummary.missingPoses.length > 0 && photoSummary.latestMonthKey) {
+    message = `Your ${photoSummary.latestMonthKey} progress photos are missing: ${photoSummary.missingPoses.join(", ")}. Snap them with the camera for Alex to track visual progress.`;
+  } else if (photoSummary.latestAlexInsight && photoSummary.focusAreas.length > 0) {
+    message = `${photoSummary.latestAlexInsight} Focus: ${photoSummary.focusAreas.slice(0, 2).join(", ")}.`;
+  } else if (gap.overTolerance) {
     const summary = formatExceededMacroSummary(gap.consumed, gap.targets);
     message = `You went over your macro limit today (${summary}). Don't add more food — review today's meals and eat lighter tomorrow.`;
   } else if (gap.protein > 25) {

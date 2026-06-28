@@ -4,11 +4,10 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
 import Image from "next/image";
-import { compressImageFile } from "@/lib/image-compress";
+import { uploadProgressPhotoWithAiReview } from "@/lib/progress-photo-upload-flow";
 import {
   getProgressPhotoSets,
   removeProgressPhotoPath,
-  saveProgressPhotoPath,
 } from "@/lib/actions/progress-photos";
 import {
   progressPhotoPathsKey,
@@ -18,17 +17,12 @@ import {
 import {
   formatProgressMonthLabel,
   getProgressPhotoTimelineRows,
-  progressMonthFolder,
   progressSetHasPhotos,
   type ProgressPhotoTimelineRow,
 } from "@/lib/progress-photo-utils";
 import { getProgressPhotoPoses } from "@/lib/locale-labels";
 import { createClient } from "@/lib/supabase/client";
-import {
-  progressPhotoPath,
-  STORAGE_BUCKETS,
-  type ProgressPhotoPose,
-} from "@/lib/supabase/storage";
+import type { ProgressPhotoPose } from "@/lib/supabase/storage";
 import {
   getProgressPhotosSetsCache,
   getProgressPhotosUrlsCache,
@@ -40,6 +34,7 @@ import {
 import { DashboardDayDetailShell } from "@/components/dashboard-day-detail-shell";
 import { ImageSourceButtons } from "@/components/image-source-buttons";
 import { ProgressPhotoEditMenu } from "@/components/progress-photo-edit-menu";
+import { ProgressPhotoAlexDialog } from "@/components/progress-photo-alex-dialog";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -135,15 +130,16 @@ function PhotoSlot({
         ) : canUpload ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground">
             {uploading ? (
-              <span className="text-xs font-medium">{platform.photos.uploading}</span>
+              <span className="text-xs font-medium">{platform.photos.analyzing}</span>
             ) : (
               <>
                 <span className="text-[11px] font-medium">{platform.photos.addPhoto}</span>
                 <ImageSourceButtons
                   layout="icon"
+                  cameraOnly
                   disabled={uploading}
                   onSelect={onPick}
-                  galleryLabel={platform.photos.addPosePhoto(label)}
+                  cameraLabel={platform.photos.takePosePhoto(label)}
                 />
               </>
             )}
@@ -336,6 +332,11 @@ export function ProgressPhotosHistoryPage({
   const [uploadingPose, setUploadingPose] = useState<ProgressPhotoPose | null>(null);
   const [uploadingMonth, setUploadingMonth] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [alexDialog, setAlexDialog] = useState<{
+    title: string;
+    message: string;
+    primaryLabel?: string;
+  } | null>(null);
   const [slider, setSlider] = useState<{
     pose: ProgressPhotoPose;
     index: number;
@@ -434,78 +435,63 @@ export function ProgressPhotosHistoryPage({
     setError(null);
     setUploadingPose(pose);
     setUploadingMonth(monthKey);
-    let previewUrl: string | null = null;
     try {
-      const compressed = await compressImageFile(file);
-      previewUrl = URL.createObjectURL(compressed);
-      setUrlsByMonth((prev) => {
-        const next = new Map(prev);
-        const current = next.get(monthKey) ?? { ...EMPTY_URLS };
-        next.set(monthKey, { ...current, [pose]: previewUrl });
-        return next;
+      const supabase = createClient();
+      const result = await uploadProgressPhotoWithAiReview({
+        supabase,
+        clientId,
+        monthKey,
+        pose,
+        file,
+        locale,
       });
 
-      const monthFolder = progressMonthFolder(monthKey);
-      const extension = compressed.type === "image/webp" ? "webp" : "jpg";
-      const path = progressPhotoPath(clientId, monthFolder, pose, extension);
-
-      const supabase = createClient();
-      const { error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKETS.progressPhotos)
-        .upload(path, compressed, {
-          upsert: true,
-          cacheControl: "31536000",
-          contentType: compressed.type,
+      if (result.status === "rejected") {
+        setAlexDialog({
+          title: platform.photos.alexWrongPhotoTitle,
+          message: result.analysis.alex_message,
+          primaryLabel: platform.photos.retakePhoto,
         });
-
-      if (uploadError) {
-        setUrlsByMonth((prev) => {
-          const next = new Map(prev);
-          const current = next.get(monthKey) ?? { ...EMPTY_URLS };
-          next.set(monthKey, { ...current, [pose]: null });
-          return next;
-        });
-        setError(uploadError.message);
         return;
       }
 
-      const result = await saveProgressPhotoPath(clientId, monthKey, pose, path);
-      if (result.error) {
-        setUrlsByMonth((prev) => {
-          const next = new Map(prev);
-          const current = next.get(monthKey) ?? { ...EMPTY_URLS };
-          next.set(monthKey, { ...current, [pose]: null });
-          return next;
-        });
-        setError(result.error);
+      if (result.status === "error") {
+        setError(result.message);
         return;
       }
 
-      const nextSets = upsertPhotoPathInSets(sets, clientId, monthKey, pose, path);
+      if (result.analysis?.valid && result.analysis.alex_message) {
+        setAlexDialog({
+          title: platform.photos.alexAcceptedTitle,
+          message: result.analysis.alex_message,
+          primaryLabel: platform.common.done,
+        });
+      }
+
+      const nextSets = upsertPhotoPathInSets(sets, clientId, monthKey, pose, result.path);
       setSets(nextSets);
       setProgressPhotosSetsCache(clientId, nextSets);
 
       const updatedSet = nextSets.find((set) => set.month_key === monthKey);
       if (updatedSet) {
         const signedUrls = await resolveProgressPhotoUrls(updatedSet);
+        setUrlsByMonth((prev) => {
+          const next = new Map(prev);
+          next.set(monthKey, signedUrls);
+          return next;
+        });
         setProgressPhotosUrlsCache(
           clientId,
           monthKey,
           signedUrls,
           progressPhotoPathsKey(updatedSet)
         );
-        setUrlsByMonth((prev) => {
-          const next = new Map(prev);
-          next.set(monthKey, signedUrls);
-          return next;
-        });
       }
 
       refreshSets();
     } catch (err) {
       setError(err instanceof Error ? err.message : platform.photos.uploadFailed);
     } finally {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setUploadingPose(null);
       setUploadingMonth(null);
     }
@@ -615,6 +601,13 @@ export function ProgressPhotosHistoryPage({
       </DashboardDayDetailShell>
 
       {giveUpDialog}
+      <ProgressPhotoAlexDialog
+        open={alexDialog !== null}
+        onClose={() => setAlexDialog(null)}
+        title={alexDialog?.title ?? ""}
+        message={alexDialog?.message ?? ""}
+        primaryLabel={alexDialog?.primaryLabel}
+      />
       {slider && sliderFrames.length > 0 ? (
         <PoseSlider
           frames={sliderFrames}

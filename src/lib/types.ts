@@ -262,6 +262,29 @@ export interface BodyWeightLog {
 
 export type ProgressPhotoPose = "front" | "back" | "side";
 
+export type ProgressPhotoDetectedSubject =
+  | "person_fitness_pose"
+  | "wrong_pose"
+  | "not_a_person"
+  | "unclear";
+
+/** Stored JSON from Coach Alex vision review of a single progress photo. */
+export interface ProgressPhotoAnalysis {
+  valid: boolean;
+  expected_pose: ProgressPhotoPose;
+  detected_subject: ProgressPhotoDetectedSubject;
+  detected_pose?: ProgressPhotoPose | "unknown";
+  confidence: number;
+  rejection_reason?: string;
+  /** Coach Alex reply — sarcastic roast when invalid, coaching notes when valid. */
+  alex_message: string;
+  physique_observations?: string[];
+  progress_notes?: string;
+  focus_areas?: string[];
+  missing_areas?: string[];
+  analyzed_at: string;
+}
+
 export interface ProgressPhotoSet {
   id: string;
   client_id: string;
@@ -269,6 +292,9 @@ export interface ProgressPhotoSet {
   front_path: string | null;
   back_path: string | null;
   side_path: string | null;
+  front_analysis?: ProgressPhotoAnalysis | null;
+  back_analysis?: ProgressPhotoAnalysis | null;
+  side_analysis?: ProgressPhotoAnalysis | null;
   created_at: string;
   updated_at: string;
 }

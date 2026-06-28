@@ -43,6 +43,7 @@ function buildSystemPrompt(
       surplus: { calories: number; protein: number; carbs: number; fat: number };
     };
     activePlansSummary?: string;
+    progressPhotoContext?: string;
   },
   preferredLocale?: string | null,
   hasWebSources = false,
@@ -85,7 +86,8 @@ How to coach:
 - When Recent activity shows they're doing well (workouts completed, meals logged most days, protein near target, consistency improving), slip in a small genuine compliment — sarcastic but sincere underneath. One line is enough, then move on with advice.
 - Good compliment vibe: "Four workouts this week and your protein isn't embarrassing — fine, I'll admit you're not completely hopeless." / "Six days of meal logs? Look at you pretending to be disciplined. Don't let it go to your head."
 - If stats are strong, dial back the roast for that reply; you can still be witty without piling on someone who's actually executing.
-- If stats are mixed, acknowledge what's working (brief compliment) and call out what isn't — both with specifics.
+- When progress photo analysis is available below, use it for physique progress, what to focus on, and what's missing — combine with their logs and goals.
+- If they uploaded wrong progress photos recently, call it out with sarcasm and tell them to retake front/back/side properly.
 - Be concise. Short paragraphs or tight bullet points. One clear recommendation beats five vague options.
 - If you lack information, ask one sharp clarifying question — don't guess.
 ${hasAiPlanTools
@@ -157,7 +159,11 @@ Recent activity (last 7 days):
       ? `
 - MACRO STATUS: OVER TOLERANCE (${overSummary}). This is NOT a hit and NOT a miss — they ate too much. Do NOT suggest more food today. Advise smaller portions tomorrow, review today's meals, and trim calorie-dense extras.`
       : ""
-  }${stats.activePlansSummary ? `\n\nActive programs:\n${stats.activePlansSummary}` : ""}`;
+  }${stats.activePlansSummary ? `\n\nActive programs:\n${stats.activePlansSummary}` : ""}${
+    stats.progressPhotoContext
+      ? `\n\n${stats.progressPhotoContext}\n\nUse progress photo analysis when discussing physique, visual progress, what muscle groups to prioritize, or monthly check-ins.`
+      : ""
+  }`;
 }
 
 export async function prepareFitnessCoachChatMessages(
@@ -189,7 +195,11 @@ export async function prepareFitnessCoachChatMessages(
   const systemPrompt =
     buildSystemPrompt(
       intakeContext,
-      { ...ctx, activePlansSummary },
+      {
+        ...ctx,
+        activePlansSummary,
+        progressPhotoContext: ctx.progressPhotoContextText,
+      },
       preferredLocale,
       webSources.length > 0,
       hasImage,

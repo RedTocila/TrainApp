@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, Pencil, Trash2 } from "lucide-react";
+import { Camera, Pencil, Trash2 } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +59,7 @@ export function ProgressPhotoEditMenu({
             ref={fileRef}
             type="file"
             accept="image/*"
+            capture="environment"
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -73,8 +74,8 @@ export function ProgressPhotoEditMenu({
             className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium hover:bg-secondary/80"
             onClick={() => fileRef.current?.click()}
           >
-            <ImagePlus className="h-3.5 w-3.5 shrink-0" />
-            {platform.photos.replace}
+            <Camera className="h-3.5 w-3.5 shrink-0" />
+            {platform.photos.retake}
           </button>
           <button
             type="button"
