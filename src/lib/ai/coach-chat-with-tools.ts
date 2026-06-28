@@ -12,28 +12,39 @@ import type OpenAI from "openai";
 
 const MAX_TOOL_ROUNDS = 5;
 
+function getTurnImages(message: ChatTurn) {
+  if (message.images?.length) return message.images;
+  if (message.image) return [message.image];
+  return [];
+}
+
 function toOpenAIMessage(message: ChatTurn): OpenAI.Chat.ChatCompletionMessageParam {
   if (message.role === "system" || message.role === "assistant") {
     return { role: message.role, content: message.content };
   }
-  if (!message.image) {
+  const images = getTurnImages(message);
+  if (images.length === 0) {
     return { role: "user", content: message.content };
   }
   const parts: OpenAI.Chat.ChatCompletionContentPart[] = [];
   if (message.content.trim()) {
     parts.push({ type: "text", text: message.content });
   }
-  parts.push({
-    type: "image_url",
-    image_url: {
-      url: `data:${message.image.mimeType};base64,${message.image.base64}`,
-    },
-  });
+  for (const img of images) {
+    parts.push({
+      type: "image_url",
+      image_url: {
+        url: `data:${img.mimeType};base64,${img.base64}`,
+      },
+    });
+  }
   return { role: "user", content: parts };
 }
 
 export function canUseCoachChatTools(messages: ChatTurn[]): boolean {
-  return !messages.some((m) => m.role === "user" && m.image);
+  return !messages.some(
+    (m) => m.role === "user" && (m.image || (m.images?.length ?? 0) > 0)
+  );
 }
 
 export async function runCoachChatWithTools(

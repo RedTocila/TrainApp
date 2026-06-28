@@ -483,8 +483,18 @@ export const platformCopyEn = {
   photos: {
     title: "Progress photos",
     monthComplete: "This month complete",
-    description:
+    readMeButton: "Read me",
+    readMeTitle: "Before you take progress photos",
+    readMeBody: [
       "Take front, back & side photos each month with your camera. Gallery uploads aren't allowed — snap them live for honest progress.",
+      "Only use photos of yourself — starting with your very first check-in. Alex remembers who's in your progress photos and checks it matches your profile gender.",
+      "The wrong gender or a different person in later photos will be rejected.",
+      "Used the wrong person on your first photo by mistake? Contact support and we can reset it.",
+    ],
+    readMeGotIt: "Got it",
+    readMeAgreeLabel: "I have read this and agree",
+    readMeRequiredHint: "Read and agree before taking photos",
+    readMeSupportHint: "Wrong person on your first photo? Contact support.",
     uploading: "Uploading…",
     addPhoto: "Take photo",
     addPosePhoto: (pose: string) => `Add ${pose} photo`,

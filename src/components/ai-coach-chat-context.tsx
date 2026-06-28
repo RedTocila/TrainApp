@@ -54,9 +54,8 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
   }, [hasAcknowledgedReadMe]);
   const openReadMe = useCallback(() => setReadMeOpen(true), []);
   const closeReadMe = useCallback(() => {
-    if (!hasAcknowledgedReadMe) return;
     setReadMeOpen(false);
-  }, [hasAcknowledgedReadMe]);
+  }, []);
   const acknowledgeReadMe = useCallback(() => {
     setCoachReadMeAcknowledged();
     setHasAcknowledgedReadMe(true);

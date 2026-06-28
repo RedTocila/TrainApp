@@ -1,6 +1,13 @@
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { summarizeActivePlans } from "@/lib/ai/coach-chat-plans";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
+import {
+  buildProgressPhotoContextFromSets,
+} from "@/lib/ai/progress-photo-context";
+import {
+  buildProgressPhotoVisionPrompt,
+  loadProgressPhotosForChat,
+} from "@/lib/ai/progress-photo-chat-images";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
 import type { ChatImageAttachment, ChatMessage, ChatTurn, WebSource } from "@/lib/ai/types";
 import {
@@ -11,6 +18,7 @@ import {
 import { PLATFORM_NAME } from "@/lib/brand";
 import { formatExceededMacroSummary } from "@/lib/macro-targets";
 import { hasAiAccess } from "@/lib/subscription";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateKey } from "@/lib/utils";
 
 const MAX_HISTORY = 12;
@@ -48,6 +56,7 @@ function buildSystemPrompt(
   preferredLocale?: string | null,
   hasWebSources = false,
   hasImage = false,
+  hasProgressPhotos = false,
   hasAiPlanTools = false,
   hasCoachDashboardTools = false
 ): string {
@@ -135,13 +144,14 @@ Safety rules:
 - Do not diagnose conditions or prescribe medication.
 - Do not promote extreme diets, dangerous weight-loss targets, or banned substances.
 - Dark humor targets lazy habits, bad logic, and fitness myths — never mock disability, illness, trauma, or appearance in a harmful way.
-${hasImage
+${hasImage || hasProgressPhotos
     ? `
-Image attached:
-- The user attached a photo to this message. Look at it carefully before replying.
-- Answer their question about the image in the context of fitness coaching — meals, macros, exercise form, progress photos, equipment, supplements, etc.
-- If they did not ask a specific question, describe what you see and give useful, personalized coaching feedback.
-- Be specific about what is visible; do not invent details that are not in the photo.`
+Images attached:
+${hasProgressPhotos ? "- Stored progress check-in photos from the app are attached to this message. You MUST look at every image before replying." : ""}
+${hasImage ? "- The user also attached a photo to this message." : ""}
+- Answer in the context of fitness coaching — physique progress, muscle development, posture, what to focus on, what's missing, month-over-month changes.
+- If progress photos are attached, give personalized feedback for THIS client based on what you actually see — not generic gym advice.
+- Be specific about visible details; do not invent what is not in the photos.`
     : ""}
 
 ${buildLanguageInstructions(preferredLocale)}
@@ -179,15 +189,34 @@ export async function prepareFitnessCoachChatMessages(
   }
 
   const trimmed = message.trim();
-  const hasImage = Boolean(image?.base64?.trim());
-  if (!trimmed && !hasImage) return { error: "Enter a message." };
+  const hasUserImage = Boolean(image?.base64?.trim());
+  if (!trimmed && !hasUserImage) return { error: "Enter a message." };
   if (trimmed.length > 2000) return { error: "Message is too long (max 2000 characters)." };
-
-  const userContent = trimmed || "What can you tell me about this image?";
 
   const today = formatDateKey(new Date());
   const ctx = await getCoachContext(clientId, today);
   if (!ctx.profile) return { error: "Profile not found." };
+
+  const admin = createAdminClient();
+  const { attachments: progressPhotoAttachments, sets: progressPhotoSets } =
+    await loadProgressPhotosForChat({
+      clientId,
+      message: trimmed,
+      admin,
+      profile: ctx.profile,
+      hasUserAttachedImage: hasUserImage,
+    });
+
+  const progressPhotoContextText = buildProgressPhotoContextFromSets(progressPhotoSets);
+
+  const visionSuffix = buildProgressPhotoVisionPrompt(progressPhotoAttachments);
+  const userContent =
+    (trimmed || "What can you tell me about my progress photos?") + visionSuffix;
+
+  const hasProgressPhotos = progressPhotoAttachments.length > 0;
+  const userImages: ChatImageAttachment[] = hasUserImage
+    ? [image!]
+    : progressPhotoAttachments;
 
   const intakeContext = buildIntakeContextForAi(ctx.profile);
   const activePlansSummary = await summarizeActivePlans(clientId);
@@ -198,11 +227,12 @@ export async function prepareFitnessCoachChatMessages(
       {
         ...ctx,
         activePlansSummary,
-        progressPhotoContext: ctx.progressPhotoContextText,
+        progressPhotoContext: progressPhotoContextText,
       },
       preferredLocale,
       webSources.length > 0,
-      hasImage,
+      hasUserImage,
+      hasProgressPhotos,
       hasAiAccess(ctx.profile),
       true
     ) + (webContext ? `\n\n${webContext}` : "");
@@ -219,7 +249,11 @@ export async function prepareFitnessCoachChatMessages(
       {
         role: "user",
         content: userContent,
-        ...(image ? { image } : {}),
+        ...(userImages.length === 1 && !hasProgressPhotos && hasUserImage
+          ? { image: userImages[0] }
+          : userImages.length > 0
+            ? { images: userImages }
+            : {}),
       },
     ],
     sources: webSources,
@@ -236,8 +270,8 @@ export async function prepareFitnessCoachChatWithSearch(
   | { messages: ChatTurn[]; sources: WebSource[]; searchedWeb: boolean }
   | { error: string }
 > {
-  const hasImage = Boolean(image?.base64?.trim());
-  const searchedWeb = !hasImage && shouldSearchWeb(message);
+  const hasUserImage = Boolean(image?.base64?.trim());
+  const searchedWeb = !hasUserImage && shouldSearchWeb(message);
   const webSources = searchedWeb ? await searchWebForCoach(message) : [];
   const prepared = await prepareFitnessCoachChatMessages(
     clientId,

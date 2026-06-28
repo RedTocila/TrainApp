@@ -107,3 +107,37 @@ export function mergeEnrichmentWithPatches(
     workoutCompletedDates: [...workoutSet],
   };
 }
+
+export function mergeCompletionMaps(
+  ...maps: Record<string, Set<string>>[]
+): Record<string, string[]> {
+  const merged: Record<string, Set<string>> = {};
+
+  for (const map of maps) {
+    for (const [date, ids] of Object.entries(map)) {
+      if (!merged[date]) merged[date] = new Set();
+      for (const id of ids) merged[date].add(id);
+    }
+  }
+
+  const out: Record<string, string[]> = {};
+  for (const [date, ids] of Object.entries(merged)) {
+    out[date] = [...ids];
+  }
+  return out;
+}
+
+export function mergeWorkoutTaskCompletionsInto(
+  completionsByDate: Record<string, string[]>,
+  workoutTaskCompletions: Record<string, Set<string>>
+): Record<string, string[]> {
+  const merged = { ...completionsByDate };
+
+  for (const [date, taskIds] of Object.entries(workoutTaskCompletions)) {
+    const set = new Set(merged[date] ?? []);
+    for (const taskId of taskIds) set.add(taskId);
+    merged[date] = [...set];
+  }
+
+  return merged;
+}

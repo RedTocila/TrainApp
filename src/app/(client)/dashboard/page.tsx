@@ -23,6 +23,7 @@ import {
   getHabitsWithCompletions,
 } from "@/lib/actions/habits";
 import { fetchDashboardEnrichmentFields } from "@/lib/actions/dashboard-enrichment";
+import { mergeWorkoutTaskCompletionsInto } from "@/lib/dashboard-enrichment-utils";
 import { getTaskCompletionsInRange, getTaskCompletionsForDate } from "@/lib/actions/task-completions";
 import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
 import { getScheduledCardioInRange, getScheduledCardioForDate } from "@/lib/actions/user-cardio";
@@ -36,6 +37,7 @@ import {
   resolveWorkoutsForDate,
   isWorkoutCompletedOnDate,
   getCompletedWorkoutResultsForDate,
+  getWorkoutCompletedTaskIdsInRange,
 } from "@/lib/actions/workout-sessions";
 import { progressMonthKey, getProgressPhotoDisplaySet } from "@/lib/progress-photo-utils";
 import { formatDateKey } from "@/lib/utils";
@@ -83,6 +85,7 @@ export default async function DashboardPage() {
     completions,
     habitsByDateRaw,
     habitCompletions,
+    workoutTaskCompletions,
     scheduledCardioEntries,
     waterGoalMl,
     dailyMeals,
@@ -108,6 +111,7 @@ export default async function DashboardPage() {
     getTaskCompletionsInRange(profile.id, rangeStart, rangeEnd),
     getHabitsScheduledInRange(profile.id, rangeStart, rangeEnd),
     getHabitCompletionsInRange(profile.id, rangeStart, rangeEnd),
+    getWorkoutCompletedTaskIdsInRange(profile.id, rangeStart, rangeEnd),
     getScheduledCardioInRange(rangeStart, rangeEnd),
     getWaterGoal(profile.id),
     getDailyMealLogs(profile.id, dateKey),
@@ -156,6 +160,10 @@ export default async function DashboardPage() {
     const existing = completionsSerializable[date] ?? [];
     completionsSerializable[date] = [...new Set([...existing, ...ids])];
   }
+  const mergedCompletions = mergeWorkoutTaskCompletionsInto(
+    completionsSerializable,
+    workoutTaskCompletions
+  );
 
   const scheduledCardioByDate = Object.fromEntries(
     Object.entries(scheduledCardioByDateMap(scheduledCardioEntries)).map(
@@ -167,7 +175,7 @@ export default async function DashboardPage() {
   );
 
   const initialEnrichment: DashboardEnrichmentData = {
-    completionsByDate: completionsSerializable,
+    completionsByDate: mergedCompletions,
     ...enrichmentFields,
     accountCreatedAt: profile.created_at,
   };

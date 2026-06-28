@@ -11,7 +11,12 @@ import {
 import { isAiConfigured } from "@/lib/ai/providers";
 import { getProgressPhotoSetForMonth, saveProgressPhotoAnalysis } from "@/lib/actions/progress-photos";
 import { hasAiAccess } from "@/lib/subscription";
-import type { ProgressPhotoAnalysis, ProgressPhotoPose } from "@/lib/types";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  buildProgressPhotoIdentityFromAnalysis,
+  profileHasProgressPhotoIdentity,
+} from "@/lib/progress-photo-identity";
+import type { ProgressPhotoAnalysis, ProgressPhotoIdentity, ProgressPhotoPose } from "@/lib/types";
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
@@ -52,6 +57,26 @@ async function requireProgressPhotoAiAccess(): Promise<
   return { success: true, profile };
 }
 
+async function establishProgressPhotoIdentityIfNeeded(
+  profile: { id: string; progress_photo_identity?: ProgressPhotoIdentity | null },
+  analysis: ProgressPhotoAnalysis,
+  monthKey: string,
+  pose: ProgressPhotoPose
+) {
+  if (!analysis.valid || profileHasProgressPhotoIdentity(profile.progress_photo_identity)) {
+    return;
+  }
+
+  const identity = buildProgressPhotoIdentityFromAnalysis(analysis, monthKey, pose);
+  if (!identity) return;
+
+  const admin = createAdminClient();
+  await admin
+    .from("profiles")
+    .update({ progress_photo_identity: identity })
+    .eq("id", profile.id);
+}
+
 export async function analyzeProgressPhotoAction(input: {
   pose: ProgressPhotoPose;
   imageBase64: string;
@@ -87,7 +112,19 @@ export async function analyzeProgressPhotoAction(input: {
       userGoal: access.profile.goal,
       locale: locale ?? access.profile.preferred_locale,
       priorProgressNotes,
+      profileGender: access.profile.gender,
+      identityBaseline: access.profile.progress_photo_identity ?? null,
     });
+
+    if (analysis.valid && monthKey) {
+      await establishProgressPhotoIdentityIfNeeded(
+        access.profile,
+        analysis,
+        monthKey,
+        pose
+      );
+    }
+
     return { analysis };
   } catch (error) {
     const message =

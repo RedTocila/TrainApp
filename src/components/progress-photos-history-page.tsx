@@ -35,6 +35,11 @@ import { DashboardDayDetailShell } from "@/components/dashboard-day-detail-shell
 import { ImageSourceButtons } from "@/components/image-source-buttons";
 import { ProgressPhotoEditMenu } from "@/components/progress-photo-edit-menu";
 import { ProgressPhotoAlexDialog } from "@/components/progress-photo-alex-dialog";
+import { ProgressPhotoReadMeButton } from "@/components/progress-photo-read-me-button";
+import {
+  ProgressPhotoReadMeProvider,
+  useProgressPhotoReadMe,
+} from "@/components/progress-photo-read-me-context";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -86,6 +91,8 @@ function PhotoSlot({
   uploading,
   canUpload,
   canModify,
+  canUploadPhotos,
+  onRequireReadMe,
   onPick,
   onRemove,
   onPreview,
@@ -95,11 +102,21 @@ function PhotoSlot({
   uploading: boolean;
   canUpload: boolean;
   canModify: boolean;
+  canUploadPhotos: boolean;
+  onRequireReadMe: () => void;
   onPick: (file: File) => void;
   onRemove: () => void;
   onPreview: () => void;
 }) {
   const platform = usePlatformCopy();
+
+  const handlePick = (file: File) => {
+    if (!canUploadPhotos) {
+      onRequireReadMe();
+      return;
+    }
+    onPick(file);
+  };
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -131,6 +148,16 @@ function PhotoSlot({
           <div className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground">
             {uploading ? (
               <span className="text-xs font-medium">{platform.photos.analyzing}</span>
+            ) : !canUploadPhotos ? (
+              <button
+                type="button"
+                onClick={onRequireReadMe}
+                className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground"
+              >
+                <span className="text-[11px] font-medium leading-snug">
+                  {platform.photos.readMeRequiredHint}
+                </span>
+              </button>
             ) : (
               <>
                 <span className="text-[11px] font-medium">{platform.photos.addPhoto}</span>
@@ -138,7 +165,7 @@ function PhotoSlot({
                   layout="icon"
                   cameraOnly
                   disabled={uploading}
-                  onSelect={onPick}
+                  onSelect={handlePick}
                   cameraLabel={platform.photos.takePosePhoto(label)}
                 />
               </>
@@ -153,7 +180,7 @@ function PhotoSlot({
           <ProgressPhotoEditMenu
             label={label}
             disabled={uploading}
-            onPick={onPick}
+            onPick={handlePick}
             onRemove={onRemove}
           />
         ) : null}
@@ -260,6 +287,8 @@ function TimelineRow({
   row,
   urls,
   uploadingPose,
+  canUploadPhotos,
+  onRequireReadMe,
   onUpload,
   onRemove,
   onOpenPose,
@@ -267,6 +296,8 @@ function TimelineRow({
   row: ProgressPhotoTimelineRow;
   urls: PoseUrls;
   uploadingPose: ProgressPhotoPose | null;
+  canUploadPhotos: boolean;
+  onRequireReadMe: () => void;
   onUpload: (pose: ProgressPhotoPose, file: File) => void;
   onRemove: (pose: ProgressPhotoPose) => void;
   onOpenPose: (pose: ProgressPhotoPose, monthKey: string) => void;
@@ -302,6 +333,8 @@ function TimelineRow({
             uploading={uploadingPose === pose}
             canUpload={row.canUpload}
             canModify={row.canModify && !row.isUpcoming}
+            canUploadPhotos={canUploadPhotos}
+            onRequireReadMe={onRequireReadMe}
             onPick={(file) => onUpload(pose, file)}
             onRemove={() => onRemove(pose)}
             onPreview={() => onOpenPose(pose, row.monthKey)}
@@ -317,6 +350,19 @@ export function ProgressPhotosHistoryPage({
 }: {
   clientId: string;
 }) {
+  return (
+    <ProgressPhotoReadMeProvider clientId={clientId} autoPrompt>
+      <ProgressPhotosHistoryPageInner clientId={clientId} />
+    </ProgressPhotoReadMeProvider>
+  );
+}
+
+function ProgressPhotosHistoryPageInner({
+  clientId,
+}: {
+  clientId: string;
+}) {
+  const { canUploadPhotos, ensureCanUpload } = useProgressPhotoReadMe();
   const coachCopy = useCoachCopy();
   const platform = usePlatformCopy();
   const cachedSets = getProgressPhotosSetsCache(clientId);
@@ -432,6 +478,7 @@ export function ProgressPhotosHistoryPage({
   }, [clientId]);
 
   const handleUpload = async (monthKey: string, pose: ProgressPhotoPose, file: File) => {
+    if (!ensureCanUpload()) return;
     setError(null);
     setUploadingPose(pose);
     setUploadingMonth(monthKey);
@@ -547,7 +594,10 @@ export function ProgressPhotosHistoryPage({
             </h1>
           </Link>
         </div>
-        <p className="text-sm text-muted-foreground">{platform.photos.previousMonths}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">{platform.photos.previousMonths}</p>
+          <ProgressPhotoReadMeButton />
+        </div>
 
         <div className="space-y-8">
           {timelineRows
@@ -562,6 +612,8 @@ export function ProgressPhotosHistoryPage({
                     ? uploadingPose
                     : null
                 }
+                canUploadPhotos={canUploadPhotos}
+                onRequireReadMe={ensureCanUpload}
                 onUpload={(pose, file) => void handleUpload(row.monthKey, pose, file)}
                 onRemove={(pose) => {
                   const poseLabel =
@@ -584,6 +636,8 @@ export function ProgressPhotosHistoryPage({
                 uploadingPose={
                   uploadingMonth === row.monthKey ? uploadingPose : null
                 }
+                canUploadPhotos={canUploadPhotos}
+                onRequireReadMe={ensureCanUpload}
                 onUpload={(pose, file) => void handleUpload(row.monthKey, pose, file)}
                 onRemove={(pose) => {
                   const poseLabel =

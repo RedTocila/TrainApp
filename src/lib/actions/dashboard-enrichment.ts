@@ -2,29 +2,15 @@
 
 import { getHabitCompletionsInRange } from "@/lib/actions/habits";
 import { getTaskCompletionsInRange } from "@/lib/actions/task-completions";
+import { getWorkoutCompletedTaskIdsInRange } from "@/lib/actions/workout-sessions";
+import {
+  mergeCompletionMaps,
+  mergeWorkoutTaskCompletionsInto,
+} from "@/lib/dashboard-enrichment-utils";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 import { createClient } from "@/lib/supabase/server";
 import type { DailyMealLog } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
-
-function mergeCompletionMaps(
-  ...maps: Record<string, Set<string>>[]
-): Record<string, string[]> {
-  const merged: Record<string, Set<string>> = {};
-
-  for (const map of maps) {
-    for (const [date, ids] of Object.entries(map)) {
-      if (!merged[date]) merged[date] = new Set();
-      for (const id of ids) merged[date].add(id);
-    }
-  }
-
-  const out: Record<string, string[]> = {};
-  for (const [date, ids] of Object.entries(merged)) {
-    out[date] = [...ids];
-  }
-  return out;
-}
 
 export async function fetchDashboardEnrichmentFields(
   clientId: string,
@@ -105,17 +91,22 @@ export async function fetchDashboardEnrichmentData(
   const [
     taskCompletions,
     habitCompletions,
+    workoutTaskCompletions,
     fields,
     profileResult,
   ] = await Promise.all([
     getTaskCompletionsInRange(clientId, from, to),
     getHabitCompletionsInRange(clientId, from, to),
+    getWorkoutCompletedTaskIdsInRange(clientId, from, to),
     fetchDashboardEnrichmentFields(clientId, from, to),
     supabase.from("profiles").select("created_at").eq("id", clientId).maybeSingle(),
   ]);
 
   return {
-    completionsByDate: mergeCompletionMaps(taskCompletions, habitCompletions),
+    completionsByDate: mergeWorkoutTaskCompletionsInto(
+      mergeCompletionMaps(taskCompletions, habitCompletions),
+      workoutTaskCompletions
+    ),
     ...fields,
     accountCreatedAt: profileResult.data?.created_at ?? null,
   };

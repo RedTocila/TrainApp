@@ -33,6 +33,8 @@ export interface ChatTurn {
   role: ChatRole;
   content: string;
   image?: ChatImageAttachment;
+  /** Multiple images (e.g. stored progress photos). Takes precedence over \`image\` when set. */
+  images?: ChatImageAttachment[];
 }
 
 export interface MealAnalysisResult {

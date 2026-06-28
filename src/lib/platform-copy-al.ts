@@ -489,8 +489,18 @@ export const platformCopyAl = {
   photos: {
     title: "Fotot e progresit",
     monthComplete: "Muaji i plotësuar",
-    description:
+    readMeButton: "Lexomë",
+    readMeTitle: "Para se të bësh fotot e progresit",
+    readMeBody: [
       "Bëni foto përpara, prapa dhe anash çdo muaj me kamerën. Nuk lejohen foto nga galeria — bëni ato live për progres të sinqertë.",
+      "Përdorni vetëm foto të veta — që nga kontrolli i parë. Alex mban mend kush shfaqet në fotot e progresit dhe e kontrollon me gjininë në profil.",
+      "Gjinia e gabuar ose një person tjetër më vonë refuzohet.",
+      "E përdorët gabimisht dikë tjetër në foton e parë? Kontaktoni suportin për ta rivendosur.",
+    ],
+    readMeGotIt: "E kuptova",
+    readMeAgreeLabel: "E kam lexuar dhe pajtohem",
+    readMeRequiredHint: "Lexo dhe prano para se të bësh foto",
+    readMeSupportHint: "Person i gabuar në foton e parë? Kontaktoni suportin.",
     uploading: "Duke ngarkuar…",
     addPhoto: "Bëj foto",
     addPosePhoto: (pose: string) => `Shto foto ${pose}`,

@@ -43,8 +43,8 @@ export function AiCoachChatDialog() {
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (readMeOpen && hasAcknowledgedReadMe) closeReadMe();
-        else if (!readMeOpen) closeChat();
+        if (readMeOpen) closeReadMe();
+        else closeChat();
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -56,7 +56,7 @@ export function AiCoachChatDialog() {
       }
       document.body.style.overflow = prevBodyOverflow;
     };
-  }, [isOpen, closeChat, readMeOpen, closeReadMe, hasAcknowledgedReadMe]);
+  }, [isOpen, closeChat, readMeOpen, closeReadMe]);
 
   if (!isOpen || !mounted) return null;
 

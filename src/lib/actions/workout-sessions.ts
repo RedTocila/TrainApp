@@ -355,6 +355,95 @@ async function findCompletedSessionIdForDate(
   return byCompletedAt?.id ?? null;
 }
 
+async function resolveWorkoutTaskIdForSession(
+  clientId: string,
+  session: {
+    scheduled_date: string | null;
+    scheduled_workout_id: string | null;
+    started_at: string | null;
+    plan_id: string | null;
+    day_id: string | null;
+  }
+): Promise<{ scheduledDate: string; taskId: string }> {
+  const scheduledDate =
+    session.scheduled_date ??
+    (session.started_at
+      ? formatDateKey(new Date(session.started_at))
+      : formatDateKey(new Date()));
+
+  if (session.scheduled_workout_id) {
+    return {
+      scheduledDate,
+      taskId: workoutTaskId(scheduledDate, session.scheduled_workout_id),
+    };
+  }
+
+  const workouts = await resolveWorkoutsForDate(clientId, scheduledDate);
+  const match = workouts.find(
+    (workout) =>
+      session.plan_id != null &&
+      session.day_id != null &&
+      workout.planId === session.plan_id &&
+      workout.dayId === session.day_id
+  );
+
+  return {
+    scheduledDate,
+    taskId: match?.taskId ?? workoutTaskId(scheduledDate, null),
+  };
+}
+
+export async function getWorkoutCompletedTaskIdsInRange(
+  clientId: string,
+  from: string,
+  to: string
+): Promise<Record<string, Set<string>>> {
+  const supabase = await createClient();
+
+  const [scheduledResult, unscheduledResult] = await Promise.all([
+    supabase
+      .from("workout_sessions")
+      .select("scheduled_date")
+      .eq("client_id", clientId)
+      .eq("status", "completed")
+      .not("scheduled_date", "is", null)
+      .gte("scheduled_date", from)
+      .lte("scheduled_date", to),
+    supabase
+      .from("workout_sessions")
+      .select("completed_at")
+      .eq("client_id", clientId)
+      .eq("status", "completed")
+      .is("scheduled_date", null)
+      .gte("completed_at", `${from}T00:00:00`)
+      .lte("completed_at", `${to}T23:59:59.999Z`),
+  ]);
+
+  const dates = new Set<string>();
+  for (const row of scheduledResult.data ?? []) {
+    if (row.scheduled_date) dates.add(row.scheduled_date);
+  }
+  for (const row of unscheduledResult.data ?? []) {
+    if (row.completed_at) {
+      dates.add(formatDateKey(new Date(row.completed_at)));
+    }
+  }
+
+  const result: Record<string, Set<string>> = {};
+  await Promise.all(
+    [...dates].map(async (dateKey) => {
+      const status = await getWorkoutCompletionStatusForDate(clientId, dateKey);
+      const completed = new Set<string>();
+      for (const [taskId, entry] of Object.entries(status)) {
+        if (entry.completed) completed.add(taskId);
+      }
+      if (completed.size > 0) result[dateKey] = completed;
+    })
+  );
+
+  return result;
+}
+
 export async function getWorkoutCompletionStatusForDate(
   clientId: string,
   dateKey: string
@@ -1005,11 +1094,10 @@ export async function completeWorkoutSession(
   }
 
   const completedAt = new Date().toISOString();
-  const scheduledDate =
-    session.scheduled_date ??
-    (session.started_at
-      ? formatDateKey(new Date(session.started_at))
-      : formatDateKey(new Date()));
+  const { scheduledDate, taskId } = await resolveWorkoutTaskIdForSession(
+    userId,
+    session
+  );
 
   const { error } = await admin
     .from("workout_sessions")
@@ -1017,26 +1105,26 @@ export async function completeWorkoutSession(
       status: "completed",
       completed_at: completedAt,
       scheduled_date: scheduledDate,
+      scheduled_workout_id: session.scheduled_workout_id,
       notes: notes?.trim() || null,
     })
     .eq("id", sessionId);
 
   if (error) return { error: error.message };
 
-  const taskId = workoutTaskId(
-    scheduledDate,
-    session.scheduled_workout_id as string | null | undefined
-  );
+  const { error: completionError } = await admin
+    .from("schedule_task_completions")
+    .upsert(
+      {
+        client_id: userId,
+        date: scheduledDate,
+        task_id: taskId,
+        completed_at: completedAt,
+      },
+      { onConflict: "client_id,date,task_id" }
+    );
 
-  await admin.from("schedule_task_completions").upsert(
-    {
-      client_id: userId,
-      date: scheduledDate,
-      task_id: taskId,
-      completed_at: completedAt,
-    },
-    { onConflict: "client_id,date,task_id" }
-  );
+  if (completionError) return { error: completionError.message };
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");

@@ -73,6 +73,8 @@ export interface Profile {
   phone?: string | null;
   dismissed_habit_suggestions?: string[];
   intake_responses?: IntakeResponses;
+  /** Baseline person identity from first accepted progress photo. */
+  progress_photo_identity?: ProgressPhotoIdentity | null;
   created_at: string;
 }
 
@@ -266,7 +268,20 @@ export type ProgressPhotoDetectedSubject =
   | "person_fitness_pose"
   | "wrong_pose"
   | "not_a_person"
+  | "gender_mismatch"
+  | "different_person"
   | "unclear";
+
+export type ProgressPhotoApparentSex = "male" | "female" | "ambiguous" | "unknown";
+
+/** Baseline identity locked from the client's first valid progress photo. */
+export interface ProgressPhotoIdentity {
+  signature: string;
+  apparent_sex: ProgressPhotoApparentSex;
+  established_at: string;
+  established_from_month_key: string;
+  established_from_pose: ProgressPhotoPose;
+}
 
 /** Stored JSON from Coach Alex vision review of a single progress photo. */
 export interface ProgressPhotoAnalysis {
@@ -274,6 +289,11 @@ export interface ProgressPhotoAnalysis {
   expected_pose: ProgressPhotoPose;
   detected_subject: ProgressPhotoDetectedSubject;
   detected_pose?: ProgressPhotoPose | "unknown";
+  detected_apparent_sex?: ProgressPhotoApparentSex;
+  /** false when baseline exists and photo shows someone else; null when no baseline yet. */
+  identity_match?: boolean | null;
+  /** Set on first valid photo to establish future identity checks. */
+  identity_signature?: string;
   confidence: number;
   rejection_reason?: string;
   /** Coach Alex reply — sarcastic roast when invalid, coaching notes when valid. */

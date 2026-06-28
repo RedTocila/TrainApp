@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ export function CoachReadMeDialog({
   gotItLabel,
   agreeLabel,
   required = false,
+  footer,
 }: {
   open: boolean;
   onClose: () => void;
@@ -23,6 +25,7 @@ export function CoachReadMeDialog({
   gotItLabel: string;
   agreeLabel: string;
   required?: boolean;
+  footer?: ReactNode;
 }) {
   const [agreed, setAgreed] = useState(false);
 
@@ -31,13 +34,13 @@ export function CoachReadMeDialog({
   }, [open]);
 
   useEffect(() => {
-    if (!open || required) return;
+    if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose, required]);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -66,16 +69,14 @@ export function CoachReadMeDialog({
           <h2 id="coach-read-me-title" className="text-lg font-bold">
             {title}
           </h2>
-          {!required && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary"
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
         <ul className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground">
           {points.map((point) => (
@@ -85,6 +86,7 @@ export function CoachReadMeDialog({
             </li>
           ))}
         </ul>
+        {footer ? <div className="mt-4">{footer}</div> : null}
         {required && (
           <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-secondary/30 px-3 py-3">
             <input

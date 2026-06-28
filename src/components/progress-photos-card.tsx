@@ -33,6 +33,11 @@ import type { ProgressPhotoPose } from "@/lib/supabase/storage";
 import type { ProgressPhotoSet } from "@/lib/types";
 import { ImageSourceButtons } from "@/components/image-source-buttons";
 import { ProgressPhotoAlexDialog } from "@/components/progress-photo-alex-dialog";
+import { ProgressPhotoReadMeButton } from "@/components/progress-photo-read-me-button";
+import {
+  ProgressPhotoReadMeProvider,
+  useProgressPhotoReadMe,
+} from "@/components/progress-photo-read-me-context";
 import { ProgressPhotoEditMenu } from "@/components/progress-photo-edit-menu";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { FullScreenFlow } from "@/components/programs/full-screen-flow";
@@ -67,6 +72,8 @@ function PhotoSlot({
   label,
   url,
   uploading,
+  canUploadPhotos,
+  onRequireReadMe,
   onPick,
   onRemove,
   onPreview,
@@ -74,11 +81,21 @@ function PhotoSlot({
   label: string;
   url: string | null;
   uploading: boolean;
+  canUploadPhotos: boolean;
+  onRequireReadMe: () => void;
   onPick: (file: File) => void;
   onRemove: () => void;
   onPreview: () => void;
 }) {
   const platform = usePlatformCopy();
+
+  const handlePick = (file: File) => {
+    if (!canUploadPhotos) {
+      onRequireReadMe();
+      return;
+    }
+    onPick(file);
+  };
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -109,6 +126,16 @@ function PhotoSlot({
           <div className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground">
             {uploading ? (
               <span className="text-xs font-medium">{platform.photos.analyzing}</span>
+            ) : !canUploadPhotos ? (
+              <button
+                type="button"
+                onClick={onRequireReadMe}
+                className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground"
+              >
+                <span className="text-[11px] font-medium leading-snug">
+                  {platform.photos.readMeRequiredHint}
+                </span>
+              </button>
             ) : (
               <>
                 <span className="text-[11px] font-medium">{platform.photos.addPhoto}</span>
@@ -116,7 +143,7 @@ function PhotoSlot({
                   layout="icon"
                   cameraOnly
                   disabled={uploading}
-                  onSelect={onPick}
+                  onSelect={handlePick}
                   cameraLabel={platform.photos.takePosePhoto(label)}
                 />
               </>
@@ -127,7 +154,7 @@ function PhotoSlot({
           <ProgressPhotoEditMenu
             label={label}
             disabled={uploading}
-            onPick={onPick}
+            onPick={handlePick}
             onRemove={onRemove}
           />
         ) : null}
@@ -146,6 +173,27 @@ export function ProgressPhotosCard({
   initialSets: ProgressPhotoSet[];
   initialCurrentUrls?: PoseUrls;
 }) {
+  return (
+    <ProgressPhotoReadMeProvider clientId={clientId}>
+      <ProgressPhotosCardInner
+        clientId={clientId}
+        initialSets={initialSets}
+        initialCurrentUrls={initialCurrentUrls}
+      />
+    </ProgressPhotoReadMeProvider>
+  );
+}
+
+function ProgressPhotosCardInner({
+  clientId,
+  initialSets,
+  initialCurrentUrls,
+}: {
+  clientId: string;
+  initialSets: ProgressPhotoSet[];
+  initialCurrentUrls?: PoseUrls;
+}) {
+  const { canUploadPhotos, ensureCanUpload } = useProgressPhotoReadMe();
   const coachCopy = useCoachCopy();
   const platform = usePlatformCopy();
   const router = useRouter();
@@ -280,6 +328,7 @@ export function ProgressPhotosCard({
   };
 
   const handleUpload = async (pose: ProgressPhotoPose, file: File) => {
+    if (!ensureCanUpload()) return;
     setError(null);
     setUploadingPose(pose);
     try {
@@ -375,14 +424,16 @@ export function ProgressPhotosCard({
           icon={ImageIcon}
           iconClassName="text-primary"
           title={platform.photos.title}
-          subtitle={platform.photos.description}
           action={
-            currentComplete ? (
-              <DashboardStatusIcon
-                status="completed"
-                aria-label={platform.photos.monthComplete}
-              />
-            ) : null
+            <div className={cn("flex items-center gap-2", dashboardInteractive)}>
+              <ProgressPhotoReadMeButton />
+              {currentComplete ? (
+                <DashboardStatusIcon
+                  status="completed"
+                  aria-label={platform.photos.monthComplete}
+                />
+              ) : null}
+            </div>
           }
         />
         <div className="mt-4 space-y-6">
@@ -410,6 +461,8 @@ export function ProgressPhotosCard({
                   label={label}
                   url={currentUrls[pose]}
                   uploading={uploadingPose === pose || isPending}
+                  canUploadPhotos={canUploadPhotos}
+                  onRequireReadMe={ensureCanUpload}
                   onPick={(file) => void handleUpload(pose, file)}
                   onRemove={() => {
                     confirmGiveUp({

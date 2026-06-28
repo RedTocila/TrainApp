@@ -1,11 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import type { AiProvider, ChatTurn } from "@/lib/ai/types";
+import type { AiProvider, ChatImageAttachment, ChatTurn } from "@/lib/ai/types";
 
 type AnthropicImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
+function getTurnImages(message: ChatTurn): ChatImageAttachment[] {
+  if (message.images?.length) return message.images;
+  if (message.image) return [message.image];
+  return [];
+}
+
 function toOpenAIMessage(message: ChatTurn): OpenAI.Chat.ChatCompletionMessageParam {
-  if (message.role === "system" || message.role === "assistant" || !message.image) {
+  const images = getTurnImages(message);
+  if (message.role === "system" || message.role === "assistant" || images.length === 0) {
     return { role: message.role, content: message.content };
   }
 
@@ -13,12 +20,14 @@ function toOpenAIMessage(message: ChatTurn): OpenAI.Chat.ChatCompletionMessagePa
   if (message.content.trim()) {
     parts.push({ type: "text", text: message.content });
   }
-  parts.push({
-    type: "image_url",
-    image_url: {
-      url: `data:${message.image.mimeType};base64,${message.image.base64}`,
-    },
-  });
+  for (const img of images) {
+    parts.push({
+      type: "image_url",
+      image_url: {
+        url: `data:${img.mimeType};base64,${img.base64}`,
+      },
+    });
+  }
   return { role: "user", content: parts };
 }
 
@@ -27,24 +36,25 @@ function toAnthropicMessage(
 ): Anthropic.MessageParam | null {
   if (message.role === "system") return null;
 
-  if (message.role === "assistant" || !message.image) {
+  const images = getTurnImages(message);
+  if (message.role === "assistant" || images.length === 0) {
     return {
       role: message.role,
       content: message.content,
     };
   }
 
-  const mediaType = message.image.mimeType as AnthropicImageMediaType;
-  const parts: Anthropic.ContentBlockParam[] = [
-    {
+  const parts: Anthropic.ContentBlockParam[] = [];
+  for (const img of images) {
+    parts.push({
       type: "image",
       source: {
         type: "base64",
-        media_type: mediaType,
-        data: message.image.base64,
+        media_type: img.mimeType as AnthropicImageMediaType,
+        data: img.base64,
       },
-    },
-  ];
+    });
+  }
   if (message.content.trim()) {
     parts.push({ type: "text", text: message.content });
   }

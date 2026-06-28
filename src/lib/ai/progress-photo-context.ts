@@ -26,9 +26,13 @@ const PATH_COLUMNS: Record<
 
 function formatAnalysisBlock(
   pose: ProgressPhotoPose,
-  analysis: ProgressPhotoAnalysis | null | undefined
+  analysis: ProgressPhotoAnalysis | null | undefined,
+  hasPath: boolean
 ): string | null {
-  if (!analysis) return null;
+  if (!hasPath) return null;
+  if (!analysis) {
+    return `  ${pose.toUpperCase()}: uploaded (attached to chat for live vision review)`;
+  }
   const lines: string[] = [`  ${pose.toUpperCase()}:`];
   if (!analysis.valid) {
     lines.push(`    REJECTED — ${analysis.rejection_reason ?? analysis.detected_subject}`);
@@ -58,7 +62,7 @@ function summarizeSet(set: ProgressPhotoSet): string | null {
       const col = ANALYSIS_COLUMNS[pose];
       const path = set[PATH_COLUMNS[pose]];
       if (!path) return null;
-      return formatAnalysisBlock(pose, set[col] as ProgressPhotoAnalysis | null);
+      return formatAnalysisBlock(pose, set[col] as ProgressPhotoAnalysis | null, true);
     })
     .filter(Boolean);
   if (blocks.length === 0) return null;
@@ -82,8 +86,7 @@ export async function getProgressPhotoSetsWithAnalysis(
 }
 
 /** Text block injected into Coach Alex system prompts and reports. */
-export async function buildProgressPhotoContextForAi(clientId: string): Promise<string> {
-  const sets = await getProgressPhotoSetsWithAnalysis(clientId, 12);
+export function buildProgressPhotoContextFromSets(sets: ProgressPhotoSet[]): string {
   const withPhotos = sets.filter(progressSetHasPhotos);
   if (withPhotos.length === 0) {
     return "No progress photos uploaded yet. Encourage monthly front/back/side check-ins with the camera.";
@@ -129,6 +132,11 @@ export async function buildProgressPhotoContextForAi(clientId: string): Promise<
   }
 
   return block;
+}
+
+export async function buildProgressPhotoContextForAi(clientId: string): Promise<string> {
+  const sets = await getProgressPhotoSetsWithAnalysis(clientId, 12);
+  return buildProgressPhotoContextFromSets(sets);
 }
 
 /** Prior progress notes for same pose from earlier months (for comparison during analysis). */
