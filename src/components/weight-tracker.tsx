@@ -5,7 +5,7 @@ import { format, isToday } from "date-fns";
 import { Plus } from "lucide-react";
 import { ElectronicScale } from "@/components/icons/electronic-scale";
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { useSelectedDate } from "@/components/date-provider";
+import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
 import { WeightChartLazy } from "@/components/weight-chart-lazy";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import {
@@ -42,6 +42,7 @@ export function WeightTracker({
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
+  const readOnly = useIsPastSelectedDay();
   const dateKey = formatDateKey(selectedDate);
   const [history, setHistory] = useState(initialHistory);
   const [weightInput, setWeightInput] = useState(
@@ -145,7 +146,7 @@ export function WeightTracker({
             : platform.weight.subtitle
         }
         action={
-          !formOpen ? (
+          !readOnly && !formOpen ? (
             <Button
               size="sm"
               className="h-8 rounded-full px-3 text-xs"

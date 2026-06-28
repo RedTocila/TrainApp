@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { DashboardWorkoutCompactStats } from "@/components/dashboard-workout-compact-meta";
-import { DashboardStatusCheck } from "@/components/section-completed-badge";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import { WorkoutDifficultyInsightButton } from "@/components/workout-difficulty-insight-button";
 import { WorkoutExerciseList } from "@/components/workout-exercise-list";
@@ -43,6 +42,7 @@ export function DashboardWorkoutDetailSection({
   sessionId,
   gender,
   intakeProfile,
+  readOnly = false,
 }: {
   workout: TodaysWorkoutInfo;
   workoutKey: string;
@@ -53,6 +53,7 @@ export function DashboardWorkoutDetailSection({
   sessionId: string | null;
   gender?: string | null;
   intakeProfile?: Pick<Profile, "age" | "intake_responses"> | null;
+  readOnly?: boolean;
 }) {
   const platform = usePlatformCopy();
   const sectionRef = useRef<HTMLElement>(null);
@@ -127,9 +128,7 @@ export function DashboardWorkoutDetailSection({
           ) : null}
         </div>
         <div className="shrink-0">
-          {done ? (
-            <DashboardStatusCheck aria-label={platform.aria.completed} />
-          ) : (
+          {done || readOnly ? null : (
             <StartTodaysWorkoutButton
               date={selectedDate}
               workout={workout}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { GlassWater, Pencil } from "lucide-react";
-import { useSelectedDate } from "@/components/date-provider";
+import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
 import {
   neverInEnrichmentRange,
   useOptionalDashboardEnrichment,
@@ -41,6 +41,7 @@ export function DashboardWaterCard({
 }) {
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
+  const readOnly = useIsPastSelectedDay();
   const { patchDashboard } = useDashboardSync();
   const enrichmentCtx = useOptionalDashboardEnrichment();
   const enrichment = enrichmentCtx?.enrichment;
@@ -144,7 +145,14 @@ export function DashboardWaterCard({
     </div>
   );
 
-  const titleActions = (
+  const titleActions = readOnly ? (
+    waterCompleted ? (
+      <DashboardStatusIcon
+        status="completed"
+        aria-label={platform.nutrition.waterGoalReached}
+      />
+    ) : null
+  ) : (
     <div className={cn("flex shrink-0 items-center gap-1", dashboardInteractive)}>
       <button
         type="button"
@@ -202,7 +210,7 @@ export function DashboardWaterCard({
               </p>
             )}
           </div>
-          {addButtons}
+          {readOnly ? null : addButtons}
           </DashboardCardNavBody>
         </div>
         {goalDialog}
@@ -227,7 +235,7 @@ export function DashboardWaterCard({
             </p>
           )}
         </div>
-        {addButtons}
+        {readOnly ? null : addButtons}
       </div>
       {goalDialog}
     </>

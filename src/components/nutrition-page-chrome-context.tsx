@@ -10,10 +10,12 @@ import {
 } from "react";
 
 export type NutritionPageChromeActions = {
-  onLogMeal: () => void;
+  onLogMeal?: () => void;
   onDietPlan: () => void;
   showDietPlan: boolean;
   status?: "completed" | "over" | null;
+  /** Status chips shown beside the day-detail back button (e.g. Skipped). */
+  headerTrailing?: ReactNode;
 };
 
 const NutritionPageChromeContext = createContext<{

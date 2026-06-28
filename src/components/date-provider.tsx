@@ -88,3 +88,9 @@ export function useSelectedDate() {
   if (!ctx) throw new Error("useSelectedDate must be used within DateProvider");
   return ctx;
 }
+
+/** True when the selected calendar day is before today — dashboard is view-only. */
+export function useIsPastSelectedDay() {
+  const { selectedDate, todayKey } = useSelectedDate();
+  return formatDateKey(selectedDate) < todayKey;
+}

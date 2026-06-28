@@ -220,6 +220,7 @@ export default async function DashboardPage() {
     scheduledWorkouts,
     scheduledNutritionDays,
     scheduledCardioByDate,
+    scheduledCardioEntries: scheduledCardioEntries,
     habitsByDate,
     waterGoalMl,
     macroTargets: targets,
@@ -243,8 +244,8 @@ export default async function DashboardPage() {
           schedule={schedule}
         />
 
-        <div className="grid items-stretch gap-3 sm:grid-cols-2">
-          <div className="h-full min-h-0 w-full">
+        <div className="grid items-start gap-3 sm:grid-cols-2">
+          <div className="w-full">
             <DashboardOverview
               clientId={profile.id}
               initialLog={dailyLog}
@@ -258,10 +259,11 @@ export default async function DashboardPage() {
               coachNutritionPlanState={coachNutritionPlanState}
               goal={profile.goal ?? null}
               variant="compact"
+              schedule={schedule}
             />
           </div>
 
-          <div className="h-full min-h-[18rem] w-full sm:min-h-[19rem]">
+          <div className="w-full">
             <DashboardWorkoutCard
               clientId={profile.id}
               gender={profile.gender}
@@ -270,6 +272,7 @@ export default async function DashboardPage() {
               initialWorkoutCompleted={initialWorkoutCompleted}
               initialWorkoutResults={initialWorkoutResults}
               variant="compact"
+              schedule={schedule}
             />
           </div>
         </div>
@@ -287,6 +290,7 @@ export default async function DashboardPage() {
             initialScheduled={initialCardio}
             initialCompleted={initialCardioCompleted}
             variant="compact"
+            schedule={schedule}
           />
         </div>
 

@@ -5,7 +5,7 @@ import { format, isToday } from "date-fns";
 import { ListChecks, Pencil, Plus, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSelectedDate } from "@/components/date-provider";
+import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import { dashboardDayCacheKey, getDashboardDayCache } from "@/lib/dashboard-day-cache";
 import {
@@ -42,6 +42,7 @@ export function HabitsTracker({
   const platform = usePlatformCopy();
   const router = useRouter();
   const { selectedDate } = useSelectedDate();
+  const readOnly = useIsPastSelectedDay();
   const dateKey = formatDateKey(selectedDate);
   const [habits, setHabits] = useState(initialHabits);
   const [suggestions, setSuggestions] = useState(suggestedHabits);
@@ -207,14 +208,16 @@ export function HabitsTracker({
             />
           }
           action={
-            <Button
-              size="sm"
-              className="h-8 rounded-full px-3 text-xs"
-              onClick={openAdd}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              {platform.common.add}
-            </Button>
+            readOnly ? undefined : (
+              <Button
+                size="sm"
+                className="h-8 rounded-full px-3 text-xs"
+                onClick={openAdd}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {platform.common.add}
+              </Button>
+            )
           }
           subtitle={
             displayHabitsRaw.length === 0
@@ -223,7 +226,7 @@ export function HabitsTracker({
           }
         />
         <div className="mt-4 space-y-4">
-          {suggestions.length > 0 && (
+          {suggestions.length > 0 && !readOnly && (
             <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-violet-300">
                 <Sparkles className="h-4 w-4" />
@@ -291,7 +294,7 @@ export function HabitsTracker({
                       {habit.title}
                     </p>
                     <div className="flex shrink-0 items-center gap-1">
-                      {!habit.completed && habit.status !== "missed" && canComplete ? (
+                      {!habit.completed && habit.status !== "missed" && canComplete && !readOnly ? (
                         <Button
                           size="sm"
                           className="h-8 shrink-0 rounded-full px-3 text-xs"
@@ -301,16 +304,18 @@ export function HabitsTracker({
                           {platform.habits.done}
                         </Button>
                       ) : null}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0"
-                        onClick={() => openEdit(habit)}
-                        aria-label={platform.aria.editHabit}
-                      >
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
+                      {!readOnly ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => openEdit(habit)}
+                          aria-label={platform.aria.editHabit}
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      ) : null}
                       {habit.completed ? (
                         <DashboardStatusIcon status="completed" aria-label={platform.aria.completed} />
                       ) : habit.status === "missed" ? (

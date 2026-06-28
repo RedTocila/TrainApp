@@ -16,6 +16,7 @@ export function DashboardWorkoutCompactRow({
   isDayLoaded,
   selectedDate,
   onSelect,
+  readOnly = false,
 }: {
   workout: TodaysWorkoutInfo;
   workoutKey: string;
@@ -24,6 +25,7 @@ export function DashboardWorkoutCompactRow({
   isDayLoaded: boolean;
   selectedDate: Date;
   onSelect: (workoutKey: string) => void;
+  readOnly?: boolean;
 }) {
   const platform = usePlatformCopy();
 
@@ -67,7 +69,7 @@ export function DashboardWorkoutCompactRow({
       <div className={cn("shrink-0", dashboardInteractive)}>
         {done ? (
           <DashboardStatusCheck aria-label={platform.aria.completed} />
-        ) : (
+        ) : readOnly ? null : (
           <StartTodaysWorkoutButton
             date={selectedDate}
             workout={workout}

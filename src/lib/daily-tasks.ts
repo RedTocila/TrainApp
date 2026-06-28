@@ -1,5 +1,6 @@
 import type {
   NutritionAssignment,
+  ScheduledCardio,
   ScheduledNutritionDay,
   ScheduledWorkout,
   WorkoutAssignment,
@@ -35,6 +36,7 @@ export interface ClientSchedule {
   scheduledWorkouts?: ScheduledWorkout[];
   scheduledNutritionDays?: ScheduledNutritionDay[];
   scheduledCardioByDate?: Record<string, { title: string; duration_minutes?: number | null }>;
+  scheduledCardioEntries?: ScheduledCardio[];
   habitsByDate?: Record<
     string,
     { id: string; title: string; time_start?: string | null; time_end?: string | null }[]

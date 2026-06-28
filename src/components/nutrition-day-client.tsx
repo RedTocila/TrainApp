@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSelectedDate } from "@/components/date-provider";
+import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
 import {
   neverInEnrichmentRange,
   useOptionalDashboardEnrichment,
@@ -69,6 +69,7 @@ export function NutritionDayClient({
   hasAiAccess: boolean;
 }) {
   const { selectedDate, todayKey } = useSelectedDate();
+  const readOnly = useIsPastSelectedDay();
   const enrichmentCtx = useOptionalDashboardEnrichment();
   const enrichment = enrichmentCtx?.enrichment;
   const isInEnrichmentRange =
@@ -252,6 +253,7 @@ export function NutritionDayClient({
       goal={goal}
       variant="full"
       layout="detail"
+      readOnly={readOnly}
     />
   );
 }

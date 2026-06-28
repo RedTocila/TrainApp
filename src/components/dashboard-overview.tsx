@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSelectedDate } from "@/components/date-provider";
+import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
 import {
   neverInEnrichmentRange,
   useOptionalDashboardEnrichment,
@@ -18,6 +18,8 @@ import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import { getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
+import type { ClientSchedule } from "@/lib/daily-tasks";
+import { nutritionPlanFromSchedule } from "@/lib/nutrition-plan-from-schedule";
 import { formatDateKey } from "@/lib/utils";
 import type { DailyLog, DailyMealLog, Meal, MealSlot } from "@/lib/types";
 
@@ -54,6 +56,7 @@ export function DashboardOverview({
   goal,
   variant = "full",
   layout = "card",
+  schedule,
 }: {
   clientId: string;
   initialLog: DailyLog | null;
@@ -68,8 +71,10 @@ export function DashboardOverview({
   coachNutritionPlanState: CoachNutritionPlanViewState;
   variant?: "full" | "compact";
   layout?: "card" | "detail";
+  schedule?: ClientSchedule;
 }) {
   const { selectedDate, todayKey } = useSelectedDate();
+  const readOnly = useIsPastSelectedDay();
   const enrichmentCtx = useOptionalDashboardEnrichment();
   const enrichment = enrichmentCtx?.enrichment;
   const isInEnrichmentRange =
@@ -85,6 +90,9 @@ export function DashboardOverview({
 
   const enrichmentMeals = enrichment?.mealsByDate[dateKey];
   const enrichmentWater = enrichment?.waterByDate[dateKey];
+  const scheduleNutritionPlan = schedule
+    ? nutritionPlanFromSchedule(selectedDate, schedule)
+    : null;
 
   const seedOverview = useMemo((): OverviewDayData | undefined => {
     const hasEnrichment =
@@ -104,7 +112,10 @@ export function DashboardOverview({
           fat: initialLog?.fat ?? 0,
         },
         dailyMeals: enrichmentMeals ?? [],
-        nutritionPlan: dateKey === todayKey ? (initialNutritionPlan ?? null) : null,
+        nutritionPlan:
+          dateKey === todayKey
+            ? (initialNutritionPlan ?? null)
+            : scheduleNutritionPlan,
       };
     }
 
@@ -113,6 +124,23 @@ export function DashboardOverview({
         log: initialLog,
         dailyMeals: initialDailyMeals,
         nutritionPlan: initialNutritionPlan ?? null,
+      };
+    }
+
+    if (schedule && isInEnrichmentRange(dateKey)) {
+      return {
+        log: {
+          id: "",
+          client_id: clientId,
+          date: dateKey,
+          water_ml: enrichmentWater ?? 0,
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+        },
+        dailyMeals: enrichmentMeals ?? [],
+        nutritionPlan: scheduleNutritionPlan,
       };
     }
 
@@ -126,6 +154,8 @@ export function DashboardOverview({
     initialLog,
     initialNutritionPlan,
     isInEnrichmentRange,
+    schedule,
+    scheduleNutritionPlan,
     todayKey,
   ]);
 
@@ -162,7 +192,8 @@ export function DashboardOverview({
     skipFetch:
       isInEnrichmentRange(dateKey) &&
       enrichmentMeals !== undefined &&
-      enrichmentWater !== undefined,
+      enrichmentWater !== undefined &&
+      (dateKey === todayKey || scheduleNutritionPlan !== null || !schedule),
     fetcher: loadOverview,
     trackGlobalLoading: true,
   });
@@ -208,6 +239,7 @@ export function DashboardOverview({
       goal={goal}
       variant={variant}
       layout={layout}
+      readOnly={readOnly}
     />
   );
 }

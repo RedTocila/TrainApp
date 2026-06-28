@@ -10,7 +10,7 @@ import {
   DashboardCardNavLink,
   dashboardInteractive,
 } from "@/components/dashboard-card-nav-link";
-import { useSelectedDate } from "@/components/date-provider";
+import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
 import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
@@ -20,6 +20,7 @@ import { getCardioTypeDisplay } from "@/lib/cardio-catalog";
 import { getScheduledCardioForDate } from "@/lib/actions/user-cardio";
 import { getTaskCompletionsForDate, toggleScheduleTaskCompletion } from "@/lib/actions/task-completions";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
+import type { ClientSchedule } from "@/lib/daily-tasks";
 import type { ScheduledCardio } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -42,15 +43,18 @@ export function DashboardCardioCard({
   initialScheduled = null,
   initialCompleted = false,
   variant = "compact",
+  schedule,
 }: {
   clientId: string;
   initialScheduled?: ScheduledCardio | null;
   initialCompleted?: boolean;
   variant?: "full" | "compact";
+  schedule?: ClientSchedule;
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
+  const readOnly = useIsPastSelectedDay();
   const { version, patchDashboard } = useDashboardSync();
   const enrichment = useOptionalDashboardEnrichment()?.enrichment;
   const [isToggling, setIsToggling] = useState(false);
@@ -66,17 +70,31 @@ export function DashboardCardioCard({
     if (dateKey === todayKey) {
       return { scheduled: initialScheduled, completed: initialCompleted };
     }
+    const scheduleEntry = schedule?.scheduledCardioEntries?.find(
+      (entry) => entry.scheduled_date === dateKey
+    );
+    if (scheduleEntry) {
+      return { scheduled: scheduleEntry, completed: enrichmentCompleted };
+    }
     if (enrichmentCompleted) {
       return { scheduled: initialScheduled, completed: true };
     }
     return undefined;
-  }, [dateKey, todayKey, initialScheduled, initialCompleted, enrichmentCompleted]);
+  }, [
+    dateKey,
+    todayKey,
+    initialScheduled,
+    initialCompleted,
+    enrichmentCompleted,
+    schedule?.scheduledCardioEntries,
+  ]);
 
   const { data: cardioDay } = useCachedDashboardDate({
     clientId,
     dateKey,
     namespace: "cardio",
     seed: seedCardio,
+    skipFetch: seedCardio !== undefined && dateKey !== todayKey,
     deps: [taskId, version],
     fetcher: async () => {
       const [entry, ids] = await Promise.all([
@@ -176,7 +194,7 @@ export function DashboardCardioCard({
               {platform.cardio.myCardio}
             </Button>
           </Link>
-          {cardioForDay && !completedForDay ? (
+          {cardioForDay && !completedForDay && !readOnly ? (
             <Button
               size="sm"
               className="h-8 flex-1 rounded-full px-2 text-[11px]"
@@ -205,7 +223,7 @@ export function DashboardCardioCard({
               {platform.cardio.myCardio}
             </Button>
           </Link>
-          {cardioForDay && !completedForDay ? (
+          {cardioForDay && !completedForDay && !readOnly ? (
             <Button
               size="sm"
               className="h-8 rounded-full px-3 text-xs"

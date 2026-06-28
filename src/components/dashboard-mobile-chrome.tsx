@@ -94,15 +94,17 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
       {!isProgressPhotosPage ? (
         isNutritionPage && nutritionActions ? (
           <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
-            <Button
-              type="button"
-              size="sm"
-              className={headerTextButton}
-              onClick={nutritionActions.onLogMeal}
-            >
-              <Camera className="h-3.5 w-3.5" />
-              {platform.nutrition.logMeal}
-            </Button>
+            {nutritionActions.onLogMeal ? (
+              <Button
+                type="button"
+                size="sm"
+                className={headerTextButton}
+                onClick={nutritionActions.onLogMeal}
+              >
+                <Camera className="h-3.5 w-3.5" />
+                {platform.nutrition.logMeal}
+              </Button>
+            ) : null}
             {nutritionActions.showDietPlan ? (
               <Button
                 type="button"
@@ -118,9 +120,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
           </div>
         ) : isWorkoutPage && workoutActions ? (
           <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
-            {workoutActions.showCompleted ? (
-              <DashboardStatusCheck aria-label={platform.aria.completed} />
-            ) : workoutActions.showStart ? (
+            {workoutActions.showStart ? (
               <StartWorkoutLoadingShell isLoading={workoutActions.isStarting}>
                 <Button
                   type="button"

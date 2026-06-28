@@ -77,6 +77,7 @@ interface DailyTrackerProps {
   coachNutritionPlanState: CoachNutritionPlanViewState;
   variant?: "full" | "compact";
   layout?: "card" | "detail";
+  readOnly?: boolean;
 }
 
 export function DailyTracker({
@@ -95,6 +96,7 @@ export function DailyTracker({
   goal,
   variant = "full",
   layout = "card",
+  readOnly = false,
 }: DailyTrackerProps) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
@@ -254,22 +256,43 @@ export function DailyTracker({
   const isDetailLayout = layout === "detail";
   const dailyMicros = estimateDailyMicros(dailyMeals, current);
 
-  const nutritionChromeActions = useMemo(
-    () =>
-      isDetailLayout
-        ? {
-            onLogMeal: () => setLogMealOpen(true),
-            onDietPlan: handleMealPlanClick,
-            showDietPlan: showMealPlanButton,
-            status: nutritionCompleted
-              ? ("completed" as const)
-              : macrosOverTarget
-                ? ("over" as const)
-                : null,
-          }
-        : null,
-    [isDetailLayout, showMealPlanButton, nutritionCompleted, macrosOverTarget]
-  );
+  const nutritionChromeActions = useMemo(() => {
+    if (!isDetailLayout) return null;
+
+    const headerTrailing =
+      nutritionStatuses.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {nutritionStatuses.map((status) => (
+            <NutritionStatusAdviceButton
+              key={status}
+              status={status}
+              context={nutritionContext}
+            />
+          ))}
+        </div>
+      ) : null;
+
+    if (!readOnly) {
+      return {
+        onLogMeal: () => setLogMealOpen(true),
+        onDietPlan: handleMealPlanClick,
+        showDietPlan: showMealPlanButton,
+        headerTrailing,
+      };
+    }
+
+    return {
+      onDietPlan: handleMealPlanClick,
+      showDietPlan: showMealPlanButton,
+      headerTrailing,
+    };
+  }, [
+    isDetailLayout,
+    readOnly,
+    showMealPlanButton,
+    nutritionStatuses,
+    nutritionContext,
+  ]);
   useRegisterNutritionPageChrome(nutritionChromeActions);
 
   const nutritionDialogs = (
@@ -371,33 +394,42 @@ export function DailyTracker({
           </CardHeader>
           <CardContent className="flex flex-1 flex-col p-4 pt-0">
             <TaskNutritionMacroPreview current={current} targets={targets} />
-            <div className="mt-5 flex items-center justify-between gap-2">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  className="h-8 rounded-full px-3"
-                  onClick={() => setLogMealOpen(true)}
-                >
-                  <Camera className="h-3.5 w-3.5" />
-                  {platform.nutrition.logMeal}
-                </Button>
-                {showMealPlanButton && (
+            {!readOnly ? (
+              <div className="mt-5 flex items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
-                    variant="outline"
                     className="h-8 rounded-full px-3"
-                    onClick={handleMealPlanClick}
+                    onClick={() => setLogMealOpen(true)}
                   >
-                    <ClipboardList className="h-3.5 w-3.5" />
-                    {platform.nutrition.viewDietPlan}
+                    <Camera className="h-3.5 w-3.5" />
+                    {platform.nutrition.logMeal}
                   </Button>
-                )}
+                  {showMealPlanButton && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-full px-3"
+                      onClick={handleMealPlanClick}
+                    >
+                      <ClipboardList className="h-3.5 w-3.5" />
+                      {platform.nutrition.viewDietPlan}
+                    </Button>
+                  )}
+                </div>
+                <ChevronRight
+                  className="h-5 w-5 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
               </div>
-              <ChevronRight
-                className="h-5 w-5 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-            </div>
+            ) : (
+              <div className="mt-5 flex justify-end">
+                <ChevronRight
+                  className="h-5 w-5 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+              </div>
+            )}
           </CardContent>
         </DashboardCardNavBody>
       </Card>
@@ -409,27 +441,38 @@ export function DailyTracker({
   if (isDetailLayout) {
     return (
       <>
-        <div id="dashboard-nutrition" className="space-y-4">
-          {showNutritionStatus ? (
-            <div className="hidden justify-end lg:flex">
-              {nutritionCompleted && !macrosOverTarget ? (
-                <DashboardStatusIcon status="completed" aria-label="Completed" />
-              ) : (
-                <DashboardStatusIcon status="missed" aria-label="Over limit" />
-              )}
-            </div>
-          ) : null}
+        <div id="dashboard-nutrition" className="space-y-3">
+          <NutritionDetailView
+            current={current}
+            targets={targets}
+            micros={dailyMicros}
+            context={nutritionContext}
+          />
 
           <div className="hidden items-center justify-end gap-2 lg:flex">
-            <Button
-              size="sm"
-              className="h-9 rounded-full px-4"
-              onClick={() => setLogMealOpen(true)}
-            >
-              <Camera className="h-4 w-4" />
-              {platform.nutrition.logMeal}
-            </Button>
-            {showMealPlanButton && (
+            {!readOnly ? (
+              <>
+                <Button
+                  size="sm"
+                  className="h-9 rounded-full px-4"
+                  onClick={() => setLogMealOpen(true)}
+                >
+                  <Camera className="h-4 w-4" />
+                  {platform.nutrition.logMeal}
+                </Button>
+                {showMealPlanButton && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 rounded-full px-4"
+                    onClick={handleMealPlanClick}
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    {platform.nutrition.viewDietPlan}
+                  </Button>
+                )}
+              </>
+            ) : showMealPlanButton ? (
               <Button
                 size="sm"
                 variant="outline"
@@ -439,34 +482,14 @@ export function DailyTracker({
                 <ClipboardList className="h-4 w-4" />
                 {platform.nutrition.viewDietPlan}
               </Button>
-            )}
+            ) : null}
           </div>
-
-          {nutritionStatuses.length > 0 && (
-            <div className="space-y-2">
-              {nutritionStatuses.map((status) => (
-                <NutritionStatusAdviceButton
-                  key={status}
-                  status={status}
-                  context={nutritionContext}
-                  variant="banner"
-                />
-              ))}
-            </div>
-          )}
-
-          <NutritionDetailView
-            current={current}
-            targets={targets}
-            micros={dailyMicros}
-            context={nutritionContext}
-          />
 
           <RecentMealsList
             meals={dailyMeals}
-            onDelete={handleDeleteMeal}
+            onDelete={readOnly ? undefined : handleDeleteMeal}
             onSelect={handleSelectMeal}
-            onAdd={() => setLogMealOpen(true)}
+            onAdd={readOnly ? undefined : () => setLogMealOpen(true)}
             showHeaderAdd={false}
             emptyHint={platform.nutrition.logFirstMealHint}
             variant="feed"
@@ -569,14 +592,16 @@ export function DailyTracker({
                 <ClipboardList className="h-4 w-4" />
               </Button>
             )}
-            <Button
-              size="icon"
-              className="h-9 w-9 rounded-full"
-              onClick={() => setLogMealOpen(true)}
-              aria-label={platform.aria.logMeal}
-            >
-              <Camera className="h-4 w-4" />
-            </Button>
+            {!readOnly ? (
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-full"
+                onClick={() => setLogMealOpen(true)}
+                aria-label={platform.aria.logMeal}
+              >
+                <Camera className="h-4 w-4" />
+              </Button>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -585,16 +610,16 @@ export function DailyTracker({
             targets={targets}
             waterMl={localWaterMl}
             waterGoalMl={waterGoalMl}
-            onAddWater={handleAddWater}
-            onSetWaterGoal={onWaterGoalChange ? handleSetWaterGoal : undefined}
+            onAddWater={readOnly ? undefined : handleAddWater}
+            onSetWaterGoal={readOnly || !onWaterGoalChange ? undefined : handleSetWaterGoal}
           />
 
           <RecentMealsList
             title={platform.nutrition.mealsLogged}
             meals={dailyMeals}
-            onDelete={handleDeleteMeal}
+            onDelete={readOnly ? undefined : handleDeleteMeal}
             onSelect={handleSelectMeal}
-            onAdd={() => setLogMealOpen(true)}
+            onAdd={readOnly ? undefined : () => setLogMealOpen(true)}
             showHeaderAdd={false}
             emptyHint={platform.nutrition.logFirstMealHint}
           />

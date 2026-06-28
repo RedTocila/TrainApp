@@ -4,9 +4,10 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 import { ChevronRight, Dumbbell } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSelectedDate } from "@/components/date-provider";
+import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
 import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import { DashboardWorkoutCompactRow } from "@/components/dashboard-workout-compact-row";
 import { DashboardWorkoutDetailSection } from "@/components/dashboard-workout-detail-section";
@@ -38,6 +39,11 @@ import {
   workoutDayCacheKey,
 } from "@/lib/dashboard-route-cache";
 import { isDashboardDayCacheFresh } from "@/lib/dashboard-day-cache";
+import type { ClientSchedule } from "@/lib/daily-tasks";
+import {
+  resolveWorkoutsFromSchedule,
+  workoutCompletionFromEnrichment,
+} from "@/lib/resolve-workouts-from-schedule";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DashboardWorkoutPlusMenu } from "@/components/dashboard-workout-plus-menu";
@@ -87,6 +93,7 @@ export function DashboardWorkoutCard({
   initialWorkoutResults = null,
   selectedWorkoutKey = null,
   variant = "full",
+  schedule,
 }: {
   clientId: string;
   gender?: string | null;
@@ -97,12 +104,15 @@ export function DashboardWorkoutCard({
   initialWorkoutResults?: CompletedWorkoutResults | null;
   selectedWorkoutKey?: string | null;
   variant?: "full" | "compact" | "detail";
+  schedule?: ClientSchedule;
 }) {
   const seedWorkouts = initialWorkouts ?? (initialWorkout ? [initialWorkout] : []);
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const router = useRouter();
   const { selectedDate, todayKey } = useSelectedDate();
+  const readOnly = useIsPastSelectedDay();
+  const enrichment = useOptionalDashboardEnrichment()?.enrichment;
   const { version, patches } = useDashboardSync();
   const dateKey = formatDateKey(selectedDate);
   const [workouts, setWorkouts] = useState(seedWorkouts);
@@ -127,6 +137,29 @@ export function DashboardWorkoutCard({
   const [addWorkoutOpen, setAddWorkoutOpen] = useState(false);
   const [removeWorkoutOpen, setRemoveWorkoutOpen] = useState(false);
   const workoutCacheRef = useRef<Map<string, WorkoutDayCache>>(new Map());
+
+  const seedFromSchedule = useCallback(
+    (key: string): WorkoutDayCache | null => {
+      if (!schedule) return null;
+      const date = new Date(`${key}T12:00:00`);
+      const resolved = resolveWorkoutsFromSchedule(date, schedule);
+      const completedByTaskId = workoutCompletionFromEnrichment(
+        resolved,
+        enrichment?.completionsByDate[key]
+      );
+      const allCompleted =
+        resolved.length > 0 &&
+        resolved.every((workout) => completedByTaskId[workout.taskId]);
+      return {
+        workouts: resolved,
+        completedByTaskId,
+        sessionIdByTaskId: {},
+        allCompleted,
+        results: null,
+      };
+    },
+    [schedule, enrichment?.completionsByDate]
+  );
 
   useEffect(() => {
     router.prefetch(DASHBOARD_DAY_WORKOUT_PATH);
@@ -203,11 +236,22 @@ export function DashboardWorkoutCard({
       return;
     }
 
+    const scheduleSeed = seedFromSchedule(dateKey);
+    if (scheduleSeed) {
+      workoutCacheRef.current.set(dateKey, scheduleSeed);
+      setWorkouts(scheduleSeed.workouts);
+      setCompletedByTaskId(scheduleSeed.completedByTaskId);
+      setSessionIdByTaskId(scheduleSeed.sessionIdByTaskId);
+      setWorkoutResults(scheduleSeed.results);
+      setLoadedDateKey(dateKey);
+      return;
+    }
+
     setWorkouts([]);
     setCompletedByTaskId({});
     setSessionIdByTaskId({});
     setWorkoutResults(null);
-  }, [clientId, dateKey]);
+  }, [clientId, dateKey, seedFromSchedule]);
 
   const refreshWorkout = useCallback(async () => {
     const key = formatDateKey(selectedDate);
@@ -379,19 +423,21 @@ export function DashboardWorkoutCard({
       <>
       <Card
         id="dashboard-workout"
-        className="relative flex h-full min-h-[18rem] w-full cursor-pointer flex-col p-4 pt-12 sm:min-h-[19rem] transition-opacity hover:opacity-95 active:opacity-90"
+        className="relative flex w-full cursor-pointer flex-col p-4 pt-12 transition-opacity hover:opacity-95 active:opacity-90"
       >
         <DashboardCardNavLink
           href={DASHBOARD_DAY_WORKOUT_PATH}
           ariaLabel={platform.trainTabs.workout}
         />
         <div className="absolute right-3 top-3 z-20 flex items-center gap-1">
-          <DashboardWorkoutPlusMenu
-            className={dashboardInteractive}
-            canRemove={removableWorkoutCount > 0}
-            onAddWorkout={() => setAddWorkoutOpen(true)}
-            onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
-          />
+          {!readOnly ? (
+            <DashboardWorkoutPlusMenu
+              className={dashboardInteractive}
+              canRemove={removableWorkoutCount > 0}
+              onAddWorkout={() => setAddWorkoutOpen(true)}
+              onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
+            />
+          ) : null}
           <ChevronRight
             className="pointer-events-none h-4 w-4 text-muted-foreground"
             aria-hidden
@@ -429,7 +475,7 @@ export function DashboardWorkoutCard({
               />
             </div>
           ) : workoutsForDay.length > 0 ? (
-            <div className="flex min-h-[10.5rem] w-full items-center justify-center sm:min-h-[11rem]">
+            <div className="flex w-full items-center justify-center py-6">
               <Dumbbell
                 className="h-10 w-10 text-muted-foreground/40 sm:h-11 sm:w-11"
                 aria-hidden
@@ -451,6 +497,7 @@ export function DashboardWorkoutCard({
                     isDayLoaded={isDayLoaded}
                     selectedDate={selectedDate}
                     onSelect={setSelectedCompactWorkoutKey}
+                    readOnly={readOnly}
                   />
                 );
               })}
@@ -494,13 +541,12 @@ export function DashboardWorkoutCard({
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <DashboardWorkoutPlusMenu
-                canRemove={removableWorkoutCount > 0}
-                onAddWorkout={() => setAddWorkoutOpen(true)}
-                onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
-              />
-              {allWorkoutsComplete && workoutsForDay.length > 0 ? (
-                <DashboardStatusCheck aria-label={platform.aria.completed} />
+              {!readOnly ? (
+                <DashboardWorkoutPlusMenu
+                  canRemove={removableWorkoutCount > 0}
+                  onAddWorkout={() => setAddWorkoutOpen(true)}
+                  onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
+                />
               ) : null}
             </div>
           </div>
@@ -521,6 +567,7 @@ export function DashboardWorkoutCard({
                     sessionId={getWorkoutSessionId(workout.taskId)}
                     gender={gender}
                     intakeProfile={intakeProfile}
+                    readOnly={readOnly}
                   />
                 );
               })}
@@ -572,11 +619,13 @@ export function DashboardWorkoutCard({
         {showCompletedState && displayWorkout ? (
           <DashboardStatusCheck aria-label={platform.aria.completed} />
         ) : (
-          <StartTodaysWorkoutButton
-            date={selectedDate}
-            workout={displayWorkout}
-            disabled={!isDayLoaded}
-          />
+          !readOnly ? (
+            <StartTodaysWorkoutButton
+              date={selectedDate}
+              workout={displayWorkout}
+              disabled={!isDayLoaded}
+            />
+          ) : null
         )}
       </CardHeader>
       <CardContent className="space-y-4">
