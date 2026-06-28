@@ -245,10 +245,24 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
     ) {
       const recovered = await recoverExistingSignupUser(admin, email, input.password, userMetadata);
       if (recovered) {
-        return finalizeNewUserProfile(admin, recovered.id, recovered.user_metadata, {
+        const finalized = await finalizeNewUserProfile(admin, recovered.id, recovered.user_metadata, {
           ...input,
           email,
         });
+        if (finalized.error) {
+          console.error("[signUpAccount] profile setup failed after recover", finalized.error);
+          const { data: profile } = await admin
+            .from("profiles")
+            .select("role")
+            .eq("id", recovered.id)
+            .maybeSingle();
+          return {
+            success: true as const,
+            role: profile?.role ?? "client",
+            profileSetupDeferred: true,
+          };
+        }
+        return finalized;
       }
       if (message.includes("already")) {
         return { error: "This email is already registered. Sign in instead." };
@@ -263,10 +277,22 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
     return { error: "Could not create account." };
   }
 
-  return finalizeNewUserProfile(admin, created.user.id, created.user.user_metadata, {
+  const finalized = await finalizeNewUserProfile(admin, created.user.id, created.user.user_metadata, {
     ...input,
     email,
   });
+
+  if (finalized.error) {
+    console.error("[signUpAccount] profile setup failed after createUser", finalized.error);
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("role")
+      .eq("id", created.user.id)
+      .maybeSingle();
+    return { success: true as const, role: profile?.role ?? "client", profileSetupDeferred: true };
+  }
+
+  return finalized;
 }
 
 /** Apply profile + intake after the browser client has established an auth session. */
@@ -319,6 +345,41 @@ async function recoverExistingSignupUser(
 /** Sign in after registration — auto-confirms email if Supabase left it unverified. */
 export async function signInAfterRegistration(email: string, password: string) {
   return signInWithRecovery(email, password);
+}
+
+/**
+ * Finish signup without relying on Supabase SMTP — confirms via admin API, signs in, applies profile.
+ */
+export async function completePendingSignup(
+  input: RegistrationInput & { password: string }
+) {
+  const email = input.email.trim().toLowerCase();
+
+  const confirmed = await confirmAuthUserEmail(email);
+  if (!confirmed) {
+    const recovered = await recoverExistingSignupUser(
+      createAdminClient(),
+      email,
+      input.password,
+      {
+        full_name: input.fullName,
+        ...(input.phone ? { phone: input.phone } : {}),
+      }
+    );
+    if (!recovered) {
+      return {
+        error:
+          "We could not verify your account yet. Wait a minute and try again, or contact support.",
+      };
+    }
+  }
+
+  const { error: signInError } = await signInWithRecovery(email, input.password);
+  if (signInError) {
+    return { error: signInError };
+  }
+
+  return completeRegistration({ ...input, email });
 }
 
 export async function signIn(formData: FormData) {

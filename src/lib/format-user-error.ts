@@ -53,9 +53,9 @@ function humanizeErrorCode(code: string): string {
     case "user_banned":
       return "This account cannot be created. Contact support if you need help.";
     case "email_not_confirmed":
-      return "Confirm your email first — check your inbox and spam folder, or try signing in again.";
+      return "Your account is not verified yet. Try signing in again — it should work within a minute.";
     case "invalid_credentials":
-      return "Wrong email or password. If you just signed up, confirm your email or try again in a minute.";
+      return "Wrong email or password. If you just signed up, wait a minute and try again.";
     default:
       return `Could not continue (${code}). Please try again.`;
   }
@@ -90,9 +90,25 @@ export function isDirectSignupRejection(message: string): boolean {
 
 export function isEmailDeliverySignupError(value: unknown): boolean {
   const text = formatUserError(value, "").toLowerCase();
-  return (
+  if (
     text.includes("confirmation email") ||
     text.includes("error sending") ||
     text.includes("email rate limit")
-  );
+  ) {
+    return true;
+  }
+
+  if (typeof value === "object" && value !== null) {
+    const record = value as Record<string, unknown>;
+    const status = record.status;
+    const name = record.name;
+    if (status === 500 || name === "AuthRetryableFetchError") {
+      return true;
+    }
+    if (text === "{}" || text === "") {
+      return true;
+    }
+  }
+
+  return false;
 }

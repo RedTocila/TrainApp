@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export function LoginForm({ authError }: { authError?: string }) {
   const [error, setError] = useState<string | null>(() => {
     if (authError === "auth") {
-      return "Email confirmation failed or the link expired. Sign in below or register again.";
+      return "That link expired or did not work. Sign in below with your email and password.";
     }
     if (authError === "config") {
       return "Sign-in is temporarily unavailable. Please try again later.";

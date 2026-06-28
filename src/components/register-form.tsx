@@ -4,8 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Sparkles } from "lucide-react";
-import { completeRegistration, signInAfterRegistration, signUpAccount } from "@/lib/actions/auth";
-import { createClient } from "@/lib/supabase/client";
+import {
+  completePendingSignup,
+  completeRegistration,
+  signInAfterRegistration,
+  signUpAccount,
+} from "@/lib/actions/auth";
 import { BrandWordmark } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,11 +22,20 @@ import { getOrCreateDeviceHash, loadReferralCode, saveReferralCode } from "@/lib
 import {
   formatUserError,
   isDirectSignupRejection,
-  isEmailDeliverySignupError,
   isMissingAdminCredentialsError,
 } from "@/lib/format-user-error";
 
 const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
+
+type PendingSignup = {
+  email: string;
+  password: string;
+  fullName: string;
+  phone: string | null;
+  intakeJson: string | null;
+  referralCode: string | null;
+  deviceHash: string;
+};
 
 export function RegisterForm({ initialReferralCode }: { initialReferralCode?: string }) {
   const router = useRouter();
@@ -31,9 +44,9 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
   const [macroPreview, setMacroPreview] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
-  const [confirmationEmail, setConfirmationEmail] = useState("");
-  const [resendPending, setResendPending] = useState(false);
-  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null);
+  const [continuePending, setContinuePending] = useState(false);
+  const [continueMessage, setContinueMessage] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,63 +69,76 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
     }
   }, [initialReferralCode]);
 
-  const emailRedirectTo =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(ONBOARDING_PRICING)}`
-      : undefined;
-
-  const handleResendConfirmation = async () => {
-    if (!confirmationEmail || !emailRedirectTo) return;
-    setResendPending(true);
-    setResendMessage(null);
-    setError(null);
-
-    try {
-      const supabase = createClient();
-      const { error: resendError } = await supabase.auth.resend({
-        type: "signup",
-        email: confirmationEmail,
-        options: { emailRedirectTo },
-      });
-
-      if (resendError) {
-        setResendMessage(
-          formatUserError(
-            resendError,
-            "Could not resend the confirmation email. Try again in a few minutes."
-          )
-        );
-        return;
-      }
-
-      setResendMessage("Confirmation email sent again. Check your inbox and spam folder.");
-    } finally {
-      setResendPending(false);
-    }
-  };
-
   const finishSignup = (role?: string) => {
     clearIntakeDraft();
     router.refresh();
     router.push(role === "admin" ? "/admin" : ONBOARDING_PRICING);
   };
 
-  const signInAfterSignup = async (email: string, password: string) => {
-    const result = await signInAfterRegistration(email, password);
-
-    if (result.error) {
-      setError(result.error);
-      return false;
+  const finishAfterSignIn = async (
+    registrationInput: Omit<PendingSignup, "password">,
+    serverAlreadyFinalized: boolean,
+    role?: string
+  ) => {
+    if (serverAlreadyFinalized) {
+      finishSignup(role);
+      return;
     }
 
-    return true;
+    router.refresh();
+    const result = await completeRegistration(registrationInput);
+    if (result?.error) {
+      setError(
+        formatUserError(
+          result.error,
+          "Account created but setup failed. Try signing in — your profile may already be ready."
+        )
+      );
+      return;
+    }
+
+    finishSignup(result.role);
+  };
+
+  const handleContinueSetup = async () => {
+    if (!pendingSignup) return;
+    setContinuePending(true);
+    setContinueMessage(null);
+    setError(null);
+
+    try {
+      const result = await completePendingSignup({
+        fullName: pendingSignup.fullName,
+        email: pendingSignup.email,
+        phone: pendingSignup.phone,
+        password: pendingSignup.password,
+        intakeJson: pendingSignup.intakeJson,
+        referralCode: pendingSignup.referralCode,
+        deviceHash: pendingSignup.deviceHash,
+      });
+
+      if (result?.error) {
+        setContinueMessage(
+          formatUserError(
+            result.error,
+            "Could not finish setting up your account. Try again in a minute."
+          )
+        );
+        return;
+      }
+
+      finishSignup(result.role);
+    } finally {
+      setContinuePending(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    setResendMessage(null);
+    setContinueMessage(null);
     setNeedsEmailConfirmation(false);
+    setPendingSignup(null);
     setIsPending(true);
 
     try {
@@ -132,136 +158,44 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
         deviceHash,
       };
 
-      let serverSignupError: string | null = null;
-      let useClientSignup = false;
+      let serverResult: Awaited<ReturnType<typeof signUpAccount>> | undefined;
 
       try {
-        const serverResult = await signUpAccount({
+        serverResult = await signUpAccount({
           ...registrationInput,
           password,
         });
-
-        if (!serverResult?.error) {
-          const signedIn = await signInAfterSignup(email, password);
-          if (signedIn) {
-            finishSignup(serverResult.role);
-          }
-          return;
-        }
-
-        serverSignupError = serverResult.error;
-        if (isDirectSignupRejection(serverSignupError)) {
-          setError(serverSignupError);
-          return;
-        }
-
-        useClientSignup = true;
       } catch (err) {
         if (isMissingAdminCredentialsError(err)) {
-          useClientSignup = true;
-        } else {
-          setError(formatUserError(err, "Could not create account. Please try again."));
+          setError(
+            "Registration is temporarily unavailable. Please try again in a few minutes or contact support."
+          );
           return;
         }
-      }
-
-      if (!useClientSignup) {
-        setError(serverSignupError ?? "Could not create account. Please try again.");
+        setError(formatUserError(err, "Could not create account. Please try again."));
         return;
       }
 
-      const supabase = createClient();
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(ONBOARDING_PRICING)}`;
+      if ("error" in serverResult && serverResult.error && isDirectSignupRejection(serverResult.error)) {
+        setError(serverResult.error);
+        return;
+      }
 
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            ...(phone ? { phone } : {}),
-            device_hash: deviceHash,
-            ...(referralCode ? { referral_code: referralCode } : {}),
-          },
-          emailRedirectTo: redirectTo,
-        },
-      });
-
-      if (signUpError) {
-        if (isEmailDeliverySignupError(signUpError)) {
-          const fallback = await signUpAccount({
-            ...registrationInput,
-            password,
-          });
-
-          if (fallback?.error) {
-            setError(
-              serverSignupError ??
-                formatUserError(
-                  fallback.error,
-                  "We could not finish creating your account. Try again in a few minutes or contact support."
-                )
-            );
-            return;
-          }
-
-          const signedIn = await signInAfterSignup(email, password);
-          if (signedIn) {
-            finishSignup(fallback.role);
-          }
-          return;
-        }
-
-        setError(
-          formatUserError(
-            signUpError,
-            serverSignupError ?? "Could not create account."
-          )
+      const signInResult = await signInAfterRegistration(email, password);
+      if (!signInResult.error) {
+        await finishAfterSignIn(
+          registrationInput,
+          "success" in serverResult &&
+            serverResult.success === true &&
+            !("profileSetupDeferred" in serverResult && serverResult.profileSetupDeferred),
+          "success" in serverResult && serverResult.success ? serverResult.role : undefined
         );
         return;
       }
 
-      if (signUpData.user?.identities?.length === 0) {
-        setError("This email is already registered. Sign in instead.");
-        return;
-      }
-
-      let hasSession = Boolean(signUpData.session);
-
-      if (!hasSession) {
-        const signInResult = await signInAfterRegistration(email, password);
-
-        if (signInResult.error) {
-          setConfirmationEmail(email);
-          setNeedsEmailConfirmation(true);
-          setError(signInResult.error);
-          return;
-        }
-
-        hasSession = true;
-      }
-
-      if (!hasSession) {
-        setConfirmationEmail(email);
-        setNeedsEmailConfirmation(true);
-        return;
-      }
-
-      router.refresh();
-
-      const result = await completeRegistration(registrationInput);
-
-      if (result?.error) {
-        setError(
-          formatUserError(
-            result.error,
-            "Account created but setup failed. Try signing in — your profile may already be ready."
-          )
-        );
-        return;
-      }
-
-      finishSignup(result.role);
+      setPendingSignup({ ...registrationInput, password });
+      setNeedsEmailConfirmation(true);
+      setError(signInResult.error);
     } catch (err) {
       setError(formatUserError(err, "Could not create account. Please try again."));
     } finally {
@@ -269,39 +203,45 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
     }
   };
 
-  if (needsEmailConfirmation) {
+  if (needsEmailConfirmation && pendingSignup) {
     return (
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
             <Mail className="h-6 w-6" />
           </div>
-          <CardTitle className="text-2xl font-black">Check your email</CardTitle>
+          <CardTitle className="text-2xl font-black">Almost there</CardTitle>
           <CardDescription>
-            We sent a confirmation link to{" "}
-            <span className="font-medium text-foreground">{confirmationEmail}</span>.
-            Click it to continue to your custom program.
+            Your account for{" "}
+            <span className="font-medium text-foreground">{pendingSignup.email}</span> is ready.
+            Tap continue to finish setup — no confirmation email needed.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
-          <p>Your questionnaire answers are saved — they&apos;ll attach when you confirm.</p>
-          {resendMessage && (
-            <p className={resendMessage.includes("sent again") ? "text-green-400" : "text-red-400"}>
-              {resendMessage}
+          <p>Your questionnaire answers are saved — they&apos;ll attach when you continue.</p>
+          {error && <p className="text-red-400">{error}</p>}
+          {continueMessage && (
+            <p
+              className={
+                continueMessage.toLowerCase().includes("could not")
+                  ? "text-red-400"
+                  : "text-green-400"
+              }
+            >
+              {continueMessage}
             </p>
           )}
           <Button
             type="button"
-            variant="secondary"
             className="w-full"
-            disabled={resendPending}
-            onClick={() => void handleResendConfirmation()}
+            disabled={continuePending}
+            onClick={() => void handleContinueSetup()}
           >
-            {resendPending ? "Sending..." : "Resend confirmation email"}
+            {continuePending ? "Finishing setup..." : "Continue to my program"}
           </Button>
           <Link href="/login">
             <Button variant="outline" className="w-full">
-              Already confirmed? Sign in
+              Sign in instead
             </Button>
           </Link>
         </CardContent>
