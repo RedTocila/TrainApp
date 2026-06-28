@@ -4,12 +4,8 @@ import { useCallback, useState } from "react";
 import { Check, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { getChallengeShareUrl } from "@/lib/challenge-url";
 import { cn } from "@/lib/utils";
-
-function challengeShareUrl(slug: string): string {
-  if (typeof window === "undefined") return `/dashboard/challenges/${slug}`;
-  return `${window.location.origin}/dashboard/challenges/${slug}`;
-}
 
 export function ChallengeShareButton({
   slug,
@@ -24,18 +20,20 @@ export function ChallengeShareButton({
 }) {
   const copy = usePlatformCopy().challenges.share;
   const [copied, setCopied] = useState(false);
+  const url = getChallengeShareUrl(slug);
 
   const share = useCallback(
     async (event: React.MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
 
-      const url = challengeShareUrl(slug);
-      const text = copy.message.replace("{title}", title);
-
       if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
         try {
-          await navigator.share({ title, text, url });
+          await navigator.share({
+            title,
+            text: copy.message.replace("{title}", title),
+            url,
+          });
           return;
         } catch (error) {
           if (error instanceof Error && error.name === "AbortError") return;
@@ -43,14 +41,14 @@ export function ChallengeShareButton({
       }
 
       try {
-        await navigator.clipboard.writeText(`${text}\n${url}`);
+        await navigator.clipboard.writeText(url);
         setCopied(true);
         window.setTimeout(() => setCopied(false), 2000);
       } catch {
         window.prompt(copy.fallbackPrompt, url);
       }
     },
-    [copy.fallbackPrompt, copy.message, slug, title]
+    [copy.fallbackPrompt, copy.message, title, url]
   );
 
   if (variant === "card") {

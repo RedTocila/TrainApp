@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DeleteChallengeButton } from "@/components/delete-challenge-button";
-import { getChallengeStatus, getChallengePrizePoolCents, getChallengeDurationMonths, getPrizePoolCentsPerParticipant } from "@/lib/challenge-utils";
+import { getChallengeStatus, getChallengePrizePoolCents, getChallengeDurationMonths, getPrizePoolCentsPerParticipant, getRegistrationClosesAt, getRegistrationOpensAt, getChallengeRegistrationStatus } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
@@ -44,6 +44,7 @@ export default async function AdminChallengesPage() {
           <div className="space-y-3">
             {challenges.map((challenge) => {
               const status = getChallengeStatus(challenge);
+              const registrationStatus = getChallengeRegistrationStatus(challenge);
               const participantCount = challenge.participant_count ?? 0;
               const perEntry = formatEurosFromCents(getPrizePoolCentsPerParticipant(challenge));
               const pool = formatEurosFromCents(
@@ -55,15 +56,23 @@ export default async function AdminChallengesPage() {
                     <div className="min-w-0 space-y-1">
                       <CardTitle className="text-base">{challenge.title}</CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        {format(new Date(challenge.scheduled_at), "MMM d, yyyy · h:mm a")} ·{" "}
+                        Starts {format(new Date(challenge.scheduled_at), "MMM d, yyyy · h:mm a")} ·{" "}
                         {getChallengeDurationMonths(challenge)}-month tournament ·{" "}
                         {challenge.duration_minutes} min calls · groups of {challenge.group_size}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Registration:{" "}
+                        {getRegistrationOpensAt(challenge)
+                          ? format(getRegistrationOpensAt(challenge)!, "MMM d · h:mm a")
+                          : "open now"}{" "}
+                        → {format(getRegistrationClosesAt(challenge), "MMM d · h:mm a")}
                       </p>
                       <p className="text-sm text-amber-200/90">
                         Prize pool: {pool} · +{perEntry}/entry · {participantCount} registered
                       </p>
                       <div className="flex flex-wrap gap-2 pt-1">
                         <Badge variant="outline">{status}</Badge>
+                        <Badge variant="outline">{registrationStatus}</Badge>
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">

@@ -437,6 +437,10 @@ export interface Challenge {
   slug: string;
   description: string;
   scheduled_at: string;
+  /** When participants can start joining. Null = open immediately once published. */
+  registration_opens_at?: string | null;
+  /** When registration ends. Null = closes at scheduled_at. */
+  registration_closes_at?: string | null;
   duration_minutes: number;
   /** Total tournament length in months — one Zoom elimination round per month. */
   duration_months: number;

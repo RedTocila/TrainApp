@@ -1036,6 +1036,10 @@ export const platformCopyAl = {
       switchNotice:
         "Je në {title}. Duke u bashkuar këtu do të largohesh nga ajo sfidë (ose lista e pritjes nëse është plot).",
       viewCurrent: "Shiko sfidën aktuale",
+      registrationOpensAt: "Regjistrimi hapet më {date}.",
+      registrationJoinWhenLive: "Mund të bashkohesh kur sfida fillon më {date}.",
+      registrationClosedAt: "Regjistrimi është mbyllur për këtë sfidë.",
+      registrationClosedRegistered: "Je i regjistruar. Nuk lejohet largimi më.",
     },
   },
   aiPages: {

@@ -63,7 +63,33 @@ export default async function EditChallengePage({
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
-                  <Label htmlFor="scheduled_at">Start date & time</Label>
+                  <Label htmlFor="registration_opens_at">Registration opens</Label>
+                  <Input
+                    id="registration_opens_at"
+                    name="registration_opens_at"
+                    type="datetime-local"
+                    defaultValue={
+                      challenge.registration_opens_at
+                        ? toDatetimeLocalValue(challenge.registration_opens_at)
+                        : ""
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="registration_closes_at">Registration closes</Label>
+                  <Input
+                    id="registration_closes_at"
+                    name="registration_closes_at"
+                    type="datetime-local"
+                    defaultValue={
+                      challenge.registration_closes_at
+                        ? toDatetimeLocalValue(challenge.registration_closes_at)
+                        : ""
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled_at">Challenge starts</Label>
                   <Input
                     id="scheduled_at"
                     name="scheduled_at"

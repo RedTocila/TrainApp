@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getDemoClassBySlug, getDemoClasses } from "@/lib/class-demo";
 import type { ClassCategory, FitnessClass } from "@/lib/types";
+
+const DEMO_CLASS_SLUG = "demo-full-body-strength";
 
 function parseScheduledAt(value: FormDataEntryValue | null): string {
   const raw = String(value ?? "").trim();
@@ -39,12 +40,8 @@ function rowToClass(row: Record<string, unknown>): FitnessClass {
   return row as unknown as FitnessClass;
 }
 
-function mergeWithDemoClasses(dbClasses: FitnessClass[]): FitnessClass[] {
-  const dbSlugs = new Set(dbClasses.map((c) => c.slug));
-  const demos = getDemoClasses().filter((d) => !dbSlugs.has(d.slug));
-  return [...dbClasses, ...demos].sort(
-    (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
-  );
+function isDemoClassSlug(slug: string): boolean {
+  return slug === DEMO_CLASS_SLUG;
 }
 
 export async function getPublishedClasses(): Promise<FitnessClass[]> {
@@ -55,8 +52,10 @@ export async function getPublishedClasses(): Promise<FitnessClass[]> {
     .eq("published", true)
     .order("scheduled_at", { ascending: false });
 
-  if (error) return getDemoClasses();
-  return mergeWithDemoClasses((data ?? []).map(rowToClass));
+  if (error) return [];
+  return (data ?? [])
+    .map(rowToClass)
+    .filter((c) => !isDemoClassSlug(c.slug));
 }
 
 export async function getAllClasses(): Promise<FitnessClass[]> {
@@ -70,7 +69,8 @@ export async function getAllClasses(): Promise<FitnessClass[]> {
 }
 
 export async function getClassBySlug(slug: string): Promise<FitnessClass | null> {
-  const demo = getDemoClassBySlug(slug);
+  if (isDemoClassSlug(slug)) return null;
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("classes")
@@ -78,7 +78,7 @@ export async function getClassBySlug(slug: string): Promise<FitnessClass | null>
     .eq("slug", slug)
     .maybeSingle();
 
-  if (error || !data) return demo ?? null;
+  if (error || !data) return null;
   if (!data.published) return null;
   return rowToClass(data);
 }

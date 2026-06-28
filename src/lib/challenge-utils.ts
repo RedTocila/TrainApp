@@ -11,6 +11,66 @@ export const ROUND1_ADVANCE_COUNT = 5;
 
 export type ChallengeStatus = "upcoming" | "live" | "ended";
 
+export type ChallengeRegistrationStatus = "not_open" | "open" | "closed";
+
+export function getRegistrationOpensAt(
+  challenge: Pick<Challenge, "registration_opens_at">
+): Date | null {
+  if (!challenge.registration_opens_at) return null;
+  return new Date(challenge.registration_opens_at);
+}
+
+export function getRegistrationClosesAt(
+  challenge: Pick<Challenge, "registration_closes_at" | "scheduled_at">
+): Date {
+  if (challenge.registration_closes_at) {
+    return new Date(challenge.registration_closes_at);
+  }
+  return new Date(challenge.scheduled_at);
+}
+
+export function getChallengeRegistrationStatus(
+  challenge: Challenge,
+  now = new Date()
+): ChallengeRegistrationStatus {
+  if (getChallengeStatus(challenge, now) === "ended") return "closed";
+  if (canRegisterForChallenge(challenge, now)) return "open";
+
+  const opens = getRegistrationOpensAt(challenge);
+  if (opens && now < opens) return "not_open";
+
+  return "closed";
+}
+
+export function isRegistrationOpen(challenge: Challenge, now = new Date()): boolean {
+  if (getChallengePhase(challenge) > 0) return false;
+
+  const opens = getRegistrationOpensAt(challenge);
+  if (opens && now < opens) return false;
+
+  const closes = getRegistrationClosesAt(challenge);
+  return now < closes;
+}
+
+/** Join allowed during the pre-start window or while the challenge is live. */
+export function canRegisterForChallenge(challenge: Challenge, now = new Date()): boolean {
+  const status = getChallengeStatus(challenge, now);
+  if (status === "ended") return false;
+
+  const opens = getRegistrationOpensAt(challenge);
+  if (opens && now < opens) return false;
+
+  if (status === "live") return true;
+
+  return isRegistrationOpen(challenge, now);
+}
+
+export function canLeaveChallenge(challenge: Challenge, now = new Date()): boolean {
+  const status = getChallengeStatus(challenge, now);
+  if (status === "live" || status === "ended") return false;
+  return isRegistrationOpen(challenge, now);
+}
+
 export function getChallengeDurationMonths(
   challenge: Pick<Challenge, "duration_months">
 ): number {
@@ -141,13 +201,7 @@ export function getChallengeStatus(challenge: Challenge, now = new Date()): Chal
 }
 
 export function canJoinChallenge(challenge: Challenge, now = new Date()): boolean {
-  const status = getChallengeStatus(challenge, now);
-  if (status === "live") return true;
-  if (status !== "upcoming") return false;
-
-  const start = new Date(challenge.scheduled_at);
-  const joinOpens = new Date(start.getTime() - 15 * 60_000);
-  return now >= joinOpens;
+  return canRegisterForChallenge(challenge, now);
 }
 
 export function challengeExcerpt(description: string, maxLength = 140): string {

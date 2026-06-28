@@ -18,6 +18,9 @@ import {
 import {
   groupScheduledAt,
   isChallengeAtCapacity,
+  canLeaveChallenge,
+  canRegisterForChallenge,
+  getChallengeStatus,
   ROUND1_ADVANCE_COUNT,
 } from "@/lib/challenge-utils";
 import type { ChallengeSeries } from "@/lib/challenge-series";
@@ -68,6 +71,8 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
     round_2_zoom_at: (row.round_2_zoom_at as string | null) ?? null,
     round_3_zoom_at: (row.round_3_zoom_at as string | null) ?? null,
     prize_paid_at: (row.prize_paid_at as string | null) ?? null,
+    registration_opens_at: (row.registration_opens_at as string | null) ?? null,
+    registration_closes_at: (row.registration_closes_at as string | null) ?? null,
     current_phase: (row.current_phase as Challenge["current_phase"]) ?? 0,
   };
 }
@@ -215,8 +220,17 @@ export async function registerForChallenge(challengeId: string) {
 
   const challenge = rowToChallenge(challengeRow);
 
-  if ((challenge.current_phase ?? 0) > 0) {
-    return { error: "Registration is closed — the tournament has already started." };
+  if (!canRegisterForChallenge(challenge)) {
+    const opens = challenge.registration_opens_at
+      ? new Date(challenge.registration_opens_at)
+      : null;
+    if (opens && opens > new Date()) {
+      return { error: "Registration has not opened yet." };
+    }
+    if (getChallengeStatus(challenge) === "ended") {
+      return { error: "This challenge has ended." };
+    }
+    return { error: "Registration is not open right now." };
   }
 
   const { data: existingParticipant } = await supabase
@@ -327,6 +341,16 @@ export async function leaveChallenge(challengeId: string) {
 
   if (!participant) {
     return { error: "You are not registered for this challenge." };
+  }
+
+  const { data: fullChallengeRow } = await supabase
+    .from("challenges")
+    .select("*")
+    .eq("id", challengeId)
+    .maybeSingle();
+
+  if (fullChallengeRow && !canLeaveChallenge(rowToChallenge(fullChallengeRow))) {
+    return { error: "You cannot leave after registration closes." };
   }
 
   await removeParticipantAndPromote(supabase, challenge, profile.id);

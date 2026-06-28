@@ -97,13 +97,6 @@ export default async function ClassDetailPage({
 
         <ClassSessionPanel fitnessClass={fitnessClass} />
 
-        {fitnessClass.slug === "demo-full-body-strength" && (
-          <p className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">
-            This is a sample class for preview. Create real sessions in{" "}
-            <strong className="text-foreground">Admin → Classes</strong>.
-          </p>
-        )}
-
         {fitnessClass.description.trim() && (
           <div className="prose prose-invert max-w-none prose-headings:font-bold prose-a:text-primary">
             <ReactMarkdown>{fitnessClass.description}</ReactMarkdown>

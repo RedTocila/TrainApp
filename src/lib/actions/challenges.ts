@@ -68,6 +68,25 @@ function parseOptionalScheduledAt(value: FormDataEntryValue | null): string | nu
   return parsed.toISOString();
 }
 
+function parseRegistrationWindow(
+  formData: FormData,
+  scheduled_at: string
+): { registration_opens_at: string | null; registration_closes_at: string | null } {
+  const registration_opens_at = parseOptionalScheduledAt(formData.get("registration_opens_at"));
+  const registration_closes_at =
+    parseOptionalScheduledAt(formData.get("registration_closes_at")) ?? scheduled_at;
+
+  if (registration_opens_at && registration_closes_at <= registration_opens_at) {
+    throw new Error("Registration must close after it opens.");
+  }
+
+  if (registration_closes_at > scheduled_at) {
+    throw new Error("Registration must close on or before the challenge start time.");
+  }
+
+  return { registration_opens_at, registration_closes_at };
+}
+
 function rowToChallenge(row: Record<string, unknown>): Challenge {
   return {
     ...(row as unknown as Challenge),
@@ -87,6 +106,8 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
     round_2_zoom_at: (row.round_2_zoom_at as string | null) ?? null,
     round_3_zoom_at: (row.round_3_zoom_at as string | null) ?? null,
     prize_paid_at: (row.prize_paid_at as string | null) ?? null,
+    registration_opens_at: (row.registration_opens_at as string | null) ?? null,
+    registration_closes_at: (row.registration_closes_at as string | null) ?? null,
     current_phase: (row.current_phase as Challenge["current_phase"]) ?? 0,
   };
 }
@@ -183,6 +204,10 @@ export async function createChallenge(formData: FormData) {
   const slug = String(formData.get("slug") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const scheduled_at = parseScheduledAt(formData.get("scheduled_at"));
+  const { registration_opens_at, registration_closes_at } = parseRegistrationWindow(
+    formData,
+    scheduled_at
+  );
   const duration_minutes = parseDuration(formData.get("duration_minutes"));
   const duration_months = parseDurationMonths(formData.get("duration_months"));
   const group_size = Number.parseInt(String(formData.get("group_size") ?? "10"), 10);
@@ -209,6 +234,8 @@ export async function createChallenge(formData: FormData) {
     slug,
     description,
     scheduled_at,
+    registration_opens_at,
+    registration_closes_at,
     duration_minutes,
     duration_months,
     group_size,
@@ -232,6 +259,10 @@ export async function updateChallenge(id: string, formData: FormData) {
   const slug = String(formData.get("slug") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const scheduled_at = parseScheduledAt(formData.get("scheduled_at"));
+  const { registration_opens_at, registration_closes_at } = parseRegistrationWindow(
+    formData,
+    scheduled_at
+  );
   const duration_minutes = parseDuration(formData.get("duration_minutes"));
   const duration_months = parseDurationMonths(formData.get("duration_months"));
   const group_size = Number.parseInt(String(formData.get("group_size") ?? "10"), 10);
@@ -256,6 +287,8 @@ export async function updateChallenge(id: string, formData: FormData) {
       slug,
       description,
       scheduled_at,
+      registration_opens_at,
+      registration_closes_at,
       duration_minutes,
       duration_months,
       group_size,

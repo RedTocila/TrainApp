@@ -1029,6 +1029,10 @@ export const platformCopyEn = {
       switchNotice:
         "You are in {title}. Joining here will leave that challenge and move you here (or onto its waitlist if full).",
       viewCurrent: "View current challenge",
+      registrationOpensAt: "Registration opens {date}.",
+      registrationJoinWhenLive: "You can join when the challenge starts on {date}.",
+      registrationClosedAt: "Registration is closed for this challenge.",
+      registrationClosedRegistered: "You are registered. Leaving is no longer allowed.",
     },
   },
   aiPages: {

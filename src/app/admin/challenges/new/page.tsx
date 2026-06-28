@@ -17,8 +17,8 @@ export default async function NewChallengePage() {
         <div>
           <h1 className="text-2xl font-black">New challenge</h1>
           <p className="text-sm text-muted-foreground">
-            Set the tournament length (1–24 months). Three elimination Zoom days are scheduled across
-            that period — Round 1 (10→5), Round 2 (1 winner per group), then the champion final.
+            Set a registration window, then the challenge start. Tournament length and Zoom rounds
+            follow the start date.
           </p>
         </div>
         <Card>
@@ -37,7 +37,21 @@ export default async function NewChallengePage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
-                  <Label htmlFor="scheduled_at">Start date & time</Label>
+                  <Label htmlFor="registration_opens_at">Registration opens</Label>
+                  <Input id="registration_opens_at" name="registration_opens_at" type="datetime-local" />
+                  <p className="text-xs text-muted-foreground">
+                    Optional — leave blank to open immediately once published.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="registration_closes_at">Registration closes</Label>
+                  <Input id="registration_closes_at" name="registration_closes_at" type="datetime-local" />
+                  <p className="text-xs text-muted-foreground">
+                    Optional — defaults to challenge start if blank.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scheduled_at">Challenge starts</Label>
                   <Input id="scheduled_at" name="scheduled_at" type="datetime-local" required />
                 </div>
                 <div className="space-y-2">

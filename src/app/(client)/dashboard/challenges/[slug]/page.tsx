@@ -25,7 +25,7 @@ import { FlashChallengeActionBlock } from "@/components/flash-challenge-action-b
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { canJoinChallenge, getChallengeStatus } from "@/lib/challenge-utils";
+import { getChallengeStatus } from "@/lib/challenge-utils";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { PLATFORM_ELITE_NAME } from "@/lib/brand";
 import { getPlatformCopy } from "@/lib/platform-copy";
@@ -74,7 +74,6 @@ export default async function ChallengeDetailPage({
   const announcements = await getChallengeAnnouncementsBySlug(slug);
 
   const status = getChallengeStatus(challenge);
-  const joinable = canJoinChallenge(challenge);
 
   const isDemo = isDemoChallengeSlug(slug);
   const isRegistered = isDemo || !!bracket.currentUserParticipantId;
@@ -150,12 +149,12 @@ export default async function ChallengeDetailPage({
                 />
               ) : (
                 <ChallengeRegisterButton
-                  challengeId={challenge.id}
+                  challenge={challenge}
                   isRegistered={isRegistered}
                 />
               )
             )}
-            <ChallengeZoomPanel bracket={bracket} joinable={joinable && status !== "ended"} />
+            <ChallengeZoomPanel bracket={bracket} joinable={status !== "ended"} />
           </section>
         ) : null}
 

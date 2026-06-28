@@ -9,11 +9,17 @@ import {
   registerForChallenge,
 } from "@/lib/actions/challenge-bracket";
 import { getChallengeEntryFeeCents, getChallengeMaxParticipants, isFlashChallenge } from "@/lib/challenge-series";
-import { isChallengeAtCapacity } from "@/lib/challenge-utils";
+import {
+  canLeaveChallenge,
+  canRegisterForChallenge,
+  getChallengeStatus,
+  isChallengeAtCapacity,
+} from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
 import { Button } from "@/components/ui/button";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { Challenge, UserSeriesChallengeStatus } from "@/lib/types";
+import { format } from "date-fns";
 
 type ChallengeJoinActionsProps = {
   challenge: Challenge;
@@ -39,6 +45,9 @@ export function ChallengeJoinActions({
   const entryFeeLabel = formatEurosFromCents(getChallengeEntryFeeCents(challenge));
   const maxParticipants = getChallengeMaxParticipants(challenge);
   const isFull = isChallengeAtCapacity(challenge, participantCount);
+  const canRegister = canRegisterForChallenge(challenge);
+  const canLeave = canLeaveChallenge(challenge);
+  const challengeStatus = getChallengeStatus(challenge);
   const isRegisteredHere = membership.participant?.challenge_id === challenge.id;
   const isWaitlistedHere = membership.waitlist?.challenge_id === challenge.id;
   const otherChallenge = membership.participant &&
@@ -67,16 +76,20 @@ export function ChallengeJoinActions({
     return (
       <div className={embedded ? "space-y-2" : "space-y-2"}>
         <p className="text-sm text-emerald-400">{copy.registeredHere}</p>
-        <Button
-          type="button"
-          variant={embedded ? "outline" : "outline"}
-          disabled={isPending}
-          className={embedded ? "w-full" : undefined}
-          onClick={() => run(() => leaveChallenge(challenge.id))}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          {isPending ? copy.leaving : copy.leaveChallenge}
-        </Button>
+        {canLeave ? (
+          <Button
+            type="button"
+            variant={embedded ? "outline" : "outline"}
+            disabled={isPending}
+            className={embedded ? "w-full" : undefined}
+            onClick={() => run(() => leaveChallenge(challenge.id))}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            {isPending ? copy.leaving : copy.leaveChallenge}
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground">{copy.registrationClosedRegistered}</p>
+        )}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
     );
@@ -112,6 +125,28 @@ export function ChallengeJoinActions({
           .replace("{remaining}", String(Math.max(0, maxParticipants - participantCount)))
           .replace("{max}", String(maxParticipants))
       : null;
+
+  if (!canRegister) {
+    const opensAt = challenge.registration_opens_at
+      ? format(new Date(challenge.registration_opens_at), "MMM d, yyyy · h:mm a")
+      : null;
+    const startsAt = format(new Date(challenge.scheduled_at), "MMM d, yyyy · h:mm a");
+    const message =
+      opensAt && new Date(challenge.registration_opens_at!) > new Date()
+        ? copy.registrationOpensAt.replace("{date}", opensAt)
+        : challengeStatus === "upcoming"
+          ? copy.registrationJoinWhenLive.replace("{date}", startsAt)
+          : copy.registrationClosedAt.replace("{date}", startsAt);
+
+    return (
+      <div className="space-y-2">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4 shrink-0" />
+          {message}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -165,10 +200,10 @@ export function ChallengeJoinActions({
 
 /** Legacy wrapper for non-transformation challenges. */
 export function ChallengeRegisterButton({
-  challengeId,
+  challenge,
   isRegistered,
 }: {
-  challengeId: string;
+  challenge: Challenge;
   isRegistered: boolean;
 }) {
   const platform = usePlatformCopy();
@@ -178,6 +213,10 @@ export function ChallengeRegisterButton({
 
   if (isRegistered) return null;
 
+  if (!canRegisterForChallenge(challenge)) {
+    return null;
+  }
+
   return (
     <div className="space-y-2">
       <Button
@@ -186,7 +225,7 @@ export function ChallengeRegisterButton({
         onClick={() => {
           setError(null);
           startTransition(async () => {
-            const result = await registerForChallenge(challengeId);
+            const result = await registerForChallenge(challenge.id);
             if (result.error) setError(result.error);
           });
         }}
