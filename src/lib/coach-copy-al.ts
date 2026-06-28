@@ -8,6 +8,13 @@ export const coachCopyAl = {
     confirm: "Po, dorëzohem",
     cancel: "Po qëndroj",
   },
+  checkoutLeave: {
+    title: "Ende nuk je gati? Seriozisht?",
+    message:
+      "Je një hap larg fillimit të transformimit — dhe po shtyp daljen? Coach Alex nuk të shtyqi kaq shumë që të ikësh te finish line. Qëndro, bëje zyrtare dhe stërvitu seriozisht — ose thuaj që nuk je gati dhe ik.",
+    confirm: "Po, ende nuk jam gati",
+    cancel: "Po qëndroj — le të fillojmë",
+  },
   discardWorkout: {
     title: "Po braktis në mes të serisë?",
     message:

@@ -3,6 +3,7 @@ import { CustomPlanCheckoutClient } from "@/components/custom-plan-checkout-clie
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { getCustomPlanProduct } from "@/lib/custom-plan-products";
 import { getPreferredLocale } from "@/lib/actions/profile";
+import { getPlatformCopy } from "@/lib/platform-copy";
 import { formatCurrencyAmount } from "@/lib/checkout-i18n";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -21,6 +22,8 @@ export default async function CustomCheckoutPage({
   if (!product) redirect("/dashboard");
 
   const locale = await getPreferredLocale();
+  const platform = getPlatformCopy(locale);
+  const flow = platform.checkoutFlow;
 
   const supabase = await createClient();
   const {
@@ -49,20 +52,20 @@ export default async function CustomCheckoutPage({
       summary={
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-secondary/25 p-4">
-            <p className="text-sm font-semibold text-muted-foreground">Order</p>
+            <p className="text-sm font-semibold text-muted-foreground">{flow.orderLabel}</p>
             <p className="mt-1 text-lg font-black leading-tight">{product.title}</p>
             <p className="mt-1 text-sm text-muted-foreground">{product.description}</p>
             <div className="mt-3 flex items-center justify-between">
-              <p className="text-sm font-semibold text-muted-foreground">Total</p>
+              <p className="text-sm font-semibold text-muted-foreground">{flow.total}</p>
               <p className="text-xl font-black">{totalLabel}</p>
             </div>
           </div>
 
           <div className="rounded-2xl border border-border bg-secondary/25 p-4 text-sm text-muted-foreground">
-            <p className="font-semibold text-foreground">What happens next</p>
+            <p className="font-semibold text-foreground">{flow.whatNextTitle}</p>
             <ul className="mt-2 list-inside list-disc space-y-1">
-              <li>You’ll see your purchase confirmation immediately after payment.</li>
-              <li>Your plan request will appear in your dashboard.</li>
+              <li>{flow.whatNext1}</li>
+              <li>{flow.whatNext2}</li>
             </ul>
           </div>
         </div>

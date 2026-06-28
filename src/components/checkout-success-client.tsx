@@ -45,24 +45,20 @@ export function CheckoutSuccessClient({
           {status === "loading" && (
             <>
               <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
-              <CardTitle className="mt-4">Confirming payment…</CardTitle>
+              <CardTitle className="mt-4">{copy.confirming}</CardTitle>
             </>
           )}
           {status === "success" && (
             <>
               <CheckCircle2 className="mx-auto h-10 w-10 text-green-500" />
-              <CardTitle className="mt-4">You&apos;re subscribed!</CardTitle>
+              <CardTitle className="mt-4">{copy.successTitle}</CardTitle>
             </>
           )}
-          {status === "error" && (
-            <CardTitle>Payment confirmation</CardTitle>
-          )}
+          {status === "error" && <CardTitle>{copy.errorTitle}</CardTitle>}
         </CardHeader>
         <CardContent className="space-y-4 text-center">
           {status === "success" && (
-            <p className="text-sm text-muted-foreground">
-              Your subscription is active. You can now add workouts, meals, habits, and more.
-            </p>
+            <p className="text-sm text-muted-foreground">{copy.successBody}</p>
           )}
           {status === "error" && (
             <p className="text-sm text-red-400">
@@ -70,12 +66,12 @@ export function CheckoutSuccessClient({
             </p>
           )}
           <Link href="/dashboard">
-            <Button className="w-full">Go to dashboard</Button>
+            <Button className="w-full">{copy.goDashboard}</Button>
           </Link>
           {status === "error" && (
             <Link href="/dashboard/pricing">
               <Button variant="outline" className="w-full">
-                Back to pricing
+                {copy.backPricing}
               </Button>
             </Link>
           )}

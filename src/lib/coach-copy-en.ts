@@ -8,6 +8,13 @@ export const coachCopyEn = {
     confirm: "Yeah, give up",
     cancel: "I'll stay",
   },
+  checkoutLeave: {
+    title: "Not ready? Really?",
+    message:
+      "You're one step from starting your transformation — and you're hitting the exit? Coach Alex didn't push you this far so you could ghost at the finish line. Stay, lock it in, and actually train — or say you're not ready and walk.",
+    confirm: "Yeah, not ready yet",
+    cancel: "I'm staying — let's go",
+  },
   discardWorkout: {
     title: "Quitting mid-set?",
     message:

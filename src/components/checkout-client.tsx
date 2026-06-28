@@ -2,12 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { GuestCheckoutForm } from "@nebula-ltd/pok-payments-js/react";
 import type { PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
 import { CreditCard, Lock, Loader2, ShieldCheck } from "lucide-react";
+import { PokPayGuestCheckout } from "@/components/pokpay-guest-checkout";
 import { createCheckoutOrder } from "@/lib/actions/subscriptions";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
-import { getPokPayClientEnv } from "@/lib/pokpay/env";
 import {
   getPlan,
   type BillingInterval,
@@ -118,12 +117,14 @@ export function CheckoutClient({
     router.push("/dashboard/checkout/success");
   };
 
-  const intervalLabel = interval === "monthly" ? "Monthly" : "Annual";
+  const intervalLabel =
+    interval === "monthly"
+      ? platform.checkoutFlow.billingMonthly
+      : platform.checkoutFlow.billingAnnual;
 
   return (
     <CheckoutLayout
       backHref="/dashboard/pricing"
-      title="Checkout"
       subtitle={plan ? `${plan.name} · ${intervalLabel}` : platform.checkoutFlow.completePurchase}
       totalLabel={price?.label}
       summary={
@@ -131,13 +132,17 @@ export function CheckoutClient({
           <div className="rounded-2xl border border-border bg-secondary/25 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 space-y-1">
-                <p className="text-sm font-semibold text-muted-foreground">Plan</p>
+                <p className="text-sm font-semibold text-muted-foreground">
+                  {platform.checkoutFlow.planLabel}
+                </p>
                 <p className="text-lg font-black leading-tight">{plan?.name ?? "Subscription"}</p>
-                <p className="text-sm text-muted-foreground">{intervalLabel} billing</p>
+                <p className="text-sm text-muted-foreground">{intervalLabel}</p>
               </div>
               {price ? (
                 <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold text-muted-foreground">Price</p>
+                  <p className="text-sm font-semibold text-muted-foreground">
+                    {platform.checkoutFlow.priceLabel}
+                  </p>
                   <p className="text-xl font-black">{price.label}</p>
                 </div>
               ) : null}
@@ -163,7 +168,9 @@ export function CheckoutClient({
 
           {plan?.features?.length ? (
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-muted-foreground">Includes</p>
+              <p className="text-sm font-semibold text-muted-foreground">
+                {platform.checkoutFlow.includes}
+              </p>
               <ul className="space-y-2">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-sm">
@@ -180,11 +187,11 @@ export function CheckoutClient({
           <div className="flex flex-wrap gap-2">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
               <Lock className="h-4 w-4 text-primary" />
-              Secure payment
+              {platform.checkoutFlow.secureBadge}
             </div>
             <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
               <CreditCard className="h-4 w-4 text-primary" />
-              Cards & wallets supported
+              {platform.checkoutFlow.cardsBadge}
             </div>
           </div>
         </div>
@@ -196,10 +203,10 @@ export function CheckoutClient({
               {isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Preparing secure checkout…
+                  {platform.checkoutFlow.preparing}
                 </>
               ) : (
-                platform.checkout.continueToPayment
+                platform.checkoutFlow.primaryCta
               )}
             </Button>
           )}
@@ -207,13 +214,15 @@ export function CheckoutClient({
           {checkoutStarted && isPending && !orderId && (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 py-10 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
-              Preparing secure checkout…
+              {platform.checkoutFlow.preparing}
             </div>
           )}
 
           {error && (
             <div className="space-y-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
-              <p className="text-sm font-medium text-red-300">We couldn’t start checkout.</p>
+              <p className="text-sm font-medium text-red-300">
+                {platform.checkoutFlow.checkoutErrorTitle}
+              </p>
               <p className="text-sm text-red-200/90">{error}</p>
               <Button
                 variant="outline"
@@ -226,31 +235,25 @@ export function CheckoutClient({
                   }
                 }}
               >
-                Try again
+                {platform.checkoutFlow.tryAgain}
               </Button>
             </div>
           )}
 
           {checkoutStarted && orderId && !error && (
-            <div className="pokpay-checkout [&_[data-testid='pokpay-title']]:hidden">
-              <GuestCheckoutForm
-                orderId={orderId}
-                onSuccess={handleSuccess}
-                onError={(paymentError: PaymentErrorResponse) => {
-                  setError(formatPokPayError(paymentError, platform.checkout.paymentFailed));
-                }}
-                options={{
-                  env: getPokPayClientEnv(),
-                  locale,
-                  countrySelect: "modal",
-                }}
-              />
-            </div>
+            <PokPayGuestCheckout
+              orderId={orderId}
+              locale={locale}
+              onSuccess={handleSuccess}
+              onError={(paymentError: PaymentErrorResponse) => {
+                setError(formatPokPayError(paymentError, platform.checkout.paymentFailed));
+              }}
+            />
           )}
 
           {checkoutStarted ? (
             <p className="text-center text-xs text-muted-foreground">
-              Payments are processed by PokPay.
+              {platform.checkoutFlow.processorNote}
             </p>
           ) : null}
         </>

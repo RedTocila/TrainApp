@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Apple, Camera, ClipboardList, Dumbbell, Play } from "lucide-react";
+import { Apple, Camera, ClipboardList, Dumbbell, ImageIcon, Play } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import {
   FullCalendarNavButton,
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import {
   DASHBOARD_DAY_NUTRITION_PATH,
   DASHBOARD_DAY_WORKOUT_PATH,
+  DASHBOARD_PROGRESS_PHOTOS_PATH,
 } from "@/lib/dashboard-day-routes";
 import { cn } from "@/lib/utils";
 import { isActiveWorkoutSessionPath, isTrainPath } from "@/lib/train-nav";
@@ -40,6 +41,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
   const workoutActions = useWorkoutPageChromeActions();
   const isNutritionPage = pathname === DASHBOARD_DAY_NUTRITION_PATH;
   const isWorkoutPage = pathname === DASHBOARD_DAY_WORKOUT_PATH;
+  const isProgressPhotosPage = pathname === DASHBOARD_PROGRESS_PHOTOS_PATH;
 
   return (
     <div
@@ -73,6 +75,13 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
             />
           ) : null}
         </Link>
+      ) : isProgressPhotosPage ? (
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <ImageIcon className="h-6 w-6 shrink-0 text-primary" />
+          <span className="truncate text-xl font-black tracking-tight">
+            {platform.photos.title}
+          </span>
+        </div>
       ) : (
         <AppLogo
           href="/dashboard"
@@ -81,8 +90,9 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
           className="text-3xl text-foreground sm:text-4xl dark:text-white"
         />
       )}
-      <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
-        {isNutritionPage && nutritionActions ? (
+      {!isProgressPhotosPage ? (
+        <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
+          {isNutritionPage && nutritionActions ? (
           <>
             <Button
               type="button"
@@ -133,7 +143,8 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
             <ReferralNavButton className={headerIconButton} />
           </>
         )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

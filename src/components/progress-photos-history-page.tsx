@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
 import Image from "next/image";
 import { compressImageFile } from "@/lib/image-compress";
 import {
@@ -552,16 +553,17 @@ export function ProgressPhotosHistoryPage({
   return (
     <>
       <DashboardDayDetailShell>
-        <div className="space-y-2">
-          <h1 className="text-xl font-black tracking-tight sm:text-2xl">
-            {platform.photos.title}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {platform.photos.previousMonths}
-          </p>
+        <div className="hidden lg:block">
+          <Link href="/dashboard" className="inline-flex items-center gap-2">
+            <ImageIcon className="h-6 w-6 shrink-0 text-primary" />
+            <h1 className="text-xl font-black tracking-tight sm:text-2xl">
+              {platform.photos.title}
+            </h1>
+          </Link>
         </div>
+        <p className="text-sm text-muted-foreground">{platform.photos.previousMonths}</p>
 
-        <div className="mt-6 space-y-8">
+        <div className="space-y-8">
           {timelineRows
             .filter((row) => !row.isUpcoming)
             .map((row) => (
