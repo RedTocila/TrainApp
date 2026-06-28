@@ -24,7 +24,14 @@ import {
   STORAGE_BUCKETS,
   type ProgressPhotoPose,
 } from "@/lib/supabase/storage";
-import type { ProgressPhotoSet } from "@/lib/types";
+import {
+  getProgressPhotosSetsCache,
+  getProgressPhotosUrlsCache,
+  isProgressPhotosSetsCacheFresh,
+  setProgressPhotosSetsCache,
+  setProgressPhotosUrlsCache,
+  type PoseUrls,
+} from "@/lib/dashboard-route-cache";
 import { DashboardDayDetailShell } from "@/components/dashboard-day-detail-shell";
 import { ImageSourceButtons } from "@/components/image-source-buttons";
 import { ProgressPhotoEditMenu } from "@/components/progress-photo-edit-menu";
@@ -33,7 +40,8 @@ import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-pr
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type PoseUrls = Record<ProgressPhotoPose, string | null>;
+import type { ProgressPhotoSet } from "@/lib/types";
+
 const EMPTY_URLS: PoseUrls = { front: null, back: null, side: null };
 
 type PoseFrame = {
@@ -301,15 +309,21 @@ function TimelineRow({
 
 export function ProgressPhotosHistoryPage({
   clientId,
-  initialSets,
 }: {
   clientId: string;
-  initialSets: ProgressPhotoSet[];
 }) {
   const coachCopy = useCoachCopy();
   const platform = usePlatformCopy();
-  const [sets, setSets] = useState(initialSets);
-  const [urlsByMonth, setUrlsByMonth] = useState<Map<string, PoseUrls>>(new Map());
+  const cachedSets = getProgressPhotosSetsCache(clientId);
+  const [sets, setSets] = useState<ProgressPhotoSet[]>(cachedSets ?? []);
+  const [urlsByMonth, setUrlsByMonth] = useState<Map<string, PoseUrls>>(() => {
+    const map = new Map<string, PoseUrls>();
+    for (const set of cachedSets ?? []) {
+      const cachedUrls = getProgressPhotosUrlsCache(clientId, set.month_key);
+      if (cachedUrls) map.set(set.month_key, cachedUrls);
+    }
+    return map;
+  });
   const [uploadingPose, setUploadingPose] = useState<ProgressPhotoPose | null>(null);
   const [uploadingMonth, setUploadingMonth] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -329,33 +343,66 @@ export function ProgressPhotosHistoryPage({
     [timelineRows]
   );
 
-  const loadAllUrls = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
     const setsByMonth = new Map(sets.map((set) => [set.month_key, set]));
-    const entries = await Promise.all(
-      monthKeysToLoad.map(async (monthKey) => {
+
+    async function loadUrls() {
+      for (const monthKey of monthKeysToLoad) {
+        if (cancelled) return;
+
         const set = setsByMonth.get(monthKey);
         if (!set || !progressSetHasPhotos(set)) {
-          return [monthKey, EMPTY_URLS] as const;
+          setUrlsByMonth((prev) => {
+            if (prev.has(monthKey)) return prev;
+            const next = new Map(prev);
+            next.set(monthKey, EMPTY_URLS);
+            return next;
+          });
+          continue;
         }
+
+        const cached = getProgressPhotosUrlsCache(clientId, monthKey);
+        if (cached) {
+          setUrlsByMonth((prev) => {
+            if (prev.has(monthKey)) return prev;
+            const next = new Map(prev);
+            next.set(monthKey, cached);
+            return next;
+          });
+          continue;
+        }
+
         const urls = await getSignedProgressPhotoUrls(clientId, set);
-        return [monthKey, urls] as const;
-      })
-    );
-    setUrlsByMonth(new Map(entries));
+        if (cancelled) return;
+        setProgressPhotosUrlsCache(clientId, monthKey, urls);
+        setUrlsByMonth((prev) => {
+          const next = new Map(prev);
+          next.set(monthKey, urls);
+          return next;
+        });
+      }
+    }
+
+    void loadUrls();
+    return () => {
+      cancelled = true;
+    };
   }, [clientId, monthKeysToLoad, sets]);
 
   useEffect(() => {
-    void loadAllUrls();
-  }, [loadAllUrls]);
-
-  useEffect(() => {
-    void getProgressPhotoSets(clientId).then(setSets);
+    if (isProgressPhotosSetsCacheFresh(clientId)) return;
+    void getProgressPhotoSets(clientId).then((fetched) => {
+      setSets(fetched);
+      setProgressPhotosSetsCache(clientId, fetched);
+    });
   }, [clientId]);
 
   const refreshSets = useCallback(() => {
     startTransition(async () => {
       const fetched = await getProgressPhotoSets(clientId);
       setSets(fetched);
+      setProgressPhotosSetsCache(clientId, fetched);
     });
   }, [clientId]);
 

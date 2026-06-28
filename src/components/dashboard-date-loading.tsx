@@ -167,15 +167,21 @@ export function useDashboardDateFetch(
   dateKey: string,
   fetcher: () => Promise<void>,
   deps: unknown[] = [],
-  options?: { trackGlobalLoading?: boolean }
+  options?: { trackGlobalLoading?: boolean; enabled?: boolean }
 ): boolean {
   const ctx = useContext(DashboardDateLoadingContext);
   const markLoading = options?.trackGlobalLoading ? ctx?.markLoading : undefined;
   const [settledKey, setSettledKey] = useState(dateKey);
   const depsKey = JSON.stringify(deps);
   const trackGlobalLoading = options?.trackGlobalLoading ?? false;
+  const enabled = options?.enabled ?? true;
 
   useLayoutEffect(() => {
+    if (!enabled) {
+      setSettledKey(dateKey);
+      return;
+    }
+
     let cancelled = false;
     const unregister = markLoading?.(dateKey) ?? (() => {});
 
@@ -189,7 +195,7 @@ export function useDashboardDateFetch(
       unregister();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- depsKey encodes refresh triggers
-  }, [dateKey, depsKey, fetcher, markLoading, trackGlobalLoading]);
+  }, [dateKey, depsKey, fetcher, markLoading, trackGlobalLoading, enabled]);
 
   return settledKey === dateKey;
 }

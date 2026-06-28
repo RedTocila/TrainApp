@@ -8,18 +8,26 @@ import {
 } from "@/components/dashboard-enrichment-provider";
 import { DailyTracker } from "@/components/daily-tracker";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
+import { getCoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
+import { getClientNutritionAssignment } from "@/lib/actions/plans";
+import { getDailyMealLogs } from "@/lib/actions/daily-meals";
+import { getDailyLog } from "@/lib/actions/logs";
+import { getPersonalMealsLibrary } from "@/lib/actions/user-nutrition";
+import { getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
 import {
+  dashboardDayCacheKey,
+  getDashboardDayCache,
+  isDashboardDayCacheFresh,
+} from "@/lib/dashboard-day-cache";
+import {
+  getNutritionExtrasCache,
+  isNutritionExtrasCacheFresh,
   setNutritionExtrasCache,
   type NutritionExtrasCache,
 } from "@/lib/dashboard-route-cache";
-import { getDailyLog } from "@/lib/actions/logs";
-import type { CoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
-import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
-import { getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
-import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
-import { getDailyMealLogs } from "@/lib/actions/daily-meals";
-import { formatDateKey } from "@/lib/utils";
 import type { DailyLog, DailyMealLog, Meal, MealSlot } from "@/lib/types";
+import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
+import { formatDateKey } from "@/lib/utils";
 
 type MacroTargets = {
   calories: number;
@@ -40,34 +48,25 @@ type OverviewDayData = {
   } | null;
 };
 
-export function DashboardOverview({
+const EMPTY_EXTRAS: NutritionExtrasCache = {
+  mealLibrary: [],
+  coachNutritionPlanState: { mode: "none" },
+  personalPlanId: null,
+  nutritionPlan: null,
+};
+
+export function NutritionDayClient({
   clientId,
-  initialLog,
-  initialDailyMeals,
-  mealLibrary,
-  hasAiAccess,
-  targets: initialTargets,
-  personalPlanId,
+  targets,
   initialWaterGoalMl,
-  nutritionPlan: initialNutritionPlan,
-  coachNutritionPlanState,
   goal,
-  variant = "full",
-  layout = "card",
+  hasAiAccess,
 }: {
   clientId: string;
-  initialLog: DailyLog | null;
-  initialDailyMeals: DailyMealLog[];
-  mealLibrary: PersonalMealLibraryItem[];
-  hasAiAccess: boolean;
   targets: MacroTargets;
-  personalPlanId?: string | null;
   initialWaterGoalMl: number;
-  goal?: string | null;
-  nutritionPlan?: OverviewDayData["nutritionPlan"];
-  coachNutritionPlanState: CoachNutritionPlanViewState;
-  variant?: "full" | "compact";
-  layout?: "card" | "detail";
+  goal: string | null;
+  hasAiAccess: boolean;
 }) {
   const { selectedDate, todayKey } = useSelectedDate();
   const enrichmentCtx = useOptionalDashboardEnrichment();
@@ -75,9 +74,12 @@ export function DashboardOverview({
   const isInEnrichmentRange =
     enrichmentCtx?.isInEnrichmentRange ?? neverInEnrichmentRange;
   const dateKey = formatDateKey(selectedDate);
-  const [targets, setTargets] = useState(initialTargets);
   const [waterGoalMl, setWaterGoalMl] = useState(initialWaterGoalMl);
   const [localMeals, setLocalMeals] = useState<DailyMealLog[] | null>(null);
+  const cachedExtras = getNutritionExtrasCache(clientId);
+  const [extras, setExtras] = useState<NutritionExtrasCache>(
+    cachedExtras ?? EMPTY_EXTRAS
+  );
 
   useEffect(() => {
     setLocalMeals(null);
@@ -85,8 +87,12 @@ export function DashboardOverview({
 
   const enrichmentMeals = enrichment?.mealsByDate[dateKey];
   const enrichmentWater = enrichment?.waterByDate[dateKey];
+  const overviewCacheKey = dashboardDayCacheKey(clientId, "overview", dateKey);
 
   const seedOverview = useMemo((): OverviewDayData | undefined => {
+    const cachedOverview = getDashboardDayCache<OverviewDayData>(overviewCacheKey);
+    if (cachedOverview) return cachedOverview;
+
     const hasEnrichment =
       isInEnrichmentRange(dateKey) &&
       (enrichmentMeals !== undefined || enrichmentWater !== undefined);
@@ -94,25 +100,26 @@ export function DashboardOverview({
     if (hasEnrichment) {
       return {
         log: {
-          id: initialLog?.id ?? "",
+          id: "",
           client_id: clientId,
           date: dateKey,
           water_ml: enrichmentWater ?? 0,
-          calories: initialLog?.calories ?? 0,
-          protein: initialLog?.protein ?? 0,
-          carbs: initialLog?.carbs ?? 0,
-          fat: initialLog?.fat ?? 0,
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
         },
         dailyMeals: enrichmentMeals ?? [],
-        nutritionPlan: dateKey === todayKey ? (initialNutritionPlan ?? null) : null,
+        nutritionPlan:
+          dateKey === todayKey ? (extras.nutritionPlan ?? null) : null,
       };
     }
 
-    if (dateKey === todayKey) {
+    if (dateKey === todayKey && cachedExtras?.nutritionPlan) {
       return {
-        log: initialLog,
-        dailyMeals: initialDailyMeals,
-        nutritionPlan: initialNutritionPlan ?? null,
+        log: null,
+        dailyMeals: [],
+        nutritionPlan: cachedExtras.nutritionPlan,
       };
     }
 
@@ -120,11 +127,11 @@ export function DashboardOverview({
   }, [
     clientId,
     dateKey,
+    overviewCacheKey,
     enrichmentMeals,
     enrichmentWater,
-    initialDailyMeals,
-    initialLog,
-    initialNutritionPlan,
+    extras.nutritionPlan,
+    cachedExtras?.nutritionPlan,
     isInEnrichmentRange,
     todayKey,
   ]);
@@ -160,32 +167,70 @@ export function DashboardOverview({
     namespace: "overview",
     seed: seedOverview,
     skipFetch:
-      isInEnrichmentRange(dateKey) &&
-      enrichmentMeals !== undefined &&
-      enrichmentWater !== undefined,
+      isDashboardDayCacheFresh(overviewCacheKey) ||
+      (isInEnrichmentRange(dateKey) &&
+        enrichmentMeals !== undefined &&
+        enrichmentWater !== undefined),
     fetcher: loadOverview,
-    trackGlobalLoading: true,
+    trackGlobalLoading: false,
   });
+
+  useEffect(() => {
+    if (isNutritionExtrasCacheFresh(clientId)) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      const [
+        mealLibrary,
+        coachNutritionPlanState,
+        nutritionAssignment,
+        scheduledPlanForToday,
+      ] = await Promise.all([
+        getPersonalMealsLibrary(),
+        getCoachNutritionPlanViewState(clientId),
+        getClientNutritionAssignment(clientId),
+        getNutritionPlanForDate(clientId, dateKey),
+      ]);
+
+      if (cancelled) return;
+
+      const nutritionPlan = nutritionAssignment?.nutrition_plans;
+      const personalPlanId =
+        nutritionPlan?.is_personal && nutritionAssignment?.plan_id
+          ? nutritionAssignment.plan_id
+          : null;
+
+      const nutritionSummary =
+        scheduledPlanForToday?.meals?.length
+          ? {
+              title: scheduledPlanForToday.title,
+              meals: scheduledPlanForToday.meals as Meal[],
+              scheduled: scheduledPlanForToday.scheduled,
+              activeSlots: scheduledPlanForToday.activeSlots,
+              kind: scheduledPlanForToday.kind,
+            }
+          : null;
+
+      const next: NutritionExtrasCache = {
+        mealLibrary,
+        coachNutritionPlanState,
+        personalPlanId,
+        nutritionPlan: nutritionSummary,
+      };
+
+      setExtras(next);
+      setNutritionExtrasCache(clientId, next);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, dateKey]);
 
   const display = overview ?? seedOverview;
   const dailyMeals =
     localMeals ?? display?.dailyMeals ?? enrichmentMeals ?? [];
-
-  useEffect(() => {
-    setNutritionExtrasCache(clientId, {
-      mealLibrary,
-      coachNutritionPlanState,
-      personalPlanId: personalPlanId ?? null,
-      nutritionPlan: display?.nutritionPlan ?? initialNutritionPlan ?? null,
-    });
-  }, [
-    clientId,
-    mealLibrary,
-    coachNutritionPlanState,
-    personalPlanId,
-    display?.nutritionPlan,
-    initialNutritionPlan,
-  ]);
 
   return (
     <DailyTracker
@@ -196,18 +241,17 @@ export function DashboardOverview({
       onDailyMealsChange={(meals) => {
         setLocalMeals(meals);
       }}
-      mealLibrary={mealLibrary}
+      mealLibrary={extras.mealLibrary}
       hasAiAccess={hasAiAccess}
       targets={targets}
-      onTargetsChange={setTargets}
-      personalPlanId={personalPlanId}
+      personalPlanId={extras.personalPlanId}
       waterGoalMl={waterGoalMl}
       onWaterGoalChange={setWaterGoalMl}
-      nutritionPlan={display?.nutritionPlan ?? null}
-      coachNutritionPlanState={coachNutritionPlanState}
+      nutritionPlan={display?.nutritionPlan ?? extras.nutritionPlan ?? null}
+      coachNutritionPlanState={extras.coachNutritionPlanState}
       goal={goal}
-      variant={variant}
-      layout={layout}
+      variant="full"
+      layout="detail"
     />
   );
 }

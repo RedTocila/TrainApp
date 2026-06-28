@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { format, isToday } from "date-fns";
 import { Apple, Camera, ChevronRight, ClipboardList } from "lucide-react";
 import { useRouter } from "next/navigation";
+import {
+  DashboardCardNavBody,
+  DashboardCardNavLink,
+} from "@/components/dashboard-card-nav-link";
 import { formatDateKey } from "@/lib/utils";
 import { DASHBOARD_DAY_NUTRITION_PATH } from "@/lib/dashboard-day-routes";
 import { addWater, updateWaterGoal } from "@/lib/actions/logs";
@@ -103,6 +107,10 @@ export function DailyTracker({
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
   const { patchDashboard } = useDashboardSync();
   const dateKey = formatDateKey(date);
+
+  useEffect(() => {
+    router.prefetch(DASHBOARD_DAY_NUTRITION_PATH);
+  }, [router]);
 
   useEffect(() => {
     setLocalWaterMl(waterMl);
@@ -312,19 +320,15 @@ export function DailyTracker({
   if (variant === "compact") {
     return (
       <>
-        <Card
-          id="dashboard-nutrition"
-          role="button"
-          tabIndex={0}
-          onClick={() => router.push(DASHBOARD_DAY_NUTRITION_PATH)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              router.push(DASHBOARD_DAY_NUTRITION_PATH);
-            }
-          }}
-          className="relative flex h-full w-full cursor-pointer flex-col transition-opacity hover:opacity-95 active:opacity-90"
-        >
+      <Card
+        id="dashboard-nutrition"
+        className="relative flex h-full w-full cursor-pointer flex-col transition-opacity hover:opacity-95 active:opacity-90"
+      >
+        <DashboardCardNavLink
+          href={DASHBOARD_DAY_NUTRITION_PATH}
+          ariaLabel={nutritionTitle}
+        />
+        <DashboardCardNavBody className="flex flex-1 flex-col">
           {showNutritionStatus && (
             <div className="absolute right-3 top-3 z-10">
               {nutritionCompleted && !macrosOverTarget ? (
@@ -363,21 +367,14 @@ export function DailyTracker({
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
+          <CardContent className="flex flex-1 flex-col p-4 pt-0">
             <TaskNutritionMacroPreview current={current} targets={targets} />
-            <div
-              className="mt-5 flex items-center justify-between gap-2"
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => event.stopPropagation()}
-            >
+            <div className="mt-5 flex items-center justify-between gap-2">
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   className="h-8 rounded-full px-3"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setLogMealOpen(true);
-                  }}
+                  onClick={() => setLogMealOpen(true)}
                 >
                   <Camera className="h-3.5 w-3.5" />
                   {platform.nutrition.logMeal}
@@ -387,10 +384,7 @@ export function DailyTracker({
                     size="sm"
                     variant="outline"
                     className="h-8 rounded-full px-3"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleMealPlanClick();
-                    }}
+                    onClick={handleMealPlanClick}
                   >
                     <ClipboardList className="h-3.5 w-3.5" />
                     {platform.nutrition.viewDietPlan}
@@ -403,7 +397,8 @@ export function DailyTracker({
               />
             </div>
           </CardContent>
-        </Card>
+        </DashboardCardNavBody>
+      </Card>
         {nutritionDialogs}
       </>
     );

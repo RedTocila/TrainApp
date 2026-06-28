@@ -37,7 +37,7 @@ import {
   isWorkoutCompletedOnDate,
   getCompletedWorkoutResultsForDate,
 } from "@/lib/actions/workout-sessions";
-import { progressMonthKey } from "@/lib/progress-photo-utils";
+import { progressMonthKey, getProgressPhotoDisplaySet } from "@/lib/progress-photo-utils";
 import { formatDateKey } from "@/lib/utils";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
 import { DashboardWorkoutCard } from "@/components/dashboard-workout-card";
@@ -124,10 +124,9 @@ export default async function DashboardPage() {
   ]);
 
   const currentMonth = progressMonthKey();
-  const currentPhotoSet =
-    progressPhotoSets.find((s) => s.month_key === currentMonth) ?? null;
-  const initialCurrentUrls = currentPhotoSet
-    ? await getSignedProgressPhotoUrls(profile.id, currentPhotoSet)
+  const displayPhotoSet = getProgressPhotoDisplaySet(progressPhotoSets);
+  const initialCurrentUrls = displayPhotoSet
+    ? await getSignedProgressPhotoUrls(profile.id, displayPhotoSet)
     : EMPTY_PHOTO_URLS;
 
   const initialCardioCompleted = initialCompletions.has(`${dateKey}-cardio`);

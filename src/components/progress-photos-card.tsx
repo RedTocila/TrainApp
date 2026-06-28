@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { CalendarClock, ChevronRight, ImageIcon } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,7 @@ import {
   formatProgressCycleLabel,
   formatProgressMonthLabel,
   getProgressPhotoCountdown,
+  getProgressPhotoDisplaySet,
   progressMonthFolder,
   progressMonthKey,
   progressSetComplete,
@@ -40,9 +41,31 @@ import { DashboardStatusIcon } from "@/components/section-completed-badge";
 import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
 import { DASHBOARD_PROGRESS_PHOTOS_PATH } from "@/lib/dashboard-day-routes";
+import {
+  DashboardCardNavBody,
+  DashboardCardNavLink,
+  dashboardInteractive,
+} from "@/components/dashboard-card-nav-link";
+import {
+  getProgressPhotosSetsCache,
+  getProgressPhotosUrlsCache,
+  isProgressPhotosUrlsCacheFresh,
+  setProgressPhotosSetsCache,
+  setProgressPhotosUrlsCache,
+  type PoseUrls,
+} from "@/lib/dashboard-route-cache";
 
-type PoseUrls = Record<ProgressPhotoPose, string | null>;
 const EMPTY_URLS: PoseUrls = { front: null, back: null, side: null };
+
+function hasPopulatedUrls(urls: PoseUrls): boolean {
+  return Boolean(urls.front || urls.back || urls.side);
+}
+
+function urlsCoverSet(urls: PoseUrls, set: Pick<ProgressPhotoSet, "front_path" | "back_path" | "side_path">): boolean {
+  return (["front", "back", "side"] as const).every(
+    (pose) => !set[`${pose}_path`] || Boolean(urls[pose])
+  );
+}
 
 type PhotoPreview = { url: string; label: string };
 
@@ -133,16 +156,42 @@ export function ProgressPhotosCard({
   const locale = useLocale();
   const photoPoses = getProgressPhotoPoses(locale);
   const currentMonth = progressMonthKey();
-  const [sets, setSets] = useState(initialSets);
-  const [currentUrls, setCurrentUrls] = useState<PoseUrls>(
-    initialCurrentUrls ?? EMPTY_URLS
+  const cachedSets = getProgressPhotosSetsCache(clientId);
+  const initialSetsResolved = cachedSets ?? initialSets;
+  const [sets, setSets] = useState(initialSetsResolved);
+  const displaySet = useMemo(
+    () => getProgressPhotoDisplaySet(sets),
+    [sets]
   );
+  const [currentUrls, setCurrentUrls] = useState<PoseUrls>(() => {
+    const set = getProgressPhotoDisplaySet(initialSetsResolved);
+    if (!set) return EMPTY_URLS;
+    const cached = getProgressPhotosUrlsCache(clientId, set.month_key);
+    if (cached && hasPopulatedUrls(cached) && urlsCoverSet(cached, set)) {
+      return cached;
+    }
+    if (
+      initialCurrentUrls &&
+      hasPopulatedUrls(initialCurrentUrls) &&
+      urlsCoverSet(initialCurrentUrls, set)
+    ) {
+      return initialCurrentUrls;
+    }
+    return EMPTY_URLS;
+  });
   const [uploadingPose, setUploadingPose] = useState<ProgressPhotoPose | null>(null);
   const [preview, setPreview] = useState<PhotoPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
-  const skippedInitialUrlLoad = useRef(Boolean(initialCurrentUrls));
+
+  useEffect(() => {
+    router.prefetch(DASHBOARD_PROGRESS_PHOTOS_PATH);
+  }, [router]);
+
+  useEffect(() => {
+    setProgressPhotosSetsCache(clientId, sets);
+  }, [clientId, sets]);
 
   const currentSet = useMemo(
     () => sets.find((s) => s.month_key === currentMonth) ?? null,
@@ -153,34 +202,55 @@ export function ProgressPhotosCard({
     startTransition(async () => {
       const fetched = await getProgressPhotoSets(clientId);
       setSets(fetched);
+      setProgressPhotosSetsCache(clientId, fetched);
+      const set = getProgressPhotoDisplaySet(fetched);
+      if (set && progressSetHasPhotos(set)) {
+        const urls = await getSignedProgressPhotoUrls(clientId, set);
+        setCurrentUrls(urls);
+        setProgressPhotosUrlsCache(clientId, set.month_key, urls);
+      }
     });
   }, [clientId]);
 
   const loadUrls = useCallback(
     async (set: ProgressPhotoSet | null) => {
-      if (!set) {
+      if (!set || !progressSetHasPhotos(set)) {
         setCurrentUrls(EMPTY_URLS);
         return;
       }
       const urls = await getSignedProgressPhotoUrls(clientId, set);
       setCurrentUrls(urls);
+      setProgressPhotosUrlsCache(clientId, set.month_key, urls);
     },
     [clientId]
   );
 
   useEffect(() => {
-    if (skippedInitialUrlLoad.current) {
-      skippedInitialUrlLoad.current = false;
+    if (!displaySet || !progressSetHasPhotos(displaySet)) {
+      setCurrentUrls(EMPTY_URLS);
       return;
     }
-    void loadUrls(currentSet);
-  }, [currentSet, loadUrls]);
+
+    const cached = getProgressPhotosUrlsCache(clientId, displaySet.month_key);
+    if (
+      cached &&
+      hasPopulatedUrls(cached) &&
+      urlsCoverSet(cached, displaySet) &&
+      isProgressPhotosUrlsCacheFresh(clientId, displaySet.month_key)
+    ) {
+      setCurrentUrls(cached);
+      return;
+    }
+
+    void loadUrls(displaySet);
+  }, [clientId, displaySet, loadUrls]);
 
   const handleRemove = async (pose: ProgressPhotoPose) => {
+    const monthKey = displaySet?.month_key ?? currentMonth;
     setError(null);
     setUploadingPose(pose);
     try {
-      const result = await removeProgressPhotoPath(clientId, currentMonth, pose);
+      const result = await removeProgressPhotoPath(clientId, monthKey, pose);
       if (result.error) {
         setError(result.error);
         return;
@@ -237,34 +307,26 @@ export function ProgressPhotosCard({
     [sets, currentSet]
   );
   const cycleLabel = useMemo(() => {
-    if (currentSet && progressSetHasPhotos(currentSet)) {
-      return formatProgressCycleLabel(new Date(currentSet.created_at));
+    if (displaySet && progressSetHasPhotos(displaySet)) {
+      return formatProgressCycleLabel(new Date(displaySet.created_at));
     }
     return formatProgressMonthLabel(currentMonth);
-  }, [currentSet, currentMonth]);
-
-  const openHistory = () => {
-    router.push(DASHBOARD_PROGRESS_PHOTOS_PATH);
-  };
+  }, [displaySet, currentMonth]);
 
   return (
     <>
       <div
         id="dashboard-progress-photos"
-        role="button"
-        tabIndex={0}
-        onClick={openHistory}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            openHistory();
-          }
-        }}
         className={cn(
           dashboard.tile,
           "relative cursor-pointer p-4 transition-opacity hover:opacity-95 active:opacity-90"
         )}
       >
+        <DashboardCardNavLink
+          href={DASHBOARD_PROGRESS_PHOTOS_PATH}
+          ariaLabel={platform.photos.title}
+        />
+        <DashboardCardNavBody>
         <DashboardSectionHeader
           icon={ImageIcon}
           iconClassName="text-primary"
@@ -279,11 +341,7 @@ export function ProgressPhotosCard({
             ) : null
           }
         />
-        <div
-          className="mt-4 space-y-6"
-          onClick={(event) => event.stopPropagation()}
-          onKeyDown={(event) => event.stopPropagation()}
-        >
+        <div className="mt-4 space-y-6">
           <div>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-bold">{cycleLabel}</p>
@@ -301,7 +359,7 @@ export function ProgressPhotosCard({
                 </span>
               ) : null}
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className={cn("grid grid-cols-3 gap-3", dashboardInteractive)}>
               {photoPoses.map(({ pose, label }) => (
                 <PhotoSlot
                   key={pose}
@@ -329,8 +387,9 @@ export function ProgressPhotosCard({
 
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
         </div>
+        </DashboardCardNavBody>
         <ChevronRight
-          className="pointer-events-none absolute bottom-4 right-4 h-5 w-5 text-muted-foreground"
+          className="pointer-events-none absolute bottom-4 right-4 z-[2] h-5 w-5 text-muted-foreground"
           aria-hidden
         />
       </div>

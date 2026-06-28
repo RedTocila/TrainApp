@@ -17,6 +17,12 @@ import { addWater, getDailyLog, updateWaterGoal } from "@/lib/actions/logs";
 import { formatDateKey } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { WaterGoalEditDialog } from "@/components/water-goal-edit-dialog";
+import {
+  DashboardCardNavBody,
+  DashboardCardNavLink,
+  dashboardInteractive,
+} from "@/components/dashboard-card-nav-link";
+import { DASHBOARD_DAY_NUTRITION_PATH } from "@/lib/dashboard-day-routes";
 
 export function DashboardWaterCard({
   clientId,
@@ -112,7 +118,7 @@ export function DashboardWaterCard({
   };
 
   const addButtons = (
-    <div className={cn("flex gap-1.5", compact ? "mt-auto pt-2" : "mt-4")}>
+    <div className={cn("flex gap-1.5", dashboardInteractive, compact ? "mt-auto pt-2" : "mt-4")}>
       {[250, 500].map((amount) => (
         <button
           key={amount}
@@ -164,7 +170,12 @@ export function DashboardWaterCard({
   if (compact) {
     return (
       <>
-        <div id="dashboard-water" className={cn(dashboard.tile, dashboard.pairTile)}>
+        <div id="dashboard-water" className={cn(dashboard.tile, dashboard.pairTile, "relative")}>
+          <DashboardCardNavLink
+            href={DASHBOARD_DAY_NUTRITION_PATH}
+            ariaLabel={platform.nutrition.water}
+          />
+          <DashboardCardNavBody className="flex h-full flex-col">
           {cornerActions}
           <div className="flex items-center gap-2 pr-8">
             <GlassWater className="h-5 w-5 shrink-0 text-cyan-400" />
@@ -179,6 +190,7 @@ export function DashboardWaterCard({
             )}
           </div>
           {addButtons}
+          </DashboardCardNavBody>
         </div>
         {goalDialog}
       </>

@@ -120,12 +120,24 @@ export function getProgressPhotoCountdown(options: {
   };
 }
 
-function findAnchorSet(
-  sets: ProgressPhotoSetLike[],
+function findAnchorSet<T extends ProgressPhotoSetLike>(
+  sets: T[],
   currentSet: ProgressPhotoSetLike | null
-): ProgressPhotoSetLike | null {
-  if (currentSet && progressSetHasPhotos(currentSet)) return currentSet;
+): T | null {
+  if (currentSet && progressSetHasPhotos(currentSet)) {
+    return sets.find((set) => set.id === currentSet.id) ?? null;
+  }
   return sets.find((set) => progressSetHasPhotos(set)) ?? null;
+}
+
+/** Set whose photos should appear on the dashboard card. */
+export function getProgressPhotoDisplaySet<T extends ProgressPhotoSetLike>(
+  sets: T[],
+  now = new Date()
+): T | null {
+  const currentMonth = progressMonthKey(now);
+  const currentSet = sets.find((set) => set.month_key === currentMonth) ?? null;
+  return findAnchorSet(sets, currentSet);
 }
 
 export type ProgressPhotoTimelineRow = {

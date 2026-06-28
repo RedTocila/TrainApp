@@ -36,6 +36,17 @@ import {
   formatWorkoutDurationShort,
 } from "@/lib/workout-duration";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
+import {
+  DashboardCardNavBody,
+  DashboardCardNavLink,
+  dashboardInteractive,
+} from "@/components/dashboard-card-nav-link";
+import {
+  setWorkoutDayCache,
+  getWorkoutDayCache,
+  workoutDayCacheKey,
+} from "@/lib/dashboard-route-cache";
+import { isDashboardDayCacheFresh } from "@/lib/dashboard-day-cache";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,7 +112,16 @@ export function DashboardWorkoutCard({
   const workoutCacheRef = useRef<Map<string, WorkoutDayCache>>(new Map());
 
   useEffect(() => {
+    router.prefetch(DASHBOARD_DAY_WORKOUT_PATH);
+  }, [router]);
+
+  useEffect(() => {
     workoutCacheRef.current.set(dateKey, {
+      workout: initialWorkout,
+      completed: initialWorkoutCompleted,
+      results: initialWorkoutResults,
+    });
+    setWorkoutDayCache(clientId, dateKey, {
       workout: initialWorkout,
       completed: initialWorkoutCompleted,
       results: initialWorkoutResults,
@@ -118,6 +138,7 @@ export function DashboardWorkoutCard({
       results: initialWorkoutResults,
     };
     workoutCacheRef.current.set(dateKey, snapshot);
+    setWorkoutDayCache(clientId, dateKey, snapshot);
     setWorkout(snapshot.workout);
     setWorkoutCompleted(snapshot.completed);
     if (initialWorkoutResults) setWorkoutResults(initialWorkoutResults);
@@ -134,6 +155,16 @@ export function DashboardWorkoutCard({
       setWorkout(cached.workout);
       setWorkoutCompleted(cached.completed);
       setWorkoutResults(cached.results);
+      setLoadedDateKey(dateKey);
+      return;
+    }
+
+    const shared = getWorkoutDayCache(clientId, dateKey);
+    if (shared) {
+      workoutCacheRef.current.set(dateKey, shared);
+      setWorkout(shared.workout);
+      setWorkoutCompleted(shared.completed);
+      setWorkoutResults(shared.results);
       setLoadedDateKey(dateKey);
       return;
     }
@@ -161,6 +192,7 @@ export function DashboardWorkoutCard({
       completed,
       results: dayComplete ? (previous?.results ?? null) : null,
     });
+    setWorkoutDayCache(clientId, key, workoutCacheRef.current.get(key)!);
 
     setWorkout(resolved);
     setWorkoutCompleted(completed);
@@ -183,7 +215,14 @@ export function DashboardWorkoutCard({
     });
   }, [clientId, selectedDate, patches]);
 
-  useDashboardDateFetch(dateKey, refreshWorkout, [clientId, version]);
+  const skipWorkoutRefresh =
+    variant === "detail" &&
+    isDashboardDayCacheFresh(workoutDayCacheKey(clientId, dateKey)) &&
+    getWorkoutDayCache(clientId, dateKey) !== undefined;
+
+  useDashboardDateFetch(dateKey, refreshWorkout, [clientId, version], {
+    enabled: !skipWorkoutRefresh,
+  });
 
   const isDayLoaded = loadedDateKey === dateKey;
   const workoutForDay = isDayLoaded ? workout : null;
@@ -306,22 +345,13 @@ export function DashboardWorkoutCard({
       <>
       <Card
         id="dashboard-workout"
-        role="button"
-        tabIndex={0}
-        onClick={() => router.push(DASHBOARD_DAY_WORKOUT_PATH)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            router.push(DASHBOARD_DAY_WORKOUT_PATH);
-          }
-        }}
         className="relative flex h-full min-h-[15rem] w-full cursor-pointer flex-col p-4 pt-12 sm:min-h-[16rem] transition-opacity hover:opacity-95 active:opacity-90"
       >
-        <div
-          className="absolute right-3 top-3 z-20 flex items-center gap-1"
-          onClick={(event) => event.stopPropagation()}
-          onKeyDown={(event) => event.stopPropagation()}
-        >
+        <DashboardCardNavLink
+          href={DASHBOARD_DAY_WORKOUT_PATH}
+          ariaLabel={platform.trainTabs.workout}
+        />
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-1">
           <Button
             type="button"
             variant="ghost"
@@ -353,7 +383,7 @@ export function DashboardWorkoutCard({
           </span>
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(7.25rem,34%)_1fr] items-stretch gap-2">
+        <DashboardCardNavBody className="grid min-h-0 flex-1 grid-cols-[minmax(7.25rem,34%)_1fr] items-stretch gap-2">
           <div className="relative flex min-h-[10rem] items-stretch">
             {hasMuscleMap ? (
               <WorkoutMuscleMap
@@ -401,11 +431,7 @@ export function DashboardWorkoutCard({
                       exercises={displayWorkout.exercises}
                       className="mt-2"
                     />
-                    <div
-                      className="mt-2"
-                      onClick={(event) => event.stopPropagation()}
-                      onKeyDown={(event) => event.stopPropagation()}
-                    >
+                    <div className={cn("mt-2", dashboardInteractive)}>
                       <WorkoutDifficultyInsightButton
                         exercises={displayWorkout.exercises}
                         intakeProfile={intakeProfile}
@@ -419,7 +445,7 @@ export function DashboardWorkoutCard({
               <p className="text-sm text-muted-foreground">{coachLabels.noWorkoutToday}</p>
             ) : null}
           </div>
-        </div>
+        </DashboardCardNavBody>
 
         <ChevronRight
           className="pointer-events-none absolute bottom-4 right-4 h-5 w-5 text-muted-foreground"

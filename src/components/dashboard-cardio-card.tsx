@@ -5,6 +5,11 @@ import Link from "next/link";
 import { format, isToday, isTomorrow } from "date-fns";
 import { HeartPulse } from "lucide-react";
 import { useMemo, useState } from "react";
+import {
+  DashboardCardNavBody,
+  DashboardCardNavLink,
+  dashboardInteractive,
+} from "@/components/dashboard-card-nav-link";
 import { useSelectedDate } from "@/components/date-provider";
 import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
@@ -116,7 +121,12 @@ export function DashboardCardioCard({
 
   if (compact) {
     return (
-      <div id="dashboard-cardio" className={cn(dashboard.tile, dashboard.pairTile)}>
+      <div id="dashboard-cardio" className={cn(dashboard.tile, dashboard.pairTile, "relative")}>
+        <DashboardCardNavLink
+          href="/dashboard/workout/cardio"
+          ariaLabel={platform.cardio.title}
+        />
+        <DashboardCardNavBody className="flex h-full flex-col">
         {completedForDay && cardioForDay ? (
           <div className="absolute right-2 top-2 z-10 sm:right-3 sm:top-3">
             <DashboardStatusIcon status="completed" aria-label={platform.aria.completed} />
@@ -160,7 +170,7 @@ export function DashboardCardioCard({
             </div>
           )}
         </div>
-        <div className="mt-auto flex gap-1.5 pt-2">
+        <div className={cn("mt-auto flex gap-1.5 pt-2", dashboardInteractive)}>
           <Link href="/dashboard/workout/cardio" className="flex-1">
             <Button size="sm" variant="outline" className="h-8 w-full rounded-full px-2 text-[11px]">
               {platform.cardio.myCardio}
@@ -177,6 +187,7 @@ export function DashboardCardioCard({
             </Button>
           ) : null}
         </div>
+        </DashboardCardNavBody>
       </div>
     );
   }
