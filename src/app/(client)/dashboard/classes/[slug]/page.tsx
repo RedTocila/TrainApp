@@ -5,15 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { requireClient } from "@/lib/actions/auth";
 import { getClassBySlug, getPublishedClasses } from "@/lib/actions/classes";
 import { ClassSessionPanel } from "@/components/class-session-panel";
-import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
+import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { categoryStyles } from "@/lib/class-utils";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
-import { PLATFORM_AI_NAME } from "@/lib/brand";
-import { hasAiAccess } from "@/lib/subscription";
+import { PLATFORM_ELITE_NAME } from "@/lib/brand";
+import { hasEliteAccess } from "@/lib/subscription";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,12 +37,12 @@ export default async function ClassDetailPage({
 
   const platform = getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale));
 
-  if (!profile || !hasAiAccess(profile)) {
+  if (!profile || !hasEliteAccess(profile)) {
     return (
       <PageTransition>
         <div className="mx-auto max-w-2xl space-y-4">
-          <AiUpgradeGate
-            title={`${PLATFORM_AI_NAME} required for live coaching`}
+          <EliteUpgradeGate
+            title={`${PLATFORM_ELITE_NAME} required for live coaching`}
             description={platform.classes.upgradeDescriptionShort}
           />
         </div>

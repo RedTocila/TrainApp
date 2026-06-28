@@ -6,10 +6,14 @@ import Image from "next/image";
 import { compressImageFile } from "@/lib/image-compress";
 import {
   getProgressPhotoSets,
-  getSignedProgressPhotoUrls,
   removeProgressPhotoPath,
   saveProgressPhotoPath,
 } from "@/lib/actions/progress-photos";
+import {
+  progressPhotoPathsKey,
+  resolveProgressPhotoUrls,
+  upsertPhotoPathInSets,
+} from "@/lib/progress-photo-urls";
 import {
   formatProgressMonthLabel,
   getProgressPhotoTimelineRows,
@@ -77,6 +81,9 @@ function buildPoseFrames(
     .filter((frame) => Boolean(frame.url));
 }
 
+const photoSlotPress =
+  "transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-[0.99] hover:bg-card/60";
+
 function PhotoSlot({
   label,
   url,
@@ -103,8 +110,9 @@ function PhotoSlot({
       <div
         className={cn(
           "relative flex aspect-[3/4] w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-border bg-secondary/20",
+          (url || canUpload) && photoSlotPress,
           !url && "border-dashed",
-          url && "border-solid"
+          url && "cursor-pointer border-solid"
         )}
       >
         {url ? (
@@ -319,8 +327,8 @@ export function ProgressPhotosHistoryPage({
   const [urlsByMonth, setUrlsByMonth] = useState<Map<string, PoseUrls>>(() => {
     const map = new Map<string, PoseUrls>();
     for (const set of cachedSets ?? []) {
-      const cachedUrls = getProgressPhotosUrlsCache(clientId, set.month_key);
-      if (cachedUrls) map.set(set.month_key, cachedUrls);
+      const cached = getProgressPhotosUrlsCache(clientId, set.month_key);
+      if (cached) map.set(set.month_key, cached.urls);
     }
     return map;
   });
@@ -348,9 +356,34 @@ export function ProgressPhotosHistoryPage({
     const setsByMonth = new Map(sets.map((set) => [set.month_key, set]));
 
     async function loadUrls() {
-      for (const monthKey of monthKeysToLoad) {
-        if (cancelled) return;
+      const toLoad = monthKeysToLoad.filter((monthKey) => {
+        const set = setsByMonth.get(monthKey);
+        if (!set || !progressSetHasPhotos(set)) return false;
+        const cached = getProgressPhotosUrlsCache(clientId, monthKey);
+        return !cached || cached.pathsKey !== progressPhotoPathsKey(set);
+      });
 
+      await Promise.all(
+        toLoad.map(async (monthKey) => {
+          const set = setsByMonth.get(monthKey);
+          if (!set || cancelled) return;
+
+          const urls = await resolveProgressPhotoUrls(set);
+          if (cancelled) return;
+
+          const pathsKey = progressPhotoPathsKey(set);
+          setProgressPhotosUrlsCache(clientId, monthKey, urls, pathsKey);
+          setUrlsByMonth((prev) => {
+            const next = new Map(prev);
+            next.set(monthKey, urls);
+            return next;
+          });
+        })
+      );
+
+      if (cancelled) return;
+
+      for (const monthKey of monthKeysToLoad) {
         const set = setsByMonth.get(monthKey);
         if (!set || !progressSetHasPhotos(set)) {
           setUrlsByMonth((prev) => {
@@ -363,24 +396,14 @@ export function ProgressPhotosHistoryPage({
         }
 
         const cached = getProgressPhotosUrlsCache(clientId, monthKey);
-        if (cached) {
+        if (cached && cached.pathsKey === progressPhotoPathsKey(set)) {
           setUrlsByMonth((prev) => {
             if (prev.has(monthKey)) return prev;
             const next = new Map(prev);
-            next.set(monthKey, cached);
+            next.set(monthKey, cached.urls);
             return next;
           });
-          continue;
         }
-
-        const urls = await getSignedProgressPhotoUrls(clientId, set);
-        if (cancelled) return;
-        setProgressPhotosUrlsCache(clientId, monthKey, urls);
-        setUrlsByMonth((prev) => {
-          const next = new Map(prev);
-          next.set(monthKey, urls);
-          return next;
-        });
       }
     }
 
@@ -410,8 +433,17 @@ export function ProgressPhotosHistoryPage({
     setError(null);
     setUploadingPose(pose);
     setUploadingMonth(monthKey);
+    let previewUrl: string | null = null;
     try {
       const compressed = await compressImageFile(file);
+      previewUrl = URL.createObjectURL(compressed);
+      setUrlsByMonth((prev) => {
+        const next = new Map(prev);
+        const current = next.get(monthKey) ?? { ...EMPTY_URLS };
+        next.set(monthKey, { ...current, [pose]: previewUrl });
+        return next;
+      });
+
       const monthFolder = progressMonthFolder(monthKey);
       const extension = compressed.type === "image/webp" ? "webp" : "jpg";
       const path = progressPhotoPath(clientId, monthFolder, pose, extension);
@@ -426,20 +458,53 @@ export function ProgressPhotosHistoryPage({
         });
 
       if (uploadError) {
+        setUrlsByMonth((prev) => {
+          const next = new Map(prev);
+          const current = next.get(monthKey) ?? { ...EMPTY_URLS };
+          next.set(monthKey, { ...current, [pose]: null });
+          return next;
+        });
         setError(uploadError.message);
         return;
       }
 
       const result = await saveProgressPhotoPath(clientId, monthKey, pose, path);
       if (result.error) {
+        setUrlsByMonth((prev) => {
+          const next = new Map(prev);
+          const current = next.get(monthKey) ?? { ...EMPTY_URLS };
+          next.set(monthKey, { ...current, [pose]: null });
+          return next;
+        });
         setError(result.error);
         return;
+      }
+
+      const nextSets = upsertPhotoPathInSets(sets, clientId, monthKey, pose, path);
+      setSets(nextSets);
+      setProgressPhotosSetsCache(clientId, nextSets);
+
+      const updatedSet = nextSets.find((set) => set.month_key === monthKey);
+      if (updatedSet) {
+        const signedUrls = await resolveProgressPhotoUrls(updatedSet);
+        setProgressPhotosUrlsCache(
+          clientId,
+          monthKey,
+          signedUrls,
+          progressPhotoPathsKey(updatedSet)
+        );
+        setUrlsByMonth((prev) => {
+          const next = new Map(prev);
+          next.set(monthKey, signedUrls);
+          return next;
+        });
       }
 
       refreshSets();
     } catch (err) {
       setError(err instanceof Error ? err.message : platform.photos.uploadFailed);
     } finally {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setUploadingPose(null);
       setUploadingMonth(null);
     }

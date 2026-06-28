@@ -93,21 +93,33 @@ export function progressPhotosUrlsCacheKey(clientId: string, monthKey: string) {
   return `${clientId}:progress-photos-urls:${monthKey}`;
 }
 
+export type ProgressPhotosUrlsCacheEntry = {
+  urls: PoseUrls;
+  pathsKey: string;
+};
+
 export function getProgressPhotosUrlsCache(
   clientId: string,
   monthKey: string
-): PoseUrls | undefined {
-  return getDashboardDayCache<PoseUrls>(
+): ProgressPhotosUrlsCacheEntry | undefined {
+  const entry = getDashboardDayCache<ProgressPhotosUrlsCacheEntry | PoseUrls>(
     progressPhotosUrlsCacheKey(clientId, monthKey)
   );
+  if (!entry) return undefined;
+  if ("urls" in entry && "pathsKey" in entry) return entry;
+  return { urls: entry as PoseUrls, pathsKey: "" };
 }
 
 export function setProgressPhotosUrlsCache(
   clientId: string,
   monthKey: string,
-  urls: PoseUrls
+  urls: PoseUrls,
+  pathsKey: string
 ) {
-  setDashboardDayCache(progressPhotosUrlsCacheKey(clientId, monthKey), urls);
+  setDashboardDayCache(progressPhotosUrlsCacheKey(clientId, monthKey), {
+    urls,
+    pathsKey,
+  });
 }
 
 export function isProgressPhotosSetsCacheFresh(clientId: string) {

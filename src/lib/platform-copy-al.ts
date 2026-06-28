@@ -640,13 +640,21 @@ export const platformCopyAl = {
     logMealsGuidance: "Regjistro vakte për udhëzime të personalizuara.",
   },
   aiUpgrade: {
-    unlockFeature: "Përmirëso planin në AI për të hapur këtë funksion",
-    viewAiPlan: "Shiko planin AI",
+    unlockFeature: "Përmirëso në AI Pro për të hapur këtë funksion",
+    viewAiPlan: "Shiko planin AI Pro",
     aiWorkoutPlan: "Plan stërvitjeje me AI",
     aiNutritionPlan: "Plan ushqimi me AI",
     photoLog: "Regjistrim me foto",
     textLog: "Regjistrim me tekst",
-    liveSessions: "Seanca live",
+    aiChat: "Chat fitnesi AI",
+  },
+  eliteUpgrade: {
+    unlockFeature: "Përmirëso në Elite për klasa live, sfida dhe komunitet",
+    viewElitePlan: "Shiko planin Elite",
+    liveClasses: "Klasa live",
+    challenges: "Sfida",
+    community: "Komuniteti",
+    exclusive: "Përmbajtje ekskluzive",
   },
   checkoutFlow: {
     completePurchase: "Përfundo blerjen",
@@ -663,11 +671,11 @@ export const platformCopyAl = {
   },
   pricing: {
     step: "Hapi 3 — Zgjidh paketën",
-    choosePlan: "Abonohu",
+    choosePlan: "Zgjidh planin tënd",
     onboardingBlurb:
-      "Abonohu tani ose kaloje dhe eksploro panelin fillimisht.",
+      "Fillo me ndjekje të strukturuar ose zhblloko coach-in AI — abonohu tani ose eksploro fillimisht.",
     upgradeBlurb:
-      "Një plan — ndjekje e plotë, coach AI, ndërtues planet, regjistrim me foto dhe seanca live.",
+      "Tre nivele që rriten me ty — nga ndjekja e strukturuar te coach AI dhe komuniteti Elite.",
     monthly: "Mujore",
     annual: "Vjetore",
     perMonth: "muaj",
@@ -676,6 +684,7 @@ export const platformCopyAl = {
     switchPlan: "Ndrysho planin",
     subscribe: "Abonohu",
     savePerYear: (amount: string) => `Kurseni ${amount}/vit`,
+    includesFrom: (planName: string) => `Gjithçka në ${planName}, plus:`,
   },
   checkout: {
     paymentFailed: "Pagesa dështoi. Provoni përsëri.",
@@ -736,29 +745,71 @@ export const platformCopyAl = {
     whatToEatToday: "Çfarë të hash sot",
   },
   subscriptionPlans: {
-    aiTagline:
-      "Ndjekje e plotë stërvitjeje dhe ushqimi, coach AI, ndërtues planet dhe seanca live.",
-    bestValue: "Gjithçka në një",
-    aiFeatures: [
-      "Ndërtues stërvitjesh dhe seanca të ndjekura",
-      "Bibliotekë ushtrimesh dhe dosje stërvitjeje",
-      "Planet ushqimore dhe vakte të planifikuara",
-      "Coach Alex me AI — motivim, ndihmë dhe përgjigje",
-      "Ndërtues plani stërvitjeje me AI",
-      "Ndërtues plani ushqimor me AI",
-      "Regjistrim vaktesh me foto dhe tekst me AI",
-      "Seanca trajnimi live + regjistrime",
-      "Ndjekje uji, zakonesh dhe kardio",
-      "Foto progresi, peshë dhe tendenca makronutrientesh",
-      "Raporte javore me AI dhe analiza vaktesh",
-    ],
+    basic: {
+      name: "RUTINA Basic",
+      tagline:
+        "Ideale për përdoruesit që duan stërvitje të strukturuara, plane ushqimi dhe ndjekje progresi.",
+      features: [
+        "Plane stërvitjeje të personalizuara",
+        "Plane ushqimi",
+        "Regjistrim manual vaktesh",
+        "Ndjekje peshe",
+        "Matje trupi",
+        "Foto progresi",
+        "Historiku i stërvitjeve",
+        "Statistika progresi",
+        "Ndjekje serie ditore",
+        "Arritje bazike",
+        "Bibliotekë ushtrimesh",
+        "Regjistrim i pakufizuar stërvitjesh",
+      ],
+    },
+    aiPro: {
+      name: "RUTINA AI Pro",
+      tagline:
+        "Gjithçka në Basic, plus coach-i yt AI i fitnesit që përshtatet me progresin tënd.",
+      badge: "Më i popullarizuari",
+      includesFrom: "RUTINA Basic",
+      features: [
+        "Coach Fitnesi AI",
+        "Coach Ushqimi AI",
+        "Gjenerator Stërvitjesh AI",
+        "Sugjerime Vaktesh AI",
+        "Raporte Progresi AI",
+        "Motivim Ditor AI",
+        "Chat Fitnesi AI",
+        "Rekomandime të personalizuara",
+        "Përshtatje automatike stërvitjesh",
+        "Rekomandime automatike kalorish dhe makronutrientesh",
+        "Analiza rikuperimi dhe performancë AI",
+      ],
+    },
+    elite: {
+      name: "RUTINA Elite",
+      tagline:
+        "Përvoja e plotë e fitnesit me coaching, komunitet dhe evente live.",
+      includesFrom: "RUTINA AI Pro",
+      features: [
+        "Klasa trajnimi live",
+        "Sfidat e komunitetit",
+        "Sfidat mujore transformimi",
+        "Gara me çmime në para (fondi varet nga pjesëmarrja)",
+        "Thirrje javore coaching në grup",
+        "Tabela renditjeje",
+        "Stërvitje ekskluzive",
+        "Përmbajtje edukative ekskluzive",
+        "Akses i hershëm në veçori të reja",
+        "Mbështetje prioritare",
+        "Akses në komunitetin Elite",
+      ],
+    },
   },
   classes: {
     comingSoon: "Së shpejti.",
     upgradeDescription:
-      "Përmirëso planin në AI për të marrë pjesë në seanca live dhe për të parë regjistrimet.",
+      "Përmirëso në Elite për klasa trajnimi live, sfida komuniteti dhe coaching në grup.",
     upgradeDescriptionShort:
-      "Përmirëso planin në AI për seanca live dhe regjistrime.",
+      "Përmirëso në Elite për klasa live, sfida dhe akses në komunitet.",
   },
   challenges: {
     rulesTitle: "Rregullat e sfidës",

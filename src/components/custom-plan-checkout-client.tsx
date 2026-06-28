@@ -7,7 +7,6 @@ import { Lock } from "lucide-react";
 import { useState } from "react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { PlanRequestType } from "@/lib/types";
-import { cn } from "@/lib/utils";
 import { getPokPayClientEnv } from "@/lib/pokpay/env";
 
 function formatPokPayError(err: unknown, paymentFailed: string): string {
@@ -67,9 +66,7 @@ export function CustomPlanCheckoutClient({
         </div>
       )}
 
-      <div
-        className={cn("pokpay-checkout rounded-2xl border border-border bg-card/70 p-4 backdrop-blur")}
-      >
+      <div className="pokpay-checkout [&_[data-testid='pokpay-title']]:hidden">
         <GuestCheckoutForm
           orderId={pokpayOrderId}
           onSuccess={() => router.push(successUrl)}

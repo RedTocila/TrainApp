@@ -40,7 +40,7 @@ export function PricingPageClient({
   }, [onboarding, profile.full_name, profile.phone]);
 
   return (
-    <div className="mx-auto max-w-lg space-y-8">
+    <div className="mx-auto max-w-6xl space-y-8">
       <div className="space-y-2 text-center">
         {onboarding && (
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">

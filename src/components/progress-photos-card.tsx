@@ -2,15 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { CalendarClock, ChevronRight, ImageIcon } from "lucide-react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { compressImageFile } from "@/lib/image-compress";
 import {
   getProgressPhotoSets,
-  getSignedProgressPhotoUrls,
   removeProgressPhotoPath,
   saveProgressPhotoPath,
 } from "@/lib/actions/progress-photos";
+import {
+  hasPopulatedUrls,
+  progressPhotoPathsKey,
+  resolveInitialProgressPhotoSets,
+  resolveInitialProgressPhotoUrls,
+  resolveProgressPhotoUrls,
+  upsertPhotoPathInSets,
+  urlsCoverSet,
+} from "@/lib/progress-photo-urls";
 import {
   formatProgressCycleLabel,
   formatProgressMonthLabel,
@@ -20,6 +27,7 @@ import {
   progressMonthKey,
   progressSetComplete,
   progressSetHasPhotos,
+  normalizeMonthKey,
 } from "@/lib/progress-photo-utils";
 import { getProgressPhotoPoses } from "@/lib/locale-labels";
 import { createClient } from "@/lib/supabase/client";
@@ -47,9 +55,7 @@ import {
   dashboardInteractive,
 } from "@/components/dashboard-card-nav-link";
 import {
-  getProgressPhotosSetsCache,
   getProgressPhotosUrlsCache,
-  isProgressPhotosUrlsCacheFresh,
   setProgressPhotosSetsCache,
   setProgressPhotosUrlsCache,
   type PoseUrls,
@@ -57,17 +63,10 @@ import {
 
 const EMPTY_URLS: PoseUrls = { front: null, back: null, side: null };
 
-function hasPopulatedUrls(urls: PoseUrls): boolean {
-  return Boolean(urls.front || urls.back || urls.side);
-}
-
-function urlsCoverSet(urls: PoseUrls, set: Pick<ProgressPhotoSet, "front_path" | "back_path" | "side_path">): boolean {
-  return (["front", "back", "side"] as const).every(
-    (pose) => !set[`${pose}_path`] || Boolean(urls[pose])
-  );
-}
-
 type PhotoPreview = { url: string; label: string };
+
+const photoSlotPress =
+  "transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-[0.99] hover:bg-card/60";
 
 function PhotoSlot({
   label,
@@ -90,8 +89,11 @@ function PhotoSlot({
     <div className="flex flex-col items-center gap-2">
       <div
         className={cn(
-          "relative flex aspect-[3/4] w-full max-w-[7.5rem] flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-secondary/30 sm:max-w-none",
-          url && "border-solid border-border/80"
+          "relative flex aspect-[3/4] w-full max-w-[7.5rem] flex-col items-center justify-center overflow-hidden rounded-2xl border bg-secondary/30 sm:max-w-none",
+          photoSlotPress,
+          url
+            ? "cursor-pointer border-solid border-border/80"
+            : "border-dashed border-border"
         )}
       >
         {url ? (
@@ -101,13 +103,11 @@ function PhotoSlot({
             aria-label={platform.aria.viewPhoto(label)}
             className="absolute inset-0 cursor-zoom-in"
           >
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={url}
               alt={label}
-              fill
-              unoptimized
-              sizes="(max-width: 640px) 120px, 150px"
-              className="object-cover"
+              className="h-full w-full object-cover"
             />
           </button>
         ) : (
@@ -156,29 +156,20 @@ export function ProgressPhotosCard({
   const locale = useLocale();
   const photoPoses = getProgressPhotoPoses(locale);
   const currentMonth = progressMonthKey();
-  const cachedSets = getProgressPhotosSetsCache(clientId);
-  const initialSetsResolved = cachedSets ?? initialSets;
+  const initialSetsResolved = resolveInitialProgressPhotoSets(clientId, initialSets);
+  const initialPhotoState = resolveInitialProgressPhotoUrls(
+    clientId,
+    initialSets,
+    initialCurrentUrls
+  );
   const [sets, setSets] = useState(initialSetsResolved);
   const displaySet = useMemo(
     () => getProgressPhotoDisplaySet(sets),
     [sets]
   );
-  const [currentUrls, setCurrentUrls] = useState<PoseUrls>(() => {
-    const set = getProgressPhotoDisplaySet(initialSetsResolved);
-    if (!set) return EMPTY_URLS;
-    const cached = getProgressPhotosUrlsCache(clientId, set.month_key);
-    if (cached && hasPopulatedUrls(cached) && urlsCoverSet(cached, set)) {
-      return cached;
-    }
-    if (
-      initialCurrentUrls &&
-      hasPopulatedUrls(initialCurrentUrls) &&
-      urlsCoverSet(initialCurrentUrls, set)
-    ) {
-      return initialCurrentUrls;
-    }
-    return EMPTY_URLS;
-  });
+  const [currentUrls, setCurrentUrls] = useState<PoseUrls>(
+    () => initialPhotoState.urls
+  );
   const [uploadingPose, setUploadingPose] = useState<ProgressPhotoPose | null>(null);
   const [preview, setPreview] = useState<PhotoPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -190,11 +181,34 @@ export function ProgressPhotosCard({
   }, [router]);
 
   useEffect(() => {
+    if (
+      initialCurrentUrls &&
+      initialPhotoState.displaySet &&
+      hasPopulatedUrls(initialCurrentUrls) &&
+      urlsCoverSet(initialCurrentUrls, initialPhotoState.displaySet)
+    ) {
+      setProgressPhotosUrlsCache(
+        clientId,
+        initialPhotoState.displaySet.month_key,
+        initialCurrentUrls,
+        progressPhotoPathsKey(initialPhotoState.displaySet)
+      );
+    }
+  }, [clientId, initialCurrentUrls, initialPhotoState.displaySet]);
+
+  useEffect(() => {
+    if (initialSets.some(progressSetHasPhotos) && !sets.some(progressSetHasPhotos)) {
+      setSets(initialSets);
+    }
+  }, [clientId, initialSets, sets]);
+
+  useEffect(() => {
     setProgressPhotosSetsCache(clientId, sets);
   }, [clientId, sets]);
 
   const currentSet = useMemo(
-    () => sets.find((s) => s.month_key === currentMonth) ?? null,
+    () =>
+      sets.find((set) => normalizeMonthKey(set.month_key) === currentMonth) ?? null,
     [sets, currentMonth]
   );
 
@@ -203,27 +217,19 @@ export function ProgressPhotosCard({
       const fetched = await getProgressPhotoSets(clientId);
       setSets(fetched);
       setProgressPhotosSetsCache(clientId, fetched);
-      const set = getProgressPhotoDisplaySet(fetched);
-      if (set && progressSetHasPhotos(set)) {
-        const urls = await getSignedProgressPhotoUrls(clientId, set);
-        setCurrentUrls(urls);
-        setProgressPhotosUrlsCache(clientId, set.month_key, urls);
-      }
     });
   }, [clientId]);
 
-  const loadUrls = useCallback(
-    async (set: ProgressPhotoSet | null) => {
-      if (!set || !progressSetHasPhotos(set)) {
-        setCurrentUrls(EMPTY_URLS);
-        return;
-      }
-      const urls = await getSignedProgressPhotoUrls(clientId, set);
-      setCurrentUrls(urls);
-      setProgressPhotosUrlsCache(clientId, set.month_key, urls);
-    },
-    [clientId]
-  );
+  const loadUrls = useCallback(async (set: ProgressPhotoSet | null) => {
+    if (!set || !progressSetHasPhotos(set)) {
+      setCurrentUrls(EMPTY_URLS);
+      return;
+    }
+    const pathsKey = progressPhotoPathsKey(set);
+    const urls = await resolveProgressPhotoUrls(set);
+    setCurrentUrls(urls);
+    setProgressPhotosUrlsCache(clientId, set.month_key, urls, pathsKey);
+  }, [clientId]);
 
   useEffect(() => {
     if (!displaySet || !progressSetHasPhotos(displaySet)) {
@@ -231,19 +237,27 @@ export function ProgressPhotosCard({
       return;
     }
 
+    const pathsKey = progressPhotoPathsKey(displaySet);
     const cached = getProgressPhotosUrlsCache(clientId, displaySet.month_key);
     if (
       cached &&
-      hasPopulatedUrls(cached) &&
-      urlsCoverSet(cached, displaySet) &&
-      isProgressPhotosUrlsCacheFresh(clientId, displaySet.month_key)
+      cached.pathsKey === pathsKey &&
+      hasPopulatedUrls(cached.urls) &&
+      urlsCoverSet(cached.urls, displaySet)
     ) {
-      setCurrentUrls(cached);
+      setCurrentUrls(cached.urls);
+      return;
+    }
+
+    if (
+      hasPopulatedUrls(currentUrls) &&
+      urlsCoverSet(currentUrls, displaySet)
+    ) {
       return;
     }
 
     void loadUrls(displaySet);
-  }, [clientId, displaySet, loadUrls]);
+  }, [clientId, displaySet, loadUrls, currentUrls]);
 
   const handleRemove = async (pose: ProgressPhotoPose) => {
     const monthKey = displaySet?.month_key ?? currentMonth;
@@ -267,8 +281,12 @@ export function ProgressPhotosCard({
   const handleUpload = async (pose: ProgressPhotoPose, file: File) => {
     setError(null);
     setUploadingPose(pose);
+    let previewUrl: string | null = null;
     try {
       const compressed = await compressImageFile(file);
+      previewUrl = URL.createObjectURL(compressed);
+      setCurrentUrls((prev) => ({ ...prev, [pose]: previewUrl }));
+
       const monthFolder = progressMonthFolder(currentMonth);
       const extension = compressed.type === "image/webp" ? "webp" : "jpg";
       const path = progressPhotoPath(clientId, monthFolder, pose, extension);
@@ -283,20 +301,39 @@ export function ProgressPhotosCard({
         });
 
       if (uploadError) {
+        setCurrentUrls((prev) => ({ ...prev, [pose]: null }));
         setError(uploadError.message);
         return;
       }
 
       const result = await saveProgressPhotoPath(clientId, currentMonth, pose, path);
       if (result.error) {
+        setCurrentUrls((prev) => ({ ...prev, [pose]: null }));
         setError(result.error);
         return;
+      }
+
+      const nextSets = upsertPhotoPathInSets(sets, clientId, currentMonth, pose, path);
+      setSets(nextSets);
+      setProgressPhotosSetsCache(clientId, nextSets);
+
+      const displayAfterUpload = getProgressPhotoDisplaySet(nextSets);
+      if (displayAfterUpload) {
+        const signedUrls = await resolveProgressPhotoUrls(displayAfterUpload);
+        setCurrentUrls(signedUrls);
+        setProgressPhotosUrlsCache(
+          clientId,
+          displayAfterUpload.month_key,
+          signedUrls,
+          progressPhotoPathsKey(displayAfterUpload)
+        );
       }
 
       refreshSets();
     } catch (err) {
       setError(err instanceof Error ? err.message : platform.photos.uploadFailed);
     } finally {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setUploadingPose(null);
     }
   };

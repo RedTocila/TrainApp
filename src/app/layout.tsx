@@ -4,6 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SITE_URL } from "@/lib/landing-content";
 import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/lib/brand";
+import "@nebula-ltd/pok-payments-js/lib/index.css";
 import "./globals.css";
 
 const geistSans = Geist({

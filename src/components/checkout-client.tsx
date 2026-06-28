@@ -20,7 +20,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { cn } from "@/lib/utils";
 
 function formatPokPayError(err: unknown, paymentFailed: string): string {
   if (!err || typeof err !== "object") return paymentFailed;
@@ -233,12 +232,7 @@ export function CheckoutClient({
           )}
 
           {checkoutStarted && orderId && !error && (
-            <div
-              className={cn(
-                "pokpay-checkout rounded-2xl border border-border bg-card/70 p-4 backdrop-blur",
-                "[&_[data-testid='pokpay-title']]:hidden"
-              )}
-            >
+            <div className="pokpay-checkout [&_[data-testid='pokpay-title']]:hidden">
               <GuestCheckoutForm
                 orderId={orderId}
                 onSuccess={handleSuccess}

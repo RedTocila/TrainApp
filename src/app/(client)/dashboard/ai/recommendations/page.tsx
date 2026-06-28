@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasPaidAccess } from "@/lib/subscription";
+import { hasAiAccess } from "@/lib/subscription";
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
@@ -29,7 +29,7 @@ export default async function AiRecommendationsPage() {
   const platform = getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale));
   const copy = platform.aiPages;
 
-  if (!profile || !hasPaidAccess(profile)) {
+  if (!profile || !hasAiAccess(profile)) {
     return <AiUpgradeGate title="AI recommendations" />;
   }
 

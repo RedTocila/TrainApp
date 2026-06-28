@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasPaidAccess } from "@/lib/subscription";
+import { hasAiAccess } from "@/lib/subscription";
 import { getLatestWeeklyReport } from "@/lib/actions/ai-coach";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { WeeklyReportClient } from "@/components/weekly-report-client";
@@ -12,7 +12,7 @@ export default async function AiReportsPage() {
   if (!user) return null;
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-  if (!profile || !hasPaidAccess(profile)) {
+  if (!profile || !hasAiAccess(profile)) {
     return <AiUpgradeGate title="AI weekly reports" />;
   }
 

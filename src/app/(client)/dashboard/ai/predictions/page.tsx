@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasPaidAccess } from "@/lib/subscription";
+import { hasAiAccess } from "@/lib/subscription";
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { computeProgressPrediction } from "@/lib/ai/progress-prediction";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
@@ -22,7 +22,7 @@ export default async function AiPredictionsPage() {
   const platform = getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale));
   const copy = platform.aiPages;
 
-  if (!profile || !hasPaidAccess(profile)) {
+  if (!profile || !hasAiAccess(profile)) {
     return <AiUpgradeGate title={copy.predictionsTitle} />;
   }
 

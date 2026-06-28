@@ -239,6 +239,7 @@ body:has(.dashboard-shell) {
   --pok-primary-tint: rgba(var(--primary-rgb), 0.06);
   --pok-primary-tint-strong: rgba(var(--primary-rgb), 0.12);
   --pok-primary-ring: rgba(var(--primary-rgb), 0.22);
+  --pok-radius: 14px;
 
   --pok-surface: transparent;
   --pok-surface-soft: rgba(255, 255, 255, 0.06);
@@ -251,6 +252,8 @@ body:has(.dashboard-shell) {
   --pok-error: #ef4444;
   --pok-error-tint: rgba(239, 68, 68, 0.12);
   --pok-error-ring: rgba(239, 68, 68, 0.25);
+
+  min-height: 0;
 }
 
 html.light .pokpay-checkout #pok-payment-container {
@@ -278,6 +281,11 @@ html.light .pokpay-checkout #pok-payment-container {
 
 html.light .pokpay-checkout .pok-payment-label {
   color: rgba(0, 0, 0, 0.6);
+}
+
+.pokpay-checkout .pok-payment-modal-trigger {
+  width: 100%;
+  display: block;
 }
 
 .pokpay-checkout .pok-payment-input,
@@ -343,6 +351,9 @@ html.light .pokpay-checkout .pok-payment-modal-trigger-empty {
 }
 
 .pokpay-checkout .pok-payment-button {
+  width: 100%;
+  background: var(--primary);
+  color: var(--primary-foreground, #ffffff);
   border-radius: 14px;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -350,8 +361,40 @@ html.light .pokpay-checkout .pok-payment-modal-trigger-empty {
   font-size: 16px;
 }
 
+.pokpay-checkout .pok-payment-button:hover {
+  background: var(--accent);
+}
+
+.pokpay-checkout .pok-payment-button:active:not(:disabled) {
+  background: var(--primary);
+}
+
 .pokpay-checkout .pok-payment-checkbox-container label {
   font-weight: 600;
+}
+
+/* Country modal renders in a portal outside #pok-payment-container */
+.pok-payment-modal-backdrop {
+  --pok-primary: var(--primary);
+  --pok-primary-hover: var(--accent);
+  --pok-primary-tint: rgba(var(--primary-rgb), 0.06);
+  --pok-primary-ring: rgba(var(--primary-rgb), 0.22);
+  --pok-radius: 14px;
+  --pok-surface: var(--card);
+  --pok-surface-soft: rgba(255, 255, 255, 0.06);
+  --pok-text: var(--foreground);
+  --pok-text-muted: rgba(255, 255, 255, 0.72);
+  --pok-text-subtle: rgba(255, 255, 255, 0.45);
+  --pok-border: rgba(255, 255, 255, 0.12);
+  --pok-border-strong: rgba(255, 255, 255, 0.18);
+}
+
+html.light .pok-payment-modal-backdrop {
+  --pok-surface-soft: rgba(0, 0, 0, 0.04);
+  --pok-text-muted: rgba(0, 0, 0, 0.62);
+  --pok-text-subtle: rgba(0, 0, 0, 0.4);
+  --pok-border: rgba(0, 0, 0, 0.12);
+  --pok-border-strong: rgba(0, 0, 0, 0.18);
 }
 
 @media (max-width: 1023px) {

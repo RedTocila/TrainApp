@@ -7,7 +7,7 @@ import { requireClient } from "@/lib/actions/auth";
 import { getChallengeBySlug } from "@/lib/actions/challenges";
 import { getChallengeBracketBySlug } from "@/lib/actions/challenge-bracket";
 import { isDemoChallengeSlug } from "@/lib/challenge-demo";
-import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
+import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { ChallengeBracketDiagram } from "@/components/challenge-bracket-diagram";
 import { ChallengeRegisterButton } from "@/components/challenge-register-button";
 import { ChallengeRulesButton } from "@/components/challenge-rules-panel";
@@ -18,9 +18,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { canJoinChallenge, getChallengeStatus } from "@/lib/challenge-utils";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
-import { PLATFORM_AI_NAME } from "@/lib/brand";
+import { PLATFORM_ELITE_NAME } from "@/lib/brand";
 import { getPlatformCopy } from "@/lib/platform-copy";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasEliteAccess } from "@/lib/subscription";
 import { ArrowLeft, Radio, Trophy, Users, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,12 +44,12 @@ export default async function ChallengeDetailPage({
 
   const platform = getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale));
 
-  if (!profile || !hasAiAccess(profile)) {
+  if (!profile || !hasEliteAccess(profile)) {
     return (
       <PageTransition>
         <div className="mx-auto max-w-2xl space-y-4">
-          <AiUpgradeGate
-            title={`${PLATFORM_AI_NAME} required for community challenges`}
+          <EliteUpgradeGate
+            title={`${PLATFORM_ELITE_NAME} required for community challenges`}
             description={platform.classes.upgradeDescriptionShort}
           />
         </div>

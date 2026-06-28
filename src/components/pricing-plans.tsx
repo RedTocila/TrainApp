@@ -1,19 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
-import { Check, Sparkles } from "lucide-react";
 import { SegmentedToggle } from "@/components/segmented-toggle";
+import { PricingPlanCard } from "@/components/pricing-plan-card";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import type { BillingInterval } from "@/lib/subscription-plans";
 import {
   formatAnnualSavingsLocalized,
   getLocalizedSubscriptionPlans,
+  getPricingCardLabels,
 } from "@/lib/subscription-plans-i18n";
-import { getCurrencyPrice } from "@/lib/checkout-i18n";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 const BILLING_INTERVALS = ["monthly", "annual"] as const;
 
@@ -34,6 +29,7 @@ export function PricingPlans({
   const platform = usePlatformCopy();
   const pricing = platform.pricing;
   const plans = getLocalizedSubscriptionPlans(locale);
+  const cardLabels = getPricingCardLabels(locale);
 
   return (
     <div className="space-y-8">
@@ -50,10 +46,8 @@ export function PricingPlans({
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-1 md:max-w-lg md:mx-auto">
+      <div className="grid items-stretch gap-6 lg:grid-cols-3 md:grid-cols-2 md:items-end">
         {plans.map((plan) => {
-          const tier = interval === "monthly" ? plan.monthly : plan.annual;
-          const price = getCurrencyPrice(tier);
           const savings =
             interval === "annual"
               ? formatAnnualSavingsLocalized(plan.monthly, plan.annual, locale)
@@ -61,58 +55,16 @@ export function PricingPlans({
           const isCurrent = subscribed && currentPlan === plan.id;
 
           return (
-            <Card
+            <PricingPlanCard
               key={plan.id}
-              className={cn(
-                "relative overflow-hidden",
-                plan.highlighted && "border-primary/50 shadow-lg shadow-primary/10"
-              )}
-            >
-              {plan.badge && (
-                <div className="absolute right-4 top-4">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
-                    <Sparkles className="h-3 w-3" />
-                    {plan.badge}
-                  </span>
-                </div>
-              )}
-              <CardHeader>
-                <CardTitle className="text-xl">{plan.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">{plan.tagline}</p>
-                <div className="pt-2">
-                  <span className="text-4xl font-black">{price.label}</span>
-                  <span className="text-muted-foreground">
-                    /{interval === "monthly" ? pricing.perMonth : pricing.perYear}
-                  </span>
-                  {savings && (
-                    <p className="mt-1 text-sm font-medium text-green-400">{savings}</p>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <ul className="space-y-2">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                {isCurrent ? (
-                  <Button className="w-full" variant="outline" disabled>
-                    {pricing.currentPlan}
-                  </Button>
-                ) : (
-                  <Link
-                    href={`${checkoutBasePath}?plan=${plan.id}&interval=${interval}`}
-                  >
-                    <Button className="w-full" variant={plan.highlighted ? "default" : "outline"}>
-                      {subscribed ? pricing.switchPlan : pricing.subscribe}
-                    </Button>
-                  </Link>
-                )}
-              </CardContent>
-            </Card>
+              plan={plan}
+              interval={interval}
+              labels={cardLabels}
+              savings={savings}
+              isCurrent={isCurrent}
+              subscribed={subscribed}
+              checkoutHref={`${checkoutBasePath}?plan=${plan.id}&interval=${interval}`}
+            />
           );
         })}
       </div>

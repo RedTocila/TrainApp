@@ -1,5 +1,11 @@
 import type { Profile } from "@/lib/types";
-import { PLATFORM_AI_NAME, PLATFORM_CORE_NAME } from "@/lib/brand";
+import {
+  PLATFORM_AI_PRO_NAME,
+  PLATFORM_BASIC_NAME,
+  PLATFORM_CORE_NAME,
+  PLATFORM_ELITE_NAME,
+} from "@/lib/brand";
+import { planIncludesAi, planIncludesElite } from "@/lib/subscription-plans";
 
 export type SubscriptionStatus = "inactive" | "active" | "past_due" | "canceled";
 
@@ -21,14 +27,24 @@ export function hasPaidAccess(profile: Pick<
   return isSubscriptionActive(profile);
 }
 
-/** Premium AI features: plan builders, photo/text meal logging, live sessions. */
+/** Premium AI features: plan builders, photo/text meal logging, AI coach. */
 export function hasAiAccess(profile: Pick<
   Profile,
   "role" | "subscription_plan" | "subscription_status" | "subscription_expires_at"
 >): boolean {
   if (profile.role === "admin") return true;
   if (!isSubscriptionActive(profile)) return false;
-  return profile.subscription_plan === "ai";
+  return planIncludesAi(profile.subscription_plan);
+}
+
+/** Elite-only features: live classes, community challenges, group coaching. */
+export function hasEliteAccess(profile: Pick<
+  Profile,
+  "role" | "subscription_plan" | "subscription_status" | "subscription_expires_at"
+>): boolean {
+  if (profile.role === "admin") return true;
+  if (!isSubscriptionActive(profile)) return false;
+  return planIncludesElite(profile.subscription_plan);
 }
 
 export function subscriptionLabel(
@@ -36,7 +52,14 @@ export function subscriptionLabel(
   interval: Profile["subscription_interval"]
 ): string {
   if (!plan) return "Free preview";
-  const planName = plan === "ai" ? PLATFORM_AI_NAME : PLATFORM_CORE_NAME;
+  const planName =
+    plan === "elite"
+      ? PLATFORM_ELITE_NAME
+      : plan === "ai"
+        ? PLATFORM_AI_PRO_NAME
+        : plan === "basic"
+          ? PLATFORM_BASIC_NAME
+          : PLATFORM_CORE_NAME;
   const billing = interval === "annual" ? "Annual" : "Monthly";
   return `${planName} · ${billing}`;
 }

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasPaidAccess } from "@/lib/subscription";
+import { hasAiAccess } from "@/lib/subscription";
 import { loadMealSuggestions } from "@/lib/ai/load-meal-suggestions";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { MealSuggestionsClient } from "@/components/meal-suggestions-client";
@@ -12,7 +12,7 @@ export default async function MealSuggestionsPage() {
     return supabase.from("profiles").select("*").eq("id", user.id).single();
   });
 
-  if (!profile || !hasPaidAccess(profile)) {
+  if (!profile || !hasAiAccess(profile)) {
     return <AiUpgradeGate title="AI meal suggestions" />;
   }
 

@@ -8,7 +8,7 @@ import { TOOL_STATUS_LABELS } from "@/lib/ai/coach-chat-tools";
 import { streamChatCompletion, getConfiguredProviders } from "@/lib/ai/providers";
 import { SUBSCRIPTION_ACCESS_COLUMNS } from "@/lib/db-selects";
 import { createClient } from "@/lib/supabase/server";
-import { hasPaidAccess } from "@/lib/subscription";
+import { hasAiAccess } from "@/lib/subscription";
 import type { ChatImageAttachment, ChatMessage } from "@/lib/ai/types";
 import type { Profile } from "@/lib/types";
 
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     .eq("id", user.id)
     .single();
 
-  if (!profile || !hasPaidAccess(profile as Profile)) {
+  if (!profile || !hasAiAccess(profile as Profile)) {
     return Response.json({ error: "Subscription required" }, { status: 403 });
   }
 

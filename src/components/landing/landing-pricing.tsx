@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Sparkles } from "lucide-react";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import {
   GET_STARTED_CTA,
@@ -12,16 +11,22 @@ import {
   SUBSCRIPTION_PLANS,
   type BillingInterval,
 } from "@/lib/subscription-plans";
-import { formatAnnualSavings, getCurrencyPrice } from "@/lib/checkout-i18n";
+import { formatAnnualSavings } from "@/lib/checkout-i18n";
+import { PricingPlanCard } from "@/components/pricing-plan-card";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+
+const LANDING_LABELS = {
+  perMonth: "mo",
+  perYear: "yr",
+  currentPlan: "Current plan",
+  switchPlan: "Switch plan",
+  subscribe: "Subscribe",
+  includesFrom: (planName: string) => `Everything in ${planName}, plus:`,
+};
 
 export function LandingPricing() {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
-  const monthlyTier = SUBSCRIPTION_PLANS[0].monthly;
-  const headlinePrice = getCurrencyPrice(monthlyTier).label;
 
   return (
     <section id="pricing" className="landing-deferred-section scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">
@@ -31,10 +36,11 @@ export function LandingPricing() {
             Pricing
           </p>
           <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-            {headlinePrice}/month — all-in-one
+            Plans that grow with your goals
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Build your program first — subscribe after sign-up (skip anytime)
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+            From €5/month for structured tracking to AI coaching and elite community
+            access — build your program first, subscribe when you&apos;re ready.
           </p>
         </FadeIn>
 
@@ -52,67 +58,31 @@ export function LandingPricing() {
             />
           </div>
 
-          <div className="mt-8 grid gap-6 md:max-w-lg md:mx-auto">
+          <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-3 md:grid-cols-2 md:items-end">
             {SUBSCRIPTION_PLANS.map((plan) => {
-              const tier = interval === "monthly" ? plan.monthly : plan.annual;
-              const price = getCurrencyPrice(tier);
               const savings =
                 interval === "annual"
                   ? formatAnnualSavings(plan.monthly, plan.annual)
                   : null;
 
               return (
-                <div
+                <PricingPlanCard
                   key={plan.id}
-                  className="transition-transform duration-300 hover:-translate-y-1"
-                >
-                  <Card
-                    className={cn(
-                      "relative h-full overflow-hidden",
-                      plan.highlighted && "border-primary/50 shadow-lg shadow-primary/10"
-                    )}
-                  >
-                    {plan.badge && (
-                      <div className="absolute right-4 top-4">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
-                          <Sparkles className="h-3 w-3" />
-                          {plan.badge}
-                        </span>
-                      </div>
-                    )}
-                    <CardHeader>
-                      <CardTitle className="text-xl">{plan.name}</CardTitle>
-                      <div className="pt-2">
-                        <span className="text-4xl font-black">{price.label}</span>
-                        <span className="text-muted-foreground">
-                          /{interval === "monthly" ? "mo" : "yr"}
-                        </span>
-                        {savings && (
-                          <p className="mt-1 text-sm font-medium text-green-400">
-                            {savings}
-                          </p>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <ul className="space-y-2">
-                        {plan.features.map((feature) => (
-                          <li key={feature} className="flex items-start gap-2 text-sm">
-                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                </div>
+                  plan={plan}
+                  interval={interval}
+                  labels={LANDING_LABELS}
+                  savings={savings}
+                  showCta={false}
+                />
               );
             })}
           </div>
 
-          <div className="mt-8 text-center">
+          <div className="mt-10 text-center">
             <Link href={GET_STARTED_HREF}>
-              <Button size="lg">{GET_STARTED_CTA}</Button>
+              <Button size="lg" className="shadow-lg shadow-primary/20">
+                {GET_STARTED_CTA}
+              </Button>
             </Link>
           </div>
         </FadeIn>

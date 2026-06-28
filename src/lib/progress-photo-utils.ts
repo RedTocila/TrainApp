@@ -10,6 +10,10 @@ export const PROGRESS_PHOTO_POSES: {
   { pose: "side", label: "Side" },
 ];
 
+export function normalizeMonthKey(value: string): string {
+  return value.slice(0, 10);
+}
+
 export function progressMonthKey(date = new Date()): string {
   return format(startOfMonth(date), "yyyy-MM-dd");
 }
@@ -125,7 +129,14 @@ function findAnchorSet<T extends ProgressPhotoSetLike>(
   currentSet: ProgressPhotoSetLike | null
 ): T | null {
   if (currentSet && progressSetHasPhotos(currentSet)) {
-    return sets.find((set) => set.id === currentSet.id) ?? null;
+    return (
+      sets.find((set) => set.id === currentSet.id) ??
+      sets.find(
+        (set) =>
+          normalizeMonthKey(set.month_key) === normalizeMonthKey(currentSet.month_key)
+      ) ??
+      (currentSet as T)
+    );
   }
   return sets.find((set) => progressSetHasPhotos(set)) ?? null;
 }
@@ -136,7 +147,8 @@ export function getProgressPhotoDisplaySet<T extends ProgressPhotoSetLike>(
   now = new Date()
 ): T | null {
   const currentMonth = progressMonthKey(now);
-  const currentSet = sets.find((set) => set.month_key === currentMonth) ?? null;
+  const currentSet =
+    sets.find((set) => normalizeMonthKey(set.month_key) === currentMonth) ?? null;
   return findAnchorSet(sets, currentSet);
 }
 

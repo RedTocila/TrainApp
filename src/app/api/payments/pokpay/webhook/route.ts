@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { activateSubscriptionFromPokPayOrder } from "@/lib/actions/subscriptions";
 
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true });
   } catch (err) {
+    Sentry.captureException(err);
     console.error("PokPay webhook error:", err);
     return NextResponse.json({ received: true });
   }
