@@ -9,9 +9,19 @@ import {
   isDemoChallengeSlug,
 } from "@/lib/challenge-demo";
 import {
+  countChallengeParticipants,
+  leaveOtherSeriesChallenges,
+  promoteNextFromWaitlist,
+  removeIneligibleSeriesParticipants,
+  removeParticipantAndPromote,
+} from "@/lib/challenge-slot-management";
+import {
   groupScheduledAt,
+  isChallengeAtCapacity,
   ROUND1_ADVANCE_COUNT,
 } from "@/lib/challenge-utils";
+import type { ChallengeSeries } from "@/lib/challenge-series";
+import { isFlashChallenge, isTransformationChallenge, usesChallengeWaitlist } from "@/lib/challenge-series";
 import { hasEliteAccess } from "@/lib/subscription";
 import type {
   Challenge,
@@ -22,6 +32,7 @@ import type {
   ChallengeMemberOutcome,
   ChallengeParticipant,
   ChallengeParticipantStatus,
+  UserSeriesChallengeStatus,
 } from "@/lib/types";
 
 function rowToParticipant(row: Record<string, unknown>): ChallengeParticipant {
@@ -47,12 +58,128 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
         ? row.prize_pool_cents_per_participant
         : 1000,
     duration_months: typeof row.duration_months === "number" ? row.duration_months : 3,
+    duration_days: typeof row.duration_days === "number" ? row.duration_days : null,
+    max_participants:
+      typeof row.max_participants === "number" ? row.max_participants : null,
+    is_transformation: row.is_transformation === true,
+    is_flash: row.is_flash === true,
+    entry_fee_cents: typeof row.entry_fee_cents === "number" ? row.entry_fee_cents : 0,
     round_1_zoom_at: (row.round_1_zoom_at as string | null) ?? null,
     round_2_zoom_at: (row.round_2_zoom_at as string | null) ?? null,
     round_3_zoom_at: (row.round_3_zoom_at as string | null) ?? null,
     prize_paid_at: (row.prize_paid_at as string | null) ?? null,
     current_phase: (row.current_phase as Challenge["current_phase"]) ?? 0,
   };
+}
+
+function nestedChallenge(
+  value: unknown
+): {
+  id: string;
+  slug: string;
+  title: string;
+  is_transformation?: boolean;
+  is_flash?: boolean;
+} | null {
+  if (!value) return null;
+  if (Array.isArray(value)) {
+    return (value[0] as {
+      id: string;
+      slug: string;
+      title: string;
+      is_transformation?: boolean;
+      is_flash?: boolean;
+    }) ?? null;
+  }
+  return value as {
+    id: string;
+    slug: string;
+    title: string;
+    is_transformation?: boolean;
+    is_flash?: boolean;
+  };
+}
+
+export async function getUserSeriesChallengeStatus(
+  userId: string,
+  series: ChallengeSeries
+): Promise<UserSeriesChallengeStatus> {
+  const supabase = await createClient();
+  await removeIneligibleSeriesParticipants(supabase, userId);
+
+  const { data: participantRows } = await supabase
+    .from("challenge_participants")
+    .select("challenge_id, challenges!inner(id, slug, title, is_transformation, is_flash)")
+    .eq("user_id", userId);
+
+  const participantRow = (participantRows ?? []).find((row) => {
+    const c = nestedChallenge(row.challenges);
+    return series === "flash" ? c?.is_flash === true : c?.is_transformation === true;
+  });
+
+  const participantChallenge = nestedChallenge(participantRow?.challenges);
+
+  const participant =
+    participantChallenge && participantRow
+      ? {
+          challenge_id: participantRow.challenge_id,
+          challenge_slug: participantChallenge.slug,
+          challenge_title: participantChallenge.title,
+        }
+      : null;
+
+  const { data: waitlistRow } = await supabase
+    .from("challenge_waitlist")
+    .select("id, challenge_id, created_at, challenges!inner(id, slug, title, is_transformation, is_flash)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+
+  const seriesWaitlist = (waitlistRow ?? []).find((row) => {
+    const c = nestedChallenge(row.challenges);
+    return series === "flash" ? c?.is_flash === true : c?.is_transformation === true;
+  });
+
+  let waitlist: UserSeriesChallengeStatus["waitlist"] = null;
+  if (seriesWaitlist) {
+    const waitlistChallenge = nestedChallenge(seriesWaitlist.challenges);
+    if (
+      waitlistChallenge &&
+      (series === "flash" ? waitlistChallenge.is_flash : waitlistChallenge.is_transformation)
+    ) {
+      const { count } = await supabase
+        .from("challenge_waitlist")
+        .select("id", { count: "exact", head: true })
+        .eq("challenge_id", seriesWaitlist.challenge_id)
+        .lte("created_at", seriesWaitlist.created_at);
+
+      waitlist = {
+        challenge_id: seriesWaitlist.challenge_id,
+        challenge_slug: waitlistChallenge.slug,
+        challenge_title: waitlistChallenge.title,
+        position: count ?? 1,
+      };
+    }
+  }
+
+  return { participant, waitlist };
+}
+
+export async function getUserTransformationChallengeStatus(
+  userId: string
+): Promise<UserSeriesChallengeStatus> {
+  return getUserSeriesChallengeStatus(userId, "transformation");
+}
+
+export async function getUserFlashChallengeStatus(
+  userId: string
+): Promise<UserSeriesChallengeStatus> {
+  return getUserSeriesChallengeStatus(userId, "flash");
+}
+
+function revalidateChallengePaths(challenge: Pick<Challenge, "id" | "slug">) {
+  revalidatePath(`/dashboard/challenges/${challenge.slug}`);
+  revalidatePath("/dashboard/classes");
+  revalidatePath(`/admin/challenges/${challenge.id}/bracket`);
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -74,18 +201,79 @@ export async function registerForChallenge(challengeId: string) {
   }
 
   const supabase = await createClient();
-  const { data: challenge } = await supabase
+  await removeIneligibleSeriesParticipants(supabase, profile.id);
+
+  const { data: challengeRow } = await supabase
     .from("challenges")
-    .select("id, slug, published, current_phase")
+    .select("*")
     .eq("id", challengeId)
     .maybeSingle();
 
-  if (!challenge?.published) {
+  if (!challengeRow?.published) {
     return { error: "Challenge not found." };
   }
 
+  const challenge = rowToChallenge(challengeRow);
+
   if ((challenge.current_phase ?? 0) > 0) {
     return { error: "Registration is closed — the tournament has already started." };
+  }
+
+  const { data: existingParticipant } = await supabase
+    .from("challenge_participants")
+    .select("id")
+    .eq("challenge_id", challengeId)
+    .eq("user_id", profile.id)
+    .maybeSingle();
+
+  if (existingParticipant) {
+    return { error: "You are already registered." };
+  }
+
+  const series = isFlashChallenge(challenge)
+    ? "flash"
+    : isTransformationChallenge(challenge)
+      ? "transformation"
+      : null;
+
+  if (series) {
+    await leaveOtherSeriesChallenges(supabase, profile.id, series, challengeId);
+  }
+
+  const participantCount = await countChallengeParticipants(supabase, challengeId);
+
+  if (isChallengeAtCapacity(challenge, participantCount)) {
+    if (!usesChallengeWaitlist(challenge)) {
+      return { error: "This challenge is full." };
+    }
+
+    const { data: existingWaitlist } = await supabase
+      .from("challenge_waitlist")
+      .select("id")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", profile.id)
+      .maybeSingle();
+
+    if (existingWaitlist) {
+      return { error: "You are already on the waitlist for this challenge." };
+    }
+
+    await supabase.from("challenge_waitlist").delete().eq("user_id", profile.id);
+
+    const { error: waitlistError } = await supabase.from("challenge_waitlist").insert({
+      challenge_id: challengeId,
+      user_id: profile.id,
+    });
+
+    if (waitlistError) {
+      if (waitlistError.code === "23505") {
+        return { error: "You are already on the waitlist for this challenge." };
+      }
+      return { error: waitlistError.message };
+    }
+
+    revalidateChallengePaths(challenge);
+    return { success: true, waitlisted: true };
   }
 
   const { error } = await supabase.from("challenge_participants").insert({
@@ -102,9 +290,71 @@ export async function registerForChallenge(challengeId: string) {
     return { error: error.message };
   }
 
-  revalidatePath(`/dashboard/challenges/${challenge.slug}`);
-  revalidatePath("/dashboard/classes");
-  revalidatePath(`/admin/challenges/${challengeId}/bracket`);
+  await supabase
+    .from("challenge_waitlist")
+    .delete()
+    .eq("challenge_id", challengeId)
+    .eq("user_id", profile.id);
+
+  revalidateChallengePaths(challenge);
+  return { success: true };
+}
+
+export async function leaveChallenge(challengeId: string) {
+  if (isDemoChallengeId(challengeId)) {
+    return { error: "This is a preview challenge." };
+  }
+
+  const profile = await requireClient();
+  const supabase = await createClient();
+
+  const { data: challengeRow } = await supabase
+    .from("challenges")
+    .select("id, slug, max_participants, is_transformation, is_flash")
+    .eq("id", challengeId)
+    .maybeSingle();
+
+  if (!challengeRow) return { error: "Challenge not found." };
+
+  const challenge = rowToChallenge(challengeRow);
+
+  const { data: participant } = await supabase
+    .from("challenge_participants")
+    .select("id")
+    .eq("challenge_id", challengeId)
+    .eq("user_id", profile.id)
+    .maybeSingle();
+
+  if (!participant) {
+    return { error: "You are not registered for this challenge." };
+  }
+
+  await removeParticipantAndPromote(supabase, challenge, profile.id);
+  revalidateChallengePaths(challenge);
+  return { success: true };
+}
+
+export async function leaveChallengeWaitlist(challengeId: string) {
+  const profile = await requireClient();
+  const supabase = await createClient();
+
+  const { data: challengeRow } = await supabase
+    .from("challenges")
+    .select("id, slug")
+    .eq("id", challengeId)
+    .maybeSingle();
+
+  if (!challengeRow) return { error: "Challenge not found." };
+
+  const { error } = await supabase
+    .from("challenge_waitlist")
+    .delete()
+    .eq("challenge_id", challengeId)
+    .eq("user_id", profile.id);
+
+  if (error) return { error: error.message };
+
+  revalidateChallengePaths(rowToChallenge(challengeRow));
   return { success: true };
 }
 

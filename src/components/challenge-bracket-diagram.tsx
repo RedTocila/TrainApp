@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePlatformCopy } from "@/components/locale-provider";
 import type {
   ChallengeBracketData,
   ChallengeBracketGroup,
@@ -180,12 +181,14 @@ function RoundSection({
   youId,
   adminMode,
   onSelectWinner,
+  roundLabel,
 }: {
   title: string;
   groups: ChallengeBracketGroup[];
   youId?: string | null;
   adminMode?: boolean;
   onSelectWinner?: (groupId: string, participantId: string) => void;
+  roundLabel?: string;
 }) {
   if (groups.length === 0) return null;
 
@@ -203,6 +206,7 @@ function RoundSection({
             youId={youId}
             adminMode={adminMode}
             onSelectWinner={onSelectWinner}
+            roundLabel={roundLabel}
           />
         ))}
       </div>
@@ -215,20 +219,27 @@ export function ChallengeBracketDiagram({
   currentUserParticipantId,
   onSelectWinner,
   adminMode = false,
+  variant = "tournament",
 }: {
   bracket: ChallengeBracketData;
   currentUserParticipantId?: string | null;
   onSelectWinner?: (groupId: string, participantId: string) => void;
   adminMode?: boolean;
+  /** Flash challenges: Round 1 Zoom groups only (groups of ~10). */
+  variant?: "tournament" | "zoomGroups";
 }) {
+  const platform = usePlatformCopy().challenges;
+  const flashCopy = platform.flash;
   const { round1Groups, round2Groups, round3Group, champion, participants, challenge } = bracket;
   const youId = currentUserParticipantId ?? bracket.currentUserParticipantId;
+  const isZoomGroups = variant === "zoomGroups";
+  const groupSize = challenge.group_size;
 
   if (participants.length === 0) {
     return (
       <Card className="border-dashed">
         <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          No participants yet. Elite members register from the challenge page.
+          {isZoomGroups ? flashCopy.zoomGroupsEmpty : platform.bracketEmpty}
         </CardContent>
       </Card>
     );
@@ -245,11 +256,41 @@ export function ChallengeBracketDiagram({
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Waiting for groups of {challenge.group_size} to be drawn before the first elimination
-            day.
+            {isZoomGroups
+              ? flashCopy.zoomGroupsPending.replace("{groupSize}", String(groupSize))
+              : platform.bracketGroupsPending.replace("{groupSize}", String(groupSize))}
           </p>
         </CardContent>
       </Card>
+    );
+  }
+
+  if (isZoomGroups) {
+    return (
+      <div className="space-y-6">
+        {champion && (
+          <section className="relative overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-amber-500/20 via-amber-600/10 to-card p-6 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/25">
+              <Trophy className="h-7 w-7 text-amber-300" />
+            </div>
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-300/90">
+              {flashCopy.winnerLabel}
+            </p>
+            <p className="mt-1 text-2xl font-black">{champion.display_name}</p>
+          </section>
+        )}
+
+        <RoundSection
+          title={flashCopy.zoomGroupsSection
+            .replace("{count}", String(round1Groups.length))
+            .replace("{groupSize}", String(groupSize))}
+          groups={round1Groups}
+          youId={youId}
+          adminMode={adminMode}
+          onSelectWinner={onSelectWinner}
+          roundLabel={flashCopy.zoomGroupLabel}
+        />
+      </div>
     );
   }
 

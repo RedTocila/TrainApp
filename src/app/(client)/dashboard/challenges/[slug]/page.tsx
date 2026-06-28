@@ -5,16 +5,23 @@ import { createClient } from "@/lib/supabase/server";
 import { requireClient } from "@/lib/actions/auth";
 import { getChallengeBySlug } from "@/lib/actions/challenges";
 import { getChallengeAnnouncementsBySlug } from "@/lib/actions/challenge-announcements";
-import { getChallengeBracketBySlug } from "@/lib/actions/challenge-bracket";
+import {
+  getChallengeBracketBySlug,
+  getUserFlashChallengeStatus,
+  getUserTransformationChallengeStatus,
+} from "@/lib/actions/challenge-bracket";
 import { isDemoChallengeSlug } from "@/lib/challenge-demo";
 import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { ChallengeAnnouncements } from "@/components/challenge-announcements";
 import { ChallengeBracketDiagram } from "@/components/challenge-bracket-diagram";
 import { ChallengeDetailVisuals } from "@/components/challenge-detail-visuals";
 import { ChallengePrizePool } from "@/components/challenge-prize-pool";
-import { ChallengeRegisterButton } from "@/components/challenge-register-button";
+import { ChallengeJoinActions, ChallengeRegisterButton } from "@/components/challenge-join-actions";
+import { isFlashChallenge, isTransformationChallenge } from "@/lib/challenge-series";
 import { ChallengeRulesButton } from "@/components/challenge-rules-panel";
+import { ChallengeShareButton } from "@/components/challenge-share-button";
 import { ChallengeZoomPanel } from "@/components/challenge-zoom-panel";
+import { FlashChallengeActionBlock } from "@/components/flash-challenge-action-block";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,7 +30,7 @@ import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { PLATFORM_ELITE_NAME } from "@/lib/brand";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import { hasEliteAccess } from "@/lib/subscription";
-import { ArrowLeft, GitBranch } from "lucide-react";
+import { ArrowLeft, GitBranch, Users } from "lucide-react";
 
 export default async function ChallengeDetailPage({
   params,
@@ -71,6 +78,12 @@ export default async function ChallengeDetailPage({
 
   const isDemo = isDemoChallengeSlug(slug);
   const isRegistered = isDemo || !!bracket.currentUserParticipantId;
+  const isTransformation = isTransformationChallenge(challenge);
+  const isFlash = isFlashChallenge(challenge);
+  const isSeries = isTransformation || isFlash;
+  const membership = isFlash
+    ? await getUserFlashChallengeStatus(user!.id)
+    : await getUserTransformationChallengeStatus(user!.id);
   const copy = platform.challenges;
 
   return (
@@ -83,46 +96,80 @@ export default async function ChallengeDetailPage({
               Back to Live
             </Button>
           </Link>
-          <ChallengeRulesButton copy={copy} slug={slug} />
+          <div className="flex flex-wrap items-center gap-2">
+            <ChallengeShareButton slug={slug} title={challenge.title} />
+            <ChallengeRulesButton copy={copy} slug={slug} />
+          </div>
         </div>
 
         <header>
           <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{challenge.title}</h1>
         </header>
 
-        <ChallengeAnnouncements announcements={announcements} />
+        <ChallengeAnnouncements announcements={announcements} alwaysVisible={isFlash} />
 
-        <ChallengePrizePool
-          challenge={challenge}
-          participantCount={bracket.participants.length}
-        />
-
-        <ChallengeDetailVisuals
-          copy={copy}
-          challenge={challenge}
-          participantCount={bracket.participants.length}
-        />
-
-        <section className="space-y-3">
-          {status !== "ended" && !isDemo && (
-            <ChallengeRegisterButton
-              challengeId={challenge.id}
-              isRegistered={isRegistered}
+        {isFlash ? (
+          <>
+            <FlashChallengeActionBlock
+              challenge={challenge}
+              participantCount={bracket.participants.length}
+              membership={membership}
+              showJoin={status !== "ended" && !isDemo}
+              zoomUrl={challenge.final_zoom_url}
             />
-          )}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-bold">{copy.flash.zoomGroupsTitle}</h2>
+              </div>
+              <ChallengeBracketDiagram bracket={bracket} variant="zoomGroups" />
+            </section>
+          </>
+        ) : (
+          <>
+            <ChallengePrizePool
+              challenge={challenge}
+              participantCount={bracket.participants.length}
+            />
+            <ChallengeDetailVisuals
+              copy={copy}
+              challenge={challenge}
+              participantCount={bracket.participants.length}
+            />
+          </>
+        )}
 
-          <ChallengeZoomPanel bracket={bracket} joinable={joinable && status !== "ended"} />
-        </section>
+        {!isFlash ? (
+          <section className="space-y-3">
+            {status !== "ended" && !isDemo && (
+              isSeries ? (
+                <ChallengeJoinActions
+                  challenge={challenge}
+                  participantCount={bracket.participants.length}
+                  membership={membership}
+                />
+              ) : (
+                <ChallengeRegisterButton
+                  challengeId={challenge.id}
+                  isRegistered={isRegistered}
+                />
+              )
+            )}
+            <ChallengeZoomPanel bracket={bracket} joinable={joinable && status !== "ended"} />
+          </section>
+        ) : null}
 
-        <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <GitBranch className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold">{copy.bracketTitle}</h2>
-          </div>
-          <ChallengeBracketDiagram bracket={bracket} />
-        </section>
+        {!isFlash ? (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <GitBranch className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-bold">{copy.bracketTitle}</h2>
+            </div>
+            <ChallengeBracketDiagram bracket={bracket} />
+          </section>
+        ) : null}
 
-        {status === "ended" && !bracket.champion && (
+        {status === "ended" && !bracket.champion && !isFlash && (
           <Card>
             <CardContent className="p-4 text-sm text-muted-foreground">
               This challenge has ended. The champion will appear once the final round is complete.
@@ -130,7 +177,7 @@ export default async function ChallengeDetailPage({
           </Card>
         )}
 
-        {challenge.description.trim() && (
+        {!isFlash && challenge.description.trim() && (
           <div className="prose prose-invert max-w-none prose-headings:font-bold prose-a:text-primary prose-p:text-sm">
             <ReactMarkdown>{challenge.description}</ReactMarkdown>
           </div>

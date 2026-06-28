@@ -440,6 +440,16 @@ export interface Challenge {
   duration_minutes: number;
   /** Total tournament length in months — one Zoom elimination round per month. */
   duration_months: number;
+  /** Day-based length when set (e.g. 30-day challenge). */
+  duration_days?: number | null;
+  /** Cap on active participants; null = unlimited. */
+  max_participants?: number | null;
+  /** Fixed transformation series — one enrollment per user across these. */
+  is_transformation?: boolean;
+  /** Quick 1–7 day competition with entry fee. */
+  is_flash?: boolean;
+  /** Entry fee in cents (display-only, e.g. 1000 = €10). */
+  entry_fee_cents?: number;
   group_size: number;
   final_zoom_url: string | null;
   champion_participant_id: string | null;
@@ -475,6 +485,30 @@ export interface ChallengeParticipant {
   eliminated_round: ChallengeRound | null;
   created_at: string;
 }
+
+export interface ChallengeWaitlistEntry {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  created_at: string;
+}
+
+export interface UserSeriesChallengeStatus {
+  participant: {
+    challenge_id: string;
+    challenge_slug: string;
+    challenge_title: string;
+  } | null;
+  waitlist: {
+    challenge_id: string;
+    challenge_slug: string;
+    challenge_title: string;
+    position: number;
+  } | null;
+}
+
+/** @deprecated use UserSeriesChallengeStatus */
+export type UserTransformationChallengeStatus = UserSeriesChallengeStatus;
 
 export interface ChallengeGroup {
   id: string;

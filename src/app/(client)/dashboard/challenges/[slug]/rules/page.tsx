@@ -3,11 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { requireClient } from "@/lib/actions/auth";
 import { getChallengeBySlug } from "@/lib/actions/challenges";
 import { ChallengeRulesInstructionsClient } from "@/components/challenge-rules-instructions-client";
+import { FlashChallengeRulesClient } from "@/components/flash-challenge-rules-client";
 import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { PageTransition } from "@/components/page-transition";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { PLATFORM_ELITE_NAME } from "@/lib/brand";
 import { getChallengeDurationMonths } from "@/lib/challenge-utils";
+import { isFlashChallenge } from "@/lib/challenge-series";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import { hasEliteAccess } from "@/lib/subscription";
 
@@ -46,6 +48,16 @@ export default async function ChallengeRulesPage({
 
   const challenge = await getChallengeBySlug(slug);
   if (!challenge) notFound();
+
+  if (isFlashChallenge(challenge)) {
+    return (
+      <FlashChallengeRulesClient
+        copy={platform.challenges}
+        challengeTitle={challenge.title}
+        backHref={`/dashboard/challenges/${slug}`}
+      />
+    );
+  }
 
   return (
     <ChallengeRulesInstructionsClient

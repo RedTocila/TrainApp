@@ -1,21 +1,45 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Trophy, TrendingUp, Users } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   getChallengePrizePoolCents,
+  getMaxChallengePrizePoolCents,
   getPrizePoolCentsPerParticipant,
+  getPrizePoolMonthsActive,
 } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
+import { getChallengeEntryFeeCents, isFlashChallenge } from "@/lib/challenge-series";
 import type { Challenge } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type ChallengePrizePoolProps = {
-  challenge: Pick<Challenge, "prize_pool_cents_per_participant">;
+  challenge: Pick<
+    Challenge,
+    | "prize_pool_cents_per_participant"
+    | "scheduled_at"
+    | "slug"
+    | "is_flash"
+    | "is_transformation"
+    | "entry_fee_cents"
+    | "duration_days"
+    | "duration_months"
+    | "max_participants"
+  >;
   participantCount: number;
   variant?: "panel" | "compact" | "hero";
+  /** Larger hero text (flash catalog cards). */
+  heroSize?: "default" | "lg";
+  /** Catalog cards: show full-capacity max prize instead of current pool. */
+  prizeMode?: "current" | "max";
+  /** Hide per-participant pool increment (flash challenges). */
+  hidePoolBreakdown?: boolean;
+  footer?: ReactNode;
+  /** Light text for hero cards on dark gradient backgrounds */
+  tone?: "default" | "onGradient";
   className?: string;
 };
 
@@ -23,14 +47,35 @@ export function ChallengePrizePool({
   challenge,
   participantCount,
   variant = "panel",
+  heroSize = "default",
+  prizeMode = "current",
+  hidePoolBreakdown = false,
+  footer,
+  tone = "default",
   className,
 }: ChallengePrizePoolProps) {
   const platform = usePlatformCopy();
   const copy = platform.challenges.prizePool;
   const centsPerParticipant = getPrizePoolCentsPerParticipant(challenge);
-  const poolCents = getChallengePrizePoolCents(challenge, participantCount);
+  const poolCents =
+    prizeMode === "max"
+      ? getMaxChallengePrizePoolCents(challenge)
+      : getChallengePrizePoolCents(challenge, participantCount);
+  const monthsActive = getPrizePoolMonthsActive(challenge);
   const perPersonLabel = formatEurosFromCents(centsPerParticipant);
   const poolLabel = formatEurosFromCents(poolCents);
+  const showMax = prizeMode === "max";
+  const entryFeeCents = getChallengeEntryFeeCents(challenge);
+  const entryFeeLabel = formatEurosFromCents(entryFeeCents);
+  const isFlash = isFlashChallenge(challenge);
+  const monthlyGrowthNote = isFlash
+    ? copy.flashPoolNote
+    : monthsActive > 1
+      ? copy.monthlyPoolGrowthActive
+          .replace("{month}", String(monthsActive))
+          .replace("{amount}", perPersonLabel)
+          .replace("{count}", String(participantCount))
+      : copy.monthlyPoolGrowth;
 
   if (variant === "compact") {
     return (
@@ -42,29 +87,79 @@ export function ChallengePrizePool({
         )}
       >
         <Trophy className="mr-1 h-3 w-3" />
-        {copy.compactPool.replace("{pool}", poolLabel)}
+        {showMax
+          ? copy.compactWinUpTo.replace("{pool}", poolLabel)
+          : copy.compactPool.replace("{pool}", poolLabel)}
       </Badge>
     );
   }
 
   if (variant === "hero") {
+    const onGradient = tone === "onGradient";
+    const prominent = heroSize === "lg";
+    const flashCatch = isFlash && showMax && prominent;
+
     return (
       <div
         className={cn(
-          "inline-flex flex-col gap-1 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-50",
+          "inline-flex flex-col rounded-xl border",
+          prominent ? "gap-1.5 px-5 py-4" : "gap-1 px-4 py-3",
+          onGradient
+            ? "border-white/25 bg-black/25 text-white backdrop-blur-sm"
+            : "border-amber-500/30 bg-amber-500/10 text-amber-50",
           className
         )}
       >
-        <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-200/90">
-          <Trophy className="h-3.5 w-3.5" />
-          {copy.grandPrize}
-        </span>
-        <span className="text-2xl font-black tabular-nums">{poolLabel}</span>
-        <span className="text-xs text-amber-100/80">
-          {copy.perParticipant
-            .replace("{amount}", perPersonLabel)
-            .replace("{count}", String(participantCount))}
-        </span>
+        {flashCatch ? (
+          <>
+            <span
+              className={cn(
+                "font-black tabular-nums leading-none tracking-tight",
+                "text-3xl sm:text-4xl",
+                onGradient ? "text-white" : "text-amber-50"
+              )}
+            >
+              {copy.flashCatch.replace("{pool}", poolLabel)}
+            </span>
+            <span
+              className={cn(
+                "text-lg font-bold sm:text-xl",
+                onGradient ? "text-amber-200" : "text-amber-300"
+              )}
+            >
+              {copy.flashCatchWindow}
+            </span>
+          </>
+        ) : (
+          <>
+            <span
+              className={cn(
+                "flex items-center gap-2 font-semibold uppercase tracking-wider",
+                prominent ? "text-sm" : "text-xs",
+                onGradient ? "text-white/85" : "text-amber-200/90"
+              )}
+            >
+              <Trophy className={cn(prominent ? "h-4 w-4" : "h-3.5 w-3.5")} />
+              {showMax ? copy.maxPrizeLabel : copy.grandPrize}
+            </span>
+            <span
+              className={cn(
+                "font-black tabular-nums",
+                prominent ? "text-3xl sm:text-4xl" : "text-2xl"
+              )}
+            >
+              {poolLabel}
+            </span>
+          </>
+        )}
+        {!hidePoolBreakdown && !showMax ? (
+          <span className={cn("text-xs", onGradient ? "text-white/75" : "text-amber-100/80")}>
+            {copy.perParticipant
+              .replace("{amount}", perPersonLabel)
+              .replace("{count}", String(participantCount))
+              .replace("{month}", String(monthsActive))}
+          </span>
+        ) : null}
       </div>
     );
   }
@@ -83,22 +178,30 @@ export function ChallengePrizePool({
           </div>
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-right">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-200/80">
-              {copy.perEntry}
+              {entryFeeCents > 0 ? copy.entryFee : copy.perEntry}
             </p>
-            <p className="text-lg font-bold tabular-nums text-amber-100">+{perPersonLabel}</p>
+            <p className="text-lg font-bold tabular-nums text-amber-100">
+              {entryFeeCents > 0 ? entryFeeLabel : `+${perPersonLabel}`}
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5 text-amber-300" />
-            {copy.participants.replace("{count}", String(participantCount))}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <TrendingUp className="h-3.5 w-3.5 text-amber-300" />
-            {copy.growsWithSignups}
-          </span>
-        </div>
+        {!hidePoolBreakdown ? (
+          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-amber-300" />
+              {copy.participants.replace("{count}", String(participantCount))}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-amber-300" />
+              {monthlyGrowthNote}
+            </span>
+          </div>
+        ) : null}
+
+        {footer ? (
+          <div className="border-t border-amber-500/20 pt-4">{footer}</div>
+        ) : null}
       </CardContent>
     </Card>
   );

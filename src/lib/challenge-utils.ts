@@ -1,8 +1,11 @@
 import type { Challenge, ChallengeBracketData, ChallengePhase } from "@/lib/types";
+import { getChallengeMaxParticipants } from "@/lib/challenge-series";
 
 export const DEFAULT_PRIZE_POOL_CENTS_PER_PARTICIPANT = 1000;
 
 export const DEFAULT_CHALLENGE_DURATION_MONTHS = 3;
+
+export const DEFAULT_TRANSFORMATION_MAX_PARTICIPANTS = 100;
 
 export const ROUND1_ADVANCE_COUNT = 5;
 
@@ -14,10 +17,118 @@ export function getChallengeDurationMonths(
   return challenge.duration_months ?? DEFAULT_CHALLENGE_DURATION_MONTHS;
 }
 
+export function getChallengeDurationDays(
+  challenge: Pick<Challenge, "duration_days" | "duration_months">
+): number | null {
+  if (typeof challenge.duration_days === "number" && challenge.duration_days > 0) {
+    return challenge.duration_days;
+  }
+  return null;
+}
+
 export function getChallengeEndDate(challenge: Challenge): Date {
-  const end = new Date(challenge.scheduled_at);
+  const start = new Date(challenge.scheduled_at);
+  const durationDays = getChallengeDurationDays(challenge);
+  if (durationDays != null) {
+    const end = new Date(start);
+    end.setDate(end.getDate() + durationDays);
+    return end;
+  }
+  const end = new Date(start);
   end.setMonth(end.getMonth() + getChallengeDurationMonths(challenge));
   return end;
+}
+
+/** Calendar months elapsed since challenge start (0 in the first month). */
+export function getPrizePoolMonthIndex(
+  challenge: Pick<Challenge, "scheduled_at">,
+  now = new Date()
+): number {
+  const start = new Date(challenge.scheduled_at);
+  if (now < start) return 0;
+  const months =
+    (now.getFullYear() - start.getFullYear()) * 12 +
+    (now.getMonth() - start.getMonth());
+  return Math.max(0, months);
+}
+
+/**
+ * Long challenges: each month adds €10 × current participants to the pool (1× in month 1, up to duration).
+ * Flash: single per-entrant contribution, no monthly accrual.
+ */
+export function getPrizePoolMonthsActive(
+  challenge: Pick<
+    Challenge,
+    "scheduled_at" | "duration_months" | "is_flash" | "is_transformation"
+  >,
+  now = new Date()
+): number {
+  if (challenge.is_flash === true) return 1;
+
+  const durationMonths = getChallengeDurationMonths(challenge);
+  const monthIndex = getPrizePoolMonthIndex(challenge, now);
+  return Math.min(durationMonths, Math.max(1, monthIndex + 1));
+}
+
+/** @deprecated Use getPrizePoolMonthsActive — kept for display labels that referenced multiplier. */
+export function getPrizePoolMultiplier(
+  challenge: Pick<
+    Challenge,
+    "scheduled_at" | "is_flash" | "is_transformation" | "duration_months"
+  >,
+  now = new Date()
+): number {
+  return getPrizePoolMonthsActive(challenge, now);
+}
+
+export function getChallengePrizePoolCents(
+  challenge: Pick<
+    Challenge,
+    | "prize_pool_cents_per_participant"
+    | "scheduled_at"
+    | "is_flash"
+    | "is_transformation"
+    | "duration_months"
+  >,
+  participantCount: number,
+  now = new Date()
+): number {
+  const perParticipant = getPrizePoolCentsPerParticipant(challenge);
+  const months = getPrizePoolMonthsActive(challenge, now);
+  return participantCount * perParticipant * months;
+}
+
+/** Full-capacity prize pool at the end of the challenge. */
+export function getMaxChallengePrizePoolCents(
+  challenge: Pick<
+    Challenge,
+    | "prize_pool_cents_per_participant"
+    | "scheduled_at"
+    | "is_flash"
+    | "is_transformation"
+    | "duration_days"
+    | "duration_months"
+    | "max_participants"
+  >
+): number {
+  const maxParticipants = getChallengeMaxParticipants(challenge);
+  if (maxParticipants == null || maxParticipants <= 0) return 0;
+
+  if (challenge.is_flash === true) {
+    return maxParticipants * getPrizePoolCentsPerParticipant(challenge);
+  }
+
+  const durationMonths = getChallengeDurationMonths(challenge);
+  return maxParticipants * getPrizePoolCentsPerParticipant(challenge) * durationMonths;
+}
+
+export function isChallengeAtCapacity(
+  challenge: Pick<Challenge, "max_participants" | "is_transformation" | "is_flash">,
+  participantCount: number
+): boolean {
+  const max = getChallengeMaxParticipants(challenge);
+  if (max == null) return false;
+  return participantCount >= max;
 }
 
 export function getChallengeStatus(challenge: Challenge, now = new Date()): ChallengeStatus {
@@ -49,13 +160,6 @@ export function getPrizePoolCentsPerParticipant(
   challenge: Pick<Challenge, "prize_pool_cents_per_participant">
 ): number {
   return challenge.prize_pool_cents_per_participant ?? DEFAULT_PRIZE_POOL_CENTS_PER_PARTICIPANT;
-}
-
-export function getChallengePrizePoolCents(
-  challenge: Pick<Challenge, "prize_pool_cents_per_participant">,
-  participantCount: number
-): number {
-  return participantCount * getPrizePoolCentsPerParticipant(challenge);
 }
 
 export function getChallengePhase(challenge: Pick<Challenge, "current_phase">): ChallengePhase {

@@ -4,13 +4,26 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  getDemoChallengeBySlug,
-  getDemoChallenges,
   isDemoChallengeId,
-  DEMO_PARTICIPANT_COUNT,
+  isDemoChallengeSlug,
 } from "@/lib/challenge-demo";
 import { suggestChallengeZoomDates } from "@/lib/challenge-utils";
+import {
+  ensureFlashChallengesInDb,
+  getFlashChallengeBySlug,
+  mergeFlashChallenges,
+} from "@/lib/flash-challenge-catalog";
+import {
+  ensureTransformationChallengesInDb,
+  getTransformationChallengeBySlug,
+  mergeTransformationChallenges,
+} from "@/lib/transformation-challenge-catalog";
+
 import type { Challenge } from "@/lib/types";
+
+export async function ensureCatalogChallengesInDb(): Promise<void> {
+  await Promise.all([ensureTransformationChallengesInDb(), ensureFlashChallengesInDb()]);
+}
 
 function parseScheduledAt(value: FormDataEntryValue | null): string {
   const raw = String(value ?? "").trim();
@@ -64,6 +77,12 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
         : 1000,
     duration_months:
       typeof row.duration_months === "number" ? row.duration_months : 3,
+    duration_days: typeof row.duration_days === "number" ? row.duration_days : null,
+    max_participants:
+      typeof row.max_participants === "number" ? row.max_participants : null,
+    is_transformation: row.is_transformation === true,
+    is_flash: row.is_flash === true,
+    entry_fee_cents: typeof row.entry_fee_cents === "number" ? row.entry_fee_cents : 0,
     round_1_zoom_at: (row.round_1_zoom_at as string | null) ?? null,
     round_2_zoom_at: (row.round_2_zoom_at as string | null) ?? null,
     round_3_zoom_at: (row.round_3_zoom_at as string | null) ?? null,
@@ -76,7 +95,7 @@ async function attachParticipantCounts(challenges: Challenge[]): Promise<Challen
   if (challenges.length === 0) return challenges;
 
   const supabase = await createClient();
-  const dbIds = challenges.filter((c) => !isDemoChallengeId(c.id)).map((c) => c.id);
+  const dbIds = challenges.map((c) => c.id);
 
   const counts = new Map<string, number>();
   if (dbIds.length > 0) {
@@ -92,21 +111,20 @@ async function attachParticipantCounts(challenges: Challenge[]): Promise<Challen
 
   return challenges.map((challenge) => ({
     ...challenge,
-    participant_count: isDemoChallengeId(challenge.id)
-      ? DEMO_PARTICIPANT_COUNT
-      : counts.get(challenge.id) ?? 0,
+    participant_count: counts.get(challenge.id) ?? 0,
   }));
 }
 
-function mergeWithDemoChallenges(dbChallenges: Challenge[]): Challenge[] {
-  const dbSlugs = new Set(dbChallenges.map((c) => c.slug));
-  const demos = getDemoChallenges().filter((d) => !dbSlugs.has(d.slug));
-  return [...dbChallenges, ...demos].sort(
-    (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
-  );
+function mergeCatalogChallenges(dbChallenges: Challenge[]): Challenge[] {
+  const filtered = dbChallenges.filter((c) => !isDemoChallengeSlug(c.slug));
+  const transformation = mergeTransformationChallenges(filtered);
+  const flash = mergeFlashChallenges(filtered);
+  return [...transformation, ...flash];
 }
 
 export async function getPublishedChallenges(): Promise<Challenge[]> {
+  await ensureCatalogChallengesInDb();
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("challenges")
@@ -114,8 +132,10 @@ export async function getPublishedChallenges(): Promise<Challenge[]> {
     .eq("published", true)
     .order("scheduled_at", { ascending: false });
 
-  if (error) return attachParticipantCounts(getDemoChallenges());
-  const merged = mergeWithDemoChallenges((data ?? []).map(rowToChallenge));
+  if (error) {
+    return attachParticipantCounts(mergeCatalogChallenges([]));
+  }
+  const merged = mergeCatalogChallenges((data ?? []).map(rowToChallenge));
   return attachParticipantCounts(merged);
 }
 
@@ -130,8 +150,11 @@ export async function getAllChallenges(): Promise<Challenge[]> {
 }
 
 export async function getChallengeBySlug(slug: string): Promise<Challenge | null> {
-  const demo = getDemoChallengeBySlug(slug);
-  if (demo) return demo;
+  if (isDemoChallengeSlug(slug)) return null;
+
+  const catalog = getTransformationChallengeBySlug(slug) ?? getFlashChallengeBySlug(slug);
+
+  await ensureCatalogChallengesInDb();
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -140,8 +163,10 @@ export async function getChallengeBySlug(slug: string): Promise<Challenge | null
     .eq("slug", slug)
     .maybeSingle();
 
-  if (error || !data) return null;
-  if (!data.published) return null;
+  if (error || !data) {
+    return catalog?.published ? catalog : null;
+  }
+  if (!data.published) return catalog?.published ? catalog : null;
   return rowToChallenge(data);
 }
 

@@ -11,19 +11,23 @@ import { cn } from "@/lib/utils";
 
 export function ChallengeAnnouncements({
   announcements,
+  alwaysVisible = false,
 }: {
   announcements: ChallengeAnnouncement[];
+  /** Keep the flashy banner visible even before the first post (flash challenges). */
+  alwaysVisible?: boolean;
 }) {
   const copy = usePlatformCopy().challenges;
   const [open, setOpen] = useState(true);
 
-  if (announcements.length === 0) return null;
+  if (announcements.length === 0 && !alwaysVisible) return null;
 
   const fromAdminLabel = copy.announcementsFromAdmin.replace(
     "{name}",
     PLATFORM_ADMIN_DISPLAY_NAME
   );
   const latest = announcements[0];
+  const isEmpty = announcements.length === 0;
 
   return (
     <section
@@ -57,6 +61,9 @@ export function ChallengeAnnouncements({
               {!open && latest && (
                 <p className="mt-0.5 truncate text-sm text-red-50/90">{latest.title}</p>
               )}
+              {!open && isEmpty && (
+                <p className="mt-0.5 truncate text-sm text-red-50/90">{copy.announcementsEmpty}</p>
+              )}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -80,28 +87,34 @@ export function ChallengeAnnouncements({
         >
           <div className="overflow-hidden">
             <div className="space-y-3 border-t border-red-400/20 px-4 pb-4 pt-1 sm:px-5 sm:pb-5">
-              {announcements.map((announcement, index) => (
-                <article
-                  key={announcement.id}
-                  className={cn(
-                    "rounded-xl border border-white/10 bg-black/25 p-4 backdrop-blur-sm",
-                    index === 0 && "ring-1 ring-amber-400/30"
-                  )}
-                >
-                  <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                    <h3 className="text-base font-bold text-white">{announcement.title}</h3>
-                    <time
-                      className="text-xs font-medium text-red-100/70"
-                      dateTime={announcement.created_at}
-                    >
-                      {format(new Date(announcement.created_at), "MMM d · h:mm a")}
-                    </time>
-                  </div>
-                  <div className="prose prose-invert max-w-none prose-p:my-1 prose-p:text-sm prose-p:leading-relaxed prose-a:text-amber-300 prose-strong:text-white">
-                    <ReactMarkdown>{announcement.body}</ReactMarkdown>
-                  </div>
-                </article>
-              ))}
+              {isEmpty ? (
+                <p className="rounded-xl border border-white/10 bg-black/25 p-4 text-sm text-red-50/90 backdrop-blur-sm">
+                  {copy.announcementsEmpty}
+                </p>
+              ) : (
+                announcements.map((announcement, index) => (
+                  <article
+                    key={announcement.id}
+                    className={cn(
+                      "rounded-xl border border-white/10 bg-black/25 p-4 backdrop-blur-sm",
+                      index === 0 && "ring-1 ring-amber-400/30"
+                    )}
+                  >
+                    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                      <h3 className="text-base font-bold text-white">{announcement.title}</h3>
+                      <time
+                        className="text-xs font-medium text-red-100/70"
+                        dateTime={announcement.created_at}
+                      >
+                        {format(new Date(announcement.created_at), "MMM d · h:mm a")}
+                      </time>
+                    </div>
+                    <div className="prose prose-invert max-w-none prose-p:my-1 prose-p:text-sm prose-p:leading-relaxed prose-a:text-amber-300 prose-strong:text-white">
+                      <ReactMarkdown>{announcement.body}</ReactMarkdown>
+                    </div>
+                  </article>
+                ))
+              )}
             </div>
           </div>
         </div>
