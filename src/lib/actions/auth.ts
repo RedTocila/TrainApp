@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCachedProfile } from "@/lib/cached-profile";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
-import { attachReferralOnSignup, normalizeReferralCode } from "@/lib/referral";
 import { formatUserError, isEmailNotConfirmedError } from "@/lib/format-user-error";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
@@ -16,8 +15,6 @@ type RegistrationInput = {
   email: string;
   phone: string | null;
   intakeJson?: string | null;
-  referralCode?: string | null;
-  deviceHash?: string | null;
 };
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -94,14 +91,12 @@ async function ensureProfileExists(
     await new Promise((resolve) => setTimeout(resolve, 75 * (attempt + 1)));
   }
 
-  const referralCode = userId.replace(/-/g, "").slice(0, 8).toLowerCase();
   const role =
     process.env.ADMIN_EMAIL && input.email === process.env.ADMIN_EMAIL ? "admin" : "client";
 
   const { error } = await supabase.from("profiles").insert({
     id: userId,
     full_name: input.fullName || input.email.split("@")[0] || "Member",
-    referral_code: referralCode,
     role,
   });
 
@@ -115,7 +110,7 @@ async function ensureProfileExists(
 async function finalizeNewUserProfile(
   supabase: SupabaseClient,
   userId: string,
-  userMetadata: Record<string, unknown> | undefined,
+  _userMetadata: Record<string, unknown> | undefined,
   input: RegistrationInput
 ) {
   const email = input.email.trim().toLowerCase();
@@ -183,21 +178,6 @@ async function finalizeNewUserProfile(
     }
   }
 
-  const referralCode =
-    normalizeReferralCode(input.referralCode) ??
-    normalizeReferralCode(
-      typeof userMetadata?.referral_code === "string" ? userMetadata.referral_code : null
-    );
-  const deviceHash =
-    input.deviceHash?.trim() ||
-    (typeof userMetadata?.device_hash === "string" ? userMetadata.device_hash : null);
-
-  try {
-    await attachReferralOnSignup(supabase, userId, referralCode, deviceHash);
-  } catch (referralError) {
-    console.error("[finalizeNewUserProfile] referral attach failed", referralError);
-  }
-
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
@@ -220,13 +200,6 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
   };
   if (input.phone) {
     userMetadata.phone = input.phone;
-  }
-  if (input.referralCode) {
-    const code = normalizeReferralCode(input.referralCode);
-    if (code) userMetadata.referral_code = code;
-  }
-  if (input.deviceHash?.trim()) {
-    userMetadata.device_hash = input.deviceHash.trim();
   }
 
   const { data: created, error: createError } = await admin.auth.admin.createUser({

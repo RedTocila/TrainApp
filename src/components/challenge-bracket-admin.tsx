@@ -22,7 +22,7 @@ import {
   isRound2Complete,
   ROUND1_ADVANCE_COUNT,
 } from "@/lib/challenge-utils";
-import { formatEurosFromCents } from "@/lib/referral-credits";
+import { formatEurosFromCents } from "@/lib/format-currency";
 import { ChallengeBracketDiagram } from "@/components/challenge-bracket-diagram";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

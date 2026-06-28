@@ -54,8 +54,5 @@ export function getPricingReturnLabel(
   if (returnPath === "/dashboard/profile" || returnPath.startsWith("/dashboard/profile/")) {
     return labels.profile;
   }
-  if (returnPath === "/dashboard/referrals" || returnPath.startsWith("/dashboard/referrals/")) {
-    return labels.back;
-  }
   return labels.back;
 }

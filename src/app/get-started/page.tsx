@@ -9,11 +9,6 @@ export const metadata: Metadata = {
     "Answer a quick health & lifestyle questionnaire and get personalized macros, habits, and coaching before you sign up.",
 };
 
-export default async function GetStartedPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ ref?: string }>;
-}) {
-  const { ref } = await searchParams;
-  return <GetStartedClient initialReferralCode={ref} />;
+export default function GetStartedPage() {
+  return <GetStartedClient />;
 }

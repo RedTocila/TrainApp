@@ -1,6 +1,6 @@
 export const ACCENT_COLORS = [
   { id: "red", label: "Red", swatch: "#dc2626" },
-  { id: "amber", label: "Amber", swatch: "#d97706" },
+  { id: "purple", label: "Purple", swatch: "#9333ea" },
   { id: "pink", label: "Pink", swatch: "#db2777" },
   { id: "teal", label: "Teal", swatch: "#0d9488" },
   { id: "blue", label: "Blue", swatch: "#2563eb" },
@@ -26,7 +26,7 @@ export type AccentPaletteEntry = {
 
 export const ACCENT_PALETTE: Record<AccentColor, AccentPaletteEntry> = {
   red: { primary: "#dc2626", accent: "#ef4444", rgb: "220, 38, 38" },
-  amber: { primary: "#d97706", accent: "#fbbf24", rgb: "217, 119, 6" },
+  purple: { primary: "#9333ea", accent: "#a855f7", rgb: "147, 51, 234" },
   pink: { primary: "#db2777", accent: "#f472b6", rgb: "219, 39, 119" },
   teal: { primary: "#0d9488", accent: "#2dd4bf", rgb: "13, 148, 136" },
   blue: { primary: "#2563eb", accent: "#60a5fa", rgb: "37, 99, 235" },
@@ -63,4 +63,10 @@ export function resolveAccentPalette(
 
 export function isAccentColor(value: string | null): value is AccentColor {
   return ACCENT_COLORS.some((c) => c.id === value);
+}
+
+/** Maps legacy stored accent ids to current palette keys. */
+export function normalizeAccentColor(value: string | null): AccentColor {
+  if (value === "amber") return "purple";
+  return isAccentColor(value) ? value : "red";
 }

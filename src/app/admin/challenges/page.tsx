@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DeleteChallengeButton } from "@/components/delete-challenge-button";
 import { getChallengeStatus, getChallengePrizePoolCents, getChallengeDurationMonths, getPrizePoolCentsPerParticipant } from "@/lib/challenge-utils";
-import { formatEurosFromCents } from "@/lib/referral-credits";
+import { formatEurosFromCents } from "@/lib/format-currency";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
 

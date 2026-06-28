@@ -25,7 +25,7 @@ export function PricingPageClient({
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const subscribed = hasPaidAccess(profile);
 
-  // After email confirmation, finish profile setup (intake draft, referral, phone).
+  // After email confirmation, finish profile setup (intake draft, phone).
   useEffect(() => {
     if (!onboarding) return;
     const draft = loadIntakeDraft();

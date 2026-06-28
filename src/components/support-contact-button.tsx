@@ -152,7 +152,7 @@ export function SupportContactButton({
         type="button"
         variant="ghost"
         size="icon"
-        className={cn("h-8 w-8 shrink-0", buttonClassName)}
+        className={cn("shrink-0", buttonClassName ?? "h-8 w-8")}
         onClick={() => setOpen((value) => !value)}
         aria-label="Contact support"
         aria-expanded={open}

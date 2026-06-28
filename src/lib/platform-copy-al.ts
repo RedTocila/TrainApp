@@ -28,65 +28,6 @@ export const platformCopyAl = {
     personalInfo: "Të dhënat personale",
     appearance: "Pamja",
     password: "Fjalëkalimi",
-    referrals: "Referimet",
-  },
-  referrals: {
-    title: "Refero miqtë, fito kredite",
-    subtitle: "Çdo mik që paguan ju sjell €5 kredite referimi për abonimin tuaj.",
-    yourCode: "Kodi i referimit",
-    copyCode: "Kopjo kodin",
-    copied: "U kopjua!",
-    totalReferrals: "Referime totale",
-    successfulReferrals: "Referime me pagesë",
-    pendingReferrals: "Në pritje",
-    creditBalanceLabel: "Bilanci i krediteve",
-    creditBalanceHint: "Kreditet aplikohen automatikisht në rinovim",
-    creditsEarned: "Kredite të fituara",
-    moneySaved: "Para të kursyera",
-    freeMonthHeadline: "Fto 4 miq që paguajnë për muajin tjetër FALAS.",
-    freeMonthProgress: (remaining: number) =>
-      remaining === 1
-        ? "Edhe 1 mik me pagesë për një muaj falas"
-        : `Edhe ${remaining} miq me pagesë për një muaj falas`,
-    freeMonthComplete: "Rinovimi i ardhshëm mbulohet plotësisht nga kreditet",
-    ambassadorTitle: "Statusi Ambassador",
-    ambassadorBadge: (tier: string) => {
-      const labels: Record<string, string> = {
-        bronze: "Ambassador Bronz",
-        silver: "Ambassador Argjend",
-        gold: "Ambassador Ar",
-        elite: "Ambassador Elite",
-      };
-      return labels[tier] ?? tier;
-    },
-    nextAmbassador: (remaining: number, tier: string) =>
-      `${remaining} referime të tjera me pagesë → Ambassador ${tier.charAt(0).toUpperCase()}${tier.slice(1)}`,
-    howItWorksTitle: "Si funksionon",
-    howItWorks: [
-      "Ndaj kodin tënd",
-      "Miku abonohet në AI €20/muaj",
-      "Ju fitoni €5 kredite secili",
-    ],
-    viewProgram: "Shiko programin e referimit",
-    leaderboardTitle: "Renditja mujore",
-    leaderboardSubtitle: "Referuesit më të mirë këtë muaj",
-    leaderboardRank: "Renditja",
-    leaderboardUser: "Anëtar",
-    leaderboardReferrals: "Referime",
-    leaderboardYou: "Ju",
-    leaderboardRewards:
-      "Shpërblime mujore: 1. → 6 muaj Premium · 2.–3. → 3 muaj · 4.–10. → 1 muaj",
-    activatePackagesTitle: "Plani juaj",
-    activatePackagesHint: "Kërkohet plani AI €20/muaj që referimet të llogariten",
-    activateAi: "Aktivizo AI — €20/muaj",
-    upgradeAi: "Përmirëso në AI",
-    viewAllPlans: "Të gjitha planet",
-    currentPlanLabel: "Aktiv",
-    yourPackages: "Abonimi",
-    inviteFriends: "Fto miq",
-    inviteFriendAi: "Miqtë fusin kodin tënd në pagesë",
-    qualifyingPlanNote: "Vetëm faturimi mujor AI · vjetori përjashtohet",
-    back: "Kthehu",
   },
   subscription: {
     title: "Abonimi dhe planet",
@@ -742,11 +683,6 @@ export const platformCopyAl = {
     missingOrder: "Diçka mungon nga ana jonë. Kontakto mbështetjen nëse ngec.",
     paymentUnconfirmed:
       "Nuk mundëm të konfirmojmë që je brenda. Nëse u debituat, kontakto mbështetjen.",
-    referralCodeLabel: "Kodi i referimit",
-    referralCodePlaceholder: "Fusni kodin e një miku",
-    referralCodeHint: "Opsionale — kodi i mikut këtu para se ta bësh zyrtare.",
-    referralCodeInvalid: "Ky kod referimi nuk është i vlefshëm.",
-    referralCodeOwn: "Nuk mund të përdorni kodin tuaj të referimit.",
     continueToPayment: "Jam brenda — le të fillojmë",
     confirming: "Po përgatisim llogarinë tënde…",
     successTitle: "Je brenda. Tani punojmë.",

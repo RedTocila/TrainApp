@@ -28,65 +28,6 @@ export const platformCopyEn = {
     personalInfo: "Personal info",
     appearance: "Appearance",
     password: "Password",
-    referrals: "Referrals",
-  },
-  referrals: {
-    title: "Refer friends, earn credits",
-    subtitle: "Each paying friend earns you €5 in referral credits toward your subscription.",
-    yourCode: "Your referral code",
-    copyCode: "Copy code",
-    copied: "Copied!",
-    totalReferrals: "Total referrals",
-    successfulReferrals: "Paying referrals",
-    pendingReferrals: "Pending",
-    creditBalanceLabel: "Credit balance",
-    creditBalanceHint: "Credits apply automatically at renewal",
-    creditsEarned: "Credits earned",
-    moneySaved: "Money saved",
-    freeMonthHeadline: "Invite 4 paying friends to earn your next month FREE.",
-    freeMonthProgress: (remaining: number) =>
-      remaining === 1
-        ? "1 more paying friend for a free month"
-        : `${remaining} more paying friends for a free month`,
-    freeMonthComplete: "Your next renewal is fully covered by credits",
-    ambassadorTitle: "Ambassador status",
-    ambassadorBadge: (tier: string) => {
-      const labels: Record<string, string> = {
-        bronze: "Bronze Ambassador",
-        silver: "Silver Ambassador",
-        gold: "Gold Ambassador",
-        elite: "Elite Ambassador",
-      };
-      return labels[tier] ?? tier;
-    },
-    nextAmbassador: (remaining: number, tier: string) =>
-      `${remaining} more paying referrals → ${tier.charAt(0).toUpperCase()}${tier.slice(1)} Ambassador`,
-    howItWorksTitle: "How it works",
-    howItWorks: [
-      "Share your code",
-      "Friend subscribes to AI €20/mo",
-      "You earn €5 credits each",
-    ],
-    viewProgram: "View referral program",
-    leaderboardTitle: "Monthly leaderboard",
-    leaderboardSubtitle: "Top referrers this month",
-    leaderboardRank: "Rank",
-    leaderboardUser: "Member",
-    leaderboardReferrals: "Referrals",
-    leaderboardYou: "You",
-    leaderboardRewards:
-      "Monthly rewards: 1st → 6 months Premium · 2nd–3rd → 3 months · 4th–10th → 1 month",
-    activatePackagesTitle: "Your plan",
-    activatePackagesHint: "€20/mo AI plan required for referrals to count",
-    activateAi: "Activate AI — €20/mo",
-    upgradeAi: "Upgrade to AI",
-    viewAllPlans: "All plans",
-    currentPlanLabel: "Active",
-    yourPackages: "Subscription",
-    inviteFriends: "Invite friends",
-    inviteFriendAi: "Friends enter your code at checkout",
-    qualifyingPlanNote: "Monthly AI billing only · annual excluded",
-    back: "Back",
   },
   subscription: {
     title: "Subscription & plans",
@@ -735,11 +676,6 @@ export const platformCopyEn = {
     missingOrder: "Something's missing on our end. Contact support if you're stuck.",
     paymentUnconfirmed:
       "Couldn't confirm you're in yet. If something charged, contact support.",
-    referralCodeLabel: "Referral code",
-    referralCodePlaceholder: "Enter a friend's code",
-    referralCodeHint: "Optional — friend's code goes here before you lock in.",
-    referralCodeInvalid: "That referral code is not valid.",
-    referralCodeOwn: "You cannot use your own referral code.",
     continueToPayment: "I'm in — let's start",
     confirming: "Setting up your account…",
     successTitle: "You're in. Now we work.",

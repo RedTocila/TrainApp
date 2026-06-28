@@ -8,7 +8,7 @@ import {
   getChallengePrizePoolCents,
   getPrizePoolCentsPerParticipant,
 } from "@/lib/challenge-utils";
-import { formatEurosFromCents } from "@/lib/referral-credits";
+import { formatEurosFromCents } from "@/lib/format-currency";
 import type { Challenge } from "@/lib/types";
 import { cn } from "@/lib/utils";
 

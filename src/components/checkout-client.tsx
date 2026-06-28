@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
 import { CreditCard, Lock, Loader2, ShieldCheck } from "lucide-react";
 import { PokPayGuestCheckout } from "@/components/pokpay-guest-checkout";
@@ -13,10 +13,7 @@ import {
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
 import type { PlanPrice } from "@/lib/subscription-plans";
-import { loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { usePlatformCopy } from "@/components/locale-provider";
 
@@ -57,7 +54,6 @@ export function CheckoutClient({
 }) {
   const platform = usePlatformCopy();
   const router = useRouter();
-  const [referralCode, setReferralCode] = useState("");
   const [checkoutStarted, setCheckoutStarted] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [localOrderId, setLocalOrderId] = useState<string | null>(null);
@@ -67,38 +63,13 @@ export function CheckoutClient({
   const plan = getPlan(planId);
   const price = displayPrice;
 
-  useEffect(() => {
-    const saved = loadReferralCode();
-    if (saved) setReferralCode(saved);
-  }, []);
-
   const startCheckout = () => {
     setError(null);
-    const trimmedCode = referralCode.trim();
-    if (trimmedCode) saveReferralCode(trimmedCode);
-    else saveReferralCode("");
 
     startTransition(async () => {
-      const result = await createCheckoutOrder(
-        planId,
-        interval,
-        trimmedCode || null
-      );
+      const result = await createCheckoutOrder(planId, interval);
       if ("error" in result && result.error) {
-        if (result.error === "invalid_referral_code") {
-          setError(platform.checkout.referralCodeInvalid);
-          return;
-        }
-        if (result.error === "own_referral_code") {
-          setError(platform.checkout.referralCodeOwn);
-          return;
-        }
         setError(result.error);
-        return;
-      }
-      if ("paidWithCredits" in result && result.paidWithCredits && result.localOrderId) {
-        setLocalOrderId(result.localOrderId);
-        router.push(`/dashboard/checkout/success?localOrderId=${result.localOrderId}`);
         return;
       }
       if ("orderId" in result && result.orderId) {
@@ -148,23 +119,6 @@ export function CheckoutClient({
               ) : null}
             </div>
           </div>
-
-          {!checkoutStarted && (
-            <div className="space-y-2 rounded-2xl border border-border bg-secondary/20 p-4">
-              <Label htmlFor="referral-code">{platform.checkout.referralCodeLabel}</Label>
-              <Input
-                id="referral-code"
-                value={referralCode}
-                onChange={(event) => setReferralCode(event.target.value)}
-                placeholder={platform.checkout.referralCodePlaceholder}
-                className="font-mono tracking-widest"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-              />
-              <p className="text-xs text-muted-foreground">{platform.checkout.referralCodeHint}</p>
-            </div>
-          )}
 
           {plan?.features?.length ? (
             <div className="space-y-2">

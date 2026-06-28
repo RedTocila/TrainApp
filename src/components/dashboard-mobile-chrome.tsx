@@ -6,7 +6,6 @@ import { Apple, Camera, ClipboardList, Dumbbell, ImageIcon, Play } from "lucide-
 import { AppLogo } from "@/components/app-logo";
 import {
   FullCalendarNavButton,
-  ReferralNavButton,
 } from "@/components/full-calendar-nav-button";
 import { SupportContactButton } from "@/components/support-contact-button";
 import { useNutritionPageChromeActions } from "@/components/nutrition-page-chrome-context";
@@ -31,6 +30,8 @@ const headerSurface =
 const headerIconButton =
   "h-9 w-9 shrink-0 rounded-full border border-border/60 bg-background/60 p-0 shadow-sm transition-colors hover:bg-secondary/80 hover:text-foreground";
 
+const headerActionsGroup = "flex items-center gap-1.5";
+
 const headerTextButton =
   "h-8 shrink-0 rounded-full px-3 text-xs font-semibold shadow-sm";
 
@@ -46,7 +47,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3"
+        "flex min-h-[2.75rem] items-center justify-between gap-2 px-3 py-1.5 sm:px-4 sm:py-2"
       )}
     >
       {isNutritionPage ? (
@@ -86,14 +87,13 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
         <AppLogo
           href="/dashboard"
           variant="text"
-          size="lg"
-          className="text-3xl text-foreground sm:text-4xl dark:text-white"
+          size="default"
+          className="text-2xl leading-none text-foreground sm:text-3xl dark:text-white"
         />
       )}
       {!isProgressPhotosPage ? (
-        <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
-          {isNutritionPage && nutritionActions ? (
-          <>
+        isNutritionPage && nutritionActions ? (
+          <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
             <Button
               type="button"
               size="sm"
@@ -115,35 +115,35 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
                 {platform.nutrition.viewDietPlan}
               </Button>
             ) : null}
-          </>
+          </div>
         ) : isWorkoutPage && workoutActions ? (
-          workoutActions.showCompleted ? (
-            <DashboardStatusCheck aria-label={platform.aria.completed} />
-          ) : workoutActions.showStart ? (
-            <StartWorkoutLoadingShell isLoading={workoutActions.isStarting}>
-              <Button
-                type="button"
-                size="sm"
-                className={headerTextButton}
-                disabled={workoutActions.disabled || workoutActions.isStarting}
-                onClick={workoutActions.onStartWorkout}
-                aria-busy={workoutActions.isStarting}
-              >
-                <Play className="h-3.5 w-3.5" />
-                {platform.workout.startWorkout}
-              </Button>
-            </StartWorkoutLoadingShell>
-          ) : null
+          <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
+            {workoutActions.showCompleted ? (
+              <DashboardStatusCheck aria-label={platform.aria.completed} />
+            ) : workoutActions.showStart ? (
+              <StartWorkoutLoadingShell isLoading={workoutActions.isStarting}>
+                <Button
+                  type="button"
+                  size="sm"
+                  className={headerTextButton}
+                  disabled={workoutActions.disabled || workoutActions.isStarting}
+                  onClick={workoutActions.onStartWorkout}
+                  aria-busy={workoutActions.isStarting}
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  {platform.workout.startWorkout}
+                </Button>
+              </StartWorkoutLoadingShell>
+            ) : null}
+          </div>
         ) : (
-          <>
+          <div className={headerActionsGroup}>
             <SupportContactButton buttonClassName={headerIconButton} />
             {showCalendar ? (
               <FullCalendarNavButton className={headerIconButton} />
             ) : null}
-            <ReferralNavButton className={headerIconButton} />
-          </>
-        )}
-        </div>
+          </div>
+        )
       ) : null}
     </div>
   );
@@ -160,7 +160,7 @@ export function DashboardMobileChrome() {
     <div className="mobile-top-safe sticky top-0 z-50 shrink-0 bg-background lg:hidden">
       <DashboardMobileHeaderBar showCalendar={showCalendar} />
       {showTrainTabs ? (
-        <div className="px-3 pb-3 sm:px-4">
+        <div className="px-3 pb-2 sm:px-4">
           <TrainSectionTabs className="mb-0" />
         </div>
       ) : null}

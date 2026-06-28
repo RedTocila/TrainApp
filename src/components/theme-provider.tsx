@@ -9,7 +9,7 @@ import {
 } from "react";
 import {
   type AccentColor,
-  isAccentColor,
+  normalizeAccentColor,
   resolveAccentPalette,
 } from "@/lib/theme-colors";
 
@@ -58,7 +58,11 @@ function readInitialTheme(): Theme {
 function readInitialAccent(): AccentColor {
   if (typeof window === "undefined") return "red";
   const stored = localStorage.getItem("accent-color");
-  return isAccentColor(stored) ? stored : "red";
+  const normalized = normalizeAccentColor(stored);
+  if (stored === "amber") {
+    localStorage.setItem("accent-color", "purple");
+  }
+  return normalized;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

@@ -14,7 +14,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppLogo } from "@/components/app-logo";
 import { SignOutButton } from "@/components/sign-out-button";
-import { ReferralNavButton } from "@/components/full-calendar-nav-button";
+import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
@@ -105,7 +105,6 @@ export function ClientNav({
               <AppLogo href="/dashboard" />
               <p className="mt-1 text-sm text-muted-foreground">{platform.nav.welcome(fullName)}</p>
             </div>
-            <ReferralNavButton />
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-4">

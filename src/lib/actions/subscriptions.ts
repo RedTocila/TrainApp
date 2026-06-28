@@ -15,12 +15,6 @@ import {
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
 import { addBillingPeriod, hasPaidAccess } from "@/lib/subscription";
-import { qualifyReferralForUser, attachReferralOnSignup, normalizeReferralCode, validateReferralCodeForUser } from "@/lib/referral";
-import {
-  calculateCreditApplication,
-  getReferralCreditBalance,
-  spendReferralCredits,
-} from "@/lib/referral-credits";
 import {
   createSdkOrder,
   getSdkOrder,
@@ -52,7 +46,6 @@ async function completeSubscriptionOrder(
     userId: string;
     plan: string;
     billingInterval: BillingInterval;
-    creditsToSpend: number;
     pokpayOrderId: string | null;
   }
 ): Promise<{ success: true } | { error: string }> {
@@ -69,15 +62,6 @@ async function completeSubscriptionOrder(
     })
     .eq("id", args.userId);
 
-  if (args.creditsToSpend > 0) {
-    await spendReferralCredits(
-      args.userId,
-      args.orderId,
-      args.creditsToSpend,
-      "Applied referral credits to subscription payment"
-    );
-  }
-
   const orderUpdate: Record<string, unknown> = {
     status: "completed",
     completed_at: now.toISOString(),
@@ -88,20 +72,19 @@ async function completeSubscriptionOrder(
 
   await admin.from("subscription_orders").update(orderUpdate).eq("id", args.orderId);
 
-  await qualifyReferralForUser(args.userId, {
-    id: args.orderId,
-    plan: args.plan,
-    billing_interval: args.billingInterval,
-    pokpay_order_id: args.pokpayOrderId,
-  });
-
   return { success: true };
+}
+
+function revalidateSubscriptionPaths() {
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pricing");
+  revalidatePath("/dashboard/checkout");
+  revalidatePath("/dashboard/profile");
 }
 
 export async function createCheckoutOrder(
   planId: SubscriptionPlanId,
-  interval: BillingInterval,
-  referralCode?: string | null
+  interval: BillingInterval
 ) {
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -110,24 +93,10 @@ export async function createCheckoutOrder(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const code = normalizeReferralCode(referralCode);
-  if (code) {
-    const validation = await validateReferralCodeForUser(user.id, code);
-    if ("error" in validation) {
-      if (validation.error === "own_referral_code") {
-        return { error: "own_referral_code" };
-      }
-      return { error: "invalid_referral_code" };
-    }
-    await attachReferralOnSignup(supabase, user.id, code);
-  }
-
   const plan = getPlan(planId);
   if (!plan) return { error: "Invalid plan" };
 
   const price = getPlanPrice(planId, interval);
-  const creditBalance = await getReferralCreditBalance(user.id);
-  const creditApplication = calculateCreditApplication(price.amountCents, creditBalance);
   const baseUrl = getAppBaseUrl();
   const isProd = process.env.VERCEL_ENV === "production";
   if (isProd && baseUrl.includes("localhost")) {
@@ -143,8 +112,7 @@ export async function createCheckoutOrder(
       user_id: user.id,
       plan: planId,
       billing_interval: interval,
-      amount_cents: creditApplication.originalAmountCents,
-      referral_credits_applied_cents: creditApplication.creditsAppliedCents,
+      amount_cents: price.amountCents,
       currency_code: CHECKOUT_CURRENCY,
       status: "pending",
     })
@@ -155,42 +123,6 @@ export async function createCheckoutOrder(
     return { error: insertError?.message ?? "Could not start checkout" };
   }
 
-  if (creditApplication.chargeAmountCents === 0) {
-    const activated = await completeSubscriptionOrder(admin, {
-      orderId: orderRow.id,
-      userId: user.id,
-      plan: planId,
-      billingInterval: interval,
-      creditsToSpend: creditApplication.creditsAppliedCents,
-      pokpayOrderId: null,
-    });
-    if ("error" in activated) {
-      await admin
-        .from("subscription_orders")
-        .update({ status: "failed" })
-        .eq("id", orderRow.id);
-      return activated;
-    }
-
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/pricing");
-    revalidatePath("/dashboard/checkout");
-    revalidatePath("/dashboard/referrals");
-    revalidatePath("/dashboard/profile");
-
-    return {
-      localOrderId: orderRow.id,
-      orderId: null,
-      amountCents: 0,
-      creditsAppliedCents: creditApplication.creditsAppliedCents,
-      planId,
-      interval,
-      planName: plan.name,
-      priceLabel: price.label,
-      paidWithCredits: true,
-    };
-  }
-
   try {
     const redirectUrl = `${baseUrl}/dashboard/checkout/success?localOrderId=${orderRow.id}`;
     const failRedirectUrl = `${baseUrl}/dashboard/checkout?plan=${planId}&interval=${interval}`;
@@ -199,11 +131,11 @@ export async function createCheckoutOrder(
       {
         name: `${plan.name} · ${interval === "monthly" ? "Monthly" : "Annual"}`,
         quantity: 1,
-        price: creditApplication.chargeAmountCents,
+        price: price.amountCents,
       },
     ];
     const sdkOrder = await createSdkOrder({
-      amountCents: creditApplication.chargeAmountCents,
+      amountCents: price.amountCents,
       currencyCode: CHECKOUT_CURRENCY,
       redirectUrl,
       failRedirectUrl,
@@ -221,8 +153,7 @@ export async function createCheckoutOrder(
     return {
       localOrderId: orderRow.id,
       orderId: sdkOrder.id,
-      amountCents: creditApplication.chargeAmountCents,
-      creditsAppliedCents: creditApplication.creditsAppliedCents,
+      amountCents: price.amountCents,
       planId,
       interval,
       planName: plan.name,
@@ -249,9 +180,7 @@ export async function activateSubscriptionFromLocalOrder(localOrderId: string) {
   const admin = createAdminClient();
   const { data: order } = await admin
     .from("subscription_orders")
-    .select(
-      "id, user_id, plan, billing_interval, status, pokpay_order_id, amount_cents, referral_credits_applied_cents, created_at"
-    )
+    .select("id, user_id, plan, billing_interval, status, pokpay_order_id, amount_cents, created_at")
     .eq("id", localOrderId)
     .eq("user_id", user.id)
     .single();
@@ -259,28 +188,6 @@ export async function activateSubscriptionFromLocalOrder(localOrderId: string) {
   if (!order) return { error: "Order not found" };
   if (order.status === "completed") {
     return { success: true, alreadyCompleted: true };
-  }
-
-  const creditsToSpend = order.referral_credits_applied_cents ?? 0;
-
-  if (creditsToSpend > 0 && !order.pokpay_order_id) {
-    const result = await completeSubscriptionOrder(admin, {
-      orderId: order.id,
-      userId: user.id,
-      plan: order.plan,
-      billingInterval: order.billing_interval as BillingInterval,
-      creditsToSpend,
-      pokpayOrderId: null,
-    });
-    if ("error" in result) return result;
-
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/pricing");
-    revalidatePath("/dashboard/checkout");
-    revalidatePath("/dashboard/referrals");
-    revalidatePath("/dashboard/profile");
-
-    return { success: true };
   }
 
   if (!order.pokpay_order_id) return { error: "Payment not started" };
@@ -296,16 +203,11 @@ export async function activateSubscriptionFromLocalOrder(localOrderId: string) {
       userId: user.id,
       plan: order.plan,
       billingInterval: order.billing_interval as BillingInterval,
-      creditsToSpend,
       pokpayOrderId: order.pokpay_order_id,
     });
     if ("error" in result) return result;
 
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/pricing");
-    revalidatePath("/dashboard/checkout");
-    revalidatePath("/dashboard/referrals");
-    revalidatePath("/dashboard/profile");
+    revalidateSubscriptionPaths();
 
     return { success: true };
   } catch (err) {
@@ -352,7 +254,7 @@ export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string)
   const { data: order } = await admin
     .from("subscription_orders")
     .select(
-      "id, user_id, plan, billing_interval, status, pokpay_order_id, order_kind, amount_cents, referral_credits_applied_cents, created_at"
+      "id, user_id, plan, billing_interval, status, pokpay_order_id, order_kind, amount_cents, created_at"
     )
     .eq("pokpay_order_id", pokpayOrderId)
     .single();
@@ -377,7 +279,6 @@ export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string)
     userId: order.user_id,
     plan: order.plan,
     billingInterval: order.billing_interval as BillingInterval,
-    creditsToSpend: order.referral_credits_applied_cents ?? 0,
     pokpayOrderId,
   });
 }

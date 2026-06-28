@@ -18,7 +18,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
-import { getOrCreateDeviceHash, loadReferralCode, saveReferralCode } from "@/lib/referral-storage";
 import {
   formatUserError,
   isDirectSignupRejection,
@@ -33,11 +32,9 @@ type PendingSignup = {
   fullName: string;
   phone: string | null;
   intakeJson: string | null;
-  referralCode: string | null;
-  deviceHash: string;
 };
 
-export function RegisterForm({ initialReferralCode }: { initialReferralCode?: string }) {
+export function RegisterForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [intakeJson, setIntakeJson] = useState<string | null>(null);
@@ -47,7 +44,6 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
   const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null);
   const [continuePending, setContinuePending] = useState(false);
   const [continueMessage, setContinueMessage] = useState<string | null>(null);
-  const [referralCode, setReferralCode] = useState<string | null>(null);
 
   useEffect(() => {
     const draft = loadIntakeDraft();
@@ -60,14 +56,6 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
       );
     }
   }, []);
-
-  useEffect(() => {
-    const code = initialReferralCode?.trim().toLowerCase() || loadReferralCode();
-    if (code) {
-      saveReferralCode(code);
-      setReferralCode(code);
-    }
-  }, [initialReferralCode]);
 
   const finishSignup = (role?: string) => {
     clearIntakeDraft();
@@ -113,8 +101,6 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
         phone: pendingSignup.phone,
         password: pendingSignup.password,
         intakeJson: pendingSignup.intakeJson,
-        referralCode: pendingSignup.referralCode,
-        deviceHash: pendingSignup.deviceHash,
       });
 
       if (result?.error) {
@@ -147,15 +133,12 @@ export function RegisterForm({ initialReferralCode }: { initialReferralCode?: st
       const email = (new FormData(form).get("email") as string).trim().toLowerCase();
       const phone = ((new FormData(form).get("phone") as string) || "").trim() || null;
       const password = new FormData(form).get("password") as string;
-      const deviceHash = getOrCreateDeviceHash();
 
       const registrationInput = {
         fullName,
         email,
         phone,
         intakeJson,
-        referralCode,
-        deviceHash,
       };
 
       let serverResult: Awaited<ReturnType<typeof signUpAccount>> | undefined;
