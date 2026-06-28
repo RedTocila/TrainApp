@@ -23,6 +23,7 @@ import {
   dailyMacrosWithinTarget,
   formatExceededMacroSummary,
 } from "@/lib/macro-targets";
+import { waterMetDailyMinimum } from "@/lib/water-targets";
 import type { MacroTargets } from "@/lib/meal-score";
 import { NutritionStatsPanel } from "@/components/nutrition-stats-panel";
 import { NutritionStatusAdviceButton } from "@/components/nutrition-status-advice-button";
@@ -160,9 +161,10 @@ export function DailyTracker({
     setPdfPlanOpen(true);
   };
 
+  const waterMet = waterMetDailyMinimum(localWaterMl, waterGoalMl);
   const waterMissed =
-    localWaterMl < waterGoalMl && isDeadlinePassed(WATER_DEADLINE, dateKey);
-  const waterCompleted = localWaterMl >= waterGoalMl;
+    !waterMet && isDeadlinePassed(WATER_DEADLINE, dateKey);
+  const waterCompleted = waterMet;
   const macrosMet = dailyMacrosWithinTarget(current, targets);
   const macrosExceeded = dailyMacrosExceededUpperLimit(current, targets);
   const macrosOverTarget = anyDailyMacroOverTarget(current, targets);

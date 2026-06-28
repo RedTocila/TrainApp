@@ -7,6 +7,7 @@ import { dashboard } from "@/components/dashboard-ui";
 import { DashboardStatusCheck } from "@/components/section-completed-badge";
 import { WaterGoalEditDialog } from "@/components/water-goal-edit-dialog";
 import { macroExceededDailyUpperLimit, macroExceededAttentionMessage } from "@/lib/macro-targets";
+import { waterMetDailyMinimum } from "@/lib/water-targets";
 import type { MealMacros } from "@/lib/meal-utils";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +42,7 @@ export function NutritionStatsPanel({
     "calories"
   );
   const macrosExceededMessage = macroExceededAttentionMessage(current, targets);
-  const waterCompleted = waterGoalMl > 0 && waterMl >= waterGoalMl;
+  const waterCompleted = waterGoalMl > 0 && waterMetDailyMinimum(waterMl, waterGoalMl);
   const flat = variant === "flat";
 
   return (

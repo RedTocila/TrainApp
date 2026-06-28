@@ -14,6 +14,10 @@ import { MiniProgressRing } from "@/components/nutrition-macro-rings";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import { addWater, getDailyLog, updateWaterGoal } from "@/lib/actions/logs";
+import {
+  waterMetDailyMinimum,
+  waterRemainingToMinimum,
+} from "@/lib/water-targets";
 import { formatDateKey } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { WaterGoalEditDialog } from "@/components/water-goal-edit-dialog";
@@ -77,9 +81,10 @@ export function DashboardWaterCard({
     setWaterGoalMl(initialWaterGoalMl);
   }, [initialWaterGoalMl]);
 
-  const waterCompleted = waterGoalMl > 0 && waterMl >= waterGoalMl;
+  const waterCompleted =
+    waterGoalMl > 0 && waterMetDailyMinimum(waterMl, waterGoalMl);
   const progress = waterGoalMl > 0 ? Math.min(waterMl / waterGoalMl, 1) : 0;
-  const remaining = Math.max(0, waterGoalMl - waterMl);
+  const remaining = waterRemainingToMinimum(waterMl, waterGoalMl);
 
   const waterVisual = (ringSize: number) => (
     <div className="flex flex-col items-center gap-1.5">

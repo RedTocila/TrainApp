@@ -7,6 +7,7 @@ import {
   dailyMacrosWithinTarget,
   formatMacroProgressLine,
 } from "@/lib/macro-targets";
+import { waterMetDailyMinimum } from "@/lib/water-targets";
 import {
   isDayEnded,
   isDeadlinePassed,
@@ -40,7 +41,7 @@ export function enrichDailyTasks(
     if (task.category === "water") {
       const goal = ctx.waterGoalMl;
       const drank = ctx.waterMl;
-      const metGoal = drank >= goal;
+      const metGoal = waterMetDailyMinimum(drank, goal);
       const deadlinePassed = isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
 
       return {

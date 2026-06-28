@@ -1,6 +1,10 @@
 import type { CoachCopy } from "@/lib/coach-copy";
 import type { CoachLabels } from "@/lib/coach-copy";
 import { dailyMacrosExceededUpperLimit, dailyMacrosWithinTarget } from "@/lib/macro-targets";
+import {
+  waterMetDailyMinimum,
+  waterToleranceBand,
+} from "@/lib/water-targets";
 import type { MealMacros } from "@/lib/meal-utils";
 import type { DailyMealLog } from "@/lib/types";
 import { isDayEnded, isDeadlinePassed, WATER_DEADLINE } from "@/lib/meal-times";
@@ -33,11 +37,12 @@ export function getNutritionDayStatuses(ctx: NutritionDayContext): NutritionDayS
   const now = ctx.now ?? new Date();
   const macrosMet = dailyMacrosWithinTarget(ctx.current, ctx.targets);
   const macrosExceeded = dailyMacrosExceededUpperLimit(ctx.current, ctx.targets);
+  const waterMet = waterMetDailyMinimum(ctx.waterMl, ctx.waterGoalMl);
   const waterMissed =
-    ctx.waterMl < ctx.waterGoalMl && isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
+    !waterMet && isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
   const dayEnded = isDayEnded(ctx.dateKey, now);
   const nutritionCompleted =
-    macrosMet && ctx.waterMl >= ctx.waterGoalMl && !macrosExceeded;
+    macrosMet && waterMet && !macrosExceeded;
 
   const statuses: NutritionDayStatus[] = [];
 
@@ -94,6 +99,7 @@ export function scoreDailyNutrition(ctx: NutritionDayContext & {
 }): { score: number; label: "Great" | "Good" | "Fair" | "Poor" } {
   const macrosMet = dailyMacrosWithinTarget(ctx.current, ctx.targets);
   const macrosExceeded = dailyMacrosExceededUpperLimit(ctx.current, ctx.targets);
+  const waterMet = waterMetDailyMinimum(ctx.waterMl, ctx.waterGoalMl);
 
   let score = 100;
   score -= pctDiff(ctx.current.calories, ctx.targets.calories) * 28;
@@ -101,13 +107,13 @@ export function scoreDailyNutrition(ctx: NutritionDayContext & {
   score -= pctDiff(ctx.current.carbs, ctx.targets.carbs) * 12;
   score -= pctDiff(ctx.current.fat, ctx.targets.fat) * 10;
 
-  const waterRatio =
-    ctx.waterGoalMl > 0 ? Math.min(ctx.waterMl / ctx.waterGoalMl, 1.2) : 1;
+  const { min: waterMin } = waterToleranceBand(ctx.waterGoalMl);
+  const waterRatio = waterMin > 0 ? Math.min(ctx.waterMl / waterMin, 1.2) : 1;
   if (waterRatio < 1) score -= (1 - waterRatio) * 18;
 
   if (ctx.mealCount === 0) score -= 25;
   if (macrosExceeded) score = Math.min(score, 42);
-  if (macrosMet && ctx.waterMl >= ctx.waterGoalMl && !macrosExceeded) {
+  if (macrosMet && waterMet && !macrosExceeded) {
     score = Math.max(score, 86);
   }
 
@@ -130,6 +136,7 @@ export function getNutritionStatusAdvice(
   ctx: NutritionDayContext
 ): { title: string; message: string; detail?: string } {
   const { current, targets, waterMl, waterGoalMl } = ctx;
+  const waterMet = waterMetDailyMinimum(waterMl, waterGoalMl);
 
   switch (status) {
     case "too_much":
@@ -142,12 +149,12 @@ export function getNutritionStatusAdvice(
       return {
         title: labels.missed,
         message:
-          waterMl < waterGoalMl
+          !waterMet
             ? labels.hydrationHint
             : "You didn't close the day on your macro targets. Log meals earlier tomorrow and plan portions before you're starving.",
         detail:
-          waterMl < waterGoalMl
-            ? `${waterMl}/${waterGoalMl} ml water`
+          !waterMet
+            ? `${waterMl}/${ctx.waterGoalMl} ml water`
             : `${current.calories}/${targets.calories} cal logged`,
       };
     case "good":
