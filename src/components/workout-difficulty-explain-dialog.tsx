@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowDown, ArrowUp, Minus, X } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { dashboard } from "@/components/dashboard-ui";
+import { fetchWorkoutDifficultyInsight } from "@/lib/actions/workout-difficulty-ai";
 import type {
   PersonalWorkoutDifficultyId,
+  WorkoutDifficultyInput,
   WorkoutDifficultyReason,
 } from "@/lib/workout-difficulty";
+import type { WorkoutDifficultyBehaviorContext } from "@/lib/workout-difficulty-behavior";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -19,9 +22,18 @@ const DIFFICULTY_LABEL_CLASS: Record<PersonalWorkoutDifficultyId, string> = {
   impossible: "text-fuchsia-400",
 };
 
+function humanizeReasonId(id: string): string {
+  return id
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export function WorkoutDifficultyExplainDialog({
   open,
   onClose,
+  exercises,
+  behaviorContext,
+  dateKey,
   difficultyId,
   workoutLoad,
   clientCapacity,
@@ -30,6 +42,9 @@ export function WorkoutDifficultyExplainDialog({
 }: {
   open: boolean;
   onClose: () => void;
+  exercises: WorkoutDifficultyInput[];
+  behaviorContext?: WorkoutDifficultyBehaviorContext | null;
+  dateKey?: string;
   difficultyId: PersonalWorkoutDifficultyId;
   workoutLoad: number;
   clientCapacity: number;
@@ -37,9 +52,17 @@ export function WorkoutDifficultyExplainDialog({
   hasIntake: boolean;
 }) {
   const platform = usePlatformCopy();
-  const difficulty = platform.workout.personalDifficulty[difficultyId];
   const reasonCopy = platform.workout.personalDifficultyReasons;
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [insight, setInsight] = useState<{
+    difficultyId: PersonalWorkoutDifficultyId;
+    workoutLoad: number;
+    clientCapacity: number;
+    reasons: WorkoutDifficultyReason[];
+    hasIntake: boolean;
+  } | null>(null);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     setMounted(true);
@@ -58,18 +81,61 @@ export function WorkoutDifficultyExplainDialog({
     };
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) {
+      setInsight(null);
+      setLoading(false);
+      return;
+    }
+
+    const requestId = ++requestIdRef.current;
+    setLoading(true);
+
+    void fetchWorkoutDifficultyInsight({
+      exercises,
+      behaviorContext,
+      dateKey,
+    })
+      .then((result) => {
+        if (requestIdRef.current !== requestId) return;
+        setInsight({
+          difficultyId: result.id,
+          workoutLoad: result.workoutLoad,
+          clientCapacity: result.clientCapacity,
+          reasons: result.reasons,
+          hasIntake: result.hasIntake,
+        });
+      })
+      .finally(() => {
+        if (requestIdRef.current === requestId) {
+          setLoading(false);
+        }
+      });
+  }, [open, exercises, behaviorContext, dateKey]);
+
   if (!open || !mounted) return null;
 
-  const harderReasons = reasons.filter((reason) => reason.impact === "harder");
-  const easierReasons = reasons.filter((reason) => reason.impact === "easier");
+  const activeDifficultyId = insight?.difficultyId ?? difficultyId;
+  const activeWorkoutLoad = insight?.workoutLoad ?? workoutLoad;
+  const activeClientCapacity = insight?.clientCapacity ?? clientCapacity;
+  const activeReasons = insight?.reasons ?? reasons;
+  const activeHasIntake = insight?.hasIntake ?? hasIntake;
+  const difficulty = platform.workout.personalDifficulty[activeDifficultyId];
+
+  const harderReasons = activeReasons.filter((reason) => reason.impact === "harder");
+  const easierReasons = activeReasons.filter((reason) => reason.impact === "easier");
 
   const renderReason = (reason: WorkoutDifficultyReason) => {
     const template = reasonCopy[reason.id as keyof typeof reasonCopy];
-    if (!template) return null;
-    const text =
-      typeof template === "function"
-        ? (template as (params: Record<string, string>) => string)(reason.params ?? {})
-        : template;
+    let text: string | null = null;
+
+    if (typeof template === "function") {
+      text = (template as (params: Record<string, string>) => string)(reason.params ?? {});
+    } else if (typeof template === "string") {
+      text = template;
+    } else {
+      text = humanizeReasonId(reason.id);
+    }
 
     return (
       <li
@@ -116,7 +182,7 @@ export function WorkoutDifficultyExplainDialog({
               {platform.workout.difficultyForYou}
             </p>
             <h2
-              className={cn("mt-1 text-lg font-black", DIFFICULTY_LABEL_CLASS[difficultyId])}
+              className={cn("mt-1 text-lg font-black", DIFFICULTY_LABEL_CLASS[activeDifficultyId])}
             >
               {difficulty.label}
             </h2>
@@ -141,23 +207,29 @@ export function WorkoutDifficultyExplainDialog({
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {platform.workout.difficultyWorkoutLoad}
               </p>
-              <p className="mt-1 text-2xl font-black tabular-nums">{workoutLoad}</p>
+              <p className="mt-1 text-2xl font-black tabular-nums">{activeWorkoutLoad}</p>
             </div>
             <div className={cn(dashboard.tile, "p-3 text-center")}>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {platform.workout.difficultyYourCapacity}
               </p>
-              <p className="mt-1 text-2xl font-black tabular-nums">{clientCapacity}</p>
+              <p className="mt-1 text-2xl font-black tabular-nums">{activeClientCapacity}</p>
             </div>
           </div>
 
-          {!hasIntake ? (
+          {loading ? (
+            <p className={cn(dashboard.empty, "py-4 text-sm")} role="status" aria-live="polite">
+              {platform.workout.difficultyAnalyzing}
+            </p>
+          ) : null}
+
+          {!activeHasIntake ? (
             <p className={cn(dashboard.empty, "py-4 text-sm")}>
               {platform.workout.personalDifficultyReasons.incompleteProfile}
             </p>
           ) : null}
 
-          {harderReasons.length > 0 ? (
+          {!loading && harderReasons.length > 0 ? (
             <div>
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-orange-400">
                 <ArrowUp className="h-3.5 w-3.5" />
@@ -167,7 +239,7 @@ export function WorkoutDifficultyExplainDialog({
             </div>
           ) : null}
 
-          {easierReasons.length > 0 ? (
+          {!loading && easierReasons.length > 0 ? (
             <div>
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-400">
                 <ArrowDown className="h-3.5 w-3.5" />
@@ -177,7 +249,10 @@ export function WorkoutDifficultyExplainDialog({
             </div>
           ) : null}
 
-          {hasIntake && harderReasons.length === 0 && easierReasons.length === 0 ? (
+          {!loading &&
+          activeHasIntake &&
+          harderReasons.length === 0 &&
+          easierReasons.length === 0 ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Minus className="h-4 w-4 shrink-0" />
               {platform.workout.difficultyBalancedProfile}

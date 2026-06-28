@@ -315,6 +315,7 @@ export const platformCopyAl = {
       `+${count} ushtrim${count === 1 ? "" : "e"} të tjera`,
     difficultyForYou: "Për ty",
     difficultyExplainTitle: "Pse ky vlerësim?",
+    difficultyAnalyzing: "Duke analizuar profilin dhe rezultatet e fundit…",
     difficultyWorkoutLoad: "Ngarkesa e stërvitjes",
     difficultyYourCapacity: "Kapaciteti yt",
     difficultyHarderFactors: "Çfarë e rrit vështirësinë",
@@ -360,6 +361,25 @@ export const platformCopyAl = {
         `Kushtet shëndetësore (${params.conditions}) mund ta rrisin ngarkesën e ndjerë.`,
       healthDetails: "Detajet shtesë shëndetësore e rrisin sfidën.",
       medications: "Medikamentet në profil mund të ndikojnë energjinë dhe rikuperimin.",
+      medicationsConcerning: (params: { items: string }) =>
+        `Medikamentet klinike (${params.items}) mund të ndikojnë energjinë dhe rikuperimin.`,
+      medicationsUnknown: (params: { items: string }) =>
+        `Artikuj të paidentifikuar (${params.items}) — verifiko nëse kufizojnë rikuperimin.`,
+      performanceSupplements: (params: { items: string }) =>
+        `${params.items} në profil mbështet stërvitjen — nuk është kufizues rikuperimi.`,
+      benignSupplements: (params: { items: string }) =>
+        `${params.items} janë suplemente të përgjithshme, jo shqetësim rikuperimi.`,
+      consistentRecentTraining: (params: { count: string }) =>
+        `${params.count} stërvitje në 7 ditët e fundit — trupi yt është i përgatitur për këtë ngarkesë.`,
+      inconsistentRecentTraining: (params: { count: string }) =>
+        `Vetëm ${params.count} stërvitje në 7 ditët e fundit — më pak kondicion i fundit.`,
+      consistentMealLogging: (params: { count: string }) =>
+        `Ushqimet u regjistruan ${params.count} nga 7 ditët e fundit — ndjekja e ushqimit mbështet rikuperimin.`,
+      sparseMealLogging: "Pak ushqime të regjistruara së fundmi — ushqyerja mund të jetë e papërshtatshme.",
+      strongDailyHabits: (params: { count: string }) =>
+        `Zakonet ditore u plotësuan ${params.count} nga 7 ditët e fundit — rutinë e fortë.`,
+      lowHydrationToday: "Uji sot është i ulët — hidratimi mund të kufizojë performancën.",
+      goodHydration: "Hidratim i mirë së fundmi mbështet këtë seancë.",
       veryYoungAge: (params: { age: string }) =>
         `Mosha ${params.age} — toleranca ndaj ngarkesës është ende në zhvillim.`,
       youngAge: (params: { age: string }) =>

@@ -157,7 +157,7 @@ export function DashboardMobileChrome() {
   const showCalendar = pathname === "/dashboard";
 
   return (
-    <div className="mobile-top-safe relative z-50 shrink-0 bg-background lg:hidden">
+    <div className="mobile-top-safe sticky top-0 z-50 shrink-0 bg-background lg:hidden">
       <DashboardMobileHeaderBar showCalendar={showCalendar} />
       {showTrainTabs ? (
         <div className="px-3 pb-3 sm:px-4">

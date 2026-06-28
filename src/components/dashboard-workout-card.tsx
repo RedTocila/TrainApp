@@ -575,7 +575,7 @@ export function DashboardWorkoutCard({
           <StartTodaysWorkoutButton
             date={selectedDate}
             workout={displayWorkout}
-            disabled={startDisabled}
+            disabled={!isDayLoaded}
           />
         )}
       </CardHeader>

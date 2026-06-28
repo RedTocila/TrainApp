@@ -5,6 +5,11 @@ import {
   profileToResponses,
   type IntakeResponses,
 } from "@/lib/intake-questionnaire";
+import {
+  analyzeMedicationsSupplements,
+  hasMeaningfulMedicationConcern,
+} from "@/lib/medication-supplement-utils";
+import type { WorkoutDifficultyBehaviorContext } from "@/lib/workout-difficulty-behavior";
 import type { Profile } from "@/lib/types";
 import { estimateWorkoutDurationSeconds } from "@/lib/workout-duration";
 
@@ -122,8 +127,41 @@ function applyIntakeCapacityAdjustments(
   }
 
   if (responses.medications?.trim()) {
-    capacity -= 4;
-    reasons.push({ id: "medications", impact: "harder" });
+    const meds = analyzeMedicationsSupplements(responses.medications);
+    if (meds.concerningMedications.length > 0) {
+      capacity -= 4 + meds.concerningMedications.length * 2;
+      reasons.push({
+        id: "medicationsConcerning",
+        impact: "harder",
+        params: { items: meds.concerningMedications.join(", ") },
+      });
+    } else if (meds.unknownEntries.length > 0 && meds.performanceSupplements.length === 0) {
+      capacity -= 2;
+      reasons.push({
+        id: "medicationsUnknown",
+        impact: "harder",
+        params: { items: meds.unknownEntries.join(", ") },
+      });
+    }
+    if (meds.performanceSupplements.length > 0) {
+      capacity += 2;
+      reasons.push({
+        id: "performanceSupplements",
+        impact: "easier",
+        params: { items: meds.performanceSupplements.join(", ") },
+      });
+    }
+    if (
+      meds.benignSupplements.length > 0 &&
+      !hasMeaningfulMedicationConcern(meds) &&
+      meds.performanceSupplements.length === 0
+    ) {
+      reasons.push({
+        id: "benignSupplements",
+        impact: "easier",
+        params: { items: meds.benignSupplements.join(", ") },
+      });
+    }
   }
 
   if (age != null) {
@@ -191,6 +229,64 @@ function applyIntakeCapacityAdjustments(
   return Math.max(10, Math.min(90, capacity));
 }
 
+function applyBehaviorContextAdjustments(
+  context: WorkoutDifficultyBehaviorContext,
+  reasons: WorkoutDifficultyReason[]
+): number {
+  let delta = 0;
+
+  if (context.workoutsLast7Days >= 4) {
+    delta += 8;
+    reasons.push({
+      id: "consistentRecentTraining",
+      impact: "easier",
+      params: { count: String(context.workoutsLast7Days) },
+    });
+  } else if (context.workoutsLast7Days <= 1) {
+    delta -= 6;
+    reasons.push({
+      id: "inconsistentRecentTraining",
+      impact: "harder",
+      params: { count: String(context.workoutsLast7Days) },
+    });
+  }
+
+  if (context.daysWithMealsLast7Days >= 5) {
+    delta += 4;
+    reasons.push({
+      id: "consistentMealLogging",
+      impact: "easier",
+      params: { count: String(context.daysWithMealsLast7Days) },
+    });
+  } else if (context.daysWithMealsLast7Days <= 2) {
+    delta -= 3;
+    reasons.push({ id: "sparseMealLogging", impact: "harder" });
+  }
+
+  if (context.habitCompletionDaysLast7 >= 5) {
+    delta += 3;
+    reasons.push({
+      id: "strongDailyHabits",
+      impact: "easier",
+      params: { count: String(context.habitCompletionDaysLast7) },
+    });
+  }
+
+  const waterGoal = context.waterGoalMl ?? 2000;
+  if (context.waterMlToday != null && context.waterMlToday < waterGoal * 0.45) {
+    delta -= 4;
+    reasons.push({ id: "lowHydrationToday", impact: "harder" });
+  } else if (
+    context.avgWaterMlLast3Days != null &&
+    context.avgWaterMlLast3Days >= waterGoal * 0.85
+  ) {
+    delta += 3;
+    reasons.push({ id: "goodHydration", impact: "easier" });
+  }
+
+  return delta;
+}
+
 function applyWorkoutLoadReasons(
   exercises: WorkoutDifficultyInput[],
   reasons: WorkoutDifficultyReason[]
@@ -241,7 +337,8 @@ function hasMeaningfulIntake(responses: IntakeResponses): boolean {
 
 export function assessPersonalWorkoutDifficulty(
   exercises: WorkoutDifficultyInput[],
-  profile: Pick<Profile, "age" | "intake_responses"> | null | undefined
+  profile: Pick<Profile, "age" | "intake_responses"> | null | undefined,
+  behaviorContext?: WorkoutDifficultyBehaviorContext | null
 ): PersonalWorkoutDifficultyResult {
   const workoutLoad = getWorkoutLoadScore(exercises);
   const reasons: WorkoutDifficultyReason[] = [];
@@ -260,9 +357,16 @@ export function assessPersonalWorkoutDifficulty(
 
   const responses = profile ? profileToResponses(profile as Profile) : {};
   const hasIntake = hasMeaningfulIntake(responses);
-  const clientCapacity = hasIntake
+  let clientCapacity = hasIntake
     ? applyIntakeCapacityAdjustments(responses, profile?.age ?? responses.age, reasons)
     : 50;
+
+  if (behaviorContext) {
+    clientCapacity = Math.max(
+      10,
+      Math.min(90, clientCapacity + applyBehaviorContextAdjustments(behaviorContext, reasons))
+    );
+  }
 
   if (!hasIntake) {
     reasons.push({ id: "incompleteProfile", impact: "harder" });

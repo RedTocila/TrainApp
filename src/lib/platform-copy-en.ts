@@ -313,6 +313,7 @@ export const platformCopyEn = {
     moreExercises: (count: number) => `+${count} more exercise${count === 1 ? "" : "s"}`,
     difficultyForYou: "For you",
     difficultyExplainTitle: "Why this rating?",
+    difficultyAnalyzing: "Analyzing your profile and recent results…",
     difficultyWorkoutLoad: "Workout load",
     difficultyYourCapacity: "Your capacity",
     difficultyHarderFactors: "What makes it harder",
@@ -355,6 +356,25 @@ export const platformCopyEn = {
         `Health conditions (${params.conditions}) can raise how demanding this feels.`,
       healthDetails: "Additional health details on your profile increase the challenge.",
       medications: "Medications on your profile may affect energy and recovery.",
+      medicationsConcerning: (params: { items: string }) =>
+        `Prescription or clinical medications (${params.items}) may affect energy and recovery.`,
+      medicationsUnknown: (params: { items: string }) =>
+        `Unlisted items on your profile (${params.items}) — verify they aren't limiting recovery.`,
+      performanceSupplements: (params: { items: string }) =>
+        `${params.items} on your profile supports training — not a recovery limiter.`,
+      benignSupplements: (params: { items: string }) =>
+        `${params.items} on your profile are general supplements, not recovery concerns.`,
+      consistentRecentTraining: (params: { count: string }) =>
+        `${params.count} workouts in the last 7 days — your body is primed for this load.`,
+      inconsistentRecentTraining: (params: { count: string }) =>
+        `Only ${params.count} workout(s) in the last 7 days — less recent conditioning.`,
+      consistentMealLogging: (params: { count: string }) =>
+        `Meals logged ${params.count} of the last 7 days — nutrition tracking supports recovery.`,
+      sparseMealLogging: "Few meals logged recently — fueling may be inconsistent.",
+      strongDailyHabits: (params: { count: string }) =>
+        `Daily habits completed ${params.count} of the last 7 days — strong routine.`,
+      lowHydrationToday: "Water intake is low today — hydration may limit performance.",
+      goodHydration: "Solid hydration recently supports this session.",
       veryYoungAge: (params: { age: string }) =>
         `Age ${params.age} — recovery and load tolerance are still developing.`,
       youngAge: (params: { age: string }) =>

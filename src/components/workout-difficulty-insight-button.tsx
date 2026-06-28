@@ -1,25 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
+import { useSelectedDate } from "@/components/date-provider";
+import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { WorkoutDifficultyExplainDialog } from "@/components/workout-difficulty-explain-dialog";
-import { assessPersonalWorkoutDifficulty } from "@/lib/workout-difficulty";
+import {
+  assessPersonalWorkoutDifficulty,
+  type WorkoutDifficultyInput,
+} from "@/lib/workout-difficulty";
+import { buildWorkoutDifficultyBehaviorContext } from "@/lib/workout-difficulty-behavior";
 import {
   DIFFICULTY_BUTTON_STYLES,
   DIFFICULTY_ICONS,
   DIFFICULTY_PANEL_STYLES,
 } from "@/lib/workout-difficulty-ui";
 import type { Profile } from "@/lib/types";
+import { formatDateKey } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
+function useDifficultyBehaviorContext() {
+  const enrichmentCtx = useOptionalDashboardEnrichment();
+  const { selectedDate } = useSelectedDate();
+
+  return useMemo(() => {
+    if (!enrichmentCtx) return null;
+    return buildWorkoutDifficultyBehaviorContext(
+      enrichmentCtx.enrichment,
+      formatDateKey(selectedDate)
+    );
+  }, [enrichmentCtx, selectedDate]);
+}
+
 function useDifficultyInsight(
-  exercises: { sets: number }[],
+  exercises: WorkoutDifficultyInput[],
   intakeProfile?: Pick<Profile, "age" | "intake_responses"> | null
 ) {
   const platform = usePlatformCopy();
   const [open, setOpen] = useState(false);
-  const assessment = assessPersonalWorkoutDifficulty(exercises, intakeProfile);
+  const behaviorContext = useDifficultyBehaviorContext();
+  const { selectedDate } = useSelectedDate();
+  const dateKey = formatDateKey(selectedDate);
+
+  const assessment = assessPersonalWorkoutDifficulty(
+    exercises,
+    intakeProfile,
+    behaviorContext
+  );
   const difficulty = platform.workout.personalDifficulty[assessment.id];
   const DifficultyIcon = DIFFICULTY_ICONS[assessment.id];
 
@@ -30,6 +58,8 @@ function useDifficultyInsight(
     assessment,
     difficulty,
     DifficultyIcon,
+    behaviorContext,
+    dateKey,
     buttonStyles: DIFFICULTY_BUTTON_STYLES[assessment.id],
     panelStyles: DIFFICULTY_PANEL_STYLES[assessment.id],
   };
@@ -41,7 +71,7 @@ export function WorkoutDifficultyInsightButton({
   className,
   size = "default",
 }: {
-  exercises: { sets: number }[];
+  exercises: WorkoutDifficultyInput[];
   intakeProfile?: Pick<Profile, "age" | "intake_responses"> | null;
   className?: string;
   size?: "default" | "compact";
@@ -53,6 +83,8 @@ export function WorkoutDifficultyInsightButton({
     assessment,
     difficulty,
     DifficultyIcon,
+    behaviorContext,
+    dateKey,
     buttonStyles,
   } = useDifficultyInsight(exercises, intakeProfile);
 
@@ -98,6 +130,9 @@ export function WorkoutDifficultyInsightButton({
       <WorkoutDifficultyExplainDialog
         open={open}
         onClose={() => setOpen(false)}
+        exercises={exercises}
+        behaviorContext={behaviorContext}
+        dateKey={dateKey}
         difficultyId={assessment.id}
         workoutLoad={assessment.workoutLoad}
         clientCapacity={assessment.clientCapacity}
@@ -113,7 +148,7 @@ export function WorkoutDifficultyInsightBanner({
   intakeProfile,
   className,
 }: {
-  exercises: { sets: number }[];
+  exercises: WorkoutDifficultyInput[];
   intakeProfile?: Pick<Profile, "age" | "intake_responses"> | null;
   className?: string;
 }) {
@@ -124,6 +159,8 @@ export function WorkoutDifficultyInsightBanner({
     assessment,
     difficulty,
     DifficultyIcon,
+    behaviorContext,
+    dateKey,
     panelStyles,
   } = useDifficultyInsight(exercises, intakeProfile);
 
@@ -164,6 +201,9 @@ export function WorkoutDifficultyInsightBanner({
       <WorkoutDifficultyExplainDialog
         open={open}
         onClose={() => setOpen(false)}
+        exercises={exercises}
+        behaviorContext={behaviorContext}
+        dateKey={dateKey}
         difficultyId={assessment.id}
         workoutLoad={assessment.workoutLoad}
         clientCapacity={assessment.clientCapacity}

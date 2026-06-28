@@ -5,12 +5,14 @@
 
 :root {
   --radius: 0.75rem;
-  --safe-area-top: constant(safe-area-inset-top, 0px);
-  --safe-area-top: env(safe-area-inset-top, 0px);
-  --safe-area-bottom: constant(safe-area-inset-bottom, 0px);
-  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-top-inset: constant(safe-area-inset-top, 0px);
+  --safe-area-top-inset: env(safe-area-inset-top, 0px);
+  --safe-area-bottom-inset: constant(safe-area-inset-bottom, 0px);
+  --safe-area-bottom-inset: env(safe-area-inset-bottom, 0px);
+  --safe-area-top: max(0.625rem, var(--safe-area-top-inset));
+  --safe-area-bottom: max(0.5rem, var(--safe-area-bottom-inset));
   --dashboard-mobile-header-height: calc(3.25rem + 0.625rem + var(--safe-area-top));
-  --dashboard-mobile-nav-height: calc(2.875rem + max(0.5rem, var(--safe-area-bottom)));
+  --dashboard-mobile-nav-height: calc(2.875rem + var(--safe-area-bottom));
 }
 
 html.dark {
@@ -110,6 +112,15 @@ body:has(.dashboard-shell) {
   padding-top: var(--safe-area-top);
 }
 
+/* iOS Safari in browser often reports 0 for safe-area-inset-top despite viewport-fit=cover */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 1023px) {
+    :root {
+      --safe-area-top: max(2.75rem, var(--safe-area-top-inset));
+    }
+  }
+}
+
 .dashboard-main {
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
@@ -121,7 +132,7 @@ body:has(.dashboard-shell) {
 }
 
 .dashboard-mobile-nav {
-  padding-bottom: max(0.5rem, var(--safe-area-bottom));
+  padding-bottom: var(--safe-area-bottom);
   touch-action: none;
 }
 
