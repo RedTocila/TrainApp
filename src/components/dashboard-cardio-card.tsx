@@ -55,7 +55,7 @@ export function DashboardCardioCard({
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
   const readOnly = useIsPastSelectedDay();
-  const { version, patchDashboard } = useDashboardSync();
+  const { version, patchDashboard, notifySync } = useDashboardSync();
   const enrichment = useOptionalDashboardEnrichment()?.enrichment;
   const [isToggling, setIsToggling] = useState(false);
   const dateKey = formatDateKey(selectedDate);
@@ -126,6 +126,10 @@ export function DashboardCardioCard({
     patchDashboard({ dateKey, taskId, completed: next });
     setIsToggling(true);
 
+    const timeoutId = setTimeout(() => {
+      setIsToggling(false);
+    }, 8000);
+
     void toggleScheduleTaskCompletion(clientId, dateKey, taskId)
       .then((result) => {
         if (result.error) {
@@ -134,7 +138,14 @@ export function DashboardCardioCard({
         }
         patchDashboard({ dateKey, taskId, completed: result.completed ?? false });
       })
-      .finally(() => setIsToggling(false));
+      .catch(() => {
+        patchDashboard({ dateKey, taskId, completed: !next });
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
+        setIsToggling(false);
+        notifySync();
+      });
   };
 
   if (compact) {

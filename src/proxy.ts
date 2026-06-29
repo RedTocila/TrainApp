@@ -59,28 +59,26 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
     if (isAuthPage) {
-      const dest = profile?.role === "admin" ? "/admin" : "/dashboard";
-      return NextResponse.redirect(new URL(dest, request.url));
-    }
-
-    if (isAdminRoute && profile?.role !== "admin") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    if (isDashboardRoute && profile?.role === "admin") {
-      return NextResponse.redirect(new URL("/admin", request.url));
+    if (path === "/") {
+      // Keep the landing page static/fast; if logged in, go straight to dashboard.
+      // Admin access is enforced by server-side route guards.
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    if (path === "/") {
-      const dest = profile?.role === "admin" ? "/admin" : "/dashboard";
-      return NextResponse.redirect(new URL(dest, request.url));
+    if (isAdminRoute) {
+      // Only check role when hitting admin routes (avoid a DB lookup on every request).
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      if (profile?.role !== "admin") {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
     }
   }
 

@@ -37,7 +37,7 @@ export function neverInEnrichmentRange(_dateKey: string) {
 function enrichmentRange() {
   const today = new Date();
   return {
-    from: format(addDays(today, -3), "yyyy-MM-dd"),
+    from: format(addDays(today, -30), "yyyy-MM-dd"),
     to: format(addDays(today, 28), "yyyy-MM-dd"),
   };
 }
