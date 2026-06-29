@@ -37,7 +37,7 @@ export function FullScreenFlow({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex h-dvh flex-col bg-background"
+      className="fixed inset-0 z-[110] flex h-dvh flex-col bg-background"
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -57,7 +57,7 @@ export function FullScreenFlow({
       </header>
       <main
         className={cn(
-          "flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+          "flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 pb-[max(1.5rem,var(--safe-area-bottom))] sm:px-6",
           contentClassName
         )}
       >

@@ -8,6 +8,7 @@ import {
 import { getChallengeStatus } from "@/lib/challenge-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Challenge } from "@/lib/types";
+import { progressMonthKey } from "@/lib/progress-photo-utils";
 
 export type ActiveSeriesMembership = {
   challenge_id: string;
@@ -161,6 +162,8 @@ export async function getLongChallengeJoinBlockReason(
   userId: string,
   targetChallengeId: string
 ): Promise<string | null> {
+  void supabase;
+
   const participant = await findActiveSeriesParticipant(
     supabase,
     userId,
@@ -179,6 +182,30 @@ export async function getLongChallengeJoinBlockReason(
   );
   if (waitlist) {
     return `You are on the waitlist for ${waitlist.challenge_title}. Leave that waitlist before joining another long challenge.`;
+  }
+
+  const admin = createAdminClient();
+  const monthKey = progressMonthKey();
+  const { data: photoSet, error: photoError } = await admin
+    .from("progress_photo_sets")
+    .select("front_path, back_path, side_path")
+    .eq("client_id", userId)
+    .eq("month_key", monthKey)
+    .maybeSingle();
+
+  if (photoError) {
+    return "Could not verify progress photos. Please try again.";
+  }
+
+  const hasAnyPhoto =
+    !!photoSet?.front_path || !!photoSet?.back_path || !!photoSet?.side_path;
+  const hasAllPoses =
+    !!photoSet?.front_path && !!photoSet?.back_path && !!photoSet?.side_path;
+  if (!hasAnyPhoto) {
+    return "Progress photos are required each month to enter a long challenge. Upload your front, back, and side photos in Progress photos, then try again.";
+  }
+  if (!hasAllPoses) {
+    return "To enter a long challenge you must upload all 3 progress photo poses this month (front, back, side). Finish your photos in Progress photos, then try again.";
   }
 
   return null;

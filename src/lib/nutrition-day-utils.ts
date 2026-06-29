@@ -87,6 +87,14 @@ export function estimateDailyMicros(
   macros: MealMacros
 ): { fiber: number; sugar: number; sodium: number } {
   const mealCount = meals.length;
+  return estimateMealMicros(macros, mealCount);
+}
+
+/** Estimated micros for a single logged meal (same heuristics as daily, one meal). */
+export function estimateMealMicros(
+  macros: MealMacros,
+  mealCount = 1
+): DailyMicros {
   return {
     fiber: Math.round(macros.carbs * 0.11 + mealCount * 1.5),
     sugar: Math.round(macros.carbs * 0.38),

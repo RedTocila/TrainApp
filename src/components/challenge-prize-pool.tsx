@@ -12,7 +12,11 @@ import {
   getPrizePoolMonthsActive,
 } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
-import { getChallengeEntryFeeCents, isFlashChallenge } from "@/lib/challenge-series";
+import {
+  getChallengeEntryFeeCents,
+  getChallengeMaxParticipants,
+  isFlashChallenge,
+} from "@/lib/challenge-series";
 import type { Challenge } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +34,7 @@ type ChallengePrizePoolProps = {
     | "max_participants"
   >;
   participantCount: number;
-  variant?: "panel" | "compact" | "hero";
+  variant?: "panel" | "compact" | "hero" | "catalog";
   /** Larger hero text (flash catalog cards). */
   heroSize?: "default" | "lg";
   /** Catalog cards: show full-capacity max prize instead of current pool. */
@@ -78,6 +82,7 @@ export function ChallengePrizePool({
       : copy.monthlyPoolGrowth;
 
   if (variant === "compact") {
+    const maxParticipants = getChallengeMaxParticipants(challenge);
     return (
       <Badge
         variant="outline"
@@ -85,19 +90,73 @@ export function ChallengePrizePool({
           "border-amber-500/35 bg-amber-500/10 text-amber-200",
           className
         )}
+        title={
+          showMax && maxParticipants != null
+            ? copy.cardMaxPoolHint
+                .replace("{pool}", poolLabel)
+                .replace("{max}", String(maxParticipants))
+            : undefined
+        }
       >
         <Trophy className="mr-1 h-3 w-3" />
-        {showMax
-          ? copy.compactWinUpTo.replace("{pool}", poolLabel)
-          : copy.compactPool.replace("{pool}", poolLabel)}
+        {showMax && maxParticipants != null
+          ? copy.compactMaxPoolHint
+              .replace("{pool}", poolLabel)
+              .replace("{max}", String(maxParticipants))
+          : showMax
+            ? copy.compactWinUpTo.replace("{pool}", poolLabel)
+            : copy.compactPool.replace("{pool}", poolLabel)}
       </Badge>
+    );
+  }
+
+  if (variant === "catalog") {
+    const onGradient = tone === "onGradient";
+    const maxParticipants = getChallengeMaxParticipants(challenge);
+    const poolCentsMax = getMaxChallengePrizePoolCents(challenge);
+    const maxPoolLabel = formatEurosFromCents(poolCentsMax);
+
+    return (
+      <div
+        className={cn(
+          "inline-flex w-fit max-w-full flex-col gap-1 rounded-xl border px-4 py-3",
+          onGradient
+            ? "border-white/25 bg-black/25 text-white backdrop-blur-sm"
+            : "border-amber-500/30 bg-amber-500/10 text-amber-50",
+          className
+        )}
+      >
+        <span
+          className={cn(
+            "flex items-center gap-2 text-xs font-semibold uppercase tracking-wider",
+            onGradient ? "text-white/85" : "text-amber-200/90"
+          )}
+        >
+          <Trophy className="h-3.5 w-3.5" />
+          {copy.maxPrizeLabel}
+        </span>
+        {maxParticipants != null ? (
+          <p
+            className={cn(
+              "text-sm font-medium leading-snug",
+              onGradient ? "text-yellow-300" : "text-yellow-400"
+            )}
+          >
+            {copy.catalogWinUpToLine
+              .replace("{pool}", maxPoolLabel)
+              .replace("{max}", String(maxParticipants))}
+          </p>
+        ) : (
+          <p className="text-sm font-medium text-yellow-300">{maxPoolLabel}</p>
+        )}
+      </div>
     );
   }
 
   if (variant === "hero") {
     const onGradient = tone === "onGradient";
     const prominent = heroSize === "lg";
-    const flashCatch = isFlash && showMax && prominent;
+    const maxParticipants = getChallengeMaxParticipants(challenge);
 
     return (
       <div
@@ -110,48 +169,36 @@ export function ChallengePrizePool({
           className
         )}
       >
-        {flashCatch ? (
-          <>
-            <span
-              className={cn(
-                "font-black tabular-nums leading-none tracking-tight",
-                "text-3xl sm:text-4xl",
-                onGradient ? "text-white" : "text-amber-50"
-              )}
-            >
-              {copy.flashCatch.replace("{pool}", poolLabel)}
-            </span>
-            <span
-              className={cn(
-                "text-lg font-bold sm:text-xl",
-                onGradient ? "text-amber-200" : "text-amber-300"
-              )}
-            >
-              {copy.flashCatchWindow}
-            </span>
-          </>
-        ) : (
-          <>
-            <span
-              className={cn(
-                "flex items-center gap-2 font-semibold uppercase tracking-wider",
-                prominent ? "text-sm" : "text-xs",
-                onGradient ? "text-white/85" : "text-amber-200/90"
-              )}
-            >
-              <Trophy className={cn(prominent ? "h-4 w-4" : "h-3.5 w-3.5")} />
-              {showMax ? copy.maxPrizeLabel : copy.grandPrize}
-            </span>
-            <span
-              className={cn(
-                "font-black tabular-nums",
-                prominent ? "text-3xl sm:text-4xl" : "text-2xl"
-              )}
-            >
-              {poolLabel}
-            </span>
-          </>
-        )}
+        <span
+          className={cn(
+            "flex items-center gap-2 font-semibold uppercase tracking-wider",
+            prominent ? "text-sm" : "text-xs",
+            onGradient ? "text-white/85" : "text-amber-200/90"
+          )}
+        >
+          <Trophy className={cn(prominent ? "h-4 w-4" : "h-3.5 w-3.5")} />
+          {showMax ? copy.maxPrizeLabel : copy.grandPrize}
+        </span>
+        <span
+          className={cn(
+            "font-black tabular-nums leading-none tracking-tight",
+            prominent ? "text-3xl sm:text-4xl" : "text-2xl"
+          )}
+        >
+          {poolLabel}
+        </span>
+        {showMax && maxParticipants != null ? (
+          <span
+            className={cn(
+              "max-w-sm text-xs leading-snug sm:text-sm",
+              onGradient ? "text-white/80" : "text-amber-100/85"
+            )}
+          >
+            {copy.cardMaxPoolHint
+              .replace("{pool}", poolLabel)
+              .replace("{max}", String(maxParticipants))}
+          </span>
+        ) : null}
         {!hidePoolBreakdown && !showMax ? (
           <span className={cn("text-xs", onGradient ? "text-white/75" : "text-amber-100/80")}>
             {copy.perParticipant

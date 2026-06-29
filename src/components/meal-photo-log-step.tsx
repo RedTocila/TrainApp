@@ -18,6 +18,7 @@ export function MealPhotoLogStep({
   onFormChange,
   onError,
   onReadyChange,
+  onPhotoDataUrlChange,
   confidence,
   onConfidenceChange,
 }: {
@@ -25,6 +26,7 @@ export function MealPhotoLogStep({
   onFormChange: (form: MealFormData) => void;
   onError: (message: string | null) => void;
   onReadyChange?: (ready: boolean) => void;
+  onPhotoDataUrlChange?: (dataUrl: string | null) => void;
   confidence: number | null;
   onConfidenceChange: (value: number | null) => void;
 }) {
@@ -50,13 +52,10 @@ export function MealPhotoLogStep({
 
     setPhaseWithReady("compressing");
     try {
-      const compressed = await compressImageFile(file, {
-        maxWidth: 1024,
-        maxHeight: 1024,
-        quality: 0.8,
-      });
+      const compressed = await compressImageFile(file);
       const dataUrl = await fileToDataUrl(compressed);
       setPreviewUrl(dataUrl);
+      onPhotoDataUrlChange?.(dataUrl);
       setPhaseWithReady("capture");
     } catch {
       onError(platform.mealLog.processFailed);
@@ -103,6 +102,7 @@ export function MealPhotoLogStep({
 
   const handleRetake = () => {
     setPreviewUrl(null);
+    onPhotoDataUrlChange?.(null);
     setIsAdjusting(false);
     setPhaseWithReady("capture");
     onConfidenceChange(null);

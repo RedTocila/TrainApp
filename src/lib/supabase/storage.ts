@@ -5,6 +5,7 @@ export const STORAGE_BUCKETS = {
   blogImages: "blog-images",
   exerciseMedia: "exercise-media",
   progressPhotos: "progress-photos",
+  mealPhotos: "meal-photos",
   nutritionPlanPdfs: "nutrition-plan-pdfs",
 } as const;
 

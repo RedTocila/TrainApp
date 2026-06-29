@@ -16,6 +16,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ParticipantPlatformScoreBadge } from "@/components/participant-platform-score-badge";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { buildParticipantRankMap } from "@/lib/challenge-participant-ranking";
+import {
+  buildJoinOrderRankMap,
+  flashChallengeHasStarted,
+  flashParticipantsNeededToStart,
+} from "@/lib/flash-challenge-utils";
+import { isFlashChallenge } from "@/lib/challenge-series";
 import type {
   ChallengeBracketData,
   ChallengeBracketGroup,
@@ -42,16 +48,23 @@ function ParticipantChip({
   onClick,
   selectable,
   rank,
+  hidePlatformScore = false,
 }: {
   participant: Pick<
     ChallengeBracketParticipant,
-    "id" | "display_name" | "platform_score" | "platform_score_breakdown"
+    | "id"
+    | "display_name"
+    | "platform_score"
+    | "platform_score_breakdown"
+    | "challenge_points"
+    | "performance_value"
   >;
   highlight?: "winner" | "champion" | "advanced" | "eliminated";
   isYou?: boolean;
   onClick?: () => void;
   selectable?: boolean;
   rank?: number;
+  hidePlatformScore?: boolean;
 }) {
   const Tag = selectable ? "button" : "div";
 
@@ -89,7 +102,17 @@ function ParticipantChip({
       </span>
       <span className="min-w-0 flex-1 truncate">{participant.display_name}</span>
       <div className="ml-auto flex shrink-0 items-center gap-1">
-        {typeof participant.platform_score === "number" ? (
+        {typeof participant.challenge_points === "number" ? (
+          <Badge variant="secondary" className="text-[10px] tabular-nums">
+            {participant.challenge_points} pts
+          </Badge>
+        ) : null}
+        {typeof participant.performance_value === "number" ? (
+          <Badge variant="secondary" className="tabular-nums text-[10px]">
+            {participant.performance_value}
+          </Badge>
+        ) : null}
+        {!hidePlatformScore && typeof participant.platform_score === "number" ? (
           <ParticipantPlatformScoreBadge
             score={participant.platform_score}
             breakdown={participant.platform_score_breakdown}
@@ -113,6 +136,7 @@ export function ChallengeGroupAccordion({
   footer,
   roundLabel,
   rankById,
+  hidePlatformScore = false,
 }: {
   group: ChallengeBracketGroup;
   youId?: string | null;
@@ -121,6 +145,7 @@ export function ChallengeGroupAccordion({
   footer?: ReactNode;
   roundLabel?: string;
   rankById?: Map<string, number>;
+  hidePlatformScore?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const isYourGroup = group.members.some((m) => m.id === youId);
@@ -157,7 +182,11 @@ export function ChallengeGroupAccordion({
             {group.round === 1 && advancedCount > 0
               ? `${advancedCount} advanced`
               : group.winner
-                ? group.winner.display_name
+                ? `${group.winner.display_name}${
+                    typeof group.winner.performance_value === "number"
+                      ? ` · ${group.winner.performance_value}`
+                      : ""
+                  }`
                 : "Pending"}
           </p>
         </div>
@@ -177,6 +206,7 @@ export function ChallengeGroupAccordion({
                 key={member.id}
                 participant={member}
                 rank={rankById?.get(member.id)}
+                hidePlatformScore={hidePlatformScore}
                 highlight={outcomeHighlight(
                   member.outcome,
                   group.winner_participant_id === member.id
@@ -206,6 +236,7 @@ function RoundSection({
   onSelectWinner,
   roundLabel,
   rankById,
+  hidePlatformScore = false,
 }: {
   title: string;
   groups: ChallengeBracketGroup[];
@@ -214,6 +245,7 @@ function RoundSection({
   onSelectWinner?: (groupId: string, participantId: string) => void;
   roundLabel?: string;
   rankById?: Map<string, number>;
+  hidePlatformScore?: boolean;
 }) {
   if (groups.length === 0) return null;
 
@@ -233,6 +265,7 @@ function RoundSection({
             onSelectWinner={onSelectWinner}
             roundLabel={roundLabel}
             rankById={rankById}
+            hidePlatformScore={hidePlatformScore}
           />
         ))}
       </div>
@@ -260,7 +293,13 @@ export function ChallengeBracketDiagram({
   const youId = currentUserParticipantId ?? bracket.currentUserParticipantId;
   const isZoomGroups = variant === "zoomGroups";
   const groupSize = challenge.group_size;
-  const rankById = buildParticipantRankMap(participants);
+  const isFlash = isFlashChallenge(challenge);
+  const rankById = isZoomGroups
+    ? buildJoinOrderRankMap(participants)
+    : buildParticipantRankMap(participants);
+  const flashStarted = isFlash && flashChallengeHasStarted(challenge);
+  const flashNeeded = isFlash ? flashParticipantsNeededToStart(participants.length) : 0;
+  const flashReadyToStart = isFlash && flashNeeded === 0 && !flashStarted;
 
   if (participants.length === 0) {
     return (
@@ -281,13 +320,17 @@ export function ChallengeBracketDiagram({
             {participants.length} registered
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            {platform.rankedByScore}
+            {isZoomGroups ? flashCopy.joinOrderHint : platform.rankedByScore}
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
             {isZoomGroups
-              ? flashCopy.zoomGroupsPending.replace("{groupSize}", String(groupSize))
+              ? !flashStarted && flashNeeded > 0
+                ? flashCopy.fillingNotice.replace("{count}", String(flashNeeded))
+                : !flashStarted && flashReadyToStart
+                  ? flashCopy.waitingToStart
+                  : flashCopy.zoomGroupsPending.replace("{groupSize}", String(groupSize))
               : platform.bracketGroupsPending.replace("{groupSize}", String(groupSize))}
           </p>
           <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
@@ -297,6 +340,7 @@ export function ChallengeBracketDiagram({
                   participant={participant}
                   rank={rankById.get(participant.id)}
                   isYou={participant.id === youId}
+                  hidePlatformScore={isZoomGroups}
                 />
               </li>
             ))}
@@ -318,6 +362,16 @@ export function ChallengeBracketDiagram({
               {flashCopy.winnerLabel}
             </p>
             <p className="mt-1 text-2xl font-black">{champion.display_name}</p>
+            {(() => {
+              const record = round1Groups
+                .flatMap((group) => group.members)
+                .find((member) => member.id === champion.id)?.performance_value;
+              return typeof record === "number" ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {flashCopy.performanceLabel}: {record}
+                </p>
+              ) : null;
+            })()}
           </section>
         )}
 
@@ -331,6 +385,7 @@ export function ChallengeBracketDiagram({
           onSelectWinner={onSelectWinner}
           roundLabel={flashCopy.zoomGroupLabel}
           rankById={rankById}
+          hidePlatformScore
         />
       </div>
     );

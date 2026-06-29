@@ -17,7 +17,6 @@ import {
 import { dashboard, DashboardEmptyState } from "@/components/dashboard-ui";
 import {
   resolveWorkoutsForDate,
-  isWorkoutCompletedOnDate,
   getWorkoutCompletionStatusForDate,
   getCompletedWorkoutResultsForDate,
   getCompletedWorkoutResultsForSession,
@@ -251,17 +250,36 @@ export function DashboardWorkoutCard({
     setCompletedByTaskId({});
     setSessionIdByTaskId({});
     setWorkoutResults(null);
+    setLoadedDateKey(dateKey);
   }, [clientId, dateKey, seedFromSchedule]);
+
+  useEffect(() => {
+    if (workouts.length > 0) return;
+    const seed = seedFromSchedule(dateKey);
+    if (!seed?.workouts.length) return;
+
+    workoutCacheRef.current.set(dateKey, seed);
+    setWorkoutDayCache(clientId, dateKey, seed);
+    setWorkouts(seed.workouts);
+    setCompletedByTaskId(seed.completedByTaskId);
+    setSessionIdByTaskId(seed.sessionIdByTaskId);
+    setWorkoutResults(seed.results);
+    setLoadedDateKey(dateKey);
+  }, [clientId, dateKey, workouts.length, seedFromSchedule]);
 
   const refreshWorkout = useCallback(async () => {
     const key = formatDateKey(selectedDate);
-    const [resolved, status, allCompleted] = await Promise.all([
-      resolveWorkoutsForDate(clientId, key),
-      getWorkoutCompletionStatusForDate(clientId, key),
-      isWorkoutCompletedOnDate(clientId, key),
-    ]);
-
+    const resolved = await resolveWorkoutsForDate(clientId, key);
     if (formatDateKey(selectedDate) !== key) return;
+
+    const status = await getWorkoutCompletionStatusForDate(
+      clientId,
+      key,
+      resolved
+    );
+    const allCompleted =
+      resolved.length > 0 &&
+      resolved.every((workout) => status[workout.taskId]?.completed);
 
     const completedMap = Object.fromEntries(
       Object.entries(status).map(([taskId, entry]) => [taskId, entry.completed])
@@ -301,16 +319,18 @@ export function DashboardWorkoutCard({
   }, [clientId, selectedDate, patches]);
 
   const skipWorkoutRefresh =
-    variant === "detail" &&
     isDashboardDayCacheFresh(workoutDayCacheKey(clientId, dateKey)) &&
-    getWorkoutDayCache(clientId, dateKey) !== undefined;
+    getWorkoutDayCache(clientId, dateKey) !== undefined &&
+    (variant === "detail" ||
+      (variant === "compact" && dateKey === todayKey && seedWorkouts.length > 0));
 
-  useDashboardDateFetch(dateKey, refreshWorkout, [clientId, version], {
+  const isFetchSettled = useDashboardDateFetch(dateKey, refreshWorkout, [clientId, version], {
     enabled: !skipWorkoutRefresh,
   });
 
   const isDayLoaded = loadedDateKey === dateKey;
-  const workoutsForDay = isDayLoaded ? workouts : [];
+  const isRevalidating = !isFetchSettled;
+  const workoutsForDay = workouts;
   const patchedCompletions =
     patches.completions[dateKey] ?? EMPTY_PATCHED_COMPLETIONS;
 
@@ -481,6 +501,11 @@ export function DashboardWorkoutCard({
                 aria-hidden
               />
             </div>
+          ) : isRevalidating ? (
+            <div className="flex w-full flex-col items-center justify-center gap-2 py-8">
+              <Dumbbell className="h-10 w-10 animate-pulse text-muted-foreground/30" aria-hidden />
+              <p className="text-xs text-muted-foreground">{platform.common.loading}</p>
+            </div>
           ) : null}
 
           {workoutsForDay.length > 0 ? (
@@ -504,6 +529,8 @@ export function DashboardWorkoutCard({
             </ul>
           ) : isDayLoaded ? (
             <p className="text-sm text-muted-foreground">{coachLabels.noWorkoutToday}</p>
+          ) : isRevalidating ? (
+            <p className="text-sm text-muted-foreground">{platform.common.loading}</p>
           ) : null}
         </DashboardCardNavBody>
       </Card>

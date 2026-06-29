@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import {
   isDemoChallengeId,
   isDemoChallengeSlug,
+  getDemoChallengeBySlug,
+  getDemoChallenges,
+  DEMO_PARTICIPANT_COUNT,
 } from "@/lib/challenge-demo";
 import { suggestChallengeZoomDates } from "@/lib/challenge-utils";
 import {
@@ -154,10 +157,18 @@ export async function getPublishedChallenges(): Promise<Challenge[]> {
     .order("scheduled_at", { ascending: false });
 
   if (error) {
-    return attachParticipantCounts(mergeCatalogChallenges([]));
+    const demo = getDemoChallenges().map((c) => ({
+      ...c,
+      participant_count: c.participant_count ?? DEMO_PARTICIPANT_COUNT,
+    }));
+    return attachParticipantCounts([...demo, ...mergeCatalogChallenges([])]);
   }
   const merged = mergeCatalogChallenges((data ?? []).map(rowToChallenge));
-  return attachParticipantCounts(merged);
+  const demo = getDemoChallenges().map((c) => ({
+    ...c,
+    participant_count: c.participant_count ?? DEMO_PARTICIPANT_COUNT,
+  }));
+  return attachParticipantCounts([...demo, ...merged]);
 }
 
 export async function getAllChallenges(): Promise<Challenge[]> {
@@ -171,7 +182,7 @@ export async function getAllChallenges(): Promise<Challenge[]> {
 }
 
 export async function getChallengeBySlug(slug: string): Promise<Challenge | null> {
-  if (isDemoChallengeSlug(slug)) return null;
+  if (isDemoChallengeSlug(slug)) return getDemoChallengeBySlug(slug) ?? null;
 
   const catalog = getTransformationChallengeBySlug(slug) ?? getFlashChallengeBySlug(slug);
 

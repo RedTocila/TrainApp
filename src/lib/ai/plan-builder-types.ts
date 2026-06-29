@@ -4,6 +4,7 @@ export interface AiWorkoutExercise {
   reps: string;
   rest_seconds: number;
   notes?: string;
+  video_url?: string;
 }
 
 export interface AiWorkoutDay {
@@ -49,4 +50,5 @@ export interface AiGeneratedNutritionPlan {
   };
   meals: AiNutritionMeal[];
   coach_notes: string[];
+  grocery_list?: { name: string; amount?: string; category?: string }[];
 }

@@ -57,6 +57,22 @@ export async function getProgressPhotoSetForMonth(
   return data;
 }
 
+export async function hasProgressPhotoForMonth(
+  clientId: string,
+  monthKey: string
+): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("progress_photo_sets")
+    .select("front_path, back_path, side_path")
+    .eq("client_id", clientId)
+    .eq("month_key", monthKey)
+    .maybeSingle();
+
+  if (!data) return false;
+  return Boolean(data.front_path || data.back_path || data.side_path);
+}
+
 export async function saveProgressPhotoPath(
   clientId: string,
   monthKey: string,

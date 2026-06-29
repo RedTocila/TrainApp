@@ -18,6 +18,7 @@ export function enrichBracketWithPlatformScores(
       user_id: string;
       platform_score?: number;
       platform_score_breakdown?: PlatformScoreEntry["breakdown"];
+      challenge_points?: number;
     },
   >(
     participant: T
@@ -25,8 +26,9 @@ export function enrichBracketWithPlatformScores(
     const { score, breakdown } = resolveScore(participant.user_id);
     return {
       ...participant,
-      platform_score: score,
-      platform_score_breakdown: breakdown,
+      ...(typeof breakdown === "object"
+        ? { platform_score: score, platform_score_breakdown: breakdown }
+        : { challenge_points: score }),
     };
   };
 

@@ -98,7 +98,7 @@ export function DashboardCarouselDots({
   getLabel?: (index: number) => string;
 }) {
   return (
-    <div className="flex justify-center gap-1.5">
+    <div className="flex justify-center gap-1">
       {Array.from({ length: count }, (_, index) => (
         <button
           key={index}
@@ -107,16 +107,16 @@ export function DashboardCarouselDots({
             event.stopPropagation();
             onSelect(index);
           }}
-          className="flex h-8 min-w-8 touch-manipulation items-center justify-center rounded-full"
+          className="flex h-6 w-6 touch-manipulation items-center justify-center rounded-full"
           aria-label={getLabel?.(index) ?? `Slide ${index + 1}`}
           aria-current={active === index ? "true" : undefined}
         >
           <span
             className={cn(
-              "rounded-full transition-all",
+              "h-2.5 w-2.5 rounded-full transition-colors",
               active === index
-                ? "h-1.5 w-5 bg-foreground"
-                : "h-1.5 w-1.5 bg-muted-foreground/40"
+                ? "bg-foreground"
+                : "bg-muted-foreground/40"
             )}
           />
         </button>

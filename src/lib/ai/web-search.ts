@@ -156,6 +156,18 @@ export async function searchWebForCoach(query: string): Promise<WebSource[]> {
   return dedupeSources([...tavily, ...exa]);
 }
 
+/** Direct web search without coach heuristics — for server-side enrichment. */
+export async function searchWebQuery(query: string): Promise<WebSource[]> {
+  if (!isWebSearchConfigured()) return [];
+
+  const [tavily, exa] = await Promise.all([
+    searchTavily(query).catch(() => [] as WebSource[]),
+    searchExa(query).catch(() => [] as WebSource[]),
+  ]);
+
+  return dedupeSources([...tavily, ...exa]);
+}
+
 export function formatWebSourcesForPrompt(sources: WebSource[]): string {
   if (sources.length === 0) return "";
 

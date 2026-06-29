@@ -100,7 +100,11 @@ function Round1GroupAdmin({
                   </span>
                 ) : null}
                 <span className="min-w-0 truncate">{member.display_name}</span>
-                {typeof member.platform_score === "number" ? (
+                {typeof member.challenge_points === "number" ? (
+                  <Badge variant="secondary" className="text-[10px] tabular-nums">
+                    {member.challenge_points} pts
+                  </Badge>
+                ) : typeof member.platform_score === "number" ? (
                   <ParticipantPlatformScoreBadge
                     score={member.platform_score}
                     breakdown={member.platform_score_breakdown}
@@ -238,7 +242,7 @@ export function ChallengeBracketAdmin({ bracket }: { bracket: ChallengeBracketDa
   );
 
   const hasPlatformScores = bracket.participants.some(
-    (p) => typeof p.platform_score === "number"
+    (p) => typeof p.platform_score === "number" || typeof p.challenge_points === "number"
   );
 
   return (
@@ -265,7 +269,11 @@ export function ChallengeBracketAdmin({ bracket }: { bracket: ChallengeBracketDa
                     <span className="truncate">{participant.display_name}</span>
                   </span>
                   <div className="flex shrink-0 items-center gap-2">
-                    {typeof participant.platform_score === "number" ? (
+                    {typeof participant.challenge_points === "number" ? (
+                      <Badge variant="secondary" className="text-[10px] tabular-nums">
+                        {participant.challenge_points} pts
+                      </Badge>
+                    ) : typeof participant.platform_score === "number" ? (
                       <ParticipantPlatformScoreBadge
                         score={participant.platform_score}
                         breakdown={participant.platform_score_breakdown}

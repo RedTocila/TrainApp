@@ -2,7 +2,6 @@
 
 import { format, isToday } from "date-fns";
 import { useSelectedDate } from "@/components/date-provider";
-import { DashboardDateLoadingDots } from "@/components/dashboard-date-loading";
 import { FullCalendarOpenButton } from "@/components/full-calendar-nav-button";
 import { Button } from "@/components/ui/button";
 
@@ -32,7 +31,6 @@ export function DashboardDateHeading() {
           </Button>
         )}
       </div>
-      <DashboardDateLoadingDots variant="container" />
     </div>
   );
 }

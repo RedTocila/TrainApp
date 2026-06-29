@@ -20,6 +20,11 @@ import {
   assignPersonalNutritionPlan,
   addMealToDayMenuSlot,
 } from "@/lib/actions/user-nutrition";
+import { savePlanGroceryList } from "@/lib/actions/grocery-list";
+import {
+  buildWeeklyGroceryListFromMeals,
+  normalizeGroceryList,
+} from "@/lib/grocery-list-utils";
 import { updateNutritionTargets } from "@/lib/actions/logs";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 import type { Profile } from "@/lib/types";
@@ -220,6 +225,18 @@ export async function applyAiNutritionPlanAction(
       ingredients: meal.ingredients ?? [],
     });
     if (result.error) return { error: result.error };
+  }
+
+  const groceryItems = normalizeGroceryList(plan.grocery_list);
+  const resolvedGrocery =
+    groceryItems.length > 0
+      ? groceryItems
+      : buildWeeklyGroceryListFromMeals(
+          plan.meals.map((meal) => ({ foods: meal.ingredients ?? [] }))
+        );
+  if (resolvedGrocery.length > 0) {
+    const grocerySave = await savePlanGroceryList(planId, resolvedGrocery);
+    if ("error" in grocerySave) return { error: grocerySave.error };
   }
 
   const assigned = await assignPersonalNutritionPlan(planId);

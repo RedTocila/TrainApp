@@ -674,6 +674,14 @@ export const platformCopyAl = {
     ingredients: "Përbërësit",
     howToCook: "Si të përgatitet",
   },
+  groceryList: {
+    title: "Lista e blerjeve",
+    subtitle: "Përbërësit për një javë sipas planit të vakteve",
+    empty: "Shto përbërës te vaktet për të krijuar listën e blerjeve.",
+    progress: (bought: number, total: number) => `${bought} nga ${total} në shportë`,
+    checkItem: (name: string) => `Shëno ${name} si të blerë`,
+    uncheckItem: (name: string) => `Shëno ${name} si të pa blerë`,
+  },
   calendar: {
     fullCalendar: "Kalendari i plotë",
   },
@@ -753,6 +761,16 @@ export const platformCopyAl = {
     descriptionNotes: "Përshkrim ose shënime",
     removeIngredient: "Hiq përbërësin",
     whatToEatToday: "Çfarë të hash sot",
+    photoSavedHint: "Fotoja ruhet për 30 ditë me këtë vakt.",
+  },
+  mealPhotos: {
+    title: "Fotot e vakteve",
+    subtitle: "Fotot nga vaktet që ke regjistruar me kamerë.",
+    retentionHint: (days: number) =>
+      `Fotot mbahen ${days} ditë, pastaj fshihen. Vaktet mbeten në regjistrin tënd pa foto.`,
+    emptyTitle: "Ende pa foto vaktesh",
+    emptyBody: "Regjistro një vakt me Photo log për të ruajtur një foto të kompresuar këtu.",
+    viewPhotos: "Fotot",
   },
   subscriptionPlans: {
     basic: {
@@ -892,6 +910,24 @@ export const platformCopyAl = {
     selectionAdminBody:
       "Organizatori i sfidës jep votën finale të ponderuar bazuar në performancën e përgjithshme dhe prezantimin live.",
     bracketTitle: "Grafiku i turneut",
+    leaderboardTitle: "Tabela e pikëve",
+    leaderboardEmpty: "Ende pa pjesëmarrës — anëtarët Elite regjistrohen nga faqja e sfidës.",
+    leaderboardIntro:
+      "Renditur sipas pikëve ditore (50% ushqim · 30% stërvitje · 20% zakone + ujë) — më i larti i pari.",
+    leaderboardMaxPoints: "Maksimumi i mundshëm: {max} pikë (100 për ditë të regjistruar).",
+    leaderboardEndedNoChampion:
+      "Kjo sfidë ka përfunduar. Kampioni shfaqet pasi të përfundojë dita e gjykimit.",
+    pointsUnit: "pikë",
+    championLabel: "Kampion",
+    championPrizeHint: "Çmimi paguhet manualisht nga organizatori — pa pagesë në aplikacion.",
+    judgmentDayInviteLabel: "I ftuar në ditën e gjykimit",
+    judgmentZoomTitle: "Zoom — dita e gjykimit",
+    judgmentZoomIntro:
+      "Je ftuar për shkak të pikëve. Bashkohu live para kamerës — organizatori zgjedh fituesin pas thirrjes.",
+    judgmentZoomJoin: "Bashkohu në Zoom",
+    judgmentZoomLinkPending: "Linku i Zoom vjen së shpejti",
+    judgmentZoomPendingHint:
+      "Je i regjistruar. Vazhdo të regjistrosh çdo ditë për të ngjitur në tabelë — më të lartët ftohen në Zoom të ditës së gjykimit.",
     bracketEmpty: "Ende pa pjesëmarrës — anëtarët Elite regjistrohen nga faqja e sfidës.",
     bracketGroupsPending:
       "Duke pritur grupet prej {groupSize} — do të vizatohen para ditës së eliminimit.",
@@ -949,6 +985,8 @@ export const platformCopyAl = {
     detailStatStart: "Data e fillimit",
     detailStatDuration: "Kohëzgjatja",
     detailStatGroupSize: "Madhësia e grupit",
+    detailStatScoring: "Pikëzimi",
+    detailStatScoringValue: "Pikë ditore",
     detailStatRegistered: "Të regjistruar",
     detailPhaseTitle: "Kronologjia e turneut",
     detailPhaseRegistration: "Regjistrimi & logimi",
@@ -978,7 +1016,11 @@ export const platformCopyAl = {
       grandPrize: "Fondi i çmimit të madh",
       winUpTo: "Fitoni deri në {pool}",
       maxPrizeLabel: "Fitoni deri në",
+      cardMaxPoolHint:
+        "Mund të fitosh deri në {pool} nëse të gjithë {max} pjesëmarrësit bashkohen në sfidë.",
+      catalogWinUpToLine: "{pool} nëse mbushen të {max} vendet",
       compactWinUpTo: "Deri në {pool}",
+      compactMaxPoolHint: "Deri në {pool} nëse bashkohen {max}",
       championTakesAll: "Kampioni merr të gjithë fondin — paguar manualisht nga organizatori.",
       perEntry: "Për pjesëmarrës",
       perParticipant: "+{amount} × {count} pjesëmarrës · muaji {month} i fondit",
@@ -997,13 +1039,15 @@ export const platformCopyAl = {
       compactPool: "{pool} fond çmimi",
     },
     flash: {
-      intro: "Sprint i shpejtë — përfundo brenda 24 orëve, filmo përpjekjen, fiton rezultati më i mirë.",
+      intro:
+        "Sprint i shpejtë — 24 orë pasi bashkohen 10 persona. Filmo në Zoom, organizatori regjistron rezultatin, më i larti fiton fondin.",
       steps: [
-        "10 të parët rezervojnë vend falas. Kur grupi i parë mbushet, secili paguan tarifën e hyrjes për ta konfirmuar.",
-        "Pas grupit të parë, të rinjtë paguajnë tarifën menjëherë kur bashkohen.",
-        "Regjistro përpjekjen me video me lëvizjen e plotë të dukshme.",
-        "Dërgo para mbylljes së dritares 24-orëshe — fiton koha më e gjatë ose rep-et më shumë.",
-        "Fituesi merr fondin e plotë.",
+        "10 të parët rezervojnë vend falas. Organizatori nis dritaren 24-orëshe kur të paktën 10 janë regjistruar.",
+        "Të gjithë në grupin e parë paguajnë €10 për ta konfirmuar vendin kur grupi mbushet.",
+        "Pas 10 të parëve, të rinjtë paguajnë €10 menjëherë kur bashkohen (deri në 50 total).",
+        "Pjesëmarrësit ndahen në grupe Zoom deri 10 (maks. 5 grupe) kur fillon sfida.",
+        "Pas Zoom të çdo grupi, organizatori fut rekordin e fituesit (kohë, rep, etj.).",
+        "Midis fituesve të grupeve, rekordi më i lartë fiton fondin e plotë.",
       ],
       windowLabel: "Afati",
       entryLabel: "Tarifa e hyrjes",
@@ -1020,7 +1064,12 @@ export const platformCopyAl = {
       zoomGroupLabel: "Zoom",
       zoomGroupsEmpty: "Ende pa pjesëmarrës — regjistrohu për një grup Zoom.",
       zoomGroupsPending:
-        "Duke pritur grupet prej {groupSize} — një thirrje Zoom për orë.",
+        "Duke pritur grupet prej {groupSize} — ndahen sipas rendit të bashkimit kur organizatori nis sfidën.",
+      joinOrderHint: "Renditur sipas bashkimit — #1 regjistrohet i pari.",
+      fillingNotice: "Duhen edhe {count} regjistrime para se organizatori të mund ta nisë.",
+      waitingToStart: "10+ të regjistruar — duke pritur organizatorin të nisë dritaren 24-orëshe.",
+      fillingReady: "Sfida është live — dritarja 24-orëshe po vazhdon.",
+      performanceLabel: "Rekord",
       winnerLabel: "Fituesi",
     },
     catalog: {
@@ -1059,6 +1108,8 @@ export const platformCopyAl = {
       payEntryFee: "Paguaj tarifën {fee}",
       flashFirstGroupPayNotice:
         "Grupi i parë me {count} persona u mbush — paguaj {fee} për të konfirmuar vendin.",
+      flashFillingNotice: "Duhen edhe {count} regjistrime para se organizatori të mund ta nisë.",
+      flashWaitingToStart: "10+ të regjistruar — duke pritur organizatorin të nisë dritaren 24-orëshe.",
       flashSeatReserved:
         "Vendi u rezervua. {count} të parët falas — paguan tarifën kur grupi mbushet.",
       flashCheckoutTitle: "Hyrje në sfidë flash",

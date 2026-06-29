@@ -201,6 +201,7 @@ export default async function DashboardPage() {
           scheduled: scheduledPlanForToday.scheduled,
           activeSlots: scheduledPlanForToday.activeSlots,
           kind: scheduledPlanForToday.kind,
+          planId: scheduledPlanForToday.planId,
         }
       : null;
 

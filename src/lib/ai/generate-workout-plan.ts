@@ -1,8 +1,10 @@
 import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
+import { enrichExercisesWithDemoVideos } from "@/lib/ai/exercise-video-search";
 import type { AiGeneratedWorkoutDay, AiGeneratedWorkoutPlan } from "@/lib/ai/plan-builder-types";
 import type { Profile } from "@/lib/types";
+import { isValidYoutubeUrl } from "@/lib/youtube";
 
 function clampSets(n: unknown): number {
   const v = typeof n === "number" ? n : parseInt(String(n), 10);
@@ -12,6 +14,11 @@ function clampSets(n: unknown): number {
 function clampRest(n: unknown): number {
   const v = typeof n === "number" ? n : parseInt(String(n), 10);
   return Number.isFinite(v) ? Math.min(300, Math.max(30, v)) : 60;
+}
+
+function normalizeVideoUrl(url: unknown): string | undefined {
+  if (typeof url !== "string" || !url.trim()) return undefined;
+  return isValidYoutubeUrl(url) ? url.trim() : undefined;
 }
 
 function normalizeWorkoutPlan(raw: AiGeneratedWorkoutPlan): AiGeneratedWorkoutPlan {
@@ -29,6 +36,7 @@ function normalizeWorkoutPlan(raw: AiGeneratedWorkoutPlan): AiGeneratedWorkoutPl
           reps: String(ex.reps ?? "10").trim() || "10",
           rest_seconds: clampRest(ex.rest_seconds),
           notes: ex.notes?.trim() || undefined,
+          video_url: normalizeVideoUrl(ex.video_url),
         })),
     }))
     .filter((d) => d.exercises.length > 0);
@@ -40,6 +48,17 @@ function normalizeWorkoutPlan(raw: AiGeneratedWorkoutPlan): AiGeneratedWorkoutPl
     days,
     coach_notes: (raw.coach_notes ?? []).filter((n) => n?.trim()).map((n) => n.trim()),
   };
+}
+
+async function attachDemoVideosToPlan(plan: AiGeneratedWorkoutPlan): Promise<AiGeneratedWorkoutPlan> {
+  const days = await Promise.all(
+    plan.days.map(async (day) => ({
+      ...day,
+      exercises: await enrichExercisesWithDemoVideos(day.exercises),
+    }))
+  );
+
+  return { ...plan, days };
 }
 
 export async function generateWorkoutPlanFromProfile(
@@ -85,7 +104,7 @@ Respond with ONLY valid JSON:
 
   const raw = await runTextPrompt(prompt, { maxTokens: 2500, json: true });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutPlan;
-  const plan = normalizeWorkoutPlan(parsed);
+  const plan = await attachDemoVideosToPlan(normalizeWorkoutPlan(parsed));
 
   if (plan.days.length === 0) {
     throw new Error("AI did not return a valid workout plan. Try again.");
@@ -104,6 +123,7 @@ function normalizeWorkoutDay(raw: AiGeneratedWorkoutDay): AiGeneratedWorkoutDay 
       reps: String(ex.reps ?? "10").trim() || "10",
       rest_seconds: clampRest(ex.rest_seconds),
       notes: ex.notes?.trim() || undefined,
+      video_url: normalizeVideoUrl(ex.video_url),
     }));
 
   return {
@@ -157,7 +177,11 @@ Respond with ONLY valid JSON:
 
   const raw = await runTextPrompt(aiPrompt, { maxTokens: 1800, json: true });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutDay;
-  const workout = normalizeWorkoutDay(parsed);
+  const normalized = normalizeWorkoutDay(parsed);
+  const workout = {
+    ...normalized,
+    exercises: await enrichExercisesWithDemoVideos(normalized.exercises),
+  };
 
   if (workout.exercises.length === 0) {
     throw new Error("AI did not return a valid workout. Try again.");

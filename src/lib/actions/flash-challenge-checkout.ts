@@ -27,6 +27,7 @@ import {
 } from "@/lib/pokpay/client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { onFlashChallengeParticipantJoined } from "@/lib/actions/challenge-bracket";
 import { hasEliteAccess } from "@/lib/subscription";
 import type { Challenge } from "@/lib/types";
 
@@ -321,6 +322,19 @@ async function completeFlashChallengeEntryOrder(order: {
     .from("subscription_orders")
     .update({ status: "completed", completed_at: paidAt })
     .eq("id", order.id);
+
+  if (action === "join") {
+    const { data: participant } = await admin
+      .from("challenge_participants")
+      .select("id")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", order.user_id)
+      .maybeSingle();
+
+    if (participant?.id) {
+      await onFlashChallengeParticipantJoined(admin, challengeId, participant.id as string);
+    }
+  }
 
   revalidateFlashChallenge(challenge);
 

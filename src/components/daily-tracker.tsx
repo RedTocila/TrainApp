@@ -41,6 +41,7 @@ import { NutritionPlanPdfDialog } from "@/components/nutrition-plan-pdf-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
 import { LogMealDialog } from "@/components/log-meal-dialog";
 import { MealLogPreviewDialog } from "@/components/meal-log-preview-dialog";
+import { useMealsWithPhotoUrls } from "@/hooks/use-meals-with-photo-urls";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import {
   DashboardStatusIcon,
@@ -73,6 +74,7 @@ interface DailyTrackerProps {
     scheduled?: boolean;
     activeSlots?: MealSlot[];
     kind?: MealPlanViewKind;
+    planId?: string;
   } | null;
   coachNutritionPlanState: CoachNutritionPlanViewState;
   variant?: "full" | "compact";
@@ -105,11 +107,15 @@ export function DailyTracker({
   const [mealPlanOpen, setMealPlanOpen] = useState(false);
   const [pdfPlanOpen, setPdfPlanOpen] = useState(false);
   const [previewMeal, setPreviewMeal] = useState<MealFormData | null>(null);
+  const [previewMealLogId, setPreviewMealLogId] = useState<string | null>(null);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewVariant, setPreviewVariant] = useState<"new" | "view">("new");
+  const [isDeletingMeal, setIsDeletingMeal] = useState(false);
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
   const { patchDashboard } = useDashboardSync();
   const dateKey = formatDateKey(date);
+  const mealsWithPhotos = useMealsWithPhotoUrls(dailyMeals);
 
   useEffect(() => {
     router.prefetch(DASHBOARD_DAY_NUTRITION_PATH);
@@ -206,13 +212,28 @@ export function DailyTracker({
   const handleDeleteMeal = (logId: string) => {
     const previous = dailyMeals;
     onDailyMealsChange(dailyMeals.filter((meal) => meal.id !== logId));
-    void runServerAction(() => deleteDailyMealLog(clientId, dateKey, logId)).then(
+    return runServerAction(() => deleteDailyMealLog(clientId, dateKey, logId)).then(
       (result) => {
         if (isActionError(result) || ("error" in result && result.error)) {
           onDailyMealsChange(previous);
+          return false;
         }
+        return true;
       }
     );
+  };
+
+  const handleDeleteFromPreview = () => {
+    if (!previewMealLogId || readOnly) return;
+    setIsDeletingMeal(true);
+    void handleDeleteMeal(previewMealLogId).then((ok) => {
+      setIsDeletingMeal(false);
+      if (ok) {
+        setPreviewOpen(false);
+        setPreviewMealLogId(null);
+        setPreviewPhotoUrl(null);
+      }
+    });
   };
 
   const refreshMeals = () => {
@@ -241,6 +262,8 @@ export function DailyTracker({
   const handleSelectMeal = (meal: DailyMealLog) => {
     setPreviewVariant("view");
     setPreviewMeal(mealFormFromMeal(meal));
+    setPreviewMealLogId(meal.id);
+    setPreviewPhotoUrl(meal.photo_url ?? null);
     setPreviewOpen(true);
   };
 
@@ -305,6 +328,8 @@ export function DailyTracker({
         slots={plannedMealSlots}
         emptyMessage={mealPlanEmptyMessage}
         coachPdfRequestId={coachPdfRequestId}
+        clientId={clientId}
+        planId={nutritionPlan?.planId ?? null}
         onOpenCoachPdf={() => {
           setMealPlanOpen(false);
           setPdfPlanOpen(true);
@@ -334,10 +359,17 @@ export function DailyTracker({
       <MealLogPreviewDialog
         open={previewOpen}
         meal={previewMeal}
+        photoUrl={previewPhotoUrl}
         targets={targets}
         goal={goal}
         variant={previewVariant}
-        onClose={() => setPreviewOpen(false)}
+        onClose={() => {
+          setPreviewOpen(false);
+          setPreviewPhotoUrl(null);
+          setPreviewMealLogId(null);
+        }}
+        onDelete={previewVariant === "view" && !readOnly ? handleDeleteFromPreview : undefined}
+        isDeleting={isDeletingMeal}
       />
     </>
   );
@@ -393,7 +425,16 @@ export function DailyTracker({
             </div>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col p-4 pt-0">
-            <TaskNutritionMacroPreview current={current} targets={targets} />
+            <TaskNutritionMacroPreview
+              current={current}
+              targets={targets}
+              dailyMeals={dailyMeals}
+              waterMl={localWaterMl}
+              waterGoalMl={waterGoalMl}
+              dateKey={dateKey}
+              showHealthScore={false}
+              className="mt-2"
+            />
             {!readOnly ? (
               <div className="mt-5 flex items-center justify-between gap-2">
                 <div className="flex flex-wrap gap-2">
@@ -486,8 +527,7 @@ export function DailyTracker({
           </div>
 
           <RecentMealsList
-            meals={dailyMeals}
-            onDelete={readOnly ? undefined : handleDeleteMeal}
+            meals={mealsWithPhotos}
             onSelect={handleSelectMeal}
             onAdd={readOnly ? undefined : () => setLogMealOpen(true)}
             showHeaderAdd={false}
@@ -616,8 +656,7 @@ export function DailyTracker({
 
           <RecentMealsList
             title={platform.nutrition.mealsLogged}
-            meals={dailyMeals}
-            onDelete={readOnly ? undefined : handleDeleteMeal}
+            meals={mealsWithPhotos}
             onSelect={handleSelectMeal}
             onAdd={readOnly ? undefined : () => setLogMealOpen(true)}
             showHeaderAdd={false}

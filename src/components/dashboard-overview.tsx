@@ -39,6 +39,7 @@ type OverviewDayData = {
     scheduled?: boolean;
     activeSlots?: MealSlot[];
     kind?: MealPlanViewKind;
+    planId?: string;
   } | null;
 };
 
@@ -174,6 +175,7 @@ export function DashboardOverview({
         scheduled: planForDate.scheduled,
         activeSlots: planForDate.activeSlots,
         kind: planForDate.kind,
+        planId: planForDate.planId,
       };
     }
 

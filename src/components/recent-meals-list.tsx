@@ -2,6 +2,7 @@
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { useState } from "react";
+import Image from "next/image";
 import { format, isValid, parseISO } from "date-fns";
 import {
   ChevronDown,
@@ -31,6 +32,36 @@ function formatLoggedTime(loggedAt: string | null | undefined): string | null {
 
 function mealIcon(index: number) {
   return MEAL_ICONS[index % MEAL_ICONS.length];
+}
+
+function MealListAvatar({
+  meal,
+  index,
+}: {
+  meal: DailyMealLog;
+  index: number;
+}) {
+  const Icon = mealIcon(index);
+
+  if (meal.photo_url) {
+    return (
+      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-secondary/80">
+        <Image
+          src={meal.photo_url}
+          alt={meal.name}
+          fill
+          className="object-cover"
+          unoptimized
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary/80">
+      <Icon className="h-5 w-5 text-primary" />
+    </div>
+  );
 }
 
 export function RecentMealsList({
@@ -100,7 +131,6 @@ export function RecentMealsList({
         <DashboardSectionHeading>{resolvedTitle}</DashboardSectionHeading>
         <ul className="space-y-2">
           {meals.map((meal, index) => {
-            const Icon = mealIcon(index);
             const interactive = Boolean(onSelect);
             const loggedTime = formatLoggedTime(meal.logged_at);
 
@@ -134,9 +164,7 @@ export function RecentMealsList({
                       interactive ? platform.aria.mealInsights(meal.name) : undefined
                     }
                   >
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary/80">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
+                    <MealListAvatar meal={meal} index={index} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate text-sm font-semibold">{meal.name}</span>
@@ -239,7 +267,6 @@ export function RecentMealsList({
         >
           <ul className="space-y-2">
             {meals.map((meal, index) => {
-              const Icon = mealIcon(index);
               const summary = formatMealMacrosSummary(normalizeMealMacros(meal));
               const interactive = Boolean(onSelect);
 
@@ -258,8 +285,23 @@ export function RecentMealsList({
                       disabled={!interactive}
                       aria-label={interactive ? platform.aria.mealInsights(meal.name) : undefined}
                     >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                        <Icon className="h-5 w-5 text-primary" />
+                      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-primary/10">
+                        {meal.photo_url ? (
+                          <Image
+                            src={meal.photo_url}
+                            alt={meal.name}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            {(() => {
+                              const Icon = mealIcon(index);
+                              return <Icon className="h-5 w-5 text-primary" />;
+                            })()}
+                          </div>
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5">

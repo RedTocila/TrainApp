@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -7,6 +8,13 @@ import {
   requireSubscribedMutationAdmin,
 } from "@/lib/actions/auth-client";
 import { upsertDailyLog } from "@/lib/actions/logs";
+import {
+  MEAL_LOG_PHOTO_COLUMNS,
+  removeMealPhotoStorage,
+  sanitizeMealLogRow,
+  uploadMealPhotoBuffer,
+  type MealPhotoUploadInput,
+} from "@/lib/meal-photo-storage";
 import { mealPayloadFromForm, sumMealMacros, type MealFormData } from "@/lib/meal-utils";
 import { getMealSlotPhase, resolveMealSlotForLog } from "@/lib/meal-times";
 import { mealTypeForSlot, type MealSlot } from "@/lib/meal-slots";
@@ -36,6 +44,7 @@ async function insertMealLogWithSlot(
   clientId: string,
   date: string,
   input: {
+    id?: string;
     meal_type: MealType;
     name: string;
     description?: string | null;
@@ -46,6 +55,8 @@ async function insertMealLogWithSlot(
     foods: { name: string; amount?: string }[];
     source_meal_id?: string | null;
     explicitSlot?: MealSlot | null;
+    photo_path?: string | null;
+    photo_expires_at?: string | null;
   }
 ) {
   const existingLogs = await getDailyMealLogs(clientId, date);
@@ -60,6 +71,7 @@ async function insertMealLogWithSlot(
   const meal_type = slot ? mealTypeForSlot(slot) : input.meal_type;
 
   return admin.from("daily_meal_logs").insert({
+    ...(input.id ? { id: input.id } : {}),
     client_id: clientId,
     date,
     slot: slot ?? null,
@@ -72,6 +84,8 @@ async function insertMealLogWithSlot(
     fat: input.fat,
     foods: input.foods,
     source_meal_id: input.source_meal_id ?? null,
+    photo_path: input.photo_path ?? null,
+    photo_expires_at: input.photo_expires_at ?? null,
   });
 }
 
@@ -82,14 +96,12 @@ export async function getDailyMealLogs(
   const supabase = await createClient();
   const { data } = await supabase
     .from("daily_meal_logs")
-    .select(
-      "id, client_id, date, slot, meal_type, name, description, calories, protein, carbs, fat, foods, source_meal_id, logged_at"
-    )
+    .select(MEAL_LOG_PHOTO_COLUMNS)
     .eq("client_id", clientId)
     .eq("date", date)
     .order("logged_at");
 
-  return (data ?? []) as DailyMealLog[];
+  return ((data ?? []) as DailyMealLog[]).map(sanitizeMealLogRow);
 }
 
 export async function getDailyMealLogForSlot(
@@ -100,15 +112,14 @@ export async function getDailyMealLogForSlot(
   const supabase = await createClient();
   const { data } = await supabase
     .from("daily_meal_logs")
-    .select(
-      "id, client_id, date, slot, meal_type, name, description, calories, protein, carbs, fat, foods, source_meal_id, logged_at"
-    )
+    .select(MEAL_LOG_PHOTO_COLUMNS)
     .eq("client_id", clientId)
     .eq("date", date)
     .eq("slot", slot)
     .maybeSingle();
 
-  return (data as DailyMealLog | null) ?? null;
+  const meal = (data as DailyMealLog | null) ?? null;
+  return meal ? sanitizeMealLogRow(meal) : null;
 }
 
 export async function logPlannedMealOption(
@@ -253,7 +264,12 @@ export async function logMealFromLibrary(
   return { success: true };
 }
 
-export async function logCustomMeal(clientId: string, date: string, data: MealFormData) {
+export async function logCustomMeal(
+  clientId: string,
+  date: string,
+  data: MealFormData,
+  options?: { photo?: MealPhotoUploadInput }
+) {
   const mutation = await requireSubscribedMutationAdmin(clientId);
   if ("error" in mutation) return { error: mutation.error };
   const { admin } = mutation;
@@ -261,7 +277,19 @@ export async function logCustomMeal(clientId: string, date: string, data: MealFo
   const payload = mealPayloadFromForm(data);
   if (!payload.name) return { error: "Meal name is required" };
 
+  const logId = crypto.randomUUID();
+  let photo_path: string | null = null;
+  let photo_expires_at: string | null = null;
+
+  if (options?.photo) {
+    const uploaded = await uploadMealPhotoBuffer(admin, clientId, logId, options.photo);
+    if ("error" in uploaded) return { error: uploaded.error };
+    photo_path = uploaded.path;
+    photo_expires_at = uploaded.expiresAt;
+  }
+
   const { error } = await insertMealLogWithSlot(admin, clientId, date, {
+    id: logId,
     meal_type: payload.meal_type,
     name: payload.name,
     description: payload.description,
@@ -270,17 +298,34 @@ export async function logCustomMeal(clientId: string, date: string, data: MealFo
     carbs: payload.carbs,
     fat: payload.fat,
     foods: payload.foods,
+    photo_path,
+    photo_expires_at,
   });
 
-  if (error) return { error: formatDbError(error.message) };
+  if (error) {
+    if (photo_path) {
+      await removeMealPhotoStorage(admin, photo_path);
+    }
+    return { error: formatDbError(error.message) };
+  }
 
   await syncDailyMacros(clientId, date);
-  return { success: true };
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/day/nutrition");
+  revalidatePath("/dashboard/meal-photos");
+  return { success: true, logId };
 }
 
 export async function deleteDailyMealLog(clientId: string, date: string, logId: string) {
   const mutation = await requireSubscribedMutationAdmin(clientId);
   if ("error" in mutation) return { error: mutation.error };
+
+  const existing = await mutation.admin
+    .from("daily_meal_logs")
+    .select("photo_path")
+    .eq("id", logId)
+    .eq("client_id", clientId)
+    .maybeSingle();
 
   const { error } = await mutation.admin
     .from("daily_meal_logs")
@@ -291,6 +336,9 @@ export async function deleteDailyMealLog(clientId: string, date: string, logId: 
 
   if (error) return { error: formatDbError(error.message) };
 
+  await removeMealPhotoStorage(mutation.admin, existing.data?.photo_path);
+
   await syncDailyMacros(clientId, date);
+  revalidatePath("/dashboard/meal-photos");
   return { success: true };
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { Check, ChevronDown, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Loader2, PenLine, Play, Sparkles } from "lucide-react";
 import {
   applyAiWorkoutDayToDateAction,
   generateAiWorkoutDayAction,
@@ -18,6 +18,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
+import { ExerciseVideoDialog } from "@/components/exercise-video-dialog";
+import { isValidYoutubeUrl } from "@/lib/youtube";
 
 export function AddWorkoutToDayAiPanel({
   dateKey,
@@ -37,7 +39,11 @@ export function AddWorkoutToDayAiPanel({
   const [error, setError] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
   const [exercisesOpen, setExercisesOpen] = useState(true);
+  const [showEditor, setShowEditor] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [videoPreview, setVideoPreview] = useState<{ title: string; videoUrl: string } | null>(
+    null
+  );
 
   useEffect(() => {
     setProfileLoading(true);
@@ -60,7 +66,13 @@ export function AddWorkoutToDayAiPanel({
       }
       setWorkout(result.workout);
       setExercisesOpen(true);
+      setShowEditor(false);
     });
+  };
+
+  const handleEditPrompt = () => {
+    setError(null);
+    setShowEditor(true);
   };
 
   const handleApply = () => {
@@ -101,46 +113,52 @@ export function AddWorkoutToDayAiPanel({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10">
-            <Sparkles className="h-5 w-5 text-violet-400" />
+      {showEditor ? (
+        <>
+          <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10">
+                <Sparkles className="h-5 w-5 text-violet-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold">{platform.aiUpgrade.aiWorkoutPlan}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Describe what you want — AI builds one session for {dayLabel} only.
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-bold">{platform.aiUpgrade.aiWorkoutPlan}</p>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Describe what you want — AI builds one session for {dayLabel} only.
-            </p>
+
+          <div className="space-y-2">
+            <Label htmlFor="ai-day-workout-prompt">What should today&apos;s workout be?</Label>
+            <Textarea
+              id="ai-day-workout-prompt"
+              rows={3}
+              placeholder="e.g. 45 min upper body, dumbbells only, focus on chest and triceps…"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
           </div>
-        </div>
-      </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="ai-day-workout-prompt">What should today&apos;s workout be?</Label>
-        <Textarea
-          id="ai-day-workout-prompt"
-          rows={3}
-          placeholder="e.g. 45 min upper body, dumbbells only, focus on chest and triceps…"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-        />
-      </div>
+          <Button className="w-full gap-1.5" onClick={handleGenerate} disabled={isPending}>
+            {isPending && !workout ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Building session…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                {workout ? "Regenerate workout" : "Generate workout"}
+              </>
+            )}
+          </Button>
 
-      <Button className="w-full gap-1.5" onClick={handleGenerate} disabled={isPending}>
-        {isPending && !workout ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Building session…
-          </>
-        ) : (
-          <>
-            <Sparkles className="h-4 w-4" />
-            Generate workout
-          </>
-        )}
-      </Button>
+          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        </>
+      ) : null}
 
-      {workout ? (
+      {workout && !showEditor ? (
         <div className="overflow-hidden rounded-xl border border-border/60 bg-card/80">
           <div className="border-b border-border/60 px-3 py-2.5">
             <p className="text-sm font-semibold">{workout.title}</p>
@@ -169,6 +187,18 @@ export function AddWorkoutToDayAiPanel({
                   <p className="text-muted-foreground">
                     {ex.sets} sets × {ex.reps} · {ex.rest_seconds}s rest
                   </p>
+                  {ex.video_url && isValidYoutubeUrl(ex.video_url) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVideoPreview({ title: ex.name, videoUrl: ex.video_url! })
+                      }
+                      className="mt-1 inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                    >
+                      <Play className="h-3 w-3" />
+                      Watch demo
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -177,11 +207,11 @@ export function AddWorkoutToDayAiPanel({
             <Button
               variant="outline"
               size="sm"
-              onClick={handleGenerate}
+              onClick={handleEditPrompt}
               disabled={isPending || applied}
             >
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-              Regenerate
+              <PenLine className="mr-1.5 h-3.5 w-3.5" />
+              Edit & regenerate
             </Button>
             <Button size="sm" onClick={handleApply} disabled={isPending || applied}>
               {applied ? (
@@ -202,7 +232,14 @@ export function AddWorkoutToDayAiPanel({
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {!showEditor && error ? <p className="text-sm text-red-400">{error}</p> : null}
+
+      <ExerciseVideoDialog
+        open={videoPreview !== null}
+        onClose={() => setVideoPreview(null)}
+        videoUrl={videoPreview?.videoUrl ?? ""}
+        title={videoPreview?.title ?? "Exercise demo"}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import type {
 
 export type PlatformScoredParticipant = {
   platform_score?: number;
+  challenge_points?: number;
   display_name: string;
 };
 
@@ -13,8 +14,8 @@ export function compareParticipantsByPlatformScore(
   a: PlatformScoredParticipant,
   b: PlatformScoredParticipant
 ): number {
-  const scoreA = a.platform_score ?? -1;
-  const scoreB = b.platform_score ?? -1;
+  const scoreA = a.challenge_points ?? a.platform_score ?? -1;
+  const scoreB = b.challenge_points ?? b.platform_score ?? -1;
   if (scoreB !== scoreA) return scoreB - scoreA;
   return a.display_name.localeCompare(b.display_name);
 }

@@ -668,6 +668,14 @@ export const platformCopyEn = {
     ingredients: "Ingredients",
     howToCook: "How to cook",
   },
+  groceryList: {
+    title: "Grocery list",
+    subtitle: "One week of ingredients for your meal plan",
+    empty: "Add ingredients to your meals to build a grocery list.",
+    progress: (bought: number, total: number) => `${bought} of ${total} in your cart`,
+    checkItem: (name: string) => `Mark ${name} as bought`,
+    uncheckItem: (name: string) => `Mark ${name} as not bought`,
+  },
   calendar: {
     fullCalendar: "Full calendar",
   },
@@ -746,6 +754,16 @@ export const platformCopyEn = {
     descriptionNotes: "Description or notes",
     removeIngredient: "Remove ingredient",
     whatToEatToday: "What to eat today",
+    photoSavedHint: "Your photo is saved for 30 days with this meal.",
+  },
+  mealPhotos: {
+    title: "Meal photos",
+    subtitle: "Photos from meals you logged with the camera.",
+    retentionHint: (days: number) =>
+      `Photos are kept for ${days} days, then removed. Meals stay in your log without the photo.`,
+    emptyTitle: "No meal photos yet",
+    emptyBody: "Log a meal with Photo log to save a compressed snapshot here.",
+    viewPhotos: "Photos",
   },
   subscriptionPlans: {
     basic: {
@@ -885,6 +903,24 @@ export const platformCopyEn = {
     selectionAdminBody:
       "The challenge organizer casts the final weighted vote based on overall performance and live presentation.",
     bracketTitle: "Tournament bracket",
+    leaderboardTitle: "Points leaderboard",
+    leaderboardEmpty: "No participants yet. Elite members register from the challenge page.",
+    leaderboardIntro:
+      "Ranked by total daily points (50% nutrition · 30% workouts · 20% habits + water) — highest first.",
+    leaderboardMaxPoints: "Max possible: {max} pts (100 per day logged).",
+    leaderboardEndedNoChampion:
+      "This challenge has ended. The champion will appear once judgment day is complete.",
+    pointsUnit: "pts",
+    championLabel: "Champion",
+    championPrizeHint: "Prize paid manually by the organizer — no in-app cashout.",
+    judgmentDayInviteLabel: "Invited to judgment day",
+    judgmentZoomTitle: "Judgment day Zoom",
+    judgmentZoomIntro:
+      "You were invited based on your points. Join live on camera — the organizer picks the winner after the call.",
+    judgmentZoomJoin: "Join Zoom",
+    judgmentZoomLinkPending: "Zoom link coming soon",
+    judgmentZoomPendingHint:
+      "You are registered. Keep logging daily to climb the leaderboard — top scorers get invited to judgment-day Zoom.",
     bracketEmpty: "No participants yet. Elite members register from the challenge page.",
     bracketGroupsPending:
       "Waiting for groups of {groupSize} to be drawn before the first elimination day.",
@@ -942,6 +978,8 @@ export const platformCopyEn = {
     detailStatStart: "Start date",
     detailStatDuration: "Duration",
     detailStatGroupSize: "Group size",
+    detailStatScoring: "Scoring",
+    detailStatScoringValue: "Daily points",
     detailStatRegistered: "Registered",
     detailPhaseTitle: "Tournament timeline",
     detailPhaseRegistration: "Registration & logging",
@@ -971,7 +1009,11 @@ export const platformCopyEn = {
       grandPrize: "Grand prize pool",
       winUpTo: "Win up to {pool}",
       maxPrizeLabel: "Win up to",
+      cardMaxPoolHint:
+        "You can win up to {pool} if all {max} participants join the challenge.",
+      catalogWinUpToLine: "{pool} if all {max} spots fill",
       compactWinUpTo: "Up to {pool}",
+      compactMaxPoolHint: "Up to {pool} if {max} join",
       championTakesAll: "Champion receives the full pool — paid manually by the organizer.",
       perEntry: "Per entrant",
       perParticipant: "+{amount} × {count} participants · month {month} of pool",
@@ -990,13 +1032,15 @@ export const platformCopyEn = {
       compactPool: "{pool} prize pool",
     },
     flash: {
-      intro: "Quick head-to-head — finish within 24 hours, film your attempt, and the best score wins the pool.",
+      intro:
+        "Quick head-to-head — 24 hours once 10 people join. Film on Zoom, admin records your score, highest overall wins the pool.",
       steps: [
-        "The first group of 10 can reserve a seat for free. Once 10 people join, everyone in that group pays the entry fee to confirm.",
-        "After the first group, new joiners pay the entry fee immediately when they join.",
-        "Record your attempt on video with the full movement visible.",
-        "Submit before the 24-hour window closes — longest time or most reps wins.",
-        "Winner receives the full prize pool.",
+        "The first 10 people reserve a seat for free. The organizer starts the 24-hour window once at least 10 have signed up.",
+        "Everyone in that first group pays the €10 entry fee to confirm once the group is full.",
+        "After the first 10, new joiners pay €10 immediately when they join (up to 50 total).",
+        "Participants are split into Zoom groups of up to 10 (max 5 groups) when the challenge starts.",
+        "After each group Zoom, the organizer enters the group winner's record (time, reps, etc.).",
+        "Among group winners, the highest record wins the full prize pool.",
       ],
       windowLabel: "Window",
       entryLabel: "Entry fee",
@@ -1013,7 +1057,12 @@ export const platformCopyEn = {
       zoomGroupLabel: "Zoom",
       zoomGroupsEmpty: "No participants yet — register to join a Zoom group.",
       zoomGroupsPending:
-        "Waiting for groups of {groupSize} to be drawn — one Zoom call per hour.",
+        "Waiting for groups of {groupSize} — drawn in join order when the organizer starts the challenge.",
+      joinOrderHint: "Listed in join order — #1 signed up first.",
+      fillingNotice: "{count} more sign-ups needed before the organizer can start.",
+      waitingToStart: "10+ signed up — waiting for the organizer to start the 24-hour window.",
+      fillingReady: "Challenge is live — 24-hour window running.",
+      performanceLabel: "Record",
       winnerLabel: "Winner",
     },
     catalog: {
@@ -1052,6 +1101,8 @@ export const platformCopyEn = {
       payEntryFee: "Pay {fee} entry fee",
       flashFirstGroupPayNotice:
         "The first group of {count} is full — pay {fee} to confirm your spot.",
+      flashFillingNotice: "{count} more sign-ups needed before the organizer can start.",
+      flashWaitingToStart: "10+ signed up — waiting for the organizer to start the 24-hour window.",
       flashSeatReserved:
         "Seat reserved. The first {count} join free — you will pay the entry fee once the group fills.",
       flashCheckoutTitle: "Flash challenge entry",

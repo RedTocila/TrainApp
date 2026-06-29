@@ -35,6 +35,11 @@ import {
   flashGroupSize,
   flashRequiresPaymentOnJoin,
 } from "@/lib/flash-challenge-entry-fee";
+import {
+  FLASH_MIN_PARTICIPANTS_TO_START,
+  flashMaxGroupCount,
+  participantIdsByJoinOrder,
+} from "@/lib/flash-challenge-utils";
 import { hasEliteAccess } from "@/lib/subscription";
 import type {
   Challenge,
@@ -330,6 +335,18 @@ export async function registerForChallenge(challengeId: string) {
     .eq("challenge_id", challengeId)
     .eq("user_id", profile.id);
 
+  if (series === "flash" && getChallengePhase(challenge) > 0) {
+    const { data: inserted } = await supabase
+      .from("challenge_participants")
+      .select("id")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", profile.id)
+      .maybeSingle();
+    if (inserted?.id) {
+      await assignFlashParticipantToGroup(supabase, challengeId, inserted.id as string);
+    }
+  }
+
   revalidateChallengePaths(challenge);
   return { success: true };
 }
@@ -440,17 +457,20 @@ export async function getChallengeBracket(
     group_id: string;
     participant_id: string;
     outcome: ChallengeMemberOutcome;
+    performance_value: number | null;
   }[] = [];
 
   if (groupIds.length > 0) {
     const { data: memberRows } = await supabase
       .from("challenge_group_members")
-      .select("group_id, participant_id, outcome")
+      .select("group_id, participant_id, outcome, performance_value")
       .in("group_id", groupIds);
     members = (memberRows ?? []).map((m) => ({
       group_id: m.group_id,
       participant_id: m.participant_id,
       outcome: (m.outcome as ChallengeMemberOutcome) ?? "pending",
+      performance_value:
+        typeof m.performance_value === "number" ? m.performance_value : null,
     }));
   }
 
@@ -481,6 +501,8 @@ export async function getChallengeBracket(
           group_id: group.id,
           group_number: group.group_number,
           round: group.round,
+          performance_value:
+            row.outcome === "group_winner" ? row.performance_value : null,
         },
       ];
     });
@@ -637,6 +659,278 @@ export async function generateRound1Groups(challengeId: string) {
     .eq("id", challengeId);
 
   revalidateBracketPaths(supabase, challengeId);
+}
+
+export async function startFlashChallenge(challengeId: string) {
+  if (isDemoChallengeId(challengeId)) {
+    throw new Error("Demo challenge bracket is read-only.");
+  }
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { data: challengeRow } = await supabase
+    .from("challenges")
+    .select("*")
+    .eq("id", challengeId)
+    .maybeSingle();
+
+  if (!challengeRow?.is_flash) {
+    throw new Error("This action is only for flash challenges.");
+  }
+
+  const challenge = rowToChallenge(challengeRow);
+  if (getChallengePhase(challenge) > 0) {
+    throw new Error("This challenge has already started.");
+  }
+
+  const participantCount = await countChallengeParticipants(supabase, challengeId);
+  if (participantCount < FLASH_MIN_PARTICIPANTS_TO_START) {
+    throw new Error(
+      `At least ${FLASH_MIN_PARTICIPANTS_TO_START} participants are required before starting.`
+    );
+  }
+
+  const startedAt = new Date().toISOString();
+  await supabase
+    .from("challenges")
+    .update({
+      scheduled_at: startedAt,
+      current_phase: 1,
+    })
+    .eq("id", challengeId);
+
+  await generateFlashGroupsInternal(supabase, challengeId);
+  revalidateBracketPaths(supabase, challengeId);
+}
+
+async function generateFlashGroupsInternal(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  challengeId: string
+) {
+  const { data: challengeRow } = await supabase
+    .from("challenges")
+    .select("id, group_size, round_1_zoom_at, is_flash, max_participants")
+    .eq("id", challengeId)
+    .maybeSingle();
+
+  if (!challengeRow?.is_flash) return;
+
+  const challenge = rowToChallenge(challengeRow);
+
+  const { data: participants } = await supabase
+    .from("challenge_participants")
+    .select("id, created_at")
+    .eq("challenge_id", challengeId)
+    .in("status", ["registered", "active", "finalist"])
+    .order("created_at", { ascending: true });
+
+  const participantRows = participants ?? [];
+  if (participantRows.length === 0) return;
+
+  const ids = participantIdsByJoinOrder(
+    participantRows.map((participant) => ({
+      id: participant.id as string,
+      created_at: participant.created_at as string,
+    }))
+  );
+
+  const groupSize = flashGroupSize(challenge);
+  const groupCount = Math.min(
+    flashMaxGroupCount(challenge),
+    Math.ceil(ids.length / groupSize)
+  );
+
+  await deleteGroupsForRound(supabase, challengeId, 1);
+
+  for (let i = 0; i < groupCount; i++) {
+    const slice = ids.slice(i * groupSize, (i + 1) * groupSize);
+    if (slice.length === 0) continue;
+
+    const scheduledAt = groupScheduledAt(challenge.round_1_zoom_at, i);
+
+    const { data: group, error } = await supabase
+      .from("challenge_groups")
+      .insert({
+        challenge_id: challengeId,
+        round: 1,
+        group_number: i + 1,
+        scheduled_at: scheduledAt,
+      })
+      .select("id")
+      .single();
+
+    if (error || !group) throw new Error(error?.message ?? "Could not create group.");
+
+    const { error: memberError } = await supabase.from("challenge_group_members").insert(
+      slice.map((participant_id) => ({
+        group_id: group.id,
+        participant_id,
+        outcome: "pending",
+      }))
+    );
+
+    if (memberError) throw new Error(memberError.message);
+  }
+}
+
+async function assignFlashParticipantToGroup(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  challengeId: string,
+  participantId: string
+) {
+  const { data: challengeRow } = await supabase
+    .from("challenges")
+    .select("group_size, max_participants, is_flash")
+    .eq("id", challengeId)
+    .maybeSingle();
+
+  if (!challengeRow?.is_flash) return;
+
+  const challenge = rowToChallenge(challengeRow);
+  const groupSize = flashGroupSize(challenge);
+
+  const { data: existingMembership } = await supabase
+    .from("challenge_group_members")
+    .select("group_id")
+    .eq("participant_id", participantId)
+    .maybeSingle();
+
+  if (existingMembership) return;
+
+  const { data: groups } = await supabase
+    .from("challenge_groups")
+    .select("id, group_number")
+    .eq("challenge_id", challengeId)
+    .eq("round", 1)
+    .order("group_number", { ascending: true });
+
+  const groupRows = groups ?? [];
+
+  for (const group of groupRows) {
+    const { count } = await supabase
+      .from("challenge_group_members")
+      .select("id", { count: "exact", head: true })
+      .eq("group_id", group.id);
+
+    if ((count ?? 0) < groupSize) {
+      await supabase.from("challenge_group_members").insert({
+        group_id: group.id,
+        participant_id: participantId,
+        outcome: "pending",
+      });
+      return;
+    }
+  }
+
+  if (groupRows.length >= flashMaxGroupCount(challenge)) return;
+
+  const { data: challengeZoom } = await supabase
+    .from("challenges")
+    .select("round_1_zoom_at")
+    .eq("id", challengeId)
+    .maybeSingle();
+
+  const scheduledAt = groupScheduledAt(
+    (challengeZoom?.round_1_zoom_at as string | null) ?? null,
+    groupRows.length
+  );
+
+  const { data: newGroup, error } = await supabase
+    .from("challenge_groups")
+    .insert({
+      challenge_id: challengeId,
+      round: 1,
+      group_number: groupRows.length + 1,
+      scheduled_at: scheduledAt,
+    })
+    .select("id")
+    .single();
+
+  if (error || !newGroup) return;
+
+  await supabase.from("challenge_group_members").insert({
+    group_id: newGroup.id,
+    participant_id: participantId,
+    outcome: "pending",
+  });
+}
+
+export async function generateFlashGroups(challengeId: string) {
+  if (isDemoChallengeId(challengeId)) {
+    throw new Error("Demo challenge bracket is read-only.");
+  }
+  await requireAdmin();
+  const supabase = await createClient();
+  await generateFlashGroupsInternal(supabase, challengeId);
+  revalidateBracketPaths(supabase, challengeId);
+}
+
+export async function setFlashGroupWinner(
+  groupId: string,
+  participantId: string,
+  performanceValue: number
+) {
+  await requireAdmin();
+  if (!Number.isFinite(performanceValue) || performanceValue < 0) {
+    throw new Error("Enter a valid performance score.");
+  }
+
+  const supabase = await createClient();
+
+  const { data: group } = await supabase
+    .from("challenge_groups")
+    .select("id, challenge_id, round")
+    .eq("id", groupId)
+    .maybeSingle();
+
+  if (!group || group.round !== 1) throw new Error("Group not found.");
+
+  const { data: challengeRow } = await supabase
+    .from("challenges")
+    .select("is_flash")
+    .eq("id", group.challenge_id)
+    .maybeSingle();
+
+  if (!challengeRow?.is_flash) {
+    throw new Error("This action is only for flash challenge groups.");
+  }
+
+  const { data: memberRows } = await supabase
+    .from("challenge_group_members")
+    .select("participant_id")
+    .eq("group_id", groupId);
+
+  const memberIds = (memberRows ?? []).map((m) => m.participant_id);
+  if (!memberIds.includes(participantId)) {
+    throw new Error("Participant is not in this group.");
+  }
+
+  for (const memberId of memberIds) {
+    const outcome = memberId === participantId ? "group_winner" : "eliminated";
+    await supabase
+      .from("challenge_group_members")
+      .update({
+        outcome,
+        performance_value: memberId === participantId ? performanceValue : null,
+      })
+      .eq("group_id", groupId)
+      .eq("participant_id", memberId);
+
+    await supabase
+      .from("challenge_participants")
+      .update({
+        status: outcome === "group_winner" ? "finalist" : "eliminated",
+        eliminated_round: outcome === "eliminated" ? 1 : null,
+      })
+      .eq("id", memberId);
+  }
+
+  await supabase
+    .from("challenge_groups")
+    .update({ winner_participant_id: participantId })
+    .eq("id", groupId);
+
+  revalidateBracketPaths(supabase, group.challenge_id);
 }
 
 /** @deprecated use generateRound1Groups */
@@ -814,6 +1108,36 @@ export async function setRound2GroupWinner(groupId: string, participantId: strin
   revalidateBracketPaths(supabase, group.challenge_id);
 }
 
+export async function crownFlashChampionByHighestScore(challengeId: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const bracket = await getChallengeBracket(challengeId);
+  if (!bracket) throw new Error("Challenge not found.");
+  if (!isFlashChallenge(bracket.challenge)) {
+    throw new Error("This action is only for flash challenges.");
+  }
+
+  const groupWinners = bracket.round1Groups
+    .map((group) => group.winner)
+    .filter((winner): winner is NonNullable<typeof winner> => winner != null);
+
+  if (groupWinners.length === 0) {
+    throw new Error("Pick a group winner in every group first.");
+  }
+
+  const best = [...groupWinners].sort((a, b) => {
+    const scoreA = typeof a.performance_value === "number" ? a.performance_value : -1;
+    const scoreB = typeof b.performance_value === "number" ? b.performance_value : -1;
+    return scoreB - scoreA;
+  })[0];
+
+  if (!best || typeof best.performance_value !== "number") {
+    throw new Error("Every group winner needs a performance score before crowning.");
+  }
+
+  await setChampion(best.id);
+}
+
 /** @deprecated use setRound2GroupWinner */
 export async function setGroupWinner(groupId: string, participantId: string) {
   const supabase = await createClient();
@@ -919,6 +1243,72 @@ export async function setChampion(participantId: string) {
 
   if (!participant) throw new Error("Participant not found.");
 
+  const { data: challengeRow } = await supabase
+    .from("challenges")
+    .select("*")
+    .eq("id", participant.challenge_id)
+    .maybeSingle();
+
+  if (!challengeRow) throw new Error("Challenge not found.");
+
+  if (isTransformationChallenge(challengeRow)) {
+    await supabase
+      .from("challenge_participants")
+      .update({ status: "active", eliminated_round: null })
+      .eq("challenge_id", participant.challenge_id)
+      .eq("status", "champion");
+
+    await supabase
+      .from("challenge_participants")
+      .update({ status: "champion", eliminated_round: null })
+      .eq("id", participantId);
+
+    await supabase
+      .from("challenges")
+      .update({
+        champion_participant_id: participantId,
+        current_phase: 4,
+      })
+      .eq("id", participant.challenge_id);
+
+    revalidateBracketPaths(supabase, participant.challenge_id);
+    return;
+  }
+
+  if (isFlashChallenge(challengeRow)) {
+    const { data: participantRow } = await supabase
+      .from("challenge_participants")
+      .select("status")
+      .eq("id", participantId)
+      .maybeSingle();
+
+    if (participantRow?.status !== "finalist") {
+      throw new Error("Flash champion must be a group winner.");
+    }
+
+    await supabase
+      .from("challenge_participants")
+      .update({ status: "active", eliminated_round: null })
+      .eq("challenge_id", participant.challenge_id)
+      .eq("status", "champion");
+
+    await supabase
+      .from("challenge_participants")
+      .update({ status: "champion", eliminated_round: null })
+      .eq("id", participantId);
+
+    await supabase
+      .from("challenges")
+      .update({
+        champion_participant_id: participantId,
+        current_phase: 4,
+      })
+      .eq("id", participant.challenge_id);
+
+    revalidateBracketPaths(supabase, participant.challenge_id);
+    return;
+  }
+
   const { data: membership } = await supabase
     .from("challenge_group_members")
     .select("group_id, outcome")
@@ -1005,6 +1395,56 @@ export async function updateGroupZoomUrl(groupId: string, zoomUrl: string) {
   return updateGroupSchedule(groupId, null, zoomUrl);
 }
 
+export async function setJudgmentDayInvite(participantId: string, invited: boolean) {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { data: participant } = await supabase
+    .from("challenge_participants")
+    .select("id, challenge_id, status")
+    .eq("id", participantId)
+    .maybeSingle();
+
+  if (!participant) throw new Error("Participant not found.");
+  if (participant.status === "champion") {
+    throw new Error("Cannot change judgment-day invite for the champion.");
+  }
+
+  const { error } = await supabase
+    .from("challenge_participants")
+    .update({
+      status: invited ? "finalist" : "active",
+      eliminated_round: null,
+    })
+    .eq("id", participantId);
+
+  if (error) throw new Error(error.message);
+
+  revalidateBracketPaths(supabase, participant.challenge_id);
+}
+
+export async function updateJudgmentDaySchedule(
+  challengeId: string,
+  scheduledAt: string | null,
+  zoomUrl: string | null
+) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const trimmed = zoomUrl?.trim() ?? "";
+
+  const { error } = await supabase
+    .from("challenges")
+    .update({
+      round_3_zoom_at: scheduledAt,
+      final_zoom_url: trimmed || null,
+    })
+    .eq("id", challengeId);
+
+  if (error) throw new Error(error.message);
+
+  revalidateBracketPaths(supabase, challengeId);
+}
+
 export async function updateFinalZoomUrl(challengeId: string, zoomUrl: string) {
   await requireAdmin();
   const supabase = await createClient();
@@ -1060,6 +1500,26 @@ export async function advanceChallengePhase(challengeId: string, phase: number) 
     .eq("id", challengeId);
 
   if (error) throw new Error(error.message);
+  revalidateBracketPaths(supabase, challengeId);
+}
+
+export async function onFlashChallengeParticipantJoined(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  challengeId: string,
+  participantId: string
+) {
+  const { data: challengeRow } = await supabase
+    .from("challenges")
+    .select("*")
+    .eq("id", challengeId)
+    .maybeSingle();
+
+  if (!challengeRow?.is_flash) return;
+
+  if (getChallengePhase(rowToChallenge(challengeRow)) > 0) {
+    await assignFlashParticipantToGroup(supabase, challengeId, participantId);
+  }
+
   revalidateBracketPaths(supabase, challengeId);
 }
 

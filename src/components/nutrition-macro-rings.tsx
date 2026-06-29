@@ -179,6 +179,7 @@ function RingCell({
   over,
   amountClassName,
   targetClassName,
+  spread = false,
 }: {
   value: number;
   target: number;
@@ -192,12 +193,18 @@ function RingCell({
   over: boolean;
   amountClassName?: string;
   targetClassName?: string;
+  spread?: boolean;
 }) {
   const progress = target > 0 ? Math.min(value / target, 1) : 0;
   const amountClass = over ? OVER_AMOUNT_CLASS : iconClass;
 
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div
+      className={cn(
+        "flex flex-col items-center gap-1.5",
+        spread && "w-full"
+      )}
+    >
       <MiniProgressRing
         progress={progress}
         icon={icon}
@@ -235,6 +242,7 @@ export function NutritionMacroRings({
   microTargets = DAILY_MICRO_TARGETS,
   variant = "compact",
   layout = "grid",
+  spread = false,
   showMicros = false,
   macroSectionTitle,
   microSectionTitle,
@@ -246,6 +254,8 @@ export function NutritionMacroRings({
   microTargets?: DailyMicros;
   variant?: "compact" | "detail";
   layout?: "grid" | "hero";
+  /** Compact only: spread macro rings across full row width. */
+  spread?: boolean;
   showMicros?: boolean;
   macroSectionTitle?: string;
   microSectionTitle?: string;
@@ -365,8 +375,10 @@ export function NutritionMacroRings({
   const macroGrid = (
     <div
       className={cn(
-        "grid grid-cols-4 items-end",
-        isDetail ? "gap-3 sm:gap-4" : "gap-2"
+        "w-full items-end",
+        !isDetail && spread
+          ? "grid grid-cols-4 justify-items-center"
+          : cn("grid grid-cols-4", isDetail ? "gap-3 sm:gap-4" : "gap-2")
       )}
     >
       {MACRO_CELLS.map(({ key, icon, ringClass, iconClass, size }) => {
@@ -375,7 +387,12 @@ export function NutritionMacroRings({
         const over = target > 0 && value > target;
         const ringSize = size ?? defaultRingSize;
         const stroke = key === "calories" ? caloriesStroke : ringStroke;
-        const resolvedSize = key === "calories" ? caloriesSize : ringSize;
+        const resolvedSize =
+          !isDetail && spread
+            ? defaultRingSize
+            : key === "calories"
+              ? caloriesSize
+              : ringSize;
 
         return (
           <RingCell
@@ -388,10 +405,11 @@ export function NutritionMacroRings({
             ringClass={ringClass}
             iconClass={iconClass}
             ringSize={resolvedSize}
-            stroke={stroke}
+            stroke={!isDetail && spread ? ringStroke : stroke}
             over={over}
             amountClassName={amountText}
             targetClassName={targetText}
+            spread={!isDetail && spread}
           />
         );
       })}

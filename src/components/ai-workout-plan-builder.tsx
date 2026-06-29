@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Check, ChevronDown, Dumbbell, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Dumbbell, Loader2, PenLine, Play, Sparkles } from "lucide-react";
 import {
   applyAiWorkoutPlanAction,
   generateAiWorkoutPlanAction,
@@ -17,6 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
+import { ExerciseVideoDialog } from "@/components/exercise-video-dialog";
+import { isValidYoutubeUrl } from "@/lib/youtube";
 
 export function AiWorkoutPlanBuilder({
   profile,
@@ -31,7 +33,11 @@ export function AiWorkoutPlanBuilder({
   const [error, setError] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
   const [openDay, setOpenDay] = useState(0);
+  const [showEditor, setShowEditor] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [videoPreview, setVideoPreview] = useState<{ title: string; videoUrl: string } | null>(
+    null
+  );
 
   const handleGenerate = () => {
     setError(null);
@@ -44,7 +50,13 @@ export function AiWorkoutPlanBuilder({
       }
       setPlan(result.plan);
       setOpenDay(0);
+      setShowEditor(false);
     });
+  };
+
+  const handleEditPrompt = () => {
+    setError(null);
+    setShowEditor(true);
   };
 
   const handleApply = () => {
@@ -63,57 +75,61 @@ export function AiWorkoutPlanBuilder({
 
   return (
     <div className="space-y-6">
-      <AiPlanProfileSummary profile={profile} />
+      {showEditor ? (
+        <>
+          <AiPlanProfileSummary profile={profile} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Dumbbell className="h-4 w-4 text-primary" />
-            Build workout plan
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            AI creates a weekly split based on your goal, schedule, injuries, and experience
-            level. Review everything before applying.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!intakeComplete && (
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200/90">
-              For best results, complete your health profile first. AI will still generate
-              with whatever info you have.
-            </p>
-          )}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Dumbbell className="h-4 w-4 text-primary" />
+                Build workout plan
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                AI creates a weekly split based on your goal, schedule, injuries, and experience
+                level. Review everything before applying.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!intakeComplete && (
+                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200/90">
+                  For best results, complete your health profile first. AI will still generate
+                  with whatever info you have.
+                </p>
+              )}
 
-          <div className="space-y-2">
-            <Label htmlFor="workout-preferences">Extra preferences (optional)</Label>
-            <Textarea
-              id="workout-preferences"
-              rows={3}
-              placeholder="e.g. Home gym only, 45 min sessions, no barbell squats, train 4 days…"
-              value={preferences}
-              onChange={(e) => setPreferences(e.target.value)}
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="workout-preferences">Extra preferences (optional)</Label>
+                <Textarea
+                  id="workout-preferences"
+                  rows={3}
+                  placeholder="e.g. Home gym only, 45 min sessions, no barbell squats, train 4 days…"
+                  value={preferences}
+                  onChange={(e) => setPreferences(e.target.value)}
+                />
+              </div>
 
-          <Button className="w-full" onClick={handleGenerate} disabled={isPending}>
-            {isPending && !plan ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Building your plan…
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Generate workout plan
-              </>
-            )}
-          </Button>
+              <Button className="w-full" onClick={handleGenerate} disabled={isPending}>
+                {isPending && !plan ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Building your plan…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    {plan ? "Regenerate workout plan" : "Generate workout plan"}
+                  </>
+                )}
+              </Button>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
-        </CardContent>
-      </Card>
+              {error && <p className="text-sm text-red-400">{error}</p>}
+            </CardContent>
+          </Card>
+        </>
+      ) : null}
 
-      {plan && (
+      {plan && !showEditor ? (
         <Card className="border-primary/20">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -160,6 +176,18 @@ export function AiWorkoutPlanBuilder({
                           {ex.notes && (
                             <p className="mt-1 text-xs text-muted-foreground">{ex.notes}</p>
                           )}
+                          {ex.video_url && isValidYoutubeUrl(ex.video_url) && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setVideoPreview({ title: ex.name, videoUrl: ex.video_url! })
+                              }
+                              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                            >
+                              <Play className="h-3 w-3" />
+                              Watch demo
+                            </button>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -182,9 +210,9 @@ export function AiWorkoutPlanBuilder({
             )}
 
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={handleGenerate} disabled={isPending}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Regenerate
+              <Button variant="outline" onClick={handleEditPrompt} disabled={isPending}>
+                <PenLine className="mr-2 h-4 w-4" />
+                Edit & regenerate
               </Button>
               <Button onClick={handleApply} disabled={isPending || applied}>
                 {applied ? (
@@ -210,9 +238,18 @@ export function AiWorkoutPlanBuilder({
                 </Link>
               )}
             </div>
+
+            {error && <p className="text-sm text-red-400">{error}</p>}
           </CardContent>
         </Card>
-      )}
+      ) : null}
+
+      <ExerciseVideoDialog
+        open={videoPreview !== null}
+        onClose={() => setVideoPreview(null)}
+        videoUrl={videoPreview?.videoUrl ?? ""}
+        title={videoPreview?.title ?? "Exercise demo"}
+      />
     </div>
   );
 }

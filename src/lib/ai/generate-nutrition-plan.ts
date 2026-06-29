@@ -4,6 +4,7 @@ import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import type { AiGeneratedNutritionPlan, AiNutritionMeal } from "@/lib/ai/plan-builder-types";
 import type { Profile } from "@/lib/types";
 import type { MealSlot } from "@/lib/meal-slots";
+import { normalizeGroceryList } from "@/lib/grocery-list-utils";
 
 const VALID_SLOTS = new Set<MealSlot>([
   "breakfast",
@@ -50,6 +51,11 @@ function normalizeNutritionPlan(raw: AiGeneratedNutritionPlan): AiGeneratedNutri
     daily_targets: targets,
     meals: meals.length > 0 ? meals : defaultMeals(targets),
     coach_notes: (raw.coach_notes ?? []).filter((n) => n?.trim()).map((n) => n.trim()),
+    grocery_list: normalizeGroceryList(raw.grocery_list).map((item) => ({
+      name: item.name,
+      amount: item.amount,
+      category: item.category,
+    })),
   };
 }
 
@@ -86,6 +92,7 @@ Rules:
 - Use simple, whole-food meals with realistic portions.
 - Respect medical conditions and injuries where relevant to food choices.
 - Include 2-5 ingredients per meal when helpful.
+- Add a weekly grocery_list with realistic total amounts for 7 days (merge duplicates, group by category).
 
 Respond with ONLY valid JSON:
 {
@@ -108,6 +115,9 @@ Respond with ONLY valid JSON:
       "fat": number,
       "ingredients": [{ "name": "food", "amount": "e.g. 150g" }]
     }
+  ],
+  "grocery_list": [
+    { "name": "ingredient", "amount": "weekly amount e.g. 1.2 kg", "category": "Protein" | "Produce" | "Dairy" | "Pantry" | "Other" }
   ],
   "coach_notes": ["2-4 practical nutrition tips"]
 }`;

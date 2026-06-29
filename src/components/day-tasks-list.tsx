@@ -120,11 +120,17 @@ export function TaskRow({
   task,
   macroTargets,
   dailyMeals,
+  waterMl,
+  waterGoalMl,
+  dateKey,
   variant = "default",
 }: {
   task: DailyTask;
   macroTargets?: MealMacros;
   dailyMeals?: DailyMealLog[];
+  waterMl?: number;
+  waterGoalMl?: number;
+  dateKey?: string;
   variant?: "default" | "dropdown";
 }) {
   const navigate = useTaskNavigation();
@@ -152,7 +158,8 @@ export function TaskRow({
             ? dashboard.dropdownItem
             : cn(
                 dashboard.listRow,
-                "w-full cursor-pointer touch-manipulation select-none items-start gap-3 py-2.5 pl-2 pr-3 text-left active:scale-[0.99] hover:bg-card/60"
+                "w-full cursor-pointer touch-manipulation select-none gap-3 py-2.5 pl-2 pr-3 text-left active:scale-[0.99] hover:bg-card/60",
+                showMacroPreview ? "flex flex-wrap items-start" : "flex items-start"
               )
         )}
       >
@@ -186,16 +193,22 @@ export function TaskRow({
               {task.detail}
             </p>
           )}
-          {showMacroPreview && macroCurrent && macroTargets && (
-            <TaskNutritionMacroPreview
-              current={macroCurrent}
-              targets={macroTargets}
-            />
-          )}
         </div>
         <div className={TASK_STATUS_COLUMN}>
           <TaskRowStatus task={task} />
         </div>
+        {showMacroPreview && macroCurrent && macroTargets && (
+          <div className="mt-1 w-full basis-full">
+            <TaskNutritionMacroPreview
+              current={macroCurrent}
+              targets={macroTargets}
+              dailyMeals={dailyMeals}
+              waterMl={waterMl}
+              waterGoalMl={waterGoalMl}
+              dateKey={dateKey}
+            />
+          </div>
+        )}
       </button>
     </li>
   );
@@ -242,11 +255,17 @@ function TaskGroupDropdown({
   tasks,
   macroTargets,
   dailyMeals,
+  waterMl,
+  waterGoalMl,
+  dateKey,
 }: {
   category: TaskCategory;
   tasks: DailyTask[];
   macroTargets?: MealMacros;
   dailyMeals?: DailyMealLog[];
+  waterMl?: number;
+  waterGoalMl?: number;
+  dateKey?: string;
 }) {
   const locale = useLocale();
   const categoryLabels = getTaskCategoryLabels(locale);
@@ -317,6 +336,9 @@ function TaskGroupDropdown({
                 task={task}
                 macroTargets={macroTargets}
                 dailyMeals={dailyMeals}
+                waterMl={waterMl}
+                waterGoalMl={waterGoalMl}
+                dateKey={dateKey}
                 variant="dropdown"
               />
             ))}
@@ -367,10 +389,16 @@ export function DayTasksList({
   tasks,
   macroTargets,
   dailyMeals,
+  waterMl,
+  waterGoalMl,
+  dateKey,
 }: {
   tasks: DailyTask[];
   macroTargets?: MealMacros;
   dailyMeals?: DailyMealLog[];
+  waterMl?: number;
+  waterGoalMl?: number;
+  dateKey?: string;
 }) {
   const coachLabels = useCoachLabels();
 
@@ -394,6 +422,9 @@ export function DayTasksList({
             tasks={segment.tasks}
             macroTargets={macroTargets}
             dailyMeals={dailyMeals}
+            waterMl={waterMl}
+            waterGoalMl={waterGoalMl}
+            dateKey={dateKey}
           />
         ) : (
           <TaskRow
@@ -401,6 +432,9 @@ export function DayTasksList({
             task={segment.task}
             macroTargets={macroTargets}
             dailyMeals={dailyMeals}
+            waterMl={waterMl}
+            waterGoalMl={waterGoalMl}
+            dateKey={dateKey}
           />
         )
       )}

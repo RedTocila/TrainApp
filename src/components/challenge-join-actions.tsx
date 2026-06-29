@@ -19,6 +19,11 @@ import {
   flashSeatIsFreeOnJoin,
 } from "@/lib/flash-challenge-entry-fee";
 import {
+  flashCanAdminStart,
+  flashChallengeHasStarted,
+  flashParticipantsNeededToStart,
+} from "@/lib/flash-challenge-utils";
+import {
   canLeaveChallenge,
   canRegisterForChallenge,
   getChallengePhase,
@@ -94,6 +99,9 @@ export function ChallengeJoinActions({
     currentParticipant != null &&
     flashParticipantNeedsPayment(currentParticipant, allParticipants, groupSize);
   const firstGroupFull = isFlash && flashFirstGroupIsFull(participantCount, groupSize);
+  const flashStarted = isFlash && flashChallengeHasStarted(challenge);
+  const flashNeeded = isFlash ? flashParticipantsNeededToStart(participantCount) : 0;
+  const flashReadyToStart = isFlash && flashCanAdminStart(participantCount) && !flashStarted;
 
   const startFlashCheckout = (action: "join" | "confirm") => {
     setError(null);
@@ -265,6 +273,16 @@ export function ChallengeJoinActions({
         </p>
       ) : spotsLabel ? (
         <p className="text-sm text-muted-foreground">{spotsLabel}</p>
+      ) : null}
+
+      {isFlash && !flashStarted && flashNeeded > 0 ? (
+        <p className="text-sm text-amber-200">
+          {copy.flashFillingNotice.replace("{count}", String(flashNeeded))}
+        </p>
+      ) : null}
+
+      {isFlash && flashReadyToStart ? (
+        <p className="text-sm text-amber-200">{copy.flashWaitingToStart}</p>
       ) : null}
 
       {!blockedByOtherLongChallenge ? (

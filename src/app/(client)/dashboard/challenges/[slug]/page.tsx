@@ -16,6 +16,8 @@ import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { ChallengeAnnouncements } from "@/components/challenge-announcements";
 import { ChallengeBracketDiagram } from "@/components/challenge-bracket-diagram";
 import { ChallengeDetailVisuals } from "@/components/challenge-detail-visuals";
+import { ChallengeJudgmentZoomPanel } from "@/components/challenge-judgment-zoom-panel";
+import { ChallengeLeaderboard } from "@/components/challenge-leaderboard";
 import { ChallengePrizePool } from "@/components/challenge-prize-pool";
 import { ChallengeJoinActions, ChallengeRegisterButton } from "@/components/challenge-join-actions";
 import { isFlashChallenge, isTransformationChallenge } from "@/lib/challenge-series";
@@ -31,7 +33,7 @@ import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { PLATFORM_ELITE_NAME } from "@/lib/brand";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import { hasEliteAccess } from "@/lib/subscription";
-import { ArrowLeft, GitBranch, Users } from "lucide-react";
+import { ArrowLeft, GitBranch, Medal, Users } from "lucide-react";
 
 export default async function ChallengeDetailPage({
   params,
@@ -72,12 +74,13 @@ export default async function ChallengeDetailPage({
   const isTransformation = isTransformationChallenge(challenge);
   const isFlash = isFlashChallenge(challenge);
   const isSeries = isTransformation || isFlash;
+  const isDemo = isDemoChallengeSlug(slug);
 
   const bracketRaw = await getChallengeBracketBySlug(slug, user!.id);
   if (!bracketRaw) notFound();
 
   const bracket =
-    isSeries && bracketRaw.participants.length > 0
+    isTransformation && bracketRaw.participants.length > 0 && !isDemo
       ? await loadChallengeBracketWithPlatformScores(bracketRaw)
       : bracketRaw;
 
@@ -85,7 +88,6 @@ export default async function ChallengeDetailPage({
 
   const status = getChallengeStatus(challenge);
 
-  const isDemo = isDemoChallengeSlug(slug);
   const isRegistered = isDemo || !!bracket.currentUserParticipantId;
   const membership = isFlash
     ? await getUserFlashChallengeStatus(user!.id)
@@ -166,24 +168,48 @@ export default async function ChallengeDetailPage({
                 />
               )
             )}
-            <ChallengeZoomPanel bracket={bracket} joinable={status !== "ended"} />
+            {isTransformation ? (
+              <ChallengeJudgmentZoomPanel
+                challenge={challenge}
+                participant={currentParticipant}
+                joinable={status !== "ended"}
+              />
+            ) : (
+              <ChallengeZoomPanel bracket={bracket} joinable={status !== "ended"} />
+            )}
           </section>
         ) : null}
 
         {!isFlash ? (
           <section className="space-y-3">
             <div className="flex items-center gap-2">
-              <GitBranch className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-bold">{copy.bracketTitle}</h2>
+              {isTransformation ? (
+                <Medal className="h-5 w-5 text-primary" />
+              ) : (
+                <GitBranch className="h-5 w-5 text-primary" />
+              )}
+              <h2 className="text-lg font-bold">
+                {isTransformation ? copy.leaderboardTitle : copy.bracketTitle}
+              </h2>
             </div>
-            <ChallengeBracketDiagram bracket={bracket} />
+            {isTransformation ? (
+              <ChallengeLeaderboard
+                challenge={challenge}
+                participants={bracket.participants}
+                currentUserParticipantId={bracket.currentUserParticipantId}
+              />
+            ) : (
+              <ChallengeBracketDiagram bracket={bracket} />
+            )}
           </section>
         ) : null}
 
         {status === "ended" && !bracket.champion && !isFlash && (
           <Card>
             <CardContent className="p-4 text-sm text-muted-foreground">
-              This challenge has ended. The champion will appear once the final round is complete.
+              {isTransformation
+                ? copy.leaderboardEndedNoChampion
+                : "This challenge has ended. The champion will appear once the final round is complete."}
             </CardContent>
           </Card>
         )}

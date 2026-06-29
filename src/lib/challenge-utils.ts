@@ -64,6 +64,10 @@ export function canRegisterForChallenge(challenge: Challenge, now = new Date()):
   const opens = getRegistrationOpensAt(challenge);
   if (opens && now < opens) return false;
 
+  if (isFlashChallenge(challenge) && getChallengePhase(challenge) === 0) {
+    return true;
+  }
+
   if (status === "live") return true;
 
   return isRegistrationOpen(challenge, now);
@@ -207,6 +211,10 @@ export function isChallengeAtCapacity(
 }
 
 export function getChallengeStatus(challenge: Challenge, now = new Date()): ChallengeStatus {
+  if (isFlashChallenge(challenge) && getChallengePhase(challenge) === 0) {
+    return "upcoming";
+  }
+
   const start = new Date(challenge.scheduled_at);
   const end = getChallengeEndDate(challenge);
 

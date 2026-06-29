@@ -2,14 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { CheckCircle2, Target, X } from "lucide-react";
+import Image from "next/image";
+import { CheckCircle2, Target, Trash2, X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
-import { useCoachCopy } from "@/components/locale-provider";
+import { useCoachCopy, usePlatformCopy } from "@/components/locale-provider";
 import type { MealFormData } from "@/lib/meal-utils";
 import type { MacroTargets } from "@/lib/meal-score";
 import { scoreMeal } from "@/lib/meal-score";
 import { getCoachMealAdvice, getMealAdviceTier, getMealScoreTierStyles } from "@/lib/meal-coach-advice";
 import { formatMealMacrosSummary } from "@/lib/meal-utils";
+import { MealMacroDiagram } from "@/components/meal-macro-diagram";
 import { ScoreGauge } from "@/components/ai/score-gauge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,19 +21,26 @@ import { cn } from "@/lib/utils";
 export function MealLogPreviewDialog({
   open,
   meal,
+  photoUrl,
   targets,
   goal,
   onClose,
+  onDelete,
+  isDeleting = false,
   variant = "new",
 }: {
   open: boolean;
   meal: MealFormData | null;
+  photoUrl?: string | null;
   targets: MacroTargets;
   goal?: string | null;
   onClose: () => void;
+  onDelete?: () => void;
+  isDeleting?: boolean;
   variant?: "new" | "view";
 }) {
   const coachCopy = useCoachCopy();
+  const platform = usePlatformCopy();
   const [adviceKey, setAdviceKey] = useState(0);
   const [mounted, setMounted] = useState(false);
 
@@ -122,6 +131,20 @@ export function MealLogPreviewDialog({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
+          {photoUrl ? (
+            <div className="relative mb-4 aspect-[4/3] w-full overflow-hidden rounded-xl border border-border bg-secondary/30">
+              <Image
+                src={photoUrl}
+                alt={meal.name}
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+          ) : null}
+
+          <MealMacroDiagram macros={meal.macros} targets={targets} className="mb-4" />
+
           {score ? (
             <Card className={cn("border", tierStyles.card)}>
               <CardContent className="grid gap-3 p-4 sm:grid-cols-[auto_1fr] sm:items-center">
@@ -199,9 +222,26 @@ export function MealLogPreviewDialog({
         </div>
 
         <div className="border-t border-border px-5 py-3">
-          <Button className="w-full" onClick={onClose}>
-            Done
-          </Button>
+          {variant === "view" && onDelete ? (
+            <div className="flex flex-col gap-2">
+              <Button className="w-full" onClick={onClose} disabled={isDeleting}>
+                {platform.common.done}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full text-red-400 hover:text-red-300"
+                onClick={onDelete}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4" />
+                {isDeleting ? platform.common.saving : platform.aria.deleteMeal}
+              </Button>
+            </div>
+          ) : (
+            <Button className="w-full" onClick={onClose}>
+              {platform.common.done}
+            </Button>
+          )}
         </div>
       </div>
     </div>,

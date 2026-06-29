@@ -217,6 +217,13 @@ export interface Meal {
   order_index: number;
 }
 
+export interface GroceryListItem {
+  id: string;
+  name: string;
+  amount: string;
+  category?: string;
+}
+
 export interface NutritionAssignment {
   id: string;
   client_id: string;
@@ -252,6 +259,10 @@ export interface DailyMealLog {
   foods: { name: string; amount?: string }[];
   source_meal_id?: string | null;
   logged_at: string;
+  photo_path?: string | null;
+  photo_expires_at?: string | null;
+  /** Resolved client-side from photo_path when not expired. */
+  photo_url?: string | null;
 }
 
 export interface BodyWeightLog {
@@ -493,6 +504,8 @@ export interface ChallengeParticipant {
   /** Overall platform engagement 0–100 since registration (admin views). */
   platform_score?: number;
   platform_score_breakdown?: import("@/lib/platform-engagement-score").PlatformScoreBreakdown;
+  /** Long challenges: accumulated daily points (0–days*100). */
+  challenge_points?: number;
 }
 
 export interface ChallengeWaitlistEntry {
@@ -544,6 +557,8 @@ export interface ChallengeBracketParticipant extends ChallengeParticipant {
   group_id: string | null;
   group_number: number | null;
   round: ChallengeRound | null;
+  /** Flash challenges: admin-entered winning record for this group. */
+  performance_value?: number | null;
 }
 
 export interface ChallengeBracketGroup extends ChallengeGroup {

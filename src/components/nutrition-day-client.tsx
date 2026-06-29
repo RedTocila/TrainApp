@@ -45,6 +45,7 @@ type OverviewDayData = {
     scheduled?: boolean;
     activeSlots?: MealSlot[];
     kind?: MealPlanViewKind;
+    planId?: string;
   } | null;
 };
 
@@ -152,6 +153,7 @@ export function NutritionDayClient({
         scheduled: planForDate.scheduled,
         activeSlots: planForDate.activeSlots,
         kind: planForDate.kind,
+        planId: planForDate.planId,
       };
     }
 
@@ -210,6 +212,7 @@ export function NutritionDayClient({
               scheduled: scheduledPlanForToday.scheduled,
               activeSlots: scheduledPlanForToday.activeSlots,
               kind: scheduledPlanForToday.kind,
+              planId: scheduledPlanForToday.planId,
             }
           : null;
 

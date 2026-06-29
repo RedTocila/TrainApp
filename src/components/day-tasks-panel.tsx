@@ -5,7 +5,6 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { useMemo } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
-import { DashboardDateLoadingDots } from "@/components/dashboard-date-loading";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { dashboard } from "@/components/dashboard-ui";
 import type { ClientSchedule } from "@/lib/daily-tasks";
@@ -38,6 +37,7 @@ export function DayTasksPanel({
 
   const { completed } = groupTasksByStatus(tasks);
   const dailyMeals = enrichment.mealsByDate[dateKey] ?? [];
+  const waterMl = enrichment.waterByDate[dateKey] ?? 0;
   const viewingToday = isToday(selectedDate);
   const completionPct =
     tasks.length > 0 ? Math.round((completed.length / tasks.length) * 100) : 0;
@@ -70,11 +70,13 @@ export function DayTasksPanel({
             />
           </div>
         )}
-        <DashboardDateLoadingDots variant="container" />
         <DayTasksList
           tasks={tasks}
           macroTargets={schedule.macroTargets}
           dailyMeals={dailyMeals}
+          waterMl={waterMl}
+          waterGoalMl={schedule.waterGoalMl ?? 2500}
+          dateKey={dateKey}
         />
       </section>
       <h2 className={dashboard.pageTitle}>

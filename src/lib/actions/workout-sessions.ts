@@ -446,7 +446,8 @@ export async function getWorkoutCompletedTaskIdsInRange(
 
 export async function getWorkoutCompletionStatusForDate(
   clientId: string,
-  dateKey: string
+  dateKey: string,
+  preloadedWorkouts?: TodaysWorkoutInfo[]
 ): Promise<
   Record<
     string,
@@ -456,19 +457,19 @@ export async function getWorkoutCompletionStatusForDate(
     }
   >
 > {
-  const workouts = await resolveWorkoutsForDate(clientId, dateKey);
-  const taskCompletions = await getTaskCompletionsForDate(clientId, dateKey);
+  const workouts =
+    preloadedWorkouts ?? (await resolveWorkoutsForDate(clientId, dateKey));
+  const [taskCompletions, completedSessions] = await Promise.all([
+    getTaskCompletionsForDate(clientId, dateKey),
+    loadCompletedSessionsForDate(clientId, dateKey),
+  ]);
   const status: Record<
     string,
     { completed: boolean; sessionId: string | null }
   > = {};
 
   for (const workout of workouts) {
-    const sessionId = await findCompletedSessionIdForWorkout(
-      clientId,
-      dateKey,
-      workout
-    );
+    const sessionId = matchCompletedSessionId(workout, completedSessions);
     status[workout.taskId] = {
       completed: !!sessionId || taskCompletions.has(workout.taskId),
       sessionId,
@@ -476,6 +477,46 @@ export async function getWorkoutCompletionStatusForDate(
   }
 
   return status;
+}
+
+type CompletedSessionRef = {
+  id: string;
+  scheduled_workout_id: string | null;
+  plan_id: string | null;
+  day_id: string | null;
+};
+
+async function loadCompletedSessionsForDate(
+  clientId: string,
+  dateKey: string
+): Promise<CompletedSessionRef[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("workout_sessions")
+    .select("id, scheduled_workout_id, plan_id, day_id")
+    .eq("client_id", clientId)
+    .eq("status", "completed")
+    .eq("scheduled_date", dateKey);
+
+  return (data ?? []) as CompletedSessionRef[];
+}
+
+function matchCompletedSessionId(
+  workout: TodaysWorkoutInfo,
+  sessions: CompletedSessionRef[]
+): string | null {
+  if (workout.scheduledWorkoutId) {
+    const byScheduled = sessions.find(
+      (session) => session.scheduled_workout_id === workout.scheduledWorkoutId
+    );
+    if (byScheduled) return byScheduled.id;
+  }
+
+  const byPlanDay = sessions.find(
+    (session) =>
+      session.plan_id === workout.planId && session.day_id === workout.dayId
+  );
+  return byPlanDay?.id ?? null;
 }
 
 export interface CompletedWorkoutResults {
@@ -559,12 +600,18 @@ export async function getCompletedWorkoutResultsForDate(
 
 export async function isWorkoutCompletedOnDate(
   clientId: string,
-  dateKey: string
+  dateKey: string,
+  preloadedWorkouts?: TodaysWorkoutInfo[]
 ): Promise<boolean> {
-  const workouts = await resolveWorkoutsForDate(clientId, dateKey);
+  const workouts =
+    preloadedWorkouts ?? (await resolveWorkoutsForDate(clientId, dateKey));
   if (workouts.length === 0) return false;
 
-  const status = await getWorkoutCompletionStatusForDate(clientId, dateKey);
+  const status = await getWorkoutCompletionStatusForDate(
+    clientId,
+    dateKey,
+    workouts
+  );
   return workouts.every((workout) => status[workout.taskId]?.completed);
 }
 

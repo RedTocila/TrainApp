@@ -3,15 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Radio, Users, Zap } from "lucide-react";
+import { ArrowRight, Radio, Zap } from "lucide-react";
 import { ChallengePrizePool } from "@/components/challenge-prize-pool";
 import { ChallengeShareButton } from "@/components/challenge-share-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  challengeExcerpt,
-  isChallengeAtCapacity,
-} from "@/lib/challenge-utils";
 import { getChallengeMaxParticipants, isFlashChallenge, isTransformationChallenge } from "@/lib/challenge-series";
 import { getFlashDurationLabel, type FlashChallengeSlug } from "@/lib/flash-challenge-catalog";
 import { getTransformationDurationLabel } from "@/lib/transformation-challenge-catalog";
@@ -24,6 +20,7 @@ type ChallengeCategory = "long" | "flash";
 
 type CardTheme = {
   gradient: string;
+  coverImage?: string;
   border: string;
   shadow: string;
   hoverShadow: string;
@@ -32,51 +29,58 @@ type CardTheme = {
 
 const LONG_CARD_THEMES: Record<TransformationChallengeSlug, CardTheme> = {
   "transformation-30-day": {
-    gradient: "bg-gradient-to-br from-rose-600 via-orange-600 to-amber-700",
-    border: "border-rose-500/35",
-    shadow: "shadow-rose-500/10",
-    hoverShadow: "group-hover:shadow-rose-500/25",
-    badge: "border-rose-300/40 bg-rose-500/25 text-rose-50",
+    coverImage: "/challenges/cards/transformation-30-day.png",
+    gradient: "bg-gradient-to-br from-orange-600 via-orange-500 to-amber-600",
+    border: "border-orange-500/35",
+    shadow: "shadow-orange-500/10",
+    hoverShadow: "group-hover:shadow-orange-500/25",
+    badge: "border-orange-300/40 bg-orange-500/25 text-orange-50",
   },
   "transformation-90-day": {
-    gradient: "bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-800",
-    border: "border-violet-500/35",
-    shadow: "shadow-violet-500/10",
-    hoverShadow: "group-hover:shadow-violet-500/25",
-    badge: "border-violet-400/40 bg-violet-500/25 text-violet-100",
+    coverImage: "/challenges/cards/transformation-90-day.png",
+    gradient: "bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800",
+    border: "border-blue-500/35",
+    shadow: "shadow-blue-500/10",
+    hoverShadow: "group-hover:shadow-blue-500/25",
+    badge: "border-blue-300/40 bg-blue-500/25 text-blue-50",
   },
   "transformation-6-month": {
-    gradient: "bg-gradient-to-br from-sky-600 via-blue-600 to-indigo-800",
-    border: "border-sky-500/35",
-    shadow: "shadow-sky-500/10",
-    hoverShadow: "group-hover:shadow-sky-500/25",
-    badge: "border-sky-300/40 bg-sky-500/25 text-sky-50",
+    coverImage: "/challenges/cards/transformation-6-month.png",
+    gradient: "bg-gradient-to-br from-purple-600 via-violet-600 to-purple-800",
+    border: "border-purple-500/35",
+    shadow: "shadow-purple-500/10",
+    hoverShadow: "group-hover:shadow-purple-500/25",
+    badge: "border-purple-300/40 bg-purple-500/25 text-purple-50",
   },
   "transformation-12-month": {
-    gradient: "bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-800",
-    border: "border-emerald-500/35",
-    shadow: "shadow-emerald-500/10",
-    hoverShadow: "group-hover:shadow-emerald-500/25",
-    badge: "border-emerald-300/40 bg-emerald-500/25 text-emerald-50",
+    coverImage: "/challenges/cards/transformation-12-month.png",
+    gradient: "bg-gradient-to-br from-red-900 via-neutral-900 to-black",
+    border: "border-red-500/35",
+    shadow: "shadow-red-500/10",
+    hoverShadow: "group-hover:shadow-red-500/25",
+    badge: "border-red-300/40 bg-red-500/25 text-red-50",
   },
 };
 
 const FLASH_CARD_THEMES: Record<FlashChallengeSlug, CardTheme> = {
   "flash-longest-plank": {
+    coverImage: "/challenges/cards/flash-longest-plank.png",
     gradient: "bg-gradient-to-br from-amber-500 via-orange-600 to-red-700",
-    border: "border-amber-500/35",
-    shadow: "shadow-amber-500/10",
-    hoverShadow: "group-hover:shadow-amber-500/25",
-    badge: "border-amber-300/40 bg-amber-500/25 text-amber-50",
+    border: "border-orange-500/35",
+    shadow: "shadow-orange-500/10",
+    hoverShadow: "group-hover:shadow-orange-500/25",
+    badge: "border-orange-300/40 bg-orange-500/25 text-orange-50",
   },
   "flash-longest-wall-sit": {
+    coverImage: "/challenges/cards/flash-longest-wall-sit.png",
     gradient: "bg-gradient-to-br from-fuchsia-600 via-pink-600 to-rose-800",
-    border: "border-fuchsia-500/35",
-    shadow: "shadow-fuchsia-500/10",
-    hoverShadow: "group-hover:shadow-fuchsia-500/25",
-    badge: "border-fuchsia-300/40 bg-fuchsia-500/25 text-fuchsia-50",
+    border: "border-pink-500/35",
+    shadow: "shadow-pink-500/10",
+    hoverShadow: "group-hover:shadow-pink-500/25",
+    badge: "border-pink-300/40 bg-pink-500/25 text-pink-50",
   },
   "flash-most-burpees-10min": {
+    coverImage: "/challenges/cards/flash-most-burpees-10min.png",
     gradient: "bg-gradient-to-br from-lime-500 via-emerald-600 to-teal-800",
     border: "border-lime-500/35",
     shadow: "shadow-lime-500/10",
@@ -109,19 +113,13 @@ function CatalogChallengeCard({
   theme,
   durationLabel,
   spotsLabel,
-  isFull,
   entryBadge,
-  isFlash,
-  participantsLabel,
 }: {
   challenge: Challenge;
   theme: CardTheme;
   durationLabel: string;
   spotsLabel: string;
-  isFull: boolean;
   entryBadge?: string;
-  isFlash?: boolean;
-  participantsLabel?: string;
 }) {
   const platform = usePlatformCopy();
   const catalogCopy = platform.challenges.catalog;
@@ -146,10 +144,22 @@ function CatalogChallengeCard({
         )}
         whileHover={{ y: -4 }}
       >
-        <div className={cn("absolute inset-0 opacity-90", theme.gradient)} />
-        <div className="relative flex min-h-[220px] flex-col justify-between p-6">
+        {theme.coverImage ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={theme.coverImage}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/30 to-black/10" />
+          </>
+        ) : (
+          <div className={cn("absolute inset-0 opacity-90", theme.gradient)} />
+        )}
+        <div className="relative flex min-h-[200px] flex-col justify-between gap-4 p-6">
           <div className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 pr-10">
               <Badge className={cn("border", theme.badge)}>
                 <Radio className="mr-1 h-3 w-3 animate-pulse" />
                 {durationLabel}
@@ -159,48 +169,19 @@ function CatalogChallengeCard({
                   {entryBadge}
                 </Badge>
               ) : null}
-              <Badge className="border-white/25 bg-white/15 text-white backdrop-blur-sm">
-                <Users className="mr-1 h-3 w-3" />
-                {isFull ? "Waitlist" : "Open"}
-              </Badge>
             </div>
             <h3 className="text-xl font-black leading-tight text-white sm:text-2xl">
               {challenge.title}
             </h3>
+            <ChallengePrizePool
+              challenge={challenge}
+              participantCount={participantCount}
+              variant="catalog"
+              tone="onGradient"
+            />
             <p className="text-sm font-medium text-white/90">{spotsLabel}</p>
-            <p className="line-clamp-2 text-sm text-white/75">
-              {challengeExcerpt(challenge.description, 100)}
-            </p>
-            {isFlash ? (
-              <div className="space-y-2">
-                <ChallengePrizePool
-                  challenge={challenge}
-                  participantCount={participantCount}
-                  variant="hero"
-                  heroSize="lg"
-                  prizeMode="max"
-                  tone="onGradient"
-                  className="w-full"
-                />
-                {participantsLabel ? (
-                  <Badge className="border-white/25 bg-white/15 text-white backdrop-blur-sm">
-                    <Users className="mr-1 h-3 w-3" />
-                    {participantsLabel}
-                  </Badge>
-                ) : null}
-              </div>
-            ) : (
-              <ChallengePrizePool
-                challenge={challenge}
-                participantCount={participantCount}
-                variant="hero"
-                prizeMode="max"
-                tone="onGradient"
-                className="max-w-xs"
-              />
-            )}
           </div>
-          <span className="mt-4 inline-flex items-center gap-2 self-start rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 self-start rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm">
             {catalogCopy.viewChallenge}
             <ArrowRight className="h-4 w-4" />
           </span>
@@ -324,7 +305,7 @@ export function ChallengesCatalog({ challenges }: { challenges: Challenge[] }) {
           )}
         >
           {visibleChallenges.map((challenge) => {
-            const { theme, durationLabel, max, entryBadge, isFlash } = getChallengeCardProps(
+            const { theme, durationLabel, max, entryBadge } = getChallengeCardProps(
               challenge,
               prizeCopy.entryFee
             );
@@ -338,10 +319,7 @@ export function ChallengesCatalog({ challenges }: { challenges: Challenge[] }) {
                 spotsLabel={joinCopy.spotsRemaining
                   .replace("{remaining}", String(Math.max(0, max - count)))
                   .replace("{max}", String(max))}
-                isFull={isChallengeAtCapacity(challenge, count)}
                 entryBadge={entryBadge}
-                isFlash={isFlash}
-                participantsLabel={prizeCopy.participants.replace("{count}", String(count))}
               />
             );
           })}

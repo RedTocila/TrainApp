@@ -405,10 +405,11 @@ export function ChallengeOverviewStats({
   participantCount,
 }: {
   copy: PlatformCopy["challenges"];
-  challenge: Pick<Challenge, "scheduled_at" | "group_size" | "duration_months">;
+  challenge: Pick<Challenge, "scheduled_at" | "group_size" | "duration_months" | "is_transformation" | "max_participants">;
   participantCount: number;
 }) {
   const durationMonths = getChallengeDurationMonths(challenge);
+  const isTransformation = challenge.is_transformation === true;
 
   const stats = [
     {
@@ -421,11 +422,21 @@ export function ChallengeOverviewStats({
       label: copy.detailStatDuration,
       value: copy.tournamentDuration.replace("{count}", String(durationMonths)),
     },
-    {
-      icon: Layers,
-      label: copy.detailStatGroupSize,
-      value: String(challenge.group_size),
-    },
+    ...(isTransformation
+      ? [
+          {
+            icon: Layers,
+            label: copy.detailStatScoring,
+            value: copy.detailStatScoringValue,
+          },
+        ]
+      : [
+          {
+            icon: Layers,
+            label: copy.detailStatGroupSize,
+            value: String(challenge.group_size),
+          },
+        ]),
     {
       icon: Users,
       label: copy.detailStatRegistered,

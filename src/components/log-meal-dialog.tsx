@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { logCustomMeal, logMealFromLibrary } from "@/lib/actions/daily-meals";
+import { parseDataUrl } from "@/lib/image-compress";
 import { isActionError, runServerAction } from "@/lib/run-server-action";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import {
@@ -65,6 +66,7 @@ export function LogMealDialog({
   const [photoReady, setPhotoReady] = useState(false);
   const [textReady, setTextReady] = useState(false);
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
+  const [mealPhotoDataUrl, setMealPhotoDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
@@ -89,6 +91,7 @@ export function LogMealDialog({
     setPhotoReady(false);
     setTextReady(false);
     setAiConfidence(null);
+    setMealPhotoDataUrl(null);
     setError(null);
   }, [open]);
 
@@ -149,8 +152,18 @@ export function LogMealDialog({
     }
     setError(null);
     startTransition(async () => {
+      const photo =
+        mode === "photo" && mealPhotoDataUrl
+          ? (() => {
+              const parsed = parseDataUrl(mealPhotoDataUrl);
+              return parsed
+                ? { base64: parsed.base64, mimeType: parsed.mimeType }
+                : undefined;
+            })()
+          : undefined;
+
       const result = await runServerAction(() =>
-        logCustomMeal(clientId, dateKey, form)
+        logCustomMeal(clientId, dateKey, form, photo ? { photo } : undefined)
       );
       if (isActionError(result)) {
         setError(result.error);
@@ -482,6 +495,7 @@ export function LogMealDialog({
                 onFormChange={setForm}
                 onError={setError}
                 onReadyChange={setPhotoReady}
+                onPhotoDataUrlChange={setMealPhotoDataUrl}
                 confidence={aiConfidence}
                 onConfidenceChange={setAiConfidence}
               />

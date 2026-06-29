@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Play, Plus, Trash2 } from "lucide-react";
 import {
   getWorkoutCategoryStyle,
   inferDayCategory,
@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ExerciseVideoDialog } from "@/components/exercise-video-dialog";
 
 interface Exercise {
   name: string;
@@ -97,6 +98,9 @@ export function WorkoutBuilder({
           dayId: d.id,
         }))
       : [{ title: "Day 1", exercises: [{ name: "", sets: 3, reps: "10", rest_seconds: 60 }] }]
+  );
+  const [videoPreview, setVideoPreview] = useState<{ title: string; videoUrl: string } | null>(
+    null
   );
 
   const addDay = () => {
@@ -215,7 +219,7 @@ export function WorkoutBuilder({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-[calc(var(--dashboard-mobile-nav-height,4.25rem)+1rem)] lg:pb-0">
       <Card>
         <CardHeader>
           <CardTitle>Plan Details</CardTitle>
@@ -320,13 +324,25 @@ export function WorkoutBuilder({
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {ex.video_url && isValidYoutubeUrl(ex.video_url) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVideoPreview({ title: ex.name || "Exercise demo", videoUrl: ex.video_url! })
+                      }
+                      className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                      Watch demo
+                    </button>
+                  )}
                   {!isExerciseFieldOpen(dayIdx, exIdx, "video") && (
                     <button
                       type="button"
                       onClick={() => toggleExerciseField(dayIdx, exIdx, "video")}
                       className="text-sm text-primary hover:underline"
                     >
-                      Add video link
+                      {ex.video_url?.trim() ? "Edit video link" : "Add video link"}
                     </button>
                   )}
                   {!isExerciseFieldOpen(dayIdx, exIdx, "notes") && (
@@ -388,6 +404,13 @@ export function WorkoutBuilder({
                 : "Save Plan"}
         </Button>
       </div>
+
+      <ExerciseVideoDialog
+        open={videoPreview !== null}
+        onClose={() => setVideoPreview(null)}
+        videoUrl={videoPreview?.videoUrl ?? ""}
+        title={videoPreview?.title ?? "Exercise demo"}
+      />
     </div>
   );
 }

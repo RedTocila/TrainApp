@@ -4,8 +4,10 @@ import { requireAdmin } from "@/lib/actions/auth";
 import { getChallengeById } from "@/lib/actions/challenges";
 import { getChallengeBracket } from "@/lib/actions/challenge-bracket";
 import { loadChallengeBracketWithPlatformScores } from "@/lib/actions/challenge-platform-scores";
-import { isSeriesChallenge } from "@/lib/challenge-series";
+import { isFlashChallenge, isTransformationChallenge } from "@/lib/challenge-series";
 import { ChallengeBracketAdmin } from "@/components/challenge-bracket-admin";
+import { ChallengeLongChallengeAdmin } from "@/components/challenge-long-challenge-admin";
+import { FlashChallengeAdmin } from "@/components/flash-challenge-admin";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 
@@ -22,8 +24,11 @@ export default async function AdminChallengeBracketPage({
   const bracket = await getChallengeBracket(id);
   if (!bracket) notFound();
 
+  const isTransformation = isTransformationChallenge(challenge);
+  const isFlash = isFlashChallenge(challenge);
+
   let displayBracket = bracket;
-  if (isSeriesChallenge(challenge) && bracket.participants.length > 0) {
+  if (isTransformationChallenge(challenge) && bracket.participants.length > 0) {
     displayBracket = await loadChallengeBracketWithPlatformScores(bracket);
   }
 
@@ -32,11 +37,16 @@ export default async function AdminChallengeBracketPage({
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black">Bracket · {challenge.title}</h1>
+            <h1 className="text-2xl font-black">
+              {isTransformation ? "Leaderboard" : isFlash ? "Flash challenge" : "Bracket"} ·{" "}
+              {challenge.title}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Split participants into groups of {challenge.group_size}, run Zoom calls, and advance
-              whoever transformed the most on camera. Group winners meet in a final call for the
-              champion.
+              {isTransformation
+                ? "Rank participants by accumulated daily points, invite top scorers to judgment-day Zoom, then crown the winner."
+                : isFlash
+                  ? "24-hour sprint — first 10 start the clock, groups of 10 on Zoom, crown the highest record."
+                  : "Split participants into groups, run Zoom calls, and advance whoever transformed the most on camera."}
             </p>
           </div>
           <div className="flex gap-2">
@@ -53,7 +63,13 @@ export default async function AdminChallengeBracketPage({
           </div>
         </div>
 
-        <ChallengeBracketAdmin bracket={displayBracket} />
+        {isTransformation ? (
+          <ChallengeLongChallengeAdmin bracket={displayBracket} />
+        ) : isFlash ? (
+          <FlashChallengeAdmin bracket={displayBracket} />
+        ) : (
+          <ChallengeBracketAdmin bracket={displayBracket} />
+        )}
       </div>
     </PageTransition>
   );

@@ -11,12 +11,14 @@ export function nutritionPlanFromSchedule(
   scheduled?: boolean;
   activeSlots?: MealSlot[];
   kind?: "personal" | "ai";
+  planId?: string;
 } | null {
   const dateKey = formatDateKey(date);
   const scheduled = schedule.scheduledNutritionDays?.find(
     (entry) => entry.scheduled_date === dateKey
   );
-  const plan = scheduled?.nutrition_plans;
+  if (!scheduled) return null;
+  const plan = scheduled.nutrition_plans;
   const meals = plan?.meals ?? [];
   if (meals.length === 0) return null;
 
@@ -25,5 +27,6 @@ export function nutritionPlanFromSchedule(
     meals: [...meals].sort((a, b) => a.order_index - b.order_index),
     scheduled: true,
     kind: plan?.is_personal ? "personal" : undefined,
+    planId: scheduled.plan_id,
   };
 }
