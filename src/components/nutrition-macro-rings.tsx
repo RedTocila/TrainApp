@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   Beef,
   Candy,
@@ -243,6 +244,7 @@ export function NutritionMacroRings({
   variant = "compact",
   layout = "grid",
   spread = false,
+  trailingSlot,
   showMicros = false,
   macroSectionTitle,
   microSectionTitle,
@@ -256,6 +258,8 @@ export function NutritionMacroRings({
   layout?: "grid" | "hero";
   /** Compact only: spread macro rings across full row width. */
   spread?: boolean;
+  /** Rendered as an extra equal column when `spread` is enabled (e.g. health score). */
+  trailingSlot?: ReactNode;
   showMicros?: boolean;
   macroSectionTitle?: string;
   microSectionTitle?: string;
@@ -377,7 +381,10 @@ export function NutritionMacroRings({
       className={cn(
         "w-full items-end",
         !isDetail && spread
-          ? "grid grid-cols-4 justify-items-center"
+          ? cn(
+              "grid justify-items-center",
+              trailingSlot ? "grid-cols-5" : "grid-cols-4"
+            )
           : cn("grid grid-cols-4", isDetail ? "gap-3 sm:gap-4" : "gap-2")
       )}
     >
@@ -413,6 +420,9 @@ export function NutritionMacroRings({
           />
         );
       })}
+      {trailingSlot ? (
+        <div className="flex w-full flex-col items-center">{trailingSlot}</div>
+      ) : null}
     </div>
   );
 

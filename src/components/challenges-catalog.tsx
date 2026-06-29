@@ -9,9 +9,11 @@ import { ChallengeShareButton } from "@/components/challenge-share-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getChallengeMaxParticipants, isFlashChallenge, isTransformationChallenge } from "@/lib/challenge-series";
+import { getChallengeLeagueTag } from "@/lib/challenge-platform-copy";
+import { getTransformationTierKey } from "@/lib/challenge-gender";
 import { getFlashDurationLabel, type FlashChallengeSlug } from "@/lib/flash-challenge-catalog";
 import { getTransformationDurationLabel } from "@/lib/transformation-challenge-catalog";
-import type { TransformationChallengeSlug } from "@/lib/transformation-challenges";
+import type { TransformationTierKey } from "@/lib/transformation-challenges";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { Challenge } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -27,8 +29,8 @@ type CardTheme = {
   badge: string;
 };
 
-const LONG_CARD_THEMES: Record<TransformationChallengeSlug, CardTheme> = {
-  "transformation-30-day": {
+const LONG_CARD_THEMES: Record<TransformationTierKey, CardTheme> = {
+  "30-day": {
     coverImage: "/challenges/cards/transformation-30-day.png",
     gradient: "bg-gradient-to-br from-orange-600 via-orange-500 to-amber-600",
     border: "border-orange-500/35",
@@ -36,7 +38,7 @@ const LONG_CARD_THEMES: Record<TransformationChallengeSlug, CardTheme> = {
     hoverShadow: "group-hover:shadow-orange-500/25",
     badge: "border-orange-300/40 bg-orange-500/25 text-orange-50",
   },
-  "transformation-90-day": {
+  "90-day": {
     coverImage: "/challenges/cards/transformation-90-day.png",
     gradient: "bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800",
     border: "border-blue-500/35",
@@ -44,7 +46,7 @@ const LONG_CARD_THEMES: Record<TransformationChallengeSlug, CardTheme> = {
     hoverShadow: "group-hover:shadow-blue-500/25",
     badge: "border-blue-300/40 bg-blue-500/25 text-blue-50",
   },
-  "transformation-6-month": {
+  "6-month": {
     coverImage: "/challenges/cards/transformation-6-month.png",
     gradient: "bg-gradient-to-br from-purple-600 via-violet-600 to-purple-800",
     border: "border-purple-500/35",
@@ -52,7 +54,7 @@ const LONG_CARD_THEMES: Record<TransformationChallengeSlug, CardTheme> = {
     hoverShadow: "group-hover:shadow-purple-500/25",
     badge: "border-purple-300/40 bg-purple-500/25 text-purple-50",
   },
-  "transformation-12-month": {
+  "12-month": {
     coverImage: "/challenges/cards/transformation-12-month.png",
     gradient: "bg-gradient-to-br from-red-900 via-neutral-900 to-black",
     border: "border-red-500/35",
@@ -99,8 +101,8 @@ function getChallengeCardProps(challenge: Challenge, entryFeeLabel: string) {
     theme: isFlash
       ? (FLASH_CARD_THEMES[challenge.slug as FlashChallengeSlug] ??
           FLASH_CARD_THEMES["flash-longest-plank"])
-      : (LONG_CARD_THEMES[challenge.slug as TransformationChallengeSlug] ??
-          LONG_CARD_THEMES["transformation-90-day"]),
+      : (LONG_CARD_THEMES[getTransformationTierKey(challenge.slug) as TransformationTierKey] ??
+          LONG_CARD_THEMES["90-day"]),
     durationLabel: isFlash
       ? getFlashDurationLabel(challenge)
       : getTransformationDurationLabel(challenge),
@@ -123,6 +125,7 @@ function CatalogChallengeCard({
 }) {
   const platform = usePlatformCopy();
   const catalogCopy = platform.challenges.catalog;
+  const leagueTag = getChallengeLeagueTag(platform.challenges, challenge);
   const participantCount = challenge.participant_count ?? 0;
 
   return (
@@ -164,6 +167,11 @@ function CatalogChallengeCard({
                 <Radio className="mr-1 h-3 w-3 animate-pulse" />
                 {durationLabel}
               </Badge>
+              {leagueTag ? (
+                <Badge className="border-white/25 bg-white/15 text-white backdrop-blur-sm">
+                  {leagueTag}
+                </Badge>
+              ) : null}
               {entryBadge ? (
                 <Badge className="border-white/25 bg-white/15 text-white backdrop-blur-sm">
                   {entryBadge}
@@ -232,9 +240,31 @@ function CategoryTag({
   );
 }
 
-export function ChallengesCatalog({ challenges }: { challenges: Challenge[] }) {
+export function ChallengesCatalog({
+  challenges,
+  profileGender,
+}: {
+  challenges: Challenge[];
+  profileGender?: string | null;
+}) {
   const platform = usePlatformCopy();
-  const catalogCopy = platform.challenges.catalog;
+  const catalog = platform.challenges.catalog as {
+    longSubtitle: string;
+    longSubtitleMen?: string;
+    longSubtitleWomen?: string;
+    flashSubtitle: string;
+    flashSubtitleAlex?: string;
+    longTag: string;
+    flashTag: string;
+    longTitle: string;
+    flashTitle: string;
+    viewChallenge: string;
+  };
+  const longSubtitle =
+    profileGender === "female" && catalog.longSubtitleWomen
+      ? catalog.longSubtitleWomen
+      : catalog.longSubtitleMen ?? catalog.longSubtitle;
+  const flashSubtitle = catalog.flashSubtitleAlex ?? catalog.flashSubtitle;
   const joinCopy = platform.challenges.join;
   const prizeCopy = platform.challenges.prizePool;
   const longChallenges = useMemo(
@@ -250,7 +280,7 @@ export function ChallengesCatalog({ challenges }: { challenges: Challenge[] }) {
 
   const visibleChallenges = category === "long" ? longChallenges : flashChallenges;
   const categorySubtitle =
-    category === "long" ? catalogCopy.longSubtitle : catalogCopy.flashSubtitle;
+    category === "long" ? longSubtitle : flashSubtitle;
 
   const hasContent = longChallenges.length + flashChallenges.length > 0;
 
@@ -274,7 +304,7 @@ export function ChallengesCatalog({ challenges }: { challenges: Challenge[] }) {
         <CategoryTag
           active={category === "long"}
           onClick={() => setCategory("long")}
-          label={catalogCopy.longTag}
+          label={catalog.longTag}
           count={longChallenges.length}
           icon={Radio}
           activeClassName="border-violet-500/30 bg-violet-500/10 text-violet-200"
@@ -282,7 +312,7 @@ export function ChallengesCatalog({ challenges }: { challenges: Challenge[] }) {
         <CategoryTag
           active={category === "flash"}
           onClick={() => setCategory("flash")}
-          label={catalogCopy.flashTag}
+          label={catalog.flashTag}
           count={flashChallenges.length}
           icon={Zap}
           activeClassName="border-amber-500/30 bg-amber-500/10 text-amber-200"

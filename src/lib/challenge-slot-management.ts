@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getLongChallengeGenderBlockReason } from "@/lib/challenge-gender";
 import type { ChallengeSeries } from "@/lib/challenge-series";
 import {
   getChallengeMaxParticipants,
@@ -160,9 +161,26 @@ export async function findActiveSeriesWaitlistEntry(
 export async function getLongChallengeJoinBlockReason(
   supabase: SupabaseClient,
   userId: string,
-  targetChallengeId: string
+  targetChallengeId: string,
+  profileGender?: string | null
 ): Promise<string | null> {
   void supabase;
+
+  const admin = createAdminClient();
+  const { data: targetChallenge, error: targetError } = await admin
+    .from("challenges")
+    .select("id, slug, title, gender, is_transformation")
+    .eq("id", targetChallengeId)
+    .maybeSingle();
+
+  if (targetError) {
+    return "Could not verify challenge details. Please try again.";
+  }
+
+  if (targetChallenge) {
+    const genderBlock = getLongChallengeGenderBlockReason(targetChallenge, profileGender);
+    if (genderBlock) return genderBlock;
+  }
 
   const participant = await findActiveSeriesParticipant(
     supabase,
@@ -184,7 +202,6 @@ export async function getLongChallengeJoinBlockReason(
     return `You are on the waitlist for ${waitlist.challenge_title}. Leave that waitlist before joining another long challenge.`;
   }
 
-  const admin = createAdminClient();
   const monthKey = progressMonthKey();
   const { data: photoSet, error: photoError } = await admin
     .from("progress_photo_sets")

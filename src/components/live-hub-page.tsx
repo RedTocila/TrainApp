@@ -13,9 +13,11 @@ type LiveTab = "classes" | "challenges";
 export function LiveHubPage({
   classes,
   challenges,
+  profileGender,
 }: {
   classes: FitnessClass[];
   challenges: Challenge[];
+  profileGender?: string | null;
 }) {
   const [tab, setTab] = useState<LiveTab>("classes");
 
@@ -82,7 +84,7 @@ export function LiveHubPage({
                 {liveChallengeCount} live now
               </span>
             )}
-            <ChallengesCatalog challenges={challenges} />
+            <ChallengesCatalog challenges={challenges} profileGender={profileGender} />
           </div>
         )}
       </div>

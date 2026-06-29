@@ -37,21 +37,21 @@ const FLASH_TEMPLATES: FlashTemplate[] = [
     slug: "flash-longest-plank",
     title: "Longest Plank",
     description:
-      "Hold the longest plank you can on video. **24-hour flash window** once 10 people join. **€10 entry fee** after the first group fills · **50 spots max**.",
+      "Hold the longest plank on video — or don't, and watch someone else take your money. **24-hour flash window** once 10 people join. **€10 entry** after the first group fills · **50 spots max**. Alex doesn't do participation trophies.",
     duration_days: 1,
   },
   {
     slug: "flash-longest-wall-sit",
     title: "Longest Wall Sit",
     description:
-      "How long can you hold a wall sit? Record your best time within **24 hours** after the challenge goes live. **€10 entry** after the first 10 join · **50 spots max**.",
+      "How long can you wall-sit before your legs quit? Film it. **24 hours** after go-live. **€10 entry** once the first 10 are in · **50 spots max**. Complaining on Zoom is optional; losing is not.",
     duration_days: 1,
   },
   {
     slug: "flash-most-burpees-10min",
     title: "Most Burpees in 10 Min",
     description:
-      "Max burpees in 10 minutes — film it on Zoom. **24-hour flash window** · **€10 entry** after the first group fills · **50 spots max**.",
+      "Max burpees in 10 minutes — on Zoom, on camera, no cheating. **24-hour flash window** · **€10 entry** after the first group fills · **50 spots max**. Your excuses don't count as reps.",
     duration_days: 1,
   },
 ];

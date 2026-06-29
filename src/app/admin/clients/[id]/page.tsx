@@ -8,6 +8,8 @@ import {
 } from "@/lib/actions/plans";
 import { getClientActivityFeed } from "@/lib/actions/client-activity";
 import { getAdminClientCalendarData } from "@/lib/actions/admin-client-calendar";
+import { getAdminClientProgressPhotoGallery } from "@/lib/actions/admin-progress-photos";
+import { AdminClientProgressPhotos } from "@/components/admin-client-progress-photos";
 import { createClient } from "@/lib/supabase/server";
 import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,13 +39,15 @@ export default async function ClientDetailPage({
 
   if (!client) notFound();
 
-  const [requests, workout, nutrition, activity, calendarData] = await Promise.all([
-    getClientRequests(id),
-    getClientWorkoutAssignment(id),
-    getClientNutritionAssignment(id),
-    getClientActivityFeed(id, 50),
-    getAdminClientCalendarData(id),
-  ]);
+  const [requests, workout, nutrition, activity, calendarData, progressPhotos] =
+    await Promise.all([
+      getClientRequests(id),
+      getClientWorkoutAssignment(id),
+      getClientNutritionAssignment(id),
+      getClientActivityFeed(id, 50),
+      getAdminClientCalendarData(id),
+      getAdminClientProgressPhotoGallery(id),
+    ]);
 
   const activeRequest = requestId
     ? requests.find((r) => r.id === requestId)
@@ -132,6 +136,8 @@ export default async function ClientDetailPage({
             </CardContent>
           </Card>
         )}
+
+        <AdminClientProgressPhotos months={progressPhotos} />
 
         <div className="grid gap-4 md:grid-cols-2">
           <Card>

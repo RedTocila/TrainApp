@@ -461,6 +461,8 @@ export interface Challenge {
   max_participants?: number | null;
   /** Fixed transformation series — one enrollment per user across these. */
   is_transformation?: boolean;
+  /** Long challenges: male or female participant pool. */
+  gender?: "male" | "female" | null;
   /** Quick 1–7 day competition with entry fee. */
   is_flash?: boolean;
   /** Entry fee in cents (display-only, e.g. 1000 = €10). */

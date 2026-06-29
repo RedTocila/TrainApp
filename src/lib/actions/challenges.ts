@@ -21,6 +21,10 @@ import {
   getTransformationChallengeBySlug,
   mergeTransformationChallenges,
 } from "@/lib/transformation-challenge-catalog";
+import {
+  canUserAccessChallenge,
+  filterChallengesForProfile,
+} from "@/lib/challenge-gender";
 
 import type { Challenge } from "@/lib/types";
 
@@ -104,6 +108,8 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
       typeof row.max_participants === "number" ? row.max_participants : null,
     is_transformation: row.is_transformation === true,
     is_flash: row.is_flash === true,
+    gender:
+      row.gender === "male" || row.gender === "female" ? row.gender : null,
     entry_fee_cents: typeof row.entry_fee_cents === "number" ? row.entry_fee_cents : 0,
     round_1_zoom_at: (row.round_1_zoom_at as string | null) ?? null,
     round_2_zoom_at: (row.round_2_zoom_at as string | null) ?? null,
@@ -139,14 +145,19 @@ async function attachParticipantCounts(challenges: Challenge[]): Promise<Challen
   }));
 }
 
-function mergeCatalogChallenges(dbChallenges: Challenge[]): Challenge[] {
+function mergeCatalogChallenges(
+  dbChallenges: Challenge[],
+  profileGender?: string | null
+): Challenge[] {
   const filtered = dbChallenges.filter((c) => !isDemoChallengeSlug(c.slug));
-  const transformation = mergeTransformationChallenges(filtered);
+  const transformation = mergeTransformationChallenges(filtered, profileGender);
   const flash = mergeFlashChallenges(filtered);
   return [...transformation, ...flash];
 }
 
-export async function getPublishedChallenges(): Promise<Challenge[]> {
+export async function getPublishedChallenges(
+  profileGender?: string | null
+): Promise<Challenge[]> {
   await ensureCatalogChallengesInDb();
 
   const supabase = await createClient();
@@ -161,14 +172,21 @@ export async function getPublishedChallenges(): Promise<Challenge[]> {
       ...c,
       participant_count: c.participant_count ?? DEMO_PARTICIPANT_COUNT,
     }));
-    return attachParticipantCounts([...demo, ...mergeCatalogChallenges([])]);
+    return attachParticipantCounts(
+      filterChallengesForProfile(
+        [...demo, ...mergeCatalogChallenges([], profileGender)],
+        profileGender
+      )
+    );
   }
-  const merged = mergeCatalogChallenges((data ?? []).map(rowToChallenge));
+  const merged = mergeCatalogChallenges((data ?? []).map(rowToChallenge), profileGender);
   const demo = getDemoChallenges().map((c) => ({
     ...c,
     participant_count: c.participant_count ?? DEMO_PARTICIPANT_COUNT,
   }));
-  return attachParticipantCounts([...demo, ...merged]);
+  return attachParticipantCounts(
+    filterChallengesForProfile([...demo, ...merged], profileGender)
+  );
 }
 
 export async function getAllChallenges(): Promise<Challenge[]> {
@@ -181,7 +199,10 @@ export async function getAllChallenges(): Promise<Challenge[]> {
   return attachParticipantCounts((data ?? []).map(rowToChallenge));
 }
 
-export async function getChallengeBySlug(slug: string): Promise<Challenge | null> {
+export async function getChallengeBySlug(
+  slug: string,
+  profileGender?: string | null
+): Promise<Challenge | null> {
   if (isDemoChallengeSlug(slug)) return getDemoChallengeBySlug(slug) ?? null;
 
   const catalog = getTransformationChallengeBySlug(slug) ?? getFlashChallengeBySlug(slug);
@@ -195,11 +216,18 @@ export async function getChallengeBySlug(slug: string): Promise<Challenge | null
     .eq("slug", slug)
     .maybeSingle();
 
+  let challenge: Challenge | null;
   if (error || !data) {
-    return catalog?.published ? catalog : null;
+    challenge = catalog?.published ? catalog : null;
+  } else if (!data.published) {
+    challenge = catalog?.published ? catalog : null;
+  } else {
+    challenge = rowToChallenge(data);
   }
-  if (!data.published) return catalog?.published ? catalog : null;
-  return rowToChallenge(data);
+
+  if (!challenge) return null;
+  if (!canUserAccessChallenge(challenge, profileGender)) return null;
+  return challenge;
 }
 
 export async function getChallengeById(id: string): Promise<Challenge | null> {

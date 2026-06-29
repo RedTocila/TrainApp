@@ -840,6 +840,8 @@ export const platformCopyAl = {
       "Përmirëso në Elite për klasa live, sfida dhe akses në komunitet.",
   },
   challenges: {
+    leagueTagMen: "Liga e burrave",
+    leagueTagWomen: "Liga e grave",
     rulesTitle: "Rregullat e sfidës",
     rulesButton: "Rregullat e sfidës",
     rulesAndInstructionsButton: "Rregullat dhe udhëzimet",
@@ -1072,15 +1074,62 @@ export const platformCopyAl = {
       performanceLabel: "Rekord",
       winnerLabel: "Fituesi",
     },
+    flashAlex: {
+      intro:
+        "Duel i shpejtë — 24 orë pasi bashkohen 10 persona. Filmoje në Zoom, Alex regjistron kush u paraqit vërtet. Rekordi më i lartë fiton fondin.",
+      steps: [
+        "10 të parët rezervojnë vend falas. Organizatori nis orën 24-orëshe kur ka të paktën 10.",
+        "Të gjithë në grupin e parë paguajnë €10 për të konfirmuar kur grupi mbushet.",
+        "Pas 10 të parëve, të rinjët paguajnë €10 menjëherë (deri në 50 total).",
+        "Ndahen në grupe Zoom deri në 10 kur nis sfida.",
+        "Pas çdo Zoom grupi, organizatori regjistron rekordin e fituesit.",
+        "Rekordi më i lartë midis fituesve të grupeve merr fondin e plotë.",
+      ],
+      windowLabel: "Dritarja",
+      entryLabel: "Tarifa e hyrjes",
+      poolLabel: "Fondi i çmimit",
+      participantsLabel: "Pjesëmarrësit",
+      startsNotice: "Kjo sfidë nis më {datetime}.",
+      zoomCallTitle: "Thirrja Zoom",
+      zoomFromAnnouncement: "Orari nga njoftimi i organizatorit më sipër.",
+      zoomPending: "Detajet e Zoom do të postohen në njoftimin më sipër.",
+      joinZoomButton: "Bashkohu Zoom",
+      zoomLinkPending: "Lidhja Zoom së shpejti",
+      zoomGroupsTitle: "Grupet e pjesëmarrësve",
+      zoomGroupsSection: "Zoom · {count} grupe × ~{groupSize}",
+      zoomGroupLabel: "Zoom",
+      zoomGroupsEmpty: "Ende pa pjesëmarrës — regjistrohu për një grup Zoom.",
+      zoomGroupsPending:
+        "Duke pritur grupet prej {groupSize} — ndahen sipas rendit të bashkimit kur organizatori nis sfidën.",
+      joinOrderHint: "Renditur sipas bashkimit — #1 regjistrohet i pari.",
+      fillingNotice: "Duhen edhe {count} regjistrime para se organizatori të mund ta nisë.",
+      waitingToStart: "10+ të regjistruar — duke pritur organizatorin të nisë dritaren 24-orëshe.",
+      fillingReady: "Sfida është live — dritarja 24-orëshe po vazhdon.",
+      performanceLabel: "Rekord",
+      winnerLabel: "Fituesi",
+    },
+    longMen: {},
+    longWomen: {
+      rulesIntro:
+        "Turneu juaj i transformimit {count}-mujor. Vetëm anëtarët Elite — regjistrimi është falas dhe çdo pjesëmarrës rrit fondin e çmimit.",
+      tournamentIntro:
+        "Deri në {count} muaj me tre ditë eliminimi Zoom: Raundi 1 ngushton fushën, Raundi 2 zgjedh fituesit e grupeve, pastaj finalja e kampionit.",
+    },
     catalog: {
       longTag: "Gjata",
       longTitle: "Sfidat e gjata",
       longSubtitle:
         "30 ditë deri 12 muaj — 100 vende secila, listë pritjeje kur plot, +€10 për pjesëmarrës në fond çdo muaj.",
+      longSubtitleMen:
+        "30 ditë deri 12 muaj — Liga e burrave. 100 vende, listë pritjeje kur plot, +€10 për person në fond çdo muaj.",
+      longSubtitleWomen:
+        "30 ditë deri 12 muaj — Liga e grave. 100 vende, listë pritjeje kur plot, +€10 për pjesëmarrës rrit fondin çdo muaj.",
       flashTag: "Flash",
       flashTitle: "Sfidat flash",
       flashSubtitle:
         "Deri në €250 në 24 orë — tarifa e hyrjes, max 50 vende.",
+      flashSubtitleAlex:
+        "Deri në €250 në 24 orë — paraqitu në Zoom, mposht fushën, max 50 vende.",
       viewChallenge: "Shiko sfidën",
     },
     join: {

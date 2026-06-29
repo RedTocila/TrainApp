@@ -25,7 +25,7 @@ export default async function DashboardLayout({
   const profile = await requireClient();
   const locale = parseCheckoutLocale(profile.preferred_locale);
   const intakeComplete = isClientIntakeComplete(profile);
-  const challenges = await getPublishedChallenges();
+  const challenges = await getPublishedChallenges(profile.gender);
   const liveChallengeActive = hasLiveChallenge(challenges);
 
   return (

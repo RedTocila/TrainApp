@@ -29,12 +29,12 @@ export default async function ClassesPage() {
 
   const [classes, challenges] = await Promise.all([
     getPublishedClasses(),
-    getPublishedChallenges(),
+    getPublishedChallenges(profile.gender),
   ]);
 
   return (
     <PageTransition>
-      <LiveHubPage classes={classes} challenges={challenges} />
+      <LiveHubPage classes={classes} challenges={challenges} profileGender={profile.gender} />
     </PageTransition>
   );
 }

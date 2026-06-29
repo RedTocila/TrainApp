@@ -27,11 +27,13 @@ import { ChallengeZoomPanel } from "@/components/challenge-zoom-panel";
 import { FlashChallengeActionBlock } from "@/components/flash-challenge-action-block";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getChallengeStatus } from "@/lib/challenge-utils";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { PLATFORM_ELITE_NAME } from "@/lib/brand";
 import { getPlatformCopy } from "@/lib/platform-copy";
+import { resolveChallengePlatformCopy, getChallengeLeagueTag } from "@/lib/challenge-platform-copy";
 import { hasEliteAccess } from "@/lib/subscription";
 import { ArrowLeft, GitBranch, Medal, Users } from "lucide-react";
 
@@ -68,8 +70,10 @@ export default async function ChallengeDetailPage({
     );
   }
 
-  const challenge = await getChallengeBySlug(slug);
+  const challenge = await getChallengeBySlug(slug, profile.gender);
   if (!challenge) notFound();
+
+  const copy = resolveChallengePlatformCopy(platform.challenges, challenge);
 
   const isTransformation = isTransformationChallenge(challenge);
   const isFlash = isFlashChallenge(challenge);
@@ -94,7 +98,6 @@ export default async function ChallengeDetailPage({
     : await getUserTransformationChallengeStatus(user!.id);
   const currentParticipant =
     bracket.participants.find((participant) => participant.user_id === user!.id) ?? null;
-  const copy = platform.challenges;
 
   return (
     <PageTransition>
@@ -113,7 +116,14 @@ export default async function ChallengeDetailPage({
         </div>
 
         <header>
-          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{challenge.title}</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{challenge.title}</h1>
+            {getChallengeLeagueTag(platform.challenges, challenge) ? (
+              <Badge variant="outline" className="text-xs font-semibold uppercase tracking-wide">
+                {getChallengeLeagueTag(platform.challenges, challenge)}
+              </Badge>
+            ) : null}
+          </div>
         </header>
 
         <ChallengeAnnouncements announcements={announcements} alwaysVisible={isFlash} />

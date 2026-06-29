@@ -833,6 +833,8 @@ export const platformCopyEn = {
       "Upgrade to Elite for live classes, challenges, and community access.",
   },
   challenges: {
+    leagueTagMen: "Men's League",
+    leagueTagWomen: "Women's League",
     rulesTitle: "Challenge rules",
     rulesButton: "Challenge rules",
     rulesAndInstructionsButton: "Rules and instructions",
@@ -848,34 +850,33 @@ export const platformCopyEn = {
     backToChallenge: "Back to challenge",
     rulesClose: "Back to challenge",
     rulesIntro:
-      "A {count}-month transformation tournament. Elite membership required. Registration is free — the prize pool is display-only and paid manually to the champion.",
+      "A {count}-month elimination tournament. Elite only. Free to register — prize pool is display-only and paid manually to the champion. Coach Alex runs a tight ship.",
     rules: [
-      "Elite membership is required to register. Challenge entry is free on top of your subscription.",
-      "The prize pool grows with each entrant (€X × participants). It is display-only — no in-app payment. The organizer pays the champion manually offline.",
-      "Log workouts, meals, weight, and habits honestly throughout the tournament. Your overall platform score counts for 30% of each winner decision.",
-      "Winner formula at every elimination Zoom and the champion final: 30% overall platform score, 30% participant vote on the call, 40% organizer vote.",
-      "Do not cheat the platform (fake logs, rushed check-offs). Dishonest entries may be disqualified.",
-      "Round 1 Zoom — groups of about {groupSize}, one call per hour. Eliminate 5, advance 5 per group using the weighted formula.",
-      "Round 2 Zoom — survivors regrouped into new groups of {groupSize}. One winner per group advances using the same formula.",
-      "Champion final — all group winners on one Zoom call. The same 30/30/40 formula picks the champion.",
-      "Zoom is the verification layer — on camera everyone sees real change, not just app numbers.",
-      "The champion wins the full displayed prize pool, sent manually by the organizer (no in-app cashout).",
+      "Elite membership required. Challenge entry is free — you're paying with effort, not another subscription line item.",
+      "Prize pool grows with each entrant (€X × participants). Display only — Alex pays the champion manually. No in-app cashout, no excuses.",
+      "Log workouts, meals, weight, and habits honestly. Your platform score is 30% of every elimination. Fake logs get you booted.",
+      "Winner formula at every Zoom: 30% platform score, 30% participant vote, 40% organizer vote. Cry about it on camera or train harder.",
+      "Round 1 Zoom — groups of ~{groupSize}, hourly calls. Cut 5, advance 5 per group. Don't be in the bottom half.",
+      "Round 2 Zoom — survivors reshuffled. One winner per group. Same formula. Fewer people, higher stakes.",
+      "Champion final — all group winners, one call. Same 30/30/40 split picks who takes the pool.",
+      "Zoom is the truth layer — everyone sees real change, not fantasy app numbers.",
+      "Champion wins the full displayed pool. Paid offline by the organizer. Spend it wisely.",
     ],
     instructionsIntro:
-      "Step-by-step guide for the {count}-month tournament — what to do before, during, and after each elimination Zoom.",
+      "Step-by-step for the {count}-month tournament — what to do before, during, and after each elimination Zoom. Read it or learn the hard way.",
     instructions: [
-      "Register on the challenge page (Elite membership required). Entry is free — the prize pool is display-only.",
-      "Throughout the tournament, log workouts, meals, weight, and habits in the app every day. Your overall platform score is worth 30% of each winner decision.",
-      "Before each Zoom, review your platform score on the challenge page — it is one third of how winners are chosen.",
-      "Before each elimination day, open the challenge page for your group number and scheduled Zoom hour (one group per hour).",
-      "Round 1 Zoom: join on camera with your group of ~{groupSize}. Be ready to show your transformation. Five advance, five are eliminated via 30% platform score, 30% participant vote, 40% organizer vote.",
-      "If you advance to Round 2, you will be placed in a new group of ~{groupSize}. One winner per group goes to the champion final using the same weighted formula.",
-      "Champion final: all group winners meet on one Zoom call. Participants vote (30%), platform scores count (30%), and the organizer casts the decisive 40% vote.",
-      "The champion receives the full displayed prize pool, paid manually by the organizer — there is no in-app cashout.",
+      "Register on the challenge page (Elite required). Entry is free — the prize pool is display-only.",
+      "Log workouts, meals, weight, and habits daily. Platform score = 30% of every winner decision.",
+      "Before each Zoom, check your platform score on the challenge page. It's a third of your fate.",
+      "Before elimination day, open the challenge page for your group number and Zoom hour.",
+      "Round 1: join on camera with ~{groupSize}. Show your transformation. Five advance, five go home via 30/30/40.",
+      "Round 2: new groups of ~{groupSize}. One winner per group to the final. Same formula.",
+      "Champion final: all group winners on one Zoom. Participants vote (30%), platform scores (30%), organizer decides (40%).",
+      "Champion gets the full displayed pool — paid manually. No in-app payout.",
     ],
     tournamentTitle: "{count}-month elimination tournament",
     tournamentIntro:
-      "Runs up to {count} months with three elimination Zoom days: Round 1 cuts 10→5 per group, Round 2 picks one winner per group, then a champion final.",
+      "Up to {count} months, three elimination Zoom days: Round 1 cuts 10→5 per group, Round 2 picks one per group, then a champion final. Simple. Brutal.",
     tournamentDuration: "{count}-month tournament",
     tournamentMonthlyRound: "Three elimination Zoom days across the tournament",
     phase1Title: "Round 1 · Semi-elimination",
@@ -1033,14 +1034,14 @@ export const platformCopyEn = {
     },
     flash: {
       intro:
-        "Quick head-to-head — 24 hours once 10 people join. Film on Zoom, admin records your score, highest overall wins the pool.",
+        "Quick head-to-head — 24 hours once 10 people join. Film on Zoom, Alex records who actually showed up. Highest score wins the pool. No participation trophies.",
       steps: [
-        "The first 10 people reserve a seat for free. The organizer starts the 24-hour window once at least 10 have signed up.",
-        "Everyone in that first group pays the €10 entry fee to confirm once the group is full.",
-        "After the first 10, new joiners pay €10 immediately when they join (up to 50 total).",
-        "Participants are split into Zoom groups of up to 10 (max 5 groups) when the challenge starts.",
-        "After each group Zoom, the organizer enters the group winner's record (time, reps, etc.).",
-        "Among group winners, the highest record wins the full prize pool.",
+        "First 10 reserve a seat free. Organizer starts the 24-hour clock once at least 10 are in.",
+        "Everyone in that first group pays €10 to confirm when the group fills. Skin in the game.",
+        "After the first 10, new joiners pay €10 on the spot (up to 50 total).",
+        "Split into Zoom groups of up to 10 when the challenge goes live.",
+        "After each group Zoom, the organizer logs the winner's record — time, reps, whatever matters.",
+        "Highest record among group winners takes the full prize pool. Everyone else gets a story.",
       ],
       windowLabel: "Window",
       entryLabel: "Entry fee",
@@ -1065,15 +1066,101 @@ export const platformCopyEn = {
       performanceLabel: "Record",
       winnerLabel: "Winner",
     },
+    flashAlex: {
+      intro:
+        "Quick head-to-head — 24 hours once 10 people join. Film on Zoom, Alex records who actually showed up. Highest score wins the pool. No participation trophies.",
+      steps: [
+        "First 10 reserve a seat free. Organizer starts the 24-hour clock once at least 10 are in.",
+        "Everyone in that first group pays €10 to confirm when the group fills. Skin in the game.",
+        "After the first 10, new joiners pay €10 on the spot (up to 50 total).",
+        "Split into Zoom groups of up to 10 when the challenge goes live.",
+        "After each group Zoom, the organizer logs the winner's record — time, reps, whatever matters.",
+        "Highest record among group winners takes the full prize pool. Everyone else gets a story.",
+      ],
+      windowLabel: "Window",
+      entryLabel: "Entry fee",
+      poolLabel: "Prize pool",
+      participantsLabel: "Participants",
+      startsNotice: "This challenge starts on {datetime}.",
+      zoomCallTitle: "Zoom call",
+      zoomFromAnnouncement: "Schedule from the organizer announcement above.",
+      zoomPending: "Zoom call details will be posted in the announcement above.",
+      joinZoomButton: "Join Zoom call",
+      zoomLinkPending: "Zoom link coming soon",
+      zoomGroupsTitle: "Participant groups",
+      zoomGroupsSection: "Zoom · {count} groups × ~{groupSize}",
+      zoomGroupLabel: "Zoom",
+      zoomGroupsEmpty: "No participants yet — register to join a Zoom group.",
+      zoomGroupsPending:
+        "Waiting for groups of {groupSize} — drawn in join order when the organizer starts the challenge.",
+      joinOrderHint: "Listed in join order — #1 signed up first.",
+      fillingNotice: "{count} more sign-ups needed before the organizer can start.",
+      waitingToStart: "10+ signed up — waiting for the organizer to start the 24-hour window.",
+      fillingReady: "Challenge is live — 24-hour window running.",
+      performanceLabel: "Record",
+      winnerLabel: "Winner",
+    },
+    longMen: {},
+    longWomen: {
+      rulesIntro:
+        "Your {count}-month transformation tournament. Elite members only — registration is free, and every signup grows the prize pool you're competing for.",
+      rules: [
+        "Elite membership required. Challenge entry is free on top of your subscription — you're investing in yourself.",
+        "The prize pool grows with each entrant (€X × participants). Display only — the champion is paid manually by the organizer.",
+        "Log workouts, meals, weight, and habits honestly. Your platform score counts for 30% of every elimination — consistency is your edge.",
+        "Winner formula at every Zoom: 30% platform score, 30% participant vote, 40% organizer vote. Show up prepared and proud of your progress.",
+        "Round 1 Zoom — groups of ~{groupSize}, one call per hour. Five advance, five are eliminated using the weighted formula.",
+        "Round 2 Zoom — survivors meet in fresh groups of {groupSize}. One winner per group advances to the final.",
+        "Champion final — all group winners on one Zoom call. The same 30/30/40 formula crowns the champion.",
+        "Zoom is where your hard work becomes visible — everyone sees real change, not just numbers in the app.",
+        "The champion wins the full displayed prize pool, sent manually by the organizer.",
+      ],
+      instructionsIntro:
+        "Your step-by-step guide for the {count}-month tournament — what to do before, during, and after each elimination Zoom.",
+      instructions: [
+        "Register on the challenge page (Elite membership required). Entry is free — the prize pool is display-only.",
+        "Throughout the tournament, log workouts, meals, weight, and habits daily. Your platform score is worth 30% of each winner decision.",
+        "Before each Zoom, review your platform score on the challenge page — it's one third of how winners are chosen.",
+        "Before elimination day, open the challenge page for your group number and scheduled Zoom hour.",
+        "Round 1 Zoom: join on camera with your group of ~{groupSize}. Be ready to share your transformation. Five advance, five are eliminated via 30/30/40.",
+        "If you advance to Round 2, you'll be placed in a new group of ~{groupSize}. One winner per group reaches the champion final.",
+        "Champion final: all group winners on one Zoom call. Participants vote (30%), platform scores count (30%), organizer casts the decisive 40%.",
+        "The champion receives the full displayed prize pool, paid manually by the organizer.",
+      ],
+      tournamentIntro:
+        "Up to {count} months with three elimination Zoom days: Round 1 narrows the field, Round 2 picks group winners, then a champion final.",
+      phase1Body:
+        "Groups of {groupSize} on hourly Zoom calls. Five advance per group — your consistency and presence matter.",
+      phase2Body:
+        "Survivors reshuffled into fresh groups of {groupSize}. One winner per group earns a spot in the final.",
+      phase3Body:
+        "All group winners on one Zoom call. Champion chosen by 30% platform score, 30% participant vote, 40% organizer vote.",
+      judgingFormulaIntro:
+        "At every elimination Zoom and the champion final, the winner is chosen by combining three weighted inputs — your daily effort counts.",
+      zoomRound1Intro:
+        "Round 1 — up to {groupSize} people. Live on camera: five advance, five are eliminated. Formula: 30% platform score, 30% participant vote, 40% organizer vote.",
+      zoomRound2Intro:
+        "Round 2 — up to {groupSize} people. One group winner advances using the same 30/30/40 formula.",
+      zoomFinalIntro:
+        "Champion final — winner chosen by 30% platform score, 30% participant vote on Zoom, 40% organizer vote.",
+      diagramRulesZoomBody:
+        "Three elimination days across {count} months. Your daily logs build your score; Zoom is where you show your transformation.",
+    },
     catalog: {
       longTag: "Long",
       longTitle: "Long challenges",
       longSubtitle:
         "30 days to 12 months — 100 spots each, waitlist when full, +€10 per participant to the pool each month.",
+      longSubtitleMen:
+        "30 days to 12 months — Men's League. 100 spots, waitlist when full, +€10 per head to the pool monthly. Don't sign up if you're not serious.",
+      longSubtitleWomen:
+        "30 days to 12 months — Women's League. 100 spots, waitlist when full, +€10 per participant grows the pool every month. Your transformation starts here.",
       flashTag: "Flash",
       flashTitle: "Flash challenges",
       flashSubtitle:
         "Up to €250 in 24 hours — entry fee, 50 spots max.",
+      flashSubtitleAlex:
+        "Up to €250 in 24 hours — show up on Zoom, beat the field, 50 spots max. Alex doesn't do second place.",
       viewChallenge: "View challenge",
     },
     join: {
@@ -1088,9 +1175,9 @@ export const platformCopyEn = {
       leavingWaitlist: "Leaving waitlist…",
       registeredHere: "You are registered for this challenge.",
       waitlistJoined: "You are on the waitlist — we will add you when a spot opens.",
-      successRegistered: "You are registered!",
-      challengeFull: "All 100 spots are taken — join the waitlist to get in line.",
-      flashChallengeFull: "All 50 spots are taken — join the waitlist to get in line.",
+      successRegistered: "You're in. Now show up.",
+      challengeFull: "All 100 spots gone — waitlist or watch from the sidelines.",
+      flashChallengeFull: "All 50 spots taken — waitlist or try again next flash.",
       spotsRemaining: "{remaining} of {max} spots left",
       waitlistPosition: "Waitlist position #{position} — first in line gets the next open spot.",
       switchNotice:

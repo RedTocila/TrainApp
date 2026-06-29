@@ -11,6 +11,7 @@ import { PLATFORM_ELITE_NAME } from "@/lib/brand";
 import { getChallengeDurationMonths } from "@/lib/challenge-utils";
 import { isFlashChallenge } from "@/lib/challenge-series";
 import { getPlatformCopy } from "@/lib/platform-copy";
+import { resolveChallengePlatformCopy } from "@/lib/challenge-platform-copy";
 import { hasEliteAccess } from "@/lib/subscription";
 
 export default async function ChallengeRulesPage({
@@ -46,13 +47,15 @@ export default async function ChallengeRulesPage({
     );
   }
 
-  const challenge = await getChallengeBySlug(slug);
+  const challenge = await getChallengeBySlug(slug, profile.gender);
   if (!challenge) notFound();
+
+  const challengeCopy = resolveChallengePlatformCopy(platform.challenges, challenge);
 
   if (isFlashChallenge(challenge)) {
     return (
       <FlashChallengeRulesClient
-        copy={platform.challenges}
+        copy={challengeCopy}
         challengeTitle={challenge.title}
         backHref={`/dashboard/challenges/${slug}`}
       />
@@ -61,7 +64,7 @@ export default async function ChallengeRulesPage({
 
   return (
     <ChallengeRulesInstructionsClient
-      copy={platform.challenges}
+      copy={challengeCopy}
       challengeTitle={challenge.title}
       backHref={`/dashboard/challenges/${slug}`}
       groupSize={challenge.group_size}

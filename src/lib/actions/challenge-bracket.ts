@@ -82,6 +82,8 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
       typeof row.max_participants === "number" ? row.max_participants : null,
     is_transformation: row.is_transformation === true,
     is_flash: row.is_flash === true,
+    gender:
+      row.gender === "male" || row.gender === "female" ? row.gender : null,
     entry_fee_cents: typeof row.entry_fee_cents === "number" ? row.entry_fee_cents : 0,
     round_1_zoom_at: (row.round_1_zoom_at as string | null) ?? null,
     round_2_zoom_at: (row.round_2_zoom_at as string | null) ?? null,
@@ -248,7 +250,8 @@ export async function registerForChallenge(challengeId: string) {
     const blockReason = await getLongChallengeJoinBlockReason(
       supabase,
       profile.id,
-      challengeId
+      challengeId,
+      profile.gender
     );
     if (blockReason) {
       return { error: blockReason };
