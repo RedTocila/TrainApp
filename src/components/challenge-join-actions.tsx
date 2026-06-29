@@ -2,29 +2,43 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Clock, LogOut, UserPlus } from "lucide-react";
 import {
   leaveChallenge,
   leaveChallengeWaitlist,
   registerForChallenge,
 } from "@/lib/actions/challenge-bracket";
-import { getChallengeEntryFeeCents, getChallengeMaxParticipants, isFlashChallenge } from "@/lib/challenge-series";
+import { createFlashChallengeEntryCheckout } from "@/lib/actions/flash-challenge-checkout";
+import { getChallengeEntryFeeCents, getChallengeMaxParticipants, isFlashChallenge, isTransformationChallenge } from "@/lib/challenge-series";
+import {
+  flashFirstGroupIsFull,
+  flashGroupSize,
+  flashParticipantNeedsPayment,
+  flashRequiresPaymentOnJoin,
+  flashSeatIsFreeOnJoin,
+} from "@/lib/flash-challenge-entry-fee";
 import {
   canLeaveChallenge,
   canRegisterForChallenge,
+  getChallengePhase,
   getChallengeStatus,
   isChallengeAtCapacity,
 } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
 import { Button } from "@/components/ui/button";
 import { usePlatformCopy } from "@/components/locale-provider";
-import type { Challenge, UserSeriesChallengeStatus } from "@/lib/types";
+import type { Challenge, ChallengeParticipant, UserSeriesChallengeStatus } from "@/lib/types";
 import { format } from "date-fns";
 
 type ChallengeJoinActionsProps = {
   challenge: Challenge;
   participantCount: number;
   membership: UserSeriesChallengeStatus;
+  /** Current user's participant row on this challenge (flash payment state). */
+  currentParticipant?: ChallengeParticipant | null;
+  /** All participants on this challenge (flash first-group payment checks). */
+  allParticipants?: ChallengeParticipant[];
   /** Render inside prize pool card — full-width primary action. */
   embedded?: boolean;
 };
@@ -33,29 +47,73 @@ export function ChallengeJoinActions({
   challenge,
   participantCount,
   membership,
+  currentParticipant = null,
+  allParticipants = [],
   embedded = false,
 }: ChallengeJoinActionsProps) {
   const platform = usePlatformCopy();
   const copy = platform.challenges.join;
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const isFlash = isFlashChallenge(challenge);
+  const isTransformation = isTransformationChallenge(challenge);
   const entryFeeLabel = formatEurosFromCents(getChallengeEntryFeeCents(challenge));
   const maxParticipants = getChallengeMaxParticipants(challenge);
   const isFull = isChallengeAtCapacity(challenge, participantCount);
   const canRegister = canRegisterForChallenge(challenge);
   const canLeave = canLeaveChallenge(challenge);
   const challengeStatus = getChallengeStatus(challenge);
-  const isRegisteredHere = membership.participant?.challenge_id === challenge.id;
+  const isRegisteredHere =
+    membership.participant?.challenge_id === challenge.id || currentParticipant != null;
   const isWaitlistedHere = membership.waitlist?.challenge_id === challenge.id;
   const otherChallenge = membership.participant &&
     membership.participant.challenge_id !== challenge.id
     ? membership.participant
     : null;
+  const otherWaitlist = membership.waitlist &&
+    membership.waitlist.challenge_id !== challenge.id
+    ? membership.waitlist
+    : null;
+  const blockedByOtherLongChallenge =
+    isTransformation &&
+    !isRegisteredHere &&
+    (otherChallenge != null || otherWaitlist != null);
+  const blockedChallengeTitle =
+    otherChallenge?.challenge_title ?? otherWaitlist?.challenge_title ?? "";
+  const blockedChallengeSlug =
+    otherChallenge?.challenge_slug ?? otherWaitlist?.challenge_slug ?? "";
 
-  const run = (action: () => Promise<{ error?: string; success?: boolean; waitlisted?: boolean }>) => {
+  const groupSize = flashGroupSize(challenge);
+  const paymentRequiredOnJoin = isFlash && flashRequiresPaymentOnJoin(participantCount, groupSize);
+  const freeSeatAvailable = isFlash && flashSeatIsFreeOnJoin(participantCount, groupSize);
+  const needsPaymentToContinue =
+    isFlash &&
+    currentParticipant != null &&
+    flashParticipantNeedsPayment(currentParticipant, allParticipants, groupSize);
+  const firstGroupFull = isFlash && flashFirstGroupIsFull(participantCount, groupSize);
+
+  const startFlashCheckout = (action: "join" | "confirm") => {
+    setError(null);
+    setMessage(null);
+    startTransition(async () => {
+      const result = await createFlashChallengeEntryCheckout(challenge.id, action);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      if (result.checkoutUrl) {
+        router.push(result.checkoutUrl);
+      }
+    });
+  };
+
+  const run = (
+    action: () => Promise<{ error?: string; success?: boolean; waitlisted?: boolean }>,
+    successMessage?: string
+  ) => {
     setError(null);
     setMessage(null);
     startTransition(async () => {
@@ -67,28 +125,57 @@ export function ChallengeJoinActions({
       if (result.waitlisted) {
         setMessage(copy.waitlistJoined);
       } else if (result.success) {
-        setMessage(copy.successRegistered);
+        setMessage(successMessage ?? copy.successRegistered);
       }
+      router.refresh();
     });
   };
 
   if (isRegisteredHere) {
     return (
       <div className={embedded ? "space-y-2" : "space-y-2"}>
-        <p className="text-sm text-emerald-400">{copy.registeredHere}</p>
+        {needsPaymentToContinue ? (
+          <>
+            <p className="text-sm text-amber-200">
+              {copy.flashFirstGroupPayNotice
+                .replace("{fee}", entryFeeLabel)
+                .replace("{count}", String(groupSize))}
+            </p>
+            <Button
+              type="button"
+              disabled={isPending}
+              className={embedded ? "w-full" : undefined}
+              onClick={() => startFlashCheckout("confirm")}
+            >
+              {isPending
+                ? copy.joining
+                : copy.payEntryFee.replace("{fee}", entryFeeLabel)}
+            </Button>
+          </>
+        ) : isFlash && currentParticipant && !currentParticipant.entry_fee_paid_at && !firstGroupFull ? (
+          <p className="text-sm text-emerald-400">
+            {copy.flashSeatReserved.replace("{count}", String(groupSize))}
+          </p>
+        ) : (
+          <p className="text-sm text-emerald-400">{copy.registeredHere}</p>
+        )}
         {canLeave ? (
           <Button
             type="button"
             variant={embedded ? "outline" : "outline"}
             disabled={isPending}
             className={embedded ? "w-full" : undefined}
-            onClick={() => run(() => leaveChallenge(challenge.id))}
+            onClick={() => run(() => leaveChallenge(challenge.id), copy.successLeft)}
           >
             <LogOut className="mr-2 h-4 w-4" />
             {isPending ? copy.leaving : copy.leaveChallenge}
           </Button>
         ) : (
-          <p className="text-sm text-muted-foreground">{copy.registrationClosedRegistered}</p>
+          <p className="text-sm text-muted-foreground">
+            {getChallengePhase(challenge) > 0
+              ? copy.leaveLockedTournamentStarted
+              : copy.registrationClosedRegistered}
+          </p>
         )}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
@@ -150,7 +237,17 @@ export function ChallengeJoinActions({
 
   return (
     <div className="space-y-2">
-      {otherChallenge ? (
+      {blockedByOtherLongChallenge ? (
+        <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+          {copy.activeLongChallengeBlocksJoin.replace("{title}", blockedChallengeTitle)}{" "}
+          <Link
+            href={`/dashboard/challenges/${blockedChallengeSlug}`}
+            className="font-semibold underline underline-offset-2"
+          >
+            {copy.viewCurrent}
+          </Link>
+        </p>
+      ) : otherChallenge ? (
         <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
           {copy.switchNotice.replace("{title}", otherChallenge.challenge_title)}{" "}
           <Link
@@ -170,27 +267,37 @@ export function ChallengeJoinActions({
         <p className="text-sm text-muted-foreground">{spotsLabel}</p>
       ) : null}
 
-      <Button
-        type="button"
-        disabled={isPending}
-        className={embedded ? "w-full" : undefined}
-        onClick={() => run(() => registerForChallenge(challenge.id))}
-      >
-        {otherChallenge ? (
-          <ArrowRightLeft className="mr-2 h-4 w-4" />
-        ) : (
-          <UserPlus className="mr-2 h-4 w-4" />
-        )}
-        {isPending
-          ? copy.joining
-          : isFull
-            ? copy.joinWaitlist
-            : otherChallenge
-              ? copy.switchToThis
-              : isFlash
-                ? copy.registerWithFee.replace("{fee}", entryFeeLabel)
-                : copy.registerFree}
-      </Button>
+      {!blockedByOtherLongChallenge ? (
+        <Button
+          type="button"
+          disabled={isPending}
+          className={embedded ? "w-full" : undefined}
+          onClick={() =>
+            paymentRequiredOnJoin
+              ? startFlashCheckout("join")
+              : run(() => registerForChallenge(challenge.id))
+          }
+        >
+          {otherChallenge ? (
+            <ArrowRightLeft className="mr-2 h-4 w-4" />
+          ) : (
+            <UserPlus className="mr-2 h-4 w-4" />
+          )}
+          {isPending
+            ? copy.joining
+            : isFull
+              ? copy.joinWaitlist
+              : otherChallenge
+                ? copy.switchToThis
+                : isFlash
+                  ? paymentRequiredOnJoin
+                    ? copy.registerWithFee.replace("{fee}", entryFeeLabel)
+                    : freeSeatAvailable
+                      ? copy.reserveFreeSeat.replace("{count}", String(groupSize))
+                      : copy.registerWithFee.replace("{fee}", entryFeeLabel)
+                  : copy.registerFree}
+        </Button>
+      ) : null}
 
       {message ? <p className="text-sm text-emerald-400">{message}</p> : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -208,12 +315,49 @@ export function ChallengeRegisterButton({
 }) {
   const platform = usePlatformCopy();
   const copy = platform.challenges.join;
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const canRegister = canRegisterForChallenge(challenge);
+  const canLeave = canLeaveChallenge(challenge);
 
-  if (isRegistered) return null;
+  if (isRegistered) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-emerald-400">{copy.registeredHere}</p>
+        {canLeave ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending}
+            onClick={() => {
+              setError(null);
+              startTransition(async () => {
+                const result = await leaveChallenge(challenge.id);
+                if (result.error) {
+                  setError(result.error);
+                  return;
+                }
+                router.refresh();
+              });
+            }}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            {isPending ? copy.leaving : copy.leaveChallenge}
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {getChallengePhase(challenge) > 0
+              ? copy.leaveLockedTournamentStarted
+              : copy.registrationClosedRegistered}
+          </p>
+        )}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      </div>
+    );
+  }
 
-  if (!canRegisterForChallenge(challenge)) {
+  if (!canRegister) {
     return null;
   }
 
@@ -227,6 +371,7 @@ export function ChallengeRegisterButton({
           startTransition(async () => {
             const result = await registerForChallenge(challenge.id);
             if (result.error) setError(result.error);
+            else router.refresh();
           });
         }}
       >

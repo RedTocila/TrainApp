@@ -65,7 +65,7 @@ export function getChallengeEntryFeeCents(
 }
 
 export function usesChallengeWaitlist(
-  challenge: Pick<Challenge, "is_transformation" | "is_flash">
+  challenge: Pick<Challenge, "is_transformation" | "is_flash" | "slug">
 ): boolean {
-  return challenge.is_transformation === true || challenge.is_flash === true;
+  return isTransformationChallenge(challenge) || isFlashChallenge(challenge);
 }

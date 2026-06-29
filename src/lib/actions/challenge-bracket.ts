@@ -10,21 +10,31 @@ import {
 } from "@/lib/challenge-demo";
 import {
   countChallengeParticipants,
+  findActiveSeriesParticipant,
+  findActiveSeriesWaitlistEntry,
+  getLongChallengeJoinBlockReason,
   leaveOtherSeriesChallenges,
   promoteNextFromWaitlist,
   removeIneligibleSeriesParticipants,
   removeParticipantAndPromote,
 } from "@/lib/challenge-slot-management";
+import { participantIdsByPlatformScore } from "@/lib/challenge-participant-ranking";
+import { getPlatformEngagementScores } from "@/lib/actions/platform-engagement-score";
 import {
   groupScheduledAt,
   isChallengeAtCapacity,
   canLeaveChallenge,
   canRegisterForChallenge,
+  getChallengePhase,
   getChallengeStatus,
   ROUND1_ADVANCE_COUNT,
 } from "@/lib/challenge-utils";
 import type { ChallengeSeries } from "@/lib/challenge-series";
-import { isFlashChallenge, isTransformationChallenge, usesChallengeWaitlist } from "@/lib/challenge-series";
+import { getChallengeSeries, isFlashChallenge, isTransformationChallenge, usesChallengeWaitlist } from "@/lib/challenge-series";
+import {
+  flashGroupSize,
+  flashRequiresPaymentOnJoin,
+} from "@/lib/flash-challenge-entry-fee";
 import { hasEliteAccess } from "@/lib/subscription";
 import type {
   Challenge,
@@ -43,6 +53,7 @@ function rowToParticipant(row: Record<string, unknown>): ChallengeParticipant {
     ...(row as unknown as ChallengeParticipant),
     status: (row.status as ChallengeParticipantStatus) ?? "registered",
     eliminated_round: (row.eliminated_round as 1 | 2 | 3 | null) ?? null,
+    entry_fee_paid_at: (row.entry_fee_paid_at as string | null) ?? null,
   };
 }
 
@@ -112,55 +123,37 @@ export async function getUserSeriesChallengeStatus(
   const supabase = await createClient();
   await removeIneligibleSeriesParticipants(supabase, userId);
 
-  const { data: participantRows } = await supabase
-    .from("challenge_participants")
-    .select("challenge_id, challenges!inner(id, slug, title, is_transformation, is_flash)")
-    .eq("user_id", userId);
+  const activeParticipant = await findActiveSeriesParticipant(supabase, userId, series);
+  const participant = activeParticipant
+    ? {
+        challenge_id: activeParticipant.challenge_id,
+        challenge_slug: activeParticipant.challenge_slug,
+        challenge_title: activeParticipant.challenge_title,
+      }
+    : null;
 
-  const participantRow = (participantRows ?? []).find((row) => {
-    const c = nestedChallenge(row.challenges);
-    return series === "flash" ? c?.is_flash === true : c?.is_transformation === true;
-  });
-
-  const participantChallenge = nestedChallenge(participantRow?.challenges);
-
-  const participant =
-    participantChallenge && participantRow
-      ? {
-          challenge_id: participantRow.challenge_id,
-          challenge_slug: participantChallenge.slug,
-          challenge_title: participantChallenge.title,
-        }
-      : null;
-
-  const { data: waitlistRow } = await supabase
-    .from("challenge_waitlist")
-    .select("id, challenge_id, created_at, challenges!inner(id, slug, title, is_transformation, is_flash)")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true });
-
-  const seriesWaitlist = (waitlistRow ?? []).find((row) => {
-    const c = nestedChallenge(row.challenges);
-    return series === "flash" ? c?.is_flash === true : c?.is_transformation === true;
-  });
+  const activeWaitlist = await findActiveSeriesWaitlistEntry(supabase, userId, series);
 
   let waitlist: UserSeriesChallengeStatus["waitlist"] = null;
-  if (seriesWaitlist) {
-    const waitlistChallenge = nestedChallenge(seriesWaitlist.challenges);
-    if (
-      waitlistChallenge &&
-      (series === "flash" ? waitlistChallenge.is_flash : waitlistChallenge.is_transformation)
-    ) {
+  if (activeWaitlist) {
+    const { data: waitlistMeta } = await supabase
+      .from("challenge_waitlist")
+      .select("created_at")
+      .eq("user_id", userId)
+      .eq("challenge_id", activeWaitlist.challenge_id)
+      .maybeSingle();
+
+    if (waitlistMeta) {
       const { count } = await supabase
         .from("challenge_waitlist")
         .select("id", { count: "exact", head: true })
-        .eq("challenge_id", seriesWaitlist.challenge_id)
-        .lte("created_at", seriesWaitlist.created_at);
+        .eq("challenge_id", activeWaitlist.challenge_id)
+        .lte("created_at", waitlistMeta.created_at);
 
       waitlist = {
-        challenge_id: seriesWaitlist.challenge_id,
-        challenge_slug: waitlistChallenge.slug,
-        challenge_title: waitlistChallenge.title,
+        challenge_id: activeWaitlist.challenge_id,
+        challenge_slug: activeWaitlist.challenge_slug,
+        challenge_title: activeWaitlist.challenge_title,
         position: count ?? 1,
       };
     }
@@ -244,17 +237,30 @@ export async function registerForChallenge(challengeId: string) {
     return { error: "You are already registered." };
   }
 
-  const series = isFlashChallenge(challenge)
-    ? "flash"
-    : isTransformationChallenge(challenge)
-      ? "transformation"
-      : null;
+  const series = getChallengeSeries(challenge);
 
-  if (series) {
+  if (series === "transformation") {
+    const blockReason = await getLongChallengeJoinBlockReason(
+      supabase,
+      profile.id,
+      challengeId
+    );
+    if (blockReason) {
+      return { error: blockReason };
+    }
+  } else if (series === "flash") {
     await leaveOtherSeriesChallenges(supabase, profile.id, series, challengeId);
   }
 
   const participantCount = await countChallengeParticipants(supabase, challengeId);
+
+  if (series === "flash" && flashRequiresPaymentOnJoin(participantCount, flashGroupSize(challenge))) {
+    return {
+      error:
+        "The first group is full — pay the entry fee to join. Use the Join button to checkout.",
+      requiresPayment: true,
+    };
+  }
 
   if (isChallengeAtCapacity(challenge, participantCount)) {
     if (!usesChallengeWaitlist(challenge)) {
@@ -272,7 +278,9 @@ export async function registerForChallenge(challengeId: string) {
       return { error: "You are already on the waitlist for this challenge." };
     }
 
-    await supabase.from("challenge_waitlist").delete().eq("user_id", profile.id);
+    if (series === "flash") {
+      await supabase.from("challenge_waitlist").delete().eq("user_id", profile.id);
+    }
 
     const { error: waitlistError } = await supabase.from("challenge_waitlist").insert({
       challenge_id: challengeId,
@@ -283,6 +291,9 @@ export async function registerForChallenge(challengeId: string) {
       if (waitlistError.code === "23505") {
         return { error: "You are already on the waitlist for this challenge." };
       }
+      if (waitlistError.code === "23514") {
+        return { error: waitlistError.message };
+      }
       return { error: waitlistError.message };
     }
 
@@ -290,16 +301,25 @@ export async function registerForChallenge(challengeId: string) {
     return { success: true, waitlisted: true };
   }
 
-  const { error } = await supabase.from("challenge_participants").insert({
+  const insertPayload: Record<string, unknown> = {
     challenge_id: challengeId,
     user_id: profile.id,
     display_name: profile.full_name?.trim() || "Participant",
     status: "active",
-  });
+  };
+
+  if (series === "flash") {
+    insertPayload.entry_fee_paid_at = null;
+  }
+
+  const { error } = await supabase.from("challenge_participants").insert(insertPayload);
 
   if (error) {
     if (error.code === "23505") {
       return { error: "You are already registered." };
+    }
+    if (error.code === "23514") {
+      return { error: error.message };
     }
     return { error: error.message };
   }
@@ -350,6 +370,10 @@ export async function leaveChallenge(challengeId: string) {
     .maybeSingle();
 
   if (fullChallengeRow && !canLeaveChallenge(rowToChallenge(fullChallengeRow))) {
+    const fullChallenge = rowToChallenge(fullChallengeRow);
+    if (isTransformationChallenge(fullChallenge) && getChallengePhase(fullChallenge) > 0) {
+      return { error: "You cannot leave after the tournament has started." };
+    }
     return { error: "You cannot leave after registration closes." };
   }
 
@@ -546,13 +570,33 @@ export async function generateRound1Groups(challengeId: string) {
 
   const { data: participants } = await supabase
     .from("challenge_participants")
-    .select("id")
+    .select("id, user_id, created_at")
     .eq("challenge_id", challengeId)
     .in("status", ["registered", "active"])
     .order("created_at", { ascending: true });
 
-  const ids = (participants ?? []).map((p) => p.id);
-  if (ids.length === 0) throw new Error("Add participants before generating groups.");
+  const participantRows = participants ?? [];
+  if (participantRows.length === 0) throw new Error("Add participants before generating groups.");
+
+  const scoreEntries = await getPlatformEngagementScores(
+    participantRows.map((participant) => ({
+      userId: participant.user_id as string,
+      since: participant.created_at as string,
+    }))
+  );
+
+  const scores = Object.fromEntries(
+    Object.entries(scoreEntries).map(([userId, entry]) => [userId, entry.score])
+  );
+
+  const ids = participantIdsByPlatformScore(
+    participantRows.map((participant) => ({
+      id: participant.id as string,
+      user_id: participant.user_id as string,
+      created_at: participant.created_at as string,
+    })),
+    scores
+  );
 
   const groupSize = challenge.group_size || 10;
   const groupCount = Math.ceil(ids.length / groupSize);

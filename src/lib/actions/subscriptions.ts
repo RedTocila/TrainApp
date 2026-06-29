@@ -274,6 +274,14 @@ export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string)
     return;
   }
 
+  if (orderKind === "flash_challenge_entry") {
+    const { activateFlashChallengeEntryFromPokPayOrder } = await import(
+      "@/lib/actions/flash-challenge-checkout"
+    );
+    await activateFlashChallengeEntryFromPokPayOrder(pokpayOrderId);
+    return;
+  }
+
   await completeSubscriptionOrder(admin, {
     orderId: order.id,
     userId: order.user_id,

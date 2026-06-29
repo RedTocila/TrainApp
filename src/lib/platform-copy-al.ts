@@ -841,12 +841,12 @@ export const platformCopyAl = {
     rules: [
       "Kërkohet anëtarësi Elite për regjistrim. Hyrja në sfidë është falas mbi abonimin.",
       "Fondi i çmimit rritet me çdo pjesëmarrës (€X × pjesëmarrës). Vetëm shfaqje — pa pagesë në app. Organizatori paguan kampionin manualisht.",
-      "Regjistro stërvitjet, vaktet, peshën dhe zakonet me ndershmëri gjatë turneut. Të dhënat ushqejnë raportet javore me AI.",
-      "Raportet javore me AI ndihmojnë trajnerin por nuk vendosin fituesin vetë — raportet mund të manipulohen.",
+      "Regjistro stërvitjet, vaktet, peshën dhe zakonet me ndershmëri gjatë turneut. Rezultati yt i përgjithshëm në platformë llogaritet 30% të çdo vendimi për fituesin.",
+      "Formula e fituesit në çdo eliminim Zoom dhe finalen e kampionit: 30% rezultat platforme, 30% votë e pjesëmarrësve në thirrje, 40% votë e organizatorit.",
       "Mos mashtro platformën (regjistrime false). Pjesëmarrësit e pandershëm mund të përjashtohen.",
-      "Zoom Raundi 1 — grupe ~{groupSize}, një thirrje në orë. Elimino 5, avancon 5 për grup.",
-      "Zoom Raundi 2 — të mbijetuarit rib grupohen në grupe {groupSize}. Një fitues për grup.",
-      "Finalja e kampionit — të gjithë fituesit e grupeve në një thirrje Zoom. Votim live.",
+      "Zoom Raundi 1 — grupe ~{groupSize}, një thirrje në orë. Elimino 5, avancon 5 për grup me formulën e ponderuar.",
+      "Zoom Raundi 2 — të mbijetuarit rib grupohen në grupe {groupSize}. Një fitues për grup avancon me të njëjtën formulë.",
+      "Finalja e kampionit — të gjithë fituesit e grupeve në një thirrje Zoom. E njëjta formulë 30/30/40 zgjedh kampionin.",
       "Zoom verifikon realitetin — para kamerës shihet ndryshimi i vërtetë, jo vetëm numrat në app.",
       "Kampioni merr të gjithë fondin e shfaqur, paguar manualisht nga organizatori (pa cashout në app).",
     ],
@@ -854,12 +854,12 @@ export const platformCopyAl = {
       "Udhëzues hap pas hapi për turneun {count}-mujor — çfarë të bësh para, gjatë dhe pas çdo eliminimi në Zoom.",
     instructions: [
       "Regjistrohu në faqen e sfidës (kërkohet anëtarësi Elite). Hyrja është falas — fondi i çmimit është vetëm për shfaqje.",
-      "Gjatë turneut, regjistro stërvitjet, vaktet, peshën dhe zakonet në app çdo ditë. Qëndrueshmëria ka rëndësi për raportet javore me AI.",
-      "Shiko raportet javore me AI te AI Coach — ndihmojnë ty dhe trajnerin, por Zoom verifikon rezultatin.",
+      "Gjatë turneut, regjistro stërvitjet, vaktet, peshën dhe zakonet në app çdo ditë. Rezultati yt i përgjithshëm në platformë vlen 30% të çdo vendimi për fituesin.",
+      "Para çdo Zoom, shiko rezultatin tënd në platformë te faqja e sfidës — është një e treta e mënyrës se si zgjidhen fituesit.",
       "Para çdo dite eliminimi, hap faqen e sfidës për numrin e grupit dhe orën e Zoom (një grup në orë).",
-      "Zoom Raundi 1: hyr para kamerës me grupin ~{groupSize}. Trego transformimin. Pesë avancojnë, pesë eliminohen.",
-      "Nëse kalon në Raundin 2, vendosesh në grup të ri ~{groupSize}. Një fitues për grup shkon në finalen e kampionit.",
-      "Finalja e kampionit: të gjithë fituesit e grupeve në një thirrje Zoom. Votim live për transformimin më të mirë.",
+      "Zoom Raundi 1: hyr para kamerës me grupin ~{groupSize}. Trego transformimin. Pesë avancojnë, pesë eliminohen me 30% rezultat platforme, 30% votë pjesëmarrësish, 40% votë organizatori.",
+      "Nëse kalon në Raundin 2, vendosesh në grup të ri ~{groupSize}. Një fitues për grup shkon në finalen e kampionit me të njëjtën formulë të ponderuar.",
+      "Finalja e kampionit: të gjithë fituesit e grupeve në një thirrje Zoom. Pjesëmarrësit votojnë (30%), rezultatet e platformës llogariten (30%), organizatori jep votën vendimtare 40%.",
       "Kampioni merr fondin e shfaqur, paguar manualisht nga organizatori — pa cashout në app.",
     ],
     tournamentTitle: "Turne eliminimi {count}-mujor",
@@ -875,25 +875,36 @@ export const platformCopyAl = {
       "Të mbijetuarit rib grupohen në grupe {groupSize}. Një fitues për grup shkon në finalen.",
     phase3Title: "Finalja e kampionit",
     phase3Body:
-      "Të gjithë fituesit e grupeve në një thirrje Zoom. Votim live — transformimi më i mirë fiton fondin.",
-    selectionPlatformTitle: "Raportet në platformë (prep)",
+      "Të gjithë fituesit e grupeve në një thirrje Zoom. Kampioni zgjidhet me 30% rezultat platforme, 30% votë pjesëmarrësish, 40% votë organizatori.",
+    judgingFormulaTitle: "Formula e votimit për fituesin",
+    judgingFormulaIntro:
+      "Në çdo eliminim Zoom dhe finalen e kampionit, fituesi zgjidhet duke kombinuar tre inpute të ponderuara.",
+    selectionPlatformTitle: "Rezultati i përgjithshëm në platformë",
+    selectionPlatformWeight: "30%",
     selectionPlatformBody:
-      "Raportet javore me AI përmbledhin stërvitjet, ushqimin, zakonet dhe peshën. Trajneri i përdor për prep — Zoom konfirmon të vërtetën.",
-    selectionZoomTitle: "Zoom live (vendimtar)",
+      "Rezultati yt i përgjithshëm nga stërvitjet, vaktet, pesha, zakonet dhe raportet javore me AI gjatë turneut.",
+    selectionZoomTitle: "Vota e pjesëmarrësve në Zoom",
+    selectionZoomWeight: "30%",
     selectionZoomBody:
-      "Çdo ditë eliminimi, grupet krahason transformimet para kamerës dhe votojnë. Admin regjistron rezultatet pas çdo thirrjeje.",
+      "Të gjithë në thirrjen Zoom votojnë për kush tregoi transformimin më të mirë para kamerës atë raund.",
+    selectionAdminTitle: "Vota e organizatorit",
+    selectionAdminWeight: "40%",
+    selectionAdminBody:
+      "Organizatori i sfidës jep votën finale të ponderuar bazuar në performancën e përgjithshme dhe prezantimin live.",
     bracketTitle: "Grafiku i turneut",
     bracketEmpty: "Ende pa pjesëmarrës — anëtarët Elite regjistrohen nga faqja e sfidës.",
     bracketGroupsPending:
       "Duke pritur grupet prej {groupSize} — do të vizatohen para ditës së eliminimit.",
+    rankedByScore:
+      "Renditur sipas pikëve (50% ushqim · 30% stërvitje · 20% zakone + ujë) — më i larti i pari.",
     bracketIntro:
       "R1: {groupSize} për grup, 5 avancojnë · R2: rib grupo, 1 fitues për grup · Finalja: një kampion.",
     zoomRound1Intro:
-      "Raundi 1 — deri {groupSize} persona. Live: elimino 5, avancon 5. Raportet ndihmojnë prep; Zoom verifikon.",
+      "Raundi 1 — deri {groupSize} persona. Live: elimino 5, avancon 5. Formula: 30% rezultat platforme, 30% votë pjesëmarrësish, 40% votë organizatori.",
     zoomRound2Intro:
-      "Raundi 2 — deri {groupSize} persona. Zgjidh një fitues grupi për finalen e kampionit.",
+      "Raundi 2 — deri {groupSize} persona. Zgjidh një fitues grupi me të njëjtën formulë 30/30/40.",
     zoomFinalIntro:
-      "Finalja e kampionit — të gjithë fituesit e grupeve votojnë live. Fituesi merr fondin e shfaqur.",
+      "Finalja e kampionit — fituesi zgjidhet me 30% rezultat platforme, 30% votë pjesëmarrësish në Zoom, 40% votë organizatori.",
     zoomRegisterHint:
       "Regjistrohu (Elite) për linkun e grupit kur vizatohen bracket-et.",
     zoomPendingHint:
@@ -911,17 +922,23 @@ export const platformCopyAl = {
     diagramFunnelChampion: "1 kampion",
     diagramFunnelNote:
       "Çdo grup R1 prej {groupSize} eliminon gjysmën (~{half} avancojnë). R2 zgjedh një fitues për grup.",
-    diagramPrepOnly: "Vetëm prep",
-    diagramDecisive: "Vendimtar · para kamerës",
+    diagramPrepOnly: "30% e vendimit për fituesin",
+    diagramDecisive: "30% e vendimit për fituesin",
+    diagramAdminWeight: "40% e vendimit për fituesin",
     diagramPlatformBullets: [
       "Stërvitje, vakte, peshë & zakone",
       "Rezultatet e raportit javor AI",
-      "Ndihmon trajnerin për Zoom",
+      "Renditur në grafikun e sfidës",
     ],
     diagramZoomBullets: [
-      "Grupe ~10, një thirrje në orë",
       "Transformim live para kamerës",
-      "Votim i grupit + mbikëqyrje",
+      "Të gjithë në thirrje votojnë",
+      "Një votë për pjesëmarrës në Zoom",
+    ],
+    diagramAdminBullets: [
+      "Vota finale e ponderuar e organizatorit",
+      "Vlerëson performancën e përgjithshme",
+      "Pjesa më e madhe e formulës",
     ],
     diagramRulesEliteTitle: "Elite + hyrje falas",
     diagramRulesEliteBody: "Kërkohet Elite. Regjistrimi shton në fondin e shfaqur vetëm.",
@@ -982,10 +999,11 @@ export const platformCopyAl = {
     flash: {
       intro: "Sprint i shpejtë — përfundo brenda 24 orëve, filmo përpjekjen, fiton rezultati më i mirë.",
       steps: [
-        "Paguaj tarifën e hyrjes te organizatori (vetëm shfaqje në app — pa pagesë në app).",
+        "10 të parët rezervojnë vend falas. Kur grupi i parë mbushet, secili paguan tarifën e hyrjes për ta konfirmuar.",
+        "Pas grupit të parë, të rinjtë paguajnë tarifën menjëherë kur bashkohen.",
         "Regjistro përpjekjen me video me lëvizjen e plotë të dukshme.",
         "Dërgo para mbylljes së dritares 24-orëshe — fiton koha më e gjatë ose rep-et më shumë.",
-        "Fituesi merr fondin e plotë, paguar manualisht offline.",
+        "Fituesi merr fondin e plotë.",
       ],
       windowLabel: "Afati",
       entryLabel: "Tarifa e hyrjes",
@@ -1035,12 +1053,46 @@ export const platformCopyAl = {
       waitlistPosition: "Pozicioni #{position} në listë — i pari merr vendin e ardhshëm.",
       switchNotice:
         "Je në {title}. Duke u bashkuar këtu do të largohesh nga ajo sfidë (ose lista e pritjes nëse është plot).",
+      activeLongChallengeBlocksJoin:
+        "Je në {title}. Largohu nga ajo sfidë ose prit derisa të përfundojë para se të bashkohesh në një sfidë tjetër të gjatë.",
+      reserveFreeSeat: "Rezervo vendin ( të {count} të parët falas)",
+      payEntryFee: "Paguaj tarifën {fee}",
+      flashFirstGroupPayNotice:
+        "Grupi i parë me {count} persona u mbush — paguaj {fee} për të konfirmuar vendin.",
+      flashSeatReserved:
+        "Vendi u rezervua. {count} të parët falas — paguan tarifën kur grupi mbushet.",
+      flashCheckoutTitle: "Hyrje në sfidë flash",
+      flashCheckoutSummary: "Tarifa e hyrjes për këtë sfidë flash.",
+      flashCheckoutNote: "Përfundo pagesën për {title} për të siguruar vendin.",
+      flashPaymentSuccessTitle: "Tarifa u pagua",
+      flashPaymentSuccessBody: "Vendi yt në sfidën flash u konfirmua.",
+      flashPaymentSuccessCta: "Kthehu te sfida",
       viewCurrent: "Shiko sfidën aktuale",
       registrationOpensAt: "Regjistrimi hapet më {date}.",
       registrationJoinWhenLive: "Mund të bashkohesh kur sfida fillon më {date}.",
       registrationClosedAt: "Regjistrimi është mbyllur për këtë sfidë.",
       registrationClosedRegistered: "Je i regjistruar. Nuk lejohet largimi më.",
+      leaveLockedTournamentStarted:
+        "Turneu ka filluar — nuk mund të largohesh më nga kjo sfidë.",
+      successLeft: "U largove nga sfida.",
     },
+  },
+  platformScore: {
+    hoverTitle: "Ndarja e pikëve të platformës",
+    hoverIntro: "Peshuar nga ushqimi, stërvitjet dhe zakone + ujë.",
+    clickForDetails: "Kliko për detaje të plota",
+    dialogTitle: "Pikët e platformës",
+    dialogDescription: "Gjithsej {score}/100 bazuar në përdorimin e aplikacionit.",
+    dialogIntro:
+      "Kryesisht ushqimi, pastaj stërvitjet, pastaj zakonet dhe uji. Pikët janë 0–100 për zonë.",
+    nutrition: "Ushqimi",
+    workout: "Stërvitjet",
+    lifestyle: "Zakone + ujë",
+    habits: "Zakonet",
+    water: "Uji",
+    overall: "Pikë totale",
+    lifestyleDetailTitle: "Ndarja e stilit të jetesës",
+    openDetails: "Hap detajet e pikëve ({score}/100)",
   },
   aiPages: {
     goalProgress: "Progresi i qëllimit",

@@ -11,6 +11,7 @@ import {
   getUserTransformationChallengeStatus,
 } from "@/lib/actions/challenge-bracket";
 import { isDemoChallengeSlug } from "@/lib/challenge-demo";
+import { loadChallengeBracketWithPlatformScores } from "@/lib/actions/challenge-platform-scores";
 import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { ChallengeAnnouncements } from "@/components/challenge-announcements";
 import { ChallengeBracketDiagram } from "@/components/challenge-bracket-diagram";
@@ -68,8 +69,17 @@ export default async function ChallengeDetailPage({
   const challenge = await getChallengeBySlug(slug);
   if (!challenge) notFound();
 
-  const bracket = await getChallengeBracketBySlug(slug, user!.id);
-  if (!bracket) notFound();
+  const isTransformation = isTransformationChallenge(challenge);
+  const isFlash = isFlashChallenge(challenge);
+  const isSeries = isTransformation || isFlash;
+
+  const bracketRaw = await getChallengeBracketBySlug(slug, user!.id);
+  if (!bracketRaw) notFound();
+
+  const bracket =
+    isSeries && bracketRaw.participants.length > 0
+      ? await loadChallengeBracketWithPlatformScores(bracketRaw)
+      : bracketRaw;
 
   const announcements = await getChallengeAnnouncementsBySlug(slug);
 
@@ -77,12 +87,11 @@ export default async function ChallengeDetailPage({
 
   const isDemo = isDemoChallengeSlug(slug);
   const isRegistered = isDemo || !!bracket.currentUserParticipantId;
-  const isTransformation = isTransformationChallenge(challenge);
-  const isFlash = isFlashChallenge(challenge);
-  const isSeries = isTransformation || isFlash;
   const membership = isFlash
     ? await getUserFlashChallengeStatus(user!.id)
     : await getUserTransformationChallengeStatus(user!.id);
+  const currentParticipant =
+    bracket.participants.find((participant) => participant.user_id === user!.id) ?? null;
   const copy = platform.challenges;
 
   return (
@@ -115,6 +124,8 @@ export default async function ChallengeDetailPage({
               membership={membership}
               showJoin={status !== "ended" && !isDemo}
               zoomUrl={challenge.final_zoom_url}
+              currentParticipant={currentParticipant}
+              allParticipants={bracket.participants}
             />
             <section className="space-y-3">
               <div className="flex items-center gap-2">
@@ -146,6 +157,7 @@ export default async function ChallengeDetailPage({
                   challenge={challenge}
                   participantCount={bracket.participants.length}
                   membership={membership}
+                  currentParticipant={currentParticipant}
                 />
               ) : (
                 <ChallengeRegisterButton

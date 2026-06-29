@@ -5,6 +5,7 @@ import {
   Clock,
   Crown,
   FileText,
+  Gavel,
   Layers,
   Trophy,
   Users,
@@ -225,53 +226,106 @@ export function EliminationFunnel({
 }
 
 export function JudgingSplitDiagram({ copy }: { copy: PlatformCopy["challenges"] }) {
+  const cards = [
+    {
+      icon: FileText,
+      title: copy.selectionPlatformTitle,
+      weight: copy.selectionPlatformWeight,
+      weightLabel: copy.diagramPrepOnly,
+      body: copy.selectionPlatformBody,
+      bullets: copy.diagramPlatformBullets,
+      className: "border-emerald-500/25 bg-emerald-500/5",
+      iconClassName: "bg-emerald-500/15 text-emerald-300",
+      bulletClassName: "text-emerald-400",
+      weightClassName: "bg-emerald-500/15 text-emerald-300",
+    },
+    {
+      icon: Video,
+      title: copy.selectionZoomTitle,
+      weight: copy.selectionZoomWeight,
+      weightLabel: copy.diagramDecisive,
+      body: copy.selectionZoomBody,
+      bullets: copy.diagramZoomBullets,
+      className: "border-violet-500/25 bg-violet-500/5",
+      iconClassName: "bg-violet-500/15 text-violet-300",
+      bulletClassName: "text-violet-400",
+      weightClassName: "bg-violet-500/15 text-violet-300",
+    },
+    {
+      icon: Gavel,
+      title: copy.selectionAdminTitle,
+      weight: copy.selectionAdminWeight,
+      weightLabel: copy.diagramAdminWeight,
+      body: copy.selectionAdminBody,
+      bullets: copy.diagramAdminBullets,
+      className: "border-amber-500/25 bg-amber-500/5",
+      iconClassName: "bg-amber-500/15 text-amber-300",
+      bulletClassName: "text-amber-400",
+      weightClassName: "bg-amber-500/15 text-amber-300",
+    },
+  ];
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Card className="border-emerald-500/25 bg-emerald-500/5">
-        <CardContent className="space-y-3 p-4">
-          <div className="flex items-center gap-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
-              <FileText className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="font-semibold">{copy.selectionPlatformTitle}</p>
-              <p className="text-xs text-emerald-300/80">{copy.diagramPrepOnly}</p>
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground">{copy.selectionPlatformBody}</p>
-          <ul className="space-y-1.5 text-xs text-muted-foreground">
-            {copy.diagramPlatformBullets.map((b) => (
-              <li key={b} className="flex gap-2">
-                <span className="text-emerald-400">•</span>
-                {b}
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
-      <Card className="border-violet-500/25 bg-violet-500/5">
-        <CardContent className="space-y-3 p-4">
-          <div className="flex items-center gap-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/15 text-violet-300">
-              <Video className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="font-semibold">{copy.selectionZoomTitle}</p>
-              <p className="text-xs text-violet-300/80">{copy.diagramDecisive}</p>
-            </div>
-          </div>
-          <p className="text-sm text-muted-foreground">{copy.selectionZoomBody}</p>
-          <ul className="space-y-1.5 text-xs text-muted-foreground">
-            {copy.diagramZoomBullets.map((b) => (
-              <li key={b} className="flex gap-2">
-                <span className="text-violet-400">•</span>
-                {b}
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-lg font-bold">{copy.judgingFormulaTitle}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{copy.judgingFormulaIntro}</p>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-3">
+        {cards.map(
+          ({
+            icon: Icon,
+            title,
+            weight,
+            weightLabel,
+            body,
+            bullets,
+            className,
+            iconClassName,
+            bulletClassName,
+            weightClassName,
+          }) => (
+            <Card key={title} className={className}>
+              <CardContent className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                        iconClassName
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <p className="font-semibold leading-snug">{title}</p>
+                      <p className="text-xs text-muted-foreground">{weightLabel}</p>
+                    </div>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2.5 py-1 text-sm font-black",
+                      weightClassName
+                    )}
+                  >
+                    {weight}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">{body}</p>
+                <ul className="space-y-1.5 text-xs text-muted-foreground">
+                  {bullets.map((b) => (
+                    <li key={b} className="flex gap-2">
+                      <span className={bulletClassName}>•</span>
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )
+        )}
+      </div>
+    </section>
   );
 }
 

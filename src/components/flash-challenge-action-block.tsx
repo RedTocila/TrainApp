@@ -5,7 +5,7 @@ import { ChallengeJoinActions } from "@/components/challenge-join-actions";
 import { ChallengePrizePool } from "@/components/challenge-prize-pool";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { usePlatformCopy } from "@/components/locale-provider";
-import type { Challenge, UserSeriesChallengeStatus } from "@/lib/types";
+import type { Challenge, ChallengeParticipant, UserSeriesChallengeStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function FlashChallengeActionBlock({
@@ -14,12 +14,16 @@ export function FlashChallengeActionBlock({
   membership,
   showJoin,
   zoomUrl,
+  currentParticipant = null,
+  allParticipants = [],
 }: {
   challenge: Challenge;
   participantCount: number;
   membership: UserSeriesChallengeStatus;
   showJoin: boolean;
   zoomUrl: string | null;
+  currentParticipant?: ChallengeParticipant | null;
+  allParticipants?: ChallengeParticipant[];
 }) {
   const copy = usePlatformCopy().challenges.flash;
 
@@ -35,6 +39,8 @@ export function FlashChallengeActionBlock({
               challenge={challenge}
               participantCount={participantCount}
               membership={membership}
+              currentParticipant={currentParticipant}
+              allParticipants={allParticipants}
               embedded
             />
           ) : null

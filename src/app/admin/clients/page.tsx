@@ -3,7 +3,9 @@ import { format, formatDistanceToNow } from "date-fns";
 import { requireAdmin } from "@/lib/actions/auth";
 import { getAdminClientsWithSubscriptions } from "@/lib/actions/admin-stats";
 import { getClientsLastActivityMap } from "@/lib/actions/client-activity";
+import { getAdminClientsPlatformScores } from "@/lib/actions/platform-engagement-score";
 import { AdminClientPendingRequests } from "@/components/admin-client-pending-requests";
+import { ParticipantPlatformScoreBadge } from "@/components/participant-platform-score-badge";
 import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +15,12 @@ import { Phone } from "lucide-react";
 export default async function ClientsPage() {
   await requireAdmin();
   const clients = await getAdminClientsWithSubscriptions();
-  const lastActivityMap = await getClientsLastActivityMap(clients.map((c) => c.id));
+  const [lastActivityMap, platformScores] = await Promise.all([
+    getClientsLastActivityMap(clients.map((c) => c.id)),
+    getAdminClientsPlatformScores(
+      clients.map((c) => ({ id: c.id, created_at: c.created_at }))
+    ),
+  ]);
   const pendingCount = clients.reduce(
     (sum, client) => sum + client.pendingRequests.length,
     0
@@ -98,11 +105,20 @@ export default async function ClientsPage() {
                       requests={client.pendingRequests}
                     />
                   </div>
-                  <Link href={`/admin/clients/${client.id}`} className="shrink-0">
-                    <Button size="sm" variant="outline">
-                      View
-                    </Button>
-                  </Link>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    {platformScores[client.id] ? (
+                      <ParticipantPlatformScoreBadge
+                        score={platformScores[client.id]!.score}
+                        breakdown={platformScores[client.id]!.breakdown}
+                        className="rounded-lg px-2.5 py-1.5 text-sm"
+                      />
+                    ) : null}
+                    <Link href={`/admin/clients/${client.id}`}>
+                      <Button size="sm" variant="outline">
+                        View
+                      </Button>
+                    </Link>
+                  </div>
                 </CardHeader>
               </Card>
             ))}

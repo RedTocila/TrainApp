@@ -13,7 +13,9 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ParticipantPlatformScoreBadge } from "@/components/participant-platform-score-badge";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { buildParticipantRankMap } from "@/lib/challenge-participant-ranking";
 import type {
   ChallengeBracketData,
   ChallengeBracketGroup,
@@ -39,12 +41,17 @@ function ParticipantChip({
   isYou,
   onClick,
   selectable,
+  rank,
 }: {
-  participant: ChallengeBracketParticipant;
+  participant: Pick<
+    ChallengeBracketParticipant,
+    "id" | "display_name" | "platform_score" | "platform_score_breakdown"
+  >;
   highlight?: "winner" | "champion" | "advanced" | "eliminated";
   isYou?: boolean;
   onClick?: () => void;
   selectable?: boolean;
+  rank?: number;
 }) {
   const Tag = selectable ? "button" : "div";
 
@@ -66,6 +73,11 @@ function ParticipantChip({
         selectable && "cursor-pointer hover:border-primary/50 hover:bg-primary/5"
       )}
     >
+      {rank != null ? (
+        <span className="w-7 shrink-0 text-center text-[11px] font-bold tabular-nums text-muted-foreground">
+          #{rank}
+        </span>
+      ) : null}
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
         {highlight === "champion" ? (
           <Crown className="h-3.5 w-3.5 text-amber-300" />
@@ -75,12 +87,20 @@ function ParticipantChip({
           <User className="h-3.5 w-3.5 text-muted-foreground" />
         )}
       </span>
-      <span className="min-w-0 truncate">{participant.display_name}</span>
-      {isYou && (
-        <Badge variant="secondary" className="ml-auto shrink-0 text-[10px]">
-          You
-        </Badge>
-      )}
+      <span className="min-w-0 flex-1 truncate">{participant.display_name}</span>
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        {typeof participant.platform_score === "number" ? (
+          <ParticipantPlatformScoreBadge
+            score={participant.platform_score}
+            breakdown={participant.platform_score_breakdown}
+          />
+        ) : null}
+        {isYou ? (
+          <Badge variant="secondary" className="text-[10px]">
+            You
+          </Badge>
+        ) : null}
+      </div>
     </Tag>
   );
 }
@@ -92,6 +112,7 @@ export function ChallengeGroupAccordion({
   onSelectWinner,
   footer,
   roundLabel,
+  rankById,
 }: {
   group: ChallengeBracketGroup;
   youId?: string | null;
@@ -99,6 +120,7 @@ export function ChallengeGroupAccordion({
   onSelectWinner?: (groupId: string, participantId: string) => void;
   footer?: ReactNode;
   roundLabel?: string;
+  rankById?: Map<string, number>;
 }) {
   const [open, setOpen] = useState(false);
   const isYourGroup = group.members.some((m) => m.id === youId);
@@ -154,6 +176,7 @@ export function ChallengeGroupAccordion({
               <ParticipantChip
                 key={member.id}
                 participant={member}
+                rank={rankById?.get(member.id)}
                 highlight={outcomeHighlight(
                   member.outcome,
                   group.winner_participant_id === member.id
@@ -182,6 +205,7 @@ function RoundSection({
   adminMode,
   onSelectWinner,
   roundLabel,
+  rankById,
 }: {
   title: string;
   groups: ChallengeBracketGroup[];
@@ -189,6 +213,7 @@ function RoundSection({
   adminMode?: boolean;
   onSelectWinner?: (groupId: string, participantId: string) => void;
   roundLabel?: string;
+  rankById?: Map<string, number>;
 }) {
   if (groups.length === 0) return null;
 
@@ -207,6 +232,7 @@ function RoundSection({
             adminMode={adminMode}
             onSelectWinner={onSelectWinner}
             roundLabel={roundLabel}
+            rankById={rankById}
           />
         ))}
       </div>
@@ -234,6 +260,7 @@ export function ChallengeBracketDiagram({
   const youId = currentUserParticipantId ?? bracket.currentUserParticipantId;
   const isZoomGroups = variant === "zoomGroups";
   const groupSize = challenge.group_size;
+  const rankById = buildParticipantRankMap(participants);
 
   if (participants.length === 0) {
     return (
@@ -253,13 +280,27 @@ export function ChallengeBracketDiagram({
             <Users className="h-4 w-4 text-primary" />
             {participants.length} registered
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {platform.rankedByScore}
+          </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
             {isZoomGroups
               ? flashCopy.zoomGroupsPending.replace("{groupSize}", String(groupSize))
               : platform.bracketGroupsPending.replace("{groupSize}", String(groupSize))}
           </p>
+          <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
+            {participants.map((participant) => (
+              <li key={participant.id} className="px-3 py-1">
+                <ParticipantChip
+                  participant={participant}
+                  rank={rankById.get(participant.id)}
+                  isYou={participant.id === youId}
+                />
+              </li>
+            ))}
+          </ul>
         </CardContent>
       </Card>
     );
@@ -289,6 +330,7 @@ export function ChallengeBracketDiagram({
           adminMode={adminMode}
           onSelectWinner={onSelectWinner}
           roundLabel={flashCopy.zoomGroupLabel}
+          rankById={rankById}
         />
       </div>
     );
@@ -339,6 +381,7 @@ export function ChallengeBracketDiagram({
         youId={youId}
         adminMode={adminMode}
         onSelectWinner={onSelectWinner}
+        rankById={rankById}
       />
 
       {round2Groups.length > 0 && round1Groups.length > 0 && (
@@ -353,6 +396,7 @@ export function ChallengeBracketDiagram({
         youId={youId}
         adminMode={adminMode}
         onSelectWinner={onSelectWinner}
+        rankById={rankById}
       />
     </div>
   );

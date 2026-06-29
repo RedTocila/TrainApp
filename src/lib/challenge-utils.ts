@@ -1,5 +1,9 @@
 import type { Challenge, ChallengeBracketData, ChallengePhase } from "@/lib/types";
-import { getChallengeMaxParticipants } from "@/lib/challenge-series";
+import {
+  getChallengeMaxParticipants,
+  isFlashChallenge,
+  isTransformationChallenge,
+} from "@/lib/challenge-series";
 
 export const DEFAULT_PRIZE_POOL_CENTS_PER_PARTICIPANT = 1000;
 
@@ -67,7 +71,18 @@ export function canRegisterForChallenge(challenge: Challenge, now = new Date()):
 
 export function canLeaveChallenge(challenge: Challenge, now = new Date()): boolean {
   const status = getChallengeStatus(challenge, now);
-  if (status === "live" || status === "ended") return false;
+  if (status === "ended") return false;
+
+  if (isTransformationChallenge(challenge)) {
+    return getChallengePhase(challenge) === 0;
+  }
+
+  if (isFlashChallenge(challenge)) {
+    if (status === "live") return false;
+    return isRegistrationOpen(challenge, now);
+  }
+
+  if (status === "live") return false;
   return isRegistrationOpen(challenge, now);
 }
 

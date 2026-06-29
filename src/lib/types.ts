@@ -488,6 +488,11 @@ export interface ChallengeParticipant {
   status: ChallengeParticipantStatus;
   eliminated_round: ChallengeRound | null;
   created_at: string;
+  /** Flash challenges: set when entry fee is paid (null = reserved / pending). */
+  entry_fee_paid_at?: string | null;
+  /** Overall platform engagement 0–100 since registration (admin views). */
+  platform_score?: number;
+  platform_score_breakdown?: import("@/lib/platform-engagement-score").PlatformScoreBreakdown;
 }
 
 export interface ChallengeWaitlistEntry {

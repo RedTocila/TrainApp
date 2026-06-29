@@ -834,12 +834,12 @@ export const platformCopyEn = {
     rules: [
       "Elite membership is required to register. Challenge entry is free on top of your subscription.",
       "The prize pool grows with each entrant (€X × participants). It is display-only — no in-app payment. The organizer pays the champion manually offline.",
-      "Log workouts, meals, weight, and habits honestly throughout the tournament. Your data powers AI weekly reports.",
-      "AI weekly reports help coaches prepare but do not decide winners alone — reports can be gamed.",
+      "Log workouts, meals, weight, and habits honestly throughout the tournament. Your overall platform score counts for 30% of each winner decision.",
+      "Winner formula at every elimination Zoom and the champion final: 30% overall platform score, 30% participant vote on the call, 40% organizer vote.",
       "Do not cheat the platform (fake logs, rushed check-offs). Dishonest entries may be disqualified.",
-      "Round 1 Zoom — groups of about {groupSize}, one call per hour. Eliminate 5, advance 5 per group.",
-      "Round 2 Zoom — survivors regrouped into new groups of {groupSize}. One winner per group advances.",
-      "Champion final — all group winners on one Zoom call. Live vote for best transformation.",
+      "Round 1 Zoom — groups of about {groupSize}, one call per hour. Eliminate 5, advance 5 per group using the weighted formula.",
+      "Round 2 Zoom — survivors regrouped into new groups of {groupSize}. One winner per group advances using the same formula.",
+      "Champion final — all group winners on one Zoom call. The same 30/30/40 formula picks the champion.",
       "Zoom is the verification layer — on camera everyone sees real change, not just app numbers.",
       "The champion wins the full displayed prize pool, sent manually by the organizer (no in-app cashout).",
     ],
@@ -847,12 +847,12 @@ export const platformCopyEn = {
       "Step-by-step guide for the {count}-month tournament — what to do before, during, and after each elimination Zoom.",
     instructions: [
       "Register on the challenge page (Elite membership required). Entry is free — the prize pool is display-only.",
-      "Throughout the tournament, log workouts, meals, weight, and habits in the app every day. Consistency matters for AI weekly reports.",
-      "Check your AI weekly reports under AI Coach — they help you and the coach prepare, but Zoom is where results are verified.",
+      "Throughout the tournament, log workouts, meals, weight, and habits in the app every day. Your overall platform score is worth 30% of each winner decision.",
+      "Before each Zoom, review your platform score on the challenge page — it is one third of how winners are chosen.",
       "Before each elimination day, open the challenge page for your group number and scheduled Zoom hour (one group per hour).",
-      "Round 1 Zoom: join on camera with your group of ~{groupSize}. Be ready to show your transformation. Five advance, five are eliminated.",
-      "If you advance to Round 2, you will be placed in a new group of ~{groupSize}. One winner per group goes to the champion final.",
-      "Champion final: all group winners meet on one Zoom call. Everyone votes live for the best overall transformation.",
+      "Round 1 Zoom: join on camera with your group of ~{groupSize}. Be ready to show your transformation. Five advance, five are eliminated via 30% platform score, 30% participant vote, 40% organizer vote.",
+      "If you advance to Round 2, you will be placed in a new group of ~{groupSize}. One winner per group goes to the champion final using the same weighted formula.",
+      "Champion final: all group winners meet on one Zoom call. Participants vote (30%), platform scores count (30%), and the organizer casts the decisive 40% vote.",
       "The champion receives the full displayed prize pool, paid manually by the organizer — there is no in-app cashout.",
     ],
     tournamentTitle: "{count}-month elimination tournament",
@@ -868,25 +868,36 @@ export const platformCopyEn = {
       "Survivors shuffled into fresh groups of {groupSize}. One winner per group goes to the final.",
     phase3Title: "Champion final",
     phase3Body:
-      "All group winners on one Zoom call. Live vote — best overall transformation wins the prize pool.",
-    selectionPlatformTitle: "Platform reports (prep only)",
+      "All group winners on one Zoom call. Champion chosen by 30% platform score, 30% participant vote, 40% organizer vote.",
+    judgingFormulaTitle: "Winner voting formula",
+    judgingFormulaIntro:
+      "At every elimination Zoom and the champion final, the winner is chosen by combining three weighted inputs.",
+    selectionPlatformTitle: "Overall platform score",
+    selectionPlatformWeight: "30%",
     selectionPlatformBody:
-      "AI weekly reports summarize training, nutrition, habits, and weight. Coaches use them to prepare — Zoom confirms the truth.",
-    selectionZoomTitle: "Live Zoom (decisive)",
+      "Your overall platform score from workouts, meals, weight, habits, and AI weekly reports logged throughout the tournament.",
+    selectionZoomTitle: "Participant vote on Zoom",
+    selectionZoomWeight: "30%",
     selectionZoomBody:
-      "Each elimination day, groups compare transformations on camera and vote. Admin records results after each call.",
+      "Everyone on the Zoom call votes for who showed the best transformation on camera that round.",
+    selectionAdminTitle: "Organizer vote",
+    selectionAdminWeight: "40%",
+    selectionAdminBody:
+      "The challenge organizer casts the final weighted vote based on overall performance and live presentation.",
     bracketTitle: "Tournament bracket",
     bracketEmpty: "No participants yet. Elite members register from the challenge page.",
     bracketGroupsPending:
       "Waiting for groups of {groupSize} to be drawn before the first elimination day.",
+    rankedByScore:
+      "Ranked by platform score (50% nutrition · 30% workouts · 20% habits + water) — highest first.",
     bracketIntro:
       "Round 1: {groupSize} per group, 5 advance · Round 2: regroup, 1 winner per group · Final: one champion.",
     zoomRound1Intro:
-      "Round 1 — up to {groupSize} people. Live on camera: eliminate 5, advance 5. Platform reports help prep; Zoom verifies.",
+      "Round 1 — up to {groupSize} people. Live on camera: eliminate 5, advance 5. Winner formula: 30% platform score, 30% participant vote, 40% organizer vote.",
     zoomRound2Intro:
-      "Round 2 — up to {groupSize} people. Pick one group winner to reach the champion final.",
+      "Round 2 — up to {groupSize} people. Pick one group winner using the same 30/30/40 formula.",
     zoomFinalIntro:
-      "Champion final — all group winners vote live for the best transformation. Winner takes the displayed prize pool.",
+      "Champion final — winner chosen by 30% platform score, 30% participant vote on Zoom, 40% organizer vote.",
     zoomRegisterHint:
       "Register (Elite) to get your group Zoom link when brackets are drawn.",
     zoomPendingHint:
@@ -904,17 +915,23 @@ export const platformCopyEn = {
     diagramFunnelChampion: "1 champion",
     diagramFunnelNote:
       "Each Round 1 group of {groupSize} eliminates half (~{half} advance). Round 2 picks one winner per group.",
-    diagramPrepOnly: "Preparation only",
-    diagramDecisive: "Decisive · on camera",
+    diagramPrepOnly: "30% of winner decision",
+    diagramDecisive: "30% of winner decision",
+    diagramAdminWeight: "40% of winner decision",
     diagramPlatformBullets: [
       "Workouts, meals, weight & habits",
       "AI weekly report scores",
-      "Helps coaches prepare for Zoom",
+      "Ranked on the challenge bracket",
     ],
     diagramZoomBullets: [
-      "Groups of ~10, one call per hour",
       "Live transformation on camera",
-      "Group vote + coach oversight",
+      "Everyone on the call votes",
+      "One vote per participant on Zoom",
+    ],
+    diagramAdminBullets: [
+      "Organizer's final weighted vote",
+      "Judges overall performance",
+      "Largest share of the formula",
     ],
     diagramRulesEliteTitle: "Elite + free entry",
     diagramRulesEliteBody: "Elite membership required. Challenge registration adds you to the prize pool display only.",
@@ -975,10 +992,11 @@ export const platformCopyEn = {
     flash: {
       intro: "Quick head-to-head — finish within 24 hours, film your attempt, and the best score wins the pool.",
       steps: [
-        "Pay the entry fee to the organizer (display-only in app — no in-app checkout).",
+        "The first group of 10 can reserve a seat for free. Once 10 people join, everyone in that group pays the entry fee to confirm.",
+        "After the first group, new joiners pay the entry fee immediately when they join.",
         "Record your attempt on video with the full movement visible.",
         "Submit before the 24-hour window closes — longest time or most reps wins.",
-        "Winner receives the full prize pool, paid manually offline.",
+        "Winner receives the full prize pool.",
       ],
       windowLabel: "Window",
       entryLabel: "Entry fee",
@@ -1028,12 +1046,46 @@ export const platformCopyEn = {
       waitlistPosition: "Waitlist position #{position} — first in line gets the next open spot.",
       switchNotice:
         "You are in {title}. Joining here will leave that challenge and move you here (or onto its waitlist if full).",
+      activeLongChallengeBlocksJoin:
+        "You are in {title}. Leave that challenge or wait until it finishes before joining another long challenge.",
+      reserveFreeSeat: "Reserve seat (first {count} free)",
+      payEntryFee: "Pay {fee} entry fee",
+      flashFirstGroupPayNotice:
+        "The first group of {count} is full — pay {fee} to confirm your spot.",
+      flashSeatReserved:
+        "Seat reserved. The first {count} join free — you will pay the entry fee once the group fills.",
+      flashCheckoutTitle: "Flash challenge entry",
+      flashCheckoutSummary: "Entry fee to join this flash challenge.",
+      flashCheckoutNote: "Complete payment for {title} to secure your spot.",
+      flashPaymentSuccessTitle: "Entry fee paid",
+      flashPaymentSuccessBody: "Your spot in the flash challenge is confirmed.",
+      flashPaymentSuccessCta: "Back to challenge",
       viewCurrent: "View current challenge",
       registrationOpensAt: "Registration opens {date}.",
       registrationJoinWhenLive: "You can join when the challenge starts on {date}.",
       registrationClosedAt: "Registration is closed for this challenge.",
       registrationClosedRegistered: "You are registered. Leaving is no longer allowed.",
+      leaveLockedTournamentStarted:
+        "The tournament has started — you can no longer leave this challenge.",
+      successLeft: "You have left the challenge.",
     },
+  },
+  platformScore: {
+    hoverTitle: "Platform score breakdown",
+    hoverIntro: "Weighted from nutrition, workouts, and habits + water.",
+    clickForDetails: "Click for full breakdown",
+    dialogTitle: "Platform score",
+    dialogDescription: "Overall {score}/100 based on how consistently they use the app.",
+    dialogIntro:
+      "Mostly nutrition, then workouts, then habits and water. Scores are 0–100 per area.",
+    nutrition: "Nutrition",
+    workout: "Workouts",
+    lifestyle: "Habits + water",
+    habits: "Habits",
+    water: "Water",
+    overall: "Overall score",
+    lifestyleDetailTitle: "Lifestyle breakdown",
+    openDetails: "Open platform score details ({score}/100)",
   },
   aiPages: {
     goalProgress: "Goal progress",

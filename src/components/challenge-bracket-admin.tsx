@@ -24,22 +24,29 @@ import {
 } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
 import { ChallengeBracketDiagram } from "@/components/challenge-bracket-diagram";
+import { ParticipantPlatformScoreBadge } from "@/components/participant-platform-score-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { ChallengeBracketData, ChallengeBracketGroup } from "@/lib/types";
+import {
+  buildParticipantRankMap,
+  sortParticipantsByPlatformScore,
+} from "@/lib/challenge-participant-ranking";
 import { cn } from "@/lib/utils";
 
 function Round1GroupAdmin({
   group,
   disabled,
   onConfirm,
+  rankById,
 }: {
   group: ChallengeBracketGroup;
   disabled: boolean;
   onConfirm: (groupId: string, ids: string[]) => Promise<void>;
+  rankById: Map<string, number>;
 }) {
   const advancedIds = group.members.filter((m) => m.outcome === "advanced").map((m) => m.id);
   const [selected, setSelected] = useState<string[]>(advancedIds);
@@ -87,7 +94,18 @@ function Round1GroupAdmin({
                   onChange={() => toggle(member.id)}
                   className="rounded"
                 />
-                <span className="truncate">{member.display_name}</span>
+                {rankById.get(member.id) != null ? (
+                  <span className="w-6 shrink-0 text-center text-[11px] font-bold tabular-nums text-muted-foreground">
+                    #{rankById.get(member.id)}
+                  </span>
+                ) : null}
+                <span className="min-w-0 truncate">{member.display_name}</span>
+                {typeof member.platform_score === "number" ? (
+                  <ParticipantPlatformScoreBadge
+                    score={member.platform_score}
+                    breakdown={member.platform_score_breakdown}
+                  />
+                ) : null}
                 {member.outcome === "advanced" && (
                   <Badge variant="secondary" className="ml-auto text-[10px]">
                     Advanced
@@ -209,8 +227,61 @@ export function ChallengeBracketAdmin({ bracket }: { bracket: ChallengeBracketDa
 
   const phase = bracket.currentPhase;
 
+  const sortedParticipants = useMemo(
+    () => sortParticipantsByPlatformScore(bracket.participants),
+    [bracket.participants]
+  );
+
+  const rankById = useMemo(
+    () => buildParticipantRankMap(bracket.participants),
+    [bracket.participants]
+  );
+
+  const hasPlatformScores = bracket.participants.some(
+    (p) => typeof p.platform_score === "number"
+  );
+
   return (
     <div className="space-y-6">
+      {hasPlatformScores && sortedParticipants.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Participant platform scores</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Ranked highest to lowest by platform score (50% nutrition · 30% workouts · 20% habits + water).
+            </p>
+            <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
+              {sortedParticipants.map((participant, index) => (
+                <li
+                  key={participant.id}
+                  className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
+                >
+                  <span className="flex min-w-0 items-center gap-2 font-medium">
+                    <span className="w-7 shrink-0 text-center text-xs font-bold tabular-nums text-muted-foreground">
+                      #{index + 1}
+                    </span>
+                    <span className="truncate">{participant.display_name}</span>
+                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {typeof participant.platform_score === "number" ? (
+                      <ParticipantPlatformScoreBadge
+                        score={participant.platform_score}
+                        breakdown={participant.platform_score_breakdown}
+                      />
+                    ) : null}
+                    <Badge variant="outline" className="text-[10px] capitalize">
+                      {participant.status.replace("_", " ")}
+                    </Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Tournament setup</CardTitle>
@@ -245,7 +316,7 @@ export function ChallengeBracketAdmin({ bracket }: { bracket: ChallengeBracketDa
             onClick={() => run(() => generateRound1Groups(bracket.challenge.id))}
           >
             <Layers className="mr-2 h-4 w-4" />
-            Generate Round 1 groups ({bracket.challenge.group_size} per call)
+            Generate Round 1 groups ({bracket.challenge.group_size} per call · by score)
           </Button>
 
           {bracket.round1Groups.map((group) => (
@@ -253,6 +324,7 @@ export function ChallengeBracketAdmin({ bracket }: { bracket: ChallengeBracketDa
               key={group.id}
               group={group}
               disabled={isPending}
+              rankById={rankById}
               onConfirm={async (groupId, ids) => {
                 await setRound1Advancers(groupId, ids);
                 refresh();

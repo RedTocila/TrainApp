@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/actions/auth";
 import { getChallengeById } from "@/lib/actions/challenges";
 import { getChallengeBracket } from "@/lib/actions/challenge-bracket";
+import { loadChallengeBracketWithPlatformScores } from "@/lib/actions/challenge-platform-scores";
+import { isSeriesChallenge } from "@/lib/challenge-series";
 import { ChallengeBracketAdmin } from "@/components/challenge-bracket-admin";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
@@ -19,6 +21,11 @@ export default async function AdminChallengeBracketPage({
 
   const bracket = await getChallengeBracket(id);
   if (!bracket) notFound();
+
+  let displayBracket = bracket;
+  if (isSeriesChallenge(challenge) && bracket.participants.length > 0) {
+    displayBracket = await loadChallengeBracketWithPlatformScores(bracket);
+  }
 
   return (
     <PageTransition>
@@ -46,7 +53,7 @@ export default async function AdminChallengeBracketPage({
           </div>
         </div>
 
-        <ChallengeBracketAdmin bracket={bracket} />
+        <ChallengeBracketAdmin bracket={displayBracket} />
       </div>
     </PageTransition>
   );
