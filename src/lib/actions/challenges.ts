@@ -3,13 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  isDemoChallengeId,
-  isDemoChallengeSlug,
-  getDemoChallengeBySlug,
-  getDemoChallenges,
-  DEMO_PARTICIPANT_COUNT,
-} from "@/lib/challenge-demo";
 import { suggestChallengeZoomDates } from "@/lib/challenge-utils";
 import {
   ensureFlashChallengesInDb,
@@ -145,11 +138,13 @@ async function attachParticipantCounts(challenges: Challenge[]): Promise<Challen
   }));
 }
 
+const DEMO_CHALLENGE_SLUG = "demo-summer-challenge";
+
 function mergeCatalogChallenges(
   dbChallenges: Challenge[],
   profileGender?: string | null
 ): Challenge[] {
-  const filtered = dbChallenges.filter((c) => !isDemoChallengeSlug(c.slug));
+  const filtered = dbChallenges.filter((c) => c.slug !== DEMO_CHALLENGE_SLUG);
   const transformation = mergeTransformationChallenges(filtered, profileGender);
   const flash = mergeFlashChallenges(filtered);
   return [...transformation, ...flash];
@@ -168,25 +163,12 @@ export async function getPublishedChallenges(
     .order("scheduled_at", { ascending: false });
 
   if (error) {
-    const demo = getDemoChallenges().map((c) => ({
-      ...c,
-      participant_count: c.participant_count ?? DEMO_PARTICIPANT_COUNT,
-    }));
     return attachParticipantCounts(
-      filterChallengesForProfile(
-        [...demo, ...mergeCatalogChallenges([], profileGender)],
-        profileGender
-      )
+      filterChallengesForProfile(mergeCatalogChallenges([], profileGender), profileGender)
     );
   }
   const merged = mergeCatalogChallenges((data ?? []).map(rowToChallenge), profileGender);
-  const demo = getDemoChallenges().map((c) => ({
-    ...c,
-    participant_count: c.participant_count ?? DEMO_PARTICIPANT_COUNT,
-  }));
-  return attachParticipantCounts(
-    filterChallengesForProfile([...demo, ...merged], profileGender)
-  );
+  return attachParticipantCounts(filterChallengesForProfile(merged, profileGender));
 }
 
 export async function getAllChallenges(): Promise<Challenge[]> {
@@ -203,8 +185,6 @@ export async function getChallengeBySlug(
   slug: string,
   profileGender?: string | null
 ): Promise<Challenge | null> {
-  if (isDemoChallengeSlug(slug)) return getDemoChallengeBySlug(slug) ?? null;
-
   const catalog = getTransformationChallengeBySlug(slug) ?? getFlashChallengeBySlug(slug);
 
   await ensureCatalogChallengesInDb();
@@ -347,7 +327,6 @@ export async function updateChallenge(id: string, formData: FormData) {
 }
 
 export async function deleteChallenge(id: string) {
-  if (isDemoChallengeId(id)) return;
   const supabase = await createClient();
   await supabase.from("challenges").delete().eq("id", id);
   revalidatePath("/admin/challenges");

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getChallengeMaxParticipants, isFlashChallenge, isTransformationChallenge } from "@/lib/challenge-series";
 import { getChallengeLeagueTag } from "@/lib/challenge-platform-copy";
-import { getTransformationTierKey } from "@/lib/challenge-gender";
+import { getChallengeGender, getTransformationTierKey } from "@/lib/challenge-gender";
 import { getFlashDurationLabel, type FlashChallengeSlug } from "@/lib/flash-challenge-catalog";
 import { getTransformationDurationLabel } from "@/lib/transformation-challenge-catalog";
 import type { TransformationTierKey } from "@/lib/transformation-challenges";
@@ -29,9 +29,8 @@ type CardTheme = {
   badge: string;
 };
 
-const LONG_CARD_THEMES: Record<TransformationTierKey, CardTheme> = {
+const LONG_CARD_THEMES: Record<TransformationTierKey, Omit<CardTheme, "coverImage">> = {
   "30-day": {
-    coverImage: "/challenges/cards/transformation-30-day.png",
     gradient: "bg-gradient-to-br from-orange-600 via-orange-500 to-amber-600",
     border: "border-orange-500/35",
     shadow: "shadow-orange-500/10",
@@ -39,23 +38,20 @@ const LONG_CARD_THEMES: Record<TransformationTierKey, CardTheme> = {
     badge: "border-orange-300/40 bg-orange-500/25 text-orange-50",
   },
   "90-day": {
-    coverImage: "/challenges/cards/transformation-90-day.png",
-    gradient: "bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800",
-    border: "border-blue-500/35",
-    shadow: "shadow-blue-500/10",
-    hoverShadow: "group-hover:shadow-blue-500/25",
-    badge: "border-blue-300/40 bg-blue-500/25 text-blue-50",
-  },
-  "6-month": {
-    coverImage: "/challenges/cards/transformation-6-month.png",
     gradient: "bg-gradient-to-br from-purple-600 via-violet-600 to-purple-800",
     border: "border-purple-500/35",
     shadow: "shadow-purple-500/10",
     hoverShadow: "group-hover:shadow-purple-500/25",
     badge: "border-purple-300/40 bg-purple-500/25 text-purple-50",
   },
+  "6-month": {
+    gradient: "bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800",
+    border: "border-blue-500/35",
+    shadow: "shadow-blue-500/10",
+    hoverShadow: "group-hover:shadow-blue-500/25",
+    badge: "border-blue-300/40 bg-blue-500/25 text-blue-50",
+  },
   "12-month": {
-    coverImage: "/challenges/cards/transformation-12-month.png",
     gradient: "bg-gradient-to-br from-red-900 via-neutral-900 to-black",
     border: "border-red-500/35",
     shadow: "shadow-red-500/10",
@@ -63,6 +59,35 @@ const LONG_CARD_THEMES: Record<TransformationTierKey, CardTheme> = {
     badge: "border-red-300/40 bg-red-500/25 text-red-50",
   },
 };
+
+const LONG_CARD_COVER_IMAGES: Record<
+  TransformationTierKey,
+  { men: string; women: string }
+> = {
+  "30-day": {
+    men: "/challenges/cards/transformation-30-day-men.png",
+    women: "/challenges/cards/transformation-30-day-women.png",
+  },
+  "90-day": {
+    men: "/challenges/cards/transformation-90-day-men.png",
+    women: "/challenges/cards/transformation-90-day-women.png",
+  },
+  "6-month": {
+    men: "/challenges/cards/transformation-6-month-men.png",
+    women: "/challenges/cards/transformation-6-month-women.png",
+  },
+  "12-month": {
+    men: "/challenges/cards/transformation-12-month-men.png",
+    women: "/challenges/cards/transformation-12-month-women.png",
+  },
+};
+
+function getLongChallengeCoverImage(challenge: Challenge): string {
+  const tier = getTransformationTierKey(challenge.slug) as TransformationTierKey;
+  const covers = LONG_CARD_COVER_IMAGES[tier] ?? LONG_CARD_COVER_IMAGES["90-day"];
+  const gender = getChallengeGender(challenge);
+  return gender === "female" ? covers.women : covers.men;
+}
 
 const FLASH_CARD_THEMES: Record<FlashChallengeSlug, CardTheme> = {
   "flash-longest-plank": {
@@ -95,18 +120,31 @@ function getChallengeCardProps(challenge: Challenge, entryFeeLabel: string) {
   const isFlash = isFlashChallenge(challenge);
   const max = getChallengeMaxParticipants(challenge) ?? (isFlash ? 50 : 100);
 
+  if (isFlash) {
+    const flashTheme =
+      FLASH_CARD_THEMES[challenge.slug as FlashChallengeSlug] ??
+      FLASH_CARD_THEMES["flash-longest-plank"];
+    return {
+      isFlash,
+      max,
+      theme: flashTheme,
+      durationLabel: getFlashDurationLabel(challenge),
+      entryBadge: entryFeeLabel,
+    };
+  }
+
+  const tier = getTransformationTierKey(challenge.slug) as TransformationTierKey;
+  const baseTheme = LONG_CARD_THEMES[tier] ?? LONG_CARD_THEMES["90-day"];
+
   return {
     isFlash,
     max,
-    theme: isFlash
-      ? (FLASH_CARD_THEMES[challenge.slug as FlashChallengeSlug] ??
-          FLASH_CARD_THEMES["flash-longest-plank"])
-      : (LONG_CARD_THEMES[getTransformationTierKey(challenge.slug) as TransformationTierKey] ??
-          LONG_CARD_THEMES["90-day"]),
-    durationLabel: isFlash
-      ? getFlashDurationLabel(challenge)
-      : getTransformationDurationLabel(challenge),
-    entryBadge: isFlash ? entryFeeLabel : undefined,
+    theme: {
+      ...baseTheme,
+      coverImage: getLongChallengeCoverImage(challenge),
+    },
+    durationLabel: getTransformationDurationLabel(challenge),
+    entryBadge: undefined,
   };
 }
 

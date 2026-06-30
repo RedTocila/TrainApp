@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Activity, CircleHelp } from "lucide-react";
-import { usePlatformCopy } from "@/components/locale-provider";
+import { usePlatformCopy, useBodyUnits } from "@/components/locale-provider";
 import {
   BMI_CATEGORIES,
   calculateBmi,
@@ -44,6 +44,7 @@ export function BmiCard({
   weightHistory: BodyWeightLog[];
 }) {
   const platform = usePlatformCopy();
+  const units = useBodyUnits();
   const weightKg = resolveLatestWeightKg(weightHistory, intakeWeightKg);
   const bmi =
     heightCm && weightKg ? calculateBmi(weightKg, heightCm) : null;
@@ -164,8 +165,11 @@ export function BmiCard({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Based on {weightKg} kg
-              {heightCm ? ` and ${heightCm} cm height` : ""}.
+              Based on {units.formatWeightKgWithUnit(weightKg!)}
+              {heightCm
+                ? ` and ${units.formatHeightCmWithUnit(heightCm)} height`
+                : ""}
+              .
               {weightHistory.length > 0
                 ? ` Last logged ${weightHistory[weightHistory.length - 1]!.date}.`
                 : " Using intake weight."}

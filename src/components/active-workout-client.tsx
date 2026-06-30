@@ -1,5 +1,6 @@
 "use client";
-import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, usePlatformCopy, useBodyUnits } from "@/components/locale-provider";
+import { formatWeightWithUnitFromKg, type UnitSystem } from "@/lib/body-units";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -44,14 +45,18 @@ import { Badge } from "@/components/ui/badge";
 
 function formatHistory(
   history: ExerciseHistoryEntry | null | undefined,
-  lastLabel: (parts: string) => string
+  lastLabel: (parts: string) => string,
+  unitSystem: UnitSystem
 ): string | null {
   if (!history?.sets.length) return null;
   const parts = history.sets
     .filter((s) => s.reps != null || s.weight_kg != null)
     .map((s) => {
       const reps = s.reps != null ? `${s.reps}` : "—";
-      const weight = s.weight_kg != null ? `${s.weight_kg} kg` : "—";
+      const weight =
+        s.weight_kg != null
+          ? formatWeightWithUnitFromKg(Number(s.weight_kg), unitSystem)
+          : "—";
       return `${reps} × ${weight}`;
     });
   if (parts.length === 0) return null;
@@ -213,30 +218,36 @@ function SessionExerciseCard({
   readOnly?: boolean;
 }) {
   const platform = usePlatformCopy();
+  const units = useBodyUnits();
   const [isAddingSet, setIsAddingSet] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
-  const historyLabel = formatHistory(history, platform.workout.lastSets);
+  const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
+  const historyLabel = formatHistory(
+    history,
+    platform.workout.lastSets,
+    units.unitSystem
+  );
   const hasVideo = !!exercise.video_url;
   const sets = exercise.sets ?? [];
 
-  const parseField = (field: "reps" | "weight_kg", rawValue: string) =>
-    field === "reps"
-      ? rawValue === ""
-        ? null
-        : parseInt(rawValue, 10)
-      : rawValue === ""
-        ? null
-        : parseFloat(rawValue);
+  const parseRepsField = (rawValue: string) =>
+    rawValue === "" ? null : parseInt(rawValue, 10);
+
+  const parseWeightField = (rawValue: string) =>
+    rawValue === "" ? null : units.parseWeightInput(rawValue);
+
+  const weightDisplay = (set: WorkoutSessionSet) => {
+    if (set.id in weightDrafts) return weightDrafts[set.id];
+    return set.weight_kg != null
+      ? units.formatWeightKg(Number(set.weight_kg))
+      : "";
+  };
 
   const updateSetField = (
     setId: string,
     field: "reps" | "weight_kg",
-    rawValue: string
+    parsed: number | null
   ) => {
-    const parsed = parseField(field, rawValue);
-
-    if (rawValue !== "" && (parsed == null || Number.isNaN(parsed))) return;
-
     const nextSets = sets.map((set) => {
       if (set.id !== setId) return set;
       const next = { ...set, [field]: parsed };
@@ -251,7 +262,8 @@ function SessionExerciseCard({
     field: "reps" | "weight_kg",
     rawValue: string
   ) => {
-    const parsed = parseField(field, rawValue);
+    const parsed =
+      field === "reps" ? parseRepsField(rawValue) : parseWeightField(rawValue);
     if (rawValue !== "" && (parsed == null || Number.isNaN(parsed))) return;
 
     const currentSet = sets.find((set) => set.id === setId);
@@ -266,7 +278,7 @@ function SessionExerciseCard({
           : null;
     const completed = reps != null || weight_kg != null;
 
-    updateSetField(setId, field, rawValue);
+    updateSetField(setId, field, parsed);
 
     void updateSessionSet(setId, {
       reps,
@@ -335,7 +347,7 @@ function SessionExerciseCard({
         <div className="grid grid-cols-[2.5rem_1fr_1fr] gap-2 text-xs font-medium text-muted-foreground">
           <span>{platform.workout.set}</span>
           <span>{platform.workout.reps}</span>
-          <span>{platform.workout.weightKg}</span>
+          <span>{units.weightFieldLabel}</span>
         </div>
         {sets.map((set) => (
           <div
@@ -350,7 +362,16 @@ function SessionExerciseCard({
               inputMode="numeric"
               placeholder={exercise.target_reps}
               value={set.reps ?? ""}
-              onChange={(e) => updateSetField(set.id, "reps", e.target.value)}
+              onChange={(e) => {
+                const parsed = parseRepsField(e.target.value);
+                if (
+                  e.target.value !== "" &&
+                  (parsed == null || Number.isNaN(parsed))
+                ) {
+                  return;
+                }
+                updateSetField(set.id, "reps", parsed);
+              }}
               onBlur={(e) => persistSetField(set.id, "reps", e.target.value)}
               className="h-9"
             />
@@ -359,9 +380,21 @@ function SessionExerciseCard({
               inputMode="decimal"
               step="0.5"
               placeholder="—"
-              value={set.weight_kg ?? ""}
-              onChange={(e) => updateSetField(set.id, "weight_kg", e.target.value)}
-              onBlur={(e) => persistSetField(set.id, "weight_kg", e.target.value)}
+              value={weightDisplay(set)}
+              onChange={(e) =>
+                setWeightDrafts((prev) => ({
+                  ...prev,
+                  [set.id]: e.target.value,
+                }))
+              }
+              onBlur={(e) => {
+                setWeightDrafts((prev) => {
+                  const next = { ...prev };
+                  delete next[set.id];
+                  return next;
+                });
+                persistSetField(set.id, "weight_kg", e.target.value);
+              }}
               className="h-9"
             />
           </div>

@@ -10,7 +10,6 @@ import {
   getUserFlashChallengeStatus,
   getUserTransformationChallengeStatus,
 } from "@/lib/actions/challenge-bracket";
-import { isDemoChallengeSlug } from "@/lib/challenge-demo";
 import { loadChallengeBracketWithPlatformScores } from "@/lib/actions/challenge-platform-scores";
 import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { ChallengeAnnouncements } from "@/components/challenge-announcements";
@@ -78,13 +77,12 @@ export default async function ChallengeDetailPage({
   const isTransformation = isTransformationChallenge(challenge);
   const isFlash = isFlashChallenge(challenge);
   const isSeries = isTransformation || isFlash;
-  const isDemo = isDemoChallengeSlug(slug);
 
   const bracketRaw = await getChallengeBracketBySlug(slug, user!.id);
   if (!bracketRaw) notFound();
 
   const bracket =
-    isTransformation && bracketRaw.participants.length > 0 && !isDemo
+    isTransformation && bracketRaw.participants.length > 0
       ? await loadChallengeBracketWithPlatformScores(bracketRaw)
       : bracketRaw;
 
@@ -92,7 +90,7 @@ export default async function ChallengeDetailPage({
 
   const status = getChallengeStatus(challenge);
 
-  const isRegistered = isDemo || !!bracket.currentUserParticipantId;
+  const isRegistered = !!bracket.currentUserParticipantId;
   const membership = isFlash
     ? await getUserFlashChallengeStatus(user!.id)
     : await getUserTransformationChallengeStatus(user!.id);
@@ -134,7 +132,7 @@ export default async function ChallengeDetailPage({
               challenge={challenge}
               participantCount={bracket.participants.length}
               membership={membership}
-              showJoin={status !== "ended" && !isDemo}
+              showJoin={status !== "ended"}
               zoomUrl={challenge.final_zoom_url}
               currentParticipant={currentParticipant}
               allParticipants={bracket.participants}
@@ -163,7 +161,7 @@ export default async function ChallengeDetailPage({
 
         {!isFlash ? (
           <section className="space-y-3">
-            {status !== "ended" && !isDemo && (
+            {status !== "ended" && (
               isSeries ? (
                 <ChallengeJoinActions
                   challenge={challenge}

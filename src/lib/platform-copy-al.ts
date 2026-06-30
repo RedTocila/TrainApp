@@ -480,8 +480,8 @@ export const platformCopyAl = {
   weight: {
     title: "Pesha trupore",
     subtitle: "Ndiqni peshën tuaj me kalimin e kohës",
-    loggedForDate: (kg: string, date: string) => `${kg} të regjistruara për ${date}`,
-    weightForDate: (date: string) => `Pesha për ${date} (kg)`,
+    loggedForDate: (value: string, date: string) => `${value} të regjistruara për ${date}`,
+    weightForDate: (date: string, unit: string) => `Pesha për ${date} (${unit})`,
     placeholder: "p.sh. 75.5",
     logWeight: "Regjistro peshën",
     invalidWeight: "Vendosni një peshë të vlefshme",

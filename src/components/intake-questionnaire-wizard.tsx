@@ -36,6 +36,7 @@ import {
   type IntakeResponses,
 } from "@/lib/intake-questionnaire";
 import { GENDER_OPTIONS } from "@/lib/intake-display";
+import { useBodyUnits } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -130,6 +131,8 @@ function StepFields({
   responses: IntakeResponses;
   onChange: (patch: Partial<IntakeResponses>) => void;
 }) {
+  const units = useBodyUnits();
+
   switch (stepId) {
     case "basics":
       return (
@@ -172,30 +175,41 @@ function StepFields({
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="q-weight">Current weight (kg)</Label>
+              <Label htmlFor="q-weight">{units.weightFieldLabel}</Label>
               <Input
                 id="q-weight"
                 type="number"
                 step="0.1"
-                placeholder="75"
-                value={responses.intake_weight_kg ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    intake_weight_kg: parseFloat(e.target.value) || undefined,
-                  })
+                placeholder={units.weightPlaceholder.replace("e.g. ", "")}
+                value={
+                  responses.intake_weight_kg != null
+                    ? units.formatWeightKg(responses.intake_weight_kg)
+                    : ""
                 }
+                onChange={(e) => {
+                  const kg = units.parseWeightInput(e.target.value);
+                  onChange({
+                    intake_weight_kg: kg ?? undefined,
+                  });
+                }}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="q-height">Height (cm)</Label>
+              <Label htmlFor="q-height">{units.heightFieldLabel}</Label>
               <Input
                 id="q-height"
                 type="number"
-                placeholder="175"
-                value={responses.height_cm ?? ""}
-                onChange={(e) =>
-                  onChange({ height_cm: parseInt(e.target.value, 10) || undefined })
+                step={units.unitSystem === "imperial" ? "0.01" : "1"}
+                placeholder={units.heightPlaceholder.replace("e.g. ", "")}
+                value={
+                  responses.height_cm != null
+                    ? units.formatHeightCm(responses.height_cm)
+                    : ""
                 }
+                onChange={(e) => {
+                  const cm = units.parseHeightInput(e.target.value);
+                  onChange({ height_cm: cm ?? undefined });
+                }}
               />
             </div>
           </div>

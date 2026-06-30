@@ -474,8 +474,8 @@ export const platformCopyEn = {
   weight: {
     title: "Body weight",
     subtitle: "Track your weight over time",
-    loggedForDate: (kg: string, date: string) => `${kg} logged for ${date}`,
-    weightForDate: (date: string) => `Weight for ${date} (kg)`,
+    loggedForDate: (value: string, date: string) => `${value} logged for ${date}`,
+    weightForDate: (date: string, unit: string) => `Weight for ${date} (${unit})`,
     placeholder: "e.g. 75.5",
     logWeight: "Log weight",
     invalidWeight: "Enter a valid weight",

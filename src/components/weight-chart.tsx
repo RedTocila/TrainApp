@@ -2,6 +2,8 @@
 
 import { format, parseISO } from "date-fns";
 import { useMemo } from "react";
+import { useBodyUnits } from "@/components/locale-provider";
+import { kgToLb } from "@/lib/body-units";
 import type { BodyWeightLog } from "@/lib/types";
 
 interface WeightChartProps {
@@ -55,6 +57,11 @@ export function WeightChart({
   startWeightKg,
   startDate,
 }: WeightChartProps) {
+  const units = useBodyUnits();
+
+  const formatWeight = (kg: number) => units.formatWeightKg(kg);
+  const formatWeightWithUnit = (kg: number) => units.formatWeightKgWithUnit(kg);
+
   const { entries: chartEntries, startEntryId } = useMemo(
     () => buildChartEntries(entries, startWeightKg, startDate),
     [entries, startWeightKg, startDate]
@@ -64,8 +71,11 @@ export function WeightChart({
     if (chartEntries.length === 0) return null;
 
     const weights = chartEntries.map((e) => Number(e.weight_kg));
-    const minW = Math.min(...weights);
-    const maxW = Math.max(...weights);
+    const displayWeights = weights.map((kg) =>
+      units.unitSystem === "imperial" ? kgToLb(kg) : kg
+    );
+    const minW = Math.min(...displayWeights);
+    const maxW = Math.max(...displayWeights);
     const spread = maxW - minW || 2;
     const yMin = minW - spread * 0.15;
     const yMax = maxW + spread * 0.15;
@@ -79,13 +89,16 @@ export function WeightChart({
           ? PADDING.left + innerW / 2
           : PADDING.left + (i / (chartEntries.length - 1)) * innerW;
       const w = Number(entry.weight_kg);
+      const displayW =
+        units.unitSystem === "imperial" ? kgToLb(w) : w;
       const y =
-        PADDING.top + innerH - ((w - yMin) / (yMax - yMin)) * innerH;
+        PADDING.top + innerH - ((displayW - yMin) / (yMax - yMin)) * innerH;
       return {
         x,
         y,
         entry,
         weight: w,
+        displayWeight: displayW,
         isStart: entry.id === startEntryId,
       };
     });
@@ -107,7 +120,7 @@ export function WeightChart({
         : [0, Math.floor(chartEntries.length / 2), chartEntries.length - 1];
 
     return { points, linePath, yLabels, xLabelIndices, yMin, yMax };
-  }, [chartEntries, startEntryId]);
+  }, [chartEntries, startEntryId, units.unitSystem]);
 
   if (!plot) {
     if (startWeightKg && startDate) {
@@ -117,7 +130,7 @@ export function WeightChart({
             <span>
               Starting weight:{" "}
               <strong className="text-foreground">
-                {Number(startWeightKg).toFixed(1)} kg
+                {formatWeightWithUnit(Number(startWeightKg))}
               </strong>
             </span>
             <span className="text-muted-foreground">
@@ -142,6 +155,12 @@ export function WeightChart({
   const latest = chartEntries[chartEntries.length - 1];
   const first = chartEntries[0];
   const change = Number(latest.weight_kg) - Number(first.weight_kg);
+  const changeDisplay =
+    units.unitSystem === "imperial" ? kgToLb(change) : change;
+  const changeText =
+    changeDisplay === 0
+      ? `0 ${units.weightUnit}`
+      : `${changeDisplay > 0 ? "+" : ""}${formatWeight(Math.abs(changeDisplay))} ${units.weightUnit}`;
   const changeLabel =
     first.id === startEntryId
       ? "since start"
@@ -153,7 +172,7 @@ export function WeightChart({
         <span>
           Latest:{" "}
           <strong className="text-foreground">
-            {Number(latest.weight_kg).toFixed(1)} kg
+            {formatWeightWithUnit(Number(latest.weight_kg))}
           </strong>
         </span>
         {chartEntries.length > 1 && (
@@ -166,13 +185,12 @@ export function WeightChart({
                   : "text-muted-foreground"
             }
           >
-            {change > 0 ? "+" : ""}
-            {change.toFixed(1)} kg {changeLabel}
+            {changeText} {changeLabel}
           </span>
         )}
         {startWeightKg && startEntryId && (
           <span className="text-muted-foreground">
-            Start: {Number(startWeightKg).toFixed(1)} kg
+            Start: {formatWeightWithUnit(Number(startWeightKg))}
           </span>
         )}
       </div>
@@ -236,7 +254,7 @@ export function WeightChart({
               />
               <title>
                 {isStart ? "Start" : format(parseISO(entry.date), "MMM d, yyyy")}:{" "}
-                {weight.toFixed(1)} kg
+                {formatWeightWithUnit(weight)}
               </title>
             </g>
           );

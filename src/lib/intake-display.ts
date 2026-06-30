@@ -1,5 +1,10 @@
 import type { Profile } from "@/lib/types";
 import {
+  formatHeightWithUnitFromCm,
+  formatWeightWithUnitFromKg,
+  type UnitSystem,
+} from "@/lib/body-units";
+import {
   buildIntakeSummaryFromResponses,
   profileToResponses,
 } from "@/lib/intake-questionnaire";
@@ -41,9 +46,13 @@ export interface IntakeSummaryItem {
   value: string;
 }
 
-export function buildIntakeSummary(profile: Profile): IntakeSummaryItem[] {
+export function buildIntakeSummary(
+  profile: Profile,
+  unitSystem: UnitSystem = profile.unit_system ?? "metric"
+): IntakeSummaryItem[] {
   const fromQuestionnaire = buildIntakeSummaryFromResponses(
-    profileToResponses(profile)
+    profileToResponses(profile),
+    unitSystem
   );
   if (fromQuestionnaire.length > 0) {
     return fromQuestionnaire;
@@ -58,8 +67,12 @@ export function buildIntakeSummary(profile: Profile): IntakeSummaryItem[] {
 
   push("Age", profile.age ? `${profile.age} years` : null);
   push("Gender", formatGender(profile.gender));
-  push("Weight", profile.intake_weight_kg ? `${profile.intake_weight_kg} kg` : null);
-  push("Height", profile.height_cm ? `${profile.height_cm} cm` : null);
+  push("Weight", profile.intake_weight_kg
+    ? formatWeightWithUnitFromKg(profile.intake_weight_kg, unitSystem)
+    : null);
+  push("Height", profile.height_cm
+    ? formatHeightWithUnitFromCm(profile.height_cm, unitSystem)
+    : null);
   push("Goal", formatGoal(profile.goal));
   push("Daily routine", profile.daily_routine);
   push("Work schedule", profile.work_schedule);

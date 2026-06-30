@@ -4,11 +4,6 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, requireClient } from "@/lib/actions/auth";
 import {
-  getDemoChallengeBracket,
-  isDemoChallengeId,
-  isDemoChallengeSlug,
-} from "@/lib/challenge-demo";
-import {
   countChallengeParticipants,
   findActiveSeriesParticipant,
   findActiveSeriesWaitlistEntry,
@@ -197,9 +192,6 @@ function shuffle<T>(items: T[]): T[] {
 }
 
 export async function registerForChallenge(challengeId: string) {
-  if (isDemoChallengeId(challengeId)) {
-    return { error: "This is a preview challenge — registration is simulated in the bracket." };
-  }
   const profile = await requireClient();
   if (!hasEliteAccess(profile)) {
     return { error: "Elite membership is required to join community challenges." };
@@ -355,10 +347,6 @@ export async function registerForChallenge(challengeId: string) {
 }
 
 export async function leaveChallenge(challengeId: string) {
-  if (isDemoChallengeId(challengeId)) {
-    return { error: "This is a preview challenge." };
-  }
-
   const profile = await requireClient();
   const supabase = await createClient();
 
@@ -544,10 +532,6 @@ export async function getChallengeBracketBySlug(
   slug: string,
   userId?: string | null
 ): Promise<ChallengeBracketData | null> {
-  if (isDemoChallengeSlug(slug)) {
-    return getDemoChallengeBracket(userId);
-  }
-
   const supabase = await createClient();
   const { data } = await supabase
     .from("challenges")
@@ -579,9 +563,6 @@ async function deleteGroupsForRound(
 }
 
 export async function generateRound1Groups(challengeId: string) {
-  if (isDemoChallengeId(challengeId)) {
-    throw new Error("Demo challenge bracket is read-only.");
-  }
   await requireAdmin();
   const supabase = await createClient();
 
@@ -665,9 +646,6 @@ export async function generateRound1Groups(challengeId: string) {
 }
 
 export async function startFlashChallenge(challengeId: string) {
-  if (isDemoChallengeId(challengeId)) {
-    throw new Error("Demo challenge bracket is read-only.");
-  }
   await requireAdmin();
   const supabase = await createClient();
 
@@ -859,9 +837,6 @@ async function assignFlashParticipantToGroup(
 }
 
 export async function generateFlashGroups(challengeId: string) {
-  if (isDemoChallengeId(challengeId)) {
-    throw new Error("Demo challenge bracket is read-only.");
-  }
   await requireAdmin();
   const supabase = await createClient();
   await generateFlashGroupsInternal(supabase, challengeId);
@@ -987,9 +962,6 @@ export async function setRound1Advancers(groupId: string, participantIds: string
 }
 
 export async function generateRound2Groups(challengeId: string) {
-  if (isDemoChallengeId(challengeId)) {
-    throw new Error("Demo challenge bracket is read-only.");
-  }
   await requireAdmin();
   const supabase = await createClient();
 
@@ -1163,9 +1135,6 @@ export async function setGroupWinner(groupId: string, participantId: string) {
 }
 
 export async function createChampionFinal(challengeId: string) {
-  if (isDemoChallengeId(challengeId)) {
-    throw new Error("Demo challenge bracket is read-only.");
-  }
   await requireAdmin();
   const supabase = await createClient();
 

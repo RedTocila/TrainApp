@@ -1,5 +1,5 @@
 "use client";
-import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, usePlatformCopy, useBodyUnits } from "@/components/locale-provider";
 
 import { format, isToday } from "date-fns";
 import { Plus } from "lucide-react";
@@ -41,12 +41,13 @@ export function WeightTracker({
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
+  const units = useBodyUnits();
   const { selectedDate, todayKey } = useSelectedDate();
   const readOnly = useIsPastSelectedDay();
   const dateKey = formatDateKey(selectedDate);
   const [history, setHistory] = useState(initialHistory);
   const [weightInput, setWeightInput] = useState(
-    initialLog ? String(initialLog.weight_kg) : ""
+    initialLog ? units.formatWeightKg(initialLog.weight_kg) : ""
   );
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -78,8 +79,10 @@ export function WeightTracker({
   const todayLogForDay = todayLog ?? seedLog ?? null;
 
   useEffect(() => {
-    setWeightInput(todayLogForDay ? String(todayLogForDay.weight_kg) : "");
-  }, [todayLogForDay?.id, todayLogForDay?.weight_kg, dateKey]);
+    setWeightInput(
+      todayLogForDay ? units.formatWeightKg(todayLogForDay.weight_kg) : ""
+    );
+  }, [todayLogForDay?.id, todayLogForDay?.weight_kg, dateKey, units]);
 
   const dateLabel = isToday(selectedDate)
     ? platform.common.today
@@ -92,8 +95,8 @@ export function WeightTracker({
   }, [clientId, onHistoryChange]);
 
   const handleSave = () => {
-    const parsed = parseFloat(weightInput);
-    if (!Number.isFinite(parsed)) {
+    const parsed = units.parseWeightInput(weightInput);
+    if (parsed == null) {
       setError(platform.weight.invalidWeight);
       return;
     }
@@ -105,7 +108,7 @@ export function WeightTracker({
         return;
       }
       const log = await getBodyWeightLog(clientId, dateKey);
-      setWeightInput(log ? String(log.weight_kg) : "");
+      setWeightInput(log ? units.formatWeightKg(log.weight_kg) : "");
       await refreshHistory();
       setFormOpen(false);
     });
@@ -142,7 +145,10 @@ export function WeightTracker({
         title={platform.weight.title}
         subtitle={
           todayLogForDay
-            ? platform.weight.loggedForDate(String(todayLogForDay.weight_kg), dateLabel)
+            ? platform.weight.loggedForDate(
+                units.formatWeightKgWithUnit(todayLogForDay.weight_kg),
+                dateLabel
+              )
             : platform.weight.subtitle
         }
         action={
@@ -169,15 +175,17 @@ export function WeightTracker({
         {formOpen && (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-1">
-              <Label htmlFor="body-weight">{platform.weight.weightForDate(dateLabel)}</Label>
+              <Label htmlFor="body-weight">
+                {platform.weight.weightForDate(dateLabel, units.weightUnit)}
+              </Label>
               <Input
                 id="body-weight"
                 type="number"
                 inputMode="decimal"
                 step="0.1"
                 min="1"
-                max="500"
-                placeholder={platform.weight.placeholder}
+                max={units.maxWeightInput}
+                placeholder={units.weightPlaceholder}
                 value={weightInput}
                 onChange={(e) => setWeightInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSave()}

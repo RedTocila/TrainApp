@@ -18,6 +18,7 @@ import {
   Utensils,
   type LucideIcon,
 } from "lucide-react";
+import { ProgressPredictionStats } from "@/components/progress-prediction-stats";
 import { ScoreGauge } from "@/components/ai/score-gauge";
 import { StatBar } from "@/components/ai/stat-bar";
 import { TipCard } from "@/components/ai/tip-card";
@@ -173,8 +174,6 @@ function WeightTrendBlock({
   block: Extract<CoachChatRichBlock, { type: "weight_trend" }>;
 }) {
   const { prediction, weightHistory, startWeightKg, startDate } = block;
-  const trendingUp = (prediction.weekly_change_kg ?? 0) > 0;
-  const TrendIcon = trendingUp ? TrendingUp : TrendingDown;
 
   return (
     <div className="space-y-2">
@@ -190,40 +189,7 @@ function WeightTrendBlock({
               />
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
-            {prediction.current_weight_kg != null && (
-              <div className="flex items-center gap-2 rounded-xl bg-secondary/40 p-2.5">
-                <Scale className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-base font-black">{prediction.current_weight_kg} kg</p>
-                  <p className="text-[10px] text-muted-foreground">Current</p>
-                </div>
-              </div>
-            )}
-            {prediction.weekly_change_kg != null && (
-              <div className="flex items-center gap-2 rounded-xl bg-secondary/40 p-2.5">
-                <TrendIcon
-                  className={cn("h-4 w-4", trendingUp ? "text-amber-400" : "text-green-400")}
-                />
-                <div>
-                  <p className="text-base font-black">
-                    {prediction.weekly_change_kg > 0 ? "+" : ""}
-                    {prediction.weekly_change_kg}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">kg / week</p>
-                </div>
-              </div>
-            )}
-            {prediction.estimated_goal_date && (
-              <div className="col-span-2 flex items-center gap-2 rounded-xl bg-primary/10 p-2.5">
-                <Target className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="text-sm font-bold">{prediction.estimated_goal_date}</p>
-                  <p className="text-[10px] text-muted-foreground">Estimated goal date</p>
-                </div>
-              </div>
-            )}
-          </div>
+          <ProgressPredictionStats prediction={prediction} />
           {prediction.summary && (
             <p className="rounded-lg bg-secondary/40 px-3 py-2 text-center text-xs text-muted-foreground">
               {prediction.summary}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, ChevronDown, ClipboardList, Clock, Dumbbell } from "lucide-react";
-import { usePlatformCopy } from "@/components/locale-provider";
+import { usePlatformCopy, useBodyUnits } from "@/components/locale-provider";
 import { dashboard, DashboardSectionHeading } from "@/components/dashboard-ui";
 import type { CompletedWorkoutResults } from "@/lib/actions/workout-sessions";
 import {
@@ -40,6 +40,7 @@ export function WorkoutResultsContent({
   variant: "dropdown" | "open";
 }) {
   const platform = usePlatformCopy();
+  const units = useBodyUnits();
   const duration = formatSessionDuration(results.startedAt, results.completedAt);
   const stats = getWorkoutSetStats(
     results.exercises.map((exercise) => ({
@@ -88,7 +89,10 @@ export function WorkoutResultsContent({
             {results.exercises.map((exercise) => {
               const loggedSets = exercise.sets.filter(
                 (set) =>
-                  formatLoggedSetLine({ reps: set.reps, weight_kg: set.weightKg }) != null
+                  formatLoggedSetLine(
+                    { reps: set.reps, weight_kg: set.weightKg },
+                    units.unitSystem
+                  ) != null
               );
               if (loggedSets.length === 0) return null;
 
@@ -105,10 +109,13 @@ export function WorkoutResultsContent({
                   </div>
                   <ul className="divide-y divide-border/40">
                     {exercise.sets.map((set) => {
-                      const line = formatLoggedSetLine({
-                        reps: set.reps,
-                        weight_kg: set.weightKg,
-                      });
+                      const line = formatLoggedSetLine(
+                        {
+                          reps: set.reps,
+                          weight_kg: set.weightKg,
+                        },
+                        units.unitSystem
+                      );
                       if (!line) return null;
                       return (
                         <li
@@ -178,10 +185,13 @@ export function WorkoutResultsContent({
               <p className="text-sm font-semibold">{exercise.name}</p>
               <ul className="w-full space-y-1">
                 {exercise.sets.map((set) => {
-                  const line = formatLoggedSetLine({
-                    reps: set.reps,
-                    weight_kg: set.weightKg,
-                  });
+                  const line = formatLoggedSetLine(
+                    {
+                      reps: set.reps,
+                      weight_kg: set.weightKg,
+                    },
+                    units.unitSystem
+                  );
                   if (!line) return null;
                   return (
                     <li

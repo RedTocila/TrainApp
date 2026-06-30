@@ -29,7 +29,7 @@ export default async function DashboardLayout({
   const liveChallengeActive = hasLiveChallenge(challenges);
 
   return (
-    <LocaleProvider locale={locale}>
+    <LocaleProvider locale={locale} unitSystem={profile.unit_system ?? "metric"}>
       <PendingIntakeSync intakeComplete={intakeComplete} />
       <DashboardMainReset />
       <DateProvider>

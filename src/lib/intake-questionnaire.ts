@@ -1,5 +1,10 @@
 import type { Profile } from "@/lib/types";
 import { GOAL_LABELS, GENDER_OPTIONS } from "@/lib/intake-display";
+import {
+  formatHeightWithUnitFromCm,
+  formatWeightWithUnitFromKg,
+  type UnitSystem,
+} from "@/lib/body-units";
 
 export const INTAKE_STORAGE_KEY = "rutina-intake-draft";
 
@@ -572,7 +577,8 @@ export function buildDetailedIntakeContextForAi(responses: IntakeResponses): str
 }
 
 export function buildIntakeSummaryFromResponses(
-  responses: IntakeResponses
+  responses: IntakeResponses,
+  unitSystem: UnitSystem = "metric"
 ): { label: string; value: string }[] {
   const push = (label: string, value: string | null | undefined) => {
     if (!value) return [];
@@ -585,8 +591,18 @@ export function buildIntakeSummaryFromResponses(
       "Gender",
       GENDER_OPTIONS.find((o) => o.value === responses.gender)?.label ?? responses.gender
     ),
-    ...push("Weight", responses.intake_weight_kg ? `${responses.intake_weight_kg} kg` : null),
-    ...push("Height", responses.height_cm ? `${responses.height_cm} cm` : null),
+    ...push(
+      "Weight",
+      responses.intake_weight_kg
+        ? formatWeightWithUnitFromKg(responses.intake_weight_kg, unitSystem)
+        : null
+    ),
+    ...push(
+      "Height",
+      responses.height_cm
+        ? formatHeightWithUnitFromCm(responses.height_cm, unitSystem)
+        : null
+    ),
     ...push("Goal", GOAL_LABELS[responses.goal ?? ""] ?? responses.goal),
     ...push("Timeline", labelFor(GOAL_TIMELINE_OPTIONS, responses.goal_timeline)),
     ...push("Training", labelFor(TRAINING_EXPERIENCE_OPTIONS, responses.training_experience)),

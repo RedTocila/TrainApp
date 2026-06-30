@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/actions/auth";
-import { isDemoChallengeId, isDemoChallengeSlug, getDemoChallengeAnnouncements } from "@/lib/challenge-demo";
 import { createClient } from "@/lib/supabase/server";
 import type { ChallengeAnnouncement } from "@/lib/types";
 
@@ -22,8 +21,6 @@ export async function getChallengeAnnouncements(
   challengeId: string,
   { includeUnpublished = false }: { includeUnpublished?: boolean } = {}
 ): Promise<ChallengeAnnouncement[]> {
-  if (isDemoChallengeId(challengeId)) return getDemoChallengeAnnouncements();
-
   const supabase = await createClient();
   let query = supabase
     .from("challenge_announcements")
@@ -43,8 +40,6 @@ export async function getChallengeAnnouncements(
 export async function getChallengeAnnouncementsBySlug(
   slug: string
 ): Promise<ChallengeAnnouncement[]> {
-  if (isDemoChallengeSlug(slug)) return getDemoChallengeAnnouncements();
-
   const supabase = await createClient();
   const { data: challenge } = await supabase
     .from("challenges")
@@ -61,9 +56,6 @@ export async function createChallengeAnnouncement(
   formData: FormData
 ): Promise<{ error?: string }> {
   await requireAdmin();
-  if (isDemoChallengeId(challengeId)) {
-    return { error: "Demo challenges cannot have announcements." };
-  }
 
   const title = String(formData.get("title") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
