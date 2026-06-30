@@ -53,7 +53,7 @@ function mimeTypeFromPath(path: string): string {
   return "image/jpeg";
 }
 
-/** Attach stored progress photos when the user is asking for coaching (not when they attached another image). */
+/** True when the user wants visual physique / progress-photo feedback (not general coaching). */
 export function shouldAttachProgressPhotosToChat(
   message: string,
   hasUserAttachedImage: boolean
@@ -61,16 +61,38 @@ export function shouldAttachProgressPhotosToChat(
   if (hasUserAttachedImage) return false;
 
   const normalized = message.trim().toLowerCase();
-  if (!normalized) return true;
+  if (!normalized) return false;
 
-  const progressOrBody =
-    /\b(progress|photo|photos|foto|physique|body|trup|front|back|side|look|focus|missing|report|muscle|muscles|lean|compare|transform|check-?in|visual|shape|definition|how am i|how do i|my progress|my body|what should i|progres|muskul|pamje|raport|fokus|para|prapa|anash)\b/i;
+  const explicitPhotoAsk =
+    /\b(progress\s*photos?|check-?in\s*photos?|monthly\s*photos?|my\s*photos?|foto\s*(e\s*)?progres|fotot\s+e\s+progres)\b/i.test(
+      normalized
+    ) ||
+    /\b(analyz|review|compare|rate|check)\w*\b.{0,40}\b(photo|photos|physique|progress|body|pamje|foto|trup)\b/i.test(
+      normalized
+    ) ||
+    /\b(photo|photos|foto|pamje)\b.{0,40}\b(progress|physique|body|progres|trup|check-?in|month)\b/i.test(
+      normalized
+    );
 
-  const coachingAsk =
-    /^(how|what|should|can you|tell me|give me|analyze|review|help me|coach)/i.test(normalized) ||
-    /\b(for me|about me|my |tips|suggest|recommend|priorit|missing|report)\b/i.test(normalized);
+  const physiqueVisualAsk =
+    /\bhow\s+(am\s+i|do\s+i)\s+look(ing)?\b/i.test(normalized) ||
+    /\bhow\s+is\s+my\s+(body|physique|progress)\b/i.test(normalized) ||
+    /\b(physique|visual)\s+progress\b/i.test(normalized) ||
+    /\bbody\s+(fat|composition|shape|recomp)\b/i.test(normalized) ||
+    /\bwhat\s+(muscle|muscles).*\b(missing|lag|behind|weak|under)\b/i.test(normalized) ||
+    /\bmuscle\s+groups?\s+to\s+(focus|priorit|work|train)\b/i.test(normalized) ||
+    /\bwhat\s+should\s+i\s+focus\s+on\b.*\b(physique|body|muscle|look)\b/i.test(normalized) ||
+    /\b(transform(ation)?|recomp)\b.*\b(photo|physique|body|progress)\b/i.test(normalized) ||
+    /\b(si\s+dukem|trupi\s+im|progresi\s+im|foto\s+progres|muskujt\s+që\s+mungojnë)\b/i.test(
+      normalized
+    );
 
-  return progressOrBody.test(normalized) || coachingAsk || normalized.length <= 160;
+  const posePhotoAsk =
+    /\b(front|back|side)\s+(photo|pose|pic|view|shot)\b/i.test(normalized) ||
+    /\b(photo|foto|pamje)\b.*\b(front|back|side|para|prapa|anash)\b/i.test(normalized) ||
+    /\b(para|prapa|anash)\s+(foto|pamje)\b/i.test(normalized);
+
+  return explicitPhotoAsk || physiqueVisualAsk || posePhotoAsk;
 }
 
 function posesForMessage(message: string): ProgressPhotoPose[] | null {
@@ -224,15 +246,19 @@ export async function loadProgressPhotosForChat(input: {
   admin: SupabaseClient;
   profile: Profile;
   hasUserAttachedImage: boolean;
+  existingSets?: ProgressPhotoSet[];
 }): Promise<{
   attachments: ProgressPhotoChatAttachment[];
   sets: ProgressPhotoSet[];
 }> {
+  const existingSets =
+    input.existingSets ?? (await getProgressPhotoSetsWithAnalysis(input.clientId, 12));
+
   if (!shouldAttachProgressPhotosToChat(input.message, input.hasUserAttachedImage)) {
-    return { attachments: [], sets: await getProgressPhotoSetsWithAnalysis(input.clientId, 12) };
+    return { attachments: [], sets: existingSets };
   }
 
-  let sets = await getProgressPhotoSetsWithAnalysis(input.clientId, 12);
+  let sets = existingSets;
   if (!sets.some(progressSetHasPhotos)) {
     return { attachments: [], sets };
   }

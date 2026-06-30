@@ -566,6 +566,7 @@ export const platformCopyAl = {
       "Çfarë të ha për darkë?",
       "Trego trendin e peshës",
       "Më ndërto një plan stërvitjeje për këtë javë",
+      "Analizo fotot e mia të progresit",
     ],
     thinking: "Duke menduar…",
     searching: "Duke kërkuar dhe menduar…",

@@ -2,9 +2,6 @@ import { getCoachContext } from "@/lib/ai/coach-context";
 import { summarizeActivePlans } from "@/lib/ai/coach-chat-plans";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import {
-  buildProgressPhotoContextFromSets,
-} from "@/lib/ai/progress-photo-context";
-import {
   buildProgressPhotoVisionPrompt,
   loadProgressPhotosForChat,
 } from "@/lib/ai/progress-photo-chat-images";
@@ -198,20 +195,17 @@ export async function prepareFitnessCoachChatMessages(
   if (!ctx.profile) return { error: "Profile not found." };
 
   const admin = createAdminClient();
-  const { attachments: progressPhotoAttachments, sets: progressPhotoSets } =
-    await loadProgressPhotosForChat({
-      clientId,
-      message: trimmed,
-      admin,
-      profile: ctx.profile,
-      hasUserAttachedImage: hasUserImage,
-    });
-
-  const progressPhotoContextText = buildProgressPhotoContextFromSets(progressPhotoSets);
+  const { attachments: progressPhotoAttachments } = await loadProgressPhotosForChat({
+    clientId,
+    message: trimmed,
+    admin,
+    profile: ctx.profile,
+    hasUserAttachedImage: hasUserImage,
+    existingSets: ctx.progressPhotoSets,
+  });
 
   const visionSuffix = buildProgressPhotoVisionPrompt(progressPhotoAttachments);
-  const userContent =
-    (trimmed || "What can you tell me about my progress photos?") + visionSuffix;
+  const userContent = trimmed + visionSuffix;
 
   const hasProgressPhotos = progressPhotoAttachments.length > 0;
   const userImages: ChatImageAttachment[] = hasUserImage
@@ -227,7 +221,7 @@ export async function prepareFitnessCoachChatMessages(
       {
         ...ctx,
         activePlansSummary,
-        progressPhotoContext: progressPhotoContextText,
+        progressPhotoContext: ctx.progressPhotoContextText,
       },
       preferredLocale,
       webSources.length > 0,

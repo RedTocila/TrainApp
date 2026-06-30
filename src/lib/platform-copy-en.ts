@@ -560,6 +560,7 @@ export const platformCopyEn = {
       "What should I eat for dinner?",
       "Show my weight trend",
       "Build me a workout plan for this week",
+      "Analyze my progress photos",
     ],
     thinking: "Thinking…",
     searching: "Searching & thinking…",
