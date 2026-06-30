@@ -12,6 +12,7 @@ import {
   beginWorkoutSession,
   cancelWorkoutSession,
   completeWorkoutSession,
+  getExerciseHistories,
   updateSessionSet,
 } from "@/lib/actions/workout-sessions";
 import type {
@@ -418,11 +419,11 @@ function SessionExerciseCard({
 export function ActiveWorkoutClient({
   session,
   exercises: initialExercises,
-  histories,
+  histories: initialHistories,
 }: {
   session: WorkoutSession;
   exercises: WorkoutSessionExercise[];
-  histories: Record<string, ExerciseHistoryEntry | null>;
+  histories?: Record<string, ExerciseHistoryEntry | null>;
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
@@ -436,6 +437,9 @@ export function ActiveWorkoutClient({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [exercises, setExercises] = useState(initialExercises);
+  const [histories, setHistories] = useState<Record<string, ExerciseHistoryEntry | null>>(
+    initialHistories ?? {}
+  );
   const { confirm: confirmGiveUp, dialog: giveUpDialog, isPending: isGivingUp } =
     useSarcasticConfirm();
   const isStarted = session.started_at != null;
@@ -444,6 +448,28 @@ export function ActiveWorkoutClient({
   useEffect(() => {
     setExercises(initialExercises);
   }, [initialExercises]);
+
+  useEffect(() => {
+    if (initialHistories && Object.keys(initialHistories).length > 0) {
+      setHistories(initialHistories);
+      return;
+    }
+    if (initialExercises.length === 0) return;
+
+    let cancelled = false;
+    void getExerciseHistories(
+      initialExercises.map((ex) => ({
+        exerciseId: ex.exercise_id,
+        name: ex.name,
+      }))
+    ).then((loaded) => {
+      if (!cancelled) setHistories(loaded);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialExercises, initialHistories]);
 
   const patchExerciseSets = (exerciseId: string, sets: WorkoutSessionSet[]) => {
     setExercises((prev) =>

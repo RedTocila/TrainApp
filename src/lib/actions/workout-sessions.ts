@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireSubscribedMutationAdmin, requireOwnedClient } from "@/lib/actions/auth-client";
 import {
@@ -78,33 +77,38 @@ async function seedSessionExercisesFromPlan(
     return { error: "No exercises on this workout day" };
   }
 
-  for (const [index, exercise] of exercises.entries()) {
-    const { data: sessionExercise, error: exError } = await admin
-      .from("workout_session_exercises")
-      .insert({
-        session_id: sessionId,
-        exercise_id: exercise.id,
-        name: exercise.name,
-        target_sets: exercise.sets,
-        target_reps: exercise.reps,
-        order_index: index,
-        notes: exercise.notes,
-      })
-      .select()
-      .single();
+  const exerciseRows = exercises.map((exercise, index) => ({
+    session_id: sessionId,
+    exercise_id: exercise.id,
+    name: exercise.name,
+    target_sets: exercise.sets,
+    target_reps: exercise.reps,
+    order_index: index,
+    notes: exercise.notes,
+  }));
 
-    if (exError || !sessionExercise) {
-      return {
-        error: exError?.message ?? `Failed to add exercise: ${exercise.name}`,
-      };
-    }
+  const { data: insertedExercises, error: exError } = await admin
+    .from("workout_session_exercises")
+    .insert(exerciseRows)
+    .select("id, target_sets, order_index");
 
-    const setRows = Array.from({ length: exercise.sets }, (_, i) => ({
-      session_exercise_id: sessionExercise.id,
-      set_number: i + 1,
-      completed: false,
-    }));
+  if (exError || !insertedExercises?.length) {
+    return {
+      error: exError?.message ?? "Failed to add exercises",
+    };
+  }
 
+  const setRows = [...insertedExercises]
+    .sort((a, b) => a.order_index - b.order_index)
+    .flatMap((sessionExercise) =>
+      Array.from({ length: sessionExercise.target_sets }, (_, i) => ({
+        session_exercise_id: sessionExercise.id,
+        set_number: i + 1,
+        completed: false,
+      }))
+    );
+
+  if (setRows.length > 0) {
     const { error: setsError } = await admin
       .from("workout_session_sets")
       .insert(setRows);
@@ -753,7 +757,15 @@ export async function startWorkout({
 }) {
   const { admin, userId } = await requireMutationAdmin();
 
-  const existing = await getInProgressSession();
+  const { data: existing } = await admin
+    .from("workout_sessions")
+    .select(WORKOUT_SESSION_COLUMNS)
+    .eq("client_id", userId)
+    .eq("status", "in_progress")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   if (existing) {
     const sameWorkout =
       (scheduledWorkoutId &&
@@ -769,27 +781,6 @@ export async function startWorkout({
       };
     }
 
-    if (existing.plan_id && existing.day_id) {
-      const { count } = await admin
-        .from("workout_session_exercises")
-        .select("id", { count: "exact", head: true })
-        .eq("session_id", existing.id);
-      if (count === 0) {
-        const planExercises = await loadPlanDayExercises(
-          admin,
-          existing.plan_id,
-          existing.day_id
-        );
-        if (planExercises.length > 0) {
-          await seedSessionExercisesFromPlan(
-            admin,
-            existing.id,
-            planExercises
-          );
-        }
-      }
-    }
-
     return {
       sessionId: existing.id,
       resumed: true,
@@ -799,7 +790,7 @@ export async function startWorkout({
 
   const { data: day } = await admin
     .from("workout_days")
-    .select("*, workout_plans(title)")
+    .select("title, workout_plans(title)")
     .eq("id", dayId)
     .eq("plan_id", planId)
     .single();
@@ -807,8 +798,8 @@ export async function startWorkout({
   if (!day) return { error: "Workout day not found" };
 
   const planTitle =
-    (day.workout_plans as { title: string } | null)?.title ?? "Workout";
-  const exercises = await loadPlanDayExercises(admin, planId, dayId);
+    (day.workout_plans as unknown as { title: string } | null)?.title ??
+    "Workout";
 
   const { data: session, error: sessionError } = await admin
     .from("workout_sessions")
@@ -823,25 +814,13 @@ export async function startWorkout({
       status: "in_progress",
       started_at: null,
     })
-    .select()
+    .select("id")
     .single();
 
   if (sessionError || !session) {
     return { error: sessionError?.message ?? "Failed to start workout" };
   }
 
-  const seedResult = await seedSessionExercisesFromPlan(
-    admin,
-    session.id,
-    exercises
-  );
-  if (seedResult.error && exercises.length > 0) {
-    await admin.from("workout_sessions").delete().eq("id", session.id);
-    return { error: seedResult.error };
-  }
-
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/workout");
   return { sessionId: session.id, resumed: false, started: false };
 }
 
@@ -900,7 +879,7 @@ export async function startWorkoutAndRedirect({
       sessionId: "sessionId" in result ? result.sessionId : undefined,
     };
   }
-  redirect(`/dashboard/workout/session/${result.sessionId}`);
+  return { sessionId: result.sessionId };
 }
 
 export async function startTodaysWorkoutAndRedirect(
@@ -909,8 +888,18 @@ export async function startTodaysWorkoutAndRedirect(
     scheduledWorkoutId?: string | null;
     planId?: string;
     dayId?: string;
+    scheduledDate?: string | null;
   }
 ) {
+  if (options?.planId && options?.dayId) {
+    return startWorkoutAndRedirect({
+      planId: options.planId,
+      dayId: options.dayId,
+      scheduledDate: options.scheduledDate ?? dateKey,
+      scheduledWorkoutId: options.scheduledWorkoutId ?? null,
+    });
+  }
+
   const { userId } = await requireUserId();
   const workouts = await resolveWorkoutsForDate(userId, dateKey);
   if (workouts.length === 0) {
@@ -921,11 +910,6 @@ export async function startTodaysWorkoutAndRedirect(
   const targetWorkout =
     (options?.scheduledWorkoutId
       ? workouts.find((w) => w.scheduledWorkoutId === options.scheduledWorkoutId)
-      : null) ??
-    (options?.planId && options?.dayId
-      ? workouts.find(
-          (w) => w.planId === options.planId && w.dayId === options.dayId
-        )
       : null) ??
     workouts.find((w) => !status[w.taskId]?.completed) ??
     workouts[0];

@@ -18,6 +18,10 @@ export function StartWorkoutDayButton({ planId }: { planId: string }) {
     setError(null);
     startTransition(async () => {
       const result = await startPlanWorkout(planId);
+      if (result && "sessionId" in result && result.sessionId) {
+        router.push(`/dashboard/workout/session/${result.sessionId}`);
+        return;
+      }
       if (result && "error" in result && result.error) {
         setError(result.error);
         router.refresh();

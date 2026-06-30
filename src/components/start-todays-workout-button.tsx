@@ -31,7 +31,12 @@ export function useStartWorkout(
       scheduledWorkoutId: workout?.scheduledWorkoutId,
       planId: workout?.planId,
       dayId: workout?.dayId,
+      scheduledDate: workout?.scheduledDate ?? dateKey,
     }).then((result) => {
+      if (result && "sessionId" in result && result.sessionId) {
+        router.push(`/dashboard/workout/session/${result.sessionId}`);
+        return;
+      }
       if (result && "error" in result && result.error) {
         setError(result.error);
         setIsStarting(false);

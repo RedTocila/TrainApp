@@ -40,6 +40,10 @@ export function StartWorkoutButton({
         dayId,
         scheduledDate,
       });
+      if (result && "sessionId" in result && result.sessionId) {
+        router.push(`/dashboard/workout/session/${result.sessionId}`);
+        return;
+      }
       if (result && "error" in result && result.error) {
         setError(result.error);
         router.refresh();

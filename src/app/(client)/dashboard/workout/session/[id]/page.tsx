@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireClient } from "@/lib/actions/auth";
 import {
-  getExerciseHistories,
   getWorkoutSession,
 } from "@/lib/actions/workout-sessions";
 import { ActiveWorkoutClient } from "@/components/active-workout-client";
@@ -28,19 +27,11 @@ export default async function WorkoutSessionPage({
     notFound();
   }
 
-  const histories = await getExerciseHistories(
-    exercises.map((ex) => ({
-      exerciseId: ex.exercise_id,
-      name: ex.name,
-    }))
-  );
-
   return (
     <PageTransition>
       <ActiveWorkoutClient
         session={session}
         exercises={exercises}
-        histories={histories}
       />
     </PageTransition>
   );
