@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireSubscribedMutationAdmin } from "@/lib/actions/auth-client";
+import { ensureManualPlanCreation, ensurePlanMutationAccess } from "@/lib/actions/usage-limits";
 import { UNCATEGORIZED_NUTRITION_FOLDER_ID } from "@/lib/nutrition-folders";
 import { mealPayloadFromForm, normalizeMealMacros, type MealFormData } from "@/lib/meal-utils";
 import { mealTypeForSlot, sumDayMenuMacros, type MealSlot } from "@/lib/meal-slots";
@@ -19,9 +19,9 @@ async function requireUserId() {
 }
 
 async function requireMutationAdmin() {
-  const mutation = await requireSubscribedMutationAdmin();
-  if ("error" in mutation) throw new Error(mutation.error);
-  return { admin: mutation.admin, userId: mutation.userId };
+  const access = await ensurePlanMutationAccess();
+  if ("error" in access) throw new Error(access.error);
+  return { admin: access.admin, userId: access.userId };
 }
 
 function revalidateNutritionPaths(folderId?: string | null, planId?: string) {
@@ -81,7 +81,9 @@ export async function createPersonalNutritionPlan(
   },
   folderId?: string | null
 ) {
-  const { admin, userId } = await requireMutationAdmin();
+  const access = await ensureManualPlanCreation();
+  if ("error" in access) return { error: access.error };
+  const { admin, userId } = access;
 
   const resolvedFolderId =
     folderId && folderId !== UNCATEGORIZED_NUTRITION_FOLDER_ID ? folderId : null;

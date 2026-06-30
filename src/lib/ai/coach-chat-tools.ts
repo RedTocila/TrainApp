@@ -17,8 +17,9 @@ import type {
   AiGeneratedNutritionPlan,
   AiGeneratedWorkoutPlan,
 } from "@/lib/ai/plan-builder-types";
-import { PLATFORM_AI_NAME } from "@/lib/brand";
-import { hasAiAccess } from "@/lib/subscription";
+import { getLimitExceededMessage } from "@/lib/subscription-messages";
+import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import type { Profile } from "@/lib/types";
 import type OpenAI from "openai";
 
@@ -183,8 +184,8 @@ export const COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   },
 ];
 
-function aiAccessError(): string {
-  return `Plan building in chat requires ${PLATFORM_AI_NAME}. Upgrade your subscription to use this feature.`;
+function aiAccessError(profile: Profile): string {
+  return getLimitExceededMessage(parseCheckoutLocale(profile.preferred_locale));
 }
 
 function parseToolArgs(raw: string): Record<string, unknown> {
@@ -203,9 +204,9 @@ export async function executeCoachChatTool(
 ): Promise<{ result: string; planPreview?: ChatPlanPreview; richBlocks?: CoachChatRichBlock[] }> {
   onEvent?.({ type: "tool_start", name });
 
-  if (PLAN_TOOLS.has(name) && !hasAiAccess(profile)) {
+  if (PLAN_TOOLS.has(name) && !hasAiPlanBuilderAccess(profile)) {
     onEvent?.({ type: "tool_done", name });
-    return { result: aiAccessError() };
+    return { result: aiAccessError(profile) };
   }
 
   const args = parseToolArgs(argsJson);

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
 import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { AiWorkoutPlanBuilder } from "@/components/ai-workout-plan-builder";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
@@ -14,7 +14,7 @@ export default async function AiWorkoutPlanPage() {
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
   if (!profile) return null;
-  if (!hasAiAccess(profile)) return <AiUpgradeGate />;
+  if (!hasAiPlanBuilderAccess(profile)) return <AiUpgradeGate />;
 
   return (
     <AiWorkoutPlanBuilder

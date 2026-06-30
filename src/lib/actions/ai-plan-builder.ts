@@ -3,8 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
+import {
+  checkAiPlanApplyAllowed,
+  consumeAiPlanApply,
+} from "@/lib/actions/usage-limits";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
 import { isAiConfigured } from "@/lib/ai/providers";
 import { generateWorkoutDayFromProfile, generateWorkoutPlanFromProfile } from "@/lib/ai/generate-workout-plan";
 import { generateNutritionPlanFromProfile } from "@/lib/ai/generate-nutrition-plan";
@@ -36,7 +40,7 @@ async function requireAiPlanBuilder(): Promise<
 > {
   const profile = await getSubscriptionProfile();
   if (!profile) return { success: false, error: "Not authenticated" };
-  if (!hasAiAccess(profile)) {
+  if (!hasAiPlanBuilderAccess(profile)) {
     return { success: false, error: `Upgrade to ${PLATFORM_AI_NAME} to build plans with AI Coach.` };
   }
   if (!isAiConfigured()) {
@@ -153,6 +157,9 @@ export async function applyAiWorkoutPlanAction(
   const access = await requireAiPlanBuilder();
   if (!access.success) return { error: access.error };
 
+  const limit = await checkAiPlanApplyAllowed(access.profile, "workout");
+  if (!limit.allowed) return { error: limit.error };
+
   if (!plan.days?.length) return { error: "No workout days to apply" };
 
   const created = await createPersonalWorkoutPlan(
@@ -174,6 +181,8 @@ export async function applyAiWorkoutPlanAction(
   const assigned = await assignPersonalWorkoutPlan(planId);
   if (assigned.error) return { error: assigned.error };
 
+  await consumeAiPlanApply(access.profile, "workout");
+
   revalidatePath("/dashboard/workout");
   revalidatePath("/dashboard/ai/plans/workout");
   revalidatePath("/dashboard");
@@ -185,6 +194,9 @@ export async function applyAiNutritionPlanAction(
 ): Promise<{ planId: string } | { error: string }> {
   const access = await requireAiPlanBuilder();
   if (!access.success) return { error: access.error };
+
+  const limit = await checkAiPlanApplyAllowed(access.profile, "nutrition");
+  if (!limit.allowed) return { error: limit.error };
 
   if (!plan.meals?.length) return { error: "No meals to apply" };
 
@@ -246,6 +258,8 @@ export async function applyAiNutritionPlanAction(
     personalPlanId: planId,
   });
   if (targets.error) return { error: targets.error };
+
+  await consumeAiPlanApply(access.profile, "nutrition");
 
   revalidatePath("/dashboard/nutrition");
   revalidatePath("/dashboard/ai/plans/nutrition");

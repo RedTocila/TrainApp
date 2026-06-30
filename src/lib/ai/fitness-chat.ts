@@ -14,7 +14,7 @@ import {
 } from "@/lib/ai/web-search";
 import { PLATFORM_NAME } from "@/lib/brand";
 import { formatExceededMacroSummary } from "@/lib/macro-targets";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDateKey } from "@/lib/utils";
 
@@ -227,7 +227,7 @@ export async function prepareFitnessCoachChatMessages(
       webSources.length > 0,
       hasUserImage,
       hasProgressPhotos,
-      hasAiAccess(ctx.profile),
+      hasAiPlanBuilderAccess(ctx.profile),
       true
     ) + (webContext ? `\n\n${webContext}` : "");
   const recentHistory = history.slice(-MAX_HISTORY);

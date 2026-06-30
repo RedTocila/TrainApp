@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireSubscribedMutationAdmin } from "@/lib/actions/auth-client";
+import { ensureManualPlanCreation, ensurePlanMutationAccess } from "@/lib/actions/usage-limits";
 import { generateRecurringScheduleDates, inferScheduleFromSessions } from "@/lib/schedule-utils";
 import { WORKOUT_DAY_WITH_EXERCISES, WORKOUT_PLAN_LIST_COLUMNS } from "@/lib/db-selects";
 import { UNCATEGORIZED_FOLDER_ID } from "@/lib/workout-folders";
@@ -18,9 +18,9 @@ async function requireUserId() {
 }
 
 async function requireMutationAdmin() {
-  const mutation = await requireSubscribedMutationAdmin();
-  if ("error" in mutation) throw new Error(mutation.error);
-  return { admin: mutation.admin, userId: mutation.userId };
+  const access = await ensurePlanMutationAccess();
+  if ("error" in access) throw new Error(access.error);
+  return { admin: access.admin, userId: access.userId };
 }
 
 export async function createPersonalWorkoutPlan(
@@ -28,7 +28,9 @@ export async function createPersonalWorkoutPlan(
   description?: string,
   folderId?: string | null
 ) {
-  const { admin, userId } = await requireMutationAdmin();
+  const access = await ensureManualPlanCreation();
+  if ("error" in access) return { error: access.error };
+  const { admin, userId } = access;
 
   const resolvedFolderId =
     folderId && folderId !== UNCATEGORIZED_FOLDER_ID ? folderId : null;

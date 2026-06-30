@@ -16,6 +16,7 @@ export function SubscriptionBanner({ profile }: { profile: Profile }) {
   const pathname = usePathname();
   const coachLabels = getCoachLabels(parseCheckoutLocale(profile.preferred_locale));
   if (hasPaidAccess(profile)) return null;
+  if (pathname.startsWith("/dashboard/pricing")) return null;
 
   return (
     <Card className="mb-4 border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent sm:mb-6">

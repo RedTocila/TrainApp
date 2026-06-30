@@ -6,9 +6,12 @@ import {
 } from "@/lib/ai/coach-chat-with-tools";
 import { TOOL_STATUS_LABELS } from "@/lib/ai/coach-chat-tools";
 import { streamChatCompletion, getConfiguredProviders } from "@/lib/ai/providers";
+import {
+  checkAlexCommandAllowed,
+  consumeAlexCommand,
+} from "@/lib/actions/usage-limits";
 import { SUBSCRIPTION_ACCESS_COLUMNS } from "@/lib/db-selects";
 import { createClient } from "@/lib/supabase/server";
-import { hasAiAccess } from "@/lib/subscription";
 import type { ChatImageAttachment, ChatMessage } from "@/lib/ai/types";
 import type { Profile } from "@/lib/types";
 
@@ -38,8 +41,13 @@ export async function POST(request: Request) {
     .eq("id", user.id)
     .single();
 
-  if (!profile || !hasAiAccess(profile as Profile)) {
-    return Response.json({ error: "Subscription required" }, { status: 403 });
+  if (!profile) {
+    return Response.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const alexAccess = await checkAlexCommandAllowed(profile as Profile);
+  if (!alexAccess.allowed) {
+    return Response.json({ error: alexAccess.error }, { status: 403 });
   }
 
   let body: {
@@ -133,6 +141,7 @@ export async function POST(request: Request) {
         if (sources.length > 0) {
           enqueue({ sources });
         }
+        await consumeAlexCommand(profile as Profile);
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Stream failed";
