@@ -632,6 +632,28 @@ export async function getInProgressSession(): Promise<WorkoutSession | null> {
   return data;
 }
 
+async function seedSessionExercisesIfNeeded(
+  admin: Awaited<ReturnType<typeof requireMutationAdmin>>["admin"],
+  sessionId: string,
+  planId: string,
+  dayId: string
+): Promise<WorkoutSessionExercise[]> {
+  const existing = await mapSessionExercises(admin, sessionId);
+  if (existing.length > 0) return existing;
+
+  const planExercises = await loadPlanDayExercises(admin, planId, dayId);
+  if (planExercises.length === 0) return [];
+
+  const seedResult = await seedSessionExercisesFromPlan(
+    admin,
+    sessionId,
+    planExercises
+  );
+  if (seedResult.error) return [];
+
+  return mapSessionExercises(admin, sessionId);
+}
+
 async function getSessionWithDetails(sessionId: string) {
   const { supabase, userId } = await requireUserId();
 
@@ -656,21 +678,42 @@ async function getSessionWithDetails(sessionId: string) {
     session.day_id &&
     session.status === "in_progress"
   ) {
-    const mutation = await tryMutationAdmin();
-    if (mutation) {
-      const planExercises = await loadPlanDayExercises(
-        mutation.admin,
-        session.plan_id,
-        session.day_id
-      );
-      if (planExercises.length > 0) {
-        await seedSessionExercisesFromPlan(mutation.admin, sessionId, planExercises);
-        mappedExercises = await mapSessionExercises(admin, sessionId);
-      }
-    }
+    mappedExercises = await seedSessionExercisesIfNeeded(
+      admin,
+      sessionId,
+      session.plan_id,
+      session.day_id
+    );
   }
 
   return { session: session as WorkoutSession, exercises: mappedExercises };
+}
+
+export async function ensureWorkoutSessionExercises(sessionId: string) {
+  const { supabase, userId } = await requireUserId();
+
+  const { data: session } = await supabase
+    .from("workout_sessions")
+    .select("id, plan_id, day_id, status")
+    .eq("id", sessionId)
+    .eq("client_id", userId)
+    .single();
+
+  if (!session?.plan_id || !session?.day_id) {
+    return { error: "Session not found" };
+  }
+
+  const auth = await requireOwnedClient(userId);
+  if ("error" in auth) return { error: auth.error };
+
+  const exercises = await seedSessionExercisesIfNeeded(
+    auth.admin,
+    sessionId,
+    session.plan_id,
+    session.day_id
+  );
+
+  return { exercises };
 }
 
 export async function getWorkoutSession(sessionId: string) {

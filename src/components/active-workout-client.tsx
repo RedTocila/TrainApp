@@ -5,13 +5,14 @@ import { formatWeightWithUnitFromKg, type UnitSystem } from "@/lib/body-units";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowLeft, Check, Clock, Play, Plus, Square } from "lucide-react";
+import { ArrowLeft, Check, Clock, Loader2, Play, Plus, Square } from "lucide-react";
 import {
   addSessionExercise,
   addSessionSet,
   beginWorkoutSession,
   cancelWorkoutSession,
   completeWorkoutSession,
+  ensureWorkoutSessionExercises,
   getExerciseHistories,
   updateSessionSet,
 } from "@/lib/actions/workout-sessions";
@@ -437,6 +438,9 @@ export function ActiveWorkoutClient({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [exercises, setExercises] = useState(initialExercises);
+  const [isLoadingExercises, setIsLoadingExercises] = useState(
+    initialExercises.length === 0 && !!session.plan_id && !!session.day_id
+  );
   const [histories, setHistories] = useState<Record<string, ExerciseHistoryEntry | null>>(
     initialHistories ?? {}
   );
@@ -447,7 +451,35 @@ export function ActiveWorkoutClient({
 
   useEffect(() => {
     setExercises(initialExercises);
+    if (initialExercises.length > 0) {
+      setIsLoadingExercises(false);
+    }
   }, [initialExercises]);
+
+  useEffect(() => {
+    if (initialExercises.length > 0) return;
+    if (!session.plan_id || !session.day_id) return;
+
+    let cancelled = false;
+    setIsLoadingExercises(true);
+
+    void ensureWorkoutSessionExercises(session.id).then((result) => {
+      if (cancelled) return;
+      if ("exercises" in result && result.exercises && result.exercises.length > 0) {
+        setExercises(result.exercises);
+        setIsLoadingExercises(false);
+        return;
+      }
+      setIsLoadingExercises(false);
+      if ("error" in result && result.error) {
+        setError(result.error);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialExercises.length, session.day_id, session.id, session.plan_id]);
 
   useEffect(() => {
     if (initialHistories && Object.keys(initialHistories).length > 0) {
@@ -593,7 +625,16 @@ export function ActiveWorkoutClient({
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="space-y-4">
-        {exercises.length === 0 ? (
+        {isLoadingExercises ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">
+                {platform.workout.starting}
+              </p>
+            </CardContent>
+          </Card>
+        ) : exercises.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="space-y-1 p-6 text-center">
               <p className="font-medium">{platform.workout.noExercisesTitle}</p>
@@ -667,12 +708,16 @@ export function ActiveWorkoutClient({
             <Button
               size="lg"
               className="w-full"
-              disabled={isPending}
+              disabled={isPending || isLoadingExercises}
               onClick={handleBeginWorkout}
               aria-busy={isPending}
             >
-              <Play className="mr-2 h-4 w-4" />
-              {isPending ? platform.common.saving : platform.workout.startWorkout}
+              {isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              {isPending ? platform.workout.starting : platform.workout.startWorkout}
             </Button>
           </StartWorkoutLoadingShell>
         ) : showCompleteStep ? (

@@ -233,6 +233,7 @@ export const platformCopyEn = {
     stillInGym: "Still in the gym",
     readyToStart: "Ready to start",
     startWorkout: "Start workout",
+    starting: "Starting…",
     stopWorkout: "Stop workout",
     stop: "Stop",
     hideVideo: "Hide video",

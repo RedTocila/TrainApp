@@ -80,7 +80,10 @@ export function StartWorkoutButton({
 
   return (
     <div className={cn("inline-flex flex-col items-end gap-1", className)}>
-      <StartWorkoutLoadingShell isLoading={isStarting} ring={false}>
+      <StartWorkoutLoadingShell
+        isLoading={isStarting}
+        ring={display === "icon"}
+      >
         {display === "text" ? (
           <Button
             size="sm"

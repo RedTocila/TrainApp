@@ -234,6 +234,7 @@ export const platformCopyAl = {
     stillInGym: "Ende në palestër",
     readyToStart: "Gati për të filluar",
     startWorkout: "Fillo stërvitjen",
+    starting: "Duke filluar…",
     stopWorkout: "Ndalo stërvitjen",
     stop: "Ndalo",
     hideVideo: "Fshih videon",
