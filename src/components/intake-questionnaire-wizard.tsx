@@ -152,7 +152,7 @@ function BodyMetricInput({
 
   useEffect(() => {
     setDraft(null);
-  }, [canonical, unitSystem]);
+  }, [unitSystem]);
 
   const display =
     draft ?? (canonical != null ? format(canonical) : "");
@@ -243,7 +243,7 @@ function StepFields({
               <BodyMetricInput
                 id="q-weight"
                 canonical={responses.intake_weight_kg}
-                format={units.formatWeightKg}
+                format={units.formatWeightKgInput}
                 parse={units.parseWeightInput}
                 onCommit={(kg) => onChange({ intake_weight_kg: kg })}
                 unitSystem={units.unitSystem}

@@ -36,12 +36,27 @@ export function heightUnitLabel(unitSystem: UnitSystem): string {
   return unitSystem === "imperial" ? "ft" : "cm";
 }
 
+function trimTrailingZeros(value: number, maxDecimals: number): string {
+  return value.toFixed(maxDecimals).replace(/\.?0+$/, "");
+}
+
 /** Format a canonical kg value for display in the user's unit system. */
 export function formatWeightFromKg(kg: number, unitSystem: UnitSystem): string {
   if (unitSystem === "imperial") {
     return roundTo(kgToLb(kg), 1).toFixed(1);
   }
   return roundTo(kg, 1).toFixed(1);
+}
+
+/** Format weight for free-form input fields (no forced decimal places). */
+export function formatWeightFromKgForInput(
+  kg: number,
+  unitSystem: UnitSystem
+): string {
+  if (unitSystem === "imperial") {
+    return trimTrailingZeros(roundTo(kgToLb(kg), 1), 1);
+  }
+  return trimTrailingZeros(roundTo(kg, 1), 1);
 }
 
 export function formatWeightWithUnitFromKg(

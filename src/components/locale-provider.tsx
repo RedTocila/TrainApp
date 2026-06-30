@@ -7,6 +7,7 @@ import {
   formatHeightFromCm,
   formatHeightWithUnitFromCm,
   formatWeightFromKg,
+  formatWeightFromKgForInput,
   formatWeightWithUnitFromKg,
   heightInputPlaceholder,
   heightLabel,
@@ -103,6 +104,8 @@ export function useBodyUnits() {
       weightPlaceholder: weightInputPlaceholder(unitSystem),
       heightPlaceholder: heightInputPlaceholder(unitSystem),
       formatWeightKg: (kg: number) => formatWeightFromKg(kg, unitSystem),
+      formatWeightKgInput: (kg: number) =>
+        formatWeightFromKgForInput(kg, unitSystem),
       formatWeightKgWithUnit: (kg: number) =>
         formatWeightWithUnitFromKg(kg, unitSystem),
       parseWeightInput: (raw: string) => parseWeightToKg(raw, unitSystem),
