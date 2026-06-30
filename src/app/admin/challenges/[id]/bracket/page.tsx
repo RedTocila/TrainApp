@@ -8,6 +8,7 @@ import { isFlashChallenge, isTransformationChallenge } from "@/lib/challenge-ser
 import { ChallengeBracketAdmin } from "@/components/challenge-bracket-admin";
 import { ChallengeLongChallengeAdmin } from "@/components/challenge-long-challenge-admin";
 import { FlashChallengeAdmin } from "@/components/flash-challenge-admin";
+import { AdminBackLink } from "@/components/admin-back-link";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 
@@ -35,6 +36,7 @@ export default async function AdminChallengeBracketPage({
   return (
     <PageTransition>
       <div className="mx-auto max-w-6xl space-y-6">
+        <AdminBackLink href="/admin/challenges" label="Back to challenges" />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black">

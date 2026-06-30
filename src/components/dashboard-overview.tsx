@@ -13,7 +13,6 @@ import {
   type NutritionExtrasCache,
 } from "@/lib/dashboard-route-cache";
 import { getDailyLog } from "@/lib/actions/logs";
-import type { CoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import { getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
@@ -53,7 +52,6 @@ export function DashboardOverview({
   personalPlanId,
   initialWaterGoalMl,
   nutritionPlan: initialNutritionPlan,
-  coachNutritionPlanState,
   goal,
   variant = "full",
   layout = "card",
@@ -69,7 +67,6 @@ export function DashboardOverview({
   initialWaterGoalMl: number;
   goal?: string | null;
   nutritionPlan?: OverviewDayData["nutritionPlan"];
-  coachNutritionPlanState: CoachNutritionPlanViewState;
   variant?: "full" | "compact";
   layout?: "card" | "detail";
   schedule?: ClientSchedule;
@@ -207,14 +204,12 @@ export function DashboardOverview({
   useEffect(() => {
     setNutritionExtrasCache(clientId, {
       mealLibrary,
-      coachNutritionPlanState,
       personalPlanId: personalPlanId ?? null,
       nutritionPlan: display?.nutritionPlan ?? initialNutritionPlan ?? null,
     });
   }, [
     clientId,
     mealLibrary,
-    coachNutritionPlanState,
     personalPlanId,
     display?.nutritionPlan,
     initialNutritionPlan,
@@ -237,7 +232,6 @@ export function DashboardOverview({
       waterGoalMl={waterGoalMl}
       onWaterGoalChange={setWaterGoalMl}
       nutritionPlan={display?.nutritionPlan ?? null}
-      coachNutritionPlanState={coachNutritionPlanState}
       goal={goal}
       variant={variant}
       layout={layout}

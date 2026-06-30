@@ -27,9 +27,8 @@ export default function TermsPage() {
         <h2>2. Service description</h2>
         <p>
           RUTINA provides fitness tracking, workout and nutrition tools, AI-powered
-          coaching features (on eligible plans), live coaching sessions, and optional
-          one-time custom plans delivered by a trainer. Features vary by subscription
-          tier.
+          coaching features on eligible plans, and live coaching sessions. Features vary
+          by subscription tier.
         </p>
       </section>
 
@@ -48,9 +47,6 @@ export default function TermsPage() {
           <li>
             Paid plans (RUTINA AI) are billed monthly or annually as selected at
             checkout.
-          </li>
-          <li>
-            One-time custom workout and nutrition plans are separate purchases.
           </li>
           <li>
             Prices are shown in EUR. Taxes may apply depending on your location.

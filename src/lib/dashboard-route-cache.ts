@@ -1,4 +1,3 @@
-import type { CoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import type { CompletedWorkoutResults, TodaysWorkoutInfo } from "@/lib/actions/workout-sessions";
@@ -21,7 +20,6 @@ export type WorkoutDayCache = {
 
 export type NutritionExtrasCache = {
   mealLibrary: PersonalMealLibraryItem[];
-  coachNutritionPlanState: CoachNutritionPlanViewState;
   personalPlanId: string | null;
   nutritionPlan: {
     title: string;

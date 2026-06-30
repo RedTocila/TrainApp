@@ -534,6 +534,8 @@ export const platformCopyAl = {
     close: "Mbyll",
     done: "Kryer",
     continuePayment: "Le të ndërtojmë planin tim",
+    submitRequest: "Dërgo kërkesën",
+    submittingRequest: "Duke dërguar…",
     implementing: "Duke zbatuar…",
     implementIt: "Zbato planin",
     implemented: "I zbatuar",
@@ -1132,6 +1134,11 @@ export const platformCopyAl = {
         "Deri në €250 në 24 orë — tarifa e hyrjes, max 50 vende.",
       flashSubtitleAlex:
         "Deri në €250 në 24 orë — paraqitu në Zoom, mposht fushën, max 50 vende.",
+      allTag: "Të gjitha",
+      allSubtitle:
+        "Çdo sfidë e hapur — transformime të gjata dhe sfida flash 24-orëshe.",
+      menTag: "Burra",
+      womenTag: "Gra",
       viewChallenge: "Shiko sfidën",
     },
     join: {

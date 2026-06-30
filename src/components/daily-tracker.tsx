@@ -37,7 +37,6 @@ import {
   type NutritionDayContext,
 } from "@/lib/nutrition-day-utils";
 import { MealPlanDialog } from "@/components/meal-plan-dialog";
-import { NutritionPlanPdfDialog } from "@/components/nutrition-plan-pdf-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
 import { LogMealDialog } from "@/components/log-meal-dialog";
 import { MealLogPreviewDialog } from "@/components/meal-log-preview-dialog";
@@ -47,7 +46,6 @@ import {
   DashboardStatusIcon,
 } from "@/components/section-completed-badge";
 import { getPlannedMealSlots, isDeadlinePassed, WATER_DEADLINE } from "@/lib/meal-times";
-import type { CoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import type { DailyMealLog, Meal, MealSlot } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -76,7 +74,6 @@ interface DailyTrackerProps {
     kind?: MealPlanViewKind;
     planId?: string;
   } | null;
-  coachNutritionPlanState: CoachNutritionPlanViewState;
   variant?: "full" | "compact";
   layout?: "card" | "detail";
   readOnly?: boolean;
@@ -94,7 +91,6 @@ export function DailyTracker({
   waterGoalMl,
   onWaterGoalChange,
   nutritionPlan,
-  coachNutritionPlanState,
   goal,
   variant = "full",
   layout = "card",
@@ -105,7 +101,6 @@ export function DailyTracker({
   const router = useRouter();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [mealPlanOpen, setMealPlanOpen] = useState(false);
-  const [pdfPlanOpen, setPdfPlanOpen] = useState(false);
   const [previewMeal, setPreviewMeal] = useState<MealFormData | null>(null);
   const [previewMealLogId, setPreviewMealLogId] = useState<string | null>(null);
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
@@ -131,10 +126,6 @@ export function DailyTracker({
 
   const current = sumMealMacros(dailyMeals);
 
-  const awaitingCoachPdf = coachNutritionPlanState.mode === "awaiting_pdf";
-  const coachPdfRequestId =
-    coachNutritionPlanState.mode === "pdf" ? coachNutritionPlanState.requestId : null;
-
   const plannedMealSlots = useMemo(() => {
     if (!nutritionPlan?.meals?.length) return [];
     return getPlannedMealSlots(
@@ -146,7 +137,7 @@ export function DailyTracker({
   }, [nutritionPlan?.meals, nutritionPlan?.activeSlots, dailyMeals, dateKey]);
 
   const hasMealPlan = plannedMealSlots.length > 0;
-  const showMealPlanButton = hasMealPlan || awaitingCoachPdf || !!coachPdfRequestId;
+  const showMealPlanButton = hasMealPlan;
 
   const mealPlanSubtitle =
     nutritionPlan?.kind === "ai"
@@ -156,17 +147,11 @@ export function DailyTracker({
         : undefined;
 
   const mealPlanEmptyMessage = !hasMealPlan
-    ? awaitingCoachPdf
-      ? platform.nutrition.coachPdfEmpty
-      : platform.nutrition.mealPlanEmpty
+    ? platform.nutrition.mealPlanEmpty
     : undefined;
 
   const handleMealPlanClick = () => {
-    if (hasMealPlan || awaitingCoachPdf || !coachPdfRequestId) {
-      setMealPlanOpen(true);
-      return;
-    }
-    setPdfPlanOpen(true);
+    setMealPlanOpen(true);
   };
 
   const waterMet = waterMetDailyMinimum(localWaterMl, waterGoalMl);
@@ -327,23 +312,9 @@ export function DailyTracker({
         subtitle={mealPlanSubtitle}
         slots={plannedMealSlots}
         emptyMessage={mealPlanEmptyMessage}
-        coachPdfRequestId={coachPdfRequestId}
         clientId={clientId}
         planId={nutritionPlan?.planId ?? null}
-        onOpenCoachPdf={() => {
-          setMealPlanOpen(false);
-          setPdfPlanOpen(true);
-        }}
       />
-
-      {coachPdfRequestId && (
-        <NutritionPlanPdfDialog
-          open={pdfPlanOpen}
-          onClose={() => setPdfPlanOpen(false)}
-          title={mealPlanDialogTitle}
-          requestId={coachPdfRequestId}
-        />
-      )}
 
       <LogMealDialog
         open={logMealOpen}
@@ -607,16 +578,6 @@ export function DailyTracker({
                 {nutritionPlan.scheduled
                   ? ` · ${platform.common.scheduled}`
                   : ` · ${mealPlanSubtitle ?? platform.common.active}`}
-              </p>
-            )}
-            {!nutritionPlan && awaitingCoachPdf && (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {platform.nutrition.coachPdfPending}
-              </p>
-            )}
-            {!nutritionPlan && !awaitingCoachPdf && coachPdfRequestId && (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {platform.nutrition.coachNutritionPdf}
               </p>
             )}
           </div>

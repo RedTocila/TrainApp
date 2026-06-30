@@ -240,7 +240,7 @@ export function RegisterForm() {
         </CardTitle>
         <CardDescription>
           {intakeJson
-            ? "Your custom plan is ready — create your account to unlock it"
+            ? "Your preferences are saved — create your account to continue"
             : "Create your account to get started"}
         </CardDescription>
       </CardHeader>

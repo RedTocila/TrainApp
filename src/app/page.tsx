@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${PLATFORM_NAME} — Workouts, Nutrition & AI Coaching`,
     description:
-      "Premium fitness platform with AI meal logging, live coaching, and custom trainer plans.",
+      "Premium fitness platform with AI meal logging, live coaching, and self-built workout plans.",
   },
   robots: {
     index: true,

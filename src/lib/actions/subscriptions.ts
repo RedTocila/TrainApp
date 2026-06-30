@@ -266,14 +266,6 @@ export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string)
 
   const orderKind = (order.order_kind as string) ?? "subscription";
 
-  if (orderKind === "custom_workout" || orderKind === "custom_nutrition") {
-    const { activateCustomPlanFromPokPayOrder } = await import(
-      "@/lib/actions/custom-plans"
-    );
-    await activateCustomPlanFromPokPayOrder(pokpayOrderId);
-    return;
-  }
-
   if (orderKind === "flash_challenge_entry") {
     const { activateFlashChallengeEntryFromPokPayOrder } = await import(
       "@/lib/actions/flash-challenge-checkout"

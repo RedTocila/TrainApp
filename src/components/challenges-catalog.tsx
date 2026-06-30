@@ -3,22 +3,26 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Radio, Zap } from "lucide-react";
+import { ArrowRight, Radio } from "lucide-react";
+import { ChallengeCategoryFilterBar } from "@/components/challenge-category-filter-bar";
 import { ChallengePrizePool } from "@/components/challenge-prize-pool";
 import { ChallengeShareButton } from "@/components/challenge-share-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { getChallengeMaxParticipants, isFlashChallenge, isTransformationChallenge } from "@/lib/challenge-series";
+import { getChallengeMaxParticipants, isFlashChallenge } from "@/lib/challenge-series";
 import { getChallengeLeagueTag } from "@/lib/challenge-platform-copy";
 import { getChallengeGender, getTransformationTierKey } from "@/lib/challenge-gender";
 import { getFlashDurationLabel, type FlashChallengeSlug } from "@/lib/flash-challenge-catalog";
+import {
+  countChallengesByCategory,
+  filterChallengesByCategory,
+  type ChallengeListCategory,
+} from "@/lib/challenge-list-filters";
 import { getTransformationDurationLabel } from "@/lib/transformation-challenge-catalog";
 import type { TransformationTierKey } from "@/lib/transformation-challenges";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { Challenge } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-type ChallengeCategory = "long" | "flash";
 
 type CardTheme = {
   gradient: string;
@@ -238,46 +242,6 @@ function CatalogChallengeCard({
   );
 }
 
-function CategoryTag({
-  active,
-  onClick,
-  label,
-  count,
-  icon: Icon,
-  activeClassName,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-  icon?: typeof Radio;
-  activeClassName: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex w-auto shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all whitespace-nowrap",
-        active
-          ? activeClassName
-          : "border-border bg-muted text-muted-foreground hover:border-primary/30 hover:text-foreground"
-      )}
-    >
-      {Icon ? <Icon className="h-3 w-3 shrink-0" aria-hidden /> : null}
-      <span>{label}</span>
-      <span
-        className={cn(
-          "shrink-0 rounded-full px-1 py-px text-[10px] leading-none tabular-nums",
-          active ? "bg-black/15" : "bg-background/80"
-        )}
-      >
-        {count}
-      </span>
-    </button>
-  );
-}
-
 export function ChallengesCatalog({
   challenges,
   profileGender,
@@ -292,10 +256,11 @@ export function ChallengesCatalog({
     longSubtitleWomen?: string;
     flashSubtitle: string;
     flashSubtitleAlex?: string;
-    longTag: string;
+    allTag: string;
+    allSubtitle: string;
     flashTag: string;
-    longTitle: string;
-    flashTitle: string;
+    menTag: string;
+    womenTag: string;
     viewChallenge: string;
   };
   const longSubtitle =
@@ -305,22 +270,25 @@ export function ChallengesCatalog({
   const flashSubtitle = catalog.flashSubtitleAlex ?? catalog.flashSubtitle;
   const joinCopy = platform.challenges.join;
   const prizeCopy = platform.challenges.prizePool;
-  const longChallenges = useMemo(
-    () => challenges.filter((c) => isTransformationChallenge(c)),
-    [challenges]
-  );
-  const flashChallenges = useMemo(
-    () => challenges.filter((c) => isFlashChallenge(c)),
-    [challenges]
+  const counts = useMemo(() => countChallengesByCategory(challenges), [challenges]);
+
+  const [category, setCategory] = useState<ChallengeListCategory>("all");
+
+  const visibleChallenges = useMemo(
+    () => filterChallengesByCategory(challenges, category),
+    [challenges, category]
   );
 
-  const [category, setCategory] = useState<ChallengeCategory>("long");
-
-  const visibleChallenges = category === "long" ? longChallenges : flashChallenges;
   const categorySubtitle =
-    category === "long" ? longSubtitle : flashSubtitle;
+    category === "flash"
+      ? flashSubtitle
+      : category === "men"
+        ? catalog.longSubtitleMen ?? longSubtitle
+        : category === "women"
+          ? catalog.longSubtitleWomen ?? longSubtitle
+          : catalog.allSubtitle;
 
-  const hasContent = longChallenges.length + flashChallenges.length > 0;
+  const hasContent = challenges.length > 0;
 
   if (!hasContent) {
     return (
@@ -334,28 +302,17 @@ export function ChallengesCatalog({
 
   return (
     <div className="space-y-4">
-      <div
-        className="flex flex-wrap items-center gap-1.5"
-        role="tablist"
-        aria-label="Challenge categories"
-      >
-        <CategoryTag
-          active={category === "long"}
-          onClick={() => setCategory("long")}
-          label={catalog.longTag}
-          count={longChallenges.length}
-          icon={Radio}
-          activeClassName="border-violet-500/30 bg-violet-500/10 text-violet-200"
-        />
-        <CategoryTag
-          active={category === "flash"}
-          onClick={() => setCategory("flash")}
-          label={catalog.flashTag}
-          count={flashChallenges.length}
-          icon={Zap}
-          activeClassName="border-amber-500/30 bg-amber-500/10 text-amber-200"
-        />
-      </div>
+      <ChallengeCategoryFilterBar
+        category={category}
+        counts={counts}
+        onChange={setCategory}
+        labels={{
+          all: catalog.allTag,
+          flash: catalog.flashTag,
+          men: catalog.menTag,
+          women: catalog.womenTag,
+        }}
+      />
 
       <p className="text-sm text-muted-foreground">{categorySubtitle}</p>
 

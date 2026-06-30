@@ -528,6 +528,8 @@ export const platformCopyEn = {
     close: "Close",
     done: "Done",
     continuePayment: "Let's build my plan",
+    submitRequest: "Submit request",
+    submittingRequest: "Submitting…",
     implementing: "Implementing…",
     implementIt: "Implement it",
     implemented: "Implemented",
@@ -1163,6 +1165,11 @@ export const platformCopyEn = {
         "Up to €250 in 24 hours — entry fee, 50 spots max.",
       flashSubtitleAlex:
         "Up to €250 in 24 hours — show up on Zoom, beat the field, 50 spots max. Alex doesn't do second place.",
+      allTag: "All",
+      allSubtitle:
+        "Every open challenge — long transformations and 24-hour flash events.",
+      menTag: "Men",
+      womenTag: "Women",
       viewChallenge: "View challenge",
     },
     join: {

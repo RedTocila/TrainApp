@@ -1,19 +1,16 @@
 import { Suspense } from "react";
 import { requireAdmin } from "@/lib/actions/auth";
-import { getPendingRequests } from "@/lib/actions/requests";
 import {
-  getAdminClientsWithSubscriptions,
   getAdminDashboardStats,
   getAdminRevenue,
   type RevenuePeriod,
 } from "@/lib/actions/admin-stats";
 import { getRecentClientActivityPage } from "@/lib/actions/client-activity";
 import { getNotifications } from "@/lib/actions/notifications";
-import { PlanRequestCard } from "@/components/plan-request-card";
 import { AdminRevenuePanel } from "@/components/admin-revenue-panel";
-import { PageTransition, StaggerContainer, StaggerItem } from "@/components/page-transition";
+import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Dumbbell, Bell, Euro } from "lucide-react";
+import { Users, Bell, Euro } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ClientActivityFeedPanel } from "@/components/client-activity-feed-panel";
@@ -31,8 +28,7 @@ export default async function AdminDashboardPage({
     ? (periodParam as RevenuePeriod)
     : "30d";
 
-  const [requests, stats, revenue, notifications, activityPage] = await Promise.all([
-    getPendingRequests(),
+  const [stats, revenue, notifications, activityPage] = await Promise.all([
     getAdminDashboardStats(),
     getAdminRevenue(period),
     getNotifications(profile.id),
@@ -40,7 +36,6 @@ export default async function AdminDashboardPage({
   ]);
 
   const unreadNotifs = notifications.filter((n) => !n.read).slice(0, 5);
-  const awaitingApproval = requests.filter((r) => r.status === "awaiting_approval");
 
   return (
     <PageTransition>
@@ -48,7 +43,7 @@ export default async function AdminDashboardPage({
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-2xl font-black sm:text-3xl">Coach Dashboard</h1>
-            <p className="text-muted-foreground">Manage clients, revenue, and custom plans</p>
+            <p className="text-muted-foreground">Manage clients, revenue, and content</p>
           </div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <Link href="/admin/clients">
@@ -57,7 +52,7 @@ export default async function AdminDashboardPage({
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -70,28 +65,6 @@ export default async function AdminDashboardPage({
               <p className="text-xs text-muted-foreground">
                 {stats.activeSubscribers} active subscribers
               </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Awaiting approval
-              </CardTitle>
-              <Dumbbell className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{stats.awaitingApproval}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Open requests
-              </CardTitle>
-              <Dumbbell className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{requests.length}</p>
             </CardContent>
           </Card>
           <Card>
@@ -136,42 +109,6 @@ export default async function AdminDashboardPage({
               />
             </CardContent>
           </Card>
-        </section>
-
-        {awaitingApproval.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold">Paid proposals to review</h2>
-            <StaggerContainer>
-              <div className="space-y-3">
-                {awaitingApproval.map((req) => (
-                  <StaggerItem key={req.id}>
-                    <PlanRequestCard request={req} />
-                  </StaggerItem>
-                ))}
-              </div>
-            </StaggerContainer>
-          </section>
-        )}
-
-        <section className="space-y-4">
-          <h2 className="text-xl font-bold">Recent Requests</h2>
-          {requests.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                No pending requests
-              </CardContent>
-            </Card>
-          ) : (
-            <StaggerContainer>
-              <div className="space-y-3">
-                {requests.slice(0, 8).map((req) => (
-                  <StaggerItem key={req.id}>
-                    <PlanRequestCard request={req} />
-                  </StaggerItem>
-                ))}
-              </div>
-            </StaggerContainer>
-          )}
         </section>
 
         {unreadNotifs.length > 0 && (

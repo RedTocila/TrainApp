@@ -32,7 +32,6 @@ import {
   getScheduledNutritionInRange,
   getNutritionPlanForDate,
 } from "@/lib/actions/user-nutrition-schedule";
-import { getCoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
 import {
   resolveWorkoutsForDate,
   isWorkoutCompletedOnDate,
@@ -94,7 +93,6 @@ export default async function DashboardPage() {
     enrichmentFields,
     initialWorkouts,
     scheduledPlanForToday,
-    coachNutritionPlanState,
     allHabits,
     initialWorkoutCompleted,
     initialCardio,
@@ -120,7 +118,6 @@ export default async function DashboardPage() {
     fetchDashboardEnrichmentFields(profile.id, rangeStart, rangeEnd),
     resolveWorkoutsForDate(profile.id, dateKey),
     getNutritionPlanForDate(profile.id, dateKey),
-    getCoachNutritionPlanViewState(profile.id),
     getClientHabits(profile.id),
     isWorkoutCompletedOnDate(profile.id, dateKey),
     getScheduledCardioForDate(profile.id, dateKey),
@@ -257,7 +254,6 @@ export default async function DashboardPage() {
               personalPlanId={personalNutritionPlanId}
               initialWaterGoalMl={profile.water_goal_ml ?? 2500}
               nutritionPlan={nutritionSummary}
-              coachNutritionPlanState={coachNutritionPlanState}
               goal={profile.goal ?? null}
               variant="compact"
               schedule={schedule}

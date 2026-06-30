@@ -65,7 +65,7 @@ export function AdminRevenuePanel({
           <p className="text-2xl font-bold">{fmt(revenue.subscriptionCents)}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Custom plans</p>
+          <p className="text-sm text-muted-foreground">One-off purchases</p>
           <p className="text-2xl font-bold">{fmt(revenue.customCents)}</p>
         </div>
       </div>

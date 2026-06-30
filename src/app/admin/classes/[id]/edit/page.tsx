@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/actions/auth";
 import { getClassById, updateClass } from "@/lib/actions/classes";
 import { CLASS_CATEGORIES } from "@/lib/class-utils";
+import { AdminBackLink } from "@/components/admin-back-link";
+import { ClassCoverImageField } from "@/components/class-cover-image-field";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +33,7 @@ export default async function EditClassPage({
   return (
     <PageTransition>
       <div className="mx-auto max-w-3xl space-y-6">
+        <AdminBackLink href="/admin/classes" label="Back to classes" />
         <div>
           <h1 className="text-2xl font-black">Edit class</h1>
           <p className="text-sm text-muted-foreground">
@@ -42,7 +45,7 @@ export default async function EditClassPage({
             <CardTitle>{fitnessClass.title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={updateWithId} className="space-y-4">
+            <form action={updateWithId} encType="multipart/form-data" className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input id="title" name="title" required defaultValue={fitnessClass.title} />
@@ -110,14 +113,7 @@ export default async function EditClassPage({
                   placeholder="https://youtube.com/watch?v=..."
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="cover_image">Cover image URL (optional)</Label>
-                <Input
-                  id="cover_image"
-                  name="cover_image"
-                  defaultValue={fitnessClass.cover_image ?? ""}
-                />
-              </div>
+              <ClassCoverImageField defaultUrl={fitnessClass.cover_image} />
               <div className="space-y-2">
                 <Label htmlFor="description">Description (Markdown)</Label>
                 <Textarea

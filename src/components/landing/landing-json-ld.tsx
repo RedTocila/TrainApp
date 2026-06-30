@@ -46,7 +46,7 @@ export function LandingJsonLd() {
         operatingSystem: "Web",
         offers,
         description:
-          "Workout builder, nutrition tracking, AI coach, live coaching, and custom trainer plans.",
+          "Workout builder, nutrition tracking, AI coach, and live coaching.",
         url: SITE_URL,
       },
     ],

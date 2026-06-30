@@ -11,9 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   createWorkoutPlan,
   saveWorkoutDay,
-  assignWorkoutPlan,
 } from "@/lib/actions/plans";
-import { sendTrainerPlanToClient } from "@/lib/actions/custom-plans";
 import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan } from "@/lib/actions/user-workouts";
 import { isValidYoutubeUrl } from "@/lib/youtube";
 import { Button } from "@/components/ui/button";
@@ -46,8 +44,6 @@ export function WorkoutBuilder({
   initialTitle = "",
   initialDescription = "",
   initialDays = [],
-  clientId,
-  requestId,
   mode = "admin",
   wizard = false,
   singleDay = false,
@@ -61,8 +57,6 @@ export function WorkoutBuilder({
   initialTitle?: string;
   initialDescription?: string;
   initialDays?: (Day & { day_index: number; id?: string; exercises?: Exercise[] })[];
-  clientId?: string;
-  requestId?: string;
   mode?: "admin" | "client";
   wizard?: boolean;
   singleDay?: boolean;
@@ -204,14 +198,7 @@ export function WorkoutBuilder({
         );
       }
 
-      if (clientId && currentPlanId) {
-        if (requestId) {
-          await sendTrainerPlanToClient(requestId, currentPlanId, "workout");
-        } else {
-          await assignWorkoutPlan(clientId, currentPlanId, requestId);
-        }
-        router.push(`/admin/clients/${clientId}`);
-      } else if (wizard && currentPlanId && onWizardComplete) {
+      if (wizard && currentPlanId && onWizardComplete) {
         onWizardComplete(currentPlanId);
       } else if (mode === "client" && currentPlanId) {
         if (!initialPlanId) {
@@ -424,11 +411,9 @@ export function WorkoutBuilder({
             ? singleDay
               ? "Add to day"
               : "Next: Schedule"
-            : clientId
-              ? "Save & Assign to Client"
-              : mode === "client"
-                ? "Save workout"
-                : "Save Plan"}
+            : mode === "client"
+              ? "Save workout"
+              : "Save Plan"}
         </Button>
       </div>
 

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ChangeEvent,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, Sparkles, Square } from "lucide-react";
 import {
@@ -122,6 +129,63 @@ function OptionGrid({
   );
 }
 
+function BodyMetricInput({
+  id,
+  canonical,
+  format,
+  parse,
+  onCommit,
+  unitSystem,
+  placeholder,
+  step,
+}: {
+  id: string;
+  canonical: number | undefined;
+  format: (value: number) => string;
+  parse: (raw: string) => number | null;
+  onCommit: (value: number | undefined) => void;
+  unitSystem: string;
+  placeholder: string;
+  step: string;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraft(null);
+  }, [canonical, unitSystem]);
+
+  const display =
+    draft ?? (canonical != null ? format(canonical) : "");
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setDraft(raw);
+    const parsed = parse(raw);
+    if (parsed != null) {
+      onCommit(parsed);
+    } else {
+      onCommit(undefined);
+    }
+  };
+
+  const handleBlur = () => {
+    setDraft(null);
+  };
+
+  return (
+    <Input
+      id={id}
+      type="text"
+      inputMode="decimal"
+      step={step}
+      placeholder={placeholder}
+      value={display}
+      onChange={handleChange}
+      onBlur={handleBlur}
+    />
+  );
+}
+
 function StepFields({
   stepId,
   responses,
@@ -176,40 +240,28 @@ function StepFields({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="q-weight">{units.weightFieldLabel}</Label>
-              <Input
+              <BodyMetricInput
                 id="q-weight"
-                type="number"
-                step="0.1"
+                canonical={responses.intake_weight_kg}
+                format={units.formatWeightKg}
+                parse={units.parseWeightInput}
+                onCommit={(kg) => onChange({ intake_weight_kg: kg })}
+                unitSystem={units.unitSystem}
                 placeholder={units.weightPlaceholder.replace("e.g. ", "")}
-                value={
-                  responses.intake_weight_kg != null
-                    ? units.formatWeightKg(responses.intake_weight_kg)
-                    : ""
-                }
-                onChange={(e) => {
-                  const kg = units.parseWeightInput(e.target.value);
-                  onChange({
-                    intake_weight_kg: kg ?? undefined,
-                  });
-                }}
+                step="0.1"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="q-height">{units.heightFieldLabel}</Label>
-              <Input
+              <BodyMetricInput
                 id="q-height"
-                type="number"
-                step={units.unitSystem === "imperial" ? "0.01" : "1"}
+                canonical={responses.height_cm}
+                format={units.formatHeightCm}
+                parse={units.parseHeightInput}
+                onCommit={(cm) => onChange({ height_cm: cm })}
+                unitSystem={units.unitSystem}
                 placeholder={units.heightPlaceholder.replace("e.g. ", "")}
-                value={
-                  responses.height_cm != null
-                    ? units.formatHeightCm(responses.height_cm)
-                    : ""
-                }
-                onChange={(e) => {
-                  const cm = units.parseHeightInput(e.target.value);
-                  onChange({ height_cm: cm ?? undefined });
-                }}
+                step={units.unitSystem === "imperial" ? "0.01" : "1"}
               />
             </div>
           </div>

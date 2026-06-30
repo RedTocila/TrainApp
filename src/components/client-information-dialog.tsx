@@ -103,7 +103,7 @@ export function ClientInformationDialog({
             !preferences && (
               <p className="text-sm text-muted-foreground">
                 No intake information yet. Ask the client to fill in their profile health
-                details or nutrition plan request.
+                details in their profile.
               </p>
             )}
         </div>

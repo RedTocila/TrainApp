@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileText, ShoppingCart, X } from "lucide-react";
+import { ShoppingCart, X } from "lucide-react";
 import { MealPlanViewer } from "@/components/meal-plan-viewer";
 import { GroceryListDialog } from "@/components/grocery-list-dialog";
 import type { PlannedMealSlot } from "@/lib/meal-times";
@@ -15,8 +15,6 @@ export function MealPlanDialog({
   subtitle,
   slots,
   emptyMessage,
-  coachPdfRequestId,
-  onOpenCoachPdf,
   clientId,
   planId,
 }: {
@@ -26,8 +24,6 @@ export function MealPlanDialog({
   subtitle?: string;
   slots: PlannedMealSlot[];
   emptyMessage?: string;
-  coachPdfRequestId?: string | null;
-  onOpenCoachPdf?: () => void;
   clientId?: string;
   planId?: string | null;
 }) {
@@ -106,19 +102,6 @@ export function MealPlanDialog({
           <div className="overflow-y-auto px-4 py-5">
             <MealPlanViewer slots={slots} emptyMessage={emptyMessage} />
           </div>
-          {coachPdfRequestId && onOpenCoachPdf && (
-            <div className="border-t border-border p-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full gap-2"
-                onClick={onOpenCoachPdf}
-              >
-                <FileText className="h-4 w-4" />
-                View coach PDF plan
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 

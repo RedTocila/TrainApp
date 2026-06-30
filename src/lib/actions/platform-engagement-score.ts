@@ -12,6 +12,10 @@ import {
   type PlatformScoreEntry,
 } from "@/lib/platform-engagement-score";
 import { waterMetDailyMinimum } from "@/lib/water-targets";
+import {
+  resolveClientScoreSince,
+  type ClientScorePeriod,
+} from "@/lib/client-score-period";
 import { formatDateKey } from "@/lib/utils";
 
 export type ParticipantScoreInput = {
@@ -52,7 +56,8 @@ export async function getPlatformEngagementScoresDetailed(
 }
 
 export async function getAdminClientsPlatformScores(
-  clients: { id: string; created_at: string }[]
+  clients: { id: string; created_at: string }[],
+  period: ClientScorePeriod = "all"
 ): Promise<Record<string, PlatformScoreEntry>> {
   await requireAdmin();
   if (clients.length === 0) return {};
@@ -60,7 +65,7 @@ export async function getAdminClientsPlatformScores(
   const admin = createAdminClient();
   const participants = clients.map((client) => ({
     userId: client.id,
-    since: client.created_at,
+    since: resolveClientScoreSince(period, client.created_at),
   }));
   const detailed = await fetchPlatformEngagementScoresDetailed(admin, participants);
   return Object.fromEntries(

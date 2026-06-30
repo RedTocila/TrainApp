@@ -6,7 +6,7 @@ import { Bell } from "lucide-react";
 export function NotificationBell({ unreadCount }: { unreadCount: number }) {
   return (
     <Link
-      href="/admin/requests"
+      href="/admin"
       className="relative rounded-lg p-2 transition-colors hover:bg-secondary"
     >
       <Bell className="h-5 w-5" />

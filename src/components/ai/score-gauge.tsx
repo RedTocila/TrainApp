@@ -11,6 +11,7 @@ export function ScoreGauge({
   icon: Icon,
   colorClass = "text-primary",
   size = "md",
+  suffix,
 }: {
   score: number | null;
   label: string;
@@ -18,6 +19,7 @@ export function ScoreGauge({
   icon?: LucideIcon;
   colorClass?: string;
   size?: "sm" | "md" | "lg";
+  suffix?: string;
 }) {
   const reduce = useReducedMotion();
   const value = score ?? 0;
@@ -105,6 +107,7 @@ export function ScoreGauge({
                 )}
               >
                 {score ?? "—"}
+                {suffix && score != null ? suffix : null}
               </span>
               <span
                 className={cn(
@@ -118,6 +121,7 @@ export function ScoreGauge({
           ) : (
             <span className={cn("font-black leading-none", dims.text)}>
               {score ?? "—"}
+              {suffix && score != null ? suffix : null}
             </span>
           )}
         </div>

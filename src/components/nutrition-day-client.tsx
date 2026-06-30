@@ -8,7 +8,6 @@ import {
 } from "@/components/dashboard-enrichment-provider";
 import { DailyTracker } from "@/components/daily-tracker";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
-import { getCoachNutritionPlanViewState } from "@/lib/actions/nutrition-plan-pdf";
 import { getClientNutritionAssignment } from "@/lib/actions/plans";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import { getDailyLog } from "@/lib/actions/logs";
@@ -51,7 +50,6 @@ type OverviewDayData = {
 
 const EMPTY_EXTRAS: NutritionExtrasCache = {
   mealLibrary: [],
-  coachNutritionPlanState: { mode: "none" },
   personalPlanId: null,
   nutritionPlan: null,
 };
@@ -184,17 +182,12 @@ export function NutritionDayClient({
     let cancelled = false;
 
     void (async () => {
-      const [
-        mealLibrary,
-        coachNutritionPlanState,
-        nutritionAssignment,
-        scheduledPlanForToday,
-      ] = await Promise.all([
-        getPersonalMealsLibrary(),
-        getCoachNutritionPlanViewState(clientId),
-        getClientNutritionAssignment(clientId),
-        getNutritionPlanForDate(clientId, dateKey),
-      ]);
+      const [mealLibrary, nutritionAssignment, scheduledPlanForToday] =
+        await Promise.all([
+          getPersonalMealsLibrary(),
+          getClientNutritionAssignment(clientId),
+          getNutritionPlanForDate(clientId, dateKey),
+        ]);
 
       if (cancelled) return;
 
@@ -218,7 +211,6 @@ export function NutritionDayClient({
 
       const next: NutritionExtrasCache = {
         mealLibrary,
-        coachNutritionPlanState,
         personalPlanId,
         nutritionPlan: nutritionSummary,
       };
@@ -252,7 +244,6 @@ export function NutritionDayClient({
       waterGoalMl={waterGoalMl}
       onWaterGoalChange={setWaterGoalMl}
       nutritionPlan={display?.nutritionPlan ?? extras.nutritionPlan ?? null}
-      coachNutritionPlanState={extras.coachNutritionPlanState}
       goal={goal}
       variant="full"
       layout="detail"

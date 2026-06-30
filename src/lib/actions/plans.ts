@@ -75,39 +75,6 @@ export async function saveWorkoutDay(
   return { success: true, dayId: targetDayId };
 }
 
-export async function assignWorkoutPlan(clientId: string, planId: string, requestId?: string) {
-  const supabase = await createClient();
-
-  await supabase
-    .from("workout_assignments")
-    .update({ active: false })
-    .eq("client_id", clientId);
-
-  const { error } = await supabase.from("workout_assignments").insert({
-    client_id: clientId,
-    plan_id: planId,
-    active: true,
-  });
-
-  if (error) return { error: error.message };
-
-  if (requestId) {
-    await supabase.from("plan_requests").update({ status: "completed" }).eq("id", requestId);
-  }
-
-  await supabase.rpc("notify_user", {
-    p_user_id: clientId,
-    p_type: "plan_assigned",
-    p_title: "Your workout plan is ready",
-    p_body: "Your coach has assigned your personalized workout plan.",
-    p_metadata: { plan_id: planId, type: "workout" },
-  });
-
-  revalidatePath("/admin");
-  revalidatePath("/dashboard");
-  return { success: true };
-}
-
 export async function createNutritionPlan(data: {
   title: string;
   description?: string;
@@ -205,39 +172,6 @@ export async function deleteMeal(mealId: string, planId: string) {
   revalidatePath(`/dashboard/nutrition/${planId}/edit`);
   revalidatePath("/dashboard/nutrition");
   revalidatePath("/dashboard");
-}
-
-export async function assignNutritionPlan(clientId: string, planId: string, requestId?: string) {
-  const supabase = await createClient();
-
-  await supabase
-    .from("nutrition_assignments")
-    .update({ active: false })
-    .eq("client_id", clientId);
-
-  const { error } = await supabase.from("nutrition_assignments").insert({
-    client_id: clientId,
-    plan_id: planId,
-    active: true,
-  });
-
-  if (error) return { error: error.message };
-
-  if (requestId) {
-    await supabase.from("plan_requests").update({ status: "completed" }).eq("id", requestId);
-  }
-
-  await supabase.rpc("notify_user", {
-    p_user_id: clientId,
-    p_type: "plan_assigned",
-    p_title: "Your nutrition plan is ready",
-    p_body: "Your coach has assigned your personalized diet plan.",
-    p_metadata: { plan_id: planId, type: "diet" },
-  });
-
-  revalidatePath("/admin");
-  revalidatePath("/dashboard");
-  return { success: true };
 }
 
 export async function getWorkoutPlans() {

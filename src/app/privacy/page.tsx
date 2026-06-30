@@ -57,9 +57,9 @@ export default function PrivacyPage() {
         <h2>3. How we use data</h2>
         <ul>
           <li>Provide and personalize the RUTINA experience.</li>
-          <li>Process subscriptions and custom plan orders.</li>
+          <li>Process subscriptions.</li>
           <li>Generate AI meal suggestions, reports, and recommendations.</li>
-          <li>Deliver coach-built custom plans and live coaching access.</li>
+          <li>Deliver live coaching access and in-app features.</li>
           <li>Send service-related notifications (e.g. plan delivered).</li>
           <li>Improve security, fix bugs, and analyze aggregate usage.</li>
         </ul>

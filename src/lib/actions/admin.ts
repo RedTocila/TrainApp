@@ -7,5 +7,5 @@ import { markAllRead as markAllReadAction } from "@/lib/actions/notifications";
 export async function markAllReadForm() {
   const profile = await requireAdmin();
   await markAllReadAction(profile.id);
-  revalidatePath("/admin/requests");
+  revalidatePath("/admin");
 }

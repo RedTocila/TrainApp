@@ -19,7 +19,7 @@ export function LiveHubPage({
   challenges: Challenge[];
   profileGender?: string | null;
 }) {
-  const [tab, setTab] = useState<LiveTab>("classes");
+  const [tab, setTab] = useState<LiveTab>("challenges");
 
   const liveChallengeCount = useMemo(
     () => challenges.filter((c) => getChallengeStatus(c) === "live").length,
@@ -34,21 +34,6 @@ export function LiveHubPage({
           role="tablist"
           aria-label="Live sections"
         >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "classes"}
-            onClick={() => setTab("classes")}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
-              tab === "classes"
-                ? "bg-primary/20 text-primary shadow-sm"
-                : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"
-            )}
-          >
-            <Video className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span>Live Classes</span>
-          </button>
           <button
             type="button"
             role="tab"
@@ -70,13 +55,26 @@ export function LiveHubPage({
               </span>
             )}
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "classes"}
+            onClick={() => setTab("classes")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
+              tab === "classes"
+                ? "bg-primary/20 text-primary shadow-sm"
+                : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"
+            )}
+          >
+            <Video className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span>Live Classes</span>
+          </button>
         </nav>
       </header>
 
       <div role="tabpanel">
-        {tab === "classes" ? (
-          <ClassesCatalog classes={classes} />
-        ) : (
+        {tab === "challenges" ? (
           <div className="space-y-4">
             {liveChallengeCount > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
@@ -86,6 +84,8 @@ export function LiveHubPage({
             )}
             <ChallengesCatalog challenges={challenges} profileGender={profileGender} />
           </div>
+        ) : (
+          <ClassesCatalog classes={classes} />
         )}
       </div>
     </div>

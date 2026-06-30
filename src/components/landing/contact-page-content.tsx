@@ -104,7 +104,7 @@ export function ContactPageContent() {
             <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
               <li>Account & login issues</li>
               <li>Subscription & billing</li>
-              <li>Custom workout / nutrition plans</li>
+              <li>Workout & nutrition tools</li>
               <li>AI features & live coaching</li>
             </ul>
           </div>

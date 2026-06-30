@@ -16,7 +16,7 @@ export default function ContactPage() {
   return (
     <LegalPageShell
       title="Contact"
-      description={`Questions about ${PLATFORM_NAME}, billing, or custom plans? We're here to help.`}
+      description={`Questions about ${PLATFORM_NAME} or billing? We're here to help.`}
     >
       <ContactPageContent />
     </LegalPageShell>

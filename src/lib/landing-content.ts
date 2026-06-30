@@ -137,8 +137,8 @@ export const LANDING_FEATURES: LandingFeature[] = [
   },
   {
     icon: Target,
-    title: "Custom plans",
-    tagline: "Coach-built, calendar-ready",
+    title: "Your plans",
+    tagline: "Build yourself or use AI",
     accent: "from-rose-500/20 to-rose-500/5",
   },
   {
@@ -201,7 +201,7 @@ export const LANDING_FOUNDER_BIO: LandingFounderBio = {
   paragraphs: [
     "I'm not selling a fantasy — I went through the same grind: tracking meals, showing up when motivation was gone, and learning what actually moves the needle.",
     "That two-month stretch in the photos is real. Consistent training, honest nutrition logging, and habits stacked day by day. RUTINA is the system I wish I had back then — now it's what I use with every client.",
-    "When you train here, you're not talking to a faceless app. I review custom plans, run live sessions, and built Coach Alex to keep you accountable between check-ins.",
+    "When you train here, you're not talking to a faceless app. I run live sessions and built Coach Alex to keep you accountable between check-ins.",
   ],
   kgLost: 12,
   months: 2,
@@ -212,7 +212,7 @@ export const LANDING_HIGHLIGHTS = [
   { icon: Bot, label: "AI meal logging" },
   { icon: LineChart, label: "Macro tracking" },
   { icon: Video, label: "Live sessions" },
-  { icon: Target, label: "Custom plans" },
+  { icon: Target, label: "Your plans" },
 ] as const;
 
 export const LANDING_STATS = [
@@ -317,9 +317,9 @@ export const LANDING_REVIEWS: LandingReview[] = [
   },
   {
     name: "Sara L.",
-    context: "Custom nutrition plan",
+    context: "AI nutrition plan",
     quote:
-      "Got a coach-built meal plan dropped straight into my calendar. Finally eating for my goal, not vibes.",
+      "Built a meal plan with AI and dropped it on my calendar. Finally eating for my goal, not vibes.",
     rating: 5,
   },
   {

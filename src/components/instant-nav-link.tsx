@@ -13,6 +13,7 @@ type InstantNavLinkProps = Omit<
   tapSlop?: number;
   pressToNavigate?: boolean;
   onNavigateStart?: (href: string) => void;
+  exactMatch?: boolean;
 };
 
 export function InstantNavLink({
@@ -22,6 +23,7 @@ export function InstantNavLink({
   tapSlop,
   pressToNavigate,
   onNavigateStart,
+  exactMatch,
   ...props
 }: InstantNavLinkProps) {
   const {
@@ -29,7 +31,7 @@ export function InstantNavLink({
     handlePointerUp,
     handlePointerCancel,
     handleClick,
-  } = useInstantNavigate(href, { tapSlop, pressToNavigate, onNavigateStart });
+  } = useInstantNavigate(href, { tapSlop, pressToNavigate, onNavigateStart, exactMatch });
 
   return (
     <Link

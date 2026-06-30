@@ -1,6 +1,8 @@
 import { requireAdmin } from "@/lib/actions/auth";
 import { createClass } from "@/lib/actions/classes";
 import { CLASS_CATEGORIES } from "@/lib/class-utils";
+import { AdminBackLink } from "@/components/admin-back-link";
+import { ClassCoverImageField } from "@/components/class-cover-image-field";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +16,7 @@ export default async function NewClassPage() {
   return (
     <PageTransition>
       <div className="mx-auto max-w-3xl space-y-6">
+        <AdminBackLink href="/admin/classes" label="Back to classes" />
         <div>
           <h1 className="text-2xl font-black">New live class</h1>
           <p className="text-sm text-muted-foreground">
@@ -26,7 +29,7 @@ export default async function NewClassPage() {
             <CardTitle>Class details</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={createClass} className="space-y-4">
+            <form action={createClass} encType="multipart/form-data" className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input id="title" name="title" required placeholder="Full-body strength live" />
@@ -86,10 +89,7 @@ export default async function NewClassPage() {
                   placeholder="https://youtube.com/watch?v=..."
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="cover_image">Cover image URL (optional)</Label>
-                <Input id="cover_image" name="cover_image" placeholder="https://..." />
-              </div>
+              <ClassCoverImageField />
               <div className="space-y-2">
                 <Label htmlFor="description">Description (Markdown)</Label>
                 <Textarea
