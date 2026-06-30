@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { Check, ChevronDown, Loader2, PenLine, Play, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Loader2, PenLine, Sparkles } from "lucide-react";
 import {
   applyAiWorkoutDayToDateAction,
   generateAiWorkoutDayAction,
@@ -18,8 +18,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
-import { ExerciseVideoDialog } from "@/components/exercise-video-dialog";
-import { isValidYoutubeUrl } from "@/lib/youtube";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
+import { resolveProfileGender } from "@/lib/exercise-gif";
 
 export function AddWorkoutToDayAiPanel({
   dateKey,
@@ -41,9 +41,7 @@ export function AddWorkoutToDayAiPanel({
   const [exercisesOpen, setExercisesOpen] = useState(true);
   const [showEditor, setShowEditor] = useState(true);
   const [isPending, startTransition] = useTransition();
-  const [videoPreview, setVideoPreview] = useState<{ title: string; videoUrl: string } | null>(
-    null
-  );
+  const exerciseGender = resolveProfileGender(profile?.gender);
 
   useEffect(() => {
     setProfileLoading(true);
@@ -181,24 +179,22 @@ export function AddWorkoutToDayAiPanel({
               {workout.exercises.map((ex) => (
                 <li
                   key={ex.name}
-                  className="rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
+                  className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
                 >
+                  <ExerciseGifThumbnail
+                    name={ex.name}
+                    imageUrl={ex.image_url}
+                    videoUrl={ex.video_url}
+                    gender={exerciseGender}
+                    size="sm"
+                    expandable
+                  />
+                  <div className="min-w-0 flex-1">
                   <p className="font-medium">{ex.name}</p>
                   <p className="text-muted-foreground">
                     {ex.sets} sets × {ex.reps} · {ex.rest_seconds}s rest
                   </p>
-                  {ex.video_url && isValidYoutubeUrl(ex.video_url) && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setVideoPreview({ title: ex.name, videoUrl: ex.video_url! })
-                      }
-                      className="mt-1 inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                    >
-                      <Play className="h-3 w-3" />
-                      Watch demo
-                    </button>
-                  )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -233,13 +229,6 @@ export function AddWorkoutToDayAiPanel({
       ) : null}
 
       {!showEditor && error ? <p className="text-sm text-red-400">{error}</p> : null}
-
-      <ExerciseVideoDialog
-        open={videoPreview !== null}
-        onClose={() => setVideoPreview(null)}
-        videoUrl={videoPreview?.videoUrl ?? ""}
-        title={videoPreview?.title ?? "Exercise demo"}
-      />
     </div>
   );
 }

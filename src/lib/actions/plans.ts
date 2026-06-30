@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { enrichExerciseWithGif } from "@/lib/exercise-gif";
 import type { MealType } from "@/lib/types";
 
 export async function createWorkoutPlan(title: string, description?: string) {
@@ -51,8 +52,9 @@ export async function saveWorkoutDay(
   }
 
   if (exercises.length > 0) {
+    const enriched = exercises.map((ex) => enrichExerciseWithGif(ex));
     const { error } = await supabase.from("exercises").insert(
-      exercises.map((ex, i) => ({
+      enriched.map((ex, i) => ({
         day_id: targetDayId!,
         name: ex.name,
         sets: ex.sets,

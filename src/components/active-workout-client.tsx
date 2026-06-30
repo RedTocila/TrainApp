@@ -22,7 +22,9 @@ import type {
   WorkoutSessionExercise,
   WorkoutSessionSet,
 } from "@/lib/types";
-import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
+import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
+import { resolveExerciseGifUrl, resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
@@ -212,12 +214,14 @@ function SessionExerciseCard({
   onSetsChange,
   onSaveError,
   readOnly = false,
+  gender,
 }: {
   exercise: WorkoutSessionExercise;
   history: ExerciseHistoryEntry | null;
   onSetsChange: (sets: WorkoutSessionSet[]) => void;
   onSaveError?: (message: string) => void;
   readOnly?: boolean;
+  gender?: ExerciseGender | null;
 }) {
   const platform = usePlatformCopy();
   const units = useBodyUnits();
@@ -229,7 +233,11 @@ function SessionExerciseCard({
     platform.workout.lastSets,
     units.unitSystem
   );
-  const hasVideo = !!exercise.video_url;
+  const hasDemo = !!resolveExerciseGifUrl({
+    name: exercise.name,
+    imageUrl: exercise.image_url,
+    gender,
+  }) || !!exercise.video_url;
   const sets = exercise.sets ?? [];
 
   const parseRepsField = (rawValue: string) =>
@@ -308,8 +316,17 @@ function SessionExerciseCard({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 flex-1 gap-3">
+            <ExerciseGifThumbnail
+              name={exercise.name}
+              imageUrl={exercise.image_url}
+              videoUrl={exercise.video_url}
+              gender={gender}
+              size="lg"
+              expandable
+            />
+            <div className="min-w-0">
             <CardTitle className="text-base">{exercise.name}</CardTitle>
             {exercise.notes && (
               <p className="mt-1 text-sm text-muted-foreground">{exercise.notes}</p>
@@ -317,9 +334,10 @@ function SessionExerciseCard({
             {historyLabel && (
               <p className="mt-1.5 text-xs font-medium text-primary">{historyLabel}</p>
             )}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {hasVideo && (
+            {hasDemo && (
               <Button
                 type="button"
                 variant="outline"
@@ -338,9 +356,14 @@ function SessionExerciseCard({
             </Badge>
           </div>
         </div>
-        {showVideo && hasVideo && (
+        {showVideo && hasDemo && (
           <div className="mt-3">
-            <ExerciseVideoPlayer videoUrl={exercise.video_url} title={exercise.name} />
+            <ExerciseDemoPlayer
+              name={exercise.name}
+              imageUrl={exercise.image_url}
+              videoUrl={exercise.video_url}
+              gender={gender}
+            />
           </div>
         )}
       </CardHeader>
@@ -421,10 +444,12 @@ export function ActiveWorkoutClient({
   session,
   exercises: initialExercises,
   histories: initialHistories,
+  gender,
 }: {
   session: WorkoutSession;
   exercises: WorkoutSessionExercise[];
   histories?: Record<string, ExerciseHistoryEntry | null>;
+  gender?: string | null;
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
@@ -448,6 +473,7 @@ export function ActiveWorkoutClient({
     useSarcasticConfirm();
   const isStarted = session.started_at != null;
   const timerAnchorMs = useWorkoutTimerAnchor(session.id, session.started_at);
+  const exerciseGender = resolveProfileGender(gender);
 
   useEffect(() => {
     setExercises(initialExercises);
@@ -654,6 +680,7 @@ export function ActiveWorkoutClient({
                 onSetsChange={(sets) => patchExerciseSets(exercise.id, sets)}
                 onSaveError={setError}
                 readOnly={!isStarted}
+                gender={exerciseGender}
               />
             );
           })

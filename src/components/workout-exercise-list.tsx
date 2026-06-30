@@ -1,15 +1,17 @@
 "use client";
 
-import { Dumbbell } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { dashboard, DashboardSectionHeading } from "@/components/dashboard-ui";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import type { ExerciseGender } from "@/lib/exercise-gif";
 
 export function WorkoutExerciseList({
   exercises,
   className,
   variant = "default",
+  gender,
 }: {
   exercises: {
     id: string;
@@ -17,9 +19,11 @@ export function WorkoutExerciseList({
     sets: number;
     reps: string;
     notes: string | null;
+    image_url?: string | null;
   }[];
   className?: string;
   variant?: "default" | "dropdown";
+  gender?: ExerciseGender | string | null;
 }) {
   const platform = usePlatformCopy();
 
@@ -33,8 +37,15 @@ export function WorkoutExerciseList({
         {exercises.map((exercise) => (
           <li
             key={exercise.id}
-            className="flex items-start justify-between gap-2 py-2.5 text-sm"
+            className="flex items-start gap-3 py-2.5 text-sm"
           >
+            <ExerciseGifThumbnail
+              name={exercise.name}
+              imageUrl={exercise.image_url}
+              gender={gender}
+              size="sm"
+              expandable
+            />
             <div className="min-w-0 flex-1">
               <p className="font-semibold leading-snug">{exercise.name}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
@@ -66,9 +77,13 @@ export function WorkoutExerciseList({
       <ul className="space-y-2">
         {exercises.map((exercise, index) => (
           <li key={exercise.id} className={cn(dashboard.listRow, "items-start py-3")}>
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-              <Dumbbell className="h-5 w-5 text-primary" />
-            </div>
+            <ExerciseGifThumbnail
+              name={exercise.name}
+              imageUrl={exercise.image_url}
+              gender={gender}
+              size="md"
+              expandable
+            />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-semibold leading-snug">{exercise.name}</p>

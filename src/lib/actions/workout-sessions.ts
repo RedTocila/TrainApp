@@ -148,7 +148,7 @@ async function mapSessionExercises(
   if (planExerciseIds.length > 0) {
     const { data: planExercises } = await admin
       .from("exercises")
-      .select("id, video_url, rest_seconds")
+      .select("id, video_url, image_url, rest_seconds")
       .in("id", planExerciseIds);
 
     const metaById = new Map(
@@ -156,6 +156,7 @@ async function mapSessionExercises(
         ex.id,
         {
           video_url: ex.video_url as string | null,
+          image_url: ex.image_url as string | null,
           rest_seconds: ex.rest_seconds as number | null,
         },
       ])
@@ -165,6 +166,7 @@ async function mapSessionExercises(
       if (ex.exercise_id) {
         const meta = metaById.get(ex.exercise_id);
         ex.video_url = meta?.video_url ?? null;
+        ex.image_url = meta?.image_url ?? null;
         ex.rest_seconds = meta?.rest_seconds ?? null;
       }
     }

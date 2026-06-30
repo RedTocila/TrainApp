@@ -12,6 +12,21 @@ const nextConfig: NextConfig = {
         hostname: "**.supabase.co",
         pathname: "/storage/v1/object/**",
       },
+      {
+        protocol: "https",
+        hostname: "static.exercisedb.dev",
+        pathname: "/media/**",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.exercisedb.dev",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "assets.exercisedb.dev",
+        pathname: "/media/**",
+      },
     ],
   },
   experimental: {

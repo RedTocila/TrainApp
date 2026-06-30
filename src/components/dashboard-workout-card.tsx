@@ -24,6 +24,7 @@ import {
   type CompletedWorkoutResults,
 } from "@/lib/actions/workout-sessions";
 import { WorkoutResultsDropdown } from "@/components/workout-results-dropdown";
+import { WorkoutExerciseList } from "@/components/workout-exercise-list";
 import { WorkoutMuscleMap } from "@/components/workout-muscle-map";
 import { formatDateKey, cn } from "@/lib/utils";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
@@ -690,10 +691,17 @@ export function DashboardWorkoutCard({
               dayTitle={displayWorkout.dayTitle}
               gender={gender}
             />
+            {!showCompletedState && displayWorkout.exercises.length > 0 ? (
+              <WorkoutExerciseList
+                exercises={displayWorkout.exercises}
+                gender={gender}
+                className="mt-2"
+              />
+            ) : null}
             {showCompletedState ? (
               <div>
                 {workoutResults ? (
-                  <WorkoutResultsDropdown results={workoutResults} />
+                  <WorkoutResultsDropdown results={workoutResults} gender={gender} />
                 ) : (
                   <div
                     className="flex items-center gap-2 rounded-2xl border border-border/60 bg-card/80 px-3 py-3 text-sm text-muted-foreground sm:px-4"

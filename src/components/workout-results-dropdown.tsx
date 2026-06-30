@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, ChevronDown, ClipboardList, Clock, Dumbbell } from "lucide-react";
 import { usePlatformCopy, useBodyUnits } from "@/components/locale-provider";
 import { dashboard, DashboardSectionHeading } from "@/components/dashboard-ui";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import type { CompletedWorkoutResults } from "@/lib/actions/workout-sessions";
 import {
   formatLoggedSetLine,
@@ -35,9 +36,11 @@ function WorkoutStatCard({
 export function WorkoutResultsContent({
   results,
   variant,
+  gender,
 }: {
   results: CompletedWorkoutResults;
   variant: "dropdown" | "open";
+  gender?: string | null;
 }) {
   const platform = usePlatformCopy();
   const units = useBodyUnits();
@@ -99,9 +102,12 @@ export function WorkoutResultsContent({
               return (
                 <li key={exercise.id} className={cn(dashboard.tile, "overflow-hidden")}>
                   <div className="flex items-center gap-3 border-b border-border/50 px-4 py-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <Dumbbell className="h-4 w-4 text-primary" />
-                    </div>
+                    <ExerciseGifThumbnail
+                      name={exercise.name}
+                      gender={gender}
+                      size="sm"
+                      expandable
+                    />
                     <p className="min-w-0 flex-1 text-sm font-semibold">{exercise.name}</p>
                     <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
                       {loggedSets.length}/{exercise.sets.length}
@@ -181,7 +187,14 @@ export function WorkoutResultsContent({
       {hasLoggedSets ? (
         <ul className="space-y-2">
           {results.exercises.map((exercise) => (
-            <li key={exercise.id} className={cn(dashboard.listRow, "flex-col items-start gap-2 py-3")}>
+            <li key={exercise.id} className={cn(dashboard.listRow, "items-start gap-3 py-3")}>
+              <ExerciseGifThumbnail
+                name={exercise.name}
+                gender={gender}
+                size="sm"
+                expandable
+              />
+              <div className="min-w-0 flex-1 space-y-2">
               <p className="text-sm font-semibold">{exercise.name}</p>
               <ul className="w-full space-y-1">
                 {exercise.sets.map((set) => {
@@ -206,6 +219,7 @@ export function WorkoutResultsContent({
                   );
                 })}
               </ul>
+              </div>
             </li>
           ))}
         </ul>
@@ -219,9 +233,11 @@ export function WorkoutResultsContent({
 export function WorkoutResultsDropdown({
   results,
   variant = "dropdown",
+  gender,
 }: {
   results: CompletedWorkoutResults;
   variant?: "dropdown" | "open";
+  gender?: string | null;
 }) {
   const platform = usePlatformCopy();
   const [open, setOpen] = useState(variant === "open");
@@ -241,7 +257,7 @@ export function WorkoutResultsDropdown({
             </span>
           ) : null}
         </div>
-        <WorkoutResultsContent results={results} variant="open" />
+        <WorkoutResultsContent results={results} variant="open" gender={gender} />
       </div>
     );
   }
@@ -276,7 +292,7 @@ export function WorkoutResultsDropdown({
 
       {open ? (
         <div className="space-y-3 border-t border-green-500/15 px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
-          <WorkoutResultsContent results={results} variant="dropdown" />
+          <WorkoutResultsContent results={results} variant="dropdown" gender={gender} />
         </div>
       ) : null}
     </div>

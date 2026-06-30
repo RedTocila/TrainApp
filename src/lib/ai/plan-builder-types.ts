@@ -4,6 +4,7 @@ export interface AiWorkoutExercise {
   reps: string;
   rest_seconds: number;
   notes?: string;
+  image_url?: string;
   video_url?: string;
 }
 

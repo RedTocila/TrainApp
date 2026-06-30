@@ -3,24 +3,29 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Check, Dumbbell, Loader2, Salad } from "lucide-react";
+import { Check, ChevronDown, Dumbbell, Loader2, Salad } from "lucide-react";
 import { applyChatPlanPreviewAction } from "@/lib/actions/ai-plan-builder";
 import type { ChatPlanPreview } from "@/lib/ai/coach-chat-tools";
 import { slotLabel } from "@/lib/meal-slots";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function ChatPlanPreviewCard({
   preview,
   applied,
   onApplied,
+  gender,
 }: {
   preview: ChatPlanPreview;
   applied?: boolean;
   onApplied?: () => void;
+  gender?: string | null;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [openDay, setOpenDay] = useState(0);
   const isWorkout = preview.type === "workout";
 
   const handleApply = () => {
@@ -54,15 +59,54 @@ export function ChatPlanPreviewCard({
           )}
 
           {isWorkout ? (
-            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+            <div className="mt-2 space-y-1">
               {preview.plan.days.map((day, i) => (
-                <li key={i}>
-                  <span className="font-medium text-foreground">{day.title}</span>
-                  {" — "}
-                  {day.exercises.length} exercise{day.exercises.length === 1 ? "" : "s"}
-                </li>
+                <div key={i} className="overflow-hidden rounded-lg border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setOpenDay((current) => (current === i ? -1 : i))}
+                    className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left text-xs"
+                  >
+                    <span>
+                      <span className="font-medium text-foreground">{day.title}</span>
+                      {" — "}
+                      {day.exercises.length} exercise{day.exercises.length === 1 ? "" : "s"}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+                        openDay === i && "rotate-180"
+                      )}
+                    />
+                  </button>
+                  {openDay === i && day.exercises.length > 0 ? (
+                    <ul className="space-y-1.5 border-t border-border/60 px-2.5 py-2">
+                      {day.exercises.map((ex) => (
+                        <li
+                          key={`${day.title}-${ex.name}`}
+                          className="flex items-start gap-2 rounded-md bg-secondary/30 px-2 py-1.5"
+                        >
+                          <ExerciseGifThumbnail
+                            name={ex.name}
+                            imageUrl={ex.image_url}
+                            videoUrl={ex.video_url}
+                            gender={gender}
+                            size="sm"
+                            expandable
+                          />
+                          <div className="min-w-0 flex-1 text-xs">
+                            <p className="font-medium text-foreground">{ex.name}</p>
+                            <p className="text-muted-foreground">
+                              {ex.sets} × {ex.reps}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               ))}
-            </ul>
+            </div>
           ) : (
             <div className="mt-2 space-y-2">
               <div className="flex flex-wrap gap-1.5 text-[10px]">

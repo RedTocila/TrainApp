@@ -2,9 +2,18 @@
 
 import { Badge } from "@/components/ui/badge";
 import type { Exercise } from "@/lib/types";
-import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
+import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
+import { resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
 
-export function ExerciseCard({ exercise }: { exercise: Exercise }) {
+export function ExerciseCard({
+  exercise,
+  gender,
+}: {
+  exercise: Exercise;
+  gender?: ExerciseGender | string | null;
+}) {
+  const resolvedGender = resolveProfileGender(gender);
+
   return (
     <div className="space-y-3 rounded-lg border border-border bg-secondary/50 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -20,7 +29,12 @@ export function ExerciseCard({ exercise }: { exercise: Exercise }) {
           <Badge variant="outline">{exercise.rest_seconds}s rest</Badge>
         </div>
       </div>
-      <ExerciseVideoPlayer videoUrl={exercise.video_url} title={exercise.name} />
+      <ExerciseDemoPlayer
+        name={exercise.name}
+        imageUrl={exercise.image_url}
+        videoUrl={exercise.video_url}
+        gender={resolvedGender}
+      />
     </div>
   );
 }

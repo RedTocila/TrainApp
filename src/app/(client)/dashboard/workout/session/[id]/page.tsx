@@ -3,6 +3,7 @@ import { requireClient } from "@/lib/actions/auth";
 import {
   getWorkoutSession,
 } from "@/lib/actions/workout-sessions";
+import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import { ActiveWorkoutClient } from "@/components/active-workout-client";
 import { PageTransition } from "@/components/page-transition";
 
@@ -13,7 +14,10 @@ export default async function WorkoutSessionPage({
 }) {
   await requireClient();
   const { id } = await params;
-  const data = await getWorkoutSession(id);
+  const [data, profile] = await Promise.all([
+    getWorkoutSession(id),
+    getSubscriptionProfile(),
+  ]);
 
   if (!data) notFound();
 
@@ -32,6 +36,7 @@ export default async function WorkoutSessionPage({
       <ActiveWorkoutClient
         session={session}
         exercises={exercises}
+        gender={profile?.gender}
       />
     </PageTransition>
   );

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Check, ChevronDown, Dumbbell, Loader2, PenLine, Play, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Dumbbell, Loader2, PenLine, Sparkles } from "lucide-react";
 import {
   applyAiWorkoutPlanAction,
   generateAiWorkoutPlanAction,
@@ -17,8 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
-import { ExerciseVideoDialog } from "@/components/exercise-video-dialog";
-import { isValidYoutubeUrl } from "@/lib/youtube";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
+import { resolveProfileGender } from "@/lib/exercise-gif";
 
 export function AiWorkoutPlanBuilder({
   profile,
@@ -35,9 +35,7 @@ export function AiWorkoutPlanBuilder({
   const [openDay, setOpenDay] = useState(0);
   const [showEditor, setShowEditor] = useState(true);
   const [isPending, startTransition] = useTransition();
-  const [videoPreview, setVideoPreview] = useState<{ title: string; videoUrl: string } | null>(
-    null
-  );
+  const exerciseGender = resolveProfileGender(profile.gender);
 
   const handleGenerate = () => {
     setError(null);
@@ -167,8 +165,17 @@ export function AiWorkoutPlanBuilder({
                       {day.exercises.map((ex) => (
                         <li
                           key={`${day.title}-${ex.name}`}
-                          className="rounded-lg bg-secondary/30 px-3 py-2 text-sm"
+                          className="flex items-start gap-3 rounded-lg bg-secondary/30 px-3 py-2 text-sm"
                         >
+                          <ExerciseGifThumbnail
+                            name={ex.name}
+                            imageUrl={ex.image_url}
+                            videoUrl={ex.video_url}
+                            gender={exerciseGender}
+                            size="lg"
+                            expandable
+                          />
+                          <div className="min-w-0 flex-1">
                           <p className="font-medium">{ex.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {ex.sets} sets × {ex.reps} · {ex.rest_seconds}s rest
@@ -176,18 +183,7 @@ export function AiWorkoutPlanBuilder({
                           {ex.notes && (
                             <p className="mt-1 text-xs text-muted-foreground">{ex.notes}</p>
                           )}
-                          {ex.video_url && isValidYoutubeUrl(ex.video_url) && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setVideoPreview({ title: ex.name, videoUrl: ex.video_url! })
-                              }
-                              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                            >
-                              <Play className="h-3 w-3" />
-                              Watch demo
-                            </button>
-                          )}
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -243,13 +239,6 @@ export function AiWorkoutPlanBuilder({
           </CardContent>
         </Card>
       ) : null}
-
-      <ExerciseVideoDialog
-        open={videoPreview !== null}
-        onClose={() => setVideoPreview(null)}
-        videoUrl={videoPreview?.videoUrl ?? ""}
-        title={videoPreview?.title ?? "Exercise demo"}
-      />
     </div>
   );
 }

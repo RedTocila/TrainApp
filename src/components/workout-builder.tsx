@@ -21,7 +21,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExerciseVideoDialog } from "@/components/exercise-video-dialog";
+import { ExerciseDemoDialog } from "@/components/exercise-demo-dialog";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
+import { resolveProfileGender } from "@/lib/exercise-gif";
 
 interface Exercise {
   name: string;
@@ -30,6 +32,7 @@ interface Exercise {
   rest_seconds: number;
   notes?: string;
   video_url?: string;
+  image_url?: string | null;
 }
 
 interface Day {
@@ -52,6 +55,7 @@ export function WorkoutBuilder({
   stayOnPage = false,
   onSaved,
   folderId,
+  gender,
 }: {
   planId?: string;
   initialTitle?: string;
@@ -66,8 +70,10 @@ export function WorkoutBuilder({
   stayOnPage?: boolean;
   onSaved?: () => void;
   folderId?: string;
+  gender?: string | null;
 }) {
   const router = useRouter();
+  const exerciseGender = resolveProfileGender(gender);
   const [isPending, startTransition] = useTransition();
   const [planId, setPlanId] = useState(initialPlanId);
   const [title, setTitle] = useState(initialTitle);
@@ -94,14 +100,17 @@ export function WorkoutBuilder({
             rest_seconds: e.rest_seconds,
             notes: e.notes ?? undefined,
             video_url: e.video_url ?? undefined,
+            image_url: e.image_url ?? undefined,
           })),
           dayId: d.id,
         }))
       : [{ title: "Day 1", exercises: [{ name: "", sets: 3, reps: "10", rest_seconds: 60 }] }]
   );
-  const [videoPreview, setVideoPreview] = useState<{ title: string; videoUrl: string } | null>(
-    null
-  );
+  const [demoPreview, setDemoPreview] = useState<{
+    title: string;
+    imageUrl?: string | null;
+    videoUrl?: string | null;
+  } | null>(null);
 
   const addDay = () => {
     setDays([
@@ -188,6 +197,7 @@ export function WorkoutBuilder({
             .filter((e) => e.name.trim())
             .map((e) => ({
               ...e,
+              image_url: e.image_url ?? undefined,
               video_url: e.video_url?.trim() || undefined,
             })),
           day.dayId
@@ -286,7 +296,19 @@ export function WorkoutBuilder({
           <CardContent className="space-y-3">
             {day.exercises.map((ex, exIdx) => (
               <div key={exIdx} className="space-y-2 rounded-lg border border-border p-3">
-                <div className="grid gap-2 sm:grid-cols-5">
+                <div className="flex gap-3">
+                  {ex.name.trim() ? (
+                    <ExerciseGifThumbnail
+                      name={ex.name}
+                      imageUrl={ex.image_url}
+                      videoUrl={ex.video_url}
+                      gender={exerciseGender}
+                      size="lg"
+                      expandable
+                      className="mt-1"
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1 grid gap-2 sm:grid-cols-5">
                   <Input
                     placeholder="Exercise name"
                     value={ex.name}
@@ -323,12 +345,17 @@ export function WorkoutBuilder({
                     </Button>
                   </div>
                 </div>
+                </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {ex.video_url && isValidYoutubeUrl(ex.video_url) && (
                     <button
                       type="button"
                       onClick={() =>
-                        setVideoPreview({ title: ex.name || "Exercise demo", videoUrl: ex.video_url! })
+                        setDemoPreview({
+                          title: ex.name || "Exercise demo",
+                          imageUrl: ex.image_url,
+                          videoUrl: ex.video_url,
+                        })
                       }
                       className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
                     >
@@ -405,11 +432,13 @@ export function WorkoutBuilder({
         </Button>
       </div>
 
-      <ExerciseVideoDialog
-        open={videoPreview !== null}
-        onClose={() => setVideoPreview(null)}
-        videoUrl={videoPreview?.videoUrl ?? ""}
-        title={videoPreview?.title ?? "Exercise demo"}
+      <ExerciseDemoDialog
+        open={demoPreview !== null}
+        onClose={() => setDemoPreview(null)}
+        name={demoPreview?.title ?? "Exercise demo"}
+        imageUrl={demoPreview?.imageUrl}
+        videoUrl={demoPreview?.videoUrl}
+        gender={exerciseGender}
       />
     </div>
   );

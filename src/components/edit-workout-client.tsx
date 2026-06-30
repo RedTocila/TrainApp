@@ -76,6 +76,7 @@ export function EditWorkoutClient({
               rest_seconds: e.rest_seconds,
               notes: e.notes ?? undefined,
               video_url: e.video_url ?? undefined,
+              image_url: e.image_url ?? undefined,
             })),
           }))}
           onSaved={handleRefresh}

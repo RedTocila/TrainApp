@@ -7,10 +7,13 @@ import type { PersonalExerciseLibraryItem } from "@/lib/actions/user-workouts";
 import {
   EXERCISE_CATALOG,
   formatCatalogLabel,
+  getCatalogGifUrls,
   searchCatalogExercises,
   type CatalogExercise,
 } from "@/lib/exercise-catalog";
-import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
+import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
+import { ExerciseGifImage } from "@/components/exercise-gif-image";
+import { resolveExerciseGifUrls, resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,8 +24,15 @@ const PAGE_SIZE = 40;
 
 type Tab = "library" | "mine";
 
-function CatalogExerciseCard({ exercise }: { exercise: CatalogExercise }) {
+function CatalogExerciseCard({
+  exercise,
+  gender,
+}: {
+  exercise: CatalogExercise;
+  gender?: ExerciseGender;
+}) {
   const [open, setOpen] = useState(false);
+  const { url: gifUrl, fallbackUrl } = getCatalogGifUrls(exercise, gender);
 
   return (
     <Card className="overflow-hidden">
@@ -31,20 +41,30 @@ function CatalogExerciseCard({ exercise }: { exercise: CatalogExercise }) {
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-start justify-between gap-3 p-4 text-left transition-colors hover:bg-secondary/40"
       >
-        <div className="min-w-0 flex-1 space-y-2">
-          <p className="font-semibold">{exercise.name}</p>
-          <div className="flex flex-wrap gap-1.5">
-            <Badge variant="secondary">{formatCatalogLabel(exercise.category)}</Badge>
-            {exercise.primary_muscles.slice(0, 2).map((muscle) => (
-              <Badge key={muscle} variant="outline">
-                {formatCatalogLabel(muscle)}
-              </Badge>
-            ))}
-            {exercise.video && (
-              <Badge variant="outline" className="text-primary">
-                Video
-              </Badge>
-            )}
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          {gifUrl && (
+            <ExerciseGifImage
+              gifUrl={gifUrl}
+              fallbackUrl={fallbackUrl}
+              alt={`${exercise.name} demonstration`}
+              className="h-20 w-20 shrink-0 rounded-lg border border-border"
+            />
+          )}
+          <div className="min-w-0 flex-1 space-y-2">
+            <p className="font-semibold">{exercise.name}</p>
+            <div className="flex flex-wrap gap-1.5">
+              <Badge variant="secondary">{formatCatalogLabel(exercise.category)}</Badge>
+              {exercise.primary_muscles.slice(0, 2).map((muscle) => (
+                <Badge key={muscle} variant="outline">
+                  {formatCatalogLabel(muscle)}
+                </Badge>
+              ))}
+              {gifUrl && (
+                <Badge variant="outline" className="text-primary">
+                  Demo
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         <ChevronDown
@@ -56,6 +76,12 @@ function CatalogExerciseCard({ exercise }: { exercise: CatalogExercise }) {
       </button>
       {open && (
         <CardContent className="space-y-3 border-t border-border pt-0 pb-4">
+          <ExerciseDemoPlayer
+            name={exercise.name}
+            imageUrl={gifUrl}
+            fallbackImageUrl={fallbackUrl}
+            gender={gender}
+          />
           {exercise.description && (
             <p className="text-sm text-muted-foreground">{exercise.description}</p>
           )}
@@ -72,7 +98,6 @@ function CatalogExerciseCard({ exercise }: { exercise: CatalogExercise }) {
               ))}
             </ol>
           )}
-          <ExerciseVideoPlayer videoUrl={exercise.video} title={exercise.name} />
         </CardContent>
       )}
     </Card>
@@ -82,9 +107,11 @@ function CatalogExerciseCard({ exercise }: { exercise: CatalogExercise }) {
 function MyWorkoutExercises({
   exercises,
   query,
+  gender,
 }: {
   exercises: PersonalExerciseLibraryItem[];
   query: string;
+  gender?: ExerciseGender;
 }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -116,16 +143,32 @@ function MyWorkoutExercises({
 
   return (
     <ul className="space-y-2">
-      {filtered.map((item) => (
+      {filtered.map((item) => {
+        const { url: gifUrl, fallbackUrl } = resolveExerciseGifUrls({
+          name: item.name,
+          gender,
+        });
+
+        return (
         <li key={`${item.planId}-${item.id}`}>
           <Link href={`/dashboard/workout/${item.planId}/edit`}>
             <Card className="transition-colors hover:border-primary/40">
               <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {item.planTitle} · {item.dayTitle}
-                  </p>
+                <div className="flex min-w-0 items-start gap-3">
+                  {gifUrl ? (
+                    <ExerciseGifImage
+                      gifUrl={gifUrl}
+                      fallbackUrl={fallbackUrl}
+                      alt={`${item.name} demonstration`}
+                      className="h-16 w-16 shrink-0 rounded-lg border border-border"
+                    />
+                  ) : null}
+                  <div className="min-w-0">
+                    <p className="font-semibold">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.planTitle} · {item.dayTitle}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {item.sets != null && <Badge variant="secondary">{item.sets} sets</Badge>}
@@ -135,20 +178,24 @@ function MyWorkoutExercises({
             </Card>
           </Link>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }
 
 export function MyExercisesPage({
   initialExercises,
+  gender,
 }: {
   initialExercises: PersonalExerciseLibraryItem[];
+  gender?: string | null;
 }) {
   const [tab, setTab] = useState<Tab>("library");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | undefined>();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const resolvedGender = resolveProfileGender(gender);
 
   const filteredCatalog = useMemo(
     () =>
@@ -192,7 +239,11 @@ export function MyExercisesPage({
       </div>
 
       <Input
-        placeholder={tab === "library" ? "Search 872 exercises…" : "Search your exercises…"}
+        placeholder={
+          tab === "library"
+            ? `Search ${EXERCISE_CATALOG.exercises.length} exercises…`
+            : "Search your exercises…"
+        }
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
@@ -235,11 +286,14 @@ export function MyExercisesPage({
           <p className="text-xs text-muted-foreground">
             {filteredCatalog.length} exercise{filteredCatalog.length === 1 ? "" : "s"}
             {category ? ` in ${formatCatalogLabel(category)}` : ""}
+            {resolvedGender
+              ? ` · ${resolvedGender === "male" ? "Male" : "Female"} demos`
+              : ""}
           </p>
           <ul className="space-y-2">
             {visibleCatalog.map((exercise) => (
-              <li key={exercise.name}>
-                <CatalogExerciseCard exercise={exercise} />
+              <li key={exercise.id}>
+                <CatalogExerciseCard exercise={exercise} gender={resolvedGender} />
               </li>
             ))}
           </ul>
@@ -260,9 +314,12 @@ export function MyExercisesPage({
               Load more ({filteredCatalog.length - visibleCount} remaining)
             </Button>
           )}
+          <p className="text-center text-[11px] text-muted-foreground">
+            {EXERCISE_CATALOG.attribution}
+          </p>
         </div>
       ) : (
-        <MyWorkoutExercises exercises={initialExercises} query={query} />
+        <MyWorkoutExercises exercises={initialExercises} query={query} gender={resolvedGender} />
       )}
     </div>
   );

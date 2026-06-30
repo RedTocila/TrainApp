@@ -153,14 +153,14 @@ export function DashboardWorkoutDetailSection({
         loadingResults ? (
           <WorkoutResultsLoading />
         ) : results ? (
-          <WorkoutResultsDropdown results={results} variant="open" />
+          <WorkoutResultsDropdown results={results} variant="open" gender={gender} />
         ) : (
           <p className={cn(dashboard.empty, "py-5 text-sm")}>
             {platform.workout.noResultsLogged}
           </p>
         )
       ) : workout.exercises.length > 0 ? (
-        <WorkoutExerciseList exercises={workout.exercises} />
+        <WorkoutExerciseList exercises={workout.exercises} gender={gender} />
       ) : null}
     </section>
   );
