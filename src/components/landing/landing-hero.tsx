@@ -1,19 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, Bot, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   GET_STARTED_CTA,
   GET_STARTED_HREF,
+  LANDING_HERO_MARKETING_IMAGE,
   LANDING_HIGHLIGHTS,
 } from "@/lib/landing-content";
-import {
-  MacroBars,
-  ProgressRing,
-  WeekStrip,
-  WeightTrendChart,
-} from "@/components/landing/landing-visuals";
 
 export function LandingHero() {
   return (
@@ -26,9 +22,14 @@ export function LandingHero() {
           </div>
 
           <h1 className="text-4xl font-black leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
-            Train smarter.
-            <span className="block text-primary">See results faster.</span>
+            Real coach.
+            <span className="block text-primary">Real results.</span>
           </h1>
+
+          <p className="mx-auto max-w-xl text-base text-muted-foreground sm:text-lg lg:mx-0">
+            AI Coach that trains you, adapts to you, and gets you results — with
+            workouts, nutrition, and live challenges in one platform.
+          </p>
 
           <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
             {LANDING_HIGHLIGHTS.map(({ icon: Icon, label }) => (
@@ -56,37 +57,32 @@ export function LandingHero() {
           </p>
         </div>
 
-        <div className="relative mx-auto w-full max-w-lg">
-          <div className="premium-card relative overflow-hidden p-5 shadow-2xl shadow-primary/10 sm:p-6">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-violet-500/5" />
-            <div className="relative grid gap-4 sm:grid-cols-2">
-              <div className="space-y-4 sm:col-span-2">
-                <MacroBars className="rounded-xl border border-border bg-secondary/30 p-4" />
-              </div>
-              <div className="rounded-xl border border-border bg-secondary/30 p-4">
-                <WeightTrendChart />
-              </div>
-              <div className="flex items-center justify-center rounded-xl border border-border bg-secondary/30 p-4">
-                <ProgressRing value={78} label="Today" sublabel="Goals hit" />
-              </div>
-              <div className="rounded-xl border border-border bg-secondary/30 p-4 sm:col-span-2">
-                <WeekStrip />
-              </div>
-            </div>
+        <div className="relative mx-auto w-full max-w-xl">
+          <div className="pointer-events-none absolute -inset-6 rounded-[2rem] bg-primary/15 blur-3xl" />
+          <div className="premium-card relative overflow-hidden shadow-2xl shadow-primary/10">
+            <Image
+              src={LANDING_HERO_MARKETING_IMAGE}
+              alt="RUTINA AI Coach — personalized training with real-time coaching and progress tracking"
+              width={1200}
+              height={900}
+              priority
+              sizes="(min-width: 1024px) 560px, 92vw"
+              className="h-auto w-full object-cover"
+            />
           </div>
 
-          <div className="pointer-events-none absolute -left-2 top-3 z-10 flex items-center gap-1.5 rounded-lg border border-border bg-card/95 px-2.5 py-1.5 text-[11px] font-bold shadow-md backdrop-blur-sm sm:-left-3">
+          <div className="pointer-events-none absolute -left-2 top-4 z-10 flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold shadow-md sm:-left-3">
             <Zap className="h-3.5 w-3.5 text-amber-400" />
-            HIIT · 7PM
+            Live challenges
           </div>
 
-          <div className="pointer-events-none absolute -bottom-2 -right-2 z-10 flex items-center gap-2 rounded-lg border border-primary/30 bg-card/95 px-2.5 py-1.5 shadow-md backdrop-blur-sm sm:-right-3">
+          <div className="pointer-events-none absolute -bottom-2 -right-2 z-10 flex items-center gap-2 rounded-lg border border-primary/30 bg-card px-2.5 py-1.5 shadow-md sm:-right-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 text-primary">
               <Bot className="h-3.5 w-3.5" />
             </div>
             <div>
               <p className="text-[9px] text-muted-foreground">AI insight</p>
-              <p className="text-[11px] font-bold">+12g protein</p>
+              <p className="text-[11px] font-bold">Form on point</p>
             </div>
           </div>
         </div>

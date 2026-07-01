@@ -8,8 +8,11 @@ import {
   MessageCircle,
   Package,
   Target,
+  Timer,
+  Trophy,
   UserPlus,
   Video,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -34,6 +37,7 @@ export const GET_STARTED_CTA = "Get Your Custom Program";
 export const GET_STARTED_HREF = "/get-started";
 
 export const LANDING_HERO_IMAGE = "/landing/hero.png";
+export const LANDING_HERO_MARKETING_IMAGE = "/landing/hero-coach.png";
 export const LANDING_HERO_BACKGROUND_IMAGE = "/landing/hero-background.png";
 export const LANDING_BACKGROUND_IMAGE = "/landing/landing-background.png";
 export const LANDING_BACKGROUND_IMAGE_LIGHT = "/landing/landing-background-light.png";
@@ -181,6 +185,47 @@ export const COACH_ALEX_HIGHLIGHTS: CoachAlexHighlight[] = [
       "Snap a meal, ask a question, or get roasted for skipping leg day — 24/7 in your pocket.",
   },
 ];
+
+export interface LandingChallengeType {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  prize: string;
+}
+
+export const LANDING_CHALLENGE_TYPES: LandingChallengeType[] = [
+  {
+    icon: Zap,
+    title: "Flash challenges",
+    description:
+      "Fast 24-hour events like longest plank, wall sit, or max burpees in 10 minutes. Join live on Zoom, compete on camera, and climb the leaderboard before the window closes.",
+    prize: "Win your share of the prize pool — entry fees grow the pot.",
+  },
+  {
+    icon: Timer,
+    title: "Transformation challenges",
+    description:
+      "Longer community runs over weeks or months. Track progress, stay accountable with the group, and push for visible results alongside other members.",
+    prize: "Top performers earn recognition and prize pool rewards.",
+  },
+];
+
+export const LANDING_CHALLENGE_STEPS = [
+  {
+    title: "Pick a challenge",
+    description: "Browse open flash events or long transformation runs in Live.",
+  },
+  {
+    title: "Join & compete",
+    description:
+      "Reserve your spot, pay the entry fee when required, and show up on camera for flash events.",
+  },
+  {
+    title: "Win prizes",
+    description:
+      "Perform your best, rank on the leaderboard, and split the prize pool with other winners.",
+  },
+] as const;
 
 export const LANDING_FOUNDER_IMAGE = "/landing/transformations/transformation-10.png";
 

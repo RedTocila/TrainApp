@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Dumbbell } from "lucide-react";
+import { toExerciseGifProxyUrl } from "@/lib/exercise-gif-proxy";
 import { cn } from "@/lib/utils";
 
 interface ExerciseGifImageProps {
@@ -19,11 +20,13 @@ export function ExerciseGifImage({
   className,
   imgClassName,
 }: ExerciseGifImageProps) {
-  const [src, setSrc] = useState<string | null>(gifUrl?.trim() || null);
+  const [src, setSrc] = useState<string | null>(
+    toExerciseGifProxyUrl(gifUrl) ?? gifUrl?.trim() ?? null
+  );
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    setSrc(gifUrl?.trim() || null);
+    setSrc(toExerciseGifProxyUrl(gifUrl) ?? gifUrl?.trim() ?? null);
     setFailed(false);
   }, [gifUrl, fallbackUrl]);
 
@@ -51,7 +54,7 @@ export function ExerciseGifImage({
         loading="lazy"
         decoding="async"
         onError={() => {
-          const next = fallbackUrl?.trim();
+          const next = toExerciseGifProxyUrl(fallbackUrl) ?? fallbackUrl?.trim();
           if (next && next !== src) {
             setSrc(next);
             return;

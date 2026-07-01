@@ -1,5 +1,6 @@
 import catalog from "@/data/exercise-catalog.json";
 import type { ExerciseGender } from "@/lib/exercise-gif";
+import { toExerciseGifProxyUrl } from "@/lib/exercise-gif-proxy";
 import { EXERCISE_NAME_ALIASES } from "@/lib/exercise-name-aliases";
 
 export interface CatalogExerciseGifs {
@@ -264,7 +265,10 @@ export function getCatalogGifUrls(
       ? exercise.gif_fallback_url
       : null;
 
-  return { url, fallbackUrl };
+  return {
+    url: toExerciseGifProxyUrl(url),
+    fallbackUrl: toExerciseGifProxyUrl(fallbackUrl),
+  };
 }
 
 export function searchCatalogExercises({

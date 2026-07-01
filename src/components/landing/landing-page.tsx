@@ -43,6 +43,14 @@ const LandingCoachAlex = dynamic(
   { loading: () => <LandingSectionSkeleton /> }
 );
 
+const LandingChallenges = dynamic(
+  () =>
+    import("@/components/landing/landing-challenges").then((m) => ({
+      default: m.LandingChallenges,
+    })),
+  { loading: () => <LandingSectionSkeleton /> }
+);
+
 const LandingFounderBio = dynamic(
   () =>
     import("@/components/landing/landing-founder-bio").then((m) => ({
@@ -121,6 +129,7 @@ export function LandingPageClient() {
         <LandingAppPreview />
         <LandingShowcase />
         <LandingCoachAlex />
+        <LandingChallenges />
         <LandingFounderBio />
         <LandingPricing />
         <LandingTransformations />

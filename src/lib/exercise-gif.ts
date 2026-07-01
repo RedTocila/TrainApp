@@ -4,6 +4,7 @@ import {
   getCatalogGifUrls,
   type CatalogExercise,
 } from "@/lib/exercise-catalog";
+import { toExerciseGifProxyUrl } from "@/lib/exercise-gif-proxy";
 
 export type ExerciseGender = "male" | "female";
 
@@ -28,7 +29,7 @@ export function resolveExerciseGifUrl({
   gender?: ExerciseGender | null;
 }): string | null {
   if (imageUrl?.trim()) {
-    return imageUrl.trim();
+    return toExerciseGifProxyUrl(imageUrl.trim()) ?? imageUrl.trim();
   }
 
   const catalog = findCatalogExercise(name);
@@ -51,10 +52,11 @@ export function resolveExerciseGifUrls({
 
   const stored = imageUrl?.trim() || null;
   if (stored) {
+    const proxiedStored = toExerciseGifProxyUrl(stored) ?? stored;
     return {
-      url: stored,
+      url: proxiedStored,
       fallbackUrl:
-        catalogGifs.url && catalogGifs.url !== stored
+        catalogGifs.url && catalogGifs.url !== proxiedStored
           ? catalogGifs.url
           : catalogGifs.fallbackUrl,
     };

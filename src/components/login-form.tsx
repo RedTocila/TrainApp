@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { signIn } from "@/lib/actions/auth";
 import { BrandWordmark } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
@@ -31,14 +32,22 @@ export function LoginForm({ authError }: { authError?: string }) {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="text-center">
+    <div className="w-full max-w-md space-y-4">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to home
+      </Link>
+      <Card className="w-full">
+        <CardHeader className="text-center">
         <CardTitle className="text-2xl font-black">
           <BrandWordmark />
         </CardTitle>
         <CardDescription>Sign in to your account</CardDescription>
-      </CardHeader>
-      <CardContent>
+        </CardHeader>
+        <CardContent>
         <form action={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -66,6 +75,7 @@ export function LoginForm({ authError }: { authError?: string }) {
           </Link>
         </p>
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }

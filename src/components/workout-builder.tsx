@@ -258,7 +258,7 @@ export function WorkoutBuilder({
         const DayIcon = dayStyle.icon;
 
         return (
-        <Card key={dayIdx} className={cn("overflow-hidden border-2", dayStyle.cardBorder)}>
+        <Card key={dayIdx} className={cn("border-2", dayStyle.cardBorder)}>
           <div className={cn("h-1.5 w-full", dayStyle.stripe)} aria-hidden />
           <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-3">
             <span
@@ -283,7 +283,7 @@ export function WorkoutBuilder({
           </CardHeader>
           <CardContent className="space-y-3">
             {day.exercises.map((ex, exIdx) => (
-              <div key={exIdx} className="space-y-2 rounded-lg border border-border p-3">
+              <div key={exIdx} className="relative space-y-2 rounded-lg border border-border p-3">
                 <div className="flex gap-3">
                   {ex.name.trim() ? (
                     <ExerciseGifThumbnail
