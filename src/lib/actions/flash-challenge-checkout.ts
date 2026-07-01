@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { requireClient } from "@/lib/actions/auth";
 import {
   countChallengeParticipants,
-  leaveOtherSeriesChallenges,
 } from "@/lib/challenge-slot-management";
 import { getChallengeEntryFeeCents, isFlashChallenge } from "@/lib/challenge-series";
 import {
@@ -101,8 +100,6 @@ export async function createFlashChallengeEntryCheckout(
     if (existingParticipant) {
       return { error: "You are already registered." };
     }
-
-    await leaveOtherSeriesChallenges(supabase, profile.id, "flash", challengeId);
   } else {
     const { data: participant } = await supabase
       .from("challenge_participants")
@@ -287,8 +284,6 @@ async function completeFlashChallengeEntryOrder(order: {
         .select("full_name")
         .eq("id", order.user_id)
         .maybeSingle();
-
-      await leaveOtherSeriesChallenges(admin, order.user_id, "flash", challengeId);
 
       const { error: insertError } = await admin.from("challenge_participants").insert({
         challenge_id: challengeId,

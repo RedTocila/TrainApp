@@ -86,6 +86,8 @@ export function ChallengeJoinActions({
     isTransformation &&
     !isRegisteredHere &&
     (otherChallenge != null || otherWaitlist != null);
+  const showOtherFlashNotice =
+    isFlash && otherChallenge != null && !isRegisteredHere;
   const blockedChallengeTitle =
     otherChallenge?.challenge_title ?? otherWaitlist?.challenge_title ?? "";
   const blockedChallengeSlug =
@@ -140,8 +142,26 @@ export function ChallengeJoinActions({
   };
 
   if (isRegisteredHere) {
+    const showLeaveBeforePay =
+      isFlash &&
+      currentParticipant &&
+      !currentParticipant.entry_fee_paid_at &&
+      !flashStarted;
+
     return (
       <div className={embedded ? "space-y-2" : "space-y-2"}>
+        {showLeaveBeforePay ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending}
+            className={embedded ? "w-full" : undefined}
+            onClick={() => run(() => leaveChallenge(challenge.id), copy.successLeft)}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            {isPending ? copy.leaving : copy.leaveChallenge}
+          </Button>
+        ) : null}
         {needsPaymentToContinue ? (
           <>
             <p className="text-sm text-amber-200">
@@ -167,7 +187,7 @@ export function ChallengeJoinActions({
         ) : (
           <p className="text-sm text-emerald-400">{copy.registeredHere}</p>
         )}
-        {canLeave ? (
+        {canLeave && !showLeaveBeforePay ? (
           <Button
             type="button"
             variant={embedded ? "outline" : "outline"}
@@ -178,13 +198,13 @@ export function ChallengeJoinActions({
             <LogOut className="mr-2 h-4 w-4" />
             {isPending ? copy.leaving : copy.leaveChallenge}
           </Button>
-        ) : (
+        ) : !showLeaveBeforePay && !canLeave ? (
           <p className="text-sm text-muted-foreground">
             {getChallengePhase(challenge) > 0
               ? copy.leaveLockedTournamentStarted
               : copy.registrationClosedRegistered}
           </p>
-        )}
+        ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
     );
@@ -255,7 +275,18 @@ export function ChallengeJoinActions({
             {copy.viewCurrent}
           </Link>
         </p>
-      ) : otherChallenge ? (
+      ) : showOtherFlashNotice ? (
+        <p className="rounded-xl border border-border/60 bg-secondary/30 px-3 py-2 text-sm text-muted-foreground">
+          You are also registered for{" "}
+          <Link
+            href={`/dashboard/challenges/${otherChallenge.challenge_slug}`}
+            className="font-semibold text-foreground underline underline-offset-2"
+          >
+            {otherChallenge.challenge_title}
+          </Link>
+          . You can join multiple flash challenges.
+        </p>
+      ) : otherChallenge && !isFlash ? (
         <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
           {copy.switchNotice.replace("{title}", otherChallenge.challenge_title)}{" "}
           <Link
@@ -296,7 +327,7 @@ export function ChallengeJoinActions({
               : run(() => registerForChallenge(challenge.id))
           }
         >
-          {otherChallenge ? (
+          {otherChallenge && !isFlash ? (
             <ArrowRightLeft className="mr-2 h-4 w-4" />
           ) : (
             <UserPlus className="mr-2 h-4 w-4" />
@@ -305,7 +336,7 @@ export function ChallengeJoinActions({
             ? copy.joining
             : isFull
               ? copy.joinWaitlist
-              : otherChallenge
+              : otherChallenge && !isFlash
                 ? copy.switchToThis
                 : isFlash
                   ? paymentRequiredOnJoin

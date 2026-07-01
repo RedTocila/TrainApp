@@ -249,7 +249,7 @@ export async function registerForChallenge(challengeId: string) {
       return { error: blockReason };
     }
   } else if (series === "flash") {
-    await leaveOtherSeriesChallenges(supabase, profile.id, series, challengeId);
+    // Flash challenges allow multiple simultaneous enrollments.
   }
 
   const participantCount = await countChallengeParticipants(supabase, challengeId);

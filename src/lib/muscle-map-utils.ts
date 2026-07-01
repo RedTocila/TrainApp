@@ -216,7 +216,6 @@ function highlightsFromCatalogExercises(
 
     for (const slug of exerciseSecondary) {
       if (exercisePrimary.includes(slug)) continue;
-      if (!isSignificantSecondary(exercisePrimary, slug)) continue;
       applyIntensity(intensities, slug, INTENSITY_MODERATE_LOAD);
     }
   }

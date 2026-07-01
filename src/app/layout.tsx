@@ -26,6 +26,14 @@ export const metadata: Metadata = {
   description:
     "Your personalized workout, nutrition, and fitness coaching platform with AI coach and live sessions.",
   applicationName: PLATFORM_NAME,
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "32x32" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

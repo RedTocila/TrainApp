@@ -1,5 +1,6 @@
 import catalog from "@/data/exercise-catalog.json";
 import type { ExerciseGender } from "@/lib/exercise-gif";
+import { EXERCISE_NAME_ALIASES } from "@/lib/exercise-name-aliases";
 
 export interface CatalogExerciseGifs {
   male?: string;
@@ -41,13 +42,80 @@ function normalizeExerciseName(name: string): string {
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9\s-]/g, " ")
-    .replace(/\s+/g, " ");
+    .replace(/\s+/g, " ")
+    .replace(/\s*-\s*/g, "-");
 }
+
+const STOP_WORDS = new Set([
+  "the",
+  "with",
+  "and",
+  "for",
+  "male",
+  "female",
+  "style",
+  "variation",
+  "version",
+  "v",
+  "elite",
+  "classic",
+  "advanced",
+  "assisted",
+  "alternate",
+  "alternative",
+  "inverted",
+  "extended",
+  "extreme",
+  "fixed",
+  "horizontal",
+  "vertical",
+  "diagonal",
+  "elevated",
+  "pov",
+  "attachment",
+  "rope",
+  "ball",
+  "towel",
+  "support",
+  "pointed",
+  "expanded",
+  "active",
+  "fierce",
+  "pure",
+  "controlled",
+  "squared",
+  "twin",
+  "handle",
+  "degrees",
+  "motion",
+]);
+
+const EQUIPMENT_TOKENS = new Set([
+  "band",
+  "bands",
+  "cable",
+  "cables",
+  "dumbbell",
+  "dumbbells",
+  "barbell",
+  "kettlebell",
+  "smith",
+  "machine",
+  "lever",
+  "sled",
+  "assisted",
+  "weighted",
+  "bodyweight",
+]);
 
 function tokenizeExerciseName(name: string): string[] {
   return normalizeExerciseName(name)
-    .split(" ")
-    .filter((token) => token.length > 2);
+    .split(/[\s-]+/)
+    .filter((token) => token.length > 1 && !STOP_WORDS.has(token));
+}
+
+function extractEquipmentTokens(tokens: string[]): Set<string> {
+  return new Set(tokens.filter((token) => EQUIPMENT_TOKENS.has(token)));
 }
 
 function scoreCatalogNameMatch(query: string, catalogName: string): number {
@@ -56,25 +124,72 @@ function scoreCatalogNameMatch(query: string, catalogName: string): number {
 
   if (normalizedQuery === normalizedCatalog) return 1;
 
-  if (
-    normalizedCatalog.includes(normalizedQuery) ||
-    normalizedQuery.includes(normalizedCatalog)
-  ) {
-    const overlap = Math.min(normalizedQuery.length, normalizedCatalog.length);
-    const maxLen = Math.max(normalizedQuery.length, normalizedCatalog.length);
-    return 0.75 + (overlap / maxLen) * 0.2;
-  }
-
   const queryTokens = tokenizeExerciseName(query);
   const catalogTokens = tokenizeExerciseName(catalogName);
   if (queryTokens.length === 0 || catalogTokens.length === 0) return 0;
 
+  const querySet = new Set(queryTokens);
   let shared = 0;
   for (const token of queryTokens) {
     if (catalogTokens.includes(token)) shared += 1;
   }
 
-  return shared / queryTokens.length;
+  const queryCoverage = shared / queryTokens.length;
+  if (queryCoverage < 1) return 0;
+
+  const extraCatalogTokens = catalogTokens.filter((token) => !querySet.has(token));
+  const extraPenalty = Math.min(0.35, extraCatalogTokens.length * 0.06);
+
+  const queryEquipment = extractEquipmentTokens(queryTokens);
+  const catalogEquipment = extractEquipmentTokens(catalogTokens);
+  let equipmentPenalty = 0;
+  if (catalogEquipment.size > 0) {
+    for (const equipment of catalogEquipment) {
+      if (!queryEquipment.has(equipment)) {
+        equipmentPenalty += 0.12;
+      }
+    }
+  }
+
+  const lengthPenalty =
+    Math.max(0, catalogTokens.length - queryTokens.length) * 0.04;
+
+  let score = 0.55 + queryCoverage * 0.35 - extraPenalty - equipmentPenalty - lengthPenalty;
+
+  if (
+    normalizedCatalog.startsWith(normalizedQuery) ||
+    normalizedCatalog.endsWith(normalizedQuery)
+  ) {
+    score += 0.08;
+  }
+
+  if (normalizedQuery.includes(normalizedCatalog)) {
+    score += 0.05;
+  }
+
+  return Math.max(0, Math.min(1, score));
+}
+
+function equipmentPreferenceScore(catalogName: string, query: string): number {
+  const queryTokens = tokenizeExerciseName(query);
+  const catalogTokens = tokenizeExerciseName(catalogName);
+  const queryEquipment = extractEquipmentTokens(queryTokens);
+  const catalogEquipment = extractEquipmentTokens(catalogTokens);
+
+  if (queryEquipment.size > 0) {
+    let matches = 0;
+    for (const equipment of queryEquipment) {
+      if (catalogEquipment.has(equipment)) matches += 1;
+    }
+    return matches / queryEquipment.size;
+  }
+
+  if (catalogEquipment.has("band")) return -0.25;
+  if (catalogEquipment.has("cable")) return 0.05;
+  if (catalogEquipment.has("dumbbell")) return 0.08;
+  if (catalogEquipment.has("barbell")) return 0.12;
+  if (catalogEquipment.size === 0) return 0.1;
+  return 0;
 }
 
 const catalogByName = new Map<string, CatalogExercise>();
@@ -87,17 +202,29 @@ export function getCatalogExercises(): CatalogExercise[] {
 }
 
 export function findCatalogExercise(name: string): CatalogExercise | null {
-  const normalized = normalizeExerciseName(name);
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+
+  const normalized = normalizeExerciseName(trimmed);
+  const aliasTarget = EXERCISE_NAME_ALIASES[normalized];
+  if (aliasTarget) {
+    const aliased = catalogByName.get(normalizeExerciseName(aliasTarget));
+    if (aliased) return aliased;
+  }
+
   const exact = catalogByName.get(normalized);
   if (exact) return exact;
 
   let best: CatalogExercise | null = null;
-  let bestScore = 0.5;
+  let bestScore = 0.62;
 
   for (const [catalogName, exercise] of catalogByName) {
-    const score = scoreCatalogNameMatch(name, catalogName);
-    if (score > bestScore) {
-      bestScore = score;
+    const score = scoreCatalogNameMatch(trimmed, catalogName);
+    if (score <= 0) continue;
+
+    const adjusted = score + equipmentPreferenceScore(catalogName, trimmed);
+    if (adjusted > bestScore) {
+      bestScore = adjusted;
       best = exercise;
     }
   }

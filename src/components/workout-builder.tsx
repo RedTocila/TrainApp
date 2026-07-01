@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExerciseDemoDialog } from "@/components/exercise-demo-dialog";
 import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
+import { ExerciseNameInput } from "@/components/exercise-name-input";
 import { resolveProfileGender } from "@/lib/exercise-gif";
 
 interface Exercise {
@@ -296,11 +297,21 @@ export function WorkoutBuilder({
                     />
                   ) : null}
                   <div className="min-w-0 flex-1 grid gap-2 sm:grid-cols-5">
-                  <Input
-                    placeholder="Exercise name"
+                  <ExerciseNameInput
                     value={ex.name}
-                    onChange={(e) => updateExercise(dayIdx, exIdx, "name", e.target.value)}
+                    gender={exerciseGender}
                     className="sm:col-span-2"
+                    placeholder="Search exercises…"
+                    onChange={(name) => updateExercise(dayIdx, exIdx, "name", name)}
+                    onSelect={({ name, image_url }) => {
+                      const updated = [...days];
+                      updated[dayIdx].exercises[exIdx] = {
+                        ...updated[dayIdx].exercises[exIdx],
+                        name,
+                        image_url: image_url ?? undefined,
+                      };
+                      setDays(updated);
+                    }}
                   />
                   <Input
                     type="number"

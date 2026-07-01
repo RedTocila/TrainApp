@@ -4,6 +4,7 @@ import {
   isFlashChallenge,
   isTransformationChallenge,
 } from "@/lib/challenge-series";
+import { flashChallengeHasStarted } from "@/lib/flash-challenge-utils";
 
 export const DEFAULT_PRIZE_POOL_CENTS_PER_PARTICIPANT = 1000;
 
@@ -82,8 +83,8 @@ export function canLeaveChallenge(challenge: Challenge, now = new Date()): boole
   }
 
   if (isFlashChallenge(challenge)) {
-    if (status === "live") return false;
-    return isRegistrationOpen(challenge, now);
+    if (flashChallengeHasStarted(challenge)) return false;
+    return getChallengePhase(challenge) === 0;
   }
 
   if (status === "live") return false;
