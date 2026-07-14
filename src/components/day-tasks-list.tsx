@@ -214,7 +214,7 @@ export function TaskRow({
   );
 }
 
-const STACKED_CATEGORIES = new Set<TaskCategory>(["workout", "habits"]);
+const STACKED_CATEGORIES = new Set<TaskCategory>(["workout", "habits", "cardio"]);
 
 function groupAggregateStatus(tasks: DailyTask[]) {
   if (tasks.length === 0) return null;
@@ -365,7 +365,12 @@ function partitionTasksForList(tasks: DailyTask[]) {
         group.push(tasks[index]);
         index += 1;
       }
-      segments.push({ kind: "group", category, tasks: group });
+      // Single cardio stays a flat row; multiple cardios stack like workouts.
+      if (category === "cardio" && group.length === 1) {
+        segments.push({ kind: "task", task: group[0] });
+      } else {
+        segments.push({ kind: "group", category, tasks: group });
+      }
       continue;
     }
     segments.push({ kind: "task", task });

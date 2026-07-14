@@ -604,5 +604,7 @@ export interface ScheduledCardio {
   client_id: string;
   scheduled_date: string;
   cardio_id: string;
+  order_index?: number;
+  created_at?: string;
   client_cardio?: ClientCardio;
 }

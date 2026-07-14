@@ -1,6 +1,10 @@
 import type { CoachCopy } from "@/lib/coach-copy";
 import type { CoachLabels } from "@/lib/coach-copy";
-import { dailyMacrosExceededUpperLimit, dailyMacrosWithinTarget } from "@/lib/macro-targets";
+import {
+  anyDailyMacroOverTarget,
+  dailyMacrosExceededUpperLimit,
+  dailyMacrosWithinTarget,
+} from "@/lib/macro-targets";
 import {
   waterMetDailyMinimum,
   waterToleranceBand,
@@ -17,11 +21,41 @@ export const DAILY_MICRO_TARGETS = {
   sodium: 2300,
 } as const;
 
+/** Sodium only counts as "too high" / todo X at this far above the daily target. */
+export const DAILY_SODIUM_EXCEEDED_PCT = 0.4;
+
 export type DailyMicros = {
   fiber: number;
   sugar: number;
   sodium: number;
 };
+
+export function sodiumExceededUpperMax(
+  target: number = DAILY_MICRO_TARGETS.sodium
+): number {
+  if (target <= 0) return 0;
+  return Math.round(target * (1 + DAILY_SODIUM_EXCEEDED_PCT));
+}
+
+/** True when sodium is 40%+ over its daily target. */
+export function sodiumExceededDailyUpperLimit(
+  actualMg: number,
+  targetMg: number = DAILY_MICRO_TARGETS.sodium
+): boolean {
+  if (targetMg <= 0) return false;
+  return actualMg > sodiumExceededUpperMax(targetMg);
+}
+
+/** High-limit check for micros that flag when intake is too high. */
+export function microExceededHighLimit(
+  key: keyof typeof DAILY_MICRO_TARGETS,
+  actual: number,
+  target: number = DAILY_MICRO_TARGETS[key]
+): boolean {
+  if (target <= 0) return false;
+  if (key === "sodium") return sodiumExceededDailyUpperLimit(actual, target);
+  return actual > target;
+}
 
 export interface NutritionDayContext {
   current: MealMacros;
@@ -33,30 +67,49 @@ export interface NutritionDayContext {
   now?: Date;
 }
 
-export function getNutritionDayStatuses(ctx: NutritionDayContext): NutritionDayStatus[] {
+/** Health score label "Good" or better (≥70). */
+export function isGoodNutritionHealthScore(score: number): boolean {
+  return score >= 70;
+}
+
+export function getNutritionDayStatuses(
+  ctx: NutritionDayContext,
+  micros?: DailyMicros
+): NutritionDayStatus[] {
   const now = ctx.now ?? new Date();
   const macrosMet = dailyMacrosWithinTarget(ctx.current, ctx.targets);
   const macrosExceeded = dailyMacrosExceededUpperLimit(ctx.current, ctx.targets);
+  const macrosOverTarget = anyDailyMacroOverTarget(ctx.current, ctx.targets);
   const waterMet = waterMetDailyMinimum(ctx.waterMl, ctx.waterGoalMl);
   const waterMissed =
     !waterMet && isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
   const dayEnded = isDayEnded(ctx.dateKey, now);
   const nutritionCompleted =
     macrosMet && waterMet && !macrosExceeded;
+  const healthGood =
+    micros != null &&
+    isGoodNutritionHealthScore(
+      scoreDailyNutrition({ ...ctx, micros }).score
+    );
 
   const statuses: NutritionDayStatus[] = [];
 
-  if (macrosExceeded) statuses.push("too_much");
+  // Warn on any overshoot — even when health score is still good.
+  if (macrosExceeded || macrosOverTarget) statuses.push("too_much");
   if (waterMissed || (dayEnded && !macrosMet && !macrosExceeded)) {
     statuses.push("missed");
   }
-  if (nutritionCompleted) {
+  if (nutritionCompleted || healthGood) {
     statuses.push("good");
   }
 
   if (
     statuses.length === 0 ||
-    (!nutritionCompleted && !macrosExceeded && !waterMissed)
+    (!nutritionCompleted &&
+      !healthGood &&
+      !macrosExceeded &&
+      !macrosOverTarget &&
+      !waterMissed)
   ) {
     const proteinLow =
       ctx.targets.protein > 0 && ctx.current.protein < ctx.targets.protein * 0.65;
@@ -127,7 +180,7 @@ export function scoreDailyNutrition(ctx: NutritionDayContext & {
 
   if (ctx.micros.fiber >= 25) score += 4;
   if (ctx.micros.sugar > 60) score -= 6;
-  if (ctx.micros.sodium > 2300) score -= 8;
+  if (sodiumExceededDailyUpperLimit(ctx.micros.sodium)) score -= 8;
 
   score = Math.round(Math.min(100, Math.max(0, score)));
 

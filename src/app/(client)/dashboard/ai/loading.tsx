@@ -1,5 +1,5 @@
 import { DashboardRouteLoading } from "@/components/dashboard-route-loading";
 
-export default function ProgressPhotosLoading() {
+export default function AiLoading() {
   return <DashboardRouteLoading />;
 }

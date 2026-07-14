@@ -38,7 +38,7 @@ export interface ClientSchedule {
   scheduledNutritionDays?: ScheduledNutritionDay[];
   scheduledCardioByDate?: Record<
     string,
-    { id: string; title: string; duration_minutes?: number | null }
+    { id: string; title: string; duration_minutes?: number | null }[]
   >;
   scheduledCardioEntries?: ScheduledCardio[];
   habitsByDate?: Record<
@@ -47,13 +47,27 @@ export interface ClientSchedule {
   >;
 }
 
-
-function getScheduledCardioForDate(
+function getScheduledCardiosForDate(
   date: Date,
   schedule: ClientSchedule
-): { id: string; title: string; duration_minutes?: number | null } | null {
+): { id: string; title: string; duration_minutes?: number | null }[] {
   const dateKey = formatDateKey(date);
-  return schedule.scheduledCardioByDate?.[dateKey] ?? null;
+  const fromMap = schedule.scheduledCardioByDate?.[dateKey];
+  if (fromMap?.length) return fromMap;
+
+  if (!schedule.scheduledCardioEntries?.length) return [];
+  return schedule.scheduledCardioEntries
+    .filter((entry) => entry.scheduled_date === dateKey && entry.client_cardio)
+    .sort(
+      (a, b) =>
+        (a.order_index ?? 0) - (b.order_index ?? 0) ||
+        (a.created_at ?? "").localeCompare(b.created_at ?? "")
+    )
+    .map((entry) => ({
+      id: entry.client_cardio!.id,
+      title: entry.client_cardio!.title,
+      duration_minutes: entry.client_cardio!.duration_minutes,
+    }));
 }
 
 function getScheduledWorkoutDays(
@@ -177,8 +191,8 @@ export function buildDailyTasks(
     });
   }
 
-  const scheduledCardio = getScheduledCardioForDate(date, schedule);
-  if (scheduledCardio) {
+  const scheduledCardios = getScheduledCardiosForDate(date, schedule);
+  for (const scheduledCardio of scheduledCardios) {
     tasks.push({
       id: cardioTaskId(dateKey, scheduledCardio.id),
       category: "cardio",

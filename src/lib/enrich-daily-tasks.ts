@@ -2,11 +2,15 @@ import type { DailyTask } from "@/lib/daily-tasks";
 import type { DailyMealLog } from "@/lib/types";
 import { sumMealMacros } from "@/lib/meal-utils";
 import {
-  anyDailyMacroOverTarget,
+  dailyMacrosCountAsTodoExceeded,
   dailyMacrosExceededUpperLimit,
   dailyMacrosWithinTarget,
   formatMacroProgressLine,
 } from "@/lib/macro-targets";
+import {
+  estimateDailyMicros,
+  sodiumExceededDailyUpperLimit,
+} from "@/lib/nutrition-day-utils";
 import { waterMetDailyMinimum } from "@/lib/water-targets";
 import {
   isDayEnded,
@@ -76,14 +80,24 @@ export function enrichDailyTasks(
     ) {
       const meals = ctx.dailyMeals ?? [];
       const current = sumMealMacros(meals);
+      const micros = estimateDailyMicros(meals, current);
       const met = dailyMacrosWithinTarget(current, ctx.macroTargets);
-      const exceededTolerance = dailyMacrosExceededUpperLimit(current, ctx.macroTargets);
-      const exceeded = anyDailyMacroOverTarget(current, ctx.macroTargets);
+      const exceededTolerance = dailyMacrosExceededUpperLimit(
+        current,
+        ctx.macroTargets
+      );
+      const sodiumExceeded = sodiumExceededDailyUpperLimit(micros.sodium);
+      const exceeded =
+        dailyMacrosCountAsTodoExceeded(current, ctx.macroTargets) ||
+        sodiumExceeded;
       const deadlinePassed = isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
 
       return {
         ...task,
-        label: exceededTolerance ? "Daily macros over limit" : "Hit daily macros",
+        label:
+          exceededTolerance || sodiumExceeded
+            ? "Daily macros over limit"
+            : "Hit daily macros",
         detail: formatMacroProgressLine(current, ctx.macroTargets),
         completed: met || task.completed,
         exceeded: exceeded && !met && !task.completed,

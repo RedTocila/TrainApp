@@ -50,7 +50,8 @@ const tabClassName = (active: boolean) =>
 export function AiCoachNav() {
   const pathname = usePathname();
   const { isOpen, openChat } = useAiCoachChat();
-  const { setPendingHref } = useDashboardNavPending();
+  const { pendingHref, setPendingHref } = useDashboardNavPending();
+  const activePath = pendingHref ?? pathname;
 
   const prefetchRoutes = useMemo(
     () => tabs.flatMap((tab) => (tab.href ? [tab.href] : [])),
@@ -64,11 +65,11 @@ export function AiCoachNav() {
         const active = tab.openChat
           ? isOpen
           : tab.exact
-            ? pathname === tab.href
+            ? activePath === tab.href
             : tab.match
-              ? pathname === tab.match
+              ? activePath === tab.match
               : tab.href
-                ? pathname.startsWith(tab.href)
+                ? activePath.startsWith(tab.href)
                 : false;
         const Icon = tab.icon;
 

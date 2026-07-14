@@ -22,11 +22,14 @@ export function getTaskDestination(task: DailyTask): TaskDestination {
         sectionId: "dashboard-nutrition",
       };
     case "cardio": {
-      const dateMatch = task.id.match(/^(\d{4}-\d{2}-\d{2})-cardio/);
+      const dateMatch = task.id.match(/^(\d{4}-\d{2}-\d{2})-cardio(?:-(.+))?$/);
       const dateKey = dateMatch?.[1] ?? "";
+      const cardioId = dateMatch?.[2] ?? "";
       const sessionHref =
         /^\d{4}-\d{2}-\d{2}$/.test(dateKey) && !task.completed
-          ? `/dashboard/workout/cardio/session?date=${dateKey}`
+          ? `/dashboard/workout/cardio/session?date=${dateKey}${
+              cardioId ? `&cardioId=${encodeURIComponent(cardioId)}` : ""
+            }`
           : "/dashboard#dashboard-cardio";
       return {
         href: sessionHref,

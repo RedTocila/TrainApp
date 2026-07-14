@@ -80,13 +80,13 @@ export async function getAdminClientCalendarData(
 
   const scheduledCardioByDate = Object.fromEntries(
     Object.entries(scheduledCardioByDateMap(scheduledCardioEntries)).map(
-      ([date, cardio]) => [
+      ([date, cardios]) => [
         date,
-        {
+        cardios.map((cardio) => ({
           id: cardio.id,
           title: cardio.title,
           duration_minutes: cardio.duration_minutes,
-        },
+        })),
       ]
     )
   );

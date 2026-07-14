@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -301,9 +302,13 @@ export async function logCustomMeal(
   }
 
   await syncDailyMacros(clientId, date);
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/day/nutrition");
-  revalidatePath("/dashboard/meal-photos");
+  // Defer revalidation so the client action promise resolves cleanly.
+  // Inline revalidatePath + useTransition can leave the save button stuck pending.
+  after(() => {
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/day/nutrition");
+    revalidatePath("/dashboard/meal-photos");
+  });
   return { success: true, logId };
 }
 

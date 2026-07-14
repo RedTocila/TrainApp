@@ -9,7 +9,8 @@ import { CompactSubLink } from "@/components/programs/compact-nav";
 export function WorkoutSectionTabs({ className }: { className?: string }) {
   const pathname = usePathname();
   const platform = usePlatformCopy();
-  const { setPendingHref } = useDashboardNavPending();
+  const { pendingHref, setPendingHref } = useDashboardNavPending();
+  const activePath = pendingHref ?? pathname;
 
   const tabs = [
     {
@@ -45,7 +46,7 @@ export function WorkoutSectionTabs({ className }: { className?: string }) {
             href={tab.href}
             label={tab.label}
             icon={tab.icon}
-            active={tab.isActive(pathname)}
+            active={tab.isActive(activePath)}
             activeClass={tab.activeClass}
             onNavigateStart={setPendingHref}
             exactMatch={"exactMatch" in tab ? tab.exactMatch : false}

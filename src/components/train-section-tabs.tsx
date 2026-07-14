@@ -22,7 +22,8 @@ const tabConfig = {
 export function TrainSectionTabs({ className }: { className?: string }) {
   const pathname = usePathname();
   const platform = usePlatformCopy();
-  const { setPendingHref } = useDashboardNavPending();
+  const { pendingHref, setPendingHref } = useDashboardNavPending();
+  const activePath = pendingHref ?? pathname;
 
   const labels = {
     "/dashboard/workout": platform.trainTabs.workout,
@@ -38,7 +39,7 @@ export function TrainSectionTabs({ className }: { className?: string }) {
       aria-label="Programs"
     >
       {trainTabs.map((tab) => {
-        const active = isTrainTabActive(pathname, tab.href);
+        const active = isTrainTabActive(activePath, tab.href);
         const config = tabConfig[tab.href];
 
         return (

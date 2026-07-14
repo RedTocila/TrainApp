@@ -8,6 +8,7 @@ import {
   FullCalendarNavButton,
 } from "@/components/full-calendar-nav-button";
 import { SupportContactButton } from "@/components/support-contact-button";
+import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { useNutritionPageChromeActions } from "@/components/nutrition-page-chrome-context";
 import { useWorkoutPageChromeActions } from "@/components/workout-page-chrome-context";
 import { DashboardStatusCheck, DashboardStatusIcon } from "@/components/section-completed-badge";
@@ -37,12 +38,14 @@ const headerTextButton =
 
 function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
   const pathname = usePathname();
+  const { pendingHref } = useDashboardNavPending();
+  const chromePath = pendingHref ?? pathname;
   const platform = usePlatformCopy();
   const nutritionActions = useNutritionPageChromeActions();
   const workoutActions = useWorkoutPageChromeActions();
-  const isNutritionPage = pathname === DASHBOARD_DAY_NUTRITION_PATH;
-  const isWorkoutPage = pathname === DASHBOARD_DAY_WORKOUT_PATH;
-  const isProgressPhotosPage = pathname === DASHBOARD_PROGRESS_PHOTOS_PATH;
+  const isNutritionPage = chromePath === DASHBOARD_DAY_NUTRITION_PATH;
+  const isWorkoutPage = chromePath === DASHBOARD_DAY_WORKOUT_PATH;
+  const isProgressPhotosPage = chromePath === DASHBOARD_PROGRESS_PHOTOS_PATH;
 
   return (
     <div
@@ -152,9 +155,11 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
 /** Mobile top chrome: logo row + program tabs, scrolls with page content. */
 export function DashboardMobileChrome() {
   const pathname = usePathname();
+  const { pendingHref } = useDashboardNavPending();
+  const chromePath = pendingHref ?? pathname;
   const showTrainTabs =
-    isTrainPath(pathname) && !isActiveWorkoutSessionPath(pathname);
-  const showCalendar = pathname === "/dashboard";
+    isTrainPath(chromePath) && !isActiveWorkoutSessionPath(chromePath);
+  const showCalendar = chromePath === "/dashboard";
 
   return (
     <div className="mobile-top-safe sticky top-0 z-50 shrink-0 bg-background lg:hidden">

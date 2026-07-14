@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Beef,
   Candy,
@@ -14,15 +14,19 @@ import {
 } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { dashboard, DashboardCarouselDots } from "@/components/dashboard-ui";
+import { MacroOverageInsightButton } from "@/components/macro-overage-insight-button";
 import { MiniProgressRing } from "@/components/nutrition-macro-rings";
 import type { MealMacros } from "@/lib/meal-utils";
 import {
   DAILY_MICRO_TARGETS,
+  microExceededHighLimit,
   scoreDailyNutrition,
   type DailyMicros,
   type NutritionDayContext,
 } from "@/lib/nutrition-day-utils";
+import type { OverageNutrient } from "@/lib/macro-overage-local";
 import { macroExceededDailyUpperLimit } from "@/lib/macro-targets";
+import type { DailyMealLog } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const OVER_RING = "text-red-500";
@@ -39,6 +43,7 @@ function MacroVerticalCard({
   ringClass,
   iconClass,
   over,
+  insightAction,
 }: {
   value: number;
   target: number;
@@ -48,13 +53,19 @@ function MacroVerticalCard({
   ringClass: string;
   iconClass: string;
   over: boolean;
+  insightAction?: ReactNode;
 }) {
   const remaining = Math.max(0, target - value);
   const display = over ? value - target : remaining;
   const progress = target > 0 ? Math.min(value / target, 1) : 0;
 
   return (
-    <div className={dashboard.metricTile}>
+    <div className={cn(dashboard.metricTile, "relative justify-start gap-2")}>
+      {over && insightAction ? (
+        <div className="pointer-events-auto absolute right-2 top-2 z-[2]">
+          {insightAction}
+        </div>
+      ) : null}
       <div>
         <p
           className={cn(
@@ -69,7 +80,7 @@ function MacroVerticalCard({
           {over ? `${label} over` : `${label} left`}
         </p>
       </div>
-      <div className="flex justify-center pt-3">
+      <div className="flex flex-1 items-center justify-center">
         <MiniProgressRing
           progress={progress}
           icon={icon}
@@ -144,10 +155,12 @@ function CaloriesHeroCard({
   current,
   target,
   caloriesLeftLabel,
+  insightAction,
 }: {
   current: number;
   target: number;
   caloriesLeftLabel: string;
+  insightAction?: ReactNode;
 }) {
   const over = target > 0 && current > target;
   const unrecoverable = macroExceededDailyUpperLimit(current, target, "calories");
@@ -156,7 +169,12 @@ function CaloriesHeroCard({
   const progress = target > 0 ? Math.min(current / target, 1) : 0;
 
   return (
-    <div className={dashboard.heroTile}>
+    <div className={cn(dashboard.heroTile, "relative")}>
+      {unrecoverable && insightAction ? (
+        <div className="pointer-events-auto absolute left-2 top-2 z-[2] sm:left-3 sm:top-3">
+          {insightAction}
+        </div>
+      ) : null}
       <div className="min-w-0 space-y-2">
         <div>
           <p
@@ -243,12 +261,14 @@ export function NutritionDetailView({
   targets,
   micros,
   context,
+  meals = [],
   className,
 }: {
   current: MealMacros;
   targets: MealMacros;
   micros: DailyMicros;
   context: NutritionDayContext;
+  meals?: DailyMealLog[];
   className?: string;
 }) {
   const platform = usePlatformCopy();
@@ -256,6 +276,17 @@ export function NutritionDetailView({
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [slide, setSlide] = useState(0);
   const health = scoreDailyNutrition({ ...context, micros });
+
+  const insightButton = (nutrient: OverageNutrient) =>
+    meals.length > 0 ? (
+      <MacroOverageInsightButton
+        nutrient={nutrient}
+        dateKey={context.dateKey}
+        current={current}
+        targets={targets}
+        meals={meals}
+      />
+    ) : null;
 
   const scrollToSlide = useCallback((index: number) => {
     slideRefs.current[index]?.scrollIntoView({
@@ -342,6 +373,7 @@ export function NutritionDetailView({
               current={current.calories}
               target={targets.calories}
               caloriesLeftLabel={platform.nutrition.caloriesLeft}
+              insightAction={insightButton("calories")}
             />
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {SLIDE_ONE.map(({ key, icon, ringClass, iconClass, labelKey }) => {
@@ -358,6 +390,7 @@ export function NutritionDetailView({
                     ringClass={ringClass}
                     iconClass={iconClass}
                     over={over}
+                    insightAction={over ? insightButton(key) : null}
                   />
                 );
               })}
@@ -374,7 +407,9 @@ export function NutritionDetailView({
               {microCells.map(({ key, icon, ringClass, iconClass, label, overWhenHigh, unit }) => {
                 const target = DAILY_MICRO_TARGETS[key];
                 const value = micros[key];
-                const over = overWhenHigh ? target > 0 && value > target : false;
+                const over = overWhenHigh
+                  ? microExceededHighLimit(key, value, target)
+                  : false;
 
                 return (
                   <MacroVerticalCard
@@ -387,6 +422,11 @@ export function NutritionDetailView({
                     ringClass={ringClass}
                     iconClass={iconClass}
                     over={over}
+                    insightAction={
+                      over && (key === "sodium" || key === "sugar")
+                        ? insightButton(key)
+                        : null
+                    }
                   />
                 );
               })}

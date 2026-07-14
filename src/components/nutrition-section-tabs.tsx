@@ -27,7 +27,8 @@ const tabs = [
 
 export function NutritionSectionTabs({ className }: { className?: string }) {
   const pathname = usePathname();
-  const { setPendingHref } = useDashboardNavPending();
+  const { pendingHref, setPendingHref } = useDashboardNavPending();
+  const activePath = pendingHref ?? pathname;
 
   return (
     <nav className={className} aria-label="Nutrition sections">
@@ -38,7 +39,7 @@ export function NutritionSectionTabs({ className }: { className?: string }) {
             href={tab.href}
             label={tab.label}
             icon={tab.icon}
-            active={tab.isActive(pathname)}
+            active={tab.isActive(activePath)}
             activeClass={tab.activeClass}
             onNavigateStart={setPendingHref}
             exactMatch={"exactMatch" in tab ? tab.exactMatch : false}

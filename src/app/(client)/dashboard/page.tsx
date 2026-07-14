@@ -26,7 +26,7 @@ import { fetchDashboardEnrichmentFields } from "@/lib/actions/dashboard-enrichme
 import { mergeWorkoutTaskCompletionsInto } from "@/lib/dashboard-enrichment-utils";
 import { getTaskCompletionsInRange, getCardioCompletionForDate } from "@/lib/actions/task-completions";
 import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
-import { getScheduledCardioInRange, getScheduledCardioForDate } from "@/lib/actions/user-cardio";
+import { getScheduledCardioInRange, getScheduledCardiosForDate } from "@/lib/actions/user-cardio";
 import { scheduledCardioByDateMap } from "@/lib/cardio-utils";
 import {
   getScheduledNutritionInRange,
@@ -95,7 +95,7 @@ export default async function DashboardPage() {
     scheduledPlanForToday,
     allHabits,
     initialWorkoutCompleted,
-    initialCardio,
+    initialCardios,
   ] = await Promise.all([
     getClientWorkoutAssignment(profile.id),
     getClientNutritionAssignment(profile.id),
@@ -119,13 +119,23 @@ export default async function DashboardPage() {
     getNutritionPlanForDate(profile.id, dateKey),
     getClientHabits(profile.id),
     isWorkoutCompletedOnDate(profile.id, dateKey),
-    getScheduledCardioForDate(profile.id, dateKey),
+    getScheduledCardiosForDate(profile.id, dateKey),
   ]);
 
-  const initialCardioCompletion = await getCardioCompletionForDate(
-    profile.id,
-    dateKey,
-    initialCardio?.cardio_id ?? initialCardio?.client_cardio?.id ?? null
+  const initialCardioCompletions = await Promise.all(
+    initialCardios.map(async (entry) => {
+      const cardioId = entry.cardio_id ?? entry.client_cardio?.id ?? null;
+      const completion = await getCardioCompletionForDate(
+        profile.id,
+        dateKey,
+        cardioId
+      );
+      return {
+        cardioId,
+        completed: completion.completed,
+        elapsedSeconds: completion.elapsedSeconds,
+      };
+    })
   );
 
   const currentMonth = progressMonthKey();
@@ -134,8 +144,14 @@ export default async function DashboardPage() {
     ? await getSignedProgressPhotoUrls(profile.id, displayPhotoSet)
     : EMPTY_PHOTO_URLS;
 
-  const initialCardioCompleted = initialCardioCompletion.completed;
-  const initialCardioElapsedSeconds = initialCardioCompletion.elapsedSeconds;
+  const initialCardioCompletionById = Object.fromEntries(
+    initialCardioCompletions
+      .filter((row) => row.cardioId)
+      .map((row) => [
+        row.cardioId!,
+        { completed: row.completed, elapsedSeconds: row.elapsedSeconds },
+      ])
+  );
 
   const initialWorkoutResults = initialWorkoutCompleted
     ? await getCompletedWorkoutResultsForDate(profile.id, dateKey)
@@ -169,13 +185,13 @@ export default async function DashboardPage() {
 
   const scheduledCardioByDate = Object.fromEntries(
     Object.entries(scheduledCardioByDateMap(scheduledCardioEntries)).map(
-      ([date, cardio]) => [
+      ([date, cardios]) => [
         date,
-        {
+        cardios.map((cardio) => ({
           id: cardio.id,
           title: cardio.title,
           duration_minutes: cardio.duration_minutes,
-        },
+        })),
       ]
     )
   );
@@ -293,9 +309,8 @@ export default async function DashboardPage() {
 
           <DashboardCardioCard
             clientId={profile.id}
-            initialScheduled={initialCardio}
-            initialCompleted={initialCardioCompleted}
-            initialElapsedSeconds={initialCardioElapsedSeconds}
+            initialScheduled={initialCardios}
+            initialCompletions={initialCardioCompletionById}
             variant="compact"
             schedule={schedule}
           />

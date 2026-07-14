@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { CoachAlexNavLoading } from "@/components/coach-alex-nav-loading";
 import { DashboardMobileChrome } from "@/components/dashboard-mobile-chrome";
+import { DashboardPageSkeleton } from "@/components/dashboard-page-skeleton";
 import { NutritionPageChromeProvider } from "@/components/nutrition-page-chrome-context";
 import { WorkoutPageChromeProvider } from "@/components/workout-page-chrome-context";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
@@ -16,35 +16,29 @@ export function DashboardMainArea({
   subscriptionBanner: ReactNode;
 }) {
   const { pendingHref, routeLoadingCount } = useDashboardNavPending();
-  const hideChrome = pendingHref !== null || routeLoadingCount > 0;
-  const showFullPageLoading =
+  const isNavigating = pendingHref !== null || routeLoadingCount > 0;
+  const showPendingSkeleton =
     pendingHref !== null && routeLoadingCount === 0;
 
   useEffect(() => {
-    if (!hideChrome) return;
+    if (!isNavigating) return;
     const main = document.querySelector<HTMLElement>(".dashboard-main");
     if (main) main.scrollTop = 0;
-  }, [hideChrome]);
+  }, [isNavigating]);
 
   return (
     <NutritionPageChromeProvider>
       <WorkoutPageChromeProvider>
-        {!hideChrome ? <DashboardMobileChrome /> : null}
-        <div
-          className={
-            hideChrome
-              ? undefined
-              : "px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6"
-          }
-        >
-          {!hideChrome ? subscriptionBanner : null}
-          {showFullPageLoading ? (
-            <CoachAlexNavLoading />
-          ) : routeLoadingCount > 0 ? (
-            children
-          ) : (
-            <TrainSectionShell>{children}</TrainSectionShell>
-          )}
+        <DashboardMobileChrome />
+        <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
+          {subscriptionBanner}
+          <TrainSectionShell>
+            {showPendingSkeleton ? (
+              <DashboardPageSkeleton href={pendingHref} />
+            ) : (
+              children
+            )}
+          </TrainSectionShell>
         </div>
       </WorkoutPageChromeProvider>
     </NutritionPageChromeProvider>

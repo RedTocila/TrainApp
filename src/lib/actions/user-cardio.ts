@@ -167,64 +167,74 @@ export async function scheduleCardioSeries({
     return { error: "No dates to schedule. Check your day and week selections." };
   }
 
-  const { data: existingRows } = await admin
-    .from("scheduled_cardio")
-    .select("scheduled_date, cardio_id")
-    .eq("client_id", userId)
-    .in("scheduled_date", dates);
+  let inserted = 0;
 
-  const previousByDate = new Map(
-    (existingRows ?? []).map((row) => [row.scheduled_date as string, row.cardio_id as string])
-  );
-
-  const rows = dates.map((scheduled_date) => ({
-    client_id: userId,
-    scheduled_date,
-    cardio_id: cardioId,
-  }));
-
-  const { error } = await admin.from("scheduled_cardio").upsert(rows, {
-    onConflict: "client_id,scheduled_date",
-  });
-
-  if (error) return { error: formatDbError(error.message) };
-
-  // Completions are tied to a specific cardio — clear stale checks when replaced.
-  const datesToClear = dates.filter((date) => {
-    const previous = previousByDate.get(date);
-    return previous != null && previous !== cardioId;
-  });
-
-  if (datesToClear.length > 0) {
-    const { data: completions } = await admin
-      .from("schedule_task_completions")
-      .select("date, task_id")
+  for (const scheduled_date of dates) {
+    const { data: existing } = await admin
+      .from("scheduled_cardio")
+      .select("id")
       .eq("client_id", userId)
-      .in("date", datesToClear);
+      .eq("scheduled_date", scheduled_date)
+      .eq("cardio_id", cardioId)
+      .maybeSingle();
 
-    const stale = (completions ?? []).filter((row) =>
-      row.task_id === `${row.date}-cardio` ||
-      row.task_id.startsWith(`${row.date}-cardio-`)
-    );
+    if (existing) continue;
 
-    for (const row of stale) {
-      await admin
-        .from("schedule_task_completions")
-        .delete()
-        .eq("client_id", userId)
-        .eq("date", row.date)
-        .eq("task_id", row.task_id);
-    }
+    const { data: siblings } = await admin
+      .from("scheduled_cardio")
+      .select("order_index")
+      .eq("client_id", userId)
+      .eq("scheduled_date", scheduled_date)
+      .order("order_index", { ascending: false })
+      .limit(1);
+
+    const orderIndex = (siblings?.[0]?.order_index ?? -1) + 1;
+
+    const { error: insertError } = await admin.from("scheduled_cardio").insert({
+      client_id: userId,
+      scheduled_date,
+      cardio_id: cardioId,
+      order_index: orderIndex,
+    });
+
+    if (insertError) return { error: formatDbError(insertError.message) };
+    inserted += 1;
   }
 
   revalidatePath("/dashboard/workout/cardio");
   revalidatePath("/dashboard");
-  return { success: true, count: dates.length };
+  return { success: true, count: inserted };
 }
 
+export async function getScheduledCardiosForDate(
+  clientId: string,
+  date: string
+): Promise<ScheduledCardio[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("scheduled_cardio")
+    .select("*, client_cardio(*)")
+    .eq("client_id", clientId)
+    .eq("scheduled_date", date)
+    .order("order_index")
+    .order("created_at");
+
+  return (data ?? []) as ScheduledCardio[];
+}
+
+/** @deprecated Prefer getScheduledCardiosForDate — returns the first scheduled cardio. */
 export async function getScheduledCardioForDate(
   clientId: string,
   date: string
+): Promise<ScheduledCardio | null> {
+  const entries = await getScheduledCardiosForDate(clientId, date);
+  return entries[0] ?? null;
+}
+
+export async function getScheduledCardioById(
+  clientId: string,
+  date: string,
+  cardioId: string
 ): Promise<ScheduledCardio | null> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -232,6 +242,7 @@ export async function getScheduledCardioForDate(
     .select("*, client_cardio(*)")
     .eq("client_id", clientId)
     .eq("scheduled_date", date)
+    .eq("cardio_id", cardioId)
     .maybeSingle();
 
   return (data as ScheduledCardio | null) ?? null;
@@ -248,7 +259,9 @@ export async function getScheduledCardioInRange(
     .eq("client_id", userId)
     .gte("scheduled_date", from)
     .lte("scheduled_date", to)
-    .order("scheduled_date");
+    .order("scheduled_date")
+    .order("order_index")
+    .order("created_at");
 
   return (data ?? []) as ScheduledCardio[];
 }

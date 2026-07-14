@@ -1,8 +1,14 @@
 import type { MealMacros } from "@/lib/meal-utils";
 import type { MacroTargets } from "@/lib/meal-score";
 
-/** Acceptable deviation from protein, carbs, and fat targets (±20%). */
+/** Acceptable deviation from protein, carbs, and fat targets (±20%) for hitting the daily goal. */
 export const DAILY_MACRO_TOLERANCE_PCT = 0.2;
+
+/**
+ * Fat only counts as "over limit" / todo X once intake is this far above the target.
+ * Hitting the goal still uses {@link DAILY_MACRO_TOLERANCE_PCT}.
+ */
+export const DAILY_FAT_EXCEEDED_PCT = 0.4;
 
 /** Fixed ± band for daily calories (not percentage-based). */
 export const DAILY_CALORIE_TOLERANCE = 300;
@@ -14,6 +20,11 @@ const MACRO_MIN_TOLERANCE: Omit<MealMacros, "calories"> = {
 };
 
 const MACRO_KEYS: (keyof MealMacros)[] = ["calories", "protein", "carbs", "fat"];
+const STRICT_OVER_TARGET_KEYS: (keyof MealMacros)[] = [
+  "calories",
+  "protein",
+  "carbs",
+];
 
 export function macroToleranceBand(
   target: number,
@@ -29,6 +40,12 @@ export function macroToleranceBand(
     min: Math.max(0, Math.round(target - delta)),
     max: Math.round(target + delta),
   };
+}
+
+/** Upper ceiling where fat counts as exceeded (40% over target). */
+export function fatExceededUpperMax(target: number): number {
+  if (target <= 0) return 0;
+  return Math.round(target * (1 + DAILY_FAT_EXCEEDED_PCT));
 }
 
 export function macroWithinDailyTarget(
@@ -53,18 +70,21 @@ export function dailyMacrosWithinTarget(
   });
 }
 
-/** True when a macro is above its upper tolerance (can't be fixed by eating more today). */
+/** True when a macro is above its upper "over limit" ceiling (can't be fixed by eating more today). */
 export function macroExceededDailyUpperLimit(
   actual: number,
   target: number,
   key: keyof MealMacros
 ): boolean {
   if (target <= 0) return false;
+  if (key === "fat") {
+    return actual > fatExceededUpperMax(target);
+  }
   const { max } = macroToleranceBand(target, key);
   return actual > max;
 }
 
-/** True when any macro is above its upper tolerance band. */
+/** True when any macro is above its upper tolerance / exceeded ceiling. */
 export function dailyMacrosExceededUpperLimit(
   current: MealMacros,
   targets: MacroTargets
@@ -84,7 +104,25 @@ export function anyDailyMacroOverTarget(
   });
 }
 
-/** Macro keys currently above the upper tolerance band. */
+/**
+ * Whether nutrition should count as "over limit" (X) on the todo list.
+ * Calories / protein / carbs: any amount over target (unchanged).
+ * Fat: only at 40%+ over target.
+ */
+export function dailyMacrosCountAsTodoExceeded(
+  current: MealMacros,
+  targets: MacroTargets
+): boolean {
+  const strictOver = STRICT_OVER_TARGET_KEYS.some((key) => {
+    const target = targets[key];
+    if (target <= 0) return false;
+    return current[key] > target;
+  });
+  if (strictOver) return true;
+  return macroExceededDailyUpperLimit(current.fat, targets.fat, "fat");
+}
+
+/** Macro keys currently above the upper tolerance band / fat exceeded ceiling. */
 export function listExceededMacroKeys(
   current: MealMacros,
   targets: MacroTargets
@@ -110,7 +148,8 @@ export function macroSurplusOverTolerance(
   key: keyof MealMacros
 ): number {
   if (target <= 0) return 0;
-  const { max } = macroToleranceBand(target, key);
+  const max =
+    key === "fat" ? fatExceededUpperMax(target) : macroToleranceBand(target, key).max;
   return Math.max(0, Math.round(actual - max));
 }
 

@@ -210,7 +210,7 @@ export const coachLabelsEn = {
   faceTheRoast: "Face the roast",
   getBackInThere: "Get back in there",
   actuallyFinish: "Actually finish it",
-  exceeded: "Too much",
+  exceeded: "What went wrong",
   exceededTasks: "Macros you went over",
   macrosExceededHint:
     "Tomorrow: smaller portions and lighter meals — check today's logs and trim where you overshot.",

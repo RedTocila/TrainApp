@@ -97,25 +97,25 @@ export function ActiveCardioClient({
   const taskId = cardioTaskId(dateKey, cardioId);
 
   useEffect(() => {
-    setTimer(getCardioTimerState(dateKey));
+    setTimer(getCardioTimerState(dateKey, cardioId));
     setHydrated(true);
-  }, [dateKey]);
+  }, [dateKey, cardioId]);
 
   const handleStart = () => {
     setError(null);
-    setTimer(startCardioTimer(dateKey));
+    setTimer(startCardioTimer(dateKey, cardioId));
   };
 
   const handlePause = () => {
-    setTimer(pauseCardioTimer(dateKey));
+    setTimer(pauseCardioTimer(dateKey, cardioId));
   };
 
   const handleResume = () => {
-    setTimer(resumeCardioTimer(dateKey));
+    setTimer(resumeCardioTimer(dateKey, cardioId));
   };
 
   const handleDiscard = () => {
-    clearCardioTimerState(dateKey);
+    clearCardioTimerState(dateKey, cardioId);
     setTimer(null);
     router.push("/dashboard");
   };
@@ -144,18 +144,32 @@ export function ActiveCardioClient({
 
       const cacheKey = dashboardDayCacheKey(clientId, "cardio", dateKey);
       const cached = getDashboardDayCache<{
-        scheduled: ScheduledCardio | null;
-        completed: boolean;
-        elapsedSeconds: number | null;
+        scheduled: ScheduledCardio[];
+        completions: Record<
+          string,
+          { completed: boolean; elapsedSeconds: number | null }
+        >;
       }>(cacheKey);
+      const nextCompletions = {
+        ...(cached?.completions ?? {}),
+        ...(cardioId
+          ? {
+              [cardioId]: {
+                completed: true,
+                elapsedSeconds,
+              },
+            }
+          : {}),
+      };
       setDashboardDayCache(cacheKey, {
-        scheduled: cached?.scheduled ?? scheduled,
-        completed: true,
-        elapsedSeconds,
+        scheduled: cached?.scheduled?.length
+          ? cached.scheduled
+          : [scheduled],
+        completions: nextCompletions,
       });
 
       patchDashboard({ dateKey, taskId, completed: true });
-      clearCardioTimerState(dateKey);
+      clearCardioTimerState(dateKey, cardioId);
       notifySync();
       router.push("/dashboard");
     });

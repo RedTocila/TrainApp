@@ -1,5 +1,5 @@
-import { DashboardDayDetailLoading } from "@/components/dashboard-day-detail-loading";
+import { DashboardRouteLoading } from "@/components/dashboard-route-loading";
 
 export default function NutritionDayLoading() {
-  return <DashboardDayDetailLoading />;
+  return <DashboardRouteLoading />;
 }

@@ -34,6 +34,8 @@ import { TaskNutritionMacroPreview } from "@/components/task-nutrition-macro-pre
 import {
   estimateDailyMicros,
   getNutritionDayStatuses,
+  isGoodNutritionHealthScore,
+  scoreDailyNutrition,
   type NutritionDayContext,
 } from "@/lib/nutrition-day-utils";
 import { MealPlanDialog } from "@/components/meal-plan-dialog";
@@ -124,7 +126,7 @@ export function DailyTracker({
     patchDashboard({ dateKey, dailyMeals });
   }, [dateKey, dailyMeals, patchDashboard]);
 
-  const current = sumMealMacros(dailyMeals);
+  const current = useMemo(() => sumMealMacros(dailyMeals), [dailyMeals]);
 
   const plannedMealSlots = useMemo(() => {
     if (!nutritionPlan?.meals?.length) return [];
@@ -162,7 +164,22 @@ export function DailyTracker({
   const macrosExceeded = dailyMacrosExceededUpperLimit(current, targets);
   const macrosOverTarget = anyDailyMacroOverTarget(current, targets);
   const nutritionCompleted = macrosMet && waterCompleted && !macrosExceeded;
-  const showNutritionStatus = nutritionCompleted || macrosOverTarget;
+  const dailyMicros = useMemo(
+    () => estimateDailyMicros(dailyMeals, current),
+    [dailyMeals, current]
+  );
+  const healthScore = scoreDailyNutrition({
+    current,
+    targets,
+    waterMl: localWaterMl,
+    waterGoalMl,
+    dateKey,
+    mealCount: dailyMeals.length,
+    micros: dailyMicros,
+  }).score;
+  const healthGood = isGoodNutritionHealthScore(healthScore);
+  const nutritionChecked = nutritionCompleted || healthGood;
+  const showNutritionStatus = nutritionChecked || macrosOverTarget || macrosExceeded;
 
   const nutritionTitle = isToday(date) ? platform.dashboard.nutrition : format(date, "MMM d");
   const mealPlanDialogTitle = isToday(date)
@@ -252,17 +269,22 @@ export function DailyTracker({
     setPreviewOpen(true);
   };
 
-  const nutritionContext: NutritionDayContext = {
-    current,
-    targets,
-    waterMl: localWaterMl,
-    waterGoalMl,
-    dateKey,
-    mealCount: dailyMeals.length,
-  };
-  const nutritionStatuses = getNutritionDayStatuses(nutritionContext);
+  const nutritionContext = useMemo<NutritionDayContext>(
+    () => ({
+      current,
+      targets,
+      waterMl: localWaterMl,
+      waterGoalMl,
+      dateKey,
+      mealCount: dailyMeals.length,
+    }),
+    [current, targets, localWaterMl, waterGoalMl, dateKey, dailyMeals.length]
+  );
+  const nutritionStatuses = useMemo(
+    () => getNutritionDayStatuses(nutritionContext, dailyMicros),
+    [nutritionContext, dailyMicros]
+  );
   const isDetailLayout = layout === "detail";
-  const dailyMicros = estimateDailyMicros(dailyMeals, current);
 
   const nutritionChromeActions = useMemo(() => {
     if (!isDetailLayout) return null;
@@ -275,6 +297,8 @@ export function DailyTracker({
               key={status}
               status={status}
               context={nutritionContext}
+              meals={dailyMeals}
+              micros={dailyMicros}
             />
           ))}
         </div>
@@ -300,6 +324,8 @@ export function DailyTracker({
     showMealPlanButton,
     nutritionStatuses,
     nutritionContext,
+    dailyMeals,
+    dailyMicros,
   ]);
   useRegisterNutritionPageChrome(nutritionChromeActions);
 
@@ -359,7 +385,7 @@ export function DailyTracker({
         <DashboardCardNavBody className="flex flex-1 flex-col">
           {showNutritionStatus && (
             <div className="absolute right-3 top-3 z-10">
-              {nutritionCompleted && !macrosOverTarget ? (
+              {nutritionChecked ? (
                 <DashboardStatusIcon status="completed" aria-label="Completed" />
               ) : (
                 <DashboardStatusIcon status="missed" aria-label="Over limit" />
@@ -373,7 +399,7 @@ export function DailyTracker({
                   <CardTitle className="flex items-center gap-2 text-lg font-black">
                     <Apple className="h-5 w-5 text-primary" />
                     <span
-                      className={cn(nutritionCompleted && "text-muted-foreground line-through")}
+                      className={cn(nutritionChecked && "text-muted-foreground line-through")}
                     >
                       {nutritionTitle}
                     </span>
@@ -383,6 +409,8 @@ export function DailyTracker({
                       key={status}
                       status={status}
                       context={nutritionContext}
+                      meals={dailyMeals}
+                      micros={dailyMicros}
                     />
                   ))}
                 </div>
@@ -459,6 +487,7 @@ export function DailyTracker({
             targets={targets}
             micros={dailyMicros}
             context={nutritionContext}
+            meals={dailyMeals}
           />
 
           <div className="hidden items-center justify-end gap-2 lg:flex">
@@ -517,7 +546,7 @@ export function DailyTracker({
       <Card id="dashboard-nutrition" className="relative">
         {showNutritionStatus && (
           <div className="absolute right-3 top-3 z-10">
-            {nutritionCompleted && !macrosOverTarget ? (
+            {nutritionChecked ? (
               <DashboardStatusIcon status="completed" aria-label="Completed" />
             ) : (
               <DashboardStatusIcon status="missed" aria-label="Over limit" />
@@ -529,18 +558,18 @@ export function DailyTracker({
             <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
               <Apple className="h-5 w-5 text-primary" />
               <span
-                className={cn(nutritionCompleted && "text-muted-foreground line-through")}
+                className={cn(nutritionChecked && "text-muted-foreground line-through")}
               >
                 {nutritionTitle}
               </span>
               <MissedButton
-                count={macrosExceeded ? 1 : 0}
+                count={macrosOverTarget || macrosExceeded ? 1 : 0}
                 title={coachLabels.exceededTasks}
                 hint={coachLabels.macrosExceededHint}
                 buttonLabel={coachLabels.exceeded}
                 tone="missed"
                 items={
-                  macrosExceeded
+                  macrosOverTarget || macrosExceeded
                     ? [
                         {
                           id: "macros-over",

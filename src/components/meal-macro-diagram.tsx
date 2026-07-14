@@ -15,8 +15,10 @@ import type { MealMacros } from "@/lib/meal-utils";
 import {
   DAILY_MICRO_TARGETS,
   estimateMealMicros,
+  sodiumExceededDailyUpperLimit,
   type DailyMicros,
 } from "@/lib/nutrition-day-utils";
+import { macroExceededDailyUpperLimit } from "@/lib/macro-targets";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -100,7 +102,14 @@ type NutrientRow = {
 
 function NutrientBar({ row }: { row: NutrientRow }) {
   const pct = row.target > 0 ? Math.min(100, (row.value / row.target) * 100) : 0;
-  const over = row.overWhenHigh && row.target > 0 && row.value > row.target;
+  const over =
+    Boolean(row.overWhenHigh) &&
+    row.target > 0 &&
+    (row.key === "fat"
+      ? macroExceededDailyUpperLimit(row.value, row.target, "fat")
+      : row.key === "sodium"
+        ? sodiumExceededDailyUpperLimit(row.value, row.target)
+        : row.value > row.target);
   const Icon = row.icon;
 
   return (

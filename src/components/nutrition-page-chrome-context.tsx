@@ -40,10 +40,11 @@ export function useNutritionPageChromeActions() {
 
 export function useRegisterNutritionPageChrome(actions: NutritionPageChromeActions | null) {
   const context = useContext(NutritionPageChromeContext);
+  const setActions = context?.setActions;
 
   useEffect(() => {
-    if (!context) return;
-    context.setActions(actions);
-    return () => context.setActions(null);
-  }, [context, actions]);
+    if (!setActions) return;
+    setActions(actions);
+    return () => setActions(null);
+  }, [setActions, actions]);
 }

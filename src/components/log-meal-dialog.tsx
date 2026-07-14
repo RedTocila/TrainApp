@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -39,6 +39,25 @@ import { cn } from "@/lib/utils";
 
 type LogMode = "picker" | "custom" | "library" | "photo" | "text";
 
+const SAVE_TIMEOUT_MS = 45_000;
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error("Meal save timed out. Please try again.")),
+          ms
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export function LogMealDialog({
   open,
   clientId,
@@ -68,7 +87,10 @@ export function LogMealDialog({
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
   const [mealPhotoDataUrl, setMealPhotoDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  // Controlled save flag — do not use useTransition here. Server actions that
+  // revalidate paths can leave isPending stuck true (Next.js / React 19).
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
   const [mounted, setMounted] = useState(false);
   const catalogActive = open && mode === "library";
   const {
@@ -93,12 +115,14 @@ export function LogMealDialog({
     setAiConfidence(null);
     setMealPhotoDataUrl(null);
     setError(null);
+    setIsSaving(false);
+    savingRef.current = false;
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !savingRef.current) onClose();
     };
     document.addEventListener("keydown", onKeyDown);
     document.body.style.overflow = "hidden";
@@ -145,86 +169,130 @@ export function LogMealDialog({
     }
   };
 
+  const beginSave = () => {
+    if (savingRef.current) return false;
+    savingRef.current = true;
+    setIsSaving(true);
+    setError(null);
+    return true;
+  };
+
+  const endSave = () => {
+    savingRef.current = false;
+    setIsSaving(false);
+  };
+
   const handleLogCustom = () => {
     if (!form.name.trim()) {
       setError(platform.mealLog.nameRequired);
       return;
     }
-    setError(null);
-    startTransition(async () => {
-      const photo =
-        mode === "photo" && mealPhotoDataUrl
-          ? (() => {
-              const parsed = parseDataUrl(mealPhotoDataUrl);
-              return parsed
-                ? { base64: parsed.base64, mimeType: parsed.mimeType }
-                : undefined;
-            })()
-          : undefined;
+    if (!beginSave()) return;
 
-      const result = await runServerAction(() =>
-        logCustomMeal(clientId, dateKey, form, photo ? { photo } : undefined)
-      );
-      if (isActionError(result)) {
-        setError(result.error);
-        return;
+    const photo =
+      mode === "photo" && mealPhotoDataUrl
+        ? (() => {
+            const parsed = parseDataUrl(mealPhotoDataUrl);
+            return parsed
+              ? { base64: parsed.base64, mimeType: parsed.mimeType }
+              : undefined;
+          })()
+        : undefined;
+
+    void (async () => {
+      try {
+        const result = await withTimeout(
+          runServerAction(() =>
+            logCustomMeal(clientId, dateKey, form, photo ? { photo } : undefined)
+          ),
+          SAVE_TIMEOUT_MS
+        );
+        if (isActionError(result)) {
+          setError(result.error);
+          return;
+        }
+        finishMealLog(form);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : platform.mealLog.processFailed
+        );
+      } finally {
+        endSave();
       }
-      finishMealLog(form);
-    });
+    })();
   };
 
   const handleLogFromCatalog = (recipeId: string) => {
-    setError(null);
-    startTransition(async () => {
+    if (!beginSave()) return;
+
+    void (async () => {
       try {
-        const res = await fetch(`/api/recipe-catalog?id=${encodeURIComponent(recipeId)}`);
+        const res = await withTimeout(
+          fetch(`/api/recipe-catalog?id=${encodeURIComponent(recipeId)}`),
+          SAVE_TIMEOUT_MS
+        );
         if (!res.ok) {
           setError("Recipe not found");
           return;
         }
         const data = (await res.json()) as { recipe: CatalogRecipe };
         const mealForm = catalogRecipeToMealForm(data.recipe);
-        const result = await runServerAction(() =>
-          logCustomMeal(clientId, dateKey, mealForm)
+        const result = await withTimeout(
+          runServerAction(() => logCustomMeal(clientId, dateKey, mealForm)),
+          SAVE_TIMEOUT_MS
         );
         if (isActionError(result)) {
           setError(result.error);
           return;
         }
         finishMealLog(mealForm);
-      } catch {
-        setError(platform.mealLog.processFailed);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : platform.mealLog.processFailed
+        );
+      } finally {
+        endSave();
       }
-    });
+    })();
   };
 
   const handleLogFromLibrary = (mealId: string) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await runServerAction(() =>
-        logMealFromLibrary(clientId, dateKey, mealId)
-      );
-      if (isActionError(result)) {
-        setError(result.error);
-        return;
+    if (!beginSave()) return;
+
+    void (async () => {
+      try {
+        const result = await withTimeout(
+          runServerAction(() => logMealFromLibrary(clientId, dateKey, mealId)),
+          SAVE_TIMEOUT_MS
+        );
+        if (isActionError(result)) {
+          setError(result.error);
+          return;
+        }
+        const item = library.find((i) => i.meal.id === mealId);
+        if (item) {
+          finishMealLog({
+            meal_type: item.meal.meal_type,
+            name: item.meal.name,
+            description: item.meal.description ?? "",
+            youtube_url: item.meal.youtube_url ?? "",
+            macros: normalizeMealMacros(item.meal),
+            ingredients: (item.meal.foods ?? []).map((f) => ({
+              name: f.name,
+              amount: f.amount ?? "",
+            })),
+          });
+        } else {
+          finishMealLog();
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : platform.mealLog.processFailed
+        );
+      } finally {
+        endSave();
       }
-      const item = library.find((i) => i.meal.id === mealId);
-      if (item) {
-        finishMealLog({
-          meal_type: item.meal.meal_type,
-          name: item.meal.name,
-          description: item.meal.description ?? "",
-          youtube_url: item.meal.youtube_url ?? "",
-          macros: normalizeMealMacros(item.meal),
-          ingredients: (item.meal.foods ?? []).map((f) => ({
-            name: f.name,
-            amount: f.amount ?? "",
-          })),
-        });
-      } else {
-        finishMealLog();
-      }
-    });
+    })();
   };
 
   const goToMode = (next: LogMode) => {
@@ -291,6 +359,7 @@ export function LogMealDialog({
           size="icon"
           className="shrink-0"
           onClick={handleBack}
+          disabled={isSaving}
           aria-label={platform.mealLog.goBack}
         >
           <ArrowLeft className="h-5 w-5" />
@@ -306,7 +375,7 @@ export function LogMealDialog({
       >
         {title}
       </h2>
-      <Button variant="ghost" size="icon" className="shrink-0" onClick={onClose} aria-label={platform.aria.close}>
+      <Button variant="ghost" size="icon" className="shrink-0" onClick={onClose} aria-label={platform.aria.close} disabled={isSaving}>
         <X className="h-5 w-5" />
       </Button>
     </div>
@@ -415,10 +484,10 @@ export function LogMealDialog({
                       <Button
                         size="sm"
                         className="shrink-0"
-                        disabled={isPending}
+                        disabled={isSaving}
                         onClick={() => handleLogFromCatalog(recipe.id)}
                       >
-                        {platform.mealLog.logMeal}
+                        {isSaving ? platform.common.saving : platform.mealLog.logMeal}
                       </Button>
                     </li>
                   ))}
@@ -453,10 +522,10 @@ export function LogMealDialog({
                           <Button
                             size="sm"
                             className="shrink-0"
-                            disabled={isPending}
+                            disabled={isSaving}
                             onClick={() => handleLogFromLibrary(item.meal.id)}
                           >
-                            {platform.common.add}
+                            {isSaving ? platform.common.saving : platform.common.add}
                           </Button>
                         </li>
                       );
@@ -565,11 +634,18 @@ export function LogMealDialog({
     >
       {error && <p className="text-sm text-red-400">{error}</p>}
       {canLogCustom ? (
-        <Button className="w-full" disabled={isPending} onClick={handleLogCustom}>
-          {isPending ? platform.common.saving : logButtonLabel}
+        <Button className="w-full" disabled={isSaving} onClick={handleLogCustom}>
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {platform.common.saving}
+            </>
+          ) : (
+            logButtonLabel
+          )}
         </Button>
       ) : mode !== "picker" ? (
-        <Button variant="outline" className="w-full" onClick={onClose}>
+        <Button variant="outline" className="w-full" onClick={onClose} disabled={isSaving}>
           {platform.common.close}
         </Button>
       ) : null}
@@ -590,7 +666,8 @@ export function LogMealDialog({
           type="button"
           aria-label={platform.aria.close}
           className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
+          onClick={isSaving ? undefined : onClose}
+          disabled={isSaving}
         />
       )}
       <div

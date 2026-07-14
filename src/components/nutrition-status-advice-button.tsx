@@ -1,15 +1,25 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
-import { X } from "lucide-react";
+import { useEffect, useState, type MouseEvent } from "react";
+import { Loader2, X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { OpenAiCoachChatButton } from "@/components/open-ai-coach-chat-button";
 import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { analyzeDayMacroOverageAction } from "@/lib/actions/ai-macro-overage";
+import {
+  buildLocalDayOverageInsights,
+  nutrientLabel,
+  nutrientUnit,
+  type MacroOverageInsight,
+} from "@/lib/macro-overage-local";
 import {
   getNutritionStatusAdvice,
+  type DailyMicros,
   type NutritionDayContext,
   type NutritionDayStatus,
 } from "@/lib/nutrition-day-utils";
+import type { DailyMealLog } from "@/lib/types";
+import { formatUserError } from "@/lib/format-user-error";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -39,15 +49,65 @@ const STATUS_STYLES: Record<
   },
 };
 
+function OverageInsightCards({
+  insights,
+}: {
+  insights: MacroOverageInsight[];
+}) {
+  const platform = usePlatformCopy();
+  if (insights.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      {insights.map((insight) => (
+        <div
+          key={insight.nutrient}
+          className="rounded-xl border border-orange-500/25 bg-orange-500/5 px-3 py-3"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-300">
+            {platform.nutrition.extraNutrient(nutrientLabel(insight.nutrient))}
+          </p>
+          <p className="mt-1 text-sm font-black">{insight.culpritMealName}</p>
+          {insight.amountFromMeal > 0 ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              ~{insight.amountFromMeal}
+              {nutrientUnit(insight.nutrient)} {platform.nutrition.fromThisMeal}
+            </p>
+          ) : null}
+          {insight.problemFoods.length > 0 ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">
+                {platform.nutrition.problemFoods}:{" "}
+              </span>
+              {insight.problemFoods.join(", ")}
+            </p>
+          ) : null}
+          <p className="mt-2 text-sm leading-relaxed">{insight.explanation}</p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              {platform.nutrition.nextTimeLabel}:{" "}
+            </span>
+            {insight.avoidNextTime}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function NutritionStatusAdviceButton({
   status,
   context,
+  meals = [],
+  micros,
   className,
   variant = "chip",
   onClick,
 }: {
   status: NutritionDayStatus;
   context: NutritionDayContext;
+  meals?: DailyMealLog[];
+  micros?: DailyMicros | null;
   className?: string;
   variant?: "chip" | "banner";
   onClick?: (event: MouseEvent<HTMLButtonElement>) => void;
@@ -56,8 +116,71 @@ export function NutritionStatusAdviceButton({
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const [open, setOpen] = useState(false);
+  const [insights, setInsights] = useState<MacroOverageInsight[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [refining, setRefining] = useState(false);
   const advice = getNutritionStatusAdvice(status, coachCopy, coachLabels, context);
   const styles = STATUS_STYLES[status];
+  const showOverageInsights = status === "too_much";
+
+  useEffect(() => {
+    if (!open || !showOverageInsights) return;
+
+    const local = buildLocalDayOverageInsights({
+      meals,
+      current: context.current,
+      targets: context.targets,
+      micros,
+    });
+    setInsights(local);
+    setError(null);
+    setRefining(true);
+
+    let cancelled = false;
+    void analyzeDayMacroOverageAction({
+      dateKey: context.dateKey,
+      current: context.current,
+      targets: context.targets,
+      micros,
+    })
+      .then((result) => {
+        if (cancelled) return;
+        if ("error" in result) {
+          if (local.length === 0) {
+            setError(formatUserError(result.error));
+          }
+          return;
+        }
+        if (result.insights.length > 0) {
+          setInsights(result.insights);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (local.length === 0) {
+          setError(
+            formatUserError(
+              err instanceof Error ? err.message : "Failed to analyze meals"
+            )
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setRefining(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    showOverageInsights,
+    meals,
+    context.current,
+    context.targets,
+    context.dateKey,
+    micros,
+  ]);
 
   return (
     <>
@@ -101,7 +224,7 @@ export function NutritionStatusAdviceButton({
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-6 sm:pt-10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
           <button
             type="button"
             aria-label={platform.aria.close}
@@ -111,7 +234,8 @@ export function NutritionStatusAdviceButton({
           <div
             role="dialog"
             aria-modal="true"
-            className="relative z-10 flex max-h-[min(85vh,28rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+            className="relative z-10 flex max-h-[min(85vh,36rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between border-b border-border px-5 py-4">
               <div className="flex items-center gap-3">
@@ -142,6 +266,26 @@ export function NutritionStatusAdviceButton({
                   <p className="mt-2 text-xs text-muted-foreground">{advice.detail}</p>
                 ) : null}
               </div>
+
+              {showOverageInsights ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {platform.nutrition.whatWentWrongTitle}
+                    </p>
+                    {refining ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-orange-300" />
+                    ) : null}
+                  </div>
+                  {error ? (
+                    <p className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-3 text-sm text-red-300">
+                      {error}
+                    </p>
+                  ) : (
+                    <OverageInsightCards insights={insights} />
+                  )}
+                </div>
+              ) : null}
             </div>
 
             <div className="space-y-2 border-t border-border px-5 py-3">

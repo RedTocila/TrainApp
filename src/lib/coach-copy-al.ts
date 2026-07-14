@@ -210,7 +210,7 @@ export const coachLabelsAl = {
   faceTheRoast: "Përballu me kritikën",
   getBackInThere: "Kthehu në stërvitje",
   actuallyFinish: "Mbaroje vërtet",
-  exceeded: "Shumë",
+  exceeded: "Çfarë shkoi keq",
   exceededTasks: "Makron që i kalove",
   macrosExceededHint:
     "Nesër: porcione më të vogla dhe vakte më të lehta — shiko regjistrimet e sotme dhe ule aty ku ke kaluar limitin.",

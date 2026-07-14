@@ -14,6 +14,7 @@ import {
 import type { MealMacros } from "@/lib/meal-utils";
 import {
   DAILY_MICRO_TARGETS,
+  microExceededHighLimit,
   type DailyMicros,
 } from "@/lib/nutrition-day-utils";
 import { cn } from "@/lib/utils";
@@ -330,7 +331,9 @@ export function NutritionMacroRings({
           icon,
           ringClass,
           iconClass,
-          over: overWhenHigh ? target > 0 && value > target : false,
+          over: overWhenHigh
+            ? microExceededHighLimit(key, value, target)
+            : false,
         };
       }),
     ];
@@ -437,7 +440,9 @@ export function NutritionMacroRings({
         {MICRO_CELLS.map(({ key, icon, ringClass, iconClass, overWhenHigh, format }) => {
           const target = microTargets[key];
           const value = micros[key];
-          const over = overWhenHigh ? target > 0 && value > target : false;
+          const over = overWhenHigh
+            ? microExceededHighLimit(key, value, target)
+            : false;
           const formattedTarget =
             key === "sodium" ? `${Math.round(target)}mg` : `${Math.round(target)}g`;
 
