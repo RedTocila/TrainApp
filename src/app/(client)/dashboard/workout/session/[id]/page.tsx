@@ -1,10 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { requireClient } from "@/lib/actions/auth";
-import {
-  getWorkoutSession,
-} from "@/lib/actions/workout-sessions";
+import { getWorkoutSession } from "@/lib/actions/workout-sessions";
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import { ActiveWorkoutClient } from "@/components/active-workout-client";
+import { ActiveHiitClient } from "@/components/active-hiit-client";
 import { PageTransition } from "@/components/page-transition";
 
 export default async function WorkoutSessionPage({
@@ -21,7 +20,7 @@ export default async function WorkoutSessionPage({
 
   if (!data) notFound();
 
-  const { session, exercises } = data;
+  const { session, exercises, planKind, hiitConfig } = data;
 
   if (session.status === "completed") {
     redirect("/dashboard/workout");
@@ -29,6 +28,15 @@ export default async function WorkoutSessionPage({
 
   if (session.status === "cancelled") {
     notFound();
+  }
+
+  if (planKind === "hiit") {
+    if (!hiitConfig) notFound();
+    return (
+      <PageTransition>
+        <ActiveHiitClient session={session} config={hiitConfig} />
+      </PageTransition>
+    );
   }
 
   return (

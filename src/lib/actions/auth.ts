@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getCachedProfile } from "@/lib/cached-profile";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
+import { getAppBaseUrl } from "@/lib/app-url";
 import { formatUserError, isEmailNotConfirmedError } from "@/lib/format-user-error";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 type RegistrationInput = {
   fullName: string;
@@ -17,63 +17,24 @@ type RegistrationInput = {
   intakeJson?: string | null;
 };
 
-type AdminClient = ReturnType<typeof createAdminClient>;
-
-async function findAuthUserByEmail(
-  admin: AdminClient,
-  email: string
-): Promise<User | null> {
-  const normalized = email.trim().toLowerCase();
-
-  for (let page = 1; page <= 10; page++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-    if (error || !data.users.length) break;
-
-    const match = data.users.find((user) => user.email?.toLowerCase() === normalized);
-    if (match) return match;
-
-    if (data.users.length < 200) break;
-  }
-
-  return null;
-}
-
-async function confirmAuthUserEmail(email: string): Promise<boolean> {
-  try {
-    const admin = createAdminClient();
-    const user = await findAuthUserByEmail(admin, email);
-    if (!user) return false;
-
-    const { error } = await admin.auth.admin.updateUserById(user.id, {
-      email_confirm: true,
-    });
-    return !error;
-  } catch (error) {
-    console.error("[confirmAuthUserEmail] failed", error);
-    return false;
-  }
-}
-
-async function signInWithRecovery(email: string, password: string) {
+async function signInWithPasswordOnly(email: string, password: string) {
   const normalizedEmail = email.trim().toLowerCase();
   const supabase = await createClient();
 
-  let { error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signInWithPassword({
     email: normalizedEmail,
     password,
   });
 
-  if (error && isEmailNotConfirmedError(error)) {
-    const confirmed = await confirmAuthUserEmail(normalizedEmail);
-    if (confirmed) {
-      ({ error } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      }));
-    }
-  }
-
   if (error) {
+    if (isEmailNotConfirmedError(error)) {
+      return {
+        error: formatUserError(
+          error,
+          "Confirm your email before signing in. Check your inbox for the verification link."
+        ),
+      };
+    }
     return { error: formatUserError(error, "Sign in failed. Check your email and password.") };
   }
 
@@ -189,11 +150,13 @@ async function finalizeNewUserProfile(
 }
 
 /**
- * Create account server-side (auto-confirmed) so signup does not depend on Supabase SMTP.
+ * Create account via Supabase Auth signUp so confirmation emails go through SMTP (Resend).
+ * Do NOT use admin.createUser with email_confirm: true — that skips the confirmation email.
  */
 export async function signUpAccount(input: RegistrationInput & { password: string }) {
   const email = input.email.trim().toLowerCase();
-  const admin = createAdminClient();
+  const supabase = await createClient();
+  const emailRedirectTo = `${getAppBaseUrl()}/auth/callback`;
 
   const userMetadata: Record<string, string> = {
     full_name: input.fullName,
@@ -202,70 +165,92 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
     userMetadata.phone = input.phone;
   }
 
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
+  const requestPayload = {
+    email,
+    fullName: input.fullName,
+    hasPhone: Boolean(input.phone),
+    emailRedirectTo,
+    hasIntake: Boolean(input.intakeJson?.trim()),
+  };
+  console.log("[signUpAccount] request", requestPayload);
+
+  const { data, error } = await supabase.auth.signUp({
     email,
     password: input.password,
-    email_confirm: true,
-    user_metadata: userMetadata,
+    options: {
+      emailRedirectTo,
+      data: userMetadata,
+    },
   });
 
-  if (createError) {
-    console.error("[signUpAccount] createUser failed", createError.message, createError);
-    const message = createError.message.toLowerCase();
-    if (
-      (message.includes("already") && message.includes("registered")) ||
-      message.includes("database error")
-    ) {
-      const recovered = await recoverExistingSignupUser(admin, email, input.password, userMetadata);
-      if (recovered) {
-        const finalized = await finalizeNewUserProfile(admin, recovered.id, recovered.user_metadata, {
-          ...input,
-          email,
-        });
-        if (finalized.error) {
-          console.error("[signUpAccount] profile setup failed after recover", finalized.error);
-          const { data: profile } = await admin
-            .from("profiles")
-            .select("role")
-            .eq("id", recovered.id)
-            .maybeSingle();
-          return {
-            success: true as const,
-            role: profile?.role ?? "client",
-            profileSetupDeferred: true,
-          };
+  console.log("[signUpAccount] response", {
+    error: error
+      ? { message: error.message, status: error.status, code: (error as { code?: string }).code }
+      : null,
+    user: data.user
+      ? {
+          id: data.user.id,
+          email: data.user.email,
+          emailConfirmedAt: data.user.email_confirmed_at,
+          identitiesCount: data.user.identities?.length ?? 0,
         }
-        return finalized;
-      }
-      if (message.includes("already")) {
-        return { error: "This email is already registered. Sign in instead." };
-      }
-    }
+      : null,
+    session: data.session
+      ? { userId: data.session.user.id, expiresAt: data.session.expires_at }
+      : null,
+  });
+
+  if (error) {
+    console.error("[signUpAccount] signUp failed", error.message, error);
     return {
-      error: formatUserError(createError.message, "Could not create account."),
+      error: formatUserError(error.message, "Could not create account."),
     };
   }
 
-  if (!created.user) {
+  if (!data.user) {
+    console.error("[signUpAccount] signUp returned no user and no error");
     return { error: "Could not create account." };
   }
 
-  const finalized = await finalizeNewUserProfile(admin, created.user.id, created.user.user_metadata, {
+  // Supabase returns a user with empty identities when the email is already registered
+  // (anti-enumeration). Treat that as an existing account.
+  if ((data.user.identities?.length ?? 0) === 0) {
+    return { error: "This email is already registered. Sign in instead." };
+  }
+
+  // Confirm-email enabled: SMTP sends the message; no session until the link is clicked.
+  if (!data.session) {
+    console.log("[signUpAccount] awaiting email confirmation", {
+      userId: data.user.id,
+      email,
+    });
+    return {
+      success: true as const,
+      needsEmailConfirmation: true as const,
+      role: "client" as const,
+    };
+  }
+
+  // Confirm-email disabled in Supabase: session is immediate — finish profile now.
+  const finalized = await finalizeNewUserProfile(supabase, data.user.id, data.user.user_metadata, {
     ...input,
     email,
   });
 
   if (finalized.error) {
-    console.error("[signUpAccount] profile setup failed after createUser", finalized.error);
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("role")
-      .eq("id", created.user.id)
-      .maybeSingle();
-    return { success: true as const, role: profile?.role ?? "client", profileSetupDeferred: true };
+    console.error("[signUpAccount] profile setup failed after signUp", finalized.error);
+    return {
+      success: true as const,
+      needsEmailConfirmation: false as const,
+      role: "client" as const,
+      profileSetupDeferred: true as const,
+    };
   }
 
-  return finalized;
+  return {
+    ...finalized,
+    needsEmailConfirmation: false as const,
+  };
 }
 
 /** Apply profile + intake after the browser client has established an auth session. */
@@ -294,60 +279,20 @@ export async function completeRegistration(input: RegistrationInput) {
   });
 }
 
-async function recoverExistingSignupUser(
-  admin: AdminClient,
-  email: string,
-  password: string,
-  userMetadata: Record<string, string>
-) {
-  const existing = await findAuthUserByEmail(admin, email);
-  if (!existing) return null;
-
-  const { data: updated, error: updateError } = await admin.auth.admin.updateUserById(
-    existing.id,
-    {
-      password,
-      email_confirm: true,
-      user_metadata: { ...existing.user_metadata, ...userMetadata },
-    }
-  );
-  if (updateError) return null;
-  return updated.user;
-}
-
-/** Sign in after registration — auto-confirms email if Supabase left it unverified. */
+/** Sign in after registration when Supabase returned a session (confirm email off). */
 export async function signInAfterRegistration(email: string, password: string) {
-  return signInWithRecovery(email, password);
+  return signInWithPasswordOnly(email, password);
 }
 
 /**
- * Finish signup without relying on Supabase SMTP — confirms via admin API, signs in, applies profile.
+ * After the user confirms email (or already has a session), sign in and apply profile/intake.
  */
 export async function completePendingSignup(
   input: RegistrationInput & { password: string }
 ) {
   const email = input.email.trim().toLowerCase();
 
-  const confirmed = await confirmAuthUserEmail(email);
-  if (!confirmed) {
-    const recovered = await recoverExistingSignupUser(
-      createAdminClient(),
-      email,
-      input.password,
-      {
-        full_name: input.fullName,
-        ...(input.phone ? { phone: input.phone } : {}),
-      }
-    );
-    if (!recovered) {
-      return {
-        error:
-          "We could not verify your account yet. Wait a minute and try again, or contact support.",
-      };
-    }
-  }
-
-  const { error: signInError } = await signInWithRecovery(email, input.password);
+  const { error: signInError } = await signInWithPasswordOnly(email, input.password);
   if (signInError) {
     return { error: signInError };
   }
@@ -359,7 +304,7 @@ export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  const { error } = await signInWithRecovery(email, password);
+  const { error } = await signInWithPasswordOnly(email, password);
   if (error) return { error };
 
   const supabase = await createClient();

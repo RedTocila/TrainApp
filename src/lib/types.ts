@@ -117,6 +117,9 @@ export interface WorkoutFolder {
   created_at: string;
 }
 
+export type { WorkoutPlanKind, HiitConfig, HiitExerciseConfig } from "@/lib/hiit";
+import type { HiitConfig } from "@/lib/hiit";
+
 export interface WorkoutPlan {
   id: string;
   title: string;
@@ -125,6 +128,8 @@ export interface WorkoutPlan {
   is_personal?: boolean;
   folder_id?: string | null;
   trainer_label?: string | null;
+  kind?: import("@/lib/hiit").WorkoutPlanKind;
+  hiit_config?: HiitConfig | null;
   created_at: string;
 }
 
@@ -307,7 +312,7 @@ export interface ProgressPhotoAnalysis {
   identity_signature?: string;
   confidence: number;
   rejection_reason?: string;
-  /** Coach Alex reply — sarcastic roast when invalid, coaching notes when valid. */
+  /** Coach Alex reply — sarcastic roast when invalid; honest sarcastic motivating coaching when valid. */
   alex_message: string;
   physique_observations?: string[];
   progress_notes?: string;

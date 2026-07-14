@@ -107,6 +107,23 @@ export async function analyzeProgressPhotoAction(input: {
     priorProgressNotes = priorProgressNotesForPose(sets, pose, monthKey);
   }
 
+  let weightKg = access.profile.intake_weight_kg ?? null;
+  try {
+    const admin = createAdminClient();
+    const { data: latestWeight } = await admin
+      .from("body_weight_logs")
+      .select("weight_kg")
+      .eq("client_id", access.profile.id)
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestWeight?.weight_kg != null && Number.isFinite(Number(latestWeight.weight_kg))) {
+      weightKg = Number(latestWeight.weight_kg);
+    }
+  } catch {
+    // fall back to intake weight
+  }
+
   try {
     const analysis = await analyzeProgressPhoto(pose, imageBase64, mimeType, {
       userGoal: access.profile.goal,
@@ -114,6 +131,10 @@ export async function analyzeProgressPhotoAction(input: {
       priorProgressNotes,
       profileGender: access.profile.gender,
       identityBaseline: access.profile.progress_photo_identity ?? null,
+      body: {
+        heightCm: access.profile.height_cm,
+        weightKg,
+      },
     });
 
     if (analysis.valid && monthKey) {

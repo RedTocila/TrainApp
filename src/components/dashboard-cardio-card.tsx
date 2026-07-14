@@ -4,7 +4,7 @@ import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 import Link from "next/link";
 import { format, isToday, isTomorrow } from "date-fns";
 import { HeartPulse } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DashboardCardNavBody,
   DashboardCardNavLink,
@@ -18,7 +18,10 @@ import { DashboardStatusCheck } from "@/components/section-completed-badge";
 import { dashboard, DashboardEmptyState } from "@/components/dashboard-ui";
 import { getCardioTypeDisplay } from "@/lib/cardio-catalog";
 import { getScheduledCardioForDate } from "@/lib/actions/user-cardio";
-import { getTaskCompletionsForDate, toggleScheduleTaskCompletion } from "@/lib/actions/task-completions";
+import { getCardioCompletionForDate } from "@/lib/actions/task-completions";
+import { formatCardioElapsedMinutes } from "@/lib/cardio-completion";
+import { cardioTaskId } from "@/lib/cardio-task-id";
+import { isCardioTimerActive } from "@/lib/cardio-timer-storage";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import type { ScheduledCardio } from "@/lib/types";
@@ -36,18 +39,31 @@ function cardioTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>) {
 type CardioDayData = {
   scheduled: ScheduledCardio | null;
   completed: boolean;
+  elapsedSeconds: number | null;
 };
+
+function isCardioCompletedForEntry(
+  scheduled: ScheduledCardio | null | undefined,
+  dateKey: string,
+  completions: string[] | undefined
+): boolean {
+  const cardioId = scheduled?.cardio_id ?? scheduled?.client_cardio?.id ?? null;
+  if (!cardioId) return false;
+  return (completions ?? []).includes(cardioTaskId(dateKey, cardioId));
+}
 
 export function DashboardCardioCard({
   clientId,
   initialScheduled = null,
   initialCompleted = false,
+  initialElapsedSeconds = null,
   variant = "compact",
   schedule,
 }: {
   clientId: string;
   initialScheduled?: ScheduledCardio | null;
   initialCompleted?: boolean;
+  initialElapsedSeconds?: number | null;
   variant?: "full" | "compact";
   schedule?: ClientSchedule;
 }) {
@@ -55,29 +71,39 @@ export function DashboardCardioCard({
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
   const readOnly = useIsPastSelectedDay();
-  const { version, patchDashboard, notifySync } = useDashboardSync();
+  const { version, patches } = useDashboardSync();
   const enrichment = useOptionalDashboardEnrichment()?.enrichment;
-  const [isToggling, setIsToggling] = useState(false);
   const dateKey = formatDateKey(selectedDate);
-  const taskId = `${dateKey}-cardio`;
   const compact = variant === "compact";
+  const sessionHref = `/dashboard/workout/cardio/session?date=${dateKey}`;
+  const [sessionActive, setSessionActive] = useState(false);
 
-  const enrichmentCompleted = (enrichment?.completionsByDate[dateKey] ?? []).includes(
-    taskId
-  );
+  useEffect(() => {
+    setSessionActive(isCardioTimerActive(dateKey));
+  }, [dateKey, version]);
 
   const seedCardio = useMemo((): CardioDayData | undefined => {
     if (dateKey === todayKey) {
-      return { scheduled: initialScheduled, completed: initialCompleted };
+      return {
+        scheduled: initialScheduled,
+        completed: initialCompleted,
+        elapsedSeconds: initialElapsedSeconds,
+      };
     }
     const scheduleEntry = schedule?.scheduledCardioEntries?.find(
       (entry) => entry.scheduled_date === dateKey
     );
     if (scheduleEntry) {
-      return { scheduled: scheduleEntry, completed: enrichmentCompleted };
-    }
-    if (enrichmentCompleted) {
-      return { scheduled: initialScheduled, completed: true };
+      const enrichmentCompleted = isCardioCompletedForEntry(
+        scheduleEntry,
+        dateKey,
+        enrichment?.completionsByDate[dateKey]
+      );
+      return {
+        scheduled: scheduleEntry,
+        completed: enrichmentCompleted,
+        elapsedSeconds: null,
+      };
     }
     return undefined;
   }, [
@@ -85,7 +111,8 @@ export function DashboardCardioCard({
     todayKey,
     initialScheduled,
     initialCompleted,
-    enrichmentCompleted,
+    initialElapsedSeconds,
+    enrichment?.completionsByDate,
     schedule?.scheduledCardioEntries,
   ]);
 
@@ -95,22 +122,38 @@ export function DashboardCardioCard({
     namespace: "cardio",
     seed: seedCardio,
     skipFetch: seedCardio !== undefined && dateKey !== todayKey,
-    deps: [taskId, version],
+    deps: [version, seedCardio?.scheduled?.cardio_id ?? null],
     fetcher: async () => {
-      const [entry, ids] = await Promise.all([
-        getScheduledCardioForDate(clientId, dateKey),
-        getTaskCompletionsForDate(clientId, dateKey),
-      ]);
+      const entry = await getScheduledCardioForDate(clientId, dateKey);
+      const cardioId = entry?.cardio_id ?? entry?.client_cardio?.id ?? null;
+      const completion = await getCardioCompletionForDate(
+        clientId,
+        dateKey,
+        cardioId
+      );
       return {
         scheduled: entry,
-        completed: ids.has(taskId),
+        completed: completion.completed,
+        elapsedSeconds: completion.elapsedSeconds,
       };
     },
   });
 
   const display = cardioDay ?? seedCardio;
   const scheduled = display?.scheduled ?? null;
-  const completed = display?.completed ?? enrichmentCompleted;
+  const cardioId = scheduled?.cardio_id ?? scheduled?.client_cardio?.id ?? null;
+  const taskId = cardioTaskId(dateKey, cardioId);
+  const patchedCompleted = patches.completions[dateKey]?.[taskId];
+  const enrichmentCompleted = isCardioCompletedForEntry(
+    scheduled,
+    dateKey,
+    enrichment?.completionsByDate[dateKey]
+  );
+  const completed =
+    patchedCompleted === true ||
+    display?.completed === true ||
+    enrichmentCompleted;
+  const elapsedSeconds = display?.elapsedSeconds ?? null;
   const cardio = scheduled?.client_cardio ?? null;
   const cardioForDay = cardio;
   const completedForDay = completed;
@@ -121,32 +164,23 @@ export function DashboardCardioCard({
   const cardioIconAccent = cardioDisplay?.accentClass ?? "text-orange-400";
   const cardioIconBg = cardioDisplay?.bgClass ?? "bg-orange-500/15";
 
-  const handleToggle = () => {
-    const next = !completed;
-    patchDashboard({ dateKey, taskId, completed: next });
-    setIsToggling(true);
+  const startLabel = sessionActive
+    ? platform.cardio.continueCardio
+    : platform.cardio.startCardio;
 
-    const timeoutId = setTimeout(() => {
-      setIsToggling(false);
-    }, 8000);
-
-    void toggleScheduleTaskCompletion(clientId, dateKey, taskId)
-      .then((result) => {
-        if (result.error) {
-          patchDashboard({ dateKey, taskId, completed: !next });
-          return;
-        }
-        patchDashboard({ dateKey, taskId, completed: result.completed ?? false });
-      })
-      .catch(() => {
-        patchDashboard({ dateKey, taskId, completed: !next });
-      })
-      .finally(() => {
-        clearTimeout(timeoutId);
-        setIsToggling(false);
-        notifySync();
-      });
-  };
+  const durationBadge = (() => {
+    if (completedForDay && elapsedSeconds != null) {
+      const doneMin = formatCardioElapsedMinutes(elapsedSeconds);
+      if (cardioForDay?.duration_minutes != null) {
+        return `${platform.common.min(doneMin)} / ${platform.common.min(cardioForDay.duration_minutes)}`;
+      }
+      return platform.common.min(doneMin);
+    }
+    if (cardioForDay?.duration_minutes != null) {
+      return platform.common.min(cardioForDay.duration_minutes);
+    }
+    return null;
+  })();
 
   if (compact) {
     return (
@@ -184,9 +218,9 @@ export function DashboardCardioCard({
               >
                 {cardioForDay.title}
               </p>
-              {cardioForDay.duration_minutes != null && (
+              {durationBadge && (
                 <Badge variant="secondary" className="text-[10px]">
-                  {platform.common.min(cardioForDay.duration_minutes)}
+                  {durationBadge}
                 </Badge>
               )}
             </>
@@ -206,14 +240,11 @@ export function DashboardCardioCard({
             </Button>
           </Link>
           {cardioForDay && !completedForDay && !readOnly ? (
-            <Button
-              size="sm"
-              className="h-8 flex-1 rounded-full px-2 text-[11px]"
-              disabled={isToggling}
-              onClick={handleToggle}
-            >
-              {platform.common.done}
-            </Button>
+            <Link href={sessionHref} className="flex-1">
+              <Button size="sm" className="h-8 w-full rounded-full px-2 text-[11px]">
+                {startLabel}
+              </Button>
+            </Link>
           ) : null}
         </div>
         </DashboardCardNavBody>
@@ -235,14 +266,11 @@ export function DashboardCardioCard({
             </Button>
           </Link>
           {cardioForDay && !completedForDay && !readOnly ? (
-            <Button
-              size="sm"
-              className="h-8 rounded-full px-3 text-xs"
-              disabled={isToggling}
-              onClick={handleToggle}
-            >
-              {platform.common.done}
-            </Button>
+            <Link href={sessionHref}>
+              <Button size="sm" className="h-8 rounded-full px-3 text-xs">
+                {startLabel}
+              </Button>
+            </Link>
           ) : null}
           {completedForDay && cardioForDay ? (
             <DashboardStatusCheck aria-label={platform.aria.completed} />
@@ -272,9 +300,9 @@ export function DashboardCardioCard({
                   >
                     {cardioForDay.title}
                   </p>
-                  {cardioForDay.duration_minutes != null && (
+                  {durationBadge && (
                     <Badge variant="secondary">
-                      {platform.common.min(cardioForDay.duration_minutes)}
+                      {durationBadge}
                     </Badge>
                   )}
                 </div>

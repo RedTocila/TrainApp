@@ -176,7 +176,12 @@ export function canMarkMealSlotAsEaten(
 }
 
 export function isMealSlotLogged(slot: MealSlot, dailyMeals: DailyMealLog[]): boolean {
-  return mapDailyMealsToSlots(dailyMeals).has(slot);
+  return dailyMeals.some(
+    (m) =>
+      Boolean(m.source_meal_id) &&
+      (m.slot === slot ||
+        (!m.slot && inferMealSlotFromLoggedAt(m.logged_at) === slot))
+  );
 }
 
 export interface PlannedMealSlot {
@@ -197,14 +202,16 @@ export function getPlannedMealSlots(
   now: Date = new Date()
 ): PlannedMealSlot[] {
   const grouped = groupMealsBySlot(planMeals);
-  const loggedSlots = mapDailyMealsToSlots(dailyMeals);
 
   return MEAL_SLOTS.map(({ slot, label }) => {
     const options = grouped[slot];
     const slotLog =
-      dailyMeals.find((m) => m.slot === slot) ??
+      dailyMeals.find((m) => m.slot === slot && m.source_meal_id) ??
       dailyMeals.find(
-        (m) => !m.slot && inferMealSlotFromLoggedAt(m.logged_at) === slot
+        (m) =>
+          Boolean(m.source_meal_id) &&
+          !m.slot &&
+          inferMealSlotFromLoggedAt(m.logged_at) === slot
       ) ??
       null;
     const meal =
@@ -227,7 +234,7 @@ export function getPlannedMealSlots(
           } as Meal)
         : options[0] ?? null;
     const timeWindow = formatMealSlotWindow(slot);
-    const logged = loggedSlots.has(slot);
+    const logged = Boolean(slotLog);
 
     let status: MealSlotStatus;
     if (logged) {

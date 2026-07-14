@@ -167,6 +167,16 @@ export async function scheduleCardioSeries({
     return { error: "No dates to schedule. Check your day and week selections." };
   }
 
+  const { data: existingRows } = await admin
+    .from("scheduled_cardio")
+    .select("scheduled_date, cardio_id")
+    .eq("client_id", userId)
+    .in("scheduled_date", dates);
+
+  const previousByDate = new Map(
+    (existingRows ?? []).map((row) => [row.scheduled_date as string, row.cardio_id as string])
+  );
+
   const rows = dates.map((scheduled_date) => ({
     client_id: userId,
     scheduled_date,
@@ -178,6 +188,35 @@ export async function scheduleCardioSeries({
   });
 
   if (error) return { error: formatDbError(error.message) };
+
+  // Completions are tied to a specific cardio — clear stale checks when replaced.
+  const datesToClear = dates.filter((date) => {
+    const previous = previousByDate.get(date);
+    return previous != null && previous !== cardioId;
+  });
+
+  if (datesToClear.length > 0) {
+    const { data: completions } = await admin
+      .from("schedule_task_completions")
+      .select("date, task_id")
+      .eq("client_id", userId)
+      .in("date", datesToClear);
+
+    const stale = (completions ?? []).filter((row) =>
+      row.task_id === `${row.date}-cardio` ||
+      row.task_id.startsWith(`${row.date}-cardio-`)
+    );
+
+    for (const row of stale) {
+      await admin
+        .from("schedule_task_completions")
+        .delete()
+        .eq("client_id", userId)
+        .eq("date", row.date)
+        .eq("task_id", row.task_id);
+    }
+  }
+
   revalidatePath("/dashboard/workout/cardio");
   revalidatePath("/dashboard");
   return { success: true, count: dates.length };

@@ -22,6 +22,13 @@ export const coachCopyAl = {
     confirm: "Po, braktis këtë stërvitje",
     cancel: "Edhe një seri",
   },
+  resetWorkoutTimer: {
+    title: "Ta nisim orën nga fillimi?",
+    message:
+      "Kohëmatësi kthehet në 0:00. Seritë e regjistruara mbeten — Coach Alex thjesht nuk ju lë të pretendoni se ishit këtu për 45 orë.",
+    confirm: "Po, rivendos kohëmatësin",
+    cancel: "Vazhdo numërimin",
+  },
   removeHabit: {
     title: "Po e lë zakonin tashmë?",
     message:

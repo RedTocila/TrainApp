@@ -213,6 +213,10 @@ export async function backfillMissingProgressPhotoAnalyses(
           priorProgressNotes: priorNotes,
           profileGender: profile.gender,
           identityBaseline,
+          body: {
+            heightCm: profile.height_cm,
+            weightKg: profile.intake_weight_kg,
+          },
         });
         await saveAnalysisOnSet(admin, set.id, pose, analysis);
         (set[analysisCol] as ProgressPhotoAnalysis | null) = analysis;
@@ -293,5 +297,6 @@ ${list}
 
 These are the client's stored monthly check-in photos from the app — NOT a random upload. Look at every attached image before answering.
 Give personalized physique/progress feedback for THIS client: visible changes across months, muscle groups to prioritize, what looks underdeveloped, and specific training/nutrition focus — not generic advice.
-Compare poses/months when multiple images are present. Be direct and specific about what you actually see.`;
+Compare poses/months when multiple images are present. Be direct and specific about what you actually see.
+Honesty over flattery: if they carry clear excess body fat, say so and set fat-loss priorities. Never say they "look good / are okay / just need a little work" when the photos show a substantial overweight physique. Sarcastic motivating tough love — roast comfort zones, not their worth.`;
 }

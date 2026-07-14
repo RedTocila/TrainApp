@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { WorkoutBuilder } from "@/components/workout-builder";
+import { HiitBuilder } from "@/components/hiit-builder";
 import { WorkoutScheduleForm } from "@/components/workout-schedule-form";
 import { MoveWorkoutButton } from "@/components/move-workout-dialog";
 import {
@@ -10,6 +11,7 @@ import {
   type ProgramEditTab,
 } from "@/components/programs/program-edit-tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isHiitPlan, parseHiitConfig } from "@/lib/hiit";
 import type { Exercise, WorkoutDay, WorkoutPlan } from "@/lib/types";
 import type { InferredSchedule } from "@/lib/schedule-utils";
 
@@ -31,6 +33,8 @@ export function EditWorkoutClient({
   const initialTab: ProgramEditTab =
     searchParams.get("tab") === "schedule" ? "schedule" : "build";
   const [tab, setTab] = useState<ProgramEditTab>(initialTab);
+  const hiit = isHiitPlan(plan);
+  const hiitConfig = parseHiitConfig(plan.hiit_config);
 
   const handleRefresh = useCallback(() => {
     router.refresh();
@@ -60,34 +64,46 @@ export function EditWorkoutClient({
       </div>
 
       {tab === "build" ? (
-        <WorkoutBuilder
-          mode="client"
-          stayOnPage
-          planId={plan.id}
-          initialTitle={plan.title}
-          initialDescription={plan.description ?? ""}
-          initialDays={days.map((d) => ({
-            ...d,
-            day_index: d.day_index,
-            exercises: (d.exercises ?? []).map((e: Exercise) => ({
-              name: e.name,
-              sets: e.sets,
-              reps: e.reps,
-              rest_seconds: e.rest_seconds,
-              notes: e.notes ?? undefined,
-              video_url: e.video_url ?? undefined,
-              image_url: e.image_url ?? undefined,
-            })),
-          }))}
-          onSaved={handleRefresh}
-        />
+        hiit ? (
+          <HiitBuilder
+            stayOnPage
+            planId={plan.id}
+            initialTitle={plan.title}
+            initialDescription={plan.description ?? ""}
+            initialConfig={hiitConfig}
+            onSaved={handleRefresh}
+          />
+        ) : (
+          <WorkoutBuilder
+            mode="client"
+            stayOnPage
+            planId={plan.id}
+            initialTitle={plan.title}
+            initialDescription={plan.description ?? ""}
+            initialDays={days.map((d) => ({
+              ...d,
+              day_index: d.day_index,
+              exercises: (d.exercises ?? []).map((e: Exercise) => ({
+                name: e.name,
+                sets: e.sets,
+                reps: e.reps,
+                rest_seconds: e.rest_seconds,
+                notes: e.notes ?? undefined,
+                video_url: e.video_url ?? undefined,
+                image_url: e.image_url ?? undefined,
+              })),
+            }))}
+            onSaved={handleRefresh}
+          />
+        )
       ) : (
         <Card>
           <CardHeader>
             <CardTitle>Schedule on calendar</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Pick which workout day to repeat and on which weekdays. You can schedule
-              different days from the same program separately.
+              {hiit
+                ? "Pick weekdays to repeat this HIIT session on your calendar."
+                : "Pick which workout day to repeat and on which weekdays. You can schedule different days from the same program separately."}
             </p>
           </CardHeader>
           <CardContent>

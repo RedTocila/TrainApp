@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function FullScreenFlow({
   open,
   onClose,
+  onBack,
   title,
   subtitle,
   children,
@@ -15,6 +16,7 @@ export function FullScreenFlow({
 }: {
   open: boolean;
   onClose: () => void;
+  onBack?: () => void;
   title: string;
   subtitle?: string;
   children: ReactNode;
@@ -43,13 +45,27 @@ export function FullScreenFlow({
       aria-label={title}
     >
       <header className="mobile-top-safe flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
-        <div className="min-w-0">
-          {subtitle && (
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              {subtitle}
-            </p>
-          )}
-          <h2 className="truncate text-lg font-black">{title}</h2>
+        <div className="flex min-w-0 items-center gap-2">
+          {onBack ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={onBack}
+              aria-label="Back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          ) : null}
+          <div className="min-w-0">
+            {subtitle && (
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                {subtitle}
+              </p>
+            )}
+            <h2 className="truncate text-lg font-black">{title}</h2>
+          </div>
         </div>
         <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
           <X className="h-5 w-5" />

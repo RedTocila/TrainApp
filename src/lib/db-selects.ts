@@ -29,7 +29,7 @@ export const NOTIFICATION_COLUMNS =
   "id, user_id, type, title, body, metadata, read, created_at";
 
 export const WORKOUT_PLAN_LIST_COLUMNS =
-  "id, title, description, created_by, is_personal, folder_id, trainer_label, created_at";
+  "id, title, description, created_by, is_personal, folder_id, trainer_label, kind, hiit_config, created_at";
 
 export const NUTRITION_PLAN_LIST_COLUMNS =
   "id, title, description, target_calories, target_protein, target_carbs, target_fat, created_by, is_personal, folder_id, trainer_label, created_at";

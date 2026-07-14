@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { FullScreenFlow } from "@/components/programs/full-screen-flow";
 import { WorkoutBuilder } from "@/components/workout-builder";
+import { HiitBuilder } from "@/components/hiit-builder";
+import { WorkoutTypeDialog } from "@/components/workout-type-dialog";
+import type { CreateWorkoutType } from "@/components/workout-type-chooser";
 import {
   addWorkoutToDay,
   getPersonalWorkoutPlanWithDetails,
@@ -20,8 +23,23 @@ export function AddWorkoutToDayWizard({
   dateKey: string;
   onComplete: () => void;
 }) {
+  const [phase, setPhase] = useState<"type" | "build">("type");
+  const [workoutType, setWorkoutType] = useState<CreateWorkoutType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!open) {
+      setPhase("type");
+      setWorkoutType(null);
+      setError(null);
+    }
+  }, [open]);
+
+  const handleTypeSelect = (type: CreateWorkoutType) => {
+    setWorkoutType(type);
+    setPhase("build");
+  };
 
   const handleBuilt = (planId: string) => {
     setError(null);
@@ -43,27 +61,44 @@ export function AddWorkoutToDayWizard({
   };
 
   return (
-    <FullScreenFlow
-      open={open}
-      onClose={onClose}
-      title="Build workout"
-      subtitle="For this day only"
-    >
-      <div className="mx-auto w-full max-w-2xl space-y-4 px-4 pb-8 pt-2">
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
-        <WorkoutBuilder
-          mode="client"
-          wizard
-          singleDay
-          folderId={UNCATEGORIZED_FOLDER_ID}
-          onWizardComplete={handleBuilt}
-        />
-        {isPending ? (
-          <p className="text-sm text-muted-foreground" role="status">
-            Adding to your day…
-          </p>
-        ) : null}
-      </div>
-    </FullScreenFlow>
+    <>
+      <WorkoutTypeDialog
+        open={open && phase === "type"}
+        onClose={onClose}
+        onSelect={handleTypeSelect}
+      />
+
+      <FullScreenFlow
+        open={open && phase === "build"}
+        onClose={onClose}
+        onBack={() => setPhase("type")}
+        title={workoutType === "hiit" ? "Build HIIT workout" : "Build workout"}
+        subtitle="For this day only"
+      >
+        <div className="space-y-4">
+          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+          {workoutType === "hiit" ? (
+            <HiitBuilder
+              wizard
+              folderId={UNCATEGORIZED_FOLDER_ID}
+              onWizardComplete={handleBuilt}
+            />
+          ) : workoutType === "strength" ? (
+            <WorkoutBuilder
+              mode="client"
+              wizard
+              singleDay
+              folderId={UNCATEGORIZED_FOLDER_ID}
+              onWizardComplete={handleBuilt}
+            />
+          ) : null}
+          {isPending ? (
+            <p className="text-sm text-muted-foreground" role="status">
+              Adding to your day…
+            </p>
+          ) : null}
+        </div>
+      </FullScreenFlow>
+    </>
   );
 }

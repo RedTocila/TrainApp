@@ -27,18 +27,6 @@ async function syncDailyMacros(clientId: string, date: string) {
   await upsertDailyLog(clientId, date, totals);
 }
 
-async function clearSlotLogIfExists(
-  admin: SupabaseClient,
-  clientId: string,
-  date: string,
-  slot: MealSlot
-) {
-  const existing = await getDailyMealLogForSlot(clientId, date, slot);
-  if (existing) {
-    await admin.from("daily_meal_logs").delete().eq("id", existing.id);
-  }
-}
-
 async function insertMealLogWithSlot(
   admin: SupabaseClient,
   clientId: string,
@@ -64,10 +52,7 @@ async function insertMealLogWithSlot(
     input.explicitSlot ??
     resolveMealSlotForLog(existingLogs, input.meal_type, date);
 
-  if (slot) {
-    await clearSlotLogIfExists(admin, clientId, date, slot);
-  }
-
+  // Free-form logs stack — never replace another meal in the same slot.
   const meal_type = slot ? mealTypeForSlot(slot) : input.meal_type;
 
   return admin.from("daily_meal_logs").insert({
@@ -116,10 +101,11 @@ export async function getDailyMealLogForSlot(
     .eq("client_id", clientId)
     .eq("date", date)
     .eq("slot", slot)
-    .maybeSingle();
+    .order("logged_at", { ascending: false });
 
-  const meal = (data as DailyMealLog | null) ?? null;
-  return meal ? sanitizeMealLogRow(meal) : null;
+  const meals = ((data ?? []) as DailyMealLog[]).map(sanitizeMealLogRow);
+  // Prefer a plan-linked log when several free-form meals share the slot.
+  return meals.find((m) => m.source_meal_id) ?? meals[0] ?? null;
 }
 
 export async function logPlannedMealOption(
@@ -133,17 +119,20 @@ export async function logPlannedMealOption(
   const { admin } = mutation;
 
   const existing = await getDailyMealLogForSlot(clientId, date, slot);
+  const existingPlanned =
+    existing?.source_meal_id != null ? existing : null;
 
-  if (existing && existing.source_meal_id === plannedMeal.id) {
+  if (existingPlanned && existingPlanned.source_meal_id === plannedMeal.id) {
     return { success: true, checked: true };
   }
 
-  if (!existing && getMealSlotPhase(slot, date) === "missed") {
+  if (!existingPlanned && getMealSlotPhase(slot, date) === "missed") {
     return { error: "This meal window has passed — you can no longer log it" };
   }
 
-  if (existing) {
-    await admin.from("daily_meal_logs").delete().eq("id", existing.id);
+  // Only replace another planned option — leave free-form stacked meals alone.
+  if (existingPlanned) {
+    await admin.from("daily_meal_logs").delete().eq("id", existingPlanned.id);
   }
 
   const { error } = await admin.from("daily_meal_logs").insert({
@@ -178,12 +167,14 @@ export async function togglePlannedMealSlot(
   const { admin } = mutation;
 
   const existing = await getDailyMealLogForSlot(clientId, date, slot);
+  const existingPlanned =
+    existing?.source_meal_id != null ? existing : null;
 
-  if (existing) {
+  if (existingPlanned) {
     const { error } = await admin
       .from("daily_meal_logs")
       .delete()
-      .eq("id", existing.id)
+      .eq("id", existingPlanned.id)
       .eq("client_id", clientId)
       .eq("date", date);
 

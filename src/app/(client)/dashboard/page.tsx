@@ -24,7 +24,7 @@ import {
 } from "@/lib/actions/habits";
 import { fetchDashboardEnrichmentFields } from "@/lib/actions/dashboard-enrichment";
 import { mergeWorkoutTaskCompletionsInto } from "@/lib/dashboard-enrichment-utils";
-import { getTaskCompletionsInRange, getTaskCompletionsForDate } from "@/lib/actions/task-completions";
+import { getTaskCompletionsInRange, getCardioCompletionForDate } from "@/lib/actions/task-completions";
 import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
 import { getScheduledCardioInRange, getScheduledCardioForDate } from "@/lib/actions/user-cardio";
 import { scheduledCardioByDateMap } from "@/lib/cardio-utils";
@@ -96,7 +96,6 @@ export default async function DashboardPage() {
     allHabits,
     initialWorkoutCompleted,
     initialCardio,
-    initialCompletions,
   ] = await Promise.all([
     getClientWorkoutAssignment(profile.id),
     getClientNutritionAssignment(profile.id),
@@ -121,8 +120,13 @@ export default async function DashboardPage() {
     getClientHabits(profile.id),
     isWorkoutCompletedOnDate(profile.id, dateKey),
     getScheduledCardioForDate(profile.id, dateKey),
-    getTaskCompletionsForDate(profile.id, dateKey),
   ]);
+
+  const initialCardioCompletion = await getCardioCompletionForDate(
+    profile.id,
+    dateKey,
+    initialCardio?.cardio_id ?? initialCardio?.client_cardio?.id ?? null
+  );
 
   const currentMonth = progressMonthKey();
   const displayPhotoSet = getProgressPhotoDisplaySet(progressPhotoSets);
@@ -130,7 +134,8 @@ export default async function DashboardPage() {
     ? await getSignedProgressPhotoUrls(profile.id, displayPhotoSet)
     : EMPTY_PHOTO_URLS;
 
-  const initialCardioCompleted = initialCompletions.has(`${dateKey}-cardio`);
+  const initialCardioCompleted = initialCardioCompletion.completed;
+  const initialCardioElapsedSeconds = initialCardioCompletion.elapsedSeconds;
 
   const initialWorkoutResults = initialWorkoutCompleted
     ? await getCompletedWorkoutResultsForDate(profile.id, dateKey)
@@ -166,7 +171,11 @@ export default async function DashboardPage() {
     Object.entries(scheduledCardioByDateMap(scheduledCardioEntries)).map(
       ([date, cardio]) => [
         date,
-        { title: cardio.title, duration_minutes: cardio.duration_minutes },
+        {
+          id: cardio.id,
+          title: cardio.title,
+          duration_minutes: cardio.duration_minutes,
+        },
       ]
     )
   );
@@ -286,6 +295,7 @@ export default async function DashboardPage() {
             clientId={profile.id}
             initialScheduled={initialCardio}
             initialCompleted={initialCardioCompleted}
+            initialElapsedSeconds={initialCardioElapsedSeconds}
             variant="compact"
             schedule={schedule}
           />

@@ -21,11 +21,18 @@ export function getTaskDestination(task: DailyTask): TaskDestination {
         href: DASHBOARD_DAY_NUTRITION_PATH,
         sectionId: "dashboard-nutrition",
       };
-    case "cardio":
+    case "cardio": {
+      const dateMatch = task.id.match(/^(\d{4}-\d{2}-\d{2})-cardio/);
+      const dateKey = dateMatch?.[1] ?? "";
+      const sessionHref =
+        /^\d{4}-\d{2}-\d{2}$/.test(dateKey) && !task.completed
+          ? `/dashboard/workout/cardio/session?date=${dateKey}`
+          : "/dashboard#dashboard-cardio";
       return {
-        href: "/dashboard#dashboard-cardio",
+        href: sessionHref,
         sectionId: "dashboard-cardio",
       };
+    }
     case "habits":
       return {
         href: "/dashboard#dashboard-habits",
@@ -46,7 +53,9 @@ export function getTaskDestination(task: DailyTask): TaskDestination {
 
 export function isDashboardDayDetailHref(href: string): boolean {
   return (
-    href === DASHBOARD_DAY_NUTRITION_PATH || href === DASHBOARD_DAY_WORKOUT_PATH
+    href === DASHBOARD_DAY_NUTRITION_PATH ||
+    href === DASHBOARD_DAY_WORKOUT_PATH ||
+    href.startsWith("/dashboard/workout/cardio/session")
   );
 }
 

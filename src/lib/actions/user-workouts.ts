@@ -70,7 +70,7 @@ export async function getPersonalWorkoutPlans(folderId?: string) {
 
   let query = supabase
     .from("workout_plans")
-    .select("id, title, description, created_by, is_personal, folder_id, trainer_label, created_at")
+    .select(WORKOUT_PLAN_LIST_COLUMNS)
     .eq("created_by", userId)
     .eq("is_personal", true);
 
@@ -82,7 +82,11 @@ export async function getPersonalWorkoutPlans(folderId?: string) {
 
   const { data } = await query.order("created_at", { ascending: false });
 
-  return data ?? [];
+  return (data ?? []).map((plan) => ({
+    ...plan,
+    kind: ((plan.kind as string | null) ?? "strength") as import("@/lib/hiit").WorkoutPlanKind,
+    hiit_config: plan.hiit_config ?? null,
+  }));
 }
 
 export async function getPersonalWorkoutPlanWithDetails(planId: string) {
@@ -90,7 +94,7 @@ export async function getPersonalWorkoutPlanWithDetails(planId: string) {
 
   const { data: plan } = await supabase
     .from("workout_plans")
-    .select("id, title, description, created_by, is_personal, folder_id, trainer_label, created_at")
+    .select(WORKOUT_PLAN_LIST_COLUMNS)
     .eq("id", planId)
     .eq("created_by", userId)
     .eq("is_personal", true)
@@ -106,7 +110,14 @@ export async function getPersonalWorkoutPlanWithDetails(planId: string) {
     .eq("plan_id", planId)
     .order("day_index");
 
-  return { plan, days: days ?? [] };
+  return {
+    plan: {
+      ...plan,
+      kind: ((plan.kind as string | null) ?? "strength") as import("@/lib/hiit").WorkoutPlanKind,
+      hiit_config: plan.hiit_config ?? null,
+    },
+    days: days ?? [],
+  };
 }
 
 export async function deletePersonalWorkoutPlan(planId: string) {

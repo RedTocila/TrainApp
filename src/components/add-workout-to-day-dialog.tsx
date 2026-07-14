@@ -67,7 +67,8 @@ export function AddWorkoutToDayDialog({
           dayId: day.id,
           dayTitle: day.title,
           exerciseCount: day.exercises?.length ?? 0,
-          category: inferDayCategory(day),
+          category:
+            plan.kind === "hiit" ? ("hiit" as const) : inferDayCategory(day),
         }))
       ),
     [workouts]

@@ -9,6 +9,7 @@ import {
   Moon,
   PersonStanding,
   Target,
+  Zap,
 } from "lucide-react";
 
 export type WorkoutCategory =
@@ -17,6 +18,7 @@ export type WorkoutCategory =
   | "legs"
   | "full"
   | "cardio"
+  | "hiit"
   | "core"
   | "upper"
   | "rest"
@@ -114,6 +116,21 @@ const CATEGORY_STYLES: Record<WorkoutCategory, WorkoutCategoryStyle> = {
     scheduleBg: "bg-orange-500/10",
     scheduleText: "text-orange-300",
   },
+  hiit: {
+    id: "hiit",
+    label: "HIIT",
+    shortLabel: "HIIT",
+    icon: Zap,
+    stripe: "bg-fuchsia-500",
+    chip: "bg-fuchsia-500/20 border-fuchsia-500/40",
+    chipText: "text-fuchsia-300",
+    iconBg: "bg-fuchsia-500/20",
+    iconText: "text-fuchsia-400",
+    cardBorder: "border-fuchsia-500/35",
+    cardBg: "bg-fuchsia-500/[0.06]",
+    scheduleBg: "bg-fuchsia-500/10",
+    scheduleText: "text-fuchsia-300",
+  },
   core: {
     id: "core",
     label: "Core",
@@ -182,6 +199,7 @@ const INFERENCE_CATEGORIES: WorkoutCategory[] = [
   "pull",
   "legs",
   "full",
+  "hiit",
   "core",
   "upper",
   "rest",
@@ -236,7 +254,6 @@ const KEYWORD_SCORES: Record<WorkoutCategory, string[]> = {
   full: ["full body", "full-body", "total body", "whole body", "fbw", "fullbody"],
   cardio: [
     "cardio",
-    "hiit",
     "run",
     "running",
     "bike",
@@ -246,6 +263,17 @@ const KEYWORD_SCORES: Record<WorkoutCategory, string[]> = {
     "sprint",
     "jump rope",
     "elliptical",
+  ],
+  hiit: [
+    "hiit",
+    "interval",
+    "intervals",
+    "tabata",
+    "emom",
+    "amrap",
+    "circuit",
+    "work rest",
+    "timed interval",
   ],
   core: ["core", "abs", "ab ", "plank", "crunch", "oblique"],
   upper: ["upper", "upper body", "torso"],
@@ -305,8 +333,11 @@ export function inferDayCategory(day: {
 
 export function inferProgramCategory(
   planTitle: string,
-  days: { title: string; exercises?: { name: string }[] | null }[]
+  days: { title: string; exercises?: { name: string }[] | null }[],
+  planKind?: string | null
 ): WorkoutCategory {
+  if (planKind === "hiit") return "hiit";
+
   if (days.length === 0) {
     return inferWorkoutCategoryFromText(planTitle);
   }
@@ -324,13 +355,18 @@ export function inferProgramCategory(
 
 export function getProgramStripeClasses(
   planTitle: string,
-  days: { title: string; exercises?: { name: string }[] | null }[]
+  days: { title: string; exercises?: { name: string }[] | null }[],
+  planKind?: string | null
 ): string {
+  if (planKind === "hiit") {
+    return getWorkoutCategoryStyle("hiit").stripe;
+  }
+
   const dayCategories = days.map((day) => inferDayCategory(day));
   const unique = [...new Set(dayCategories.filter((c) => c !== "general"))];
 
   if (unique.length <= 1) {
-    const category = unique[0] ?? inferProgramCategory(planTitle, days);
+    const category = unique[0] ?? inferProgramCategory(planTitle, days, planKind);
     return getWorkoutCategoryStyle(category).stripe;
   }
 
@@ -339,8 +375,10 @@ export function getProgramStripeClasses(
 }
 
 export function isMultiCategoryProgram(
-  days: { title: string; exercises?: { name: string }[] | null }[]
+  days: { title: string; exercises?: { name: string }[] | null }[],
+  planKind?: string | null
 ): boolean {
+  if (planKind === "hiit") return false;
   const dayCategories = days.map((day) => inferDayCategory(day));
   const unique = [...new Set(dayCategories.filter((c) => c !== "general"))];
   return unique.length > 1;
@@ -351,15 +389,21 @@ export type WorkoutCategoryFilter = WorkoutCategory | "all";
 export function workoutMatchesCategory(
   planTitle: string,
   days: { title: string; exercises?: { name: string }[] | null }[],
-  filter: WorkoutCategoryFilter
+  filter: WorkoutCategoryFilter,
+  planKind?: string | null
 ): boolean {
   if (filter === "all") return true;
-  if (inferProgramCategory(planTitle, days) === filter) return true;
+  if (planKind === "hiit") return filter === "hiit";
+  if (inferProgramCategory(planTitle, days, planKind) === filter) return true;
+  if (filter === "hiit") return false;
   return days.some((day) => inferDayCategory(day) === filter);
 }
 
 export function countWorkoutsByCategory(
-  workouts: { plan: { title: string }; days: { title: string; exercises?: { name: string }[] | null }[] }[]
+  workouts: {
+    plan: { title: string; kind?: string | null };
+    days: { title: string; exercises?: { name: string }[] | null }[];
+  }[]
 ): Record<WorkoutCategoryFilter, number> {
   const counts: Record<WorkoutCategoryFilter, number> = {
     all: workouts.length,
@@ -368,6 +412,7 @@ export function countWorkoutsByCategory(
     legs: 0,
     full: 0,
     cardio: 0,
+    hiit: 0,
     core: 0,
     upper: 0,
     rest: 0,
@@ -376,11 +421,11 @@ export function countWorkoutsByCategory(
 
   for (const { plan, days } of workouts) {
     for (const category of INFERENCE_CATEGORIES) {
-      if (workoutMatchesCategory(plan.title, days, category)) {
+      if (workoutMatchesCategory(plan.title, days, category, plan.kind)) {
         counts[category]++;
       }
     }
-    if (workoutMatchesCategory(plan.title, days, "general")) {
+    if (workoutMatchesCategory(plan.title, days, "general", plan.kind)) {
       counts.general++;
     }
   }

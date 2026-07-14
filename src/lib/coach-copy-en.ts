@@ -22,6 +22,13 @@ export const coachCopyEn = {
     confirm: "Yeah, bail on this workout",
     cancel: "One more set",
   },
+  resetWorkoutTimer: {
+    title: "Restart the clock?",
+    message:
+      "Timer goes back to 0:00. Your logged sets stay — Coach Alex just won't let you claim you were here for 45 hours.",
+    confirm: "Yeah, reset timer",
+    cancel: "Keep counting",
+  },
   removeHabit: {
     title: "Dropping a habit already?",
     message:

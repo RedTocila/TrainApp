@@ -98,7 +98,11 @@ export function FolderWorkoutsPage({
               (sum, day) => sum + (day.exercises?.length ?? 0),
               0
             );
-            const programCategory = inferProgramCategory(plan.title, days);
+            const programCategory = inferProgramCategory(
+              plan.title,
+              days,
+              plan.kind
+            );
             const programStyle = getWorkoutCategoryStyle(programCategory);
 
             return (

@@ -228,7 +228,10 @@ function inferCategoriesFromText(...parts: (string | null | undefined)[]): strin
   const categories: string[] = [];
 
   if (/\b(core|abs|oblique|plank|crunch)\b/.test(text)) categories.push("core");
-  if (/\b(cardio|hiit|run|bike|rower|conditioning|sprint|jump rope)\b/.test(text)) {
+  if (/\b(hiit|interval|tabata|emom|amrap|circuit)\b/.test(text)) {
+    categories.push("hiit");
+  }
+  if (/\b(cardio|run|bike|rower|conditioning|sprint|jump rope)\b/.test(text)) {
     categories.push("cardio");
   }
   if (/\b(push|press|chest|shoulder|tricep)\b/.test(text)) categories.push("push");
@@ -253,7 +256,7 @@ function highlightsFromCategoryFallback(
   categories: string[]
 ): WorkoutMuscleHighlight[] {
   const intensities = new Map<BodyMuscleSlug, MuscleIntensity>();
-  const hasCardio = categories.includes("cardio");
+  const hasCardio = categories.includes("cardio") || categories.includes("hiit");
 
   if (hasCardio) {
     for (const slug of CARDIO_PRIMARY_SLUGS) {
@@ -262,7 +265,7 @@ function highlightsFromCategoryFallback(
   }
 
   for (const category of categories) {
-    if (category === "cardio") continue;
+    if (category === "cardio" || category === "hiit") continue;
     for (const slug of CATEGORY_PRIMARY_SLUGS[category] ?? []) {
       applyIntensity(intensities, slug, INTENSITY_PRIMARY_FOCUS);
     }

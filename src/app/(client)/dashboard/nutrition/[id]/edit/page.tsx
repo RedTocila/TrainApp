@@ -33,7 +33,7 @@ export default async function EditNutritionPage({
     <PageTransition>
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard/workout">
+          <Link href="/dashboard/nutrition">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-4 w-4" />
             </Button>

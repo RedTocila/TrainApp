@@ -112,7 +112,7 @@ export function ChangeWorkoutDialog({
               <div className="min-w-0 flex-1">
                 <p className="font-bold">Build workout</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  Create a program from scratch.
+                  Create a fitness or HIIT program from scratch.
                 </p>
                 <Button
                   variant="secondary"

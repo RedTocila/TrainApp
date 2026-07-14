@@ -33,8 +33,10 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
   const refresh = () => {
     startTransition(async () => {
       const { getClientCardioList } = await import("@/lib/actions/user-cardio");
+      const { clearDashboardDayCache } = await import("@/lib/dashboard-day-cache");
       const fetched = await getClientCardioList();
       setCardioList(fetched);
+      clearDashboardDayCache("cardio");
       router.refresh();
     });
   };

@@ -672,6 +672,32 @@ async function getSessionWithDetails(sessionId: string) {
   if ("error" in auth) return null;
   const { admin } = auth;
 
+  let planKind: "strength" | "hiit" = "strength";
+  let hiitConfig: import("@/lib/hiit").HiitConfig | null = null;
+
+  if (session.plan_id) {
+    const { data: plan } = await admin
+      .from("workout_plans")
+      .select("kind, hiit_config")
+      .eq("id", session.plan_id)
+      .maybeSingle();
+
+    if (plan?.kind === "hiit") {
+      planKind = "hiit";
+      const { parseHiitConfig } = await import("@/lib/hiit");
+      hiitConfig = parseHiitConfig(plan.hiit_config);
+    }
+  }
+
+  if (planKind === "hiit") {
+    return {
+      session: session as WorkoutSession,
+      exercises: [] as WorkoutSessionExercise[],
+      planKind,
+      hiitConfig,
+    };
+  }
+
   let mappedExercises = await mapSessionExercises(admin, sessionId);
 
   if (
@@ -688,7 +714,12 @@ async function getSessionWithDetails(sessionId: string) {
     );
   }
 
-  return { session: session as WorkoutSession, exercises: mappedExercises };
+  return {
+    session: session as WorkoutSession,
+    exercises: mappedExercises,
+    planKind,
+    hiitConfig: null,
+  };
 }
 
 export async function ensureWorkoutSessionExercises(sessionId: string) {
@@ -1223,6 +1254,37 @@ export async function cancelWorkoutSession(sessionId: string) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");
   return { success: true };
+}
+
+/** Restart the session clock without discarding logged sets. */
+export async function resetWorkoutSessionTimer(sessionId: string) {
+  const { admin, userId } = await requireMutationAdmin();
+
+  const { data: session } = await admin
+    .from("workout_sessions")
+    .select("id, status, started_at")
+    .eq("id", sessionId)
+    .eq("client_id", userId)
+    .single();
+
+  if (!session) return { error: "Session not found" };
+  if (session.status !== "in_progress") {
+    return { error: "Workout is no longer in progress" };
+  }
+  if (!session.started_at) {
+    return { error: "Start the workout before resetting the timer" };
+  }
+
+  const startedAt = new Date().toISOString();
+  const { error } = await admin
+    .from("workout_sessions")
+    .update({ started_at: startedAt })
+    .eq("id", sessionId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/dashboard/workout/session/${sessionId}`);
+  return { success: true, startedAt };
 }
 
 export async function startPlanWorkout(planId: string) {

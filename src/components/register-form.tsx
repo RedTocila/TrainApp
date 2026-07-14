@@ -21,7 +21,6 @@ import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 import {
   formatUserError,
   isDirectSignupRejection,
-  isMissingAdminCredentialsError,
 } from "@/lib/format-user-error";
 
 const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
@@ -88,7 +87,7 @@ export function RegisterForm() {
     finishSignup(result.role);
   };
 
-  const handleContinueSetup = async () => {
+  const handleContinueAfterConfirm = async () => {
     if (!pendingSignup) return;
     setContinuePending(true);
     setContinueMessage(null);
@@ -107,7 +106,7 @@ export function RegisterForm() {
         setContinueMessage(
           formatUserError(
             result.error,
-            "Could not finish setting up your account. Try again in a minute."
+            "Email not confirmed yet. Open the link in your inbox, then try again."
           )
         );
         return;
@@ -141,7 +140,14 @@ export function RegisterForm() {
         intakeJson,
       };
 
-      let serverResult: Awaited<ReturnType<typeof signUpAccount>> | undefined;
+      console.log("[RegisterForm] signup submit", {
+        email,
+        fullName,
+        hasPhone: Boolean(phone),
+        hasIntake: Boolean(intakeJson),
+      });
+
+      let serverResult: Awaited<ReturnType<typeof signUpAccount>>;
 
       try {
         serverResult = await signUpAccount({
@@ -149,18 +155,28 @@ export function RegisterForm() {
           password,
         });
       } catch (err) {
-        if (isMissingAdminCredentialsError(err)) {
-          setError(
-            "Registration is temporarily unavailable. Please try again in a few minutes or contact support."
-          );
-          return;
-        }
+        console.error("[RegisterForm] signUpAccount threw", err);
         setError(formatUserError(err, "Could not create account. Please try again."));
         return;
       }
 
-      if ("error" in serverResult && serverResult.error && isDirectSignupRejection(serverResult.error)) {
+      console.log("[RegisterForm] signUpAccount result", serverResult);
+
+      if ("error" in serverResult && serverResult.error) {
+        if (isDirectSignupRejection(serverResult.error)) {
+          setError(serverResult.error);
+          return;
+        }
         setError(serverResult.error);
+        return;
+      }
+
+      if (
+        "needsEmailConfirmation" in serverResult &&
+        serverResult.needsEmailConfirmation
+      ) {
+        setPendingSignup({ ...registrationInput, password });
+        setNeedsEmailConfirmation(true);
         return;
       }
 
@@ -176,10 +192,9 @@ export function RegisterForm() {
         return;
       }
 
-      setPendingSignup({ ...registrationInput, password });
-      setNeedsEmailConfirmation(true);
       setError(signInResult.error);
     } catch (err) {
+      console.error("[RegisterForm] unexpected signup error", err);
       setError(formatUserError(err, "Could not create account. Please try again."));
     } finally {
       setIsPending(false);
@@ -193,20 +208,22 @@ export function RegisterForm() {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
             <Mail className="h-6 w-6" />
           </div>
-          <CardTitle className="text-2xl font-black">Almost there</CardTitle>
+          <CardTitle className="text-2xl font-black">Check your email</CardTitle>
           <CardDescription>
-            Your account for{" "}
-            <span className="font-medium text-foreground">{pendingSignup.email}</span> is ready.
-            Tap continue to finish setup — no confirmation email needed.
+            We sent a confirmation link to{" "}
+            <span className="font-medium text-foreground">{pendingSignup.email}</span>.
+            Open it to activate your account, then continue here.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
-          <p>Your questionnaire answers are saved — they&apos;ll attach when you continue.</p>
+          <p>Your questionnaire answers stay on this device until you finish setup.</p>
           {error && <p className="text-red-400">{error}</p>}
           {continueMessage && (
             <p
               className={
-                continueMessage.toLowerCase().includes("could not")
+                continueMessage.toLowerCase().includes("not confirmed") ||
+                continueMessage.toLowerCase().includes("could not") ||
+                continueMessage.toLowerCase().includes("confirm")
                   ? "text-red-400"
                   : "text-green-400"
               }
@@ -218,9 +235,9 @@ export function RegisterForm() {
             type="button"
             className="w-full"
             disabled={continuePending}
-            onClick={() => void handleContinueSetup()}
+            onClick={() => void handleContinueAfterConfirm()}
           >
-            {continuePending ? "Finishing setup..." : "Continue to my program"}
+            {continuePending ? "Checking…" : "I've confirmed — continue"}
           </Button>
           <Link href="/login">
             <Button variant="outline" className="w-full">
@@ -291,6 +308,17 @@ export function RegisterForm() {
             <PasswordInput id="password" name="password" required minLength={6} />
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            By creating an account, you agree to our{" "}
+            <Link href="/terms" className="text-primary hover:underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="text-primary hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? "Creating account..." : "Create Account"}
           </Button>

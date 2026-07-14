@@ -37,7 +37,9 @@ export default async function EditWorkoutPage({
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-black">Edit Workout</h1>
+            <h1 className="text-2xl font-black">
+              {plan.kind === "hiit" ? "Edit HIIT workout" : "Edit Workout"}
+            </h1>
             <p className="text-sm text-muted-foreground">{plan.title}</p>
           </div>
         </div>

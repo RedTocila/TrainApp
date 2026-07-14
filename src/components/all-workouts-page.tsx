@@ -9,6 +9,7 @@ import {
   Dumbbell,
   Pencil,
   Trash2,
+  Zap,
 } from "lucide-react";
 import { deletePersonalWorkoutPlan } from "@/lib/actions/user-workouts";
 import type { PersonalWorkoutListItem } from "@/lib/actions/user-workouts";
@@ -39,16 +40,20 @@ import { cn } from "@/lib/utils";
 function ProgramColorStripe({
   planTitle,
   days,
+  planKind,
 }: {
   planTitle: string;
   days: { title: string; exercises?: { name: string }[] | null }[];
+  planKind?: string | null;
 }) {
-  if (days.length === 0) {
-    const style = getWorkoutCategoryStyle(inferProgramCategory(planTitle, days));
+  if (planKind === "hiit" || days.length === 0) {
+    const style = getWorkoutCategoryStyle(
+      inferProgramCategory(planTitle, days, planKind)
+    );
     return <div className={cn("w-2 shrink-0", style.stripe)} aria-hidden />;
   }
 
-  if (isMultiCategoryProgram(days)) {
+  if (isMultiCategoryProgram(days, planKind)) {
     const stripes = days
       .map((day) => inferDayCategory(day))
       .filter((c, i, arr) => arr.indexOf(c) === i)
@@ -64,7 +69,9 @@ function ProgramColorStripe({
     );
   }
 
-  const style = getWorkoutCategoryStyle(inferProgramCategory(planTitle, days));
+  const style = getWorkoutCategoryStyle(
+    inferProgramCategory(planTitle, days, planKind)
+  );
   return <div className={cn("w-2 shrink-0", style.stripe)} aria-hidden />;
 }
 
@@ -84,7 +91,7 @@ export function AllWorkoutsPage({
   const filteredWorkouts = useMemo(
     () =>
       workouts.filter(({ plan, days }) =>
-        workoutMatchesCategory(plan.title, days, categoryFilter)
+        workoutMatchesCategory(plan.title, days, categoryFilter, plan.kind)
       ),
     [workouts, categoryFilter]
   );
@@ -147,12 +154,13 @@ export function AllWorkoutsPage({
       ) : (
       <ul className="space-y-3">
         {filteredWorkouts.map(({ plan, days, scheduleSummary, upcomingCount }) => {
+          const isHiit = plan.kind === "hiit";
           const exerciseCount = days.reduce(
             (sum, day) => sum + (day.exercises?.length ?? 0),
             0
           );
           const hasExercises = exerciseCount > 0;
-          const programCategory = inferProgramCategory(plan.title, days);
+          const programCategory = inferProgramCategory(plan.title, days, plan.kind);
           const programStyle = getWorkoutCategoryStyle(programCategory);
 
           return (
@@ -165,7 +173,11 @@ export function AllWorkoutsPage({
                 )}
               >
                 <div className="flex min-h-[8rem]">
-                  <ProgramColorStripe planTitle={plan.title} days={days} />
+                  <ProgramColorStripe
+                    planTitle={plan.title}
+                    days={days}
+                    planKind={plan.kind}
+                  />
                   <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 items-start gap-3">
@@ -178,6 +190,18 @@ export function AllWorkoutsPage({
                             {plan.title}
                           </Link>
                           <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                            {isHiit ? (
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold",
+                                  programStyle.chip,
+                                  programStyle.chipText
+                                )}
+                              >
+                                <Zap className="h-3 w-3" />
+                                HIIT
+                              </span>
+                            ) : null}
                             <span
                               className={cn(
                                 "inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold",

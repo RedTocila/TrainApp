@@ -82,7 +82,11 @@ export async function getAdminClientCalendarData(
     Object.entries(scheduledCardioByDateMap(scheduledCardioEntries)).map(
       ([date, cardio]) => [
         date,
-        { title: cardio.title, duration_minutes: cardio.duration_minutes },
+        {
+          id: cardio.id,
+          title: cardio.title,
+          duration_minutes: cardio.duration_minutes,
+        },
       ]
     )
   );

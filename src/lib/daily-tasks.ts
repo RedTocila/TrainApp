@@ -1,3 +1,7 @@
+import { workoutTaskId } from "@/lib/workout-task-id";
+import { cardioTaskId } from "@/lib/cardio-task-id";
+import { formatHabitTimeWindow, getHabitWindowPhase } from "@/lib/habit-utils";
+import { formatDateKey } from "@/lib/utils";
 import type {
   NutritionAssignment,
   ScheduledCardio,
@@ -6,9 +10,6 @@ import type {
   WorkoutAssignment,
   WorkoutDay,
 } from "@/lib/types";
-import { formatHabitTimeWindow, getHabitWindowPhase } from "@/lib/habit-utils";
-import { formatDateKey } from "@/lib/utils";
-import { workoutTaskId } from "@/lib/workout-task-id";
 
 export type TaskCategory = "workout" | "nutrition" | "cardio" | "habits" | "water";
 
@@ -35,7 +36,10 @@ export interface ClientSchedule {
   };
   scheduledWorkouts?: ScheduledWorkout[];
   scheduledNutritionDays?: ScheduledNutritionDay[];
-  scheduledCardioByDate?: Record<string, { title: string; duration_minutes?: number | null }>;
+  scheduledCardioByDate?: Record<
+    string,
+    { id: string; title: string; duration_minutes?: number | null }
+  >;
   scheduledCardioEntries?: ScheduledCardio[];
   habitsByDate?: Record<
     string,
@@ -47,7 +51,7 @@ export interface ClientSchedule {
 function getScheduledCardioForDate(
   date: Date,
   schedule: ClientSchedule
-): { title: string; duration_minutes?: number | null } | null {
+): { id: string; title: string; duration_minutes?: number | null } | null {
   const dateKey = formatDateKey(date);
   return schedule.scheduledCardioByDate?.[dateKey] ?? null;
 }
@@ -176,7 +180,7 @@ export function buildDailyTasks(
   const scheduledCardio = getScheduledCardioForDate(date, schedule);
   if (scheduledCardio) {
     tasks.push({
-      id: `${dateKey}-cardio`,
+      id: cardioTaskId(dateKey, scheduledCardio.id),
       category: "cardio",
       label: scheduledCardio.title,
       detail: scheduledCardio.duration_minutes

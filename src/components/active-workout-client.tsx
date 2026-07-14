@@ -14,6 +14,7 @@ import {
   completeWorkoutSession,
   ensureWorkoutSessionExercises,
   getExerciseHistories,
+  resetWorkoutSessionTimer,
   updateSessionSet,
 } from "@/lib/actions/workout-sessions";
 import type {
@@ -67,14 +68,20 @@ function formatHistory(
   return lastLabel(parts.join(", "));
 }
 
-function useElapsedSeconds(anchorMs: number | null) {
+function useElapsedSeconds(
+  anchorMs: number | null,
+  options?: { frozenSeconds?: number | null }
+) {
+  const frozenSeconds = options?.frozenSeconds;
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
+    if (frozenSeconds != null || anchorMs == null) return;
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [anchorMs, frozenSeconds]);
 
+  if (frozenSeconds != null) return frozenSeconds;
   if (anchorMs == null) return 0;
 
   return Math.max(0, Math.floor((now - anchorMs) / 1000));
@@ -107,18 +114,26 @@ function useWorkoutTimerAnchor(sessionId: string, dbStartedAt: string | null) {
     setAnchorMs(anchor);
   }, [dbStartedAt, router, searchParams, sessionId]);
 
-  return anchorMs;
+  const resetAnchor = (startedAtIso: string) => {
+    const anchor = new Date(startedAtIso).getTime();
+    setWorkoutTimerAnchor(sessionId, anchor);
+    setAnchorMs(anchor);
+  };
+
+  return { anchorMs, resetAnchor };
 }
 
 function WorkoutTimerCard({
   anchorMs,
+  frozenSeconds,
   exercises,
 }: {
   anchorMs: number | null;
+  frozenSeconds?: number | null;
   exercises: WorkoutSessionExercise[];
 }) {
   const platform = usePlatformCopy();
-  const elapsedSeconds = useElapsedSeconds(anchorMs);
+  const elapsedSeconds = useElapsedSeconds(anchorMs, { frozenSeconds });
   const estimatedSeconds = useMemo(
     () => estimateWorkoutDurationSeconds(exercises),
     [exercises]
@@ -155,16 +170,15 @@ function WorkoutTimerCard({
 }
 
 function WorkoutFinishSummary({
-  anchorMs,
+  elapsedSeconds,
   exercises,
   session,
 }: {
-  anchorMs: number | null;
+  elapsedSeconds: number;
   exercises: WorkoutSessionExercise[];
   session: WorkoutSession;
 }) {
   const platform = usePlatformCopy();
-  const elapsedSeconds = useElapsedSeconds(anchorMs);
   const estimatedSeconds = estimateWorkoutDurationSeconds(exercises);
   const { exerciseCount, totalSets, loggedSets } = getWorkoutSetStats(exercises);
 
@@ -472,7 +486,16 @@ export function ActiveWorkoutClient({
   const { confirm: confirmGiveUp, dialog: giveUpDialog, isPending: isGivingUp } =
     useSarcasticConfirm();
   const isStarted = session.started_at != null;
-  const timerAnchorMs = useWorkoutTimerAnchor(session.id, session.started_at);
+  const { anchorMs: timerAnchorMs, resetAnchor } = useWorkoutTimerAnchor(
+    session.id,
+    session.started_at
+  );
+  const [frozenElapsedSeconds, setFrozenElapsedSeconds] = useState<number | null>(
+    null
+  );
+  const liveElapsedSeconds = useElapsedSeconds(timerAnchorMs, {
+    frozenSeconds: frozenElapsedSeconds,
+  });
   const exerciseGender = resolveProfileGender(gender);
 
   useEffect(() => {
@@ -554,10 +577,39 @@ export function ActiveWorkoutClient({
 
   const handleStopWorkout = () => {
     confirmGiveUp({
-      ...coachCopy.discardWorkout,
+      title: coachCopy.resetWorkoutTimer.title,
+      message: coachCopy.resetWorkoutTimer.message,
+      confirmLabel: coachCopy.resetWorkoutTimer.confirm,
+      cancelLabel: coachCopy.resetWorkoutTimer.cancel,
       onConfirm: async () => {
-        await cancelWorkoutSession(session.id);
+        setError(null);
+        const result = await resetWorkoutSessionTimer(session.id);
+        if (result.error || !result.startedAt) {
+          setError(result.error ?? "Failed to reset timer");
+          return;
+        }
+        setFrozenElapsedSeconds(null);
+        resetAnchor(result.startedAt);
+        router.refresh();
+      },
+    });
+  };
+
+  const handleDiscardWorkout = () => {
+    confirmGiveUp({
+      title: coachCopy.discardWorkout.title,
+      message: coachCopy.discardWorkout.message,
+      confirmLabel: coachCopy.discardWorkout.confirm,
+      cancelLabel: coachCopy.discardWorkout.cancel,
+      onConfirm: async () => {
+        setError(null);
+        const result = await cancelWorkoutSession(session.id);
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
         clearWorkoutTimerAnchor(session.id);
+        setFrozenElapsedSeconds(null);
         router.push("/dashboard");
         router.refresh();
       },
@@ -577,6 +629,11 @@ export function ActiveWorkoutClient({
       setShowAddExercise(false);
       refresh();
     });
+  };
+
+  const openFinishStep = () => {
+    setFrozenElapsedSeconds(liveElapsedSeconds);
+    setShowCompleteStep(true);
   };
 
   const handleFinishWorkout = (withNote: boolean) => {
@@ -645,7 +702,11 @@ export function ActiveWorkoutClient({
       </div>
 
       {isStarted && (
-        <WorkoutTimerCard anchorMs={timerAnchorMs} exercises={exercises} />
+        <WorkoutTimerCard
+          anchorMs={timerAnchorMs}
+          frozenSeconds={frozenElapsedSeconds}
+          exercises={exercises}
+        />
       )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
@@ -757,7 +818,7 @@ export function ActiveWorkoutClient({
             </CardHeader>
             <CardContent className="space-y-4">
               <WorkoutFinishSummary
-                anchorMs={timerAnchorMs}
+                elapsedSeconds={liveElapsedSeconds}
                 exercises={exercises}
                 session={session}
               />
@@ -797,7 +858,10 @@ export function ActiveWorkoutClient({
                 <Button
                   variant="ghost"
                   disabled={isPending}
-                  onClick={() => setShowCompleteStep(false)}
+                  onClick={() => {
+                    setShowCompleteStep(false);
+                    setFrozenElapsedSeconds(null);
+                  }}
                 >
                   {platform.common.back}
                 </Button>
@@ -805,15 +869,26 @@ export function ActiveWorkoutClient({
             </CardContent>
           </Card>
         ) : (
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={isPending}
-            onClick={() => setShowCompleteStep(true)}
-          >
-            <Check className="mr-2 h-4 w-4" />
-            {coachLabels.actuallyFinish}
-          </Button>
+          <div className="space-y-2">
+            <Button
+              size="lg"
+              className="w-full"
+              disabled={isPending}
+              onClick={openFinishStep}
+            >
+              <Check className="mr-2 h-4 w-4" />
+              {coachLabels.actuallyFinish}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-muted-foreground"
+              disabled={isPending || isGivingUp}
+              onClick={handleDiscardWorkout}
+            >
+              {platform.workout.discardWorkout}
+            </Button>
+          </div>
         )}
       </div>
 
