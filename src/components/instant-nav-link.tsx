@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { useInstantNavigate } from "@/components/use-instant-navigate";
+import { scrollDashboardMainToTop } from "@/components/dashboard-main-reset";
 
 type InstantNavLinkProps = Omit<
   ComponentProps<typeof Link>,
@@ -31,7 +32,13 @@ export function InstantNavLink({
     handlePointerUp,
     handlePointerCancel,
     handleClick,
-  } = useInstantNavigate(href, { tapSlop, pressToNavigate, onNavigateStart, exactMatch });
+  } = useInstantNavigate(href, {
+    tapSlop,
+    pressToNavigate,
+    onNavigateStart,
+    exactMatch,
+    onSameRoute: scrollDashboardMainToTop,
+  });
 
   return (
     <Link

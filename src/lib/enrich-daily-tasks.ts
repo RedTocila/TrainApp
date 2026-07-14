@@ -12,12 +12,7 @@ import {
   sodiumExceededDailyUpperLimit,
 } from "@/lib/nutrition-day-utils";
 import { waterMetDailyMinimum } from "@/lib/water-targets";
-import {
-  isDayEnded,
-  isDeadlinePassed,
-  WATER_DEADLINE,
-  WORKOUT_DEADLINE,
-} from "@/lib/meal-times";
+import { dayRelation, isDayEnded } from "@/lib/meal-times";
 import { formatDateKey } from "@/lib/utils";
 
 export interface EnrichTasksContext {
@@ -40,35 +35,30 @@ export function enrichDailyTasks(
   ctx: EnrichTasksContext
 ): DailyTask[] {
   const now = ctx.now ?? new Date();
+  const dayPast = dayRelation(ctx.dateKey, now) === "past";
 
   const enriched = tasks.map((task) => {
     if (task.category === "water") {
       const goal = ctx.waterGoalMl;
       const drank = ctx.waterMl;
       const metGoal = waterMetDailyMinimum(drank, goal);
-      const deadlinePassed = isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
 
       return {
         ...task,
         label: `Drink ${goal.toLocaleString()} ml water`,
-        detail: `${drank.toLocaleString()} / ${goal.toLocaleString()} ml · by ${WATER_DEADLINE}`,
+        detail: `${drank.toLocaleString()} / ${goal.toLocaleString()} ml`,
         completed: task.completed || metGoal,
-        missed:
-          metGoal || task.completed ? false : deadlinePassed || task.missed,
+        missed: metGoal || task.completed ? false : dayPast || task.missed,
       };
     }
 
     if (task.category === "workout" && !task.id.endsWith("-pending")) {
-      const deadlinePassed = isDeadlinePassed(WORKOUT_DEADLINE, ctx.dateKey, now);
       const completed = task.completed;
-      const detailBase = task.detail ?? "";
-      const deadlineNote = `Complete by ${WORKOUT_DEADLINE}`;
 
       return {
         ...task,
-        detail: detailBase ? `${detailBase} · ${deadlineNote}` : deadlineNote,
         completed,
-        missed: completed ? false : deadlinePassed || task.missed,
+        missed: completed ? false : dayPast || task.missed,
       };
     }
 
@@ -90,7 +80,6 @@ export function enrichDailyTasks(
       const exceeded =
         dailyMacrosCountAsTodoExceeded(current, ctx.macroTargets) ||
         sodiumExceeded;
-      const deadlinePassed = isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
 
       return {
         ...task,
@@ -104,7 +93,7 @@ export function enrichDailyTasks(
         missed:
           met || task.completed || exceeded
             ? false
-            : deadlinePassed || task.missed,
+            : dayPast || task.missed,
       };
     }
 

@@ -13,6 +13,8 @@ type InstantNavigateOptions = {
   onNavigateStart?: (href: string) => void;
   /** Only treat the route as current when pathname equals href exactly. */
   exactMatch?: boolean;
+  /** Called when the link is activated while already on this route. */
+  onSameRoute?: () => void;
 };
 
 export function useInstantNavigate(
@@ -23,7 +25,13 @@ export function useInstantNavigate(
     typeof tapSlopOrOptions === "number"
       ? { tapSlop: tapSlopOrOptions }
       : tapSlopOrOptions;
-  const { tapSlop = 12, pressToNavigate = false, onNavigateStart, exactMatch = false } = options;
+  const {
+    tapSlop = 12,
+    pressToNavigate = false,
+    onNavigateStart,
+    exactMatch = false,
+    onSameRoute,
+  } = options;
 
   const router = useRouter();
   const pathname = usePathname();
@@ -39,7 +47,10 @@ export function useInstantNavigate(
   }, [href, router]);
 
   const navigate = useCallback(() => {
-    if (isNavRouteMatch(pathname, href, exactMatch)) return;
+    if (isNavRouteMatch(pathname, href, exactMatch)) {
+      onSameRoute?.();
+      return;
+    }
     if (navigated.current) return;
     navigated.current = true;
     onNavigateStart?.(href);
@@ -48,7 +59,7 @@ export function useInstantNavigate(
     window.setTimeout(() => {
       navigated.current = false;
     }, NAVIGATE_DEBOUNCE_MS);
-  }, [exactMatch, href, onNavigateStart, pathname, router, warmRoute]);
+  }, [exactMatch, href, onNavigateStart, onSameRoute, pathname, router, warmRoute]);
 
   const handlePointerDown = useCallback(
     (e: PointerEvent) => {

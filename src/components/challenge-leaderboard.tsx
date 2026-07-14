@@ -90,7 +90,7 @@ export function ChallengeLeaderboard({
           ) : null}
         </CardHeader>
         <CardContent className={cn(compact && "px-4 pb-4")}>
-          <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
+          <ul className="grid gap-2 sm:grid-cols-2">
             {sorted.map((participant) => {
               const rank = rankById.get(participant.id);
               const pts = participantPoints(participant);
@@ -102,20 +102,28 @@ export function ChallengeLeaderboard({
                 <li
                   key={participant.id}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 text-sm",
-                    isYou && "bg-primary/5",
-                    isFinalist && "bg-violet-500/5"
+                    "flex items-center gap-3 rounded-xl border border-border/70 bg-secondary/20 px-3 py-3 text-sm",
+                    isYou && "border-primary/40 bg-primary/10",
+                    isChampion && "border-amber-500/40 bg-amber-500/10",
+                    isFinalist && !isChampion && "border-violet-500/30 bg-violet-500/5"
                   )}
                 >
-                  <span className="w-8 shrink-0 text-center text-xs font-bold tabular-nums text-muted-foreground">
-                    {rank != null ? `#${rank}` : "—"}
-                  </span>
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                    {isChampion ? (
-                      <Crown className="h-4 w-4 text-amber-300" />
-                    ) : (
-                      <User className="h-4 w-4 text-muted-foreground" />
+                  <span
+                    className={cn(
+                      "flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl border text-center",
+                      isChampion
+                        ? "border-amber-400/50 bg-amber-500/20 text-amber-100"
+                        : "border-border bg-card text-muted-foreground"
                     )}
+                  >
+                    {isChampion ? (
+                      <Crown className="h-4 w-4" />
+                    ) : (
+                      <User className="h-4 w-4" />
+                    )}
+                    <span className="mt-0.5 text-[9px] font-bold tabular-nums leading-none">
+                      {rank != null ? `#${rank}` : "—"}
+                    </span>
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{participant.display_name}</p>
@@ -124,23 +132,23 @@ export function ChallengeLeaderboard({
                         {copy.judgmentDayInviteLabel}
                       </p>
                     ) : null}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {pts != null ? (
-                      <Badge variant="secondary" className="tabular-nums">
-                        {pts} {copy.pointsUnit}
-                      </Badge>
-                    ) : typeof participant.platform_score === "number" ? (
-                      <ParticipantPlatformScoreBadge
-                        score={participant.platform_score}
-                        breakdown={participant.platform_score_breakdown}
-                      />
-                    ) : null}
-                    {isYou ? (
-                      <Badge variant="outline" className="text-[10px]">
-                        You
-                      </Badge>
-                    ) : null}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      {pts != null ? (
+                        <Badge variant="secondary" className="tabular-nums">
+                          {pts} {copy.pointsUnit}
+                        </Badge>
+                      ) : typeof participant.platform_score === "number" ? (
+                        <ParticipantPlatformScoreBadge
+                          score={participant.platform_score}
+                          breakdown={participant.platform_score_breakdown}
+                        />
+                      ) : null}
+                      {isYou ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          You
+                        </Badge>
+                      ) : null}
+                    </div>
                   </div>
                 </li>
               );

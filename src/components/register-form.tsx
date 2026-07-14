@@ -43,6 +43,7 @@ export function RegisterForm() {
   const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null);
   const [continuePending, setContinuePending] = useState(false);
   const [continueMessage, setContinueMessage] = useState<string | null>(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     const draft = loadIntakeDraft();
@@ -124,6 +125,12 @@ export function RegisterForm() {
     setContinueMessage(null);
     setNeedsEmailConfirmation(false);
     setPendingSignup(null);
+
+    if (!acceptedTerms) {
+      setError("Please accept the Terms of Service and Privacy Policy to continue.");
+      return;
+    }
+
     setIsPending(true);
 
     try {
@@ -307,19 +314,42 @@ export function RegisterForm() {
             <Label htmlFor="password">Password</Label>
             <PasswordInput id="password" name="password" required minLength={6} />
           </div>
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
+            <input
+              id="accept_terms"
+              name="accept_terms"
+              type="checkbox"
+              required
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+            />
+            <span className="text-xs leading-relaxed text-muted-foreground">
+              I agree to the{" "}
+              <Link
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Privacy Policy
+              </Link>
+              .
+            </span>
+          </label>
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            By creating an account, you agree to our{" "}
-            <Link href="/terms" className="text-primary hover:underline">
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link href="/privacy" className="text-primary hover:underline">
-              Privacy Policy
-            </Link>
-            .
-          </p>
-          <Button type="submit" className="w-full" disabled={isPending}>
+          <Button type="submit" className="w-full" disabled={isPending || !acceptedTerms}>
             {isPending ? "Creating account..." : "Create Account"}
           </Button>
         </form>

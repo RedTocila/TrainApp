@@ -97,12 +97,9 @@ export function dayRelation(
   return "today";
 }
 
-/** True once the daily schedule window has closed (past calendar day or after water deadline). */
+/** True once the calendar day is over (past date only — full 24h for today). */
 export function isDayEnded(dateKey: string, now: Date = new Date()): boolean {
-  const relation = dayRelation(dateKey, now);
-  if (relation === "past") return true;
-  if (relation === "future") return false;
-  return isDeadlinePassed(WATER_DEADLINE, dateKey, now);
+  return dayRelation(dateKey, now) === "past";
 }
 
 export function getMealSlotPhase(

@@ -62,7 +62,19 @@ export function DashboardWorkoutDetailSection({
 
   useEffect(() => {
     if (!highlighted) return;
-    sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const main = document.querySelector<HTMLElement>(".dashboard-main");
+    const el = sectionRef.current;
+    if (!el || !main) {
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    const header = main.querySelector<HTMLElement>("header");
+    const headerHeight = header?.offsetHeight ?? 0;
+    const mainRect = main.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const targetTop =
+      main.scrollTop + (elRect.top - mainRect.top) - headerHeight - 8;
+    main.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
   }, [highlighted]);
 
   useEffect(() => {

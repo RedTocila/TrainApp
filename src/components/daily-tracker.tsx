@@ -47,7 +47,7 @@ import { useDashboardSync } from "@/components/dashboard-sync";
 import {
   DashboardStatusIcon,
 } from "@/components/section-completed-badge";
-import { getPlannedMealSlots, isDeadlinePassed, WATER_DEADLINE } from "@/lib/meal-times";
+import { getPlannedMealSlots, isDayEnded } from "@/lib/meal-times";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import type { DailyMealLog, Meal, MealSlot } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -158,7 +158,7 @@ export function DailyTracker({
 
   const waterMet = waterMetDailyMinimum(localWaterMl, waterGoalMl);
   const waterMissed =
-    !waterMet && isDeadlinePassed(WATER_DEADLINE, dateKey);
+    !waterMet && isDayEnded(dateKey);
   const waterCompleted = waterMet;
   const macrosMet = dailyMacrosWithinTarget(current, targets);
   const macrosExceeded = dailyMacrosExceededUpperLimit(current, targets);
@@ -592,8 +592,7 @@ export function DailyTracker({
                           label: platform.nutrition.drinkWater(waterGoalMl),
                           detail: platform.nutrition.waterLogged(
                             localWaterMl,
-                            waterGoalMl,
-                            WATER_DEADLINE
+                            waterGoalMl
                           ),
                         },
                       ]

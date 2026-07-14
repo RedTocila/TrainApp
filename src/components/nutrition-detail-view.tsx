@@ -17,6 +17,7 @@ import { dashboard, DashboardCarouselDots } from "@/components/dashboard-ui";
 import { MacroOverageInsightButton } from "@/components/macro-overage-insight-button";
 import { MiniProgressRing } from "@/components/nutrition-macro-rings";
 import type { MealMacros } from "@/lib/meal-utils";
+import { scrollElementIntoHorizontalView } from "@/lib/scroll-horizontal";
 import {
   DAILY_MICRO_TARGETS,
   microExceededHighLimit,
@@ -289,11 +290,14 @@ export function NutritionDetailView({
     ) : null;
 
   const scrollToSlide = useCallback((index: number) => {
-    slideRefs.current[index]?.scrollIntoView({
-      behavior: "smooth",
-      inline: "start",
-      block: "nearest",
-    });
+    const node = slideRefs.current[index];
+    if (node) {
+      scrollElementIntoHorizontalView(node, {
+        behavior: "smooth",
+        inline: "start",
+        scroller: scrollRef.current,
+      });
+    }
     setSlide(index);
   }, []);
 

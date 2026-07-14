@@ -28,6 +28,7 @@ import {
 } from "@/components/dashboard-ui";
 import { getCardioTypeDisplay } from "@/lib/cardio-catalog";
 import { getScheduledCardiosForDate } from "@/lib/actions/user-cardio";
+import { scrollElementIntoHorizontalView } from "@/lib/scroll-horizontal";
 import { getCardioCompletionForDate } from "@/lib/actions/task-completions";
 import { formatCardioElapsedMinutes } from "@/lib/cardio-completion";
 import { cardioTaskId } from "@/lib/cardio-task-id";
@@ -229,21 +230,26 @@ export function DashboardCardioCard({
     const next = pickDefaultCardioIndex(scheduledList, isEntryCompleted);
     setSlide(next);
     const frame = requestAnimationFrame(() => {
-      slideRefs.current[next]?.scrollIntoView({
+      const node = slideRefs.current[next];
+      if (!node) return;
+      scrollElementIntoHorizontalView(node, {
         behavior: "auto",
         inline: "start",
-        block: "nearest",
+        scroller: scrollRef.current,
       });
     });
     return () => cancelAnimationFrame(frame);
   }, [dateKey, scheduledIdsKey]); // intentionally omit isEntryCompleted — don't jump slides when completions change
 
   const scrollToSlide = useCallback((index: number) => {
-    slideRefs.current[index]?.scrollIntoView({
-      behavior: "smooth",
-      inline: "start",
-      block: "nearest",
-    });
+    const node = slideRefs.current[index];
+    if (node) {
+      scrollElementIntoHorizontalView(node, {
+        behavior: "smooth",
+        inline: "start",
+        scroller: scrollRef.current,
+      });
+    }
     setSlide(index);
   }, []);
 

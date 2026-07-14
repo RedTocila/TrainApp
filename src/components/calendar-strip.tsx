@@ -13,6 +13,7 @@ import {
   type DashboardEnrichmentData,
 } from "@/lib/dashboard-task-enrichment";
 import { formatDateKey } from "@/lib/utils";
+import { scrollElementIntoHorizontalView } from "@/lib/scroll-horizontal";
 
 interface CalendarStripProps {
   selectedDate: Date;
@@ -84,10 +85,9 @@ export function CalendarStrip({
     if (!node) return;
 
     const frame = requestAnimationFrame(() => {
-      node.scrollIntoView({
+      scrollElementIntoHorizontalView(node, {
         behavior: "smooth",
         inline: "center",
-        block: "nearest",
       });
     });
 
@@ -97,7 +97,10 @@ export function CalendarStrip({
   return (
     <div className="calendar-strip bg-background/80 backdrop-blur-sm">
       {/* Mobile / tablet: scrollable week strip */}
-      <div className="flex min-w-0 items-stretch gap-0 overflow-x-auto overscroll-x-contain px-2 py-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3 md:px-4 lg:hidden [&::-webkit-scrollbar]:hidden">
+      <div
+        data-horizontal-scroll
+        className="flex min-w-0 items-stretch gap-0 overflow-x-auto overscroll-x-contain px-2 py-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3 md:px-4 lg:hidden [&::-webkit-scrollbar]:hidden"
+      >
         {dayItems.map(({ day, tasks, dayStatus, inactive }) => (
           <CalendarStripDay
             key={day.toISOString()}

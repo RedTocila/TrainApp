@@ -7,6 +7,7 @@ import { NutritionPageChromeProvider } from "@/components/nutrition-page-chrome-
 import { WorkoutPageChromeProvider } from "@/components/workout-page-chrome-context";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { TrainSectionShell } from "@/components/train-section-shell";
+import { scrollDashboardMainToTop } from "@/components/dashboard-main-reset";
 
 export function DashboardMainArea({
   children,
@@ -22,8 +23,7 @@ export function DashboardMainArea({
 
   useEffect(() => {
     if (!isNavigating) return;
-    const main = document.querySelector<HTMLElement>(".dashboard-main");
-    if (main) main.scrollTop = 0;
+    scrollDashboardMainToTop();
   }, [isNavigating]);
 
   return (

@@ -11,7 +11,7 @@ import {
 } from "@/lib/water-targets";
 import type { MealMacros } from "@/lib/meal-utils";
 import type { DailyMealLog } from "@/lib/types";
-import { isDayEnded, isDeadlinePassed, WATER_DEADLINE } from "@/lib/meal-times";
+import { isDayEnded } from "@/lib/meal-times";
 
 export type NutritionDayStatus = "good" | "bad" | "missed" | "too_much";
 
@@ -82,7 +82,7 @@ export function getNutritionDayStatuses(
   const macrosOverTarget = anyDailyMacroOverTarget(ctx.current, ctx.targets);
   const waterMet = waterMetDailyMinimum(ctx.waterMl, ctx.waterGoalMl);
   const waterMissed =
-    !waterMet && isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now);
+    !waterMet && isDayEnded(ctx.dateKey, now);
   const dayEnded = isDayEnded(ctx.dateKey, now);
   const nutritionCompleted =
     macrosMet && waterMet && !macrosExceeded;
@@ -120,8 +120,7 @@ export function getNutritionDayStatuses(
     if (
       proteinLow ||
       caloriesOverGoal ||
-      (nothingLogged && dayEnded) ||
-      (nothingLogged && isDeadlinePassed(WATER_DEADLINE, ctx.dateKey, now))
+      (nothingLogged && dayEnded)
     ) {
       if (!statuses.includes("bad")) statuses.push("bad");
     }

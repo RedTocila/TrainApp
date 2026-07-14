@@ -51,8 +51,7 @@ import { AddWorkoutToDayDialog } from "@/components/add-workout-to-day-dialog";
 import { RemoveWorkoutFromDayDialog } from "@/components/remove-workout-from-day-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
 import {
-  isDeadlinePassed,
-  WORKOUT_DEADLINE,
+  dayRelation,
 } from "@/lib/meal-times";
 import type { Profile } from "@/lib/types";
 
@@ -421,7 +420,7 @@ export function DashboardWorkoutCard({
   const workoutMissed =
     workoutsForDay.length > 0 &&
     !allWorkoutsComplete &&
-    isDeadlinePassed(WORKOUT_DEADLINE, dateKey);
+    dayRelation(dateKey) === "past";
 
   const compactSelectedWorkout = useMemo(() => {
     if (selectedCompactWorkoutKey) {
@@ -640,7 +639,7 @@ export function DashboardWorkoutCard({
               .map((workout) => ({
                 id: workout.taskId,
                 label: workout.dayTitle,
-                detail: `${workout.planTitle} · was due by ${WORKOUT_DEADLINE}`,
+                detail: workout.planTitle,
               }))}
           />
         </CardTitle>
@@ -672,9 +671,7 @@ export function DashboardWorkoutCard({
                 {displayWorkout.planTitle}
                 {displayWorkout.exercises.length > 0 &&
                   ` · ${platform.common.exercises(displayWorkout.exercises.length)}`}
-                {showCompletedState
-                  ? ` ${platform.workout.completedSuffix}`
-                  : ` ${platform.workout.completeBy(WORKOUT_DEADLINE)}`}
+                {showCompletedState ? ` ${platform.workout.completedSuffix}` : null}
               </p>
               {!showCompletedState ? (
                 <div className="mt-3 flex flex-wrap gap-1">

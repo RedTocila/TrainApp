@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
@@ -14,27 +13,24 @@ import { loadChallengeBracketWithPlatformScores } from "@/lib/actions/challenge-
 import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { ChallengeAnnouncements } from "@/components/challenge-announcements";
 import { ChallengeBracketDiagram } from "@/components/challenge-bracket-diagram";
+import { ChallengeDetailHero } from "@/components/challenge-detail-hero";
 import { ChallengeDetailVisuals } from "@/components/challenge-detail-visuals";
 import { ChallengeJudgmentZoomPanel } from "@/components/challenge-judgment-zoom-panel";
 import { ChallengeLeaderboard } from "@/components/challenge-leaderboard";
 import { ChallengePrizePool } from "@/components/challenge-prize-pool";
 import { ChallengeJoinActions, ChallengeRegisterButton } from "@/components/challenge-join-actions";
 import { isFlashChallenge, isTransformationChallenge } from "@/lib/challenge-series";
-import { ChallengeRulesButton } from "@/components/challenge-rules-panel";
-import { ChallengeShareButton } from "@/components/challenge-share-button";
 import { ChallengeZoomPanel } from "@/components/challenge-zoom-panel";
 import { FlashChallengeActionBlock } from "@/components/flash-challenge-action-block";
 import { PageTransition } from "@/components/page-transition";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getChallengeStatus } from "@/lib/challenge-utils";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { PLATFORM_ELITE_NAME } from "@/lib/brand";
 import { getPlatformCopy } from "@/lib/platform-copy";
-import { resolveChallengePlatformCopy, getChallengeLeagueTag } from "@/lib/challenge-platform-copy";
+import { resolveChallengePlatformCopy } from "@/lib/challenge-platform-copy";
 import { hasEliteAccess } from "@/lib/subscription";
-import { ArrowLeft, GitBranch, Medal, Users } from "lucide-react";
+import { GitBranch, Medal, Users } from "lucide-react";
 
 export default async function ChallengeDetailPage({
   params,
@@ -100,29 +96,11 @@ export default async function ChallengeDetailPage({
   return (
     <PageTransition>
       <article className="mx-auto max-w-4xl space-y-6 pb-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/dashboard/classes">
-            <Button variant="ghost" size="sm" className="-ml-2">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Live
-            </Button>
-          </Link>
-          <div className="flex flex-wrap items-center gap-2">
-            <ChallengeShareButton slug={slug} title={challenge.title} />
-            <ChallengeRulesButton copy={copy} slug={slug} />
-          </div>
-        </div>
-
-        <header>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{challenge.title}</h1>
-            {getChallengeLeagueTag(platform.challenges, challenge) ? (
-              <Badge variant="outline" className="text-xs font-semibold uppercase tracking-wide">
-                {getChallengeLeagueTag(platform.challenges, challenge)}
-              </Badge>
-            ) : null}
-          </div>
-        </header>
+        <ChallengeDetailHero
+          challenge={challenge}
+          copy={copy}
+          platformChallenges={platform.challenges}
+        />
 
         <ChallengeAnnouncements announcements={announcements} alwaysVisible={isFlash} />
 
@@ -161,8 +139,8 @@ export default async function ChallengeDetailPage({
 
         {!isFlash ? (
           <section className="space-y-3">
-            {status !== "ended" && (
-              isSeries ? (
+            {status !== "ended" &&
+              (isSeries ? (
                 <ChallengeJoinActions
                   challenge={challenge}
                   participantCount={bracket.participants.length}
@@ -174,8 +152,7 @@ export default async function ChallengeDetailPage({
                   challenge={challenge}
                   isRegistered={isRegistered}
                 />
-              )
-            )}
+              ))}
             {isTransformation ? (
               <ChallengeJudgmentZoomPanel
                 challenge={challenge}

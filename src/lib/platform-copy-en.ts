@@ -185,8 +185,8 @@ export const platformCopyEn = {
     fromThisMeal: "from this meal",
     nextTimeLabel: "Next time",
     extraNutrient: (nutrient: string) => `Too much ${nutrient}`,
-    waterLogged: (logged: number, goal: number, deadline: string) =>
-      `${logged.toLocaleString()} ml logged · goal by ${deadline}`,
+    waterLogged: (logged: number, goal: number) =>
+      `${logged.toLocaleString()} / ${goal.toLocaleString()} ml`,
     eatBetween: (window: string) => `Eat between ${window}`,
     options: (n: number) => `${n} option${n === 1 ? "" : "s"}`,
     moreOptions: (n: number) => `+${n} more`,

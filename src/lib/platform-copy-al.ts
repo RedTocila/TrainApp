@@ -186,8 +186,8 @@ export const platformCopyAl = {
     fromThisMeal: "nga ky vakt",
     nextTimeLabel: "Herën tjetër",
     extraNutrient: (nutrient: string) => `Tej mase ${nutrient}`,
-    waterLogged: (logged: number, goal: number, deadline: string) =>
-      `${logged.toLocaleString()} ml të regjistruara · objektivi deri në ${deadline}`,
+    waterLogged: (logged: number, goal: number) =>
+      `${logged.toLocaleString()} / ${goal.toLocaleString()} ml`,
     eatBetween: (window: string) => `Hani ndërmjet ${window}`,
     options: (n: number) => `${n} opsion${n === 1 ? "" : "e"}`,
     moreOptions: (n: number) => `+${n} të tjera`,
