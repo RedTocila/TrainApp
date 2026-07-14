@@ -1,4 +1,5 @@
 "use client";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -28,6 +29,8 @@ export function CoachReadMeDialog({
   footer?: ReactNode;
 }) {
   const [agreed, setAgreed] = useState(false);
+
+  useLockBodyScroll(open);
 
   useEffect(() => {
     if (open) setAgreed(false);

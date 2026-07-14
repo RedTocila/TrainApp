@@ -1,4 +1,5 @@
 "use client";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
@@ -29,16 +30,16 @@ export function SarcasticGiveUpDialog({
   const coachCopy = useCoachCopy();
   const resolvedConfirm = confirmLabel ?? coachCopy.giveUpTrainerPlan.confirm;
   const resolvedCancel = cancelLabel ?? platform.common.cancel;
+  useLockBodyScroll(open);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !isPending) onClose();
     };
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open, onClose, isPending]);
 

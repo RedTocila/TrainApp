@@ -1,4 +1,5 @@
 "use client";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useMemo } from "react";
 import { Clock, X } from "lucide-react";
@@ -33,16 +34,16 @@ export function TodaysMealsDialog({
   onClose,
 }: TodaysMealsDialogProps) {
   const platform = usePlatformCopy();
+  useLockBodyScroll(open);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open, onClose]);
 

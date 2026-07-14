@@ -8,6 +8,7 @@ import { moveWorkoutToFolder } from "@/lib/actions/user-workouts";
 import { AddWorkoutWizard } from "@/components/add-workout-wizard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 interface AddToFolderMenuProps {
   folderId: string;
@@ -26,6 +27,8 @@ export function AddToFolderMenu({
   const [wizardOpen, setWizardOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  useLockBodyScroll(menuOpen || existingOpen);
 
   const handleAddExisting = (planId: string) => {
     setError(null);

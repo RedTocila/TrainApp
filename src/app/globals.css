@@ -461,10 +461,23 @@ html.light .red-glow {
 
 .overlay-backdrop {
   background: rgba(0, 0, 0, 0.7);
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 html.light .overlay-backdrop {
   background: rgba(0, 0, 0, 0.4);
+}
+
+/* While a popup is open: block scroll/clicks behind it, keep dialog interactive */
+html.body-scroll-locked .dashboard-main {
+  pointer-events: none;
+}
+
+html.body-scroll-locked .dashboard-main [role="dialog"],
+html.body-scroll-locked .dashboard-main .overlay-backdrop,
+html.body-scroll-locked .dashboard-main .fixed.inset-0 {
+  pointer-events: auto;
 }
 
 .section-highlight {

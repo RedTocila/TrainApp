@@ -1,4 +1,5 @@
 "use client";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -55,6 +56,8 @@ function MealEditDialog({
   const [form, setForm] = useState<MealFormData>(emptyMealForm());
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useLockBodyScroll(open);
 
   useEffect(() => {
     if (open && meal) setForm(mealFormFromMeal(meal));
@@ -141,6 +144,8 @@ function AddMealDialog({
     ...emptyMealForm(MEAL_SLOTS.find((s) => s.slot === slot)!.meal_type),
   }));
   const slotMeta = MEAL_SLOTS.find((s) => s.slot === slot)!;
+
+  useLockBodyScroll(open);
 
   if (!open) return null;
 

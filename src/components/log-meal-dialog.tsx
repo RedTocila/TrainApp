@@ -1,4 +1,5 @@
 "use client";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -119,16 +120,16 @@ export function LogMealDialog({
     savingRef.current = false;
   }, [open]);
 
+  useLockBodyScroll(open);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !savingRef.current) onClose();
     };
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open, onClose]);
 

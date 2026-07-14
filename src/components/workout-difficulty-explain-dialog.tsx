@@ -1,4 +1,5 @@
 "use client";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -68,16 +69,16 @@ export function WorkoutDifficultyExplainDialog({
     setMounted(true);
   }, []);
 
+  useLockBodyScroll(open);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open, onClose]);
 

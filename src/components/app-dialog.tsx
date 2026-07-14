@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,8 @@ export function AppDialog({
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const [fullPage, setFullPage] = useState(false);
+
+  useLockBodyScroll(open);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -62,10 +65,8 @@ export function AppDialog({
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open, onClose]);
 
@@ -104,7 +105,9 @@ export function AppDialog({
         </div>
       )}
 
-      <div className={cn(!title && !description && "pt-4")}>{children}</div>
+      <div className={cn(!title && !description && "pt-4")} data-scroll-lock-scrollable>
+        {children}
+      </div>
 
       {footer ? (
         <div className="shrink-0 border-t border-border px-5 py-4">{footer}</div>

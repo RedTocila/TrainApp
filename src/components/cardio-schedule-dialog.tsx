@@ -1,4 +1,5 @@
 "use client";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Calendar, X } from "lucide-react";
@@ -44,16 +45,16 @@ export function CardioScheduleDialog({
     setSuccess(null);
   }, [open, cardio?.id]);
 
+  useLockBodyScroll(open);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open, onClose]);
 

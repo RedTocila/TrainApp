@@ -1,4 +1,5 @@
 "use client";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -27,6 +28,7 @@ export function MoveNutritionDialog({
   folders,
   onMoved,
 }: MoveNutritionDialogProps) {
+  useLockBodyScroll(open);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);

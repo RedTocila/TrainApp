@@ -1,5 +1,6 @@
 "use client";
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
@@ -77,16 +78,16 @@ export function MissedItemsDialog({
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
+  useLockBodyScroll(open);
+
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [open, onClose]);
 

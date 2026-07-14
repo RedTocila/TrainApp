@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { OpenAiCoachChatButton } from "@/components/open-ai-coach-chat-button";
 import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 import { analyzeDayMacroOverageAction } from "@/lib/actions/ai-macro-overage";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import {
   buildLocalDayOverageInsights,
   nutrientLabel,
@@ -123,6 +125,8 @@ export function NutritionStatusAdviceButton({
   const styles = STATUS_STYLES[status];
   const showOverageInsights = status === "too_much";
 
+  useLockBodyScroll(open);
+
   useEffect(() => {
     if (!open || !showOverageInsights) return;
 
@@ -223,82 +227,95 @@ export function NutritionStatusAdviceButton({
         )}
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
-          <button
-            type="button"
-            aria-label={platform.aria.close}
-            className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 flex max-h-[min(85vh,36rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-start justify-between border-b border-border px-5 py-4">
-              <div className="flex items-center gap-3">
-                <AiCoachAvatar size="sm" className="h-10 w-10 shrink-0" />
-                <div>
-                  <h2 className={cn("text-lg font-black", styles.title)}>
-                    {advice.title}
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    {coachCopy.mealInsights.coachName}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setOpen(false)}
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+              <button
+                type="button"
                 aria-label={platform.aria.close}
+                className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+                onClick={() => setOpen(false)}
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                className="relative z-10 flex max-h-[min(85vh,36rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
               >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
+                <div className="flex items-start justify-between border-b border-border px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <AiCoachAvatar size="sm" className="h-10 w-10 shrink-0" />
+                    <div>
+                      <h2 className={cn("text-lg font-black", styles.title)}>
+                        {advice.title}
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        {coachCopy.mealInsights.coachName}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setOpen(false)}
+                    aria-label={platform.aria.close}
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
 
-            <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-              <div className={cn("rounded-xl border px-3 py-3", styles.dialog)}>
-                <p className="text-sm leading-relaxed">{advice.message}</p>
-                {advice.detail ? (
-                  <p className="mt-2 text-xs text-muted-foreground">{advice.detail}</p>
-                ) : null}
-              </div>
-
-              {showOverageInsights ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {platform.nutrition.whatWentWrongTitle}
-                    </p>
-                    {refining ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-orange-300" />
+                <div
+                  data-scroll-lock-scrollable
+                  className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4"
+                >
+                  <div className={cn("rounded-xl border px-3 py-3", styles.dialog)}>
+                    <p className="text-sm leading-relaxed">{advice.message}</p>
+                    {advice.detail ? (
+                      <p className="mt-2 text-xs text-muted-foreground">{advice.detail}</p>
                     ) : null}
                   </div>
-                  {error ? (
-                    <p className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-3 text-sm text-red-300">
-                      {error}
-                    </p>
-                  ) : (
-                    <OverageInsightCards insights={insights} />
-                  )}
-                </div>
-              ) : null}
-            </div>
 
-            <div className="space-y-2 border-t border-border px-5 py-3">
-              <OpenAiCoachChatButton className="w-full" onClick={() => setOpen(false)}>
-                {platform.ai.askAlex}
-              </OpenAiCoachChatButton>
-              <Button variant="outline" className="w-full" onClick={() => setOpen(false)}>
-                {coachLabels.illDoBetter}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+                  {showOverageInsights ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {platform.nutrition.whatWentWrongTitle}
+                        </p>
+                        {refining ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-orange-300" />
+                        ) : null}
+                      </div>
+                      {error ? (
+                        <p className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-3 text-sm text-red-300">
+                          {error}
+                        </p>
+                      ) : (
+                        <OverageInsightCards insights={insights} />
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="space-y-2 border-t border-border px-5 py-3">
+                  <OpenAiCoachChatButton
+                    className="w-full"
+                    onClick={() => setOpen(false)}
+                  >
+                    {platform.ai.askAlex}
+                  </OpenAiCoachChatButton>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setOpen(false)}
+                  >
+                    {coachLabels.illDoBetter}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }

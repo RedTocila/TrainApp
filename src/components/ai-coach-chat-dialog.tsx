@@ -10,6 +10,7 @@ import { CoachReadMeDialog } from "@/components/coach-read-me-dialog";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { SupportContactButton } from "@/components/support-contact-button";
 import { Button } from "@/components/ui/button";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 export function AiCoachChatDialog() {
   const {
@@ -29,17 +30,10 @@ export function AiCoachChatDialog() {
     setMounted(true);
   }, []);
 
+  useLockBodyScroll(isOpen);
+
   useEffect(() => {
     if (!isOpen) return;
-
-    const main = document.querySelector<HTMLElement>(".dashboard-main");
-    const prevMainOverflow = main?.style.overflow ?? "";
-    const prevBodyOverflow = document.body.style.overflow;
-
-    if (main) {
-      main.style.overflow = "hidden";
-    }
-    document.body.style.overflow = "hidden";
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -51,10 +45,6 @@ export function AiCoachChatDialog() {
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      if (main) {
-        main.style.overflow = prevMainOverflow;
-      }
-      document.body.style.overflow = prevBodyOverflow;
     };
   }, [isOpen, closeChat, readMeOpen, closeReadMe]);
 

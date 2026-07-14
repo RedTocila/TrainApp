@@ -8,6 +8,7 @@ import { moveNutritionPlanToFolder } from "@/lib/actions/user-nutrition";
 import { AddNutritionWizard } from "@/components/add-nutrition-wizard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 interface AddToNutritionFolderMenuProps {
   folderId: string;
@@ -26,6 +27,8 @@ export function AddToNutritionFolderMenu({
   const [wizardOpen, setWizardOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  useLockBodyScroll(menuOpen || existingOpen);
 
   const handleAddExisting = (planId: string) => {
     setError(null);

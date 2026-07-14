@@ -1,4 +1,5 @@
 "use client";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
@@ -207,6 +208,8 @@ function PoseSlider({
   const canPrev = index > 0;
   const canNext = index < frames.length - 1;
 
+  useLockBodyScroll(true);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -214,10 +217,8 @@ function PoseSlider({
       if (e.key === "ArrowRight" && canNext) onIndexChange(index + 1);
     };
     document.addEventListener("keydown", onKeyDown);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "";
     };
   }, [canNext, canPrev, index, onClose, onIndexChange]);
 

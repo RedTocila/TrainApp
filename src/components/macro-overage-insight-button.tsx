@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { analyzeMacroOverageAction } from "@/lib/actions/ai-macro-overage";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import {
   fallbackMacroOverageInsight,
   nutrientUnit,
@@ -39,6 +41,8 @@ export function MacroOverageInsightButton({
   const [insight, setInsight] = useState<MacroOverageInsight | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refining, setRefining] = useState(false);
+
+  useLockBodyScroll(open);
 
   const openDialog = (event?: MouseEvent) => {
     event?.stopPropagation();
@@ -99,107 +103,115 @@ export function MacroOverageInsightButton({
         !
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
-          <button
-            type="button"
-            aria-label={platform.aria.close}
-            className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 flex max-h-[min(85vh,30rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-start justify-between border-b border-border px-5 py-4">
-              <div className="flex items-center gap-3">
-                <AiCoachAvatar size="sm" className="h-10 w-10 shrink-0" />
-                <div>
-                  <h2 className="text-lg font-black text-red-400">
-                    {platform.nutrition.whatWentWrongTitle}
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    {platform.nutrition.whatWentWrongSubtitle}
-                  </p>
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+              <button
+                type="button"
+                aria-label={platform.aria.close}
+                className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+                onClick={() => setOpen(false)}
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                className="relative z-10 flex max-h-[min(85vh,30rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-start justify-between border-b border-border px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <AiCoachAvatar size="sm" className="h-10 w-10 shrink-0" />
+                    <div>
+                      <h2 className="text-lg font-black text-red-400">
+                        {platform.nutrition.whatWentWrongTitle}
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        {platform.nutrition.whatWentWrongSubtitle}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setOpen(false)}
+                    aria-label={platform.aria.close}
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                <div
+                  data-scroll-lock-scrollable
+                  className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4"
+                >
+                  {error && !insight ? (
+                    <p className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-3 text-sm text-red-300">
+                      {error}
+                    </p>
+                  ) : insight ? (
+                    <>
+                      <div className="rounded-xl border border-red-500/25 bg-red-500/5 px-3 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-red-300">
+                            {platform.nutrition.problemMeal}
+                          </p>
+                          {refining ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-red-300" />
+                          ) : null}
+                        </div>
+                        <p className="mt-1 text-base font-black">
+                          {insight.culpritMealName}
+                        </p>
+                        {insight.amountFromMeal > 0 ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            ~{insight.amountFromMeal}
+                            {nutrientUnit(insight.nutrient)}{" "}
+                            {platform.nutrition.fromThisMeal}
+                          </p>
+                        ) : null}
+                        {insight.problemFoods.length > 0 ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground">
+                              {platform.nutrition.problemFoods}:{" "}
+                            </span>
+                            {insight.problemFoods.join(", ")}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm leading-relaxed">
+                          {insight.explanation}
+                        </p>
+                        <p className="rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-sm leading-relaxed text-muted-foreground">
+                          <span className="font-semibold text-foreground">
+                            {platform.nutrition.nextTimeLabel}:{" "}
+                          </span>
+                          {insight.avoidNextTime}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin text-red-400" />
+                      <p>{platform.nutrition.analyzingMeals}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-border px-5 py-3">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setOpen(false)}
+                  >
+                    {platform.common.done}
+                  </Button>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setOpen(false)}
-                aria-label={platform.aria.close}
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-
-            <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-              {error && !insight ? (
-                <p className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-3 text-sm text-red-300">
-                  {error}
-                </p>
-              ) : insight ? (
-                <>
-                  <div className="rounded-xl border border-red-500/25 bg-red-500/5 px-3 py-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-red-300">
-                        {platform.nutrition.problemMeal}
-                      </p>
-                      {refining ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-red-300" />
-                      ) : null}
-                    </div>
-                    <p className="mt-1 text-base font-black">
-                      {insight.culpritMealName}
-                    </p>
-                    {insight.amountFromMeal > 0 ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        ~{insight.amountFromMeal}
-                        {nutrientUnit(insight.nutrient)}{" "}
-                        {platform.nutrition.fromThisMeal}
-                      </p>
-                    ) : null}
-                    {insight.problemFoods.length > 0 ? (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">
-                          {platform.nutrition.problemFoods}:{" "}
-                        </span>
-                        {insight.problemFoods.join(", ")}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm leading-relaxed">{insight.explanation}</p>
-                    <p className="rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-sm leading-relaxed text-muted-foreground">
-                      <span className="font-semibold text-foreground">
-                        {platform.nutrition.nextTimeLabel}:{" "}
-                      </span>
-                      {insight.avoidNextTime}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
-                  <Loader2 className="h-6 w-6 animate-spin text-red-400" />
-                  <p>{platform.nutrition.analyzingMeals}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-border px-5 py-3">
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setOpen(false)}
-              >
-                {platform.common.done}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }
