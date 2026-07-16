@@ -797,10 +797,10 @@ export const platformCopyAl = {
     photoSavedHint: "Fotoja ruhet për 30 ditë me këtë vakt.",
     specifyToAi: "Specifiko për AI",
     specifyHint:
-      "Përbërës ose mënyrë gatimi e gabuar? Tregoji AI-së çfarë të ndryshojë dhe ajo do të rivlerësojë.",
+      "Tregoji AI-së saktë çfarë të ndryshojë: përbërës që mungojnë, gramë, kalori ose zëvendësim i vaktit të regjistruar.",
     specifyPlaceholder:
-      "p.sh. i skuqur jo i pjekur, vaj ulliri shtesë, fasule në salcë domatesh…",
-    refineWithAi: "Rianalizo me detaje",
+      "p.sh. burgeri ka edhe qepë, ndrysho mishin në 250g, vendos kaloritë 350, zëvendësoje me pulë dhe oriz…",
+    refineWithAi: "Ndrysho me AI",
     refiningMeal: "Duke përshtatur analizën…",
     specifyTooShort: "Shto disa detaje që AI të përshtatë analizën",
   },

@@ -22,6 +22,7 @@ export function MealTextLogStep({
   onReadyChange,
   confidence,
   onConfidenceChange,
+  compact = false,
 }: {
   form: MealFormData;
   onFormChange: (form: MealFormData) => void;
@@ -29,6 +30,7 @@ export function MealTextLogStep({
   onReadyChange?: (ready: boolean) => void;
   confidence: number | null;
   onConfidenceChange: (value: number | null) => void;
+  compact?: boolean;
 }) {
   const [input, setInput] = useState("");
   const [phase, setPhase] = useState<TextPhase>("input");
@@ -105,29 +107,37 @@ export function MealTextLogStep({
   }
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Type what you ate in plain language — AI will extract foods and estimate macros.
-      </p>
+    <div className={compact ? "space-y-3" : "space-y-4"}>
+      {!compact && (
+        <p className="text-sm text-muted-foreground">
+          Type what you ate in plain language — AI will extract foods and estimate macros.
+        </p>
+      )}
       <Textarea
-        placeholder={'e.g. "2 eggs and a banana" or "Chicken breast with rice and salad"'}
+        placeholder={
+          compact ? 'e.g. "chicken + rice"' : 'e.g. "2 eggs and a banana" or "Chicken breast with rice and salad"'
+        }
         value={input}
         onChange={(e) => setInput(e.target.value)}
         rows={4}
         disabled={isPending || phase === "analyzing"}
       />
-      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-        {["2 eggs and toast", "Protein shake and apple", "Salmon with potatoes"].map((ex) => (
-          <button
-            key={ex}
-            type="button"
-            className="rounded-full border border-border px-2.5 py-1 hover:bg-secondary"
-            onClick={() => setInput(ex)}
-          >
-            {ex}
-          </button>
-        ))}
-      </div>
+      {!compact && (
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          {["2 eggs and toast", "Protein shake and apple", "Salmon with potatoes"].map(
+            (ex) => (
+              <button
+                key={ex}
+                type="button"
+                className="rounded-full border border-border px-2.5 py-1 hover:bg-secondary"
+                onClick={() => setInput(ex)}
+              >
+                {ex}
+              </button>
+            )
+          )}
+        </div>
+      )}
       <Button
         className="w-full"
         disabled={!input.trim() || isPending || phase === "analyzing"}

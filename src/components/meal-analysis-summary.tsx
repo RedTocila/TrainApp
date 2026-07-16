@@ -7,31 +7,23 @@ import {
   Droplets,
   Flame,
   Loader2,
-  MessageSquareText,
   Moon,
   Pencil,
-  Plus,
-  RotateCcw,
   Sparkles,
   Sun,
   UtensilsCrossed,
   Wheat,
-  X,
 } from "lucide-react";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
-import { getMealTypeOptions } from "@/lib/locale-labels";
-import type { MealType } from "@/lib/types";
-import type { MealFormData, MealIngredient, MealMacros } from "@/lib/meal-utils";
 import { ConfidenceBadge } from "@/components/confidence-badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { getMealTypeOptions } from "@/lib/locale-labels";
+import type { MealFormData, MealMacros } from "@/lib/meal-utils";
+import type { MealType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const MEAL_TYPE_META: Record<
-  MealType,
-  { icon: typeof Coffee; className: string }
-> = {
+const MEAL_TYPE_META: Record<MealType, { icon: typeof Coffee; className: string }> = {
   breakfast: { icon: Coffee, className: "text-amber-400 bg-amber-500/15" },
   lunch: { icon: Sun, className: "text-orange-400 bg-orange-500/15" },
   dinner: { icon: Moon, className: "text-indigo-400 bg-indigo-500/15" },
@@ -75,15 +67,7 @@ function macroCalories(macros: MealMacros) {
   };
 }
 
-function MacroDonut({
-  macros,
-  isAdjusting,
-  onCaloriesChange,
-}: {
-  macros: MealMacros;
-  isAdjusting: boolean;
-  onCaloriesChange: (value: number) => void;
-}) {
+function MacroDonut({ macros }: { macros: MealMacros }) {
   const split = macroCalories(macros);
   const total = split.protein + split.carbs + split.fat || 1;
   const radius = 34;
@@ -113,6 +97,7 @@ function MacroDonut({
           const dasharray = `${length} ${circumference - length}`;
           const dashoffset = -offset;
           offset += length;
+
           return (
             <circle
               key={index}
@@ -131,17 +116,7 @@ function MacroDonut({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
         <Flame className="mb-0.5 h-4 w-4 text-orange-400" />
-        {isAdjusting ? (
-          <Input
-            type="number"
-            min={0}
-            value={macros.calories}
-            onChange={(e) => onCaloriesChange(parseInt(e.target.value, 10) || 0)}
-            className="h-8 w-16 border-primary/30 bg-background/90 px-1 text-center text-sm font-black"
-          />
-        ) : (
-          <span className="text-xl font-black leading-none">{macros.calories}</span>
-        )}
+        <span className="text-xl font-black leading-none">{macros.calories}</span>
         <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           kcal
         </span>
@@ -152,13 +127,9 @@ function MacroDonut({
 
 function MacroBars({
   macros,
-  isAdjusting,
-  onMacroChange,
   rows,
 }: {
   macros: MealMacros;
-  isAdjusting: boolean;
-  onMacroChange: (key: keyof MealMacros, value: number) => void;
   rows: ReturnType<typeof macroRows>;
 }) {
   const max = Math.max(macros.protein, macros.carbs, macros.fat, 1);
@@ -177,28 +148,13 @@ function MacroBars({
                 <Icon className="h-3.5 w-3.5" />
                 {row.label}
               </span>
-              {isAdjusting ? (
-                <Input
-                  type="number"
-                  min={0}
-                  value={value}
-                  onChange={(e) =>
-                    onMacroChange(row.key, parseInt(e.target.value, 10) || 0)
-                  }
-                  className="h-7 w-16 px-2 text-right text-xs font-semibold"
-                />
-              ) : (
-                <span className="font-semibold text-foreground">
-                  {value}
-                  <span className="text-muted-foreground">g</span>
-                </span>
-              )}
+              <span className="font-semibold text-foreground">
+                {value}
+                <span className="text-muted-foreground">g</span>
+              </span>
             </div>
             <div className={cn("h-2 overflow-hidden rounded-full", row.track)}>
-              <div
-                className={cn("h-full rounded-full transition-all", row.bar)}
-                style={{ width: `${width}%` }}
-              />
+              <div className={cn("h-full rounded-full transition-all", row.bar)} style={{ width: `${width}%` }} />
             </div>
           </div>
         );
@@ -209,28 +165,20 @@ function MacroBars({
 
 export function MealAnalysisSummary({
   form,
-  onFormChange,
   confidence,
   imageUrl,
-  isAdjusting,
-  onToggleAdjust,
-  onRetake,
   onRefineWithSpecification,
   isRefining = false,
 }: {
   form: MealFormData;
-  onFormChange: (form: MealFormData) => void;
   confidence: number | null;
   imageUrl?: string | null;
-  isAdjusting: boolean;
-  onToggleAdjust: () => void;
-  onRetake?: () => void;
   onRefineWithSpecification?: (specification: string) => void;
   isRefining?: boolean;
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
-  const [isSpecifying, setIsSpecifying] = useState(false);
+  const [isEditingWithAi, setIsEditingWithAi] = useState(false);
   const [specification, setSpecification] = useState("");
   const mealTypeLabels = Object.fromEntries(
     getMealTypeOptions(locale)
@@ -242,54 +190,21 @@ export function MealAnalysisSummary({
   const MealIcon = mealMeta.icon;
   const ingredients = form.ingredients.filter((item) => item.name.trim());
 
-  const updateMacros = (key: keyof MealMacros, value: number) => {
-    onFormChange({ ...form, macros: { ...form.macros, [key]: value } });
-  };
-
-  const updateIngredient = (index: number, field: keyof MealIngredient, value: string) => {
-    const next = [...form.ingredients];
-    next[index] = { ...next[index], [field]: value };
-    onFormChange({ ...form, ingredients: next });
-  };
-
-  const removeIngredient = (index: number) => {
-    onFormChange({
-      ...form,
-      ingredients: form.ingredients.filter((_, i) => i !== index),
-    });
-  };
-
   const handleRefine = () => {
     const trimmed = specification.trim();
     if (trimmed.length < 3) return;
     onRefineWithSpecification?.(trimmed);
   };
 
-  const toggleSpecifying = () => {
-    if (!isSpecifying && isAdjusting) {
-      onToggleAdjust();
-    }
-    setIsSpecifying((value) => !value);
-  };
-
   return (
     <div className="space-y-4">
       {imageUrl && (
         <div className="overflow-hidden rounded-2xl border border-border bg-secondary/20">
-          <img
-            src={imageUrl}
-            alt={platform.mealLog.mealPreview}
-            className="aspect-[4/3] w-full object-cover"
-          />
+          <img src={imageUrl} alt={platform.mealLog.mealPreview} className="aspect-[4/3] w-full object-cover" />
         </div>
       )}
 
-      <div
-        className={cn(
-          "overflow-hidden rounded-2xl border bg-card transition-colors",
-          isAdjusting ? "border-primary/40 ring-1 ring-primary/20" : "border-border"
-        )}
-      >
+      <div className="overflow-hidden rounded-2xl border border-border bg-card transition-colors">
         <div className="border-b border-border/70 bg-primary/5 px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -299,199 +214,73 @@ export function MealAnalysisSummary({
                 {confidence != null && <ConfidenceBadge confidence={confidence} />}
               </p>
 
-              {isAdjusting ? (
-                <Input
-                  value={form.name}
-                  onChange={(e) => onFormChange({ ...form, name: e.target.value })}
-                  className="mt-2 h-10 text-base font-bold"
-                  placeholder={platform.mealLog.mealName}
-                />
-              ) : (
-                <h3 className="mt-1.5 text-lg font-bold leading-tight">{form.name}</h3>
-              )}
+              <h3 className="mt-1.5 text-lg font-bold leading-tight">{form.name}</h3>
 
-              {isAdjusting ? (
-                <select
-                  value={form.meal_type}
-                  onChange={(e) =>
-                    onFormChange({ ...form, meal_type: e.target.value as MealType })
-                  }
-                  className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                >
-                  {(Object.keys(mealTypeLabels) as MealType[]).map((mealType) => (
-                    <option key={mealType} value={mealType}>
-                      {mealTypeLabels[mealType]}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span
-                  className={cn(
-                    "mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                    mealMeta.className
-                  )}
-                >
-                  <MealIcon className="h-3.5 w-3.5" />
-                  {mealTypeLabels[form.meal_type]}
-                </span>
-              )}
+              <span
+                className={cn(
+                  "mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                  mealMeta.className
+                )}
+              >
+                <MealIcon className="h-3.5 w-3.5" />
+                {mealTypeLabels[form.meal_type]}
+              </span>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1">
-              {onRefineWithSpecification && (
-                <Button
-                  type="button"
-                  variant={isSpecifying ? "default" : "outline"}
-                  size="icon"
-                  className="h-9 w-9 rounded-xl"
-                  onClick={toggleSpecifying}
-                  disabled={isRefining}
-                  aria-label={platform.mealLog.specifyToAi}
-                  aria-pressed={isSpecifying}
-                >
-                  <MessageSquareText className="h-4 w-4" />
-                </Button>
-              )}
+            {onRefineWithSpecification && (
               <Button
                 type="button"
-                variant={isAdjusting ? "default" : "outline"}
+                variant={isEditingWithAi ? "default" : "outline"}
                 size="icon"
                 className="h-9 w-9 rounded-xl"
-                onClick={() => {
-                  if (!isAdjusting && isSpecifying) {
-                    setIsSpecifying(false);
-                  }
-                  onToggleAdjust();
-                }}
+                onClick={() => setIsEditingWithAi((value) => !value)}
                 disabled={isRefining}
-                aria-label={
-                  isAdjusting ? platform.mealLog.doneAdjusting : platform.mealLog.adjustDetails
-                }
-                aria-pressed={isAdjusting}
+                aria-label={platform.common.edit}
+                aria-pressed={isEditingWithAi}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
-              {onRetake && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 rounded-xl"
-                  onClick={onRetake}
-                  disabled={isRefining}
-                  aria-label={platform.mealLog.retakePhoto}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+            )}
           </div>
 
-          {isAdjusting ? (
-            <Textarea
-              value={form.description}
-              onChange={(e) => onFormChange({ ...form, description: e.target.value })}
-              rows={2}
-              placeholder={platform.mealLog.descriptionNotes}
-              className="mt-3 resize-none text-sm"
-            />
-          ) : (
-            form.description && (
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                {form.description}
-              </p>
-            )
+          {form.description && (
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{form.description}</p>
           )}
         </div>
 
         <div className="flex items-center gap-4 p-4">
-          <MacroDonut
-            macros={form.macros}
-            isAdjusting={isAdjusting}
-            onCaloriesChange={(calories) => updateMacros("calories", calories)}
-          />
-          <MacroBars
-            macros={form.macros}
-            isAdjusting={isAdjusting}
-            onMacroChange={updateMacros}
-            rows={rows}
-          />
+          <MacroDonut macros={form.macros} />
+          <MacroBars macros={form.macros} rows={rows} />
         </div>
 
-        {(ingredients.length > 0 || isAdjusting) && (
+        {ingredients.length > 0 && (
           <div className="border-t border-border/70 px-4 py-3">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Ingredients
             </p>
-
-            {isAdjusting ? (
-              <div className="space-y-2">
-                {form.ingredients.map((ingredient, index) => (
-                  <div key={index} className="flex gap-2">
-                    <Input
-                      placeholder="Ingredient"
-                      value={ingredient.name}
-                      onChange={(e) => updateIngredient(index, "name", e.target.value)}
-                      className="h-9 flex-1 text-sm"
-                    />
-                    <Input
-                      placeholder="Amount"
-                      value={ingredient.amount ?? ""}
-                      onChange={(e) => updateIngredient(index, "amount", e.target.value)}
-                      className="h-9 w-24 text-sm"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 shrink-0"
-                      onClick={() => removeIngredient(index)}
-                      aria-label={platform.mealLog.removeIngredient}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    onFormChange({
-                      ...form,
-                      ingredients: [...form.ingredients, { name: "", amount: "" }],
-                    })
-                  }
+            <div className="flex flex-wrap gap-1.5">
+              {ingredients.map((ingredient, index) => (
+                <span
+                  key={`${ingredient.name}-${index}`}
+                  className="rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-xs text-foreground"
                 >
-                  <Plus className="mr-1 h-3 w-3" />
-                  Add ingredient
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {ingredients.map((ingredient, index) => (
-                  <span
-                    key={`${ingredient.name}-${index}`}
-                    className="rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-xs text-foreground"
-                  >
-                    {ingredient.name}
-                    {ingredient.amount ? (
-                      <span className="text-muted-foreground"> · {ingredient.amount}</span>
-                    ) : null}
-                  </span>
-                ))}
-              </div>
-            )}
+                  {ingredient.name}
+                  {ingredient.amount ? (
+                    <span className="text-muted-foreground"> · {ingredient.amount}</span>
+                  ) : null}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {isSpecifying && onRefineWithSpecification && (
+      {isEditingWithAi && onRefineWithSpecification && (
         <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
           <p className="text-sm text-muted-foreground">{platform.mealLog.specifyHint}</p>
           <Textarea
             value={specification}
-            onChange={(e) => setSpecification(e.target.value)}
+            onChange={(event) => setSpecification(event.target.value)}
             rows={3}
             placeholder={platform.mealLog.specifyPlaceholder}
             className="mt-3 resize-none text-sm"
@@ -519,12 +308,7 @@ export function MealAnalysisSummary({
       )}
 
       <p className="text-center text-xs text-muted-foreground">
-        {isAdjusting ? (
-          <>
-            Tap the pencil again when done — then{" "}
-            <span className="font-medium text-foreground">Confirm &amp; log meal</span>.
-          </>
-        ) : isSpecifying ? (
+        {isEditingWithAi ? (
           <>
             Add details above, then tap{" "}
             <span className="font-medium text-foreground">{platform.mealLog.refineWithAi}</span>.
@@ -532,7 +316,7 @@ export function MealAnalysisSummary({
         ) : (
           <>
             Looks good? Tap <span className="font-medium text-foreground">Confirm &amp; log meal</span>{" "}
-            below — or the message icon to tell AI what to fix, or the pencil to tweak on the spot.
+            below - or tap edit to tell AI what to fix.
           </>
         )}
       </p>

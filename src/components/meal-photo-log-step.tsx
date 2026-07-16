@@ -34,7 +34,6 @@ export function MealPhotoLogStep({
   const platform = usePlatformCopy();
   const [phase, setPhase] = useState<PhotoPhase>("capture");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isAdjusting, setIsAdjusting] = useState(false);
   const [lastAnalysis, setLastAnalysis] = useState<MealAnalysisResult | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -94,7 +93,6 @@ export function MealPhotoLogStep({
         onFormChange(response.form);
         onConfidenceChange(response.result.confidence);
         setLastAnalysis(response.result);
-        setIsAdjusting(false);
         setPhaseWithReady("review");
       } catch {
         onError(platform.mealLog.uploadTooLarge);
@@ -106,7 +104,6 @@ export function MealPhotoLogStep({
   const handleRetake = () => {
     setPreviewUrl(null);
     onPhotoDataUrlChange?.(null);
-    setIsAdjusting(false);
     setLastAnalysis(null);
     setPhaseWithReady("capture");
     onConfidenceChange(null);
@@ -145,7 +142,6 @@ export function MealPhotoLogStep({
         onFormChange(response.form);
         onConfidenceChange(response.result.confidence);
         setLastAnalysis(response.result);
-        setIsAdjusting(false);
       } catch {
         onError(platform.mealLog.uploadTooLarge);
       }
@@ -157,12 +153,8 @@ export function MealPhotoLogStep({
       <div className="space-y-4">
         <MealAnalysisSummary
           form={form}
-          onFormChange={onFormChange}
           confidence={confidence}
           imageUrl={previewUrl}
-          isAdjusting={isAdjusting}
-          onToggleAdjust={() => setIsAdjusting((value) => !value)}
-          onRetake={handleRetake}
           onRefineWithSpecification={handleRefineWithSpecification}
           isRefining={isPending}
         />

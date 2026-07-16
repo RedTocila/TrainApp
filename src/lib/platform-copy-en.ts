@@ -790,10 +790,10 @@ export const platformCopyEn = {
     photoSavedHint: "Your photo is saved for 30 days with this meal.",
     specifyToAi: "Specify to AI",
     specifyHint:
-      "Wrong ingredients or cooking method? Tell AI what to change and it will re-estimate.",
+      "Tell AI exactly what to fix: missing ingredients, different grams, updated calories, or replace the logged food.",
     specifyPlaceholder:
-      "e.g. fried not grilled, extra olive oil, kidney beans in tomato sauce…",
-    refineWithAi: "Re-analyze with details",
+      "e.g. burger has onions too, change meat to 250g, set calories to 350, replace this with grilled chicken and rice…",
+    refineWithAi: "Edit with AI",
     refiningMeal: "Adjusting analysis…",
     specifyTooShort: "Add a few details for AI to adjust the analysis",
   },
