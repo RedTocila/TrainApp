@@ -795,6 +795,14 @@ export const platformCopyAl = {
     removeIngredient: "Hiq përbërësin",
     whatToEatToday: "Çfarë të hash sot",
     photoSavedHint: "Fotoja ruhet për 30 ditë me këtë vakt.",
+    specifyToAi: "Specifiko për AI",
+    specifyHint:
+      "Përbërës ose mënyrë gatimi e gabuar? Tregoji AI-së çfarë të ndryshojë dhe ajo do të rivlerësojë.",
+    specifyPlaceholder:
+      "p.sh. i skuqur jo i pjekur, vaj ulliri shtesë, fasule në salcë domatesh…",
+    refineWithAi: "Rianalizo me detaje",
+    refiningMeal: "Duke përshtatur analizën…",
+    specifyTooShort: "Shto disa detaje që AI të përshtatë analizën",
   },
   mealPhotos: {
     title: "Fotot e vakteve",

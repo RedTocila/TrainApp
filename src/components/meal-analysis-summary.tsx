@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import {
   Beef,
   Coffee,
   Droplets,
   Flame,
+  Loader2,
+  MessageSquareText,
   Moon,
   Pencil,
   Plus,
@@ -212,6 +215,8 @@ export function MealAnalysisSummary({
   isAdjusting,
   onToggleAdjust,
   onRetake,
+  onRefineWithSpecification,
+  isRefining = false,
 }: {
   form: MealFormData;
   onFormChange: (form: MealFormData) => void;
@@ -220,9 +225,13 @@ export function MealAnalysisSummary({
   isAdjusting: boolean;
   onToggleAdjust: () => void;
   onRetake?: () => void;
+  onRefineWithSpecification?: (specification: string) => void;
+  isRefining?: boolean;
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
+  const [isSpecifying, setIsSpecifying] = useState(false);
+  const [specification, setSpecification] = useState("");
   const mealTypeLabels = Object.fromEntries(
     getMealTypeOptions(locale)
       .filter((option) => option.value !== "all")
@@ -248,6 +257,19 @@ export function MealAnalysisSummary({
       ...form,
       ingredients: form.ingredients.filter((_, i) => i !== index),
     });
+  };
+
+  const handleRefine = () => {
+    const trimmed = specification.trim();
+    if (trimmed.length < 3) return;
+    onRefineWithSpecification?.(trimmed);
+  };
+
+  const toggleSpecifying = () => {
+    if (!isSpecifying && isAdjusting) {
+      onToggleAdjust();
+    }
+    setIsSpecifying((value) => !value);
   };
 
   return (
@@ -316,12 +338,32 @@ export function MealAnalysisSummary({
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
+              {onRefineWithSpecification && (
+                <Button
+                  type="button"
+                  variant={isSpecifying ? "default" : "outline"}
+                  size="icon"
+                  className="h-9 w-9 rounded-xl"
+                  onClick={toggleSpecifying}
+                  disabled={isRefining}
+                  aria-label={platform.mealLog.specifyToAi}
+                  aria-pressed={isSpecifying}
+                >
+                  <MessageSquareText className="h-4 w-4" />
+                </Button>
+              )}
               <Button
                 type="button"
                 variant={isAdjusting ? "default" : "outline"}
                 size="icon"
                 className="h-9 w-9 rounded-xl"
-                onClick={onToggleAdjust}
+                onClick={() => {
+                  if (!isAdjusting && isSpecifying) {
+                    setIsSpecifying(false);
+                  }
+                  onToggleAdjust();
+                }}
+                disabled={isRefining}
                 aria-label={
                   isAdjusting ? platform.mealLog.doneAdjusting : platform.mealLog.adjustDetails
                 }
@@ -336,6 +378,7 @@ export function MealAnalysisSummary({
                   size="icon"
                   className="h-9 w-9 rounded-xl"
                   onClick={onRetake}
+                  disabled={isRefining}
                   aria-label={platform.mealLog.retakePhoto}
                 >
                   <RotateCcw className="h-4 w-4" />
@@ -443,16 +486,53 @@ export function MealAnalysisSummary({
         )}
       </div>
 
+      {isSpecifying && onRefineWithSpecification && (
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+          <p className="text-sm text-muted-foreground">{platform.mealLog.specifyHint}</p>
+          <Textarea
+            value={specification}
+            onChange={(e) => setSpecification(e.target.value)}
+            rows={3}
+            placeholder={platform.mealLog.specifyPlaceholder}
+            className="mt-3 resize-none text-sm"
+            disabled={isRefining}
+          />
+          <Button
+            type="button"
+            className="mt-3 w-full"
+            disabled={isRefining || specification.trim().length < 3}
+            onClick={handleRefine}
+          >
+            {isRefining ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {platform.mealLog.refiningMeal}
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-4 w-4" />
+                {platform.mealLog.refineWithAi}
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
       <p className="text-center text-xs text-muted-foreground">
         {isAdjusting ? (
           <>
             Tap the pencil again when done — then{" "}
             <span className="font-medium text-foreground">Confirm &amp; log meal</span>.
           </>
+        ) : isSpecifying ? (
+          <>
+            Add details above, then tap{" "}
+            <span className="font-medium text-foreground">{platform.mealLog.refineWithAi}</span>.
+          </>
         ) : (
           <>
             Looks good? Tap <span className="font-medium text-foreground">Confirm &amp; log meal</span>{" "}
-            below — or the pencil to tweak on the spot.
+            below — or the message icon to tell AI what to fix, or the pencil to tweak on the spot.
           </>
         )}
       </p>

@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { analyzeMealPhotoAction } from "@/lib/actions/ai-meal";
+import { analyzeMealPhotoAction, refineMealPhotoAction } from "@/lib/actions/ai-meal";
 import { isActionError, runServerAction } from "@/lib/run-server-action";
 import { compressImageFile, fileToDataUrl } from "@/lib/image-compress";
 import { type MealFormData } from "@/lib/meal-utils";
+import type { MealAnalysisResult } from "@/lib/ai/types";
 import { MealAnalysisSummary } from "@/components/meal-analysis-summary";
 import { ImageSourceButtons } from "@/components/image-source-buttons";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ export function MealPhotoLogStep({
   const [phase, setPhase] = useState<PhotoPhase>("capture");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAdjusting, setIsAdjusting] = useState(false);
+  const [lastAnalysis, setLastAnalysis] = useState<MealAnalysisResult | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const setPhaseWithReady = (next: PhotoPhase) => {
@@ -91,6 +93,7 @@ export function MealPhotoLogStep({
         }
         onFormChange(response.form);
         onConfidenceChange(response.result.confidence);
+        setLastAnalysis(response.result);
         setIsAdjusting(false);
         setPhaseWithReady("review");
       } catch {
@@ -104,9 +107,49 @@ export function MealPhotoLogStep({
     setPreviewUrl(null);
     onPhotoDataUrlChange?.(null);
     setIsAdjusting(false);
+    setLastAnalysis(null);
     setPhaseWithReady("capture");
     onConfidenceChange(null);
     onError(null);
+  };
+
+  const handleRefineWithSpecification = (specification: string) => {
+    if (!previewUrl) {
+      onError(platform.mealLog.takePhotoFirst);
+      return;
+    }
+
+    const match = previewUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+    if (!match) {
+      onError(platform.mealLog.readFailed);
+      return;
+    }
+
+    const [, mimeType, imageBase64] = match;
+    onError(null);
+
+    startTransition(async () => {
+      try {
+        const response = await runServerAction(() =>
+          refineMealPhotoAction(
+            imageBase64,
+            mimeType,
+            specification,
+            lastAnalysis ?? undefined
+          )
+        );
+        if (isActionError(response)) {
+          onError(response.error);
+          return;
+        }
+        onFormChange(response.form);
+        onConfidenceChange(response.result.confidence);
+        setLastAnalysis(response.result);
+        setIsAdjusting(false);
+      } catch {
+        onError(platform.mealLog.uploadTooLarge);
+      }
+    });
   };
 
   if (phase === "review") {
@@ -120,6 +163,8 @@ export function MealPhotoLogStep({
           isAdjusting={isAdjusting}
           onToggleAdjust={() => setIsAdjusting((value) => !value)}
           onRetake={handleRetake}
+          onRefineWithSpecification={handleRefineWithSpecification}
+          isRefining={isPending}
         />
       </div>
     );

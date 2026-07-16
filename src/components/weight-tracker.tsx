@@ -180,11 +180,11 @@ export function WeightTracker({
               </Label>
               <Input
                 id="body-weight"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.1"
-                min="1"
-                max={units.maxWeightInput}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder={units.weightPlaceholder}
                 value={weightInput}
                 onChange={(e) => setWeightInput(e.target.value)}

@@ -83,3 +83,51 @@ export async function analyzeMealPhoto(
   const raw = await runVisionPrompt(PHOTO_PROMPT, imageBase64, mimeType);
   return parseMealAnalysis(raw);
 }
+
+function buildRefinePhotoPrompt(
+  specification: string,
+  previousResult?: MealAnalysisResult
+): string {
+  let prompt = PHOTO_PROMPT;
+
+  prompt += `\n\nThe user reviewed your analysis and provided corrections or extra details. Use them when estimating:\n"${specification.trim()}"`;
+
+  if (previousResult) {
+    prompt += `\n\nYour previous analysis was:
+${JSON.stringify(
+  {
+    meal_type: previousResult.meal_type,
+    name: previousResult.name,
+    description: previousResult.description,
+    confidence: previousResult.confidence,
+    calories: previousResult.macros.calories,
+    protein: previousResult.macros.protein,
+    carbs: previousResult.macros.carbs,
+    fat: previousResult.macros.fat,
+    ingredients: previousResult.ingredients,
+  },
+  null,
+  2
+)}
+
+Refine this estimate using the photo and the user's notes.`;
+  }
+
+  return prompt;
+}
+
+export async function refineMealPhoto(
+  imageBase64: string,
+  mimeType: string,
+  specification: string,
+  previousResult?: MealAnalysisResult
+): Promise<MealAnalysisResult> {
+  const trimmed = specification.trim();
+  if (trimmed.length < 3) {
+    throw new Error("Add a few details for AI to adjust the analysis");
+  }
+
+  const prompt = buildRefinePhotoPrompt(trimmed, previousResult);
+  const raw = await runVisionPrompt(prompt, imageBase64, mimeType);
+  return parseMealAnalysis(raw);
+}

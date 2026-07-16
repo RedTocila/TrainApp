@@ -415,9 +415,11 @@ function SessionExerciseCard({
               className="h-9"
             />
             <Input
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.5"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="—"
               value={weightDisplay(set)}
               onChange={(e) =>

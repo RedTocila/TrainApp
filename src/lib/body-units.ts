@@ -28,6 +28,19 @@ function roundTo(value: number, decimals: number): number {
   return Math.round(value * factor) / factor;
 }
 
+/** Accept `75.5` and locale decimal commas like `75,5` before parsing. */
+export function normalizeDecimalInput(raw: string): string {
+  return raw.trim().replace(/\s/g, "").replace(",", ".");
+}
+
+function parseDecimalNumber(raw: string): number | null {
+  const normalized = normalizeDecimalInput(raw);
+  if (!normalized) return null;
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
 export function weightUnitLabel(unitSystem: UnitSystem): string {
   return unitSystem === "imperial" ? "lb" : "kg";
 }
@@ -71,10 +84,8 @@ export function parseWeightToKg(
   raw: string,
   unitSystem: UnitSystem
 ): number | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  const parsed = Number.parseFloat(trimmed);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  const parsed = parseDecimalNumber(raw);
+  if (parsed == null) return null;
 
   const kg = unitSystem === "imperial" ? lbToKg(parsed) : parsed;
   if (kg > MAX_WEIGHT_KG) return null;
@@ -109,10 +120,8 @@ export function parseHeightToCm(
   raw: string,
   unitSystem: UnitSystem
 ): number | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  const parsed = Number.parseFloat(trimmed);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  const parsed = parseDecimalNumber(raw);
+  if (parsed == null) return null;
 
   const cm = unitSystem === "imperial" ? ftToCm(parsed) : parsed;
   if (cm < MIN_HEIGHT_CM || cm > MAX_HEIGHT_CM) return null;

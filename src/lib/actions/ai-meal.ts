@@ -9,6 +9,7 @@ import { isAiConfigured } from "@/lib/ai/providers";
 import {
   analyzeMealPhoto,
   mealAnalysisToForm,
+  refineMealPhoto,
 } from "@/lib/ai/meal-photo";
 import { analyzeMealText } from "@/lib/ai/meal-text";
 import type { MealAnalysisResult } from "@/lib/ai/types";
@@ -76,6 +77,41 @@ export async function analyzeMealPhotoAction(
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to analyze meal photo";
+    return { error: message };
+  }
+}
+
+export async function refineMealPhotoAction(
+  imageBase64: string,
+  mimeType: string,
+  specification: string,
+  previousResult?: MealAnalysisResult
+): Promise<{ result: MealAnalysisResult; form: ReturnType<typeof mealAnalysisToForm> } | { error: string }> {
+  const access = await requireAiMealAccess();
+  if (!access.success) return { error: access.error };
+
+  if (!imageBase64.trim()) return { error: "No photo provided" };
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+    return { error: "Unsupported image type. Use JPEG, PNG, or WebP." };
+  }
+
+  const sizeBytes = Math.ceil((imageBase64.length * 3) / 4);
+  if (sizeBytes > MAX_IMAGE_BYTES) {
+    return { error: "Image is too large. Please use a photo under 2 MB." };
+  }
+
+  try {
+    const result = await refineMealPhoto(
+      imageBase64,
+      mimeType,
+      specification,
+      previousResult
+    );
+    await storeMealAnalysis(access.profile.id, "photo", result, specification.trim());
+    return { result, form: mealAnalysisToForm(result) };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to refine meal analysis";
     return { error: message };
   }
 }

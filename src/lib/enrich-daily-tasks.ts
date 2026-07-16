@@ -9,6 +9,8 @@ import {
 } from "@/lib/macro-targets";
 import {
   estimateDailyMicros,
+  isGoodNutritionHealthScore,
+  scoreDailyNutrition,
   sodiumExceededDailyUpperLimit,
 } from "@/lib/nutrition-day-utils";
 import { waterMetDailyMinimum } from "@/lib/water-targets";
@@ -72,6 +74,17 @@ export function enrichDailyTasks(
       const current = sumMealMacros(meals);
       const micros = estimateDailyMicros(meals, current);
       const met = dailyMacrosWithinTarget(current, ctx.macroTargets);
+      const healthScore = scoreDailyNutrition({
+        current,
+        targets: ctx.macroTargets,
+        waterMl: ctx.waterMl,
+        waterGoalMl: ctx.waterGoalMl,
+        dateKey: ctx.dateKey,
+        mealCount: meals.length,
+        micros,
+      }).score;
+      const healthGood = isGoodNutritionHealthScore(healthScore);
+      const nutritionDone = met || healthGood;
       const exceededTolerance = dailyMacrosExceededUpperLimit(
         current,
         ctx.macroTargets
@@ -86,12 +99,14 @@ export function enrichDailyTasks(
         label:
           exceededTolerance || sodiumExceeded
             ? "Daily macros over limit"
-            : "Hit daily macros",
+            : healthGood && !met
+              ? "Good nutrition day"
+              : "Hit daily macros",
         detail: formatMacroProgressLine(current, ctx.macroTargets),
-        completed: met || task.completed,
-        exceeded: exceeded && !met && !task.completed,
+        completed: nutritionDone || task.completed,
+        exceeded: exceeded && !nutritionDone && !task.completed,
         missed:
-          met || task.completed || exceeded
+          nutritionDone || task.completed || exceeded
             ? false
             : dayPast || task.missed,
       };

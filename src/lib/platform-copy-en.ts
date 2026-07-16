@@ -788,6 +788,14 @@ export const platformCopyEn = {
     removeIngredient: "Remove ingredient",
     whatToEatToday: "What to eat today",
     photoSavedHint: "Your photo is saved for 30 days with this meal.",
+    specifyToAi: "Specify to AI",
+    specifyHint:
+      "Wrong ingredients or cooking method? Tell AI what to change and it will re-estimate.",
+    specifyPlaceholder:
+      "e.g. fried not grilled, extra olive oil, kidney beans in tomato sauce…",
+    refineWithAi: "Re-analyze with details",
+    refiningMeal: "Adjusting analysis…",
+    specifyTooShort: "Add a few details for AI to adjust the analysis",
   },
   mealPhotos: {
     title: "Meal photos",
