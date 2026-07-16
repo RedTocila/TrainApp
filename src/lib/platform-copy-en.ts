@@ -802,7 +802,7 @@ export const platformCopyEn = {
     retentionHint: (days: number) =>
       `Photos are kept for ${days} days, then removed. Meals stay in your log without the photo.`,
     emptyTitle: "No meal photos yet",
-    emptyBody: "Log a meal with Photo log to save a compressed snapshot here.",
+    emptyBody: "Log a meal with Photo log to save a snapshot here.",
     viewPhotos: "Photos",
   },
   subscriptionPlans: {

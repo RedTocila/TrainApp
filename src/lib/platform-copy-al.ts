@@ -809,7 +809,7 @@ export const platformCopyAl = {
     retentionHint: (days: number) =>
       `Fotot mbahen ${days} ditë, pastaj fshihen. Vaktet mbeten në regjistrin tënd pa foto.`,
     emptyTitle: "Ende pa foto vaktesh",
-    emptyBody: "Regjistro një vakt me Photo log për të ruajtur një foto të kompresuar këtu.",
+    emptyBody: "Regjistro një vakt me Photo log për të ruajtur një foto këtu.",
     viewPhotos: "Fotot",
   },
   subscriptionPlans: {
