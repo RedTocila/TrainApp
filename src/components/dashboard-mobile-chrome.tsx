@@ -157,9 +157,11 @@ export function DashboardMobileChrome() {
   const pathname = usePathname();
   const { pendingHref } = useDashboardNavPending();
   const chromePath = pendingHref ?? pathname;
-  const showTrainTabs =
-    isTrainPath(chromePath) && !isActiveWorkoutSessionPath(chromePath);
+  const isSession = isActiveWorkoutSessionPath(chromePath);
+  const showTrainTabs = isTrainPath(chromePath) && !isSession;
   const showCalendar = chromePath === "/dashboard";
+
+  if (isSession) return null;
 
   return (
     <div className="mobile-top-safe sticky top-0 z-50 shrink-0 bg-background lg:hidden">

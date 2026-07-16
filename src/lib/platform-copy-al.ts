@@ -542,7 +542,6 @@ export const platformCopyAl = {
     previousMonths: "Muajt e mëparshëm",
     nextCheckIn: "Kontrolli i ardhshëm",
     noPhoto: "Pa foto",
-    compressHint: "Fotot kompresohen para ngarkimit për të kursyer hapësirë.",
     removeFailed: "Fotoja nuk u hoq",
     uploadFailed: "Ngarkimi dështoi",
     analyzing: "Alex po kontrollon foton…",

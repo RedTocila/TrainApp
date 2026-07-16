@@ -477,9 +477,6 @@ function ProgressPhotosCardInner({
                 />
               ))}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {platform.photos.compressHint}
-            </p>
           </div>
 
           {error ? <p className="text-sm text-red-400">{error}</p> : null}

@@ -57,9 +57,6 @@ export function WorkoutDifficultyExplainDialog({
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [insight, setInsight] = useState<{
-    difficultyId: PersonalWorkoutDifficultyId;
-    workoutLoad: number;
-    clientCapacity: number;
     reasons: WorkoutDifficultyReason[];
     hasIntake: boolean;
   } | null>(null);
@@ -99,10 +96,8 @@ export function WorkoutDifficultyExplainDialog({
     })
       .then((result) => {
         if (requestIdRef.current !== requestId) return;
+        // Keep the badge rating fixed; AI may only enrich the explanation reasons.
         setInsight({
-          difficultyId: result.id,
-          workoutLoad: result.workoutLoad,
-          clientCapacity: result.clientCapacity,
           reasons: result.reasons,
           hasIntake: result.hasIntake,
         });
@@ -116,12 +111,10 @@ export function WorkoutDifficultyExplainDialog({
 
   if (!open || !mounted) return null;
 
-  const activeDifficultyId = insight?.difficultyId ?? difficultyId;
-  const activeWorkoutLoad = insight?.workoutLoad ?? workoutLoad;
-  const activeClientCapacity = insight?.clientCapacity ?? clientCapacity;
-  const activeReasons = insight?.reasons ?? reasons;
+  const activeReasons =
+    insight?.reasons && insight.reasons.length > 0 ? insight.reasons : reasons;
   const activeHasIntake = insight?.hasIntake ?? hasIntake;
-  const difficulty = platform.workout.personalDifficulty[activeDifficultyId];
+  const difficulty = platform.workout.personalDifficulty[difficultyId];
 
   const harderReasons = activeReasons.filter((reason) => reason.impact === "harder");
   const easierReasons = activeReasons.filter((reason) => reason.impact === "easier");
@@ -183,7 +176,7 @@ export function WorkoutDifficultyExplainDialog({
               {platform.workout.difficultyForYou}
             </p>
             <h2
-              className={cn("mt-1 text-lg font-black", DIFFICULTY_LABEL_CLASS[activeDifficultyId])}
+              className={cn("mt-1 text-lg font-black", DIFFICULTY_LABEL_CLASS[difficultyId])}
             >
               {difficulty.label}
             </h2>
@@ -208,13 +201,13 @@ export function WorkoutDifficultyExplainDialog({
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {platform.workout.difficultyWorkoutLoad}
               </p>
-              <p className="mt-1 text-2xl font-black tabular-nums">{activeWorkoutLoad}</p>
+              <p className="mt-1 text-2xl font-black tabular-nums">{workoutLoad}</p>
             </div>
             <div className={cn(dashboard.tile, "p-3 text-center")}>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {platform.workout.difficultyYourCapacity}
               </p>
-              <p className="mt-1 text-2xl font-black tabular-nums">{activeClientCapacity}</p>
+              <p className="mt-1 text-2xl font-black tabular-nums">{clientCapacity}</p>
             </div>
           </div>
 

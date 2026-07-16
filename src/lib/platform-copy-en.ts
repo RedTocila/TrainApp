@@ -536,7 +536,6 @@ export const platformCopyEn = {
     previousMonths: "Previous months",
     nextCheckIn: "Next check-in",
     noPhoto: "No photo",
-    compressHint: "Photos are compressed before upload to save space.",
     removeFailed: "Could not remove photo",
     uploadFailed: "Upload failed",
     analyzing: "Alex is checking your photo…",

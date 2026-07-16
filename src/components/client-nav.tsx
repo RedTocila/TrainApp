@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import {
@@ -18,7 +18,11 @@ import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { isHomeNavActive, isProgramsNavActive } from "@/lib/train-nav";
+import {
+  isActiveWorkoutSessionPath,
+  isHomeNavActive,
+  isProgramsNavActive,
+} from "@/lib/train-nav";
 
 const mobileNavLinkClass =
   "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90";
@@ -53,21 +57,9 @@ export function ClientNav({
   const { pendingHref, setPendingHref } = useDashboardNavPending();
   const platform = usePlatformCopy();
   const activePath = pendingHref ?? pathname;
+  const hideNav = isActiveWorkoutSessionPath(activePath);
   const programsActive = isProgramsNavActive(activePath);
   const homeActive = isHomeNavActive(activePath);
-
-  const standardNavItems = [
-    { href: "/dashboard", label: platform.nav.home, mobileLabel: platform.nav.home, icon: Home, exact: true as const },
-    { href: "/dashboard/ai", label: platform.nav.aiCoach, mobileLabel: platform.nav.aiCoach, icon: Bot },
-    { href: "/dashboard/classes", label: platform.nav.liveCoaching, mobileLabel: platform.nav.live, icon: Video },
-    { href: "/dashboard/profile", label: platform.nav.profile, mobileLabel: platform.nav.profile, icon: User },
-  ];
-
-  const programsNavItem = {
-    href: "/dashboard/workout",
-    label: platform.nav.programs,
-    mobileLabel: platform.nav.programs,
-  };
 
   const prefetchRoutes = useMemo(
     () => [
@@ -82,6 +74,35 @@ export function ClientNav({
     []
   );
   usePrefetchRoutes(prefetchRoutes);
+
+  useEffect(() => {
+    if (!hideNav) return;
+    const root = document.documentElement;
+    const previous = root.style.getPropertyValue("--dashboard-mobile-nav-height");
+    root.style.setProperty("--dashboard-mobile-nav-height", "0px");
+    return () => {
+      if (previous) {
+        root.style.setProperty("--dashboard-mobile-nav-height", previous);
+      } else {
+        root.style.removeProperty("--dashboard-mobile-nav-height");
+      }
+    };
+  }, [hideNav]);
+
+  if (hideNav) return null;
+
+  const standardNavItems = [
+    { href: "/dashboard", label: platform.nav.home, mobileLabel: platform.nav.home, icon: Home, exact: true as const },
+    { href: "/dashboard/ai", label: platform.nav.aiCoach, mobileLabel: platform.nav.aiCoach, icon: Bot },
+    { href: "/dashboard/classes", label: platform.nav.liveCoaching, mobileLabel: platform.nav.live, icon: Video },
+    { href: "/dashboard/profile", label: platform.nav.profile, mobileLabel: platform.nav.profile, icon: User },
+  ];
+
+  const programsNavItem = {
+    href: "/dashboard/workout",
+    label: platform.nav.programs,
+    mobileLabel: platform.nav.programs,
+  };
 
   function isNavItemActive(pathname: string, href: string, exact?: boolean) {
     if (exact) return pathname === href;
