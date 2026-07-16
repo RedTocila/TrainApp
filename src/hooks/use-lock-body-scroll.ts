@@ -14,7 +14,9 @@ function getScrollRoots() {
   return {
     body: document.body,
     html: document.documentElement,
-    main: document.querySelector<HTMLElement>(".dashboard-main"),
+    main:
+      document.querySelector<HTMLElement>(".dashboard-main") ??
+      document.querySelector<HTMLElement>(".app-shell main"),
   };
 }
 

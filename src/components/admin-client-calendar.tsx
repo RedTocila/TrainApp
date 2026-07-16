@@ -92,7 +92,7 @@ function AdminClientCalendarInner({
     <Card>
       <CardHeader className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="text-base">Calendar</CardTitle>
+          <CardTitle className="text-base">Days report</CardTitle>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -163,13 +163,14 @@ function AdminClientCalendarInner({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-7 gap-2 sm:gap-2.5">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
           {WEEKDAYS.map((day) => (
             <div
               key={day}
-              className="py-2 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:text-sm"
+              className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:py-2 sm:text-sm"
             >
-              {day}
+              {day.slice(0, 1)}
+              <span className="hidden sm:inline">{day.slice(1)}</span>
             </div>
           ))}
           {monthDays.map((day) => {

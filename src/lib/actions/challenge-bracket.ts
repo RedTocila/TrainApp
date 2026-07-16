@@ -22,6 +22,7 @@ import {
   canRegisterForChallenge,
   getChallengePhase,
   getChallengeStatus,
+  MIN_PARTICIPANTS_TO_START,
   ROUND1_ADVANCE_COUNT,
 } from "@/lib/challenge-utils";
 import type { ChallengeSeries } from "@/lib/challenge-series";
@@ -31,7 +32,6 @@ import {
   flashRequiresPaymentOnJoin,
 } from "@/lib/flash-challenge-entry-fee";
 import {
-  FLASH_MIN_PARTICIPANTS_TO_START,
   flashMaxGroupCount,
   participantIdsByJoinOrder,
 } from "@/lib/flash-challenge-utils";
@@ -646,6 +646,14 @@ export async function generateRound1Groups(challengeId: string) {
 }
 
 export async function startFlashChallenge(challengeId: string) {
+  await startChallenge(challengeId);
+}
+
+/**
+ * Manually start a challenge once at least MIN_PARTICIPANTS_TO_START are registered.
+ * Works for flash, tournament, and transformation challenges.
+ */
+export async function startChallenge(challengeId: string) {
   await requireAdmin();
   const supabase = await createClient();
 
@@ -655,8 +663,8 @@ export async function startFlashChallenge(challengeId: string) {
     .eq("id", challengeId)
     .maybeSingle();
 
-  if (!challengeRow?.is_flash) {
-    throw new Error("This action is only for flash challenges.");
+  if (!challengeRow) {
+    throw new Error("Challenge not found.");
   }
 
   const challenge = rowToChallenge(challengeRow);
@@ -665,14 +673,14 @@ export async function startFlashChallenge(challengeId: string) {
   }
 
   const participantCount = await countChallengeParticipants(supabase, challengeId);
-  if (participantCount < FLASH_MIN_PARTICIPANTS_TO_START) {
+  if (participantCount < MIN_PARTICIPANTS_TO_START) {
     throw new Error(
-      `At least ${FLASH_MIN_PARTICIPANTS_TO_START} participants are required before starting.`
+      `At least ${MIN_PARTICIPANTS_TO_START} participants are required before starting.`
     );
   }
 
   const startedAt = new Date().toISOString();
-  await supabase
+  const { error } = await supabase
     .from("challenges")
     .update({
       scheduled_at: startedAt,
@@ -680,7 +688,15 @@ export async function startFlashChallenge(challengeId: string) {
     })
     .eq("id", challengeId);
 
-  await generateFlashGroupsInternal(supabase, challengeId);
+  if (error) throw new Error(error.message);
+
+  if (isFlashChallenge(challenge)) {
+    await generateFlashGroupsInternal(supabase, challengeId);
+  } else if (!isTransformationChallenge(challenge)) {
+    // Classic tournament: build Round 1 Zoom groups on start.
+    await generateRound1Groups(challengeId);
+  }
+
   revalidateBracketPaths(supabase, challengeId);
 }
 

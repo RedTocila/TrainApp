@@ -1,16 +1,16 @@
 import type { Challenge, ChallengeBracketData, ChallengePhase } from "@/lib/types";
 import {
   getChallengeMaxParticipants,
-  isFlashChallenge,
-  isTransformationChallenge,
 } from "@/lib/challenge-series";
-import { flashChallengeHasStarted } from "@/lib/flash-challenge-utils";
 
 export const DEFAULT_PRIZE_POOL_CENTS_PER_PARTICIPANT = 1000;
 
 export const DEFAULT_CHALLENGE_DURATION_MONTHS = 3;
 
 export const DEFAULT_TRANSFORMATION_MAX_PARTICIPANTS = 100;
+
+/** Minimum registered participants before an admin can manually start any challenge. */
+export const MIN_PARTICIPANTS_TO_START = 10;
 
 export const ROUND1_ADVANCE_COUNT = 5;
 
@@ -26,10 +26,24 @@ export function getRegistrationOpensAt(
 }
 
 export function getRegistrationClosesAt(
-  challenge: Pick<Challenge, "registration_closes_at" | "scheduled_at">
-): Date {
+  challenge: Pick<Challenge, "registration_closes_at" | "scheduled_at" | "current_phase">
+): Date | null {
   if (challenge.registration_closes_at) {
-    return new Date(challenge.registration_closes_at);
+    const closes = new Date(challenge.registration_closes_at);
+    // Legacy creates defaulted close = scheduled_at. While filling, keep registration open
+    // until the admin manually starts (unless a distinct close date was set).
+    if (
+      (challenge.current_phase ?? 0) === 0 &&
+      challenge.scheduled_at &&
+      closes.getTime() === new Date(challenge.scheduled_at).getTime()
+    ) {
+      return null;
+    }
+    return closes;
+  }
+  // Until the challenge is manually started, registration stays open unless a close date is set.
+  if ((challenge.current_phase ?? 0) === 0) {
+    return null;
   }
   return new Date(challenge.scheduled_at);
 }
@@ -54,6 +68,7 @@ export function isRegistrationOpen(challenge: Challenge, now = new Date()): bool
   if (opens && now < opens) return false;
 
   const closes = getRegistrationClosesAt(challenge);
+  if (!closes) return true;
   return now < closes;
 }
 
@@ -65,7 +80,10 @@ export function canRegisterForChallenge(challenge: Challenge, now = new Date()):
   const opens = getRegistrationOpensAt(challenge);
   if (opens && now < opens) return false;
 
-  if (isFlashChallenge(challenge) && getChallengePhase(challenge) === 0) {
+  // Filling phase: open until admin starts (or explicit registration close).
+  if (getChallengePhase(challenge) === 0) {
+    const closes = getRegistrationClosesAt(challenge);
+    if (closes && now >= closes) return false;
     return true;
   }
 
@@ -78,16 +96,9 @@ export function canLeaveChallenge(challenge: Challenge, now = new Date()): boole
   const status = getChallengeStatus(challenge, now);
   if (status === "ended") return false;
 
-  if (isTransformationChallenge(challenge)) {
-    return getChallengePhase(challenge) === 0;
-  }
+  // Once started, participants stay in.
+  if (getChallengePhase(challenge) > 0) return false;
 
-  if (isFlashChallenge(challenge)) {
-    if (flashChallengeHasStarted(challenge)) return false;
-    return getChallengePhase(challenge) === 0;
-  }
-
-  if (status === "live") return false;
   return isRegistrationOpen(challenge, now);
 }
 
@@ -212,7 +223,8 @@ export function isChallengeAtCapacity(
 }
 
 export function getChallengeStatus(challenge: Challenge, now = new Date()): ChallengeStatus {
-  if (isFlashChallenge(challenge) && getChallengePhase(challenge) === 0) {
+  // All challenge types stay upcoming until an admin manually starts them.
+  if (getChallengePhase(challenge) === 0) {
     return "upcoming";
   }
 
@@ -222,6 +234,20 @@ export function getChallengeStatus(challenge: Challenge, now = new Date()): Chal
   if (now < start) return "upcoming";
   if (now >= start && now <= end) return "live";
   return "ended";
+}
+
+export function challengeHasStarted(
+  challenge: Pick<Challenge, "current_phase">
+): boolean {
+  return getChallengePhase(challenge) > 0;
+}
+
+export function participantsNeededToStart(participantCount: number): number {
+  return Math.max(0, MIN_PARTICIPANTS_TO_START - participantCount);
+}
+
+export function canAdminStartChallenge(participantCount: number): boolean {
+  return participantCount >= MIN_PARTICIPANTS_TO_START;
 }
 
 export function canJoinChallenge(challenge: Challenge, now = new Date()): boolean {

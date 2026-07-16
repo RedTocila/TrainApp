@@ -20,11 +20,13 @@ import {
   getPrizePoolCentsPerParticipant,
   isRound1Complete,
   isRound2Complete,
+  MIN_PARTICIPANTS_TO_START,
   ROUND1_ADVANCE_COUNT,
 } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
 import { ChallengeBracketDiagram } from "@/components/challenge-bracket-diagram";
 import { ParticipantPlatformScoreBadge } from "@/components/participant-platform-score-badge";
+import { StartChallengeButton } from "@/components/start-challenge-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -307,9 +309,15 @@ export function ChallengeBracketAdmin({ bracket }: { bracket: ChallengeBracketDa
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Round 1: eliminate 5 of 10 per group · Round 2: 1 winner per group · Round 3: crown
-            champion · Pay winner manually offline
+            Registration stays open until you start. Need at least {MIN_PARTICIPANTS_TO_START}{" "}
+            participants, then start the challenge to open Round 1 Zoom groups. Round 1: eliminate 5
+            of 10 per group · Round 2: 1 winner per group · Round 3: crown champion · Pay winner
+            manually offline
           </p>
+          <StartChallengeButton
+            challenge={bracket.challenge}
+            participantCount={bracket.participants.length}
+          />
         </CardContent>
       </Card>
 

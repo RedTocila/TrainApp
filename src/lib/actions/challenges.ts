@@ -73,15 +73,15 @@ function parseRegistrationWindow(
   scheduled_at: string
 ): { registration_opens_at: string | null; registration_closes_at: string | null } {
   const registration_opens_at = parseOptionalScheduledAt(formData.get("registration_opens_at"));
-  const registration_closes_at =
-    parseOptionalScheduledAt(formData.get("registration_closes_at")) ?? scheduled_at;
+  // Leave null to keep registration open until the admin manually starts the challenge.
+  const registration_closes_at = parseOptionalScheduledAt(formData.get("registration_closes_at"));
 
-  if (registration_opens_at && registration_closes_at <= registration_opens_at) {
+  if (registration_opens_at && registration_closes_at && registration_closes_at <= registration_opens_at) {
     throw new Error("Registration must close after it opens.");
   }
 
-  if (registration_closes_at > scheduled_at) {
-    throw new Error("Registration must close on or before the challenge start time.");
+  if (registration_closes_at && registration_closes_at > scheduled_at) {
+    throw new Error("Registration must close on or before the planned start time.");
   }
 
   return { registration_opens_at, registration_closes_at };

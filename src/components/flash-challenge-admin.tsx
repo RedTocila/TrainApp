@@ -9,7 +9,6 @@ import {
   markPrizePaid,
   setChampion,
   setFlashGroupWinner,
-  startFlashChallenge,
   updateGroupSchedule,
 } from "@/lib/actions/challenge-bracket";
 import {
@@ -25,6 +24,7 @@ import {
 } from "@/lib/flash-challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
 import { ChallengeBracketDiagram } from "@/components/challenge-bracket-diagram";
+import { StartChallengeButton } from "@/components/start-challenge-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -232,16 +232,10 @@ export function FlashChallengeAdmin({ bracket }: { bracket: ChallengeBracketData
             {entryFee}. Up to 5 Zoom groups of 10. Enter each group winner&apos;s record, then crown
             the highest score overall.
           </p>
-          {!started ? (
-            <Button
-              type="button"
-              disabled={isPending || !canStart}
-              onClick={() => run(() => startFlashChallenge(bracket.challenge.id))}
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Start 24-hour challenge
-            </Button>
-          ) : null}
+          <StartChallengeButton
+            challenge={bracket.challenge}
+            participantCount={bracket.participants.length}
+          />
         </CardContent>
       </Card>
 

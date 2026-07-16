@@ -13,10 +13,12 @@ import {
 import {
   getChallengePrizePoolCents,
   getPrizePoolCentsPerParticipant,
+  MIN_PARTICIPANTS_TO_START,
 } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
 import { ChallengeLeaderboard } from "@/components/challenge-leaderboard";
 import { ParticipantPlatformScoreBadge } from "@/components/participant-platform-score-badge";
+import { StartChallengeButton } from "@/components/start-challenge-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,9 +87,14 @@ export function ChallengeLongChallengeAdmin({ bracket }: { bracket: ChallengeBra
           </div>
           <p className="text-sm text-muted-foreground">
             Daily 0–100 points accumulate from join date (50% nutrition · 30% workouts · 20%
-            habits + water). Invite top scorers to judgment-day Zoom, then crown the winner
-            manually.
+            habits + water). Registration stays open until you start (min{" "}
+            {MIN_PARTICIPANTS_TO_START} participants). After start, invite top scorers to
+            judgment-day Zoom, then crown the winner manually.
           </p>
+          <StartChallengeButton
+            challenge={bracket.challenge}
+            participantCount={bracket.participants.length}
+          />
         </CardContent>
       </Card>
 

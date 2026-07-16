@@ -1,17 +1,24 @@
 import type { Challenge, ChallengeParticipant } from "@/lib/types";
 import { flashGroupSize } from "@/lib/flash-challenge-entry-fee";
-import { getChallengePhase } from "@/lib/challenge-utils";
+import {
+  canAdminStartChallenge,
+  getChallengePhase,
+  MIN_PARTICIPANTS_TO_START,
+  participantsNeededToStart,
+} from "@/lib/challenge-utils";
 import { getChallengeMaxParticipants, isFlashChallenge } from "@/lib/challenge-series";
 
-export const FLASH_MIN_PARTICIPANTS_TO_START = 10;
 export const FLASH_MAX_GROUPS = 5;
 
+/** @deprecated Prefer MIN_PARTICIPANTS_TO_START from challenge-utils */
+export const FLASH_MIN_PARTICIPANTS_TO_START = MIN_PARTICIPANTS_TO_START;
+
 export function flashParticipantsNeededToStart(participantCount: number): number {
-  return Math.max(0, FLASH_MIN_PARTICIPANTS_TO_START - participantCount);
+  return participantsNeededToStart(participantCount);
 }
 
 export function flashCanAdminStart(participantCount: number): boolean {
-  return participantCount >= FLASH_MIN_PARTICIPANTS_TO_START;
+  return canAdminStartChallenge(participantCount);
 }
 
 /** True after the organizer manually starts the challenge (phase > 0). */
@@ -36,9 +43,12 @@ export function buildJoinOrderRankMap(
   return new Map(sorted.map((id, index) => [id, index + 1]));
 }
 
-export function flashMaxGroupCount(challenge: Pick<Challenge, "group_size" | "max_participants" | "is_flash">): number {
+export function flashMaxGroupCount(
+  challenge: Pick<Challenge, "group_size" | "max_participants" | "is_flash">
+): number {
   const groupSize = flashGroupSize(challenge);
-  const maxParticipants = getChallengeMaxParticipants(challenge) ?? FLASH_MIN_PARTICIPANTS_TO_START * FLASH_MAX_GROUPS;
+  const maxParticipants =
+    getChallengeMaxParticipants(challenge) ?? MIN_PARTICIPANTS_TO_START * FLASH_MAX_GROUPS;
   return Math.min(FLASH_MAX_GROUPS, Math.ceil(maxParticipants / groupSize));
 }
 
@@ -50,7 +60,10 @@ export function participantIdsByJoinOrder(
     .map((participant) => participant.id);
 }
 
-export function compareFlashPerformance(a: number | null | undefined, b: number | null | undefined): number {
+export function compareFlashPerformance(
+  a: number | null | undefined,
+  b: number | null | undefined
+): number {
   const scoreA = typeof a === "number" ? a : -1;
   const scoreB = typeof b === "number" ? b : -1;
   return scoreB - scoreA;

@@ -13,16 +13,16 @@ export default async function AdminChallengesPage() {
   return (
     <PageTransition>
       <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-black">Challenges</h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground sm:text-base">
               Multi-month transformation tournaments — monthly Zoom eliminations in groups of 10,
               winners from platform reports and live peer voting
             </p>
           </div>
-          <Link href="/admin/challenges/new" className="shrink-0">
-            <Button>
+          <Link href="/admin/challenges/new" className="w-full shrink-0 sm:w-auto">
+            <Button className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               New challenge
             </Button>

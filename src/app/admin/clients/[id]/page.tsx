@@ -5,7 +5,6 @@ import {
   getClientWorkoutAssignment,
   getClientNutritionAssignment,
 } from "@/lib/actions/plans";
-import { getClientActivityFeed } from "@/lib/actions/client-activity";
 import { getAdminClientCalendarData } from "@/lib/actions/admin-client-calendar";
 import { getAdminClientProgressPhotoGallery } from "@/lib/actions/admin-progress-photos";
 import { AdminClientProgressPhotos } from "@/components/admin-client-progress-photos";
@@ -14,7 +13,6 @@ import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Phone } from "lucide-react";
-import { ClientActivityFeed } from "@/components/client-activity-feed";
 import { AdminClientCalendar } from "@/components/admin-client-calendar";
 
 export default async function ClientDetailPage({
@@ -34,14 +32,12 @@ export default async function ClientDetailPage({
 
   if (!client) notFound();
 
-  const [workout, nutrition, activity, calendarData, progressPhotos] =
-    await Promise.all([
-      getClientWorkoutAssignment(id),
-      getClientNutritionAssignment(id),
-      getClientActivityFeed(id, 50),
-      getAdminClientCalendarData(id),
-      getAdminClientProgressPhotoGallery(id),
-    ]);
+  const [workout, nutrition, calendarData, progressPhotos] = await Promise.all([
+    getClientWorkoutAssignment(id),
+    getClientNutritionAssignment(id),
+    getAdminClientCalendarData(id),
+    getAdminClientProgressPhotoGallery(id),
+  ]);
 
   return (
     <PageTransition>
@@ -54,8 +50,8 @@ export default async function ClientDetailPage({
         </Link>
 
         <div>
-          <h1 className="text-2xl font-black">{client.full_name}</h1>
-          <p className="text-muted-foreground">Client profile & activity</p>
+          <h1 className="text-2xl font-black break-words">{client.full_name}</h1>
+          <p className="text-muted-foreground">Days report & plan assignment</p>
           {client.phone && (
             <a
               href={`sms:${client.phone.replace(/\s/g, "")}`}
@@ -83,7 +79,7 @@ export default async function ClientDetailPage({
             </CardHeader>
             <CardContent>
               {workout?.workout_plans ? (
-                <p className="font-medium">{workout.workout_plans.title}</p>
+                <p className="font-medium break-words">{workout.workout_plans.title}</p>
               ) : (
                 <p className="text-sm text-muted-foreground">No active plan</p>
               )}
@@ -95,22 +91,13 @@ export default async function ClientDetailPage({
             </CardHeader>
             <CardContent>
               {nutrition?.nutrition_plans ? (
-                <p className="font-medium">{nutrition.nutrition_plans.title}</p>
+                <p className="font-medium break-words">{nutrition.nutrition_plans.title}</p>
               ) : (
                 <p className="text-sm text-muted-foreground">No active plan</p>
               )}
             </CardContent>
           </Card>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ClientActivityFeed items={activity} />
-          </CardContent>
-        </Card>
       </div>
     </PageTransition>
   );
