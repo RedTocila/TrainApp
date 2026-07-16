@@ -21,6 +21,8 @@ export function SignOutButton({
   const [isPending, startTransition] = useTransition();
 
   const handleConfirm = () => {
+    localStorage.setItem("theme", "dark");
+    localStorage.setItem("accent-color", "red");
     startTransition(async () => {
       await signOut();
     });
