@@ -305,7 +305,7 @@ export function RegisterForm() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Phone number</Label>
-            <Input id="phone" name="phone" type="tel" placeholder="+383 44 123 456" />
+            <Input id="phone" name="phone" type="tel" placeholder="+355 11 222 333 (Optional)" />
             <p className="text-xs text-muted-foreground">
               Optional — your coach may reach out if you need support.
             </p>

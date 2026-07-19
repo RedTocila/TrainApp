@@ -1,6 +1,11 @@
 "use client";
 
-import { addDays, isSameDay, startOfDay } from "date-fns";
+import {
+  addDays,
+  differenceInCalendarDays,
+  isSameDay,
+  startOfDay,
+} from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarStripDay, isInactiveCalendarDay } from "@/components/calendar-strip-day";
 import {
@@ -20,17 +25,20 @@ interface CalendarStripProps {
   onSelectDate: (date: Date) => void;
   schedule: ClientSchedule;
   enrichment: DashboardEnrichmentData;
-  daysCount?: number;
+  /** Extra days shown after today (default 28). */
+  futureDays?: number;
 }
 
 const VISIBLE_DAYS = 7;
+const DEFAULT_FUTURE_DAYS = 28;
+const FALLBACK_PAST_DAYS = 3;
 
 export function CalendarStrip({
   selectedDate,
   onSelectDate,
   schedule,
   enrichment,
-  daysCount = 28,
+  futureDays = DEFAULT_FUTURE_DAYS,
 }: CalendarStripProps) {
   const [now, setNow] = useState(() => new Date());
   const selectedRef = useRef<HTMLButtonElement>(null);
@@ -48,8 +56,13 @@ export function CalendarStrip({
   }, []);
 
   const dayItems = useMemo(() => {
-    const rangeStart = addDays(now, -3);
-    return Array.from({ length: daysCount }, (_, i) => {
+    const today = startOfDay(now);
+    // Scroll back to account start (or a short fallback), and forward for planning.
+    const rangeStart = activeFrom ?? addDays(today, -FALLBACK_PAST_DAYS);
+    const rangeEnd = addDays(today, futureDays);
+    const totalDays = Math.max(1, differenceInCalendarDays(rangeEnd, rangeStart) + 1);
+
+    return Array.from({ length: totalDays }, (_, i) => {
       const day = addDays(rangeStart, i);
       const rawTasks = enrichTasksForDate(day, schedule, enrichment, now);
       const inactive = isInactiveCalendarDay(day, activeFrom, now);
@@ -57,7 +70,7 @@ export function CalendarStrip({
       const dayStatus = getCalendarDayStatus(tasks, day, now);
       return { day, tasks, dayStatus, inactive };
     });
-  }, [daysCount, schedule, enrichment, now, activeFrom]);
+  }, [futureDays, schedule, enrichment, now, activeFrom]);
 
   const selectedIndex = useMemo(
     () => dayItems.findIndex(({ day }) => isSameDay(day, selectedDate)),
@@ -139,7 +152,6 @@ export function tasksForDay(
   completionsByDate: Record<string, Set<string>>,
   date: Date
 ): DailyTask[] {
-  const dateKey = formatDateKey(date);
   const enrichment: DashboardEnrichmentData = {
     completionsByDate: Object.fromEntries(
       Object.entries(completionsByDate).map(([key, ids]) => [key, [...ids]])

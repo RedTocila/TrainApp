@@ -43,7 +43,7 @@ const inactiveTabClass =
 
 const tabClassName = (active: boolean) =>
   cn(
-    "flex min-w-[4.25rem] shrink-0 flex-col items-center gap-1 rounded-xl border px-2 py-2 transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90",
+    "flex min-w-[4.25rem] shrink-0 flex-col items-center gap-1 rounded-xl border px-2 py-2 transition-[transform,opacity,background-color,border-color,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90",
     active ? "border-primary/40 bg-primary/15 text-primary" : inactiveTabClass
   );
 

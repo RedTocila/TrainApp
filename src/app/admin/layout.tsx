@@ -2,6 +2,8 @@ import { requireAdmin } from "@/lib/actions/auth";
 import { getUnreadCount } from "@/lib/actions/notifications";
 import { AdminNav } from "@/components/admin-nav";
 import { AdminMobileHeader } from "@/components/admin-mobile-header";
+import { RouteEnter } from "@/components/route-enter";
+
 export default async function AdminLayout({
   children,
 }: {
@@ -18,7 +20,9 @@ export default async function AdminLayout({
         <main
           className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-background pb-20 pt-[var(--dashboard-mobile-header-height)] [-webkit-overflow-scrolling:touch] lg:pb-0 lg:pt-0"
         >
-          <div className="p-4 md:p-6">{children}</div>
+          <div className="p-4 md:p-6">
+            <RouteEnter>{children}</RouteEnter>
+          </div>
         </main>
       </div>
     </div>

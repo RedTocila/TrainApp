@@ -3,14 +3,15 @@ import { cn } from "@/lib/utils";
 
 /** Shared dashboard surface tokens (nutrition-detail style). */
 export const dashboard = {
-  tile: "rounded-2xl border border-border/60 bg-card/80",
+  tile: "rounded-2xl border border-border/60 bg-card/80 transition-[border-color,box-shadow,background-color,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   tileInteractive:
-    "rounded-2xl border border-border/60 bg-card/80 transition-colors hover:border-border hover:bg-card active:scale-[0.99]",
-  metricTile: "flex min-h-[9.5rem] flex-col justify-between rounded-2xl border border-border/60 bg-card/80 p-3",
+    "pressable rounded-2xl border border-border/60 bg-card/80 transition-[border-color,box-shadow,background-color,transform,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-border hover:bg-card active:scale-[0.99]",
+  metricTile:
+    "flex min-h-[9.5rem] flex-col justify-between rounded-2xl border border-border/60 bg-card/80 p-3 transition-[border-color,box-shadow,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   heroTile:
-    "flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/80 p-4 sm:p-5",
+    "flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/80 p-4 transition-[border-color,box-shadow,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-5",
   listRow:
-    "flex items-center gap-3 rounded-2xl border border-border/60 bg-card/80 p-3 transition-colors",
+    "flex items-center gap-3 rounded-2xl border border-border/60 bg-card/80 p-3 transition-[background-color,border-color,transform,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   empty:
     "rounded-2xl border border-dashed border-border bg-secondary/20 px-4 py-6 text-center text-sm text-muted-foreground",
   section: "space-y-4",
@@ -24,22 +25,22 @@ export const dashboard = {
   missedTile: "border-red-500/25 bg-red-500/5",
   warningTile: "border-orange-500/30 bg-orange-500/5",
   chipButton:
-    "inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1.5 rounded-full border border-border bg-secondary/60 px-3 py-2 text-sm font-semibold transition-colors [-webkit-tap-highlight-color:transparent] active:opacity-90 hover:border-primary/30 hover:bg-secondary/80",
+    "pressable inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1.5 rounded-full border border-border bg-secondary/60 px-3 py-2 text-sm font-semibold transition-[transform,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] active:scale-[0.97] active:opacity-90 hover:border-primary/30 hover:bg-secondary/80",
   pairTile:
     "relative flex h-full min-h-[13rem] flex-col p-3 sm:min-h-[14rem] sm:p-4",
   /** One line below trigger; aligned to the end (icon menus). */
   dropdownPanelBelowEnd: "absolute right-0 top-full z-30 mt-1",
   /** Cursor-style stack: main bar + attached tail sharing one outer border. */
   attachedDropdown:
-    "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-sm",
+    "overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-sm transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   attachedDropdownMain:
     "flex items-start gap-3 px-3 py-2.5",
   attachedDropdownTail:
     "border-t border-border/60 bg-secondary/25",
   attachedDropdownTailToggle:
-    "flex w-full touch-manipulation select-none items-center gap-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/40 active:bg-secondary/50",
+    "flex w-full touch-manipulation select-none items-center gap-2 px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-[background-color,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-secondary/40 active:bg-secondary/50",
   dropdownItem:
-    "flex w-full touch-manipulation select-none items-start gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-secondary/80 active:bg-secondary/60",
+    "flex w-full touch-manipulation select-none items-start gap-3 px-3 py-2.5 text-left text-sm transition-[background-color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-secondary/80 active:bg-secondary/60",
   /** Detached menu surface (floats outside the trigger border box). */
   dropdownPanel:
     "overflow-hidden rounded-xl border border-border bg-card shadow-xl ring-1 ring-border/30",

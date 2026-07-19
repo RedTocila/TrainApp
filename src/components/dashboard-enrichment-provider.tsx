@@ -1,6 +1,6 @@
 "use client";
 
-import { addDays, format } from "date-fns";
+import { addDays, format, startOfDay } from "date-fns";
 import {
   createContext,
   useCallback,
@@ -34,10 +34,13 @@ export function neverInEnrichmentRange(_dateKey: string) {
   return false;
 }
 
-function enrichmentRange() {
+function enrichmentRange(accountCreatedAt?: string | null) {
   const today = new Date();
+  const from = accountCreatedAt
+    ? format(startOfDay(new Date(accountCreatedAt)), "yyyy-MM-dd")
+    : format(addDays(today, -30), "yyyy-MM-dd");
   return {
-    from: format(addDays(today, -30), "yyyy-MM-dd"),
+    from,
     to: format(addDays(today, 28), "yyyy-MM-dd"),
   };
 }
@@ -76,7 +79,10 @@ export function DashboardEnrichmentProvider({
     useState<DashboardEnrichmentData>(initialEnrichment);
   const inflightRef = useRef<Promise<void> | null>(null);
   const previousTodayKey = useRef(todayKey);
-  const range = useMemo(() => enrichmentRange(), [todayKey]);
+  const range = useMemo(
+    () => enrichmentRange(enrichment.accountCreatedAt),
+    [todayKey, enrichment.accountCreatedAt]
+  );
 
   const loadRange = useCallback(async () => {
     if (inflightRef.current) return inflightRef.current;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { DashboardMobileChrome } from "@/components/dashboard-mobile-chrome";
 import { DashboardPageSkeleton } from "@/components/dashboard-page-skeleton";
 import { NutritionPageChromeProvider } from "@/components/nutrition-page-chrome-context";
@@ -16,6 +17,7 @@ export function DashboardMainArea({
   children: ReactNode;
   subscriptionBanner: ReactNode;
 }) {
+  const pathname = usePathname();
   const { pendingHref, routeLoadingCount } = useDashboardNavPending();
   const isNavigating = pendingHref !== null || routeLoadingCount > 0;
   const showPendingSkeleton =
@@ -34,9 +36,13 @@ export function DashboardMainArea({
           {subscriptionBanner}
           <TrainSectionShell>
             {showPendingSkeleton ? (
-              <DashboardPageSkeleton href={pendingHref} />
+              <div className="page-enter" key={`skeleton-${pendingHref}`}>
+                <DashboardPageSkeleton href={pendingHref} />
+              </div>
             ) : (
-              children
+              <div className="page-enter" key={pathname}>
+                {children}
+              </div>
             )}
           </TrainSectionShell>
         </div>

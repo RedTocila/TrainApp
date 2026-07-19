@@ -3,22 +3,14 @@
 import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+/**
+ * Kept for call-site compatibility. Route enter motion is handled by
+ * `.page-enter` in dashboard/admin shells (CSS-only, one animation).
+ */
 export function PageTransition({ children }: { children: ReactNode }) {
-  const reduce = useReducedMotion();
-
-  if (reduce) {
-    return <>{children}</>;
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.12, ease: "easeOut" }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <>{children}</>;
 }
 
 export function StaggerContainer({ children }: { children: ReactNode }) {
@@ -34,7 +26,7 @@ export function StaggerContainer({ children }: { children: ReactNode }) {
       animate="visible"
       variants={{
         hidden: {},
-        visible: { transition: { staggerChildren: 0.04 } },
+        visible: { transition: { staggerChildren: 0.05, delayChildren: 0.02 } },
       }}
     >
       {children}
@@ -52,9 +44,14 @@ export function StaggerItem({ children }: { children: ReactNode }) {
   return (
     <motion.div
       variants={{
-        hidden: { opacity: 0, y: 8 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.15 } },
+        hidden: { opacity: 0, y: 10 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.22, ease: EASE },
+        },
       }}
+      className="will-change-[opacity,transform]"
     >
       {children}
     </motion.div>

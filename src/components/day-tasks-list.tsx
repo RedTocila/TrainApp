@@ -158,7 +158,7 @@ export function TaskRow({
             ? dashboard.dropdownItem
             : cn(
                 dashboard.listRow,
-                "w-full cursor-pointer touch-manipulation select-none gap-3 border-border/40 bg-background/80 py-2.5 text-left shadow-sm active:scale-[0.99] hover:bg-background",
+                "pressable w-full cursor-pointer touch-manipulation select-none gap-3 border-border/40 bg-background/80 py-2.5 text-left shadow-sm active:scale-[0.99] hover:bg-background",
                 showMacroPreview ? "flex flex-wrap items-start px-3" : "flex items-start pl-2 pr-3"
               )
         )}

@@ -25,7 +25,7 @@ import {
 } from "@/lib/train-nav";
 
 const mobileNavLinkClass =
-  "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90";
+  "pressable flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none touch-manipulation select-none [-webkit-tap-highlight-color:transparent] transition-[transform,opacity,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 active:opacity-90";
 
 function NavLiveIcon({
   icon: Icon,
@@ -111,7 +111,7 @@ export function ClientNav({
 
   const sidebarLinkClass = (active: boolean) =>
     cn(
-      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors touch-manipulation",
+      "pressable flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-[transform,opacity,background-color,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] touch-manipulation active:scale-[0.98]",
       active
         ? "bg-primary/10 text-primary"
         : "text-muted-foreground hover:bg-secondary hover:text-foreground"

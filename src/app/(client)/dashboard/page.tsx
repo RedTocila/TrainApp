@@ -1,4 +1,4 @@
-import { addDays, format } from "date-fns";
+import { addDays, format, startOfDay } from "date-fns";
 import { requireClient } from "@/lib/actions/auth";
 import {
   getClientWorkoutAssignment,
@@ -67,7 +67,10 @@ export default async function DashboardPage() {
   const profile = await requireClient();
   const today = new Date();
   const dateKey = formatDateKey(today);
-  const rangeStart = format(addDays(today, -3), "yyyy-MM-dd");
+  const accountStart = profile.created_at
+    ? format(startOfDay(new Date(profile.created_at)), "yyyy-MM-dd")
+    : format(addDays(today, -3), "yyyy-MM-dd");
+  const rangeStart = accountStart;
   const rangeEnd = format(addDays(today, 28), "yyyy-MM-dd");
 
   await ensureHabitSchedules(profile.id);

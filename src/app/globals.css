@@ -13,6 +13,13 @@
   --safe-area-bottom: max(0.5rem, var(--safe-area-bottom-inset));
   --dashboard-mobile-header-height: calc(2.75rem + var(--safe-area-top));
   --dashboard-mobile-nav-height: calc(2.875rem + var(--safe-area-bottom));
+  /* Motion — GPU-friendly, short, premium ease */
+  --ease-out-premium: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-premium: cubic-bezier(0.45, 0, 0.15, 1);
+  --duration-press: 140ms;
+  --duration-fast: 180ms;
+  --duration-normal: 240ms;
+  --duration-page: 280ms;
 }
 
 html.dark {
@@ -90,6 +97,74 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   min-height: 100vh;
   touch-action: manipulation;
+  transition:
+    background-color var(--duration-normal) var(--ease-out-premium),
+    color var(--duration-normal) var(--ease-out-premium);
+}
+
+/* Smooth scrolling — browser-native, off when user prefers reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  .dashboard-main {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html,
+  .dashboard-main {
+    scroll-behavior: auto !important;
+  }
+
+  .page-enter {
+    animation: none !important;
+  }
+
+  .pressable:active:not(:disabled) {
+    transform: none !important;
+  }
+}
+
+/* Soft page enter — opacity + translateY only (compositor-friendly) */
+@keyframes rutina-page-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.page-enter {
+  animation: rutina-page-enter var(--duration-page) var(--ease-out-premium) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+}
+
+/* Pressable surfaces — shared tap feedback without per-component JS */
+@media (prefers-reduced-motion: no-preference) {
+  .pressable {
+    transition:
+      transform var(--duration-press) var(--ease-out-premium),
+      opacity var(--duration-press) var(--ease-out-premium),
+      background-color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease,
+      box-shadow var(--duration-fast) ease,
+      color var(--duration-fast) ease;
+  }
+
+  .pressable:active:not(:disabled) {
+    transform: scale(0.97);
+  }
 }
 
 html:has(.dashboard-shell),
@@ -440,12 +515,18 @@ html.light .premium-gradient {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color var(--duration-fast) var(--ease-out-premium),
+    box-shadow var(--duration-normal) var(--ease-out-premium),
+    transform var(--duration-fast) var(--ease-out-premium);
 }
 
-.premium-card:hover {
-  border-color: rgba(var(--primary-rgb), 0.3);
-  box-shadow: 0 0 30px rgba(var(--primary-rgb), 0.08);
+@media (prefers-reduced-motion: no-preference) {
+  .premium-card:hover {
+    border-color: rgba(var(--primary-rgb), 0.3);
+    box-shadow: 0 0 30px rgba(var(--primary-rgb), 0.08);
+    transform: translateY(-1px);
+  }
 }
 
 html.light .premium-card:hover {
@@ -464,6 +545,22 @@ html.light .red-glow {
   background: rgba(0, 0, 0, 0.7);
   touch-action: none;
   overscroll-behavior: none;
+  animation: rutina-backdrop-in var(--duration-fast) var(--ease-out-premium) both;
+}
+
+@keyframes rutina-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-backdrop {
+    animation: none;
+  }
 }
 
 html.light .overlay-backdrop {

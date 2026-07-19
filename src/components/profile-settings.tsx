@@ -187,7 +187,7 @@ export function ProfileSettings({
                 type="tel"
                 value={phoneValue}
                 onChange={(e) => setPhoneValue(e.target.value)}
-                placeholder="+383 44 123 456"
+                placeholder="+355 11 222 333 (Optional)"
               />
             </div>
             <div className="space-y-2">

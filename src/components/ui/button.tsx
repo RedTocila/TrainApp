@@ -4,12 +4,12 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+  "pressable inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-[transform,opacity,background-color,border-color,box-shadow,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-[0.97] active:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-lg shadow-primary/20 [@media(hover:hover)]:hover:bg-accent",
+          "bg-primary text-primary-foreground shadow-lg shadow-primary/20 [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:hover:shadow-primary/30",
         secondary:
           "bg-secondary text-secondary-foreground border border-border [@media(hover:hover)]:hover:bg-secondary/80",
         outline:
