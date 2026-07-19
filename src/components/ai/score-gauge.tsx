@@ -18,7 +18,7 @@ export function ScoreGauge({
   innerLabel?: { before: string; after: string };
   icon?: LucideIcon;
   colorClass?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   suffix?: string;
 }) {
   const reduce = useReducedMotion();
@@ -26,6 +26,7 @@ export function ScoreGauge({
   const pct = Math.min(100, Math.max(0, value)) / 100;
 
   const baseDims = {
+    xs: { box: "h-8 w-8", r: 22, stroke: 3, text: "text-[11px]" },
     sm: { box: "h-16 w-16", r: 34, stroke: 5, text: "text-base" },
     md: { box: "h-20 w-20", r: 38, stroke: 6, text: "text-xl" },
     lg: { box: "h-28 w-28", r: 48, stroke: 7, text: "text-3xl" },
@@ -37,15 +38,23 @@ export function ScoreGauge({
       : baseDims;
 
   const innerBeforeAfterClass =
-    size === "lg" ? "text-xs" : size === "md" ? "text-[10px]" : "text-[9px]";
+    size === "lg"
+      ? "text-xs"
+      : size === "md"
+        ? "text-[10px]"
+        : size === "xs"
+          ? "text-[7px]"
+          : "text-[9px]";
   const innerScoreClass =
     size === "lg"
       ? "text-3xl"
       : size === "md"
         ? "text-xl"
-        : innerLabel
-          ? "text-base"
-          : "text-sm";
+        : size === "xs"
+          ? "text-[11px]"
+          : innerLabel
+            ? "text-base"
+            : "text-sm";
 
   const circumference = 2 * Math.PI * dims.r;
   const offset = circumference - pct * circumference;
@@ -54,7 +63,7 @@ export function ScoreGauge({
   const viewSize = 2 * (dims.r + strokePad);
 
   return (
-    <div className="flex flex-col items-center gap-1.5 text-center">
+    <div className={cn("flex flex-col items-center text-center", label ? "gap-1.5" : null)}>
       <div className={cn("relative shrink-0", dims.box)}>
         <svg
           className="h-full w-full -rotate-90"
@@ -87,7 +96,7 @@ export function ScoreGauge({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-1 text-center">
-          {Icon && size !== "sm" && !innerLabel && (
+          {Icon && size !== "sm" && size !== "xs" && !innerLabel && (
             <Icon className={cn("mb-0.5 h-3.5 w-3.5", colorClass)} />
           )}
           {innerLabel ? (
@@ -119,7 +128,7 @@ export function ScoreGauge({
               </span>
             </div>
           ) : (
-            <span className={cn("font-black leading-none", dims.text)}>
+            <span className={cn("font-black leading-none", dims.text, colorClass)}>
               {score ?? "—"}
               {suffix && score != null ? suffix : null}
             </span>

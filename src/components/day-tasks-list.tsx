@@ -147,6 +147,7 @@ export function TaskRow({
     dailyMeals;
 
   const macroCurrent = showMacroPreview ? sumMealMacros(dailyMeals) : null;
+  const hasHealthScore = Boolean(showMacroPreview && macroCurrent && macroTargets);
 
   return (
     <li>
@@ -158,19 +159,14 @@ export function TaskRow({
             ? dashboard.dropdownItem
             : cn(
                 dashboard.listRow,
-                "pressable w-full cursor-pointer touch-manipulation select-none gap-3 border-border/40 bg-background/80 py-2.5 text-left shadow-sm active:scale-[0.99] hover:bg-background",
-                showMacroPreview ? "flex flex-wrap items-start px-3" : "flex items-start pl-2 pr-3"
+                "pressable flex w-full cursor-pointer touch-manipulation select-none items-center gap-3 border-border/40 bg-background/80 py-2.5 pl-2 pr-3 text-left shadow-sm active:scale-[0.99] hover:bg-background"
               )
         )}
       >
         {!isDropdown ? <TaskCategoryBadge task={task} /> : null}
         <div className="min-w-0 flex-1 text-left">
           {!isDropdown ? (
-            <span
-              className={cn(
-                "mb-0.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
-              )}
-            >
+            <span className="mb-0.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
               <CategoryIcon className={cn("h-3 w-3", color)} aria-hidden />
               {categoryLabels[task.category]}
             </span>
@@ -194,21 +190,19 @@ export function TaskRow({
             </p>
           )}
         </div>
+        {hasHealthScore ? (
+          <TaskNutritionMacroPreview
+            current={macroCurrent!}
+            targets={macroTargets!}
+            dailyMeals={dailyMeals}
+            waterMl={waterMl}
+            waterGoalMl={waterGoalMl}
+            dateKey={dateKey}
+          />
+        ) : null}
         <div className={TASK_STATUS_COLUMN}>
           <TaskRowStatus task={task} />
         </div>
-        {showMacroPreview && macroCurrent && macroTargets && (
-          <div className="mt-1 w-full basis-full">
-            <TaskNutritionMacroPreview
-              current={macroCurrent}
-              targets={macroTargets}
-              dailyMeals={dailyMeals}
-              waterMl={waterMl}
-              waterGoalMl={waterGoalMl}
-              dateKey={dateKey}
-            />
-          </div>
-        )}
       </button>
     </li>
   );
@@ -365,8 +359,8 @@ function partitionTasksForList(tasks: DailyTask[]) {
         group.push(tasks[index]);
         index += 1;
       }
-      // Single cardio stays a flat row; multiple cardios stack like workouts.
-      if (category === "cardio" && group.length === 1) {
+      // Single items stay a flat row; multiple stack in a dropdown.
+      if (group.length === 1) {
         segments.push({ kind: "task", task: group[0] });
       } else {
         segments.push({ kind: "group", category, tasks: group });
