@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/actions/auth";
 import { createClass } from "@/lib/actions/classes";
 import { CLASS_CATEGORIES } from "@/lib/class-utils";
 import { AdminBackLink } from "@/components/admin-back-link";
-import { ClassCoverImageField } from "@/components/class-cover-image-field";
+import { ClassCoverImageField } from "@/components/cover-image-field";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -3,11 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveCoverImageFromForm } from "@/lib/cover-image-upload";
 import type { ClassCategory, FitnessClass } from "@/lib/types";
 
 const DEMO_CLASS_SLUG = "demo-full-body-strength";
-const CLASS_COVER_BUCKET = "blog-images";
 
 function parseScheduledAt(value: FormDataEntryValue | null): string {
   const raw = String(value ?? "").trim();
@@ -44,43 +43,6 @@ function rowToClass(row: Record<string, unknown>): FitnessClass {
 
 function isDemoClassSlug(slug: string): boolean {
   return slug === DEMO_CLASS_SLUG;
-}
-
-async function resolveCoverImage(
-  formData: FormData,
-  slug: string
-): Promise<string | null> {
-  const file = formData.get("cover_image_file");
-  if (file instanceof File && file.size > 0) {
-    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (!allowed.includes(file.type)) {
-      throw new Error("Cover image must be JPG, PNG, WebP, or GIF.");
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      throw new Error("Cover image must be 5 MB or smaller.");
-    }
-
-    const ext =
-      file.type === "image/png"
-        ? "png"
-        : file.type === "image/webp"
-          ? "webp"
-          : file.type === "image/gif"
-            ? "gif"
-            : "jpg";
-    const path = `classes/${slug}-${Date.now()}.${ext}`;
-    const admin = createAdminClient();
-    const { error } = await admin.storage
-      .from(CLASS_COVER_BUCKET)
-      .upload(path, file, { upsert: true, cacheControl: "3600" });
-    if (error) throw new Error(error.message);
-
-    const { data } = admin.storage.from(CLASS_COVER_BUCKET).getPublicUrl(path);
-    return data.publicUrl;
-  }
-
-  const url = String(formData.get("cover_image") ?? "").trim();
-  return url || null;
 }
 
 export async function getPublishedClasses(): Promise<FitnessClass[]> {
@@ -136,7 +98,7 @@ export async function createClass(formData: FormData) {
 
   if (!title || !slug) throw new Error("Title and slug are required.");
 
-  const cover_image = await resolveCoverImage(formData, slug);
+  const cover_image = await resolveCoverImageFromForm(formData, "classes", slug);
 
   const { error } = await supabase.from("classes").insert({
     title,
@@ -178,7 +140,7 @@ export async function updateClass(id: string, formData: FormData) {
 
   if (!title || !slug) throw new Error("Title and slug are required.");
 
-  const cover_image = await resolveCoverImage(formData, slug);
+  const cover_image = await resolveCoverImageFromForm(formData, "classes", slug);
 
   const { error } = await supabase
     .from("classes")

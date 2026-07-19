@@ -454,6 +454,8 @@ export interface Challenge {
   slug: string;
   description: string;
   scheduled_at: string;
+  /** Optional uploaded cover image URL. Falls back to static card art when null. */
+  cover_image?: string | null;
   /** When participants can start joining. Null = open immediately once published. */
   registration_opens_at?: string | null;
   /** When registration ends. Null = closes at scheduled_at. */

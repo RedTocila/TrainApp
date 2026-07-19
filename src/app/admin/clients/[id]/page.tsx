@@ -8,6 +8,7 @@ import {
 import { getAdminClientCalendarData } from "@/lib/actions/admin-client-calendar";
 import { getAdminClientProgressPhotoGallery } from "@/lib/actions/admin-progress-photos";
 import { AdminClientProgressPhotos } from "@/components/admin-client-progress-photos";
+import { DeleteClientAccountButton } from "@/components/delete-client-account-button";
 import { createClient } from "@/lib/supabase/server";
 import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,25 +43,33 @@ export default async function ClientDetailPage({
   return (
     <PageTransition>
       <div className="mx-auto max-w-5xl space-y-6">
-        <Link href="/admin/clients">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Clients
-          </Button>
-        </Link>
-
-        <div>
-          <h1 className="text-2xl font-black break-words">{client.full_name}</h1>
-          <p className="text-muted-foreground">Days report & plan assignment</p>
-          {client.phone && (
-            <a
-              href={`sms:${client.phone.replace(/\s/g, "")}`}
-              className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-            >
-              <Phone className="h-3.5 w-3.5" />
-              {client.phone}
-            </a>
-          )}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-2">
+            <Link href="/admin/clients">
+              <Button variant="ghost" size="sm" className="-ml-2">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Clients
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-black break-words">{client.full_name}</h1>
+              <p className="text-muted-foreground">Days report & plan assignment</p>
+              {client.phone ? (
+                <a
+                  href={`sms:${client.phone.replace(/\s/g, "")}`}
+                  className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  {client.phone}
+                </a>
+              ) : null}
+            </div>
+          </div>
+          <DeleteClientAccountButton
+            clientId={client.id}
+            clientName={client.full_name}
+            className="w-full sm:w-auto"
+          />
         </div>
 
         {calendarData && (

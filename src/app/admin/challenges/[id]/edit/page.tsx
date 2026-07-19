@@ -4,7 +4,9 @@ import { requireAdmin } from "@/lib/actions/auth";
 import { getChallengeById, updateChallenge } from "@/lib/actions/challenges";
 import { getChallengeAnnouncements } from "@/lib/actions/challenge-announcements";
 import { ChallengeAnnouncementsAdmin } from "@/components/challenge-announcements-admin";
+import { CoverImageField } from "@/components/cover-image-field";
 import { PageTransition } from "@/components/page-transition";
+import { getChallengeCoverSrc } from "@/lib/challenge-card-covers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,7 +54,7 @@ export default async function EditChallengePage({
             <CardTitle>{challenge.title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={updateWithId} className="space-y-4">
+            <form action={updateWithId} encType="multipart/form-data" className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input id="title" name="title" required defaultValue={challenge.title} />
@@ -61,6 +63,10 @@ export default async function EditChallengePage({
                 <Label htmlFor="slug">Slug</Label>
                 <Input id="slug" name="slug" required defaultValue={challenge.slug} />
               </div>
+              <CoverImageField
+                defaultUrl={challenge.cover_image}
+                fallbackPreviewUrl={getChallengeCoverSrc(challenge)}
+              />
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
                   <Label htmlFor="registration_opens_at">Registration opens</Label>

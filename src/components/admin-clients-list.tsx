@@ -13,8 +13,9 @@ import {
   CLIENT_SCORE_PERIODS,
   type ClientScorePeriod,
 } from "@/lib/client-score-period";
+import { DeleteClientAccountButton } from "@/components/delete-client-account-button";
 import { ParticipantPlatformScoreRing } from "@/components/participant-platform-score-ring";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -69,9 +70,20 @@ export function AdminClientsList({
       <div className={cn("space-y-3", isPending && "opacity-70")}>
         {clients.map((client) => (
           <Card key={client.id}>
-            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
+            <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
               <div className="min-w-0 flex-1 space-y-2">
-                <CardTitle className="text-base">{client.full_name}</CardTitle>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-semibold leading-snug">{client.full_name}</h2>
+                  {client.activeSubscription ? (
+                    <>
+                      <Badge className="bg-green-500/15 text-green-400">Subscribed</Badge>
+                      <Badge variant="outline">{client.subscriptionLabel}</Badge>
+                    </>
+                  ) : (
+                    <Badge variant="secondary">No subscription</Badge>
+                  )}
+                </div>
+
                 {client.phone ? (
                   <a
                     href={`sms:${client.phone.replace(/\s/g, "")}`}
@@ -83,9 +95,10 @@ export function AdminClientsList({
                 ) : (
                   <p className="text-xs text-muted-foreground">No phone on file</p>
                 )}
+
                 <p className="text-sm text-muted-foreground">
                   Joined {format(new Date(client.created_at), "MMM d, yyyy")}
-                  {lastActivityMap[client.id] && (
+                  {lastActivityMap[client.id] ? (
                     <>
                       {" · "}
                       Last active{" "}
@@ -93,40 +106,41 @@ export function AdminClientsList({
                         addSuffix: true,
                       })}
                     </>
-                  )}
+                  ) : null}
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {client.activeSubscription ? (
-                    <>
-                      <Badge className="bg-green-500/15 text-green-400">Subscribed</Badge>
-                      <Badge variant="outline">{client.subscriptionLabel}</Badge>
-                    </>
-                  ) : (
-                    <Badge variant="secondary">No subscription</Badge>
-                  )}
-                </div>
-                {client.subscriptionExpiresAt && client.activeSubscription && (
+
+                {client.subscriptionExpiresAt && client.activeSubscription ? (
                   <p className="text-xs text-muted-foreground">
                     {client.subscription_interval === "annual" ? "Expires" : "Renews"}{" "}
                     {format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}
                   </p>
-                )}
+                ) : null}
               </div>
-              <div className="relative flex shrink-0 items-center justify-end sm:w-24 sm:justify-center">
-                <Link href={`/admin/clients/${client.id}`} className="absolute right-0 top-0">
-                  <Button size="sm" variant="outline">
-                    View
-                  </Button>
-                </Link>
+
+              <div className="flex shrink-0 items-center gap-4 sm:gap-5">
                 {scores[client.id] ? (
                   <ParticipantPlatformScoreRing
                     score={scores[client.id]!.score}
                     breakdown={scores[client.id]!.breakdown}
-                    className="mt-10 sm:mt-0"
                   />
-                ) : null}
+                ) : (
+                  <div className="h-16 w-16 shrink-0" aria-hidden />
+                )}
+
+                <div className="flex flex-col gap-2 sm:min-w-[7.5rem]">
+                  <Link href={`/admin/clients/${client.id}`} className="w-full">
+                    <Button size="sm" variant="outline" className="w-full">
+                      View
+                    </Button>
+                  </Link>
+                  <DeleteClientAccountButton
+                    clientId={client.id}
+                    clientName={client.full_name}
+                    className="w-full"
+                  />
+                </div>
               </div>
-            </CardHeader>
+            </CardContent>
           </Card>
         ))}
       </div>

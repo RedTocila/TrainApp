@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { resolveCoverImageFromForm } from "@/lib/cover-image-upload";
 import { suggestChallengeZoomDates } from "@/lib/challenge-utils";
 import {
   ensureFlashChallengesInDb,
@@ -110,6 +111,7 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
     prize_paid_at: (row.prize_paid_at as string | null) ?? null,
     registration_opens_at: (row.registration_opens_at as string | null) ?? null,
     registration_closes_at: (row.registration_closes_at as string | null) ?? null,
+    cover_image: typeof row.cover_image === "string" ? row.cover_image : null,
     current_phase: (row.current_phase as Challenge["current_phase"]) ?? 0,
   };
 }
@@ -248,6 +250,8 @@ export async function createChallenge(formData: FormData) {
     throw new Error("Group size must be a positive number.");
   }
 
+  const cover_image = await resolveCoverImageFromForm(formData, "challenges", slug);
+
   const { error } = await supabase.from("challenges").insert({
     title,
     slug,
@@ -263,12 +267,13 @@ export async function createChallenge(formData: FormData) {
     round_1_zoom_at,
     round_2_zoom_at,
     round_3_zoom_at,
+    cover_image,
     published,
   });
 
   if (error) throw new Error(error.message);
   revalidatePath("/admin/challenges");
-  revalidatePath("/dashboard/classes");
+  revalidatePath("/dashboard/challenges");
   redirect("/admin/challenges");
 }
 
@@ -299,6 +304,8 @@ export async function updateChallenge(id: string, formData: FormData) {
     throw new Error("Group size must be a positive number.");
   }
 
+  const cover_image = await resolveCoverImageFromForm(formData, "challenges", slug);
+
   const { error } = await supabase
     .from("challenges")
     .update({
@@ -316,13 +323,14 @@ export async function updateChallenge(id: string, formData: FormData) {
       round_1_zoom_at,
       round_2_zoom_at,
       round_3_zoom_at,
+      cover_image,
       published,
     })
     .eq("id", id);
 
   if (error) throw new Error(error.message);
   revalidatePath("/admin/challenges");
-  revalidatePath("/dashboard/classes");
+  revalidatePath("/dashboard/challenges");
   redirect("/admin/challenges");
 }
 

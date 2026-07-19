@@ -122,8 +122,14 @@ const FLASH_VISUALS: Record<
 };
 
 export function getChallengeCoverSrc(
-  challenge: Pick<Challenge, "slug" | "gender" | "is_flash" | "is_transformation">
+  challenge: Pick<
+    Challenge,
+    "slug" | "gender" | "is_flash" | "is_transformation" | "cover_image"
+  >
 ): string | null {
+  const custom = challenge.cover_image?.trim();
+  if (custom) return custom;
+
   if (isFlashChallenge(challenge)) {
     return FLASH_COVERS[challenge.slug as FlashChallengeSlug] ?? null;
   }
@@ -134,7 +140,10 @@ export function getChallengeCoverSrc(
 }
 
 export function getChallengeCardVisual(
-  challenge: Pick<Challenge, "slug" | "gender" | "is_flash" | "is_transformation">
+  challenge: Pick<
+    Challenge,
+    "slug" | "gender" | "is_flash" | "is_transformation" | "cover_image"
+  >
 ): ChallengeCardVisual {
   if (isFlashChallenge(challenge)) {
     const slug = challenge.slug as FlashChallengeSlug;

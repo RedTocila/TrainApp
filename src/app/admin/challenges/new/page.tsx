@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/actions/auth";
 import { createChallenge } from "@/lib/actions/challenges";
+import { CoverImageField } from "@/components/cover-image-field";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ export default async function NewChallengePage() {
             <CardTitle>Challenge details</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={createChallenge} className="space-y-4">
+            <form action={createChallenge} encType="multipart/form-data" className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input id="title" name="title" required placeholder="100-person fitness challenge" />
@@ -35,6 +36,7 @@ export default async function NewChallengePage() {
                 <Label htmlFor="slug">Slug</Label>
                 <Input id="slug" name="slug" required placeholder="summer-challenge-2026" />
               </div>
+              <CoverImageField />
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
                   <Label htmlFor="registration_opens_at">Registration opens</Label>
