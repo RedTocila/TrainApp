@@ -158,7 +158,7 @@ export function TaskRow({
             ? dashboard.dropdownItem
             : cn(
                 dashboard.listRow,
-                "w-full cursor-pointer touch-manipulation select-none gap-3 py-2.5 text-left active:scale-[0.99] hover:bg-card/60",
+                "w-full cursor-pointer touch-manipulation select-none gap-3 border-border/40 bg-background/80 py-2.5 text-left shadow-sm active:scale-[0.99] hover:bg-background",
                 showMacroPreview ? "flex flex-wrap items-start px-3" : "flex items-start pl-2 pr-3"
               )
         )}
@@ -275,7 +275,7 @@ function TaskGroupDropdown({
   const [open, setOpen] = useState(false);
 
   return (
-    <li className={dashboard.attachedDropdown}>
+    <li className={cn(dashboard.attachedDropdown, "border-border/40 bg-background/80")}>
       <div className={dashboard.attachedDropdownMain}>
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/40"
@@ -305,7 +305,7 @@ function TaskGroupDropdown({
         </div>
       </div>
 
-      <div className={dashboard.attachedDropdownTail}>
+      <div className={cn(dashboard.attachedDropdownTail, "bg-secondary/15")}>
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
@@ -418,7 +418,7 @@ export function DayTasksList({
   }
 
   return (
-    <ul className="flex flex-col gap-1.5">
+    <ul className="flex flex-col gap-2.5">
       {segments.map((segment) =>
         segment.kind === "group" ? (
           <TaskGroupDropdown

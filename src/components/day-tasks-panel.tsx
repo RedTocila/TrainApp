@@ -9,7 +9,7 @@ import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { dashboard } from "@/components/dashboard-ui";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import { enrichTasksForDate } from "@/lib/dashboard-task-enrichment";
-import { formatDateKey } from "@/lib/utils";
+import { cn, formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 function panelTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>): string {
@@ -44,14 +44,17 @@ export function DayTasksPanel({
 
   return (
     <>
-      <section aria-label={panelTitle(selectedDate, platform)}>
+      <section
+        aria-label={panelTitle(selectedDate, platform)}
+        className="rounded-3xl border border-border/50 bg-secondary/40 p-4 shadow-inner sm:p-5"
+      >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h1 className={dashboard.pageTitle}>
+          <h1 className="text-xl font-black tracking-tight sm:text-2xl">
             {panelTitle(selectedDate, platform)}
           </h1>
           <div className="flex items-center gap-2">
             {tasks.length > 0 && (
-              <span className="shrink-0 rounded-full bg-secondary/80 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
+              <span className="shrink-0 rounded-full bg-background/70 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
                 {platform.common.completedCount(completed.length, tasks.length)}
               </span>
             )}
@@ -63,7 +66,7 @@ export function DayTasksPanel({
           </div>
         </div>
         {tasks.length > 0 && (
-          <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-secondary/80">
+          <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-background/60">
             <div
               className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
               style={{ width: `${completionPct}%` }}
@@ -79,7 +82,7 @@ export function DayTasksPanel({
           dateKey={dateKey}
         />
       </section>
-      <h2 className={dashboard.pageTitle}>
+      <h2 className={cn(dashboard.pageTitle, "pt-2")}>
         {platform.dashboard.myProgress}
       </h2>
     </>

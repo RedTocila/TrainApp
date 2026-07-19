@@ -43,11 +43,20 @@ export function LandingHero() {
             ))}
           </div>
 
-          <div className="flex justify-center lg:justify-start">
-            <Link href={GET_STARTED_HREF}>
-              <Button size="lg" className="gap-2 px-8">
+          <div className="flex flex-col items-center gap-3 lg:items-start">
+            <Link href={GET_STARTED_HREF} className="w-full max-w-sm lg:w-auto">
+              <Button size="lg" className="w-full gap-2 px-8 lg:w-auto">
                 {GET_STARTED_CTA}
                 <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/login" className="w-full max-w-sm lg:w-auto">
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full px-8 lg:w-auto"
+              >
+                Log In
               </Button>
             </Link>
           </div>
