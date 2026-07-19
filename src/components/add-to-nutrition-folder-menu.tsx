@@ -6,6 +6,7 @@ import { Apple, FolderPlus, Plus, Sparkles, X } from "lucide-react";
 import type { NutritionPickItem } from "@/lib/actions/user-nutrition";
 import { moveNutritionPlanToFolder } from "@/lib/actions/user-nutrition";
 import { AddNutritionWizard } from "@/components/add-nutrition-wizard";
+import { DialogPortal } from "@/components/dialog-portal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
@@ -51,9 +52,9 @@ export function AddToNutritionFolderMenu({
         Add meal plan
       </Button>
 
-      {menuOpen && (
-        <div className="overlay-backdrop fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
-          <div className="w-full max-w-md overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl sm:rounded-2xl">
+      <DialogPortal open={menuOpen}>
+        <div className="overlay-backdrop fixed inset-0 z-[120] flex items-end justify-center p-0 sm:items-center sm:p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-t-2xl border border-border/80 bg-card shadow-2xl sm:rounded-2xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -108,11 +109,11 @@ export function AddToNutritionFolderMenu({
             </div>
           </div>
         </div>
-      )}
+      </DialogPortal>
 
-      {existingOpen && (
-        <div className="overlay-backdrop fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
-          <div className="flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl sm:rounded-2xl">
+      <DialogPortal open={existingOpen}>
+        <div className="overlay-backdrop fixed inset-0 z-[120] flex items-end justify-center p-0 sm:items-center sm:p-4">
+          <div className="flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-border/80 bg-card shadow-2xl sm:rounded-2xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -155,7 +156,7 @@ export function AddToNutritionFolderMenu({
             </div>
           </div>
         </div>
-      )}
+      </DialogPortal>
 
       <AddNutritionWizard
         open={wizardOpen}

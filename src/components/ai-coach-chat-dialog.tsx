@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { DialogPortal } from "@/components/dialog-portal";
 import { AiChatClientLazy } from "@/components/ai-chat-client-lazy";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
@@ -24,11 +24,6 @@ export function AiCoachChatDialog() {
   } = useAiCoachChat();
   const platform = usePlatformCopy();
   const ai = platform.ai;
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useLockBodyScroll(isOpen);
 
@@ -48,15 +43,16 @@ export function AiCoachChatDialog() {
     };
   }, [isOpen, closeChat, readMeOpen, closeReadMe]);
 
-  if (!isOpen || !mounted) return null;
+  if (!isOpen) return null;
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="ai-coach-chat-title"
-      className="fixed inset-x-0 top-0 bottom-[var(--dashboard-mobile-nav-height,3.375rem)] z-[90] flex flex-col overflow-hidden bg-background lg:bottom-0"
-    >
+  return (
+    <DialogPortal open={isOpen}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-coach-chat-title"
+        className="fixed inset-x-0 top-0 bottom-[var(--dashboard-mobile-nav-height,3.375rem)] z-[90] flex flex-col overflow-hidden bg-background lg:bottom-0"
+      >
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
         <div className="flex min-w-0 items-center gap-2.5">
           <AiCoachAvatar size="sm" className="h-9 w-9 shrink-0" />
@@ -100,7 +96,7 @@ export function AiCoachChatDialog() {
         agreeLabel={ai.readMeAgreeLabel}
         required={!hasAcknowledgedReadMe}
       />
-    </div>,
-    document.body
+    </div>
+    </DialogPortal>
   );
 }

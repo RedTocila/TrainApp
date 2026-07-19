@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, type MouseEvent } from "react";
-import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
+import { DialogPortal } from "@/components/dialog-portal";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { analyzeMacroOverageAction } from "@/lib/actions/ai-macro-overage";
@@ -103,21 +103,20 @@ export function MacroOverageInsightButton({
         !
       </button>
 
-      {open && typeof document !== "undefined"
-        ? createPortal(
-            <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-              <button
-                type="button"
-                aria-label={platform.aria.close}
-                className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-                onClick={() => setOpen(false)}
-              />
-              <div
-                role="dialog"
-                aria-modal="true"
-                className="relative z-10 flex max-h-[min(85vh,30rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-                onClick={(event) => event.stopPropagation()}
-              >
+      <DialogPortal open={open}>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label={platform.aria.close}
+            className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative z-10 flex max-h-[min(85vh,30rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
                 <div className="flex items-start justify-between border-b border-border px-5 py-4">
                   <div className="flex items-center gap-3">
                     <AiCoachAvatar size="sm" className="h-10 w-10 shrink-0" />
@@ -208,10 +207,8 @@ export function MacroOverageInsightButton({
                   </Button>
                 </div>
               </div>
-            </div>,
-            document.body
-          )
-        : null}
+            </div>
+      </DialogPortal>
     </>
   );
 }

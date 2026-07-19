@@ -4,6 +4,7 @@ import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Folder, FolderInput, X } from "lucide-react";
+import { DialogPortal } from "@/components/dialog-portal";
 import { moveWorkoutToFolder } from "@/lib/actions/user-workouts";
 import { resolveWorkoutFolderId } from "@/lib/workout-folders";
 import { Button } from "@/components/ui/button";
@@ -52,8 +53,9 @@ export function MoveWorkoutDialog({
   if (!open) return null;
 
   return (
-    <div className="overlay-backdrop fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
-      <div className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-2xl sm:rounded-2xl">
+    <DialogPortal open={open}>
+      <div className="overlay-backdrop fixed inset-0 z-[120] flex items-end justify-center p-0 sm:items-center sm:p-4">
+        <div className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-border/80 bg-card shadow-2xl sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -97,8 +99,9 @@ export function MoveWorkoutDialog({
 
           {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
         </div>
+        </div>
       </div>
-    </div>
+    </DialogPortal>
   );
 }
 

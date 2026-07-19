@@ -2,9 +2,13 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { DialogPortal } from "@/components/dialog-portal";
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+/** Above dashboard mobile nav (z-100) and common chrome. */
+export const APP_DIALOG_Z_INDEX = 120;
 
 export function AppDialog({
   open,
@@ -16,7 +20,7 @@ export function AppDialog({
   ariaLabel,
   maxWidth = "max-w-lg",
   className,
-  zIndex = 50,
+  zIndex = APP_DIALOG_Z_INDEX,
 }: {
   open: boolean;
   onClose: () => void;
@@ -70,8 +74,6 @@ export function AppDialog({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-
   const shell = (
     <div
       ref={panelRef}
@@ -80,7 +82,7 @@ export function AppDialog({
       aria-labelledby={title ? titleId : undefined}
       aria-label={ariaLabel}
       className={cn(
-        "relative z-10 flex w-full flex-col border border-border bg-card shadow-2xl",
+        "relative z-10 flex w-full flex-col border border-border/80 bg-card shadow-2xl",
         fullPage
           ? "min-h-full max-h-none rounded-none"
           : cn("overflow-hidden rounded-2xl", maxWidth),
@@ -105,7 +107,10 @@ export function AppDialog({
         </div>
       )}
 
-      <div className={cn(!title && !description && "pt-4")} data-scroll-lock-scrollable>
+      <div
+        className={cn("min-h-0", !title && !description && "pt-4", !fullPage && "overflow-y-auto")}
+        data-scroll-lock-scrollable
+      >
         {children}
       </div>
 
@@ -115,29 +120,29 @@ export function AppDialog({
     </div>
   );
 
-  if (fullPage) {
-    return (
-      <div className="fixed inset-0 overflow-y-auto bg-background" style={{ zIndex }}>
-        <button
-          type="button"
-          aria-label="Close"
-          className="overlay-backdrop fixed inset-0"
-          onClick={onClose}
-        />
-        <div className="relative z-10 flex min-h-full flex-col">{shell}</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
-      <button
-        type="button"
-        aria-label="Close"
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      {shell}
-    </div>
+    <DialogPortal open={open}>
+      {fullPage ? (
+        <div className="fixed inset-0 overflow-y-auto bg-background" style={{ zIndex }}>
+          <button
+            type="button"
+            aria-label="Close"
+            className="overlay-backdrop fixed inset-0"
+            onClick={onClose}
+          />
+          <div className="relative z-10 flex min-h-full flex-col">{shell}</div>
+        </div>
+      ) : (
+        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+          <button
+            type="button"
+            aria-label="Close"
+            className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+            onClick={onClose}
+          />
+          {shell}
+        </div>
+      )}
+    </DialogPortal>
   );
 }

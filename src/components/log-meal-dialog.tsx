@@ -2,8 +2,8 @@
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
+import { DialogPortal } from "@/components/dialog-portal";
 import { usePathname } from "next/navigation";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import {
@@ -92,7 +92,6 @@ export function LogMealDialog({
   // revalidate paths can leave isPending stuck true (Next.js / React 19).
   const [isSaving, setIsSaving] = useState(false);
   const savingRef = useRef(false);
-  const [mounted, setMounted] = useState(false);
   const catalogActive = open && mode === "library";
   const {
     query: catalogQuery,
@@ -101,10 +100,6 @@ export function LogMealDialog({
     loading: catalogLoading,
     error: catalogError,
   } = useRecipeCatalog("all", 25, catalogActive);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -133,7 +128,7 @@ export function LogMealDialog({
     };
   }, [open, onClose]);
 
-  if (!open || !mounted) return null;
+  if (!open) return null;
 
   const pickerTopOptions = [
     {
@@ -677,15 +672,16 @@ export function LogMealDialog({
     </div>
   );
 
-  return createPortal(
-    <div
-      className={cn(
-        "fixed inset-0 z-[100] h-dvh w-full",
-        isPhotoReviewFullscreen
-          ? "flex flex-col bg-background"
-          : "flex items-center justify-center p-4"
-      )}
-    >
+  return (
+    <DialogPortal open={open}>
+      <div
+        className={cn(
+          "fixed inset-0 z-[120] h-dvh w-full",
+          isPhotoReviewFullscreen
+            ? "flex flex-col bg-background"
+            : "flex items-center justify-center p-4"
+        )}
+      >
       {!isPhotoReviewFullscreen && (
         <button
           type="button"
@@ -703,7 +699,7 @@ export function LogMealDialog({
           "relative z-10 flex min-h-0 flex-col overflow-hidden",
           isPhotoReviewFullscreen
             ? "h-full min-h-0 w-full bg-background"
-            : "max-h-[min(92vh,48rem)] w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl"
+            : "max-h-[min(92vh,48rem)] w-full max-w-lg rounded-2xl border border-border/80 bg-card shadow-2xl"
         )}
       >
         {header}
@@ -719,7 +715,7 @@ export function LogMealDialog({
         </div>
         {footer}
       </div>
-    </div>,
-    document.body
+    </div>
+    </DialogPortal>
   );
 }

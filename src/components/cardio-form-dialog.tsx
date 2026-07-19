@@ -11,6 +11,7 @@ import {
 import { isValidYoutubeUrl } from "@/lib/youtube";
 import type { CardioType } from "@/lib/cardio-catalog";
 import type { ClientCardio } from "@/lib/types";
+import { DialogPortal } from "@/components/dialog-portal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,18 +108,19 @@ export function CardioFormDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close"
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-      >
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Close"
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
+        >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
             <h2 className="text-lg font-black">{cardio ? "Edit cardio" : "Add cardio"}</h2>
@@ -185,6 +187,7 @@ export function CardioFormDialog({
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }

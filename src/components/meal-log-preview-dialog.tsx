@@ -2,9 +2,9 @@
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import Image from "next/image";
 import { CheckCircle2, Target, Trash2, X } from "lucide-react";
+import { DialogPortal } from "@/components/dialog-portal";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useCoachCopy, usePlatformCopy } from "@/components/locale-provider";
 import type { MealFormData } from "@/lib/meal-utils";
@@ -43,11 +43,6 @@ export function MealLogPreviewDialog({
   const coachCopy = useCoachCopy();
   const platform = usePlatformCopy();
   const [adviceKey, setAdviceKey] = useState(0);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (open && meal) setAdviceKey(Date.now());
@@ -94,24 +89,25 @@ export function MealLogPreviewDialog({
   const adviceTier = score ? getMealAdviceTier(score.score) : "ok";
   const tierStyles = getMealScoreTierStyles(adviceTier);
 
-  if (!open || !meal || !mounted) return null;
+  if (!open || !meal) return null;
 
   const summary = formatMealMacrosSummary(meal.macros);
 
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close"
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Meal logged preview"
-        className="relative z-10 flex max-h-[min(90vh,42rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-      >
+  return (
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Close"
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Meal logged preview"
+          className="relative z-10 flex max-h-[min(90vh,42rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
+        >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div className="space-y-1">
             <p className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -245,8 +241,8 @@ export function MealLogPreviewDialog({
           )}
         </div>
       </div>
-    </div>,
-    document.body
+      </div>
+    </DialogPortal>
   );
 }
 

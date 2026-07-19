@@ -3,6 +3,7 @@ import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useMemo } from "react";
 import { Clock, X } from "lucide-react";
+import { DialogPortal } from "@/components/dialog-portal";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { DailyMealLog, Meal } from "@/lib/types";
 import { formatMealMacrosSummary, normalizeMealMacros } from "@/lib/meal-utils";
@@ -62,19 +63,20 @@ export function TodaysMealsDialog({
   const sorted = [...meals].sort((a, b) => a.order_index - b.order_index);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label={platform.aria.close}
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={platform.mealLog.whatToEatToday}
-        className="relative z-10 flex max-h-[min(85vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-      >
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label={platform.aria.close}
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={platform.mealLog.whatToEatToday}
+          className="relative z-10 flex max-h-[min(85vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
+        >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
             <h2 className="text-lg font-black">{platform.mealLog.whatToEatToday}</h2>
@@ -176,6 +178,7 @@ export function TodaysMealsDialog({
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }

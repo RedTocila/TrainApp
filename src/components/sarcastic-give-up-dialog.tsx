@@ -3,6 +3,7 @@ import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
+import { DialogPortal } from "@/components/dialog-portal";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useCoachCopy, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -46,20 +47,21 @@ export function SarcasticGiveUpDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label={platform.aria.close}
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={isPending ? undefined : onClose}
-        disabled={isPending}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="sarcastic-give-up-title"
-        className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-      >
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label={platform.aria.close}
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={isPending ? undefined : onClose}
+          disabled={isPending}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sarcastic-give-up-title"
+          className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
+        >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div className="flex items-start gap-3 pr-4">
             <AiCoachAvatar size="xs" className="mt-0.5 h-9 w-9 shrink-0" />
@@ -96,6 +98,7 @@ export function SarcasticGiveUpDialog({
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }

@@ -25,7 +25,7 @@ import {
 } from "@/lib/train-nav";
 
 const mobileNavLinkClass =
-  "pressable flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-none touch-manipulation select-none [-webkit-tap-highlight-color:transparent] transition-[transform,opacity,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 active:opacity-90";
+  "pressable flex min-w-0 flex-1 items-center justify-center px-1 py-2.5 touch-manipulation select-none [-webkit-tap-highlight-color:transparent] transition-[transform,opacity,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 active:opacity-90";
 
 function NavLiveIcon({
   icon: Icon,
@@ -92,16 +92,15 @@ export function ClientNav({
   if (hideNav) return null;
 
   const standardNavItems = [
-    { href: "/dashboard", label: platform.nav.home, mobileLabel: platform.nav.home, icon: Home, exact: true as const },
-    { href: "/dashboard/ai", label: platform.nav.aiCoach, mobileLabel: platform.nav.aiCoach, icon: Bot },
-    { href: "/dashboard/classes", label: platform.nav.liveCoaching, mobileLabel: platform.nav.live, icon: Video },
-    { href: "/dashboard/profile", label: platform.nav.profile, mobileLabel: platform.nav.profile, icon: User },
+    { href: "/dashboard", label: platform.nav.home, icon: Home, exact: true as const },
+    { href: "/dashboard/ai", label: platform.nav.aiCoach, icon: Bot },
+    { href: "/dashboard/classes", label: platform.nav.liveCoaching, icon: Video },
+    { href: "/dashboard/profile", label: platform.nav.profile, icon: User },
   ];
 
   const programsNavItem = {
     href: "/dashboard/workout",
     label: platform.nav.programs,
-    mobileLabel: platform.nav.programs,
   };
 
   function isNavItemActive(pathname: string, href: string, exact?: boolean) {
@@ -173,18 +172,18 @@ export function ClientNav({
       </aside>
 
       <nav className="dashboard-mobile-nav dashboard-instant-nav pointer-events-auto fixed bottom-0 left-0 right-0 z-[100] isolate border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        <div className="flex justify-around px-1 pt-1.5">
+        <div className="flex justify-around px-1">
           <InstantNavLink
             href="/dashboard"
             pressToNavigate
             onNavigateStart={setPendingHref}
+            aria-label={standardNavItems[0].label}
             className={cn(
               mobileNavLinkClass,
               homeActive ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <Home className="h-5 w-5" />
-            <span className="truncate">{standardNavItems[0].mobileLabel}</span>
+            <Home className="h-6 w-6" />
           </InstantNavLink>
 
           <InstantNavLink
@@ -192,13 +191,13 @@ export function ClientNav({
             pressToNavigate
             tapSlop={16}
             onNavigateStart={setPendingHref}
+            aria-label={programsNavItem.label}
             className={cn(
               mobileNavLinkClass,
               programsActive ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <Dumbbell className="h-5 w-5" />
-            <span className="truncate">{programsNavItem.mobileLabel}</span>
+            <Dumbbell className="h-6 w-6" />
           </InstantNavLink>
 
           {standardNavItems.slice(1).map((item) => {
@@ -211,17 +210,17 @@ export function ClientNav({
                 pressToNavigate
                 onNavigateStart={setPendingHref}
                 tapSlop={item.href.startsWith("/dashboard/ai") ? 16 : undefined}
+                aria-label={item.label}
                 className={cn(
                   mobileNavLinkClass,
                   active ? "text-primary" : "text-muted-foreground"
                 )}
               >
                 {showLiveDot ? (
-                  <NavLiveIcon icon={item.icon} showDot className="h-5 w-5" />
+                  <NavLiveIcon icon={item.icon} showDot className="h-6 w-6" />
                 ) : (
-                  <item.icon className="h-5 w-5" />
+                  <item.icon className="h-6 w-6" />
                 )}
-                <span className="truncate">{item.mobileLabel}</span>
               </InstantNavLink>
             );
           })}

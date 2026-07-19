@@ -20,6 +20,7 @@ import {
   type PersonalMealLibraryItem,
 } from "@/lib/actions/user-nutrition";
 import { MealDetailsFields } from "@/components/meal-details-fields";
+import { DialogPortal } from "@/components/dialog-portal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,16 +84,17 @@ function MealEditDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close"
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-        <div className="border-b border-border px-5 py-4">
-          <h2 className="text-lg font-black">Edit meal</h2>
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Close"
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="text-lg font-black">Edit meal</h2>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <MealDetailsFields
@@ -120,7 +122,8 @@ function MealEditDialog({
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }
 
@@ -150,19 +153,20 @@ function AddMealDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close"
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative z-10 flex max-h-[min(85vh,32rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-        <div className="border-b border-border px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            Add to {slotMeta.label}
-          </p>
-          <h2 className="text-lg font-black">Add meal</h2>
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Close"
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div className="relative z-10 flex max-h-[min(85vh,32rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+          <div className="border-b border-border px-5 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              Add to {slotMeta.label}
+            </p>
+            <h2 className="text-lg font-black">Add meal</h2>
         </div>
         <div className="flex gap-2 border-b border-border px-5 py-2">
           <Button
@@ -238,7 +242,8 @@ function AddMealDialog({
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }
 

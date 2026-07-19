@@ -23,7 +23,6 @@ export function WorkoutTypeDialog({
       description="Fitness with sets & reps, or timed HIIT intervals."
       ariaLabel="Choose workout type"
       maxWidth="max-w-lg"
-      zIndex={120}
     >
       <div className="px-5 py-4">
         <WorkoutTypeChooser value={null} onChange={onSelect} />

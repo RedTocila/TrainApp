@@ -23,6 +23,7 @@ import {
 import type { MealType } from "@/lib/types";
 import { getMealTypeOptions } from "@/lib/locale-labels";
 import { MealDetailsFields } from "@/components/meal-details-fields";
+import { DialogPortal } from "@/components/dialog-portal";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -83,16 +84,17 @@ function EditMealDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label={platform.aria.close}
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-lg font-black">{platform.meals.editMeal}</h2>
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label={platform.aria.close}
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <h2 className="text-lg font-black">{platform.meals.editMeal}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
@@ -123,7 +125,8 @@ function EditMealDialog({
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }
 
@@ -216,20 +219,21 @@ function AddMealToFolderDialog({
     folders.find((f) => f.id === selectedFolderId)?.name ?? "folder";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label={platform.aria.close}
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative z-10 flex max-h-[min(85vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              {platform.meals.addToFolder}
-            </p>
-            <h2 className="text-lg font-black">{item.meal.name}</h2>
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label={platform.aria.close}
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div className="relative z-10 flex max-h-[min(85vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                {platform.meals.addToFolder}
+              </p>
+              <h2 className="text-lg font-black">{item.meal.name}</h2>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -302,7 +306,8 @@ function AddMealToFolderDialog({
           {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
         </div>
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }
 
@@ -405,26 +410,27 @@ function CreateMealDialog({
     folders.find((f) => f.id === selectedFolderId)?.name ?? "folder";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label={platform.aria.close}
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              {step === "details"
-                ? platform.meals.newMeal
-                : step === "folder"
-                  ? platform.meals.chooseFolder
-                  : platform.meals.choosePlan}
-            </p>
-            <h2 className="text-lg font-black">
-              {step === "details" ? platform.meals.addMeal : form.name}
-            </h2>
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label={platform.aria.close}
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                {step === "details"
+                  ? platform.meals.newMeal
+                  : step === "folder"
+                    ? platform.meals.chooseFolder
+                    : platform.meals.choosePlan}
+              </p>
+              <h2 className="text-lg font-black">
+                {step === "details" ? platform.meals.addMeal : form.name}
+              </h2>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -531,7 +537,8 @@ function CreateMealDialog({
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }
 

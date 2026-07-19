@@ -17,6 +17,7 @@ import {
 } from "date-fns";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { DialogPortal } from "@/components/dialog-portal";
 import { CalendarDayDot } from "@/components/calendar-day-card";
 import { groupTasksByStatus } from "@/components/day-tasks-list";
 import { Button } from "@/components/ui/button";
@@ -100,19 +101,20 @@ export function FullCalendarDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close calendar"
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Full calendar"
-        className="relative z-10 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-      >
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Close calendar"
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Full calendar"
+          className="relative z-10 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
+        >
         <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6">
           <div>
             <h2 className="text-lg font-black">Full Calendar</h2>
@@ -216,6 +218,7 @@ export function FullCalendarDialog({
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }

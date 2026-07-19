@@ -12,6 +12,7 @@ import {
   type ClientSchedule,
 } from "@/lib/daily-tasks";
 import { formatDateKey } from "@/lib/utils";
+import { DialogPortal } from "@/components/dialog-portal";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { Button } from "@/components/ui/button";
 
@@ -72,19 +73,20 @@ export function DayTasksDialog({
   const { active, missed, completed } = groupTasksByStatus(tasks);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Close"
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Tasks for ${format(date, "MMMM d")}`}
-        className="relative z-10 flex max-h-[min(85vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
-      >
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="Close"
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Tasks for ${format(date, "MMMM d")}`}
+          className="relative z-10 flex max-h-[min(85vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
+        >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -111,6 +113,7 @@ export function DayTasksDialog({
           </Button>
         </div>
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/grocery-list";
 import { groupGroceryByCategory } from "@/lib/grocery-list-utils";
 import { isActionError, runServerAction } from "@/lib/run-server-action";
+import { DialogPortal } from "@/components/dialog-portal";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { GroceryListItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -113,20 +114,21 @@ export function GroceryListDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label={platform.common.close}
-        className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="grocery-list-title"
-        className="relative z-10 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl"
-        onClick={(event) => event.stopPropagation()}
-      >
+    <DialogPortal open={open}>
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label={platform.common.close}
+          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="grocery-list-title"
+          className="relative z-10 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-xl"
+          onClick={(event) => event.stopPropagation()}
+        >
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div className="min-w-0">
             <h2 id="grocery-list-title" className="text-base font-bold">
@@ -220,6 +222,7 @@ export function GroceryListDialog({
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </DialogPortal>
   );
 }

@@ -3,8 +3,8 @@
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { DialogPortal } from "@/components/dialog-portal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -30,13 +30,8 @@ export function CoachReadMeDialog({
   footer?: ReactNode;
 }) {
   const [agreed, setAgreed] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   useLockBodyScroll(open);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (open) setAgreed(false);
@@ -51,19 +46,20 @@ export function CoachReadMeDialog({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
-  if (!open || !mounted) return null;
+  if (!open) return null;
 
   const canProceed = !required || agreed;
 
-  return createPortal(
-    <div
-      className={cn(
-        "fixed inset-0 z-[100] flex items-center justify-center px-4",
-        // Keep the sheet in the visible band above the mobile bottom nav
-        "py-4 pb-[calc(var(--dashboard-mobile-nav-height,4.25rem)+0.75rem)]",
-        "lg:pb-4"
-      )}
-    >
+  return (
+    <DialogPortal open={open}>
+      <div
+        className={cn(
+          "fixed inset-0 z-[120] flex items-center justify-center px-4",
+          // Keep the sheet in the visible band above the mobile bottom nav
+          "py-4 pb-[calc(var(--dashboard-mobile-nav-height,4.25rem)+0.75rem)]",
+          "lg:pb-4"
+        )}
+      >
       {!required && (
         <button
           type="button"
@@ -79,7 +75,7 @@ export function CoachReadMeDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="coach-read-me-title"
-        className="relative z-10 flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        className="relative z-10 flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
       >
         <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-5">
           <h2 id="coach-read-me-title" className="text-lg font-bold">
@@ -132,7 +128,7 @@ export function CoachReadMeDialog({
           </Button>
         </div>
       </div>
-    </div>,
-    document.body
+      </div>
+    </DialogPortal>
   );
 }

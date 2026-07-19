@@ -12,7 +12,7 @@
   --safe-area-top: max(0.625rem, var(--safe-area-top-inset));
   --safe-area-bottom: max(0.5rem, var(--safe-area-bottom-inset));
   --dashboard-mobile-header-height: calc(2.75rem + var(--safe-area-top));
-  --dashboard-mobile-nav-height: calc(2.875rem + var(--safe-area-bottom));
+  --dashboard-mobile-nav-height: calc(2.75rem + var(--safe-area-bottom));
   /* Motion — GPU-friendly, short, premium ease */
   --ease-out-premium: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out-premium: cubic-bezier(0.45, 0, 0.15, 1);
@@ -565,7 +565,8 @@ html.light .overlay-backdrop {
   background: rgba(0, 0, 0, 0.4);
 }
 
-/* While a popup is open: block scroll/clicks behind it, keep dialog interactive */
+/* While a popup is open: block scroll/clicks behind it.
+   Dialogs portal to document.body, so they stay interactive outside .dashboard-main. */
 html.body-scroll-locked .dashboard-main {
   pointer-events: none;
 }
