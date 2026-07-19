@@ -731,6 +731,8 @@ export const platformCopyAl = {
     currentPlan: "Plani aktual",
     switchPlan: "Ndrysho planin",
     subscribe: "Le të fillojmë",
+    seeDetails: "Shiko çfarë përfshihet",
+    hideDetails: "Fshih detajet",
     savePerYear: (amount: string) => `Kurseni ${amount}/vit`,
     includesFrom: (planName: string) => `Gjithçka në ${planName}, plus:`,
   },

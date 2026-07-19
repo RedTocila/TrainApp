@@ -101,17 +101,19 @@ export interface IntakeStep {
   title: string;
   subtitle: string;
   emoji: string;
+  /** Short label shown under the step circle in the wizard progress bar. */
+  short: string;
 }
 
 export const INTAKE_STEPS: IntakeStep[] = [
-  { id: "basics", title: "Let's meet you", subtitle: "The basics so we can size your plan", emoji: "👋" },
-  { id: "goal", title: "What's the mission?", subtitle: "Where you're headed — and how fast", emoji: "🎯" },
-  { id: "training", title: "How you move", subtitle: "Training history & gym access", emoji: "💪" },
-  { id: "work", title: "Your day job", subtitle: "Work, commute & daily movement", emoji: "💼" },
-  { id: "sleep", title: "Sleep & energy", subtitle: "Recovery fuels everything", emoji: "😴" },
-  { id: "nutrition", title: "Plate preferences", subtitle: "Diet style, cooking & allergies", emoji: "🥗" },
-  { id: "health", title: "Body check-in", subtitle: "Injuries & health we should respect", emoji: "🩺" },
-  { id: "lifestyle", title: "Life off the gym", subtitle: "Habits that shape your results", emoji: "✨" },
+  { id: "basics", title: "Let's meet you", subtitle: "The basics so we can size your plan", emoji: "👋", short: "Info" },
+  { id: "goal", title: "What's the mission?", subtitle: "Where you're headed — and how fast", emoji: "🎯", short: "Goal" },
+  { id: "training", title: "How you move", subtitle: "Training history & gym access", emoji: "💪", short: "Train" },
+  { id: "work", title: "Your day job", subtitle: "Work, commute & daily movement", emoji: "💼", short: "Work" },
+  { id: "sleep", title: "Sleep & energy", subtitle: "Recovery fuels everything", emoji: "😴", short: "Sleep" },
+  { id: "nutrition", title: "Plate preferences", subtitle: "Diet style, cooking & allergies", emoji: "🥗", short: "Food" },
+  { id: "health", title: "Body check-in", subtitle: "Injuries & health we should respect", emoji: "🩺", short: "Health" },
+  { id: "lifestyle", title: "Life off the gym", subtitle: "Habits that shape your results", emoji: "✨", short: "Life" },
 ];
 
 export const GOAL_OPTIONS: IntakeOption[] = [

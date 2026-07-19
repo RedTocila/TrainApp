@@ -724,6 +724,8 @@ export const platformCopyEn = {
     currentPlan: "Current plan",
     switchPlan: "Switch plan",
     subscribe: "Let's go",
+    seeDetails: "See what's included",
+    hideDetails: "Hide details",
     savePerYear: (amount: string) => `Save ${amount}/year`,
     includesFrom: (planName: string) => `Everything in ${planName}, plus:`,
   },

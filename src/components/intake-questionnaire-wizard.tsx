@@ -9,7 +9,7 @@ import {
   type ChangeEvent,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Sparkles, Square } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Sparkles } from "lucide-react";
 import {
   ACTIVITY_OPTIONS,
   ALCOHOL_OPTIONS,
@@ -50,6 +50,90 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
+function StepProgress({
+  step,
+  onStepSelect,
+}: {
+  step: number;
+  onStepSelect: (index: number) => void;
+}) {
+  return (
+    <div
+      className="flex w-full items-start pb-1"
+      role="progressbar"
+      aria-valuemin={1}
+      aria-valuemax={INTAKE_STEPS.length}
+      aria-valuenow={step + 1}
+      aria-label={`Step ${step + 1} of ${INTAKE_STEPS.length}: ${INTAKE_STEPS[step].title}`}
+    >
+      {INTAKE_STEPS.map((s, index) => {
+        const done = index < step;
+        const active = index === step;
+        return (
+          <div key={s.id} className={cn("flex items-start", index < INTAKE_STEPS.length - 1 && "flex-1")}>
+            <button
+              type="button"
+              onClick={() => onStepSelect(index)}
+              disabled={!done}
+              className={cn(
+                "flex shrink-0 flex-col items-center gap-1",
+                done && "cursor-pointer"
+              )}
+              aria-label={done ? `Go back to ${s.title}` : s.title}
+            >
+              <span
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs transition-all sm:h-9 sm:w-9 sm:text-sm",
+                  done && "bg-emerald-500 text-white",
+                  active &&
+                    "scale-110 bg-primary text-primary-foreground shadow-[0_0_14px_-2px] shadow-primary/60",
+                  !done && !active && "bg-secondary text-muted-foreground"
+                )}
+              >
+                {done ? (
+                  <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={3} />
+                ) : (
+                  <span aria-hidden>{s.emoji}</span>
+                )}
+              </span>
+              <span
+                className={cn(
+                  "whitespace-nowrap text-[8px] font-bold uppercase sm:text-[10px] sm:tracking-wide",
+                  active
+                    ? "text-primary"
+                    : done
+                      ? "text-emerald-500"
+                      : "text-muted-foreground/70"
+                )}
+              >
+                {s.short}
+              </span>
+            </button>
+            {index < INTAKE_STEPS.length - 1 && (
+              <span
+                aria-hidden
+                className={cn(
+                  "mx-0.5 mt-[0.8125rem] h-0.5 min-w-1 flex-1 rounded-full sm:mt-[1.0625rem]",
+                  index < step ? "bg-emerald-500" : "bg-border"
+                )}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SelectionBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+      {count} selected
+    </span>
+  );
+}
+
 function OptionGrid({
   options,
   value,
@@ -85,7 +169,7 @@ function OptionGrid({
 
   return (
     <div
-      className="grid gap-2 sm:grid-cols-2"
+      className="grid gap-2.5 sm:grid-cols-2"
       role={multi ? "group" : undefined}
       aria-label={multi ? "Multiple selections allowed" : undefined}
     >
@@ -95,32 +179,42 @@ function OptionGrid({
           <button
             key={option.value}
             type="button"
-            aria-pressed={multi ? active : undefined}
+            aria-pressed={active}
             onClick={() => toggle(option.value)}
             className={cn(
-              "flex items-start gap-3 rounded-xl border p-3 text-left transition-all",
+              "flex items-center gap-3 rounded-2xl border-2 px-3 py-3 text-left transition-all",
               active
-                ? "border-primary bg-primary/10 shadow-sm shadow-primary/10"
-                : "border-border bg-secondary/40 hover:border-primary/40 hover:bg-secondary/70"
+                ? "border-primary bg-primary/10 shadow-[0_0_16px_-6px] shadow-primary/40"
+                : "border-border/70 bg-secondary/30 hover:border-primary/40 hover:bg-secondary/60"
             )}
           >
-            {multi ? (
-              <span className="mt-0.5 shrink-0 text-primary">
-                {active ? (
-                  <Check className="h-4 w-4" aria-hidden />
-                ) : (
-                  <Square className="h-4 w-4 text-muted-foreground/70" aria-hidden />
-                )}
-              </span>
-            ) : null}
-            <span className="text-xl leading-none">{option.emoji}</span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold">{option.label}</span>
+            <span
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg leading-none",
+                active ? "bg-primary/20" : "bg-secondary/80"
+              )}
+              aria-hidden
+            >
+              {option.emoji}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-bold leading-snug">{option.label}</span>
               {option.description && (
-                <span className="mt-0.5 block text-xs text-muted-foreground">
+                <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
                   {option.description}
                 </span>
               )}
+            </span>
+            <span
+              className={cn(
+                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-muted-foreground/30 bg-transparent text-transparent"
+              )}
+              aria-hidden
+            >
+              <Check className="h-3.5 w-3.5" strokeWidth={3} />
             </span>
           </button>
         );
@@ -219,21 +313,30 @@ function StepFields({
             <div className="space-y-2">
               <Label>Gender</Label>
               <div className="grid grid-cols-2 gap-2">
-                {GENDER_OPTIONS.filter((o) => o.value).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => onChange({ gender: opt.value })}
-                    className={cn(
-                      "rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
-                      responses.gender === opt.value
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-secondary/60"
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                {GENDER_OPTIONS.filter((o) => o.value).map((opt) => {
+                  const active = responses.gender === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => onChange({ gender: opt.value })}
+                      className={cn(
+                        "flex items-center justify-center gap-2 rounded-2xl border-2 px-3 py-2.5 text-sm font-bold transition-all",
+                        active
+                          ? "border-primary bg-primary/10 text-primary shadow-[0_0_16px_-6px] shadow-primary/40"
+                          : "border-border/70 bg-secondary/30 hover:border-primary/40"
+                      )}
+                    >
+                      {opt.label}
+                      {active && (
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-hidden>
+                          <Check className="h-3 w-3" strokeWidth={3} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -316,7 +419,10 @@ function StepFields({
             />
           </div>
           <div className="space-y-2">
-            <Label>Equipment access (pick all that apply)</Label>
+            <div className="flex items-center gap-2">
+              <Label>Equipment access</Label>
+              <SelectionBadge count={responses.equipment_access?.length ?? 0} />
+            </div>
             <OptionGrid
               multi
               options={EQUIPMENT_OPTIONS}
@@ -325,7 +431,10 @@ function StepFields({
             />
           </div>
           <div className="space-y-2">
-            <Label>Other activities (pick all that apply)</Label>
+            <div className="flex items-center gap-2">
+              <Label>Other activities</Label>
+              <SelectionBadge count={responses.current_activities?.length ?? 0} />
+            </div>
             <OptionGrid
               multi
               options={ACTIVITY_OPTIONS}
@@ -443,7 +552,10 @@ function StepFields({
             />
           </div>
           <div className="space-y-2">
-            <Label>Food allergies (pick all that apply)</Label>
+            <div className="flex items-center gap-2">
+              <Label>Food allergies</Label>
+              <SelectionBadge count={responses.food_allergies?.length ?? 0} />
+            </div>
             <p className="text-xs text-muted-foreground">
               Select every allergy that applies. Pick &quot;None&quot; only if you have no allergies.
             </p>
@@ -470,7 +582,10 @@ function StepFields({
       return (
         <div className="space-y-5">
           <div className="space-y-2">
-            <Label>Injury areas (pick all that apply)</Label>
+            <div className="flex items-center gap-2">
+              <Label>Injury areas</Label>
+              <SelectionBadge count={responses.injury_areas?.length ?? 0} />
+            </div>
             <p className="text-xs text-muted-foreground">
               Select every area that is affected. Pick &quot;None&quot; only if you have no injuries.
             </p>
@@ -492,7 +607,10 @@ function StepFields({
             />
           </div>
           <div className="space-y-2">
-            <Label>Health conditions (pick all that apply)</Label>
+            <div className="flex items-center gap-2">
+              <Label>Health conditions</Label>
+              <SelectionBadge count={responses.health_conditions?.length ?? 0} />
+            </div>
             <p className="text-xs text-muted-foreground">
               Select every condition that applies. Pick &quot;None&quot; only if you have no conditions.
             </p>
@@ -589,6 +707,7 @@ export function IntakeQuestionnaireWizard({
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const serverSnapshot = useRef(JSON.stringify(initialResponses));
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const nextSnapshot = JSON.stringify(initialResponses);
@@ -599,7 +718,6 @@ export function IntakeQuestionnaireWizard({
   }, [initialResponses]);
 
   const current = INTAKE_STEPS[step];
-  const progress = ((step + 1) / INTAKE_STEPS.length) * 100;
 
   const patch = useCallback((update: Partial<IntakeResponses>) => {
     setResponses((prev) => ({ ...prev, ...update }));
@@ -610,6 +728,10 @@ export function IntakeQuestionnaireWizard({
     setStep(next);
     onStepChange?.(next);
     setError(null);
+    // Bring the top of the questionnaire back into view on step change.
+    requestAnimationFrame(() => {
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   const handleNext = () => {
@@ -630,23 +752,11 @@ export function IntakeQuestionnaireWizard({
   };
 
   return (
-    <div className={cn("min-w-0 space-y-6", compact && "space-y-4")}>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-          <span>
-            Step {step + 1} of {INTAKE_STEPS.length}
-          </span>
-          <span>{Math.round(progress)}%</span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-secondary">
-          <motion.div
-            className="h-full rounded-full bg-primary"
-            initial={false}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
-          />
-        </div>
-      </div>
+    <div
+      ref={rootRef}
+      className={cn("min-w-0 scroll-mt-20 space-y-6", compact && "space-y-4")}
+    >
+      <StepProgress step={step} onStepSelect={(index) => index < step && goTo(index)} />
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -658,8 +768,7 @@ export function IntakeQuestionnaireWizard({
           className="space-y-4"
         >
           <div className="min-w-0 space-y-1">
-            <p className="text-2xl">{current.emoji}</p>
-            <h2 className="text-xl font-black tracking-tight sm:text-2xl">
+            <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
               {current.title}
             </h2>
             <p className="text-sm text-muted-foreground">{current.subtitle}</p>
@@ -706,6 +815,99 @@ export function IntakeQuestionnaireWizard({
   );
 }
 
+const MACRO_COLORS = {
+  protein: "#34d399",
+  carbs: "#38bdf8",
+  fat: "#fbbf24",
+} as const;
+
+function MacroDonut({
+  macros,
+}: {
+  macros: { calories: number; protein: number; carbs: number; fat: number };
+}) {
+  const segments = [
+    { key: "protein", label: "Protein", grams: macros.protein, cal: macros.protein * 4 },
+    { key: "carbs", label: "Carbs", grams: macros.carbs, cal: macros.carbs * 4 },
+    { key: "fat", label: "Fat", grams: macros.fat, cal: macros.fat * 9 },
+  ] as const;
+  const totalCal = Math.max(
+    segments.reduce((sum, s) => sum + s.cal, 0),
+    1
+  );
+
+  const radius = 42;
+  const circumference = 2 * Math.PI * radius;
+  let progressOffset = 0;
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative h-44 w-44">
+        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+          <circle
+            cx="60"
+            cy="60"
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="13"
+            className="text-secondary"
+          />
+          {segments.map((segment) => {
+            const length = (segment.cal / totalCal) * circumference;
+            const dashOffset = -progressOffset;
+            progressOffset += length;
+            return (
+              <circle
+                key={segment.key}
+                cx="60"
+                cy="60"
+                r={radius}
+                fill="none"
+                stroke={MACRO_COLORS[segment.key]}
+                strokeWidth="13"
+                strokeLinecap="butt"
+                strokeDasharray={`${Math.max(length - 1.5, 0)} ${circumference}`}
+                strokeDashoffset={dashOffset}
+              />
+            );
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-3xl font-black leading-none tracking-tight">
+            {macros.calories}
+          </span>
+          <span className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            cal / day
+          </span>
+        </div>
+      </div>
+
+      <div className="grid w-full grid-cols-3 gap-2">
+        {segments.map((segment) => {
+          const percent = Math.round((segment.cal / totalCal) * 100);
+          return (
+            <div
+              key={segment.key}
+              className="rounded-xl bg-secondary/40 px-2 py-2.5 text-center"
+            >
+              <span
+                className="mx-auto mb-1.5 block h-2 w-8 rounded-full"
+                style={{ backgroundColor: MACRO_COLORS[segment.key] }}
+                aria-hidden
+              />
+              <p className="text-base font-black leading-none">{segment.grams}g</p>
+              <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+                {segment.label} · {percent}%
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function IntakeCompleteSummary({
   responses,
   macros,
@@ -714,7 +916,7 @@ export function IntakeCompleteSummary({
   macros?: { calories: number; protein: number; carbs: number; fat: number } | null;
 }) {
   return (
-    <div className="space-y-4 text-center">
+    <div className="space-y-5 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-primary">
         <Check className="h-7 w-7" />
       </div>
@@ -725,18 +927,16 @@ export function IntakeCompleteSummary({
         </p>
       </div>
       {macros && (
-        <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            Estimated daily targets
+        <div className="rounded-2xl border border-border/70 bg-secondary/20 p-4">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-primary">
+            Your estimated daily targets
           </p>
-          <p className="mt-1 text-lg font-black">
-            {macros.calories} cal · P{macros.protein} · C{macros.carbs} · F{macros.fat}
-          </p>
+          <MacroDonut macros={macros} />
         </div>
       )}
-          <p className="text-xs text-muted-foreground">
-            Preview estimate — AI fine-tunes when you create your account
-          </p>
+      <p className="text-xs text-muted-foreground">
+        Preview estimate — AI fine-tunes when you create your account
+      </p>
     </div>
   );
 }
