@@ -1,7 +1,8 @@
 "use client";
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { usePlatformCopy } from "@/components/locale-provider";
@@ -22,8 +23,13 @@ export function ProgressPhotoAlexDialog({
 }) {
   const platform = usePlatformCopy();
   const label = primaryLabel ?? platform.photos.retakePhoto;
+  const [mounted, setMounted] = useState(false);
 
   useLockBodyScroll(open);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -36,9 +42,9 @@ export function ProgressPhotoAlexDialog({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       <button
         type="button"
@@ -77,6 +83,7 @@ export function ProgressPhotoAlexDialog({
           <Button onClick={onClose}>{label}</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

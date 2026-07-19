@@ -2,6 +2,7 @@
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
 import Image from "next/image";
@@ -204,11 +205,16 @@ function PoseSlider({
   onClose: () => void;
   onIndexChange: (index: number) => void;
 }) {
+  const [mounted, setMounted] = useState(false);
   const frame = frames[index];
   const canPrev = index > 0;
   const canNext = index < frames.length - 1;
 
   useLockBodyScroll(true);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -222,9 +228,9 @@ function PoseSlider({
     };
   }, [canNext, canPrev, index, onClose, onIndexChange]);
 
-  if (!frame) return null;
+  if (!frame || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex flex-col bg-black"
       role="dialog"
@@ -280,7 +286,8 @@ function PoseSlider({
           </button>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

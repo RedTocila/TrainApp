@@ -1,7 +1,8 @@
 "use client";
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,7 +24,13 @@ export function FullScreenFlow({
   children: ReactNode;
   contentClassName?: string;
 }) {
+  const [mounted, setMounted] = useState(false);
+
   useLockBodyScroll(open);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -36,9 +43,9 @@ export function FullScreenFlow({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[110] flex h-dvh flex-col bg-background"
       role="dialog"
@@ -80,6 +87,7 @@ export function FullScreenFlow({
       >
         <div className="mx-auto w-full max-w-3xl">{children}</div>
       </main>
-    </div>
+    </div>,
+    document.body
   );
 }

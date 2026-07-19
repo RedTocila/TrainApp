@@ -128,15 +128,13 @@ body {
   }
 }
 
-/* Soft page enter — opacity + translateY only (compositor-friendly) */
+/* Soft page enter — opacity only (avoids transform containing-block breaking position:fixed) */
 @keyframes rutina-page-enter {
   from {
     opacity: 0;
-    transform: translate3d(0, 8px, 0);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
   }
 }
 

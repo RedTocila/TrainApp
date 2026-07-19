@@ -129,7 +129,7 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
             {error && <p className="text-sm text-red-400">{error}</p>}
             {success && <p className="text-sm text-green-400">Saved</p>}
             {macroMessage && (
-              <p className="text-sm text-primary">{macroMessage}</p>
+              <p className="text-sm text-green-400/90">{macroMessage}</p>
             )}
             {isPending && (
               <p className="text-sm text-muted-foreground">Saving your profile…</p>
