@@ -4,6 +4,7 @@ import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Calendar, X } from "lucide-react";
 import { scheduleCardioSeries } from "@/lib/actions/user-cardio";
+import { localizeCardioTitle } from "@/lib/cardio-catalog";
 import type { ClientCardio } from "@/lib/types";
 import {
   WEEKDAY_OPTIONS,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/schedule-utils";
 import { cn } from "@/lib/utils";
 import { DialogPortal } from "@/components/dialog-portal";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
@@ -30,6 +32,7 @@ export function CardioScheduleDialog({
   onClose,
   onScheduled,
 }: CardioScheduleDialogProps) {
+  const platform = usePlatformCopy();
   const [weekdays, setWeekdays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [weeks, setWeeks] = useState(4);
   const [startMode, setStartMode] = useState<ScheduleStartMode>("now");
@@ -117,7 +120,9 @@ export function CardioScheduleDialog({
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
             <h2 className="text-lg font-black">Schedule cardio</h2>
-            <p className="text-sm text-muted-foreground">{cardio.title}</p>
+            <p className="text-sm text-muted-foreground">
+              {localizeCardioTitle(cardio.title, platform.cardio.types)}
+            </p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />

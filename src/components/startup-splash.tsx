@@ -1,22 +1,40 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { PLATFORM_NAME } from "@/lib/brand";
 
-/**
- * Inline dismiss: reveal the SSR page as soon as it can paint.
- * No React/hydration dependency and no artificial minimum display time.
- * Place at the end of <body> so the document (including page content) is already parsed.
- */
-export const STARTUP_SPLASH_DISMISS_SCRIPT = `(function(){var s=document.getElementById("startup-splash");if(!s)return;function hide(){if(!s||s.dataset.done)return;s.dataset.done="1";s.classList.add("startup-splash--hide");var done=function(){if(s&&s.parentNode)s.parentNode.removeChild(s)};s.addEventListener("transitionend",done,{once:true});setTimeout(done,400)}requestAnimationFrame(function(){requestAnimationFrame(hide)})})();`;
+const FADE_MS = 280;
 
 /**
- * Startup splash is server-rendered into the first HTML byte stream with critical
- * CSS from the root layout. Display does not wait on JS.
+ * Server-rendered splash that paints with the first HTML (critical CSS in root layout).
+ * Fades out on client mount — React owns the node so hydration stays valid.
+ * No artificial minimum display time.
  */
 export function StartupSplash() {
+  const [phase, setPhase] = useState<"visible" | "fading" | "gone">("visible");
   const rut = PLATFORM_NAME.slice(0, 3);
   const ina = PLATFORM_NAME.slice(3);
 
+  useEffect(() => {
+    let timeoutId = 0;
+    const raf = requestAnimationFrame(() => {
+      setPhase("fading");
+      timeoutId = window.setTimeout(() => setPhase("gone"), FADE_MS);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  if (phase === "gone") return null;
+
   return (
-    <div id="startup-splash" className="startup-splash" aria-hidden="true">
+    <div
+      id="startup-splash"
+      className={phase === "fading" ? "startup-splash startup-splash--hide" : "startup-splash"}
+      aria-hidden="true"
+    >
       <div className="startup-splash__mark">
         <span className="startup-splash__word">
           {rut}

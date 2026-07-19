@@ -12,8 +12,10 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { usePlatformCopy } from "@/components/locale-provider";
 import type { DailyTask, TaskCategory } from "@/lib/daily-tasks";
 import { TASK_CATEGORY_LABELS } from "@/lib/daily-tasks";
+import { localizeCardioTitle } from "@/lib/cardio-catalog";
 import type { CalendarDayStatus } from "@/lib/dashboard-task-enrichment";
 import { cn } from "@/lib/utils";
 
@@ -66,6 +68,7 @@ export function CalendarDayCard({
   fluid = false,
   strip = false,
 }: CalendarDayCardProps) {
+  const platform = usePlatformCopy();
   const todayDay = isToday(date);
   const visibleTasks = strip ? tasks.slice(0, 4) : compact ? tasks.slice(0, 4) : tasks;
   const hiddenCount = tasks.length - visibleTasks.length;
@@ -247,6 +250,10 @@ export function CalendarDayCard({
       >
         {visibleTasks.map((task, index) => {
           const Icon = CATEGORY_ICONS[task.category];
+          const label =
+            task.category === "cardio"
+              ? localizeCardioTitle(task.label, platform.cardio.types)
+              : task.label;
           return (
             <li
               key={task.id}
@@ -294,7 +301,7 @@ export function CalendarDayCard({
                     task.completed && "text-muted-foreground line-through"
                   )}
                 >
-                  {task.label}
+                  {label}
                 </p>
                 {!compact && !strip && task.detail && (
                   <p className="truncate text-[10px] text-muted-foreground">

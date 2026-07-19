@@ -20,7 +20,7 @@ import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-she
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCardioTypeDisplay } from "@/lib/cardio-catalog";
+import { getCardioTypeDisplay, localizeCardioTitle } from "@/lib/cardio-catalog";
 import {
   formatCardioElapsedMinutes,
   isCardioDurationComplete,
@@ -87,6 +87,9 @@ export function ActiveCardioClient({
   const canComplete = isCardioDurationComplete(elapsedSeconds, plannedMinutes);
   const display = cardio
     ? getCardioTypeDisplay(cardio.title, platform.cardio.types)
+    : null;
+  const cardioDisplayTitle = cardio
+    ? localizeCardioTitle(cardio.title, platform.cardio.types)
     : null;
   const Icon = display?.icon ?? HeartPulse;
   const iconAccent = display?.accentClass ?? "text-orange-400";
@@ -210,7 +213,9 @@ export function ActiveCardioClient({
             <p className="text-xs font-semibold uppercase tracking-wider text-orange-400">
               {isStarted ? platform.cardio.stillGoing : platform.cardio.readyToStart}
             </p>
-            <h1 className="text-2xl font-black">{cardio?.title ?? platform.cardio.title}</h1>
+            <h1 className="text-2xl font-black">
+              {cardioDisplayTitle ?? platform.cardio.title}
+            </h1>
             {cardio?.description ? (
               <p className="mt-1 text-sm text-muted-foreground">{cardio.description}</p>
             ) : null}
@@ -289,7 +294,10 @@ export function ActiveCardioClient({
       )}
 
       {cardio?.youtube_url ? (
-        <ExerciseVideoPlayer videoUrl={cardio.youtube_url} title={cardio.title} />
+        <ExerciseVideoPlayer
+          videoUrl={cardio.youtube_url}
+          title={cardioDisplayTitle ?? cardio.title}
+        />
       ) : null}
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}

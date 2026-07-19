@@ -10,8 +10,10 @@ import {
 } from "@/lib/actions/user-cardio";
 import { isValidYoutubeUrl } from "@/lib/youtube";
 import type { CardioType } from "@/lib/cardio-catalog";
+import { localizeCardioTitle } from "@/lib/cardio-catalog";
 import type { ClientCardio } from "@/lib/types";
 import { DialogPortal } from "@/components/dialog-portal";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +36,7 @@ export function CardioFormDialog({
   onClose,
   onSaved,
 }: CardioFormDialogProps) {
+  const platform = usePlatformCopy();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -43,7 +46,10 @@ export function CardioFormDialog({
 
   useEffect(() => {
     if (!open) return;
-    setTitle(cardio?.title ?? presetTitle ?? "");
+    const storedTitle = cardio?.title
+      ? localizeCardioTitle(cardio.title, platform.cardio.types)
+      : "";
+    setTitle(storedTitle || presetTitle || "");
     setDescription(cardio?.description ?? "");
     setYoutubeUrl(cardio?.youtube_url ?? "");
     setDurationMinutes(
@@ -54,7 +60,7 @@ export function CardioFormDialog({
           : ""
     );
     setError(null);
-  }, [open, cardio, preset, presetTitle]);
+  }, [open, cardio, preset, presetTitle, platform.cardio.types]);
 
   useLockBodyScroll(open);
 

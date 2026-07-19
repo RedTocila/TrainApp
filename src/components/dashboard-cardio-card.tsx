@@ -26,7 +26,7 @@ import {
   DashboardCarouselDots,
   DashboardEmptyState,
 } from "@/components/dashboard-ui";
-import { getCardioTypeDisplay } from "@/lib/cardio-catalog";
+import { getCardioTypeDisplay, localizeCardioTitle } from "@/lib/cardio-catalog";
 import { getScheduledCardiosForDate } from "@/lib/actions/user-cardio";
 import { scrollElementIntoHorizontalView } from "@/lib/scroll-horizontal";
 import { getCardioCompletionForDate } from "@/lib/actions/task-completions";
@@ -338,7 +338,10 @@ export function DashboardCardioCard({
                     disabled={slide <= 0}
                     aria-label={
                       scheduledList[slide - 1]?.client_cardio?.title
-                        ? `Previous: ${scheduledList[slide - 1]?.client_cardio?.title}`
+                        ? `Previous: ${localizeCardioTitle(
+                            scheduledList[slide - 1]!.client_cardio!.title,
+                            platform.cardio.types
+                          )}`
                         : "Previous cardio"
                     }
                     className={cn(
@@ -405,7 +408,7 @@ export function DashboardCardioCard({
                             completed && "text-muted-foreground line-through"
                           )}
                         >
-                          {cardio.title}
+                          {localizeCardioTitle(cardio.title, platform.cardio.types)}
                         </p>
                         {badge && (
                           <Badge variant="secondary" className="text-[10px]">
@@ -429,7 +432,10 @@ export function DashboardCardioCard({
                     disabled={slide >= scheduledList.length - 1}
                     aria-label={
                       scheduledList[slide + 1]?.client_cardio?.title
-                        ? `Next: ${scheduledList[slide + 1]?.client_cardio?.title}`
+                        ? `Next: ${localizeCardioTitle(
+                            scheduledList[slide + 1]!.client_cardio!.title,
+                            platform.cardio.types
+                          )}`
                         : "Next cardio"
                     }
                     className={cn(
@@ -448,10 +454,12 @@ export function DashboardCardioCard({
                     count={scheduledList.length}
                     active={Math.min(slide, scheduledList.length - 1)}
                     onSelect={scrollToSlide}
-                    getLabel={(index) =>
-                      scheduledList[index]?.client_cardio?.title ??
-                      `Cardio ${index + 1}`
-                    }
+                    getLabel={(index) => {
+                      const title = scheduledList[index]?.client_cardio?.title;
+                      return title
+                        ? localizeCardioTitle(title, platform.cardio.types)
+                        : `Cardio ${index + 1}`;
+                    }}
                   />
                 </div>
               ) : null}
@@ -549,7 +557,7 @@ export function DashboardCardioCard({
                             completed && "text-muted-foreground line-through"
                           )}
                         >
-                          {cardio.title}
+                          {localizeCardioTitle(cardio.title, platform.cardio.types)}
                         </p>
                         {badge && <Badge variant="secondary">{badge}</Badge>}
                         {completed ? (
@@ -574,7 +582,10 @@ export function DashboardCardioCard({
                   </div>
                 </div>
                 {cardio.youtube_url && (
-                  <ExerciseVideoPlayer videoUrl={cardio.youtube_url} title={cardio.title} />
+                  <ExerciseVideoPlayer
+                    videoUrl={cardio.youtube_url}
+                    title={localizeCardioTitle(cardio.title, platform.cardio.types)}
+                  />
                 )}
               </div>
             );

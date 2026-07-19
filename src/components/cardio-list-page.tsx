@@ -9,6 +9,7 @@ import { CardioScheduleDialog } from "@/components/cardio-schedule-dialog";
 import { CardioTypeGrid } from "@/components/cardio-type-grid";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import type { CardioType } from "@/lib/cardio-catalog";
+import { localizeCardioTitle } from "@/lib/cardio-catalog";
 import { deleteClientCardio } from "@/lib/actions/user-cardio";
 import type { ClientCardio } from "@/lib/types";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
@@ -41,6 +42,9 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
     });
   };
 
+  const displayTitle = (title: string) =>
+    localizeCardioTitle(title, platform.cardio.types);
+
   const openAdd = () => {
     setEditing(null);
     setPreset(null);
@@ -68,8 +72,9 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
   };
 
   const handleDelete = (item: ClientCardio) => {
+    const title = displayTitle(item.title);
     confirmGiveUp({
-      ...coachCopy.deleteCardio(item.title),
+      ...coachCopy.deleteCardio(title),
       onConfirm: async () => {
         const result = await deleteClientCardio(item.id);
         if (!result.error) refresh();
@@ -128,7 +133,7 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold">{item.title}</p>
+                        <p className="font-semibold">{displayTitle(item.title)}</p>
                         {item.duration_minutes != null && (
                           <Badge variant="secondary">{platform.common.min(item.duration_minutes)}</Badge>
                         )}
@@ -161,14 +166,17 @@ export function CardioListPage({ initialCardio }: { initialCardio: ClientCardio[
                         variant="ghost"
                         disabled={isPending}
                         onClick={() => handleDelete(item)}
-                        aria-label={platform.aria.deleteItem(item.title)}
+                        aria-label={platform.aria.deleteItem(displayTitle(item.title))}
                       >
                         <Trash2 className="h-4 w-4 text-red-400" />
                       </Button>
                     </div>
                   </div>
                   {item.youtube_url && (
-                    <ExerciseVideoPlayer videoUrl={item.youtube_url} title={item.title} />
+                    <ExerciseVideoPlayer
+                      videoUrl={item.youtube_url}
+                      title={displayTitle(item.title)}
+                    />
                   )}
                 </CardContent>
               </Card>

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { StartupSplash, STARTUP_SPLASH_DISMISS_SCRIPT } from "@/components/startup-splash";
+import { StartupSplash } from "@/components/startup-splash";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SITE_URL } from "@/lib/landing-content";
 import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/lib/brand";
@@ -91,7 +91,6 @@ export default function RootLayout({
         <StartupSplash />
         <ThemeProvider>{children}</ThemeProvider>
         <SpeedInsights />
-        <script dangerouslySetInnerHTML={{ __html: STARTUP_SPLASH_DISMISS_SCRIPT }} />
       </body>
     </html>
   );

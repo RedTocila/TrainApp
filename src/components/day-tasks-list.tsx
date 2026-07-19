@@ -1,5 +1,5 @@
 "use client";
-import { useCoachLabels, useLocale } from "@/components/locale-provider";
+import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import {
   Apple,
@@ -13,6 +13,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { type DailyTask, type TaskCategory } from "@/lib/daily-tasks";
+import { localizeCardioTitle } from "@/lib/cardio-catalog";
 import { getTaskDestination, isDashboardDayDetailHref, scrollToSection } from "@/lib/task-navigation";
 import { TaskNutritionMacroPreview } from "@/components/task-nutrition-macro-preview";
 import { sumMealMacros, type MealMacros } from "@/lib/meal-utils";
@@ -135,9 +136,14 @@ export function TaskRow({
 }) {
   const navigate = useTaskNavigation();
   const locale = useLocale();
+  const platform = usePlatformCopy();
   const categoryLabels = getTaskCategoryLabels(locale);
   const { icon: CategoryIcon, color } = CATEGORY_UI[task.category];
   const isDropdown = variant === "dropdown";
+  const taskLabel =
+    task.category === "cardio"
+      ? localizeCardioTitle(task.label, platform.cardio.types)
+      : task.label;
 
   const showMacroPreview =
     task.category === "nutrition" &&
@@ -177,7 +183,7 @@ export function TaskRow({
               task.completed && "text-muted-foreground line-through"
             )}
           >
-            {task.label}
+            {taskLabel}
           </p>
           {task.detail && !showMacroPreview && (
             <p

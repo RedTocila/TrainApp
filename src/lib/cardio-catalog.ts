@@ -21,6 +21,8 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import { platformCopyAl } from "@/lib/platform-copy-al";
+import { platformCopyEn } from "@/lib/platform-copy-en";
 
 export type CardioLocation = "gym" | "outdoor" | "everywhere";
 
@@ -30,6 +32,8 @@ export interface CardioType {
   icon: LucideIcon;
   defaultDuration?: number;
 }
+
+export type CardioTypeLabels = Record<string, string>;
 
 export const CARDIO_LOCATIONS: CardioLocation[] = ["gym", "outdoor", "everywhere"];
 
@@ -82,6 +86,12 @@ export const CARDIO_CATALOG: CardioType[] = [
   { id: "pilates", location: "everywhere", icon: Activity, defaultDuration: 30 },
 ];
 
+/** Labels in every supported locale — used to recognize stored titles after language switches. */
+const ALL_CARDIO_TYPE_LABEL_MAPS: CardioTypeLabels[] = [
+  platformCopyEn.cardio.types,
+  platformCopyAl.cardio.types,
+];
+
 export function getCardioByLocation(location: CardioLocation): CardioType[] {
   return CARDIO_CATALOG.filter((item) => item.location === location);
 }
@@ -99,34 +109,76 @@ const CARDIO_LOCATION_STYLES: Record<
   everywhere: { accentClass: "text-violet-400", bgClass: "bg-violet-500/10" },
 };
 
-/** Match saved cardio title to catalog preset (e.g. from type picker). */
+function labelMapsForLookup(preferred?: CardioTypeLabels): CardioTypeLabels[] {
+  if (!preferred) return ALL_CARDIO_TYPE_LABEL_MAPS;
+  return [
+    preferred,
+    ...ALL_CARDIO_TYPE_LABEL_MAPS.filter((map) => map !== preferred),
+  ];
+}
+
+function findTypeIdByExactLabel(
+  normalizedTitle: string,
+  labels: CardioTypeLabels
+): string | undefined {
+  for (const type of CARDIO_CATALOG) {
+    const label = labels[type.id];
+    if (label && label.trim().toLowerCase() === normalizedTitle) {
+      return type.id;
+    }
+  }
+  return undefined;
+}
+
+function findTypeIdByPartialLabel(
+  normalizedTitle: string,
+  labels: CardioTypeLabels
+): string | undefined {
+  for (const type of CARDIO_CATALOG) {
+    const label = labels[type.id];
+    if (label && normalizedTitle.includes(label.trim().toLowerCase())) {
+      return type.id;
+    }
+  }
+  return undefined;
+}
+
+/** Match saved cardio title to catalog preset across all locales. */
 export function resolveCardioTypeFromTitle(
   title: string,
-  typeLabels: Record<string, string>
+  typeLabels?: CardioTypeLabels
 ): CardioType | undefined {
   const normalized = title.trim().toLowerCase();
   if (!normalized) return undefined;
 
-  for (const type of CARDIO_CATALOG) {
-    const label = typeLabels[type.id];
-    if (label && label.trim().toLowerCase() === normalized) {
-      return type;
-    }
+  const maps = labelMapsForLookup(typeLabels);
+
+  for (const labels of maps) {
+    const id = findTypeIdByExactLabel(normalized, labels);
+    if (id) return getCardioType(id);
   }
 
-  for (const type of CARDIO_CATALOG) {
-    const label = typeLabels[type.id];
-    if (label && normalized.includes(label.trim().toLowerCase())) {
-      return type;
-    }
+  for (const labels of maps) {
+    const id = findTypeIdByPartialLabel(normalized, labels);
+    if (id) return getCardioType(id);
   }
 
   return undefined;
 }
 
+/** Show catalog cardio names in the active language; keep custom titles as-is. */
+export function localizeCardioTitle(
+  title: string,
+  displayLabels: CardioTypeLabels
+): string {
+  const type = resolveCardioTypeFromTitle(title, displayLabels);
+  if (!type) return title;
+  return displayLabels[type.id] ?? title;
+}
+
 export function getCardioTypeDisplay(
   title: string,
-  typeLabels: Record<string, string>
+  typeLabels: CardioTypeLabels
 ) {
   const type = resolveCardioTypeFromTitle(title, typeLabels);
   if (!type) return null;
