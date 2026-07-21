@@ -2,7 +2,12 @@ import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
 export type UserRole = "admin" | "client";
 export type SubscriptionPlanId = "core" | "basic" | "ai" | "elite";
-export type SubscriptionStatus = "inactive" | "active" | "past_due" | "canceled";
+export type SubscriptionStatus =
+  | "inactive"
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "trialing";
 export type BillingInterval = "monthly" | "annual";
 export type PlanRequestType = "workout" | "diet";
 export type PlanRequestStatus =
@@ -70,6 +75,8 @@ export interface Profile {
   subscription_status?: SubscriptionStatus;
   subscription_interval?: BillingInterval | null;
   subscription_expires_at?: string | null;
+  /** Set once when the AI Pro free trial starts; never re-granted. */
+  trial_started_at?: string | null;
   phone?: string | null;
   dismissed_habit_suggestions?: string[];
   intake_responses?: IntakeResponses;

@@ -8,6 +8,7 @@ import { applyIntakeToProfile } from "@/lib/actions/client-intake";
 import { getAppBaseUrl } from "@/lib/app-url";
 import { formatUserError, isEmailNotConfirmedError } from "@/lib/format-user-error";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
+import { buildFreeTrialGrant } from "@/lib/subscription";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type RegistrationInput = {
@@ -55,10 +56,13 @@ async function ensureProfileExists(
   const role =
     process.env.ADMIN_EMAIL && input.email === process.env.ADMIN_EMAIL ? "admin" : "client";
 
+  const trialGrant = role === "client" ? buildFreeTrialGrant() : null;
+
   const { error } = await supabase.from("profiles").insert({
     id: userId,
     full_name: input.fullName || input.email.split("@")[0] || "Member",
     role,
+    ...(trialGrant ?? {}),
   });
 
   if (error && !error.message.toLowerCase().includes("duplicate")) {
@@ -136,6 +140,24 @@ async function finalizeNewUserProfile(
           "Could not save your health profile. You can update it later in your dashboard."
         ),
       };
+    }
+  }
+
+  // Ensure new clients get the AI Pro free trial (trigger + fallback insert paths).
+  if (!(process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL)) {
+    const { data: subRow } = await supabase
+      .from("profiles")
+      .select("role, trial_started_at, subscription_status, subscription_plan")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (
+      subRow?.role === "client" &&
+      !subRow.trial_started_at &&
+      (!subRow.subscription_status || subRow.subscription_status === "inactive") &&
+      !subRow.subscription_plan
+    ) {
+      await supabase.from("profiles").update(buildFreeTrialGrant()).eq("id", userId);
     }
   }
 

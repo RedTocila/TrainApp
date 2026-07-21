@@ -32,8 +32,14 @@ export const platformCopyEn = {
   subscription: {
     title: "Subscription & plans",
     active: "Active",
+    freeTrial: "Free trial",
+    freeTrialDaysLeft: (days: number) =>
+      days === 1 ? "1 day left on free trial" : `${days} days left on free trial`,
+    freeTrialBlurb:
+      "You're on a 7-day free trial of AI Pro — workouts, nutrition, and full AI Coach. Live classes and challenges need Elite.",
     accessUntil: (date: string) => `Access until ${date}, then back to free preview`,
     renewsExpires: (date: string) => `Renews / expires ${date}`,
+    trialEnds: (date: string) => `Trial ends ${date}`,
   },
   settings: {
     fullName: "Full name",
@@ -833,8 +839,8 @@ export const platformCopyEn = {
     aiPro: {
       name: "RUTINA AI Pro",
       tagline:
-        "Everything in Basic, plus your own AI fitness coach that adapts to your progress.",
-      badge: "Most Popular",
+        "Everything in Basic, plus your own AI fitness coach that adapts to your progress. Includes a 7-day free trial.",
+      badge: "7-day free trial",
       includesFrom: "RUTINA Basic",
       features: [
         "AI Fitness Coach",

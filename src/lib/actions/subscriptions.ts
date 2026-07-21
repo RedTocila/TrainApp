@@ -231,8 +231,28 @@ export async function cancelSubscription(): Promise<{ error: string } | { succes
     .eq("id", user.id)
     .single();
 
-  if (!profile || profile.subscription_status !== "active") {
+  if (!profile || (profile.subscription_status !== "active" && profile.subscription_status !== "trialing")) {
     return { error: "No active subscription to cancel." };
+  }
+
+  // Ending a free trial early returns the user to free preview.
+  if (profile.subscription_status === "trialing") {
+    const { error } = await admin
+      .from("profiles")
+      .update({
+        subscription_status: "inactive",
+        subscription_plan: null,
+        subscription_interval: null,
+        subscription_expires_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    if (error) return { error: error.message };
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/profile");
+    revalidatePath("/dashboard/pricing");
+    return { success: true };
   }
 
   const { error } = await admin

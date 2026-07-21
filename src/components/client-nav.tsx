@@ -7,14 +7,13 @@ import {
   Bot,
   Dumbbell,
   Home,
+  Trophy,
   User,
-  Video,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppLogo } from "@/components/app-logo";
 import { SignOutButton } from "@/components/sign-out-button";
-import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
@@ -25,7 +24,7 @@ import {
 } from "@/lib/train-nav";
 
 const mobileNavLinkClass =
-  "pressable flex min-w-0 flex-1 items-center justify-center px-1 py-2.5 touch-manipulation select-none [-webkit-tap-highlight-color:transparent] transition-[transform,opacity,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 active:opacity-90";
+  "pressable flex h-full min-w-0 flex-1 items-center justify-center touch-manipulation select-none [-webkit-tap-highlight-color:transparent] transition-[transform,opacity,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 active:opacity-90";
 
 function NavLiveIcon({
   icon: Icon,
@@ -94,7 +93,7 @@ export function ClientNav({
   const standardNavItems = [
     { href: "/dashboard", label: platform.nav.home, icon: Home, exact: true as const },
     { href: "/dashboard/ai", label: platform.nav.aiCoach, icon: Bot },
-    { href: "/dashboard/classes", label: platform.nav.liveCoaching, icon: Video },
+    { href: "/dashboard/classes", label: platform.nav.liveCoaching, icon: Trophy },
     { href: "/dashboard/profile", label: platform.nav.profile, icon: User },
   ];
 
@@ -172,7 +171,7 @@ export function ClientNav({
       </aside>
 
       <nav className="dashboard-mobile-nav dashboard-instant-nav pointer-events-auto fixed bottom-0 left-0 right-0 z-[100] isolate border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        <div className="flex justify-around px-1">
+        <div className="flex h-11 items-center justify-around px-1">
           <InstantNavLink
             href="/dashboard"
             pressToNavigate

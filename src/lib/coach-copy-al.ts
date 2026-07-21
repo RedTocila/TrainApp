@@ -225,7 +225,13 @@ export const coachLabelsAl = {
   unlockDashboard: "Ndalo të shfletosh. Fillo të stërvitesh vërtet.",
   subscribeBlurb:
     "Modaliteti falas është i lezetshëm. Abonohu nëse don që Coach Alex të mbajë mend seritë, vaktet dhe dinjitetin tënd.",
+  trialUnlockTitle: "Je në provën falas të AI Pro",
+  trialUnlockBlurb: (days: number) =>
+    days === 1
+      ? "1 ditë e mbetur me akses të plotë te Coach AI. Klasat live dhe sfidat mbeten vetëm Elite — abonohu që të mbash AI Pro pas sot."
+      : `${days} ditë të mbetura me akses të plotë te Coach AI. Klasat live dhe sfidat mbeten vetëm Elite — abonohu para se të mbarojë prova.`,
   viewPlans: "Ndalo falas — shiko planet",
+  keepAiPro: "Mbaj AI Pro",
   noSubscription:
     "Nuk keni plan të paguar. Jeni në modalitet parashikimi — Coach Alex ju sheh, por nuk po ruan progresin tuaj.",
   pickAPlan: "Zgjidh një plan të vërtetë",

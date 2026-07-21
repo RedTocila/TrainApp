@@ -225,7 +225,13 @@ export const coachLabelsEn = {
   unlockDashboard: "Stop browsing. Start actually training.",
   subscribeBlurb:
     "Free preview mode is cute. Subscribe if you want Coach Alex to remember your sets, meals, and dignity.",
+  trialUnlockTitle: "You're on the AI Pro free trial",
+  trialUnlockBlurb: (days: number) =>
+    days === 1
+      ? "1 day left of full AI Coach access. Live classes and challenges stay Elite-only — subscribe to keep AI Pro after today."
+      : `${days} days left of full AI Coach access. Live classes and challenges stay Elite-only — subscribe before the trial ends.`,
   viewPlans: "Stop freeloading — see plans",
+  keepAiPro: "Keep AI Pro",
   noSubscription:
     "No paid plan. You're in preview mode — Coach Alex sees you, but he's not saving your progress.",
   pickAPlan: "Pick a real plan",

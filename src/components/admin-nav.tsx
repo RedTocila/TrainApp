@@ -23,7 +23,7 @@ const navItems = [
 ];
 
 const mobileNavLinkClass =
-  "flex min-w-0 items-center justify-center px-1 py-2.5 touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90";
+  "flex h-full min-w-0 items-center justify-center touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90";
 
 function isActive(pathname: string, href: string, exact?: boolean) {
   if (exact) return pathname === href;
@@ -86,7 +86,7 @@ export function AdminNav({
       </aside>
 
       <nav className="dashboard-instant-nav pointer-events-auto fixed bottom-0 left-0 right-0 z-[100] border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        <div className="grid grid-cols-4">
+        <div className="grid h-11 grid-cols-4">
           {navItems.map((item) => {
             const active = isActive(pathname, item.href, item.exact);
             return (

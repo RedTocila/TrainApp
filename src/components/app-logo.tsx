@@ -29,8 +29,8 @@ function LogoWordmark({
         className
       )}
     >
-      {PLATFORM_NAME.slice(0, 3)}
-      <span className="text-primary">{PLATFORM_NAME.slice(3)}</span>
+      <span className="text-primary">{PLATFORM_NAME.slice(0, 1)}</span>
+      {PLATFORM_NAME.slice(1)}
     </span>
   );
 }
@@ -60,7 +60,8 @@ export function AppLogo({
           className
         )}
       >
-        {PLATFORM_NAME}
+        <span className="text-primary">{PLATFORM_NAME.slice(0, 1)}</span>
+        {PLATFORM_NAME.slice(1)}
       </span>
     ) : (
       <LogoWordmark size={size} className={className} />

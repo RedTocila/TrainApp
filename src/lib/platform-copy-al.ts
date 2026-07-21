@@ -32,9 +32,17 @@ export const platformCopyAl = {
   subscription: {
     title: "Abonimi dhe planet",
     active: "Aktiv",
+    freeTrial: "Provë falas",
+    freeTrialDaysLeft: (days: number) =>
+      days === 1
+        ? "1 ditë e mbetur në provën falas"
+        : `${days} ditë të mbetura në provën falas`,
+    freeTrialBlurb:
+      "Je në një provë falas 7-ditore të AI Pro — stërvitje, ushqim dhe Coach AI i plotë. Klasat live dhe sfidat kërkojnë Elite.",
     accessUntil: (date: string) =>
       `Akses deri më ${date}, pastaj kthehet në modalitetin falas`,
     renewsExpires: (date: string) => `Rinovohet / skadon ${date}`,
+    trialEnds: (date: string) => `Prova mbaron më ${date}`,
   },
   settings: {
     fullName: "Emri i plotë",
@@ -840,8 +848,8 @@ export const platformCopyAl = {
     aiPro: {
       name: "RUTINA AI Pro",
       tagline:
-        "Gjithçka në Basic, plus coach-i yt AI i fitnesit që përshtatet me progresin tënd.",
-      badge: "Më i popullarizuari",
+        "Gjithçka në Basic, plus coach-i yt AI i fitnesit që përshtatet me progresin tënd. Përfshin 7 ditë provë falas.",
+      badge: "7 ditë provë falas",
       includesFrom: "RUTINA Basic",
       features: [
         "Coach Fitnesi AI",

@@ -12,6 +12,11 @@ import {
   getPlan,
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
+import {
+  freeTrialDaysRemaining,
+  isOnFreeTrial,
+  isSubscriptionActive,
+} from "@/lib/subscription";
 import { buildPricingHref } from "@/lib/pricing-nav";
 import type { Profile } from "@/lib/types";
 
@@ -28,8 +33,11 @@ export function ProfileSubscriptionSection({
   const expires = profile.subscription_expires_at
     ? format(new Date(profile.subscription_expires_at), "MMM d, yyyy")
     : null;
+  const onTrial = isOnFreeTrial(profile);
+  const daysLeft = freeTrialDaysRemaining(profile);
   const isActive = profile.subscription_status === "active";
   const isCanceled = profile.subscription_status === "canceled";
+  const hasAccess = isSubscriptionActive(profile);
 
   return (
     <Card>
@@ -40,28 +48,45 @@ export function ProfileSubscriptionSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {plan && (isActive || isCanceled) ? (
+        {plan && hasAccess ? (
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{plan.name}</span>
-              <Badge variant="secondary" className="capitalize">
-                {profile.subscription_interval ?? "monthly"}
-              </Badge>
-              {isActive ? (
-                <Badge className="bg-green-500/15 text-green-400">{platform.subscription.active}</Badge>
+              {onTrial ? (
+                <Badge className="bg-amber-500/15 text-amber-400">
+                  {platform.subscription.freeTrial}
+                </Badge>
               ) : (
+                <Badge variant="secondary" className="capitalize">
+                  {profile.subscription_interval ?? "monthly"}
+                </Badge>
+              )}
+              {onTrial ? (
+                <Badge variant="secondary">
+                  {platform.subscription.freeTrialDaysLeft(daysLeft ?? 0)}
+                </Badge>
+              ) : isActive ? (
+                <Badge className="bg-green-500/15 text-green-400">
+                  {platform.subscription.active}
+                </Badge>
+              ) : isCanceled ? (
                 <Badge className="bg-amber-500/15 text-amber-400">
                   {coachLabels.surrendered}
                 </Badge>
-              )}
+              ) : null}
             </div>
-            {expires && (
+            {onTrial ? (
+              <p className="text-sm text-muted-foreground">
+                {platform.subscription.freeTrialBlurb}
+                {expires ? ` ${platform.subscription.trialEnds(expires)}` : null}
+              </p>
+            ) : expires ? (
               <p className="text-sm text-muted-foreground">
                 {isCanceled
                   ? platform.subscription.accessUntil(expires)
                   : platform.subscription.renewsExpires(expires)}
               </p>
-            )}
+            ) : null}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">{coachLabels.noSubscription}</p>
@@ -71,9 +96,13 @@ export function ProfileSubscriptionSection({
             href={buildPricingHref("/dashboard/profile")}
             className={buttonVariants({ variant: "outline", size: "sm" })}
           >
-            {plan ? coachLabels.levelUp : coachLabels.pickAPlan}
+            {onTrial
+              ? coachLabels.keepAiPro
+              : plan && hasAccess
+                ? coachLabels.levelUp
+                : coachLabels.pickAPlan}
           </Link>
-          {plan && isActive && <ProfileSubscriptionActions />}
+          {plan && isActive && !onTrial ? <ProfileSubscriptionActions /> : null}
         </div>
       </CardContent>
     </Card>
