@@ -64,7 +64,12 @@ export function ScoreGauge({
 
   return (
     <div className={cn("flex flex-col items-center text-center", label ? "gap-1.5" : null)}>
-      <div className={cn("relative shrink-0", dims.box)}>
+      <div
+        className={cn(
+          "relative shrink-0 rounded-full bg-background/70 shadow-sm ring-1 ring-border/40 backdrop-blur-sm dark:bg-background/50",
+          dims.box
+        )}
+      >
         <svg
           className="h-full w-full -rotate-90"
           viewBox={`${viewMin} ${viewMin} ${viewSize} ${viewSize}`}
@@ -78,7 +83,7 @@ export function ScoreGauge({
             fill="none"
             stroke="currentColor"
             strokeWidth={dims.stroke}
-            className="text-foreground/25 dark:text-foreground/35"
+            className="text-foreground/30 dark:text-foreground/40"
           />
           <motion.circle
             cx="50"
@@ -111,7 +116,7 @@ export function ScoreGauge({
               </span>
               <span
                 className={cn(
-                  "my-0.5 font-black tabular-nums",
+                  "my-0.5 font-black tabular-nums text-foreground",
                   innerScoreClass
                 )}
               >
@@ -128,7 +133,12 @@ export function ScoreGauge({
               </span>
             </div>
           ) : (
-            <span className={cn("font-black leading-none", dims.text, colorClass)}>
+            <span
+              className={cn(
+                "font-black leading-none text-foreground",
+                dims.text
+              )}
+            >
               {score ?? "—"}
               {suffix && score != null ? suffix : null}
             </span>
@@ -136,7 +146,7 @@ export function ScoreGauge({
         </div>
       </div>
       {label ? (
-        <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+        <p className="text-[11px] font-semibold text-foreground/70">{label}</p>
       ) : null}
     </div>
   );

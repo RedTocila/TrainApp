@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
-const PULL_THRESHOLD_PX = 72;
-const MAX_PULL_PX = 96;
+/** Finger travel (px) required before refresh arms — keep high to avoid accidents. */
+const PULL_THRESHOLD_PX = 130;
+const PULL_RESISTANCE = 0.42;
+const MAX_PULL_PX = 150;
 const INDICATOR_SIZE = 40;
 const STROKE = 3;
 
@@ -80,7 +82,21 @@ export function DashboardPullToRefresh() {
     const main = document.querySelector<HTMLElement>(".dashboard-main");
     if (!main) return;
 
-    const isAtTop = () => main.scrollTop <= 0 && window.scrollY <= 0;
+    const isAtTop = () => {
+      if (window.scrollY > 0) return false;
+      if (main.scrollTop > 0) return false;
+      // Home day pager: vertical scroll lives on the active day page, not main.
+      const pages = document.querySelectorAll<HTMLElement>(".dashboard-day-page");
+      if (pages.length === 0) return true;
+      for (const page of pages) {
+        const rect = page.getBoundingClientRect();
+        // Only consider the page currently in view.
+        if (rect.left >= -8 && rect.left < window.innerWidth / 2) {
+          return page.scrollTop <= 0;
+        }
+      }
+      return (pages[0]?.scrollTop ?? 0) <= 0;
+    };
 
     const resetPull = () => {
       pullingRef.current = false;
@@ -111,12 +127,12 @@ export function DashboardPullToRefresh() {
         return;
       }
 
-      const distance = Math.min(delta * 0.55, MAX_PULL_PX);
+      const distance = Math.min(delta * PULL_RESISTANCE, MAX_PULL_PX);
       setPullDistance(distance);
-      passedThresholdRef.current = distance >= PULL_THRESHOLD_PX * 0.55;
+      passedThresholdRef.current = delta >= PULL_THRESHOLD_PX;
 
       // Keep the rubber-band feel from fighting the browser once past a light pull.
-      if (distance > 8 && event.cancelable) {
+      if (distance > 12 && event.cancelable) {
         event.preventDefault();
       }
     };
@@ -130,7 +146,7 @@ export function DashboardPullToRefresh() {
       ) {
         refreshingRef.current = true;
         setRefreshing(true);
-        setPullDistance(PULL_THRESHOLD_PX * 0.55);
+        setPullDistance(Math.min(PULL_THRESHOLD_PX * PULL_RESISTANCE, MAX_PULL_PX));
         window.setTimeout(() => {
           window.location.reload();
         }, 280);
@@ -155,10 +171,11 @@ export function DashboardPullToRefresh() {
 
   if (!mounted) return null;
 
+  const armedDistance = PULL_THRESHOLD_PX * PULL_RESISTANCE;
   const visible = pullDistance > 4 || refreshing;
-  const progress = Math.min(1, pullDistance / (PULL_THRESHOLD_PX * 0.55));
+  const progress = Math.min(1, pullDistance / armedDistance);
   const translateY = refreshing
-    ? Math.max(pullDistance, 52)
+    ? Math.max(pullDistance, 56)
     : Math.max(0, pullDistance);
 
   return createPortal(

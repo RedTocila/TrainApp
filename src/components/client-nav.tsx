@@ -91,13 +91,12 @@ export function ClientNav({
   }, [hideNav]);
 
   // Shrink floating pill while scrolling; restore when scrolling stops.
+  // Capture on .dashboard-main so home day-page vertical scroll is included
+  // (scroll does not bubble; day pages scroll inside the pager, not on main).
   useEffect(() => {
     if (hideNav) return;
-    const mains = [
-      document.querySelector<HTMLElement>(".dashboard-main"),
-      document.querySelector<HTMLElement>(".dashboard-day-pager"),
-    ].filter(Boolean) as HTMLElement[];
-    if (mains.length === 0) return;
+    const main = document.querySelector<HTMLElement>(".dashboard-main");
+    if (!main) return;
 
     const onScroll = () => {
       setNavCompact(true);
@@ -107,13 +106,9 @@ export function ClientNav({
       }, 140);
     };
 
-    for (const el of mains) {
-      el.addEventListener("scroll", onScroll, { passive: true });
-    }
+    main.addEventListener("scroll", onScroll, { passive: true, capture: true });
     return () => {
-      for (const el of mains) {
-        el.removeEventListener("scroll", onScroll);
-      }
+      main.removeEventListener("scroll", onScroll, { capture: true });
       window.clearTimeout(scrollIdleTimer.current);
     };
   }, [hideNav, pathname]);

@@ -169,7 +169,7 @@ export function DashboardDayPager({
             key={key}
             data-date-key={key}
             className={cn(
-              "flex h-full w-full min-w-full shrink-0 snap-start snap-always flex-col",
+              "dashboard-day-page flex h-full w-full min-w-full shrink-0 snap-start snap-always flex-col",
               "overflow-y-auto overscroll-y-contain px-3 sm:px-4 md:px-6",
               "pb-[var(--dashboard-mobile-nav-height,4.25rem)]"
             )}

@@ -168,8 +168,8 @@ export function WeightChart({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
-        <span>
+      <div className="flex flex-nowrap items-baseline gap-x-2.5 overflow-x-auto text-sm whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <span className="shrink-0">
           Latest:{" "}
           <strong className="text-foreground">
             {formatWeightWithUnit(Number(latest.weight_kg))}
@@ -179,17 +179,17 @@ export function WeightChart({
           <span
             className={
               change < 0
-                ? "text-emerald-400"
+                ? "shrink-0 text-emerald-400"
                 : change > 0
-                  ? "text-orange-400"
-                  : "text-muted-foreground"
+                  ? "shrink-0 text-orange-400"
+                  : "shrink-0 text-muted-foreground"
             }
           >
             {changeText} {changeLabel}
           </span>
         )}
         {startWeightKg && startEntryId && (
-          <span className="text-muted-foreground">
+          <span className="shrink-0 text-muted-foreground">
             Start: {formatWeightWithUnit(Number(startWeightKg))}
           </span>
         )}
@@ -208,14 +208,16 @@ export function WeightChart({
               y1={y}
               x2={CHART_WIDTH - PADDING.right}
               y2={y}
-              stroke="var(--border)"
+              stroke="currentColor"
+              strokeOpacity={0.22}
               strokeDasharray="4 4"
+              className="text-foreground"
             />
             <text
               x={PADDING.left - 8}
               y={y + 4}
               textAnchor="end"
-              className="fill-muted-foreground text-[10px]"
+              className="fill-foreground/65 text-[10px]"
             >
               {value.toFixed(1)}
             </text>
@@ -243,13 +245,14 @@ export function WeightChart({
                 r={highlighted || isStart ? 6 : 4}
                 fill={
                   isStart
-                    ? "var(--card)"
+                    ? "var(--background)"
                     : highlighted
                       ? "var(--primary)"
-                      : "var(--card)"
+                      : "var(--background)"
                 }
-                stroke={isStart ? "var(--muted-foreground)" : "var(--primary)"}
+                stroke={isStart ? "var(--foreground)" : "var(--primary)"}
                 strokeWidth={2}
+                strokeOpacity={isStart ? 0.55 : 1}
                 strokeDasharray={isStart ? "3 2" : undefined}
               />
               <title>
@@ -269,7 +272,7 @@ export function WeightChart({
               x={x}
               y={CHART_HEIGHT - 8}
               textAnchor="middle"
-              className="fill-muted-foreground text-[10px]"
+              className="fill-foreground/65 text-[10px]"
             >
               {isStart ? "Start" : format(parseISO(entry.date), "MMM d")}
             </text>

@@ -75,7 +75,12 @@ export function MacroRing({
         onClick && "rounded-xl transition-opacity hover:opacity-90 active:scale-[0.98]"
       )}
     >
-      <div className={cn("relative shrink-0", dims.box)}>
+      <div
+        className={cn(
+          "relative shrink-0 rounded-full bg-background/70 shadow-sm ring-1 ring-border/40 backdrop-blur-sm dark:bg-background/50",
+          dims.box
+        )}
+      >
         <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
           <circle
             cx="50"
@@ -84,7 +89,7 @@ export function MacroRing({
             fill="none"
             stroke="currentColor"
             strokeWidth={dims.stroke}
-            className="text-secondary/80"
+            className="text-foreground/30 dark:text-foreground/40"
           />
           <motion.circle
             cx="50"
@@ -107,7 +112,7 @@ export function MacroRing({
         <div className="absolute inset-0 flex items-center justify-center">
           <div
             className={cn(
-              "flex items-center justify-center rounded-full bg-secondary/60",
+              "flex items-center justify-center rounded-full bg-background/80 ring-1 ring-border/30",
               size === "lg" ? "h-14 w-14" : size === "md" ? "h-10 w-10" : "h-8 w-8"
             )}
           >
@@ -116,7 +121,7 @@ export function MacroRing({
         </div>
       </div>
       <div className="min-w-0 space-y-0.5">
-        <p className={cn("font-black leading-none tracking-tight", dims.value, failedOver ? "text-red-400" : over && "text-amber-400")}>
+        <p className={cn("font-black leading-none tracking-tight text-foreground", dims.value, failedOver ? "text-red-500" : over && "text-amber-500")}>
           {displayAmount}
           {displaySuffix && (
             <span className="text-[10px] font-semibold text-muted-foreground">
@@ -124,11 +129,11 @@ export function MacroRing({
             </span>
           )}
         </p>
-        <p className="text-[11px] font-medium leading-tight text-muted-foreground">
+        <p className="text-[11px] font-semibold leading-tight text-foreground/70">
           {displayLabel}
         </p>
         {sublabel && !unit && (
-          <p className="text-[10px] text-muted-foreground/80">{sublabel}</p>
+          <p className="text-[10px] text-muted-foreground">{sublabel}</p>
         )}
       </div>
     </Wrapper>
