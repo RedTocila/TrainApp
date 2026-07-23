@@ -400,28 +400,20 @@ export async function addWorkoutToDay(
 
   if (!day) return { error: "Workout day not found" };
 
-  const { data: existing } = await admin
+  const { data: existingAny } = await admin
     .from("scheduled_workouts")
-    .select("id")
+    .select("id, plan_id, day_id")
     .eq("client_id", userId)
     .eq("scheduled_date", scheduledDate)
-    .eq("plan_id", planId)
-    .eq("day_id", dayId)
+    .limit(1)
     .maybeSingle();
 
-  if (existing) {
-    return { data: existing, alreadyScheduled: true as const };
+  if (existingAny) {
+    if (existingAny.plan_id === planId && existingAny.day_id === dayId) {
+      return { data: existingAny, alreadyScheduled: true as const };
+    }
+    return { error: "Only one workout per day. Remove the current workout first." };
   }
-
-  const { data: siblings } = await admin
-    .from("scheduled_workouts")
-    .select("order_index")
-    .eq("client_id", userId)
-    .eq("scheduled_date", scheduledDate)
-    .order("order_index", { ascending: false })
-    .limit(1);
-
-  const orderIndex = (siblings?.[0]?.order_index ?? -1) + 1;
 
   const { data, error } = await admin
     .from("scheduled_workouts")
@@ -430,7 +422,7 @@ export async function addWorkoutToDay(
       scheduled_date: scheduledDate,
       plan_id: planId,
       day_id: dayId,
-      order_index: orderIndex,
+      order_index: 0,
     })
     .select("id")
     .single();

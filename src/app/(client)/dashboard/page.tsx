@@ -38,18 +38,10 @@ import {
   getCompletedWorkoutResultsForDate,
   getWorkoutCompletedTaskIdsInRange,
 } from "@/lib/actions/workout-sessions";
-import { progressMonthKey, getProgressPhotoDisplaySet } from "@/lib/progress-photo-utils";
+import { getProgressPhotoDisplaySet } from "@/lib/progress-photo-utils";
 import { formatDateKey } from "@/lib/utils";
-import { DashboardCalendar } from "@/components/dashboard-calendar";
-import { DashboardWorkoutCard } from "@/components/dashboard-workout-card";
-import { DashboardCardioCard } from "@/components/dashboard-cardio-card";
-import { DayTasksPanel } from "@/components/day-tasks-panel";
+import { DashboardHomeView } from "@/components/dashboard-home-view";
 import { ScrollToHash } from "@/components/scroll-to-hash";
-import { HabitsTracker } from "@/components/habits-tracker";
-import { BodyMetricsSection } from "@/components/body-metrics-section";
-import { ProgressPhotosCard } from "@/components/progress-photos-card";
-import { DashboardOverview } from "@/components/dashboard-overview";
-import { DashboardWaterCard } from "@/components/dashboard-water-card";
 import { DashboardEnrichmentProvider } from "@/components/dashboard-enrichment-provider";
 import { hasAiAccess } from "@/lib/subscription";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
@@ -141,7 +133,6 @@ export default async function DashboardPage() {
     })
   );
 
-  const currentMonth = progressMonthKey();
   const displayPhotoSet = getProgressPhotoDisplaySet(progressPhotoSets);
   const initialCurrentUrls = displayPhotoSet
     ? await getSignedProgressPhotoUrls(profile.id, displayPhotoSet)
@@ -257,89 +248,37 @@ export default async function DashboardPage() {
       clientId={profile.id}
       initialEnrichment={initialEnrichment}
     >
-      <div className="-mx-3 -mt-3 mb-4 sm:-mx-4 sm:-mt-4 sm:mb-6 md:-mx-6 md:-mt-6">
-        <DashboardCalendar
-          clientId={profile.id}
-          schedule={schedule}
-        />
-      </div>
       <ScrollToHash />
-      <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
-        <DayTasksPanel
-          clientId={profile.id}
-          schedule={schedule}
-        />
-
-        <div className="grid items-start gap-3 sm:grid-cols-2">
-          <div className="w-full">
-            <DashboardOverview
-              clientId={profile.id}
-              initialLog={dailyLog}
-              initialDailyMeals={dailyMeals}
-              mealLibrary={mealLibrary}
-              hasAiAccess={aiAccess}
-              targets={targets}
-              personalPlanId={personalNutritionPlanId}
-              initialWaterGoalMl={profile.water_goal_ml ?? 2500}
-              nutritionPlan={nutritionSummary}
-              goal={profile.goal ?? null}
-              variant="compact"
-              schedule={schedule}
-            />
-          </div>
-
-          <div className="w-full">
-            <DashboardWorkoutCard
-              clientId={profile.id}
-              gender={profile.gender}
-              initialWorkout={initialWorkouts[0] ?? null}
-              initialWorkouts={initialWorkouts}
-              initialWorkoutCompleted={initialWorkoutCompleted}
-              initialWorkoutResults={initialWorkoutResults}
-              variant="compact"
-              schedule={schedule}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 items-stretch gap-3">
-          <DashboardWaterCard
-            clientId={profile.id}
-            initialWaterMl={dailyLog?.water_ml ?? 0}
-            waterGoalMl={profile.water_goal_ml ?? 2500}
-            variant="compact"
-          />
-
-          <DashboardCardioCard
-            clientId={profile.id}
-            initialScheduled={initialCardios}
-            initialCompletions={initialCardioCompletionById}
-            variant="compact"
-            schedule={schedule}
-          />
-        </div>
-
-        <BodyMetricsSection
-          clientId={profile.id}
-          heightCm={profile.height_cm}
-          intakeWeightKg={profile.intake_weight_kg}
-          accountCreatedAt={profile.created_at}
-          initialHistory={weightHistory}
-          initialLog={weightLog}
-        />
-
-        <ProgressPhotosCard
-          clientId={profile.id}
-          initialSets={progressPhotoSets}
-          initialCurrentUrls={initialCurrentUrls}
-        />
-
-        <HabitsTracker
-          clientId={profile.id}
-          initialHabits={habits}
-          suggestedHabits={suggestedHabits}
-        />
-      </div>
+      <DashboardHomeView
+        clientId={profile.id}
+        schedule={schedule}
+        accountCreatedAt={profile.created_at}
+        gender={profile.gender}
+        initialWorkout={initialWorkouts[0] ?? null}
+        initialWorkouts={initialWorkouts}
+        initialWorkoutCompleted={initialWorkoutCompleted}
+        initialWorkoutResults={initialWorkoutResults}
+        initialLog={dailyLog}
+        initialDailyMeals={dailyMeals}
+        mealLibrary={mealLibrary}
+        hasAiAccess={aiAccess}
+        targets={targets}
+        personalPlanId={personalNutritionPlanId}
+        waterGoalMl={profile.water_goal_ml ?? 2500}
+        nutritionPlan={nutritionSummary}
+        goal={profile.goal ?? null}
+        initialWaterMl={dailyLog?.water_ml ?? 0}
+        initialCardios={initialCardios}
+        initialCardioCompletions={initialCardioCompletionById}
+        heightCm={profile.height_cm}
+        intakeWeightKg={profile.intake_weight_kg}
+        weightHistory={weightHistory}
+        weightLog={weightLog}
+        progressPhotoSets={progressPhotoSets}
+        initialCurrentUrls={initialCurrentUrls}
+        habits={habits}
+        suggestedHabits={suggestedHabits}
+      />
     </DashboardEnrichmentProvider>
   );
 }

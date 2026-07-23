@@ -20,7 +20,8 @@ import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provide
 import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
-import { DashboardStatusCheck } from "@/components/section-completed-badge";
+import { DashboardStatusCheck, DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import {
   dashboard,
   DashboardCarouselDots,
@@ -42,6 +43,7 @@ import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import type { ScheduledCardio } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
+import { isDayEnded } from "@/lib/meal-times";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -304,7 +306,11 @@ export function DashboardCardioCard({
 
   if (compact) {
     return (
-      <div id="dashboard-cardio" className={cn(dashboard.tile, dashboard.pairTile, "relative")}>
+      <DashboardThemedShell
+        id="dashboard-cardio"
+        theme="cardio"
+        className={cn(dashboard.pairTile, "relative")}
+      >
         <DashboardCardNavLink
           href="/dashboard/workout/cardio"
           ariaLabel={platform.cardio.title}
@@ -312,11 +318,21 @@ export function DashboardCardioCard({
         <DashboardCardNavBody className="flex h-full flex-col">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
-              <HeartPulse className="h-5 w-5 shrink-0 text-orange-400" />
+              <HeartPulse className="h-5 w-5 shrink-0 text-orange-600 dark:text-orange-300" />
               <p className="truncate text-sm font-black">{platform.cardio.title}</p>
             </div>
-            {allCompleted ? (
-              <DashboardStatusCheck aria-label={platform.aria.completed} />
+            {scheduledList.length > 0 ? (
+              <DashboardStatusIcon
+                status={dashboardCompletionStatus(
+                  allCompleted,
+                  isDayEnded(dateKey)
+                )}
+                aria-label={
+                  allCompleted
+                    ? platform.aria.completed
+                    : platform.common.incomplete
+                }
+              />
             ) : null}
           </div>
 
@@ -377,8 +393,8 @@ export function DashboardCardioCard({
                       platform.cardio.types
                     );
                     const Icon = typeDisplay?.icon ?? HeartPulse;
-                    const iconAccent = typeDisplay?.accentClass ?? "text-orange-400";
-                    const iconBg = typeDisplay?.bgClass ?? "bg-orange-500/15";
+                    const iconAccent = "text-orange-600 dark:text-orange-300";
+                    const iconBg = "bg-orange-500/15 dark:bg-orange-500/20";
                     const badge = durationBadgeFor(
                       cardio,
                       completed,
@@ -466,8 +482,8 @@ export function DashboardCardioCard({
             </div>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 py-2 text-center">
-              <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl bg-secondary/40 sm:h-20 sm:w-20">
-                <HeartPulse className="h-9 w-9 text-muted-foreground/50 sm:h-10 sm:w-10" />
+              <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl bg-orange-500/15 sm:h-20 sm:w-20 dark:bg-orange-500/20">
+                <HeartPulse className="h-9 w-9 text-orange-600 sm:h-10 sm:w-10 dark:text-orange-300" />
               </div>
               <p className="text-xs text-muted-foreground">{coachLabels.noCardioToday}</p>
             </div>
@@ -475,7 +491,7 @@ export function DashboardCardioCard({
 
           <div className={cn("mt-auto flex gap-1.5 pt-2", dashboardInteractive)}>
             <Link href="/dashboard/workout/cardio" className="flex-1">
-              <Button size="sm" variant="outline" className="h-8 w-full rounded-full px-2 text-[11px]">
+              <Button size="sm" variant="outline" className="h-8 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-2 text-[11px] hover:bg-orange-500/15">
                 {platform.cardio.myCardio}
               </Button>
             </Link>
@@ -488,7 +504,7 @@ export function DashboardCardioCard({
             ) : null}
           </div>
         </DashboardCardNavBody>
-      </div>
+      </DashboardThemedShell>
     );
   }
 
@@ -530,8 +546,8 @@ export function DashboardCardioCard({
                 : null;
             const typeDisplay = getCardioTypeDisplay(cardio.title, platform.cardio.types);
             const Icon = typeDisplay?.icon ?? HeartPulse;
-            const iconAccent = typeDisplay?.accentClass ?? "text-orange-400";
-            const iconBg = typeDisplay?.bgClass ?? "bg-orange-500/15";
+            const iconAccent = "text-orange-600 dark:text-orange-300";
+            const iconBg = "bg-orange-500/15 dark:bg-orange-500/20";
             const badge = durationBadgeFor(cardio, completed, elapsed, platform);
             const href = cardioId
               ? `/dashboard/workout/cardio/session?date=${dateKey}&cardioId=${encodeURIComponent(cardioId)}`

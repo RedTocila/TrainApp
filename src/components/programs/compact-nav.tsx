@@ -35,7 +35,7 @@ export function CompactSegment({
       onClick={handleClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
+        "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-3 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
         active
           ? cn("shadow-sm", activeClass)
           : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"

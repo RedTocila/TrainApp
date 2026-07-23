@@ -9,7 +9,7 @@ import {
 } from "@/components/dashboard-enrichment-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { dashboard } from "@/components/dashboard-ui";
-import { DashboardStatusIcon } from "@/components/section-completed-badge";
+import { DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
 import { MiniProgressRing } from "@/components/nutrition-macro-rings";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
@@ -27,6 +27,8 @@ import {
   dashboardInteractive,
 } from "@/components/dashboard-card-nav-link";
 import { DASHBOARD_DAY_NUTRITION_PATH } from "@/lib/dashboard-day-routes";
+import { isDayEnded } from "@/lib/meal-times";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 
 export function DashboardWaterCard({
   clientId,
@@ -145,36 +147,33 @@ export function DashboardWaterCard({
     </div>
   );
 
-  const titleActions = readOnly ? (
-    waterCompleted ? (
-      <DashboardStatusIcon
-        status="completed"
-        aria-label={platform.nutrition.waterGoalReached}
-      />
-    ) : null
-  ) : (
+  const titleActions = (
     <div className={cn("flex shrink-0 items-center gap-1", dashboardInteractive)}>
-      <button
-        type="button"
-        onClick={() => setEditOpen(true)}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
-        aria-label="Edit water goal"
-      >
-        <Pencil className="h-3.5 w-3.5" />
-      </button>
-      {waterCompleted ? (
-        <DashboardStatusIcon
-          status="completed"
-          aria-label={platform.nutrition.waterGoalReached}
-        />
+      {!readOnly ? (
+        <button
+          type="button"
+          onClick={() => setEditOpen(true)}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-sky-500/15 hover:text-foreground"
+          aria-label="Edit water goal"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
       ) : null}
+      <DashboardStatusIcon
+        status={dashboardCompletionStatus(waterCompleted, isDayEnded(dateKey))}
+        aria-label={
+          waterCompleted
+            ? platform.nutrition.waterGoalReached
+            : platform.common.incomplete
+        }
+      />
     </div>
   );
 
   const titleRow = (titleClassName: string) => (
     <div className="flex items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-2">
-        <GlassWater className="h-5 w-5 shrink-0 text-cyan-400" />
+        <GlassWater className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-300" />
         <p className={cn("truncate font-black", titleClassName)}>
           {platform.nutrition.water}
         </p>
@@ -195,7 +194,11 @@ export function DashboardWaterCard({
   if (compact) {
     return (
       <>
-        <div id="dashboard-water" className={cn(dashboard.tile, dashboard.pairTile, "relative")}>
+        <DashboardThemedShell
+          id="dashboard-water"
+          theme="water"
+          className={cn(dashboard.pairTile, "relative")}
+        >
           <DashboardCardNavLink
             href={DASHBOARD_DAY_NUTRITION_PATH}
             ariaLabel={platform.nutrition.water}
@@ -212,7 +215,7 @@ export function DashboardWaterCard({
           </div>
           {readOnly ? null : addButtons}
           </DashboardCardNavBody>
-        </div>
+        </DashboardThemedShell>
         {goalDialog}
       </>
     );

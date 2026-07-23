@@ -11,10 +11,10 @@ const buttonVariants = cva(
         default:
           "bg-primary text-primary-foreground shadow-lg shadow-primary/20 [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:hover:shadow-primary/30",
         secondary:
-          "bg-secondary text-secondary-foreground border border-border [@media(hover:hover)]:hover:bg-secondary/80",
+          "border border-border/80 bg-background/60 text-foreground shadow-sm backdrop-blur-sm [@media(hover:hover)]:hover:bg-background/80 dark:bg-background/40",
         outline:
-          "border border-border bg-transparent [@media(hover:hover)]:hover:bg-secondary [@media(hover:hover)]:hover:border-primary/30",
-        ghost: "[@media(hover:hover)]:hover:bg-secondary",
+          "border border-border/80 bg-background/40 backdrop-blur-sm [@media(hover:hover)]:hover:bg-background/70 [@media(hover:hover)]:hover:border-primary/30",
+        ghost: "[@media(hover:hover)]:hover:bg-background/50",
         destructive: "bg-red-900 text-white [@media(hover:hover)]:hover:bg-red-800",
       },
       size: {

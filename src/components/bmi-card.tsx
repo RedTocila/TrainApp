@@ -14,8 +14,9 @@ import {
   type BmiCategory,
 } from "@/lib/bmi-utils";
 import type { BodyWeightLog } from "@/lib/types";
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import { dashboard, DashboardSectionHeader } from "@/components/dashboard-ui";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { cn } from "@/lib/utils";
 
 function bmiCategoryLabel(
@@ -78,17 +79,17 @@ export function BmiCard({
   }, [helpOpen]);
 
   return (
-    <Card>
-      <CardContent className="space-y-5 p-4">
+    <DashboardThemedShell theme="bmi" className="p-0">
+      <CardContent className="relative z-10 space-y-5 bg-transparent p-4 shadow-none">
         <DashboardSectionHeader
           icon={Activity}
-          iconClassName="text-primary"
+          iconClassName="text-yellow-600 dark:text-yellow-300"
           title={platform.bmi.title}
           action={
             <div ref={helpRef} className="relative z-10 shrink-0">
               <button
                 type="button"
-                className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="rounded-full p-1 text-muted-foreground hover:bg-yellow-500/15 hover:text-foreground"
                 onClick={() => setHelpOpen((value) => !value)}
                 aria-label={platform.bmi.whatIsBmi}
                 aria-expanded={helpOpen}
@@ -100,7 +101,7 @@ export function BmiCard({
                 <div
                   role="dialog"
                   aria-label={platform.bmi.whatIsBmi}
-                  className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-border bg-card p-3 shadow-lg"
+                  className="absolute right-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-border bg-card p-3 text-foreground shadow-lg"
                 >
                   <p className="text-xs font-semibold text-foreground">{platform.bmi.bodyMassIndex}</p>
                   <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
@@ -193,6 +194,6 @@ export function BmiCard({
           </div>
         )}
       </CardContent>
-    </Card>
+    </DashboardThemedShell>
   );
 }

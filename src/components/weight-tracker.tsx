@@ -15,13 +15,15 @@ import {
   upsertBodyWeightLog,
 } from "@/lib/actions/weight-logs";
 import type { BodyWeightLog } from "@/lib/types";
-import { formatDateKey } from "@/lib/utils";
+import { formatDateKey, cn } from "@/lib/utils";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { dashboard, DashboardSectionHeader } from "@/components/dashboard-ui";
-import { cn } from "@/lib/utils";
+import { DashboardSectionHeader } from "@/components/dashboard-ui";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
+import { isDayEnded } from "@/lib/meal-times";
 
 export function WeightTracker({
   clientId,
@@ -138,10 +140,10 @@ export function WeightTracker({
   };
 
   return (
-    <div className={cn(dashboard.tile, "p-4")}>
+    <DashboardThemedShell theme="weight" className="p-4">
       <DashboardSectionHeader
         icon={ElectronicScale}
-        iconClassName="text-primary"
+        iconClassName="text-teal-600 dark:text-teal-300"
         title={platform.weight.title}
         subtitle={
           todayLogForDay
@@ -152,16 +154,29 @@ export function WeightTracker({
             : platform.weight.subtitle
         }
         action={
-          !readOnly && !formOpen ? (
-            <Button
-              size="sm"
-              className="h-8 rounded-full px-3 text-xs"
-              onClick={openForm}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              {platform.weight.logWeight}
-            </Button>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            <DashboardStatusIcon
+              status={dashboardCompletionStatus(
+                !!todayLogForDay,
+                isDayEnded(dateKey)
+              )}
+              aria-label={
+                todayLogForDay
+                  ? platform.aria.completed
+                  : platform.common.incomplete
+              }
+            />
+            {!readOnly && !formOpen ? (
+              <Button
+                size="sm"
+                className="h-8 rounded-full px-3 text-xs"
+                onClick={openForm}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {platform.weight.logWeight}
+              </Button>
+            ) : null}
+          </div>
         }
       />
       <div className="mt-4 space-y-6">
@@ -211,6 +226,6 @@ export function WeightTracker({
         {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
       {giveUpDialog}
-    </div>
+    </DashboardThemedShell>
   );
 }

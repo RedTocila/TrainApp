@@ -12,7 +12,7 @@
   --safe-area-top: max(0.625rem, var(--safe-area-top-inset));
   --safe-area-bottom: max(0.5rem, var(--safe-area-bottom-inset));
   --dashboard-mobile-header-height: calc(2.75rem + var(--safe-area-top));
-  --dashboard-mobile-nav-height: calc(2.75rem + var(--safe-area-bottom));
+  --dashboard-mobile-nav-height: calc(4.75rem + var(--safe-area-bottom));
   /* Motion — GPU-friendly, short, premium ease */
   --ease-out-premium: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out-premium: cubic-bezier(0.45, 0, 0.15, 1);
@@ -206,7 +206,6 @@ body:has(.dashboard-shell) {
 }
 
 .dashboard-mobile-nav {
-  padding-bottom: var(--safe-area-bottom);
   touch-action: none;
 }
 

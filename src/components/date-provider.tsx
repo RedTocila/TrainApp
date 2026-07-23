@@ -20,6 +20,9 @@ const DateContext = createContext<{
   goToToday: () => void;
 } | null>(null);
 
+/** When set, cards inside a day page read this date instead of the global selection. */
+const DayPageDateContext = createContext<Date | null>(null);
+
 function todayStart() {
   return startOfDay(new Date());
 }
@@ -83,9 +86,31 @@ export function DateProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Scope dashboard cards to a specific day page inside the day pager. */
+export function DayPageDateProvider({
+  date,
+  children,
+}: {
+  date: Date;
+  children: ReactNode;
+}) {
+  return (
+    <DayPageDateContext.Provider value={startOfDay(date)}>
+      {children}
+    </DayPageDateContext.Provider>
+  );
+}
+
 export function useSelectedDate() {
   const ctx = useContext(DateContext);
   if (!ctx) throw new Error("useSelectedDate must be used within DateProvider");
+  const pageDate = useContext(DayPageDateContext);
+  if (pageDate) {
+    return {
+      ...ctx,
+      selectedDate: pageDate,
+    };
+  }
   return ctx;
 }
 

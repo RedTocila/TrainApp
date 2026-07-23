@@ -20,12 +20,14 @@ import {
 import { getHabitDayStatus, canCompleteHabit } from "@/lib/habit-utils";
 import { MissedButton } from "@/components/missed-items-dialog";
 import { dashboard, DashboardEmptyState, DashboardSectionHeader } from "@/components/dashboard-ui";
-import { DashboardStatusIcon } from "@/components/section-completed-badge";
+import { DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import type { ClientHabit } from "@/lib/types";
 import type { HabitSuggestion } from "@/lib/habit-suggestions";
 import { formatDateKey } from "@/lib/utils";
 import { DASHBOARD_HABITS_NEW_PATH } from "@/lib/dashboard-day-routes";
+import { isDayEnded } from "@/lib/meal-times";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -194,10 +196,10 @@ export function HabitsTracker({
 
   return (
     <>
-      <div id="dashboard-habits" className={cn(dashboard.tile, "p-4")}>
+      <DashboardThemedShell id="dashboard-habits" theme="habits" className="p-4">
         <DashboardSectionHeader
           icon={ListChecks}
-          iconClassName="text-violet-400"
+          iconClassName="text-violet-600 dark:text-violet-300"
           title={platform.habits.title}
           badge={
             <MissedButton
@@ -208,16 +210,31 @@ export function HabitsTracker({
             />
           }
           action={
-            readOnly ? undefined : (
-              <Button
-                size="sm"
-                className="h-8 rounded-full px-3 text-xs"
-                onClick={openAdd}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {platform.common.add}
-              </Button>
-            )
+            <div className="flex items-center gap-2">
+              {displayHabitsRaw.length > 0 ? (
+                <DashboardStatusIcon
+                  status={dashboardCompletionStatus(
+                    doneCount === displayHabitsRaw.length,
+                    isDayEnded(dateKey)
+                  )}
+                  aria-label={
+                    doneCount === displayHabitsRaw.length
+                      ? platform.aria.completed
+                      : platform.common.incomplete
+                  }
+                />
+              ) : null}
+              {readOnly ? null : (
+                <Button
+                  size="sm"
+                  className="h-8 rounded-full px-3 text-xs"
+                  onClick={openAdd}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {platform.common.add}
+                </Button>
+              )}
+            </div>
           }
           subtitle={
             displayHabitsRaw.length === 0
@@ -227,8 +244,8 @@ export function HabitsTracker({
         />
         <div className="mt-4 space-y-4">
           {suggestions.length > 0 && !readOnly && (
-            <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-violet-300">
+            <div className="space-y-2 rounded-xl border border-violet-500/25 bg-violet-500/10 p-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-violet-300">
                 <Sparkles className="h-4 w-4" />
                 {platform.habits.suggestedFromProfile}
               </div>
@@ -236,7 +253,7 @@ export function HabitsTracker({
                 {suggestions.map((suggestion) => (
                   <li
                     key={suggestion.id}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-card/60 px-3 py-2"
+                    className="flex items-start justify-between gap-3 rounded-lg border border-violet-500/20 bg-background/50 px-3 py-2"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium">{suggestion.title}</p>
@@ -318,9 +335,12 @@ export function HabitsTracker({
                       ) : null}
                       {habit.completed ? (
                         <DashboardStatusIcon status="completed" aria-label={platform.aria.completed} />
-                      ) : habit.status === "missed" ? (
-                        <DashboardStatusIcon status="missed" aria-label="Missed" />
-                      ) : null}
+                      ) : (
+                        <DashboardStatusIcon
+                          status={dashboardCompletionStatus(false, isDayEnded(dateKey))}
+                          aria-label={platform.common.incomplete}
+                        />
+                      )}
                     </div>
                   </li>
                 );
@@ -330,7 +350,7 @@ export function HabitsTracker({
 
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
-      </div>
+      </DashboardThemedShell>
     </>
   );
 }

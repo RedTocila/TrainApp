@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import {
@@ -59,6 +59,8 @@ export function ClientNav({
   const hideNav = isActiveWorkoutSessionPath(activePath);
   const programsActive = isProgramsNavActive(activePath);
   const homeActive = isHomeNavActive(activePath);
+  const [navCompact, setNavCompact] = useState(false);
+  const scrollIdleTimer = useRef(0);
 
   const prefetchRoutes = useMemo(
     () => [
@@ -88,6 +90,34 @@ export function ClientNav({
     };
   }, [hideNav]);
 
+  // Shrink floating pill while scrolling; restore when scrolling stops.
+  useEffect(() => {
+    if (hideNav) return;
+    const mains = [
+      document.querySelector<HTMLElement>(".dashboard-main"),
+      document.querySelector<HTMLElement>(".dashboard-day-pager"),
+    ].filter(Boolean) as HTMLElement[];
+    if (mains.length === 0) return;
+
+    const onScroll = () => {
+      setNavCompact(true);
+      window.clearTimeout(scrollIdleTimer.current);
+      scrollIdleTimer.current = window.setTimeout(() => {
+        setNavCompact(false);
+      }, 140);
+    };
+
+    for (const el of mains) {
+      el.addEventListener("scroll", onScroll, { passive: true });
+    }
+    return () => {
+      for (const el of mains) {
+        el.removeEventListener("scroll", onScroll);
+      }
+      window.clearTimeout(scrollIdleTimer.current);
+    };
+  }, [hideNav, pathname]);
+
   if (hideNav) return null;
 
   const standardNavItems = [
@@ -114,6 +144,8 @@ export function ClientNav({
         ? "bg-primary/10 text-primary"
         : "text-muted-foreground hover:bg-secondary hover:text-foreground"
     );
+
+  const iconSize = navCompact ? "h-5 w-5" : "h-6 w-6";
 
   return (
     <>
@@ -170,8 +202,19 @@ export function ClientNav({
         </div>
       </aside>
 
-      <nav className="dashboard-mobile-nav dashboard-instant-nav pointer-events-auto fixed bottom-0 left-0 right-0 z-[100] isolate border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        <div className="flex h-11 items-center justify-around px-1">
+      <div className="dashboard-mobile-nav pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex justify-center bg-transparent px-3 pb-[max(0.75rem,var(--safe-area-bottom))] lg:hidden">
+        <nav
+          className={cn(
+            "dashboard-instant-nav pointer-events-auto isolate flex w-full max-w-md items-center justify-around",
+            "rounded-full border border-border/50 bg-background/45 shadow-[0_8px_28px_rgba(0,0,0,0.08)] backdrop-blur-2xl",
+            "transition-[transform,height,padding,box-shadow,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            "dark:border-white/15 dark:bg-background/35 dark:shadow-[0_8px_28px_rgba(0,0,0,0.22)]",
+            navCompact
+              ? "h-11 scale-[0.92] px-2"
+              : "h-14 scale-100 px-2.5"
+          )}
+          aria-label="Primary"
+        >
           <InstantNavLink
             href="/dashboard"
             pressToNavigate
@@ -182,7 +225,7 @@ export function ClientNav({
               homeActive ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <Home className="h-6 w-6" />
+            <Home className={iconSize} />
           </InstantNavLink>
 
           <InstantNavLink
@@ -196,7 +239,7 @@ export function ClientNav({
               programsActive ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <Dumbbell className="h-6 w-6" />
+            <Dumbbell className={iconSize} />
           </InstantNavLink>
 
           {standardNavItems.slice(1).map((item) => {
@@ -216,15 +259,15 @@ export function ClientNav({
                 )}
               >
                 {showLiveDot ? (
-                  <NavLiveIcon icon={item.icon} showDot className="h-6 w-6" />
+                  <NavLiveIcon icon={item.icon} showDot className={iconSize} />
                 ) : (
-                  <item.icon className="h-6 w-6" />
+                  <item.icon className={iconSize} />
                 )}
               </InstantNavLink>
             );
           })}
-        </div>
-      </nav>
+        </nav>
+      </div>
     </>
   );
 }

@@ -40,7 +40,7 @@ export function LiveHubPage({
             aria-selected={tab === "challenges"}
             onClick={() => setTab("challenges")}
             className={cn(
-              "relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
+              "relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-3 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
               tab === "challenges"
                 ? "bg-violet-500/20 text-violet-400 shadow-sm"
                 : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"
@@ -61,7 +61,7 @@ export function LiveHubPage({
             aria-selected={tab === "classes"}
             onClick={() => setTab("classes")}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-3 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
               tab === "classes"
                 ? "bg-primary/20 text-primary shadow-sm"
                 : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"

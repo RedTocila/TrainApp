@@ -240,6 +240,24 @@ export const coachLabelsAl = {
   coachHasNotes: "Coach Alex ka shënime. Nuk do t'ju pëlqejnë.",
   skipForNow: "Mirë, do të vazhdoj gjysmë",
   noWorkoutToday: "Ditë pushimi — apo shmangie? Coach Alex nuk e di.",
+  restDayTitle: "Ditë pushimi",
+  restDayMessage:
+    "Muskujt rriten kur rikuperoheni — jo kur pushimi do të thotë scroll pa fund. Përdoreni ditën mirë.",
+  restDayTips: [
+    "Ecni 20–30 minuta — qarkullim i lehtë, zero ego.",
+    "Proteinë dhe ujë si ditë stërvitjeje.",
+    "Flini më herët. Alex i sheh qeset nën sy.",
+    "Shtrirje ose mobilitet të lehtë nëse jeni të ngurtë — jo PR të rinj.",
+  ],
+  undertrainedTitle: "Përsëri pushim?",
+  undertrainedMessage:
+    "Java juaj duket e butë. Pushimi fitohet pas pune — nuk është stil jete. Vendosni diçka në kalendar.",
+  undertrainedTips: [
+    "Planifikoni seancën tjetër para se të mbarojë nata.",
+    "Edhe një full-body i shkurtër mbetet më mirë se asgjë.",
+    "Kardio vlen. Edhe një shëtitje që nuk është drejt frigoriferit.",
+    "Pyesni Alex për një plan nëse jeni bllokuar me ditë bosh.",
+  ],
   noCardioToday: "Sot nuk ka kardio. Justifikimet tuaja ju falënderojnë.",
   noTasksToday: "Asgjë në listë. Shijojeni — nesër nuk do të jetë kaq e lehtë.",
   logFirstMeal: "Regjistro diçka para se Coach Alex të pyesë çfarë ke ngrënë",

@@ -46,7 +46,9 @@ import { useMealsWithPhotoUrls } from "@/hooks/use-meals-with-photo-urls";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import {
   DashboardStatusIcon,
+  dashboardCompletionStatus,
 } from "@/components/section-completed-badge";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { getPlannedMealSlots, isDayEnded } from "@/lib/meal-times";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import type { DailyMealLog, Meal, MealSlot } from "@/lib/types";
@@ -372,32 +374,40 @@ export function DailyTracker({
   );
 
   if (variant === "compact") {
+    const nutritionStatus = dashboardCompletionStatus(
+      nutritionChecked,
+      isDayEnded(dateKey)
+    );
     return (
       <>
-      <Card
+      <DashboardThemedShell
         id="dashboard-nutrition"
-        className="relative flex h-full w-full cursor-pointer flex-col transition-opacity hover:opacity-95 active:opacity-90"
+        theme="nutrition"
+        className="relative w-full cursor-pointer transition-opacity hover:opacity-95 active:opacity-90"
       >
         <DashboardCardNavLink
           href={DASHBOARD_DAY_NUTRITION_PATH}
           ariaLabel={nutritionTitle}
         />
-        <DashboardCardNavBody className="flex flex-1 flex-col">
-          {showNutritionStatus && (
-            <div className="absolute right-3 top-3 z-10">
-              {nutritionChecked ? (
-                <DashboardStatusIcon status="completed" aria-label="Completed" />
-              ) : (
-                <DashboardStatusIcon status="missed" aria-label="Over limit" />
-              )}
-            </div>
-          )}
+        <DashboardCardNavBody className="flex flex-col">
+          <div className="absolute right-3 top-3 z-10">
+            <DashboardStatusIcon
+              status={nutritionStatus}
+              aria-label={
+                nutritionStatus === "completed"
+                  ? platform.aria.completed
+                  : nutritionStatus === "missed"
+                    ? platform.common.incomplete
+                    : platform.common.inProgress
+              }
+            />
+          </div>
           <CardHeader className="space-y-2 p-4 pb-2">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 pr-8">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <CardTitle className="flex items-center gap-2 text-lg font-black">
-                    <Apple className="h-5 w-5 text-primary" />
+                    <Apple className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
                     <span
                       className={cn(nutritionChecked && "text-muted-foreground line-through")}
                     >
@@ -423,17 +433,18 @@ export function DailyTracker({
               </div>
             </div>
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col p-4 pt-0">
-            <TaskNutritionMacroPreview
-              current={current}
-              targets={targets}
-              dailyMeals={dailyMeals}
-              waterMl={localWaterMl}
-              waterGoalMl={waterGoalMl}
-              dateKey={dateKey}
-              showHealthScore={false}
-              className="mt-2"
-            />
+          <CardContent className="flex flex-col p-4 pt-0">
+            <div className="mt-2 rounded-2xl border border-emerald-600/25 bg-emerald-500/15 p-3 shadow-inner dark:border-emerald-400/25 dark:bg-emerald-950/55">
+              <TaskNutritionMacroPreview
+                current={current}
+                targets={targets}
+                dailyMeals={dailyMeals}
+                waterMl={localWaterMl}
+                waterGoalMl={waterGoalMl}
+                dateKey={dateKey}
+                showHealthScore={false}
+              />
+            </div>
             {!readOnly ? (
               <div className="mt-5 flex items-center justify-between gap-2">
                 <div className="flex flex-wrap gap-2">
@@ -449,7 +460,7 @@ export function DailyTracker({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 rounded-full px-3"
+                      className="h-8 rounded-full border-emerald-600/30 bg-emerald-500/10 px-3 hover:bg-emerald-500/15"
                       onClick={handleMealPlanClick}
                     >
                       <ClipboardList className="h-3.5 w-3.5" />
@@ -472,7 +483,7 @@ export function DailyTracker({
             )}
           </CardContent>
         </DashboardCardNavBody>
-      </Card>
+      </DashboardThemedShell>
         {nutritionDialogs}
       </>
     );

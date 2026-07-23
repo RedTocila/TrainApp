@@ -59,7 +59,7 @@ export function MiniProgressRing({
           fill="none"
           stroke="currentColor"
           strokeWidth={stroke}
-          className="text-secondary/70"
+          className="text-foreground/25 dark:text-foreground/35"
         />
         <circle
           cx={center}

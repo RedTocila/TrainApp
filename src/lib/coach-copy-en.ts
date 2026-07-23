@@ -240,6 +240,24 @@ export const coachLabelsEn = {
   coachHasNotes: "Coach Alex has notes. You probably won't like them.",
   skipForNow: "Fine, I'll keep half-assing it",
   noWorkoutToday: "Rest day — or avoidance? Coach Alex can't tell.",
+  restDayTitle: "Rest day",
+  restDayMessage:
+    "Muscles grow when you recover — not when you pretend rest means doomscrolling. Use the day well.",
+  restDayTips: [
+    "Walk 20–30 minutes — easy blood flow, zero ego.",
+    "Hit protein and water like it's still a training day.",
+    "Sleep earlier. Alex notices the bags under your eyes.",
+    "Light stretch or mobility if you're stiff — don't invent a new PR.",
+  ],
+  undertrainedTitle: "Rest… again?",
+  undertrainedMessage:
+    "Your week's looking soft. Rest is earned after work — not a lifestyle. Get something on the calendar.",
+  undertrainedTips: [
+    "Schedule your next session before tonight ends.",
+    "Even a short full-body beat doing nothing.",
+    "Cardio counts. So does a walk that isn't to the fridge.",
+    "Ask Alex for a plan if you're stuck staring at an empty day.",
+  ],
   noCardioToday: "No cardio today. Your excuses thank you.",
   noTasksToday: "Nothing on the board. Enjoy it — tomorrow won't be this easy.",
   logFirstMeal: "Log something before Coach Alex asks what you ate",

@@ -11,9 +11,9 @@ export const dashboard = {
   heroTile:
     "flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/80 p-4 transition-[border-color,box-shadow,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-5",
   listRow:
-    "flex items-center gap-3 rounded-2xl border border-border/60 bg-card/80 p-3 transition-[background-color,border-color,transform,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+    "flex items-center gap-3 rounded-2xl border border-border/60 bg-background/50 p-3 backdrop-blur-sm transition-[background-color,border-color,transform,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] dark:bg-background/35",
   empty:
-    "rounded-2xl border border-dashed border-border bg-secondary/20 px-4 py-6 text-center text-sm text-muted-foreground",
+    "rounded-2xl border border-dashed border-border/80 bg-background/40 px-4 py-6 text-center text-sm text-muted-foreground backdrop-blur-sm",
   section: "space-y-4",
   sectionHeading: "text-base font-bold",
   pageTitle: "text-xl font-black tracking-tight sm:text-2xl",
@@ -25,7 +25,7 @@ export const dashboard = {
   missedTile: "border-red-500/25 bg-red-500/5",
   warningTile: "border-orange-500/30 bg-orange-500/5",
   chipButton:
-    "pressable inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1.5 rounded-full border border-border bg-secondary/60 px-3 py-2 text-sm font-semibold transition-[transform,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] active:scale-[0.97] active:opacity-90 hover:border-primary/30 hover:bg-secondary/80",
+    "pressable inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur-sm transition-[transform,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] active:scale-[0.97] active:opacity-90 hover:border-primary/30 hover:bg-background/80 dark:bg-background/40",
   pairTile:
     "relative flex h-full min-h-[13rem] flex-col p-3 sm:min-h-[14rem] sm:p-4",
   /** One line below trigger; aligned to the end (icon menus). */

@@ -78,7 +78,7 @@ export function ScoreGauge({
             fill="none"
             stroke="currentColor"
             strokeWidth={dims.stroke}
-            className="text-secondary/80"
+            className="text-foreground/25 dark:text-foreground/35"
           />
           <motion.circle
             cx="50"

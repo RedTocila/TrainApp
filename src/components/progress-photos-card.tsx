@@ -42,9 +42,9 @@ import { ProgressPhotoEditMenu } from "@/components/progress-photo-edit-menu";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { FullScreenFlow } from "@/components/programs/full-screen-flow";
 import {
-  dashboard,
   DashboardSectionHeader,
 } from "@/components/dashboard-ui";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { DashboardStatusIcon } from "@/components/section-completed-badge";
 import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
@@ -408,12 +408,10 @@ function ProgressPhotosCardInner({
 
   return (
     <>
-      <div
+      <DashboardThemedShell
         id="dashboard-progress-photos"
-        className={cn(
-          dashboard.tile,
-          "relative cursor-pointer p-4 transition-opacity hover:opacity-95 active:opacity-90"
-        )}
+        theme="photos"
+        className="relative cursor-pointer p-4 transition-opacity hover:opacity-95 active:opacity-90"
       >
         <DashboardCardNavLink
           href={DASHBOARD_PROGRESS_PHOTOS_PATH}
@@ -422,17 +420,19 @@ function ProgressPhotosCardInner({
         <DashboardCardNavBody>
         <DashboardSectionHeader
           icon={ImageIcon}
-          iconClassName="text-primary"
+          iconClassName="text-fuchsia-600 dark:text-fuchsia-300"
           title={platform.photos.title}
           action={
             <div className={cn("flex items-center gap-2", dashboardInteractive)}>
               <ProgressPhotoReadMeButton />
-              {currentComplete ? (
-                <DashboardStatusIcon
-                  status="completed"
-                  aria-label={platform.photos.monthComplete}
-                />
-              ) : null}
+              <DashboardStatusIcon
+                status={currentComplete ? "completed" : "pending"}
+                aria-label={
+                  currentComplete
+                    ? platform.photos.monthComplete
+                    : platform.common.incomplete
+                }
+              />
             </div>
           }
         />
@@ -486,7 +486,7 @@ function ProgressPhotosCardInner({
           className="pointer-events-none absolute bottom-4 right-4 z-[2] h-5 w-5 text-muted-foreground"
           aria-hidden
         />
-      </div>
+      </DashboardThemedShell>
 
       {giveUpDialog}
       <ProgressPhotoAlexDialog
