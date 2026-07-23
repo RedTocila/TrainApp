@@ -1,7 +1,7 @@
 "use client";
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
-import { ChevronRight, Clock, Dumbbell, Play } from "lucide-react";
+import { ChevronRight, Clock, Dumbbell, Layers, List, Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addDays, format, startOfDay } from "date-fns";
@@ -35,7 +35,7 @@ import {
 } from "@/lib/actions/workout-sessions";
 import { WorkoutResultsDropdown } from "@/components/workout-results-dropdown";
 import { WorkoutExerciseList } from "@/components/workout-exercise-list";
-import { WorkoutMuscleMap } from "@/components/workout-muscle-map";
+import { WorkoutMuscleMap, MuscleMapLegend } from "@/components/workout-muscle-map";
 import { formatDateKey, cn } from "@/lib/utils";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import {
@@ -493,7 +493,6 @@ export function DashboardWorkoutCard({
           id="dashboard-workout"
           theme="workout"
           className={cn(
-            "min-h-[min(52dvh,24rem)]",
             workout && "cursor-pointer transition-opacity hover:opacity-95 active:opacity-90"
           )}
         >
@@ -503,12 +502,22 @@ export function DashboardWorkoutCard({
               ariaLabel={platform.trainTabs.workout}
             />
           ) : null}
-          <DashboardCardNavBody className="flex flex-1 flex-col justify-between gap-5 p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <span className="inline-flex rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-primary backdrop-blur-sm">
-                {dayLabel}
-              </span>
-              <div className={cn("flex items-center gap-1", dashboardInteractive)}>
+          <DashboardCardNavBody className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <span className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-white">
+                  {dayLabel}
+                </span>
+                {workout && exerciseCount > 0 ? (
+                  <div className={dashboardInteractive}>
+                    <WorkoutDifficultyInsightButton
+                      exercises={workout.exercises}
+                      size="compact"
+                    />
+                  </div>
+                ) : null}
+              </div>
+              <div className={cn("flex shrink-0 items-center gap-1", dashboardInteractive)}>
                 {!readOnly ? (
                   <DashboardWorkoutPlusMenu
                     canAdd={!hasWorkout}
@@ -535,62 +544,74 @@ export function DashboardWorkoutCard({
 
             {workout ? (
               <>
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {exerciseCount > 0 ? (
-                      <p className="flex items-center gap-2 text-sm font-medium text-foreground/85">
-                        <Dumbbell className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                        <span>
-                          {platform.workout.setsCount(totalSets)}
-                          {" · "}
-                          {platform.common.exercises(exerciseCount)}
-                        </span>
-                      </p>
-                    ) : null}
-                    {durationLabel ? (
-                      <p className="flex items-center gap-1.5 text-sm font-medium text-foreground/85">
-                        <Clock className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-300" aria-hidden />
-                        <span className="tabular-nums">{durationLabel}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {platform.workout.estimatedTimeCompact}
-                        </span>
-                      </p>
-                    ) : null}
-                  </div>
-                  <h2 className="text-3xl font-black uppercase tracking-tight sm:text-4xl">
-                    {workout.dayTitle}
-                  </h2>
-                  {workout.planTitle ? (
-                    <p className="text-sm text-muted-foreground">{workout.planTitle}</p>
-                  ) : null}
-                  {exerciseCount > 0 ? (
-                    <div className={dashboardInteractive}>
-                      <WorkoutDifficultyInsightButton
+                <h2 className="text-xl font-black uppercase tracking-tight sm:text-2xl">
+                  {workout.dayTitle}
+                </h2>
+
+                {exerciseCount > 0 ? (
+                  <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] items-center gap-3">
+                    <div className="flex min-w-0 flex-col gap-2">
+                      <div className="rounded-2xl border border-border/50 bg-background/45 px-3 py-2.5 backdrop-blur-sm">
+                        {durationLabel ? (
+                          <p className="flex items-center gap-1.5 text-xs font-medium text-foreground/85">
+                            <Clock
+                              className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-300"
+                              aria-hidden
+                            />
+                            <span className="tabular-nums">{durationLabel}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {platform.workout.estimatedTimeCompact}
+                            </span>
+                          </p>
+                        ) : null}
+                        <p
+                          className={cn(
+                            "flex items-center gap-1.5 text-xs font-medium text-foreground/85",
+                            durationLabel && "mt-2"
+                          )}
+                        >
+                          <List className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+                          <span>{platform.common.exercises(exerciseCount)}</span>
+                        </p>
+                        <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-foreground/85">
+                          <Layers className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+                          <span>{platform.workout.setsCount(totalSets)}</span>
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-border/50 bg-background/45 px-3 py-2.5 backdrop-blur-sm">
+                        <MuscleMapLegend layout="column" />
+                      </div>
+                    </div>
+                    <div className="relative min-w-0">
+                      <WorkoutMuscleMap
+                        key={workoutNavKey(workout)}
+                        variant="hero"
                         exercises={workout.exercises}
-                        size="compact"
+                        dayTitle={workout.dayTitle}
+                        gender={gender}
                       />
                     </div>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
 
-                <div className={cn("mt-auto", dashboardInteractive)}>
+                <div className={dashboardInteractive}>
                   {!showCompletedState && !readOnly ? (
                     <StartTodaysWorkoutButton
                       date={selectedDate}
                       workout={workout}
                       disabled={!isDayLoaded}
                       display="text"
-                      className="w-full [&_button]:h-12 [&_button]:w-full [&_button]:rounded-full [&_button]:text-sm [&_button]:font-black [&_button]:uppercase"
+                      className="w-full [&_button]:h-10 [&_button]:w-full [&_button]:rounded-full [&_button]:text-xs [&_button]:font-black [&_button]:uppercase"
                     />
                   ) : (
                     <Link
                       href={DASHBOARD_DAY_WORKOUT_PATH}
                       className={buttonVariants({
                         className:
-                          "h-12 w-full rounded-full text-sm font-black uppercase",
+                          "h-10 w-full rounded-full text-xs font-black uppercase",
                       })}
                     >
-                      <Play className="h-4 w-4" />
+                      <Play className="h-3.5 w-3.5" />
                       {platform.trainTabs.workout}
                     </Link>
                   )}

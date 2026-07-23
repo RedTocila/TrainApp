@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useState, type MouseEvent } from "react";
-import { Play } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { usePlatformCopy } from "@/components/locale-provider";
 import {
@@ -32,21 +32,29 @@ export function useStartWorkout(
       planId: workout?.planId,
       dayId: workout?.dayId,
       scheduledDate: workout?.scheduledDate ?? dateKey,
-    }).then((result) => {
-      if (result && "sessionId" in result && result.sessionId) {
-        router.push(`/dashboard/workout/session/${result.sessionId}`);
-        return;
-      }
-      if (result && "error" in result && result.error) {
-        setError(result.error);
-        setIsStarting(false);
-        if ("sessionId" in result && result.sessionId) {
+    })
+      .then((result) => {
+        if (result && "sessionId" in result && result.sessionId) {
           router.push(`/dashboard/workout/session/${result.sessionId}`);
-        } else {
-          router.refresh();
+          return;
         }
-      }
-    });
+        if (result && "error" in result && result.error) {
+          setError(result.error);
+          setIsStarting(false);
+          if ("sessionId" in result && result.sessionId) {
+            router.push(`/dashboard/workout/session/${result.sessionId}`);
+          } else {
+            router.refresh();
+          }
+          return;
+        }
+        setIsStarting(false);
+        setError("Could not start workout");
+      })
+      .catch(() => {
+        setIsStarting(false);
+        setError("Could not start workout");
+      });
   }, [date, disabled, isStarting, router, workout]);
 
   return { start, isStarting, error };
@@ -83,17 +91,22 @@ export function StartWorkoutButton({
       <StartWorkoutLoadingShell
         isLoading={isStarting}
         ring={display === "icon"}
+        className={className?.includes("w-full") ? "w-full" : undefined}
       >
         {display === "text" ? (
           <Button
             size="sm"
-            className="h-8 shrink-0 rounded-full px-3 text-xs font-semibold shadow-sm"
+            className="h-8 w-full shrink-0 rounded-full px-3 text-xs font-semibold shadow-sm"
             disabled={disabled || isStarting}
             onClick={handleStart}
             aria-busy={isStarting}
           >
-            <Play className="h-3.5 w-3.5" />
-            {platform.workout.startWorkout}
+            {isStarting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+            {isStarting ? platform.workout.starting : platform.workout.startWorkout}
           </Button>
         ) : (
           <Button
@@ -102,9 +115,13 @@ export function StartWorkoutButton({
             disabled={disabled || isStarting}
             onClick={handleStart}
             aria-busy={isStarting}
-            aria-label={isStarting ? "Opening workout" : "Open workout"}
+            aria-label={isStarting ? platform.workout.starting : "Open workout"}
           >
-            <Play className={cn("h-4 w-4", isStarting && "opacity-60")} />
+            {isStarting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
           </Button>
         )}
       </StartWorkoutLoadingShell>

@@ -86,7 +86,7 @@ export function DateProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Scope dashboard cards to a specific day page inside the day pager. */
+/** Previously used to scope cards inside a day pager; kept for potential nested day UIs. */
 export function DayPageDateProvider({
   date,
   children,

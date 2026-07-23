@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Dumbbell, PenLine, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { AppDialog } from "@/components/app-dialog";
 import { AddWorkoutToDayAiPanel } from "@/components/add-workout-to-day-ai-panel";
 import { AddWorkoutToDayWizard } from "@/components/add-workout-to-day-wizard";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { WorkoutCategoryIcon } from "@/components/programs/workout-day-chip";
+import {
+  WorkoutTypeChooser,
+  type CreateWorkoutType,
+} from "@/components/workout-type-chooser";
 import { Button } from "@/components/ui/button";
 import {
   addWorkoutToDay,
@@ -40,6 +44,7 @@ export function AddWorkoutToDayDialog({
   const platform = usePlatformCopy();
   const [mode, setMode] = useState<Mode>("library");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardType, setWizardType] = useState<CreateWorkoutType | null>(null);
   const [workouts, setWorkouts] = useState<PersonalWorkoutListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -48,6 +53,8 @@ export function AddWorkoutToDayDialog({
   useEffect(() => {
     if (!open) {
       setMode("library");
+      setWizardOpen(false);
+      setWizardType(null);
       setError(null);
       return;
     }
@@ -87,6 +94,11 @@ export function AddWorkoutToDayDialog({
     });
   };
 
+  const handleCreateType = (type: CreateWorkoutType) => {
+    setWizardType(type);
+    setWizardOpen(true);
+  };
+
   const dayLabel = formatDayLabel(dateKey);
 
   return (
@@ -99,7 +111,7 @@ export function AddWorkoutToDayDialog({
         ariaLabel="Add workout to day"
         maxWidth="max-w-md"
       >
-        <div className="flex flex-wrap gap-2 border-b border-border px-5 py-2">
+        <div className="flex flex-wrap gap-2 px-5 pb-1 pt-1">
           <Button
             size="sm"
             variant={mode === "library" ? "default" : "outline"}
@@ -125,7 +137,7 @@ export function AddWorkoutToDayDialog({
           </Button>
         </div>
 
-        <div className="max-h-[min(50vh,20rem)] overflow-y-auto px-5 py-4">
+        <div className="max-h-[min(50vh,22rem)] overflow-y-auto px-5 py-4">
           {mode === "library" ? (
             loading ? (
               <p className="text-sm text-muted-foreground">{platform.common.loading}</p>
@@ -167,26 +179,11 @@ export function AddWorkoutToDayDialog({
               </ul>
             )
           ) : mode === "create" ? (
-            <div className="rounded-2xl border border-border/60 bg-card/80 p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                  <PenLine className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold">Build from scratch</p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    Create a one-off workout and add it to {dayLabel}.
-                  </p>
-                  <Button
-                    size="sm"
-                    className="mt-3 gap-1.5"
-                    onClick={() => setWizardOpen(true)}
-                  >
-                    <Dumbbell className="h-4 w-4" />
-                    Build workout
-                  </Button>
-                </div>
-              </div>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Choose fitness (sets &amp; reps) or HIIT (intervals) for {dayLabel}.
+              </p>
+              <WorkoutTypeChooser value={null} onChange={handleCreateType} />
             </div>
           ) : (
             <AddWorkoutToDayAiPanel
@@ -200,21 +197,20 @@ export function AddWorkoutToDayDialog({
           )}
           {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
         </div>
-
-        <div className="flex justify-end border-t border-border px-5 py-3">
-          <Button variant="outline" onClick={onClose} disabled={isPending}>
-            {platform.common.cancel}
-          </Button>
-        </div>
       </AppDialog>
 
       <AddWorkoutToDayWizard
         open={wizardOpen}
         dateKey={dateKey}
-        onClose={() => setWizardOpen(false)}
+        initialType={wizardType}
+        onClose={() => {
+          setWizardOpen(false);
+          setWizardType(null);
+        }}
         onComplete={() => {
           onAdded?.();
           setWizardOpen(false);
+          setWizardType(null);
           onClose();
         }}
       />

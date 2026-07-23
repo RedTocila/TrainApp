@@ -95,10 +95,7 @@ export function RemoveWorkoutFromDayDialog({
           </ul>
         )}
         {error ? <p className="text-sm text-red-400">{error}</p> : null}
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose} disabled={isPending}>
-            {platform.common.cancel}
-          </Button>
+        <div className="flex justify-end">
           <Button
             variant="destructive"
             onClick={handleRemove}

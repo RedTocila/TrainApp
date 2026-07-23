@@ -15,16 +15,51 @@ const HIGHLIGHT_COLORS = ["#FF9500", "#FF3B30", "#AEB4BC"] as const;
 const BODY_RENDER_WIDTH = 200;
 const BODY_RENDER_HEIGHT = 400;
 
+export function MuscleMapLegend({
+  className,
+  layout = "row",
+}: {
+  className?: string;
+  layout?: "row" | "column";
+}) {
+  return (
+    <div
+      className={cn(
+        "text-[10px] text-muted-foreground",
+        layout === "row"
+          ? "flex flex-nowrap items-center gap-x-3 overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          : "flex flex-col gap-1.5",
+        className
+      )}
+    >
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2 w-2 shrink-0 rounded-full bg-[#FF3B30]" aria-hidden />
+        Main
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2 w-2 shrink-0 rounded-full bg-[#FF9500]" aria-hidden />
+        Second
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2 w-2 shrink-0 rounded-full bg-[#AEB4BC]" aria-hidden />
+        Support
+      </span>
+    </div>
+  );
+}
+
 function CompactMuscleMapBody({
   highlightData,
   bodyGender,
   side,
   className,
+  minHeightClass = "min-h-[7.5rem] max-h-[8.5rem] sm:min-h-[8rem] sm:max-h-[9rem]",
 }: {
   highlightData: ReturnType<typeof toBodyHighlighterData>;
   bodyGender: "male" | "female";
   side: "front" | "back";
   className?: string;
+  minHeightClass?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
@@ -41,7 +76,7 @@ function CompactMuscleMapBody({
         width / BODY_RENDER_WIDTH,
         height / BODY_RENDER_HEIGHT
       );
-      setScale(Math.max(0.3, fitScale * 1.1));
+      setScale(Math.max(0.28, fitScale * 1.05));
     };
 
     updateScale();
@@ -54,7 +89,8 @@ function CompactMuscleMapBody({
     <div
       ref={containerRef}
       className={cn(
-        "flex h-full w-full min-h-[10.5rem] max-h-[12rem] items-center justify-center sm:min-h-[11rem] sm:max-h-[12.5rem]",
+        "flex h-full w-full items-center justify-center",
+        minHeightClass,
         className
       )}
       aria-hidden
@@ -77,12 +113,14 @@ export function WorkoutMuscleMap({
   gender,
   className,
   variant = "full",
+  showLegend = true,
 }: {
   exercises: { name: string }[];
   dayTitle?: string;
   gender?: string | null;
   className?: string;
-  variant?: "full" | "compact";
+  variant?: "full" | "compact" | "hero";
+  showLegend?: boolean;
 }) {
   const platform = usePlatformCopy();
   const bodyGender = resolveBodyMapGender(gender);
@@ -96,22 +134,24 @@ export function WorkoutMuscleMap({
     return null;
   }
 
-  const legend = (
-    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
-      <span className="inline-flex items-center gap-1">
-        <span className="h-2 w-2 rounded-full bg-[#FF3B30]" aria-hidden />
-        Main focus (75–100%)
-      </span>
-      <span className="inline-flex items-center gap-1">
-        <span className="h-2 w-2 rounded-full bg-[#FF9500]" aria-hidden />
-        Secondary (40–75%)
-      </span>
-      <span className="inline-flex items-center gap-1">
-        <span className="h-2 w-2 rounded-full bg-[#AEB4BC]" aria-hidden />
-        Supporting (10–40%)
-      </span>
-    </div>
-  );
+  if (variant === "hero") {
+    return (
+      <div className={cn("grid w-full grid-cols-2 gap-0.5", className)}>
+        <CompactMuscleMapBody
+          highlightData={highlightData}
+          bodyGender={bodyGender}
+          side="front"
+          minHeightClass="min-h-[8.5rem] max-h-[10rem]"
+        />
+        <CompactMuscleMapBody
+          highlightData={highlightData}
+          bodyGender={bodyGender}
+          side="back"
+          minHeightClass="min-h-[8.5rem] max-h-[10rem]"
+        />
+      </div>
+    );
+  }
 
   if (variant === "compact") {
     return (
@@ -128,7 +168,7 @@ export function WorkoutMuscleMap({
             side="back"
           />
         </div>
-        {legend}
+        {showLegend ? <MuscleMapLegend /> : null}
       </div>
     );
   }
@@ -163,7 +203,7 @@ export function WorkoutMuscleMap({
           </span>
         </div>
       </div>
-      {legend}
+      {showLegend ? <MuscleMapLegend /> : null}
     </div>
   );
 }

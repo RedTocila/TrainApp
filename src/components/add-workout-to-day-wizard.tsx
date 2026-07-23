@@ -17,14 +17,21 @@ export function AddWorkoutToDayWizard({
   onClose,
   dateKey,
   onComplete,
+  initialType = null,
 }: {
   open: boolean;
   onClose: () => void;
   dateKey: string;
   onComplete: () => void;
+  /** When set, skip the type chooser and open the matching builder. */
+  initialType?: CreateWorkoutType | null;
 }) {
-  const [phase, setPhase] = useState<"type" | "build">("type");
-  const [workoutType, setWorkoutType] = useState<CreateWorkoutType | null>(null);
+  const [phase, setPhase] = useState<"type" | "build">(
+    initialType ? "build" : "type"
+  );
+  const [workoutType, setWorkoutType] = useState<CreateWorkoutType | null>(
+    initialType
+  );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -33,8 +40,16 @@ export function AddWorkoutToDayWizard({
       setPhase("type");
       setWorkoutType(null);
       setError(null);
+      return;
     }
-  }, [open]);
+    if (initialType) {
+      setWorkoutType(initialType);
+      setPhase("build");
+    } else {
+      setWorkoutType(null);
+      setPhase("type");
+    }
+  }, [open, initialType]);
 
   const handleTypeSelect = (type: CreateWorkoutType) => {
     setWorkoutType(type);
@@ -60,18 +75,27 @@ export function AddWorkoutToDayWizard({
     });
   };
 
+  const showTypeDialog = open && phase === "type" && !initialType;
+
   return (
     <>
       <WorkoutTypeDialog
-        open={open && phase === "type"}
+        open={showTypeDialog}
         onClose={onClose}
         onSelect={handleTypeSelect}
       />
 
       <FullScreenFlow
-        open={open && phase === "build"}
+        open={open && phase === "build" && !!workoutType}
         onClose={onClose}
-        onBack={() => setPhase("type")}
+        onBack={
+          initialType
+            ? onClose
+            : () => {
+                setPhase("type");
+                setWorkoutType(null);
+              }
+        }
         title={workoutType === "hiit" ? "Build HIIT workout" : "Build workout"}
         subtitle="For this day only"
       >

@@ -90,7 +90,7 @@ export function AppDialog({
       )}
     >
       {(title || description) && (
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-5 py-4">
+        <div className="flex shrink-0 items-start justify-between gap-3 px-5 py-4">
           <div className="min-w-0">
             {title ? (
               <h2 id={titleId} className="text-lg font-black">
@@ -115,7 +115,7 @@ export function AppDialog({
       </div>
 
       {footer ? (
-        <div className="shrink-0 border-t border-border px-5 py-4">{footer}</div>
+        <div className="shrink-0 px-5 py-4">{footer}</div>
       ) : null}
     </div>
   );

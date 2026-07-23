@@ -20,8 +20,8 @@ type PhotosProps = ComponentProps<typeof ProgressPhotosCard>;
 type HabitsProps = ComponentProps<typeof HabitsTracker>;
 
 /**
- * Client boundary for home day pages — render-prop stays on the client so
- * Server Components never pass a function across the RSC boundary.
+ * Client boundary for the home dashboard — one day tree only
+ * (calendar selects the day; no swipe carousel).
  */
 export function DashboardHomeView({
   clientId,
@@ -83,78 +83,70 @@ export function DashboardHomeView({
   suggestedHabits: HabitsProps["suggestedHabits"];
 }) {
   return (
-    <DashboardHomeShell
-      clientId={clientId}
-      schedule={schedule}
-      accountCreatedAt={accountCreatedAt}
-    >
-      {() => (
-        <>
-          <DashboardWorkoutCard
-            clientId={clientId}
-            gender={gender}
-            initialWorkout={initialWorkout}
-            initialWorkouts={initialWorkouts}
-            initialWorkoutCompleted={initialWorkoutCompleted}
-            initialWorkoutResults={initialWorkoutResults}
-            variant="hero"
-            schedule={schedule}
-          />
+    <DashboardHomeShell clientId={clientId} schedule={schedule}>
+      <DashboardWorkoutCard
+        clientId={clientId}
+        gender={gender}
+        initialWorkout={initialWorkout}
+        initialWorkouts={initialWorkouts}
+        initialWorkoutCompleted={initialWorkoutCompleted}
+        initialWorkoutResults={initialWorkoutResults}
+        variant="hero"
+        schedule={schedule}
+      />
 
-          <DashboardOverview
-            clientId={clientId}
-            initialLog={initialLog}
-            initialDailyMeals={initialDailyMeals}
-            mealLibrary={mealLibrary}
-            hasAiAccess={hasAiAccess}
-            targets={targets}
-            personalPlanId={personalPlanId}
-            initialWaterGoalMl={waterGoalMl}
-            nutritionPlan={nutritionPlan}
-            goal={goal}
-            variant="compact"
-            schedule={schedule}
-          />
+      <DashboardOverview
+        clientId={clientId}
+        initialLog={initialLog}
+        initialDailyMeals={initialDailyMeals}
+        mealLibrary={mealLibrary}
+        hasAiAccess={hasAiAccess}
+        targets={targets}
+        personalPlanId={personalPlanId}
+        initialWaterGoalMl={waterGoalMl}
+        nutritionPlan={nutritionPlan}
+        goal={goal}
+        variant="compact"
+        schedule={schedule}
+      />
 
-          <div className="grid grid-cols-2 items-stretch gap-3">
-            <DashboardWaterCard
-              clientId={clientId}
-              initialWaterMl={initialWaterMl}
-              waterGoalMl={waterGoalMl}
-              variant="compact"
-            />
+      <div className="grid grid-cols-2 items-stretch gap-3">
+        <DashboardWaterCard
+          clientId={clientId}
+          initialWaterMl={initialWaterMl}
+          waterGoalMl={waterGoalMl}
+          variant="compact"
+        />
 
-            <DashboardCardioCard
-              clientId={clientId}
-              initialScheduled={initialCardios}
-              initialCompletions={initialCardioCompletions}
-              variant="compact"
-              schedule={schedule}
-            />
-          </div>
+        <DashboardCardioCard
+          clientId={clientId}
+          initialScheduled={initialCardios}
+          initialCompletions={initialCardioCompletions}
+          variant="compact"
+          schedule={schedule}
+        />
+      </div>
 
-          <BodyMetricsSection
-            clientId={clientId}
-            heightCm={heightCm}
-            intakeWeightKg={intakeWeightKg}
-            accountCreatedAt={accountCreatedAt}
-            initialHistory={weightHistory}
-            initialLog={weightLog}
-          />
+      <BodyMetricsSection
+        clientId={clientId}
+        heightCm={heightCm}
+        intakeWeightKg={intakeWeightKg}
+        accountCreatedAt={accountCreatedAt}
+        initialHistory={weightHistory}
+        initialLog={weightLog}
+      />
 
-          <ProgressPhotosCard
-            clientId={clientId}
-            initialSets={progressPhotoSets}
-            initialCurrentUrls={initialCurrentUrls}
-          />
+      <ProgressPhotosCard
+        clientId={clientId}
+        initialSets={progressPhotoSets}
+        initialCurrentUrls={initialCurrentUrls}
+      />
 
-          <HabitsTracker
-            clientId={clientId}
-            initialHabits={habits}
-            suggestedHabits={suggestedHabits}
-          />
-        </>
-      )}
+      <HabitsTracker
+        clientId={clientId}
+        initialHabits={habits}
+        suggestedHabits={suggestedHabits}
+      />
     </DashboardHomeShell>
   );
 }

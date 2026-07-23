@@ -64,9 +64,8 @@ export function CalendarStrip({
 
     return Array.from({ length: totalDays }, (_, i) => {
       const day = addDays(rangeStart, i);
-      const rawTasks = enrichTasksForDate(day, schedule, enrichment, now);
       const inactive = isInactiveCalendarDay(day, activeFrom, now);
-      const tasks = inactive ? [] : rawTasks;
+      const tasks = inactive ? [] : enrichTasksForDate(day, schedule, enrichment, now);
       const dayStatus = getCalendarDayStatus(tasks, day, now);
       return { day, tasks, dayStatus, inactive };
     });
