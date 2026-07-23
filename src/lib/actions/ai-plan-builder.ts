@@ -6,6 +6,7 @@ import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import {
   checkAiPlanApplyAllowed,
   consumeAiPlanApply,
+  ensureManualPlanCreation,
 } from "@/lib/actions/usage-limits";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
@@ -23,6 +24,7 @@ import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import { saveWorkoutDay } from "@/lib/actions/plans";
 import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan, addWorkoutToDay } from "@/lib/actions/user-workouts";
 import { savePersonalHiitPlan } from "@/lib/actions/user-hiit";
+import { enrichExerciseWithGif } from "@/lib/exercise-gif";
 import type { WorkoutPlanKind } from "@/lib/hiit";
 import {
   createPersonalNutritionPlan,
@@ -115,30 +117,116 @@ export async function applyAiWorkoutDayToDateAction(
   dateKey: string,
   workout: AiGeneratedWorkoutDay
 ): Promise<{ planId: string } | { error: string }> {
-  const access = await requireAiPlanBuilder();
-  if (!access.success) return { error: access.error };
+  try {
+    const access = await requireAiPlanBuilder();
+    if (!access.success) return { error: access.error };
 
-  if (!workout.exercises?.length) return { error: "No exercises to add" };
+    if (!workout.exercises?.length) return { error: "No exercises to add" };
 
-  const created = await createPersonalWorkoutPlan(
-    workout.title,
-    workout.description || "AI Coach · one-off session"
-  );
-  if (created.error || !created.data) {
-    return { error: created.error ?? "Could not create workout" };
+    const createAccess = await ensureManualPlanCreation();
+    if ("error" in createAccess) return { error: createAccess.error };
+    const { admin, userId } = createAccess;
+
+    // Fail fast if this day already has a workout (avoid orphan plans).
+    const { data: existingAny } = await admin
+      .from("scheduled_workouts")
+      .select("id")
+      .eq("client_id", userId)
+      .eq("scheduled_date", dateKey)
+      .limit(1)
+      .maybeSingle();
+    if (existingAny) {
+      return { error: "Only one workout per day. Remove the current workout first." };
+    }
+
+    const title = workout.title?.trim() || "AI Workout";
+    const { data: plan, error: planError } = await admin
+      .from("workout_plans")
+      .insert({
+        title,
+        description: workout.description?.trim() || "AI Coach · one-off session",
+        created_by: userId,
+        is_personal: true,
+        folder_id: null,
+        kind: "strength",
+      })
+      .select("id")
+      .single();
+
+    if (planError || !plan) {
+      return { error: planError?.message ?? "Could not create workout" };
+    }
+
+    const planId = plan.id as string;
+
+    const { data: day, error: dayError } = await admin
+      .from("workout_days")
+      .insert({
+        plan_id: planId,
+        day_index: 0,
+        title,
+      })
+      .select("id")
+      .single();
+
+    if (dayError || !day) {
+      await admin.from("workout_plans").delete().eq("id", planId);
+      return { error: dayError?.message ?? "Could not save workout day" };
+    }
+
+    const dayId = day.id as string;
+    const enriched = workout.exercises.map((ex) =>
+      enrichExerciseWithGif({
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest_seconds: ex.rest_seconds,
+        notes: ex.notes,
+        image_url: ex.image_url,
+        video_url: ex.video_url,
+      })
+    );
+
+    const { error: exError } = await admin.from("exercises").insert(
+      enriched.map((ex, i) => ({
+        day_id: dayId,
+        name: ex.name,
+        sets: ex.sets,
+        reps: ex.reps,
+        rest_seconds: ex.rest_seconds,
+        notes: ex.notes ?? null,
+        image_url: ex.image_url ?? null,
+        video_url: ex.video_url ?? null,
+        order_index: i,
+      }))
+    );
+
+    if (exError) {
+      await admin.from("workout_plans").delete().eq("id", planId);
+      return { error: exError.message };
+    }
+
+    const { error: scheduleError } = await admin.from("scheduled_workouts").insert({
+      client_id: userId,
+      scheduled_date: dateKey,
+      plan_id: planId,
+      day_id: dayId,
+      order_index: 0,
+    });
+
+    if (scheduleError) {
+      await admin.from("workout_plans").delete().eq("id", planId);
+      return { error: scheduleError.message };
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/workout");
+    return { planId };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Failed to add workout",
+    };
   }
-
-  const planId = created.data.id;
-  const saved = await saveWorkoutDay(planId, 0, workout.title, workout.exercises);
-  if (saved.error) return { error: saved.error };
-  if (!saved.dayId) return { error: "Could not save workout day" };
-
-  const scheduled = await addWorkoutToDay(dateKey, planId, saved.dayId);
-  if (scheduled.error) return { error: scheduled.error };
-
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/workout");
-  return { planId };
 }
 
 export async function generateAiNutritionPlanAction(

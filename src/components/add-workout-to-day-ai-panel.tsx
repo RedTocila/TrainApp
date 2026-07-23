@@ -40,7 +40,8 @@ export function AddWorkoutToDayAiPanel({
   const [applied, setApplied] = useState(false);
   const [exercisesOpen, setExercisesOpen] = useState(true);
   const [showEditor, setShowEditor] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const [isGenerating, startGenerate] = useTransition();
+  const [isApplying, setIsApplying] = useState(false);
   const exerciseGender = resolveProfileGender(profile?.gender);
 
   useEffect(() => {
@@ -52,19 +53,24 @@ export function AddWorkoutToDayAiPanel({
   }, []);
 
   const aiAccess = profile ? hasAiAccess(profile) : false;
+  const busy = isGenerating || isApplying;
 
   const handleGenerate = () => {
     setError(null);
     setApplied(false);
-    startTransition(async () => {
-      const result = await generateAiWorkoutDayAction(prompt);
-      if ("error" in result) {
-        setError(result.error);
-        return;
+    startGenerate(async () => {
+      try {
+        const result = await generateAiWorkoutDayAction(prompt);
+        if ("error" in result) {
+          setError(result.error);
+          return;
+        }
+        setWorkout(result.workout);
+        setExercisesOpen(true);
+        setShowEditor(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to generate workout");
       }
-      setWorkout(result.workout);
-      setExercisesOpen(true);
-      setShowEditor(false);
     });
   };
 
@@ -74,17 +80,24 @@ export function AddWorkoutToDayAiPanel({
   };
 
   const handleApply = () => {
-    if (!workout) return;
+    if (!workout || isApplying || applied) return;
     setError(null);
-    startTransition(async () => {
-      const result = await applyAiWorkoutDayToDateAction(dateKey, workout);
-      if ("error" in result) {
-        setError(result.error);
-        return;
+    setIsApplying(true);
+    void (async () => {
+      try {
+        const result = await applyAiWorkoutDayToDateAction(dateKey, workout);
+        if ("error" in result) {
+          setError(result.error);
+          return;
+        }
+        setApplied(true);
+        onAdded();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to add workout");
+      } finally {
+        setIsApplying(false);
       }
-      setApplied(true);
-      onAdded();
-    });
+    })();
   };
 
   if (profileLoading) {
@@ -138,8 +151,8 @@ export function AddWorkoutToDayAiPanel({
             />
           </div>
 
-          <Button className="w-full gap-1.5" onClick={handleGenerate} disabled={isPending}>
-            {isPending && !workout ? (
+          <Button className="w-full gap-1.5" onClick={handleGenerate} disabled={busy}>
+            {isGenerating && !workout ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Building session…
@@ -204,18 +217,18 @@ export function AddWorkoutToDayAiPanel({
               variant="outline"
               size="sm"
               onClick={handleEditPrompt}
-              disabled={isPending || applied}
+              disabled={busy || applied}
             >
               <PenLine className="mr-1.5 h-3.5 w-3.5" />
               Edit & regenerate
             </Button>
-            <Button size="sm" onClick={handleApply} disabled={isPending || applied}>
+            <Button size="sm" onClick={handleApply} disabled={busy || applied}>
               {applied ? (
                 <>
                   <Check className="mr-1.5 h-3.5 w-3.5" />
                   Added
                 </>
-              ) : isPending ? (
+              ) : isApplying ? (
                 <>
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                   Adding…
@@ -225,10 +238,11 @@ export function AddWorkoutToDayAiPanel({
               )}
             </Button>
           </div>
+          {error ? <p className="border-t border-border/60 px-3 py-2 text-sm text-red-400">{error}</p> : null}
         </div>
       ) : null}
 
-      {!showEditor && error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {!showEditor && !workout && error ? <p className="text-sm text-red-400">{error}</p> : null}
     </div>
   );
 }
