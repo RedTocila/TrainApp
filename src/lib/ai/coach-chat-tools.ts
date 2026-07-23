@@ -15,8 +15,9 @@ import {
 } from "@/lib/ai/coach-chat-plans";
 import type {
   AiGeneratedNutritionPlan,
-  AiGeneratedWorkoutPlan,
+  AiWorkoutPlanResult,
 } from "@/lib/ai/plan-builder-types";
+import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import { getLimitExceededMessage } from "@/lib/subscription-messages";
 import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
@@ -24,7 +25,7 @@ import type { Profile } from "@/lib/types";
 import type OpenAI from "openai";
 
 export type ChatPlanPreview =
-  | { type: "workout"; plan: AiGeneratedWorkoutPlan }
+  | { type: "workout"; plan: AiWorkoutPlanResult }
   | { type: "nutrition"; plan: AiGeneratedNutritionPlan };
 
 export type CoachChatToolEvent =
@@ -68,13 +69,19 @@ export const COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "generate_workout_plan",
       description:
-        "Generate a new personalized weekly workout plan. Use when they want a new program, training split, or to replace their workouts.",
+        "Generate a new personalized workout. Use workout_kind=hiit for HIIT/interval/tabata timer sessions; use strength (default) for traditional sets/reps weekly splits. Prefer hiit when they ask for HIIT, intervals, or tabata; prefer strength for traditional, hypertrophy, bodybuilding, or general 'workout plan'.",
       parameters: {
         type: "object",
         properties: {
           preferences: {
             type: "string",
-            description: "Optional extra instructions (equipment, days per week, focus areas).",
+            description: "Optional extra instructions (equipment, days per week, focus areas, HIIT duration).",
+          },
+          workout_kind: {
+            type: "string",
+            enum: ["strength", "hiit"],
+            description:
+              "strength = classic sets/reps weekly plan; hiit = timed interval session with work/rest/rounds.",
           },
         },
         additionalProperties: false,
@@ -221,10 +228,20 @@ export async function executeCoachChatTool(
       case "generate_workout_plan": {
         const preferences =
           typeof args.preferences === "string" ? args.preferences : undefined;
-        const plan = await generateWorkoutPlanForChat(profile, preferences);
+        const workoutKind =
+          args.workout_kind === "hiit" || args.workout_kind === "strength"
+            ? args.workout_kind
+            : null;
+        const plan = await generateWorkoutPlanForChat(profile, preferences, workoutKind);
         const preview: ChatPlanPreview = { type: "workout", plan };
         onEvent?.({ type: "plan_preview", preview });
         onEvent?.({ type: "tool_done", name });
+        if (isAiHiitPlan(plan)) {
+          return {
+            result: `Generated HIIT workout "${plan.title}" with ${plan.config.exercises.length} move(s), ${plan.config.rounds} round(s). A preview card is shown in chat — the client must tap Apply to save it.`,
+            planPreview: preview,
+          };
+        }
         return {
           result: `Generated workout plan "${plan.title}" with ${plan.days.length} training day(s). A preview card is shown in chat — the client must tap Apply to save it.`,
           planPreview: preview,

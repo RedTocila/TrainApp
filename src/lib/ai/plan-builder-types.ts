@@ -1,3 +1,5 @@
+import type { HiitConfig } from "@/lib/hiit";
+
 export interface AiWorkoutExercise {
   name: string;
   sets: number;
@@ -13,12 +15,29 @@ export interface AiWorkoutDay {
   exercises: AiWorkoutExercise[];
 }
 
+/** Traditional sets/reps weekly workout plan. */
 export interface AiGeneratedWorkoutPlan {
+  kind?: "strength";
   title: string;
   description: string;
   days_per_week: number;
   days: AiWorkoutDay[];
   coach_notes: string[];
+}
+
+/** Timed-interval HIIT session (matches manual HIIT builder / hiit_config). */
+export interface AiGeneratedHiitPlan {
+  kind: "hiit";
+  title: string;
+  description: string;
+  config: HiitConfig;
+  coach_notes: string[];
+}
+
+export type AiWorkoutPlanResult = AiGeneratedWorkoutPlan | AiGeneratedHiitPlan;
+
+export function isAiHiitPlan(plan: AiWorkoutPlanResult): plan is AiGeneratedHiitPlan {
+  return plan.kind === "hiit";
 }
 
 /** One-off session for a single calendar day. */

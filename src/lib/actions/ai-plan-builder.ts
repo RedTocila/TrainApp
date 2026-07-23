@@ -13,12 +13,17 @@ import { isAiConfigured } from "@/lib/ai/providers";
 import { generateWorkoutDayFromProfile, generateWorkoutPlanFromProfile } from "@/lib/ai/generate-workout-plan";
 import { generateNutritionPlanFromProfile } from "@/lib/ai/generate-nutrition-plan";
 import type {
+  AiGeneratedHiitPlan,
   AiGeneratedNutritionPlan,
   AiGeneratedWorkoutDay,
   AiGeneratedWorkoutPlan,
+  AiWorkoutPlanResult,
 } from "@/lib/ai/plan-builder-types";
+import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import { saveWorkoutDay } from "@/lib/actions/plans";
 import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan, addWorkoutToDay } from "@/lib/actions/user-workouts";
+import { savePersonalHiitPlan } from "@/lib/actions/user-hiit";
+import type { WorkoutPlanKind } from "@/lib/hiit";
 import {
   createPersonalNutritionPlan,
   assignPersonalNutritionPlan,
@@ -74,13 +79,14 @@ export async function getAiPlanBuilderProfile(): Promise<
 }
 
 export async function generateAiWorkoutPlanAction(
-  preferences?: string
-): Promise<{ plan: AiGeneratedWorkoutPlan } | { error: string }> {
+  preferences?: string,
+  kind?: WorkoutPlanKind | null
+): Promise<{ plan: AiWorkoutPlanResult } | { error: string }> {
   const access = await requireAiPlanBuilder();
   if (!access.success) return { error: access.error };
 
   try {
-    const plan = await generateWorkoutPlanFromProfile(access.profile, preferences);
+    const plan = await generateWorkoutPlanFromProfile(access.profile, preferences, kind);
     return { plan };
   } catch (error) {
     return {
@@ -151,9 +157,42 @@ export async function generateAiNutritionPlanAction(
   }
 }
 
-export async function applyAiWorkoutPlanAction(
-  plan: AiGeneratedWorkoutPlan
+export async function applyAiHiitPlanAction(
+  plan: AiGeneratedHiitPlan
 ): Promise<{ planId: string } | { error: string }> {
+  const access = await requireAiPlanBuilder();
+  if (!access.success) return { error: access.error };
+
+  const limit = await checkAiPlanApplyAllowed(access.profile, "workout");
+  if (!limit.allowed) return { error: limit.error };
+
+  if (!plan.config?.exercises?.length) return { error: "No HIIT exercises to apply" };
+
+  const saved = await savePersonalHiitPlan({
+    title: plan.title,
+    description: plan.description || "AI Coach · HIIT",
+    config: plan.config,
+    assign: true,
+  });
+  if (saved.error || !saved.data) {
+    return { error: saved.error ?? "Could not create HIIT workout" };
+  }
+
+  await consumeAiPlanApply(access.profile, "workout");
+
+  revalidatePath("/dashboard/workout");
+  revalidatePath("/dashboard/ai/plans/workout");
+  revalidatePath("/dashboard");
+  return { planId: saved.data.id };
+}
+
+export async function applyAiWorkoutPlanAction(
+  plan: AiWorkoutPlanResult
+): Promise<{ planId: string } | { error: string }> {
+  if (isAiHiitPlan(plan)) {
+    return applyAiHiitPlanAction(plan);
+  }
+
   const access = await requireAiPlanBuilder();
   if (!access.success) return { error: access.error };
 
@@ -270,10 +309,10 @@ export async function applyAiNutritionPlanAction(
 /** Apply a plan preview from AI coach chat (same as plan builder apply). */
 export async function applyChatPlanPreviewAction(
   type: "workout" | "nutrition",
-  plan: AiGeneratedWorkoutPlan | AiGeneratedNutritionPlan
+  plan: AiWorkoutPlanResult | AiGeneratedNutritionPlan
 ): Promise<{ planId: string; editPath: string } | { error: string }> {
   if (type === "workout") {
-    const result = await applyAiWorkoutPlanAction(plan as AiGeneratedWorkoutPlan);
+    const result = await applyAiWorkoutPlanAction(plan as AiWorkoutPlanResult);
     if ("error" in result) return result;
     return { planId: result.planId, editPath: `/dashboard/workout/${result.planId}/edit` };
   }

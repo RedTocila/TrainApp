@@ -32,7 +32,7 @@ function clampDay(date: Date, start: Date, end: Date): Date {
 
 /**
  * Horizontal day carousel: swipe left/right to change days.
- * Each page is one full-width day; that page scrolls vertically for content.
+ * Vertical scroll is on `.dashboard-main` so the header + calendar scroll away.
  */
 export function DashboardDayPager({
   accountCreatedAt,
@@ -146,18 +146,12 @@ export function DashboardDayPager({
     <div
       ref={scrollerRef}
       className={cn(
-        "dashboard-day-pager -mx-3 flex snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain sm:-mx-4 md:-mx-6",
+        "dashboard-day-pager -mx-3 flex snap-x snap-mandatory overflow-x-auto overflow-y-visible overscroll-x-contain sm:-mx-4 md:-mx-6",
         // Extend into the floating-nav safe area so themed cards show through the pill.
         "-mb-[var(--dashboard-mobile-nav-height,4.25rem)]",
         "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       )}
-      style={{
-        height:
-          "calc(100dvh - var(--dashboard-day-pager-top, 7.5rem))",
-        maxHeight:
-          "calc(100dvh - var(--dashboard-day-pager-top, 7.5rem))",
-        WebkitOverflowScrolling: "touch",
-      }}
+      style={{ WebkitOverflowScrolling: "touch" }}
       role="region"
       aria-roledescription="carousel"
       aria-label="Daily dashboard"
@@ -169,8 +163,8 @@ export function DashboardDayPager({
             key={key}
             data-date-key={key}
             className={cn(
-              "dashboard-day-page flex h-full w-full min-w-full shrink-0 snap-start snap-always flex-col",
-              "overflow-y-auto overscroll-y-contain px-3 sm:px-4 md:px-6",
+              "dashboard-day-page flex w-full min-w-full shrink-0 snap-start snap-always flex-col",
+              "px-3 sm:px-4 md:px-6",
               "pb-[var(--dashboard-mobile-nav-height,4.25rem)]"
             )}
             aria-label={format(day, "EEEE, MMMM d")}

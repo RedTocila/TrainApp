@@ -7,7 +7,9 @@ import { generateWorkoutPlanFromProfile } from "@/lib/ai/generate-workout-plan";
 import type {
   AiGeneratedNutritionPlan,
   AiGeneratedWorkoutPlan,
+  AiWorkoutPlanResult,
 } from "@/lib/ai/plan-builder-types";
+import type { WorkoutPlanKind } from "@/lib/hiit";
 import type { Profile } from "@/lib/types";
 
 type WorkoutDayRow = {
@@ -65,6 +67,7 @@ function assignmentWorkoutToAiPlan(assignment: {
   if (days.length === 0) return null;
 
   return {
+    kind: "strength",
     title: plan.title,
     description: plan.description ?? "",
     days_per_week: days.length,
@@ -159,9 +162,10 @@ export async function summarizeActivePlans(clientId: string): Promise<string> {
 
 export async function generateWorkoutPlanForChat(
   profile: Profile,
-  preferences?: string
-): Promise<AiGeneratedWorkoutPlan> {
-  return generateWorkoutPlanFromProfile(profile, preferences);
+  preferences?: string,
+  workoutKind?: WorkoutPlanKind | null
+): Promise<AiWorkoutPlanResult> {
+  return generateWorkoutPlanFromProfile(profile, preferences, workoutKind);
 }
 
 export async function generateNutritionPlanForChat(
@@ -174,7 +178,7 @@ export async function generateNutritionPlanForChat(
 export async function editWorkoutPlanForChat(
   profile: Profile,
   instructions: string
-): Promise<AiGeneratedWorkoutPlan> {
+): Promise<AiWorkoutPlanResult> {
   const current = await loadActiveWorkoutPlan(profile.id);
   const context = current
     ? `CURRENT WORKOUT PLAN (modify this — keep what still works unless asked to remove):\n${JSON.stringify(current, null, 2)}\n\n`

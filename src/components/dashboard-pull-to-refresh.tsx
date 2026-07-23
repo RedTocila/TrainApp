@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
-/** Finger travel (px) required before refresh arms — keep high to avoid accidents. */
-const PULL_THRESHOLD_PX = 130;
-const PULL_RESISTANCE = 0.42;
-const MAX_PULL_PX = 150;
+/** Finger travel (px) required before refresh arms — intentionally long. */
+const PULL_THRESHOLD_PX = 240;
+const PULL_RESISTANCE = 0.32;
+const MAX_PULL_PX = 200;
 const INDICATOR_SIZE = 40;
 const STROKE = 3;
 
@@ -85,17 +85,7 @@ export function DashboardPullToRefresh() {
     const isAtTop = () => {
       if (window.scrollY > 0) return false;
       if (main.scrollTop > 0) return false;
-      // Home day pager: vertical scroll lives on the active day page, not main.
-      const pages = document.querySelectorAll<HTMLElement>(".dashboard-day-page");
-      if (pages.length === 0) return true;
-      for (const page of pages) {
-        const rect = page.getBoundingClientRect();
-        // Only consider the page currently in view.
-        if (rect.left >= -8 && rect.left < window.innerWidth / 2) {
-          return page.scrollTop <= 0;
-        }
-      }
-      return (pages[0]?.scrollTop ?? 0) <= 0;
+      return true;
     };
 
     const resetPull = () => {

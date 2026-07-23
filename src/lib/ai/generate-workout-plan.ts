@@ -2,7 +2,13 @@ import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { enrichExercisesWithDemoVideos } from "@/lib/ai/exercise-video-search";
-import type { AiGeneratedWorkoutDay, AiGeneratedWorkoutPlan } from "@/lib/ai/plan-builder-types";
+import type {
+  AiGeneratedHiitPlan,
+  AiGeneratedWorkoutDay,
+  AiGeneratedWorkoutPlan,
+  AiWorkoutPlanResult,
+} from "@/lib/ai/plan-builder-types";
+import { normalizeHiitConfig, type HiitConfig, type WorkoutPlanKind } from "@/lib/hiit";
 import type { Profile } from "@/lib/types";
 
 function clampSets(n: unknown): number {
@@ -13,6 +19,33 @@ function clampSets(n: unknown): number {
 function clampRest(n: unknown): number {
   const v = typeof n === "number" ? n : parseInt(String(n), 10);
   return Number.isFinite(v) ? Math.min(300, Math.max(30, v)) : 60;
+}
+
+/**
+ * Prefer an explicit kind from the UI/tool.
+ * Otherwise detect HIIT from preferences; default to traditional strength.
+ */
+export function inferAiWorkoutKind(
+  preferences?: string,
+  explicit?: WorkoutPlanKind | null
+): WorkoutPlanKind {
+  if (explicit === "hiit" || explicit === "strength") return explicit;
+  const text = (preferences ?? "").toLowerCase();
+  if (!text.trim()) return "strength";
+
+  const wantsHiit =
+    /\b(hiit|high[\s-]?intensity(\s+interval)?(\s+training)?|tabata|interval\s*training|timed\s*intervals?|circuit\s*timer)\b/i.test(
+      text
+    );
+  if (!wantsHiit) return "strength";
+
+  const wantsTraditional =
+    /\b(traditional|strength\s*training|hypertrophy|bodybuilding|powerlifting|sets?\s*(and|&|\/)\s*reps?)\b/i.test(
+      text
+    ) && !/\b(hiit|tabata)\b/i.test(text);
+  if (wantsTraditional) return "strength";
+
+  return "hiit";
 }
 
 function normalizeWorkoutPlan(raw: AiGeneratedWorkoutPlan): AiGeneratedWorkoutPlan {
@@ -36,6 +69,7 @@ function normalizeWorkoutPlan(raw: AiGeneratedWorkoutPlan): AiGeneratedWorkoutPl
     .filter((d) => d.exercises.length > 0);
 
   return {
+    kind: "strength",
     title: raw.title?.trim() || "AI Workout Plan",
     description: raw.description?.trim() || "",
     days_per_week: Math.min(6, Math.max(1, days.length)),
@@ -58,18 +92,19 @@ async function attachDemoVideosToPlan(
   return { ...plan, days };
 }
 
-export async function generateWorkoutPlanFromProfile(
+async function generateStrengthWorkoutPlanFromProfile(
   profile: Profile,
   preferences?: string
 ): Promise<AiGeneratedWorkoutPlan> {
   const intake = buildIntakeContextForAi(profile, preferences);
 
-  const prompt = `You are an expert personal trainer. Create a safe, practical weekly workout plan tailored to this client.
+  const prompt = `You are an expert personal trainer. Create a safe, practical weekly TRADITIONAL strength/fitness workout plan (sets, reps, rest) tailored to this client.
 
 CLIENT PROFILE:
 ${intake}
 
 Rules:
+- This is NOT a HIIT / interval timer workout. Use classic sets × reps with rest between sets.
 - Respect injuries and medical conditions — avoid aggravating movements and suggest alternatives in notes.
 - Match volume and split to goal, age, schedule, and recovery capacity.
 - Use clear exercise names (no equipment codes).
@@ -108,6 +143,139 @@ Respond with ONLY valid JSON:
   }
 
   return plan;
+}
+
+async function attachDemoVideosToHiit(
+  config: HiitConfig,
+  gender?: string | null
+): Promise<HiitConfig> {
+  const exercises = await enrichExercisesWithDemoVideos(
+    config.exercises.map((ex) => ({
+      name: ex.name,
+      image_url: ex.image_url ?? undefined,
+      video_url: ex.video_url ?? undefined,
+      work_seconds: ex.work_seconds,
+      rest_seconds: ex.rest_seconds,
+      notes: ex.notes ?? undefined,
+    })),
+    gender
+  );
+
+  return {
+    ...config,
+    exercises: exercises.map((ex) => ({
+      name: ex.name,
+      work_seconds: ex.work_seconds,
+      rest_seconds: ex.rest_seconds,
+      notes: ex.notes ?? null,
+      image_url: ex.image_url ?? null,
+      video_url: ex.video_url ?? null,
+    })),
+  };
+}
+
+function normalizeAiHiitPlan(raw: {
+  title?: string;
+  description?: string;
+  coach_notes?: string[];
+  config?: unknown;
+  prepare_seconds?: unknown;
+  rounds?: unknown;
+  round_rest_seconds?: unknown;
+  cycles?: unknown;
+  cycle_rest_seconds?: unknown;
+  exercises?: unknown;
+}): AiGeneratedHiitPlan | null {
+  const configRaw =
+    raw.config && typeof raw.config === "object"
+      ? raw.config
+      : {
+          prepare_seconds: raw.prepare_seconds,
+          rounds: raw.rounds,
+          round_rest_seconds: raw.round_rest_seconds,
+          cycles: raw.cycles,
+          cycle_rest_seconds: raw.cycle_rest_seconds,
+          exercises: raw.exercises,
+        };
+
+  const config = normalizeHiitConfig(configRaw);
+  if (!config) return null;
+
+  return {
+    kind: "hiit",
+    title: raw.title?.trim() || "AI HIIT Workout",
+    description: raw.description?.trim() || "",
+    config,
+    coach_notes: (raw.coach_notes ?? []).filter((n) => n?.trim()).map((n) => n.trim()),
+  };
+}
+
+export async function generateHiitPlanFromProfile(
+  profile: Profile,
+  preferences?: string
+): Promise<AiGeneratedHiitPlan> {
+  const intake = buildIntakeContextForAi(profile, preferences);
+
+  const prompt = `You are an expert HIIT coach. Create ONE timed-interval HIIT workout session (work / rest timers, rounds, cycles) tailored to this client.
+
+CLIENT PROFILE:
+${intake}
+
+Rules:
+- This is a HIIT interval workout — NOT traditional sets × reps strength training.
+- Return a single session config the app timer can run (prepare → work/rest per move → rounds → optional cycles).
+- Respect injuries — swap high-impact moves for low-impact alternatives when needed and note modifications.
+- Match intensity and duration to fitness level and schedule (typically ~15–35 minutes total).
+- 4–8 exercises with clear names.
+- work_seconds usually 20–45; rest_seconds between moves usually 10–30.
+- rounds usually 2–5; cycles usually 1–2.
+- prepare_seconds 5–15; round_rest_seconds 45–120; cycle_rest_seconds 60–180 when cycles > 1.
+
+Respond with ONLY valid JSON:
+{
+  "title": "short HIIT session name",
+  "description": "1-2 sentences why this HIIT fits the client",
+  "config": {
+    "prepare_seconds": 10,
+    "rounds": 3,
+    "round_rest_seconds": 90,
+    "cycles": 1,
+    "cycle_rest_seconds": 120,
+    "exercises": [
+      {
+        "name": "Exercise name",
+        "work_seconds": 40,
+        "rest_seconds": 20,
+        "notes": "optional form or modification tip"
+      }
+    ]
+  },
+  "coach_notes": ["2-4 short coaching tips for this HIIT session"]
+}`;
+
+  const raw = await runTextPrompt(prompt, { maxTokens: 2000, json: true });
+  const parsed = parseJsonObject(raw) as Parameters<typeof normalizeAiHiitPlan>[0];
+  const normalized = normalizeAiHiitPlan(parsed);
+  if (!normalized) {
+    throw new Error("AI did not return a valid HIIT workout. Try again.");
+  }
+
+  return {
+    ...normalized,
+    config: await attachDemoVideosToHiit(normalized.config, profile.gender),
+  };
+}
+
+export async function generateWorkoutPlanFromProfile(
+  profile: Profile,
+  preferences?: string,
+  explicitKind?: WorkoutPlanKind | null
+): Promise<AiWorkoutPlanResult> {
+  const kind = inferAiWorkoutKind(preferences, explicitKind);
+  if (kind === "hiit") {
+    return generateHiitPlanFromProfile(profile, preferences);
+  }
+  return generateStrengthWorkoutPlanFromProfile(profile, preferences);
 }
 
 function normalizeWorkoutDay(raw: AiGeneratedWorkoutDay): AiGeneratedWorkoutDay {
@@ -150,6 +318,7 @@ ${sessionRequest}
 
 Rules:
 - Return exactly ONE session — not a weekly plan or split.
+- If they asked for HIIT/intervals, still return traditional sets × reps for this one-off calendar slot (full HIIT timer plans are built from the AI workout plan builder). Prefer metabolic / conditioning-style exercises with shorter rests.
 - Respect injuries and medical conditions — avoid aggravating movements and suggest alternatives in notes.
 - Match volume to goal, age, schedule, and recovery capacity.
 - Use clear exercise names (no equipment codes).

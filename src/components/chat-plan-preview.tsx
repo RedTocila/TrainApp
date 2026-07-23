@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Check, ChevronDown, Dumbbell, Loader2, Salad } from "lucide-react";
+import { Check, ChevronDown, Dumbbell, Loader2, Salad, Zap } from "lucide-react";
 import { applyChatPlanPreviewAction } from "@/lib/actions/ai-plan-builder";
 import type { ChatPlanPreview } from "@/lib/ai/coach-chat-tools";
+import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import { slotLabel } from "@/lib/meal-slots";
 import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { hiitSummaryLabel } from "@/lib/hiit";
 
 export function ChatPlanPreviewCard({
   preview,
@@ -27,6 +29,9 @@ export function ChatPlanPreviewCard({
   const [isPending, startTransition] = useTransition();
   const [openDay, setOpenDay] = useState(0);
   const isWorkout = preview.type === "workout";
+  const workoutPlan = isWorkout ? preview.plan : null;
+  const hiitPlan = workoutPlan && isAiHiitPlan(workoutPlan) ? workoutPlan : null;
+  const strengthPlan = workoutPlan && !isAiHiitPlan(workoutPlan) ? workoutPlan : null;
 
   const handleApply = () => {
     setError(null);
@@ -44,23 +49,58 @@ export function ChatPlanPreviewCard({
   return (
     <div className="mt-3 rounded-xl border border-primary/30 bg-background/80 p-3">
       <div className="flex items-start gap-2">
-        {isWorkout ? (
+        {hiitPlan ? (
+          <Zap className="mt-0.5 h-4 w-4 shrink-0 text-fuchsia-400" />
+        ) : isWorkout ? (
           <Dumbbell className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         ) : (
           <Salad className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         )}
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            {isWorkout ? "Workout plan preview" : "Nutrition plan preview"}
+            {hiitPlan
+              ? "HIIT workout preview"
+              : isWorkout
+                ? "Workout plan preview"
+                : "Nutrition plan preview"}
           </p>
           <p className="mt-0.5 font-semibold">{preview.plan.title}</p>
           {preview.plan.description && (
             <p className="mt-1 text-xs text-muted-foreground">{preview.plan.description}</p>
           )}
 
-          {isWorkout ? (
+          {hiitPlan ? (
+            <div className="mt-2 space-y-2">
+              <p className="text-[10px] font-semibold text-muted-foreground">
+                {hiitSummaryLabel(hiitPlan.config)}
+              </p>
+              <ul className="space-y-1.5">
+                {hiitPlan.config.exercises.map((ex) => (
+                  <li
+                    key={ex.name}
+                    className="flex items-start gap-2 rounded-md bg-secondary/30 px-2 py-1.5"
+                  >
+                    <ExerciseGifThumbnail
+                      name={ex.name}
+                      imageUrl={ex.image_url}
+                      videoUrl={ex.video_url}
+                      gender={gender}
+                      size="sm"
+                      expandable
+                    />
+                    <div className="min-w-0 flex-1 text-xs">
+                      <p className="font-medium text-foreground">{ex.name}</p>
+                      <p className="text-muted-foreground">
+                        {ex.work_seconds}s work · {ex.rest_seconds}s rest
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : strengthPlan ? (
             <div className="mt-2 space-y-1">
-              {preview.plan.days.map((day, i) => (
+              {strengthPlan.days.map((day, i) => (
                 <div key={i} className="overflow-hidden rounded-lg border border-border/60">
                   <button
                     type="button"
@@ -107,7 +147,7 @@ export function ChatPlanPreviewCard({
                 </div>
               ))}
             </div>
-          ) : (
+          ) : preview.type === "nutrition" ? (
             <div className="mt-2 space-y-2">
               <div className="flex flex-wrap gap-1.5 text-[10px]">
                 <span className="rounded bg-secondary px-1.5 py-0.5 font-semibold">
@@ -132,7 +172,7 @@ export function ChatPlanPreviewCard({
                 ))}
               </ul>
             </div>
-          )}
+          ) : null}
 
           {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
 
