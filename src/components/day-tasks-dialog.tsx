@@ -1,9 +1,10 @@
 "use client";
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
-import { format, isToday, isTomorrow } from "date-fns";
+import { isToday, isTomorrow } from "date-fns";
 import { X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { getTaskCompletionsForDate } from "@/lib/actions/task-completions";
 import { getHabitCompletionsForDate } from "@/lib/actions/habits";
 import {
@@ -11,16 +12,11 @@ import {
   buildDailyTasks,
   type ClientSchedule,
 } from "@/lib/daily-tasks";
+import { formatLocalized } from "@/lib/date-locale";
 import { formatDateKey } from "@/lib/utils";
 import { DialogPortal } from "@/components/dialog-portal";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { Button } from "@/components/ui/button";
-
-function dayHeading(date: Date): string {
-  if (isToday(date)) return "Today";
-  if (isTomorrow(date)) return "Tomorrow";
-  return format(date, "EEEE");
-}
 
 export function DayTasksDialog({
   open,
@@ -35,6 +31,8 @@ export function DayTasksDialog({
   schedule: ClientSchedule;
   onClose: () => void;
 }) {
+  const platform = usePlatformCopy();
+  const locale = useLocale();
   const [tasks, setTasks] = useState<ReturnType<typeof buildDailyTasks>>([]);
   const [, startTransition] = useTransition();
 
@@ -71,34 +69,51 @@ export function DayTasksDialog({
   if (!open || !date) return null;
 
   const { active, missed, completed } = groupTasksByStatus(tasks);
+  const dayHeading = isToday(date)
+    ? platform.calendar.today
+    : isTomorrow(date)
+      ? platform.calendar.tomorrow
+      : formatLocalized(date, "EEEE", locale);
 
   return (
     <DialogPortal open={open}>
       <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
         <button
           type="button"
-          aria-label="Close"
+          aria-label={platform.common.close}
           className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
           onClick={onClose}
         />
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={`Tasks for ${format(date, "MMMM d")}`}
+          aria-label={platform.calendar.tasksFor(
+            formatLocalized(date, "MMMM d", locale)
+          )}
           className="relative z-10 flex max-h-[min(85vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
         >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              {dayHeading(date)}
+              {dayHeading}
             </p>
-            <h2 className="text-lg font-black">{format(date, "MMMM d, yyyy")}</h2>
+            <h2 className="text-lg font-black">
+              {formatLocalized(date, "MMMM d, yyyy", locale)}
+            </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {active.length} active · {completed.length} completed
-              {missed.length > 0 ? ` · ${missed.length} missed` : ""}
+              {platform.calendar.daySummary(
+                active.length,
+                completed.length,
+                missed.length
+              )}
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label={platform.common.close}
+          >
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -109,7 +124,7 @@ export function DayTasksDialog({
 
         <div className="border-t border-border px-5 py-3">
           <Button variant="outline" className="w-full" onClick={onClose}>
-            Close
+            {platform.common.close}
           </Button>
         </div>
       </div>

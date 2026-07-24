@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { useSelectedDate } from "@/components/date-provider";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { formatDateKey } from "@/lib/utils";
 
 type DashboardDateLoadingContextValue = {
@@ -118,6 +119,7 @@ export function DashboardDateLoadingDots({
   className?: string;
   variant?: "inline" | "container";
 }) {
+  const platform = usePlatformCopy();
   const isDateLoading = useDashboardDateLoading();
   if (!isDateLoading) return null;
 
@@ -137,7 +139,7 @@ export function DashboardDateLoadingDots({
           role="status"
           aria-live="polite"
           aria-busy="true"
-          aria-label="Loading day"
+          aria-label={platform.common.loadingDay}
         >
           <div className="coach-alex-nav-loading__dots justify-center">
             {dots}
@@ -156,7 +158,7 @@ export function DashboardDateLoadingDots({
       role="status"
       aria-live="polite"
       aria-busy="true"
-      aria-label="Loading day"
+      aria-label={platform.common.loadingDay}
     >
       {dots}
     </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Apple, Camera, ClipboardList, Dumbbell, ImageIcon, Play } from "lucide-react";
+import { Apple, Camera, ClipboardList, Dumbbell, Gift, ImageIcon, Play } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import {
   FullCalendarNavButton,
@@ -141,6 +141,16 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
           </div>
         ) : (
           <div className={headerActionsGroup}>
+            <Link
+              href="/dashboard/referrals"
+              aria-label={platform.referral.navAria}
+              className={cn(
+                "inline-flex items-center justify-center text-muted-foreground",
+                headerIconButton
+              )}
+            >
+              <Gift className="h-4 w-4" />
+            </Link>
             <SupportContactButton buttonClassName={headerIconButton} />
             {showCalendar ? (
               <FullCalendarNavButton className={headerIconButton} />

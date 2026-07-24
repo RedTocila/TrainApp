@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { LifeBuoy, MessageSquare, Phone } from "lucide-react";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from "@/lib/landing-content";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ export function SupportContactButton({
   className?: string;
   buttonClassName?: string;
 }) {
+  const platform = usePlatformCopy();
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const containerRef = useRef<HTMLDivElement>(null);
@@ -100,9 +102,11 @@ export function SupportContactButton({
         className="z-[200] overflow-hidden rounded-xl border border-border bg-card shadow-lg"
       >
         <div className="border-b border-border px-3 py-2.5">
-          <p className="text-xs font-semibold text-foreground">Need help?</p>
+          <p className="text-xs font-semibold text-foreground">
+            {platform.support.needHelp}
+          </p>
           <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-            For any issue, call or message on WhatsApp.
+            {platform.support.helpBlurb}
           </p>
         </div>
         <div className="p-1.5">
@@ -116,7 +120,7 @@ export function SupportContactButton({
               <Phone className="h-4 w-4" />
             </span>
             <span className="min-w-0">
-              <span className="block font-medium">Call</span>
+              <span className="block font-medium">{platform.support.call}</span>
               <span className="block truncate text-xs text-muted-foreground">
                 {display}
               </span>
@@ -134,7 +138,7 @@ export function SupportContactButton({
               <MessageSquare className="h-4 w-4" />
             </span>
             <span className="min-w-0">
-              <span className="block font-medium">WhatsApp</span>
+              <span className="block font-medium">{platform.support.whatsapp}</span>
               <span className="block truncate text-xs text-muted-foreground">
                 {display}
               </span>
@@ -154,7 +158,7 @@ export function SupportContactButton({
         size="icon"
         className={cn("shrink-0", buttonClassName ?? "h-8 w-8")}
         onClick={() => setOpen((value) => !value)}
-        aria-label="Contact support"
+        aria-label={platform.support.contactSupport}
         aria-expanded={open}
         aria-haspopup="true"
       >

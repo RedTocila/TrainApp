@@ -1,4 +1,7 @@
 import { addDays, addWeeks, format, startOfWeek } from "date-fns";
+import type { CheckoutLocale } from "@/lib/checkout-i18n";
+import { formatLocalized } from "@/lib/date-locale";
+import { getPlatformCopy } from "@/lib/platform-copy";
 
 export type ScheduleStartMode = "now" | "next_week";
 
@@ -62,13 +65,18 @@ export function getScheduleAnchorDate(mode: ScheduleStartMode): Date {
   return addWeeks(thisWeekStart, 1);
 }
 
-export function formatScheduleAnchorLabel(mode: ScheduleStartMode): string {
+export function formatScheduleAnchorLabel(
+  mode: ScheduleStartMode,
+  locale: CheckoutLocale = "en"
+): string {
+  const platform = getPlatformCopy(locale);
   const anchor = getScheduleAnchorDate(mode);
-  if (mode === "now") return `Starting today (${format(anchor, "MMM d")})`;
-  return `Starting next week (${format(anchor, "MMM d")})`;
+  const dateLabel = formatLocalized(anchor, "MMM d", locale);
+  if (mode === "now") return platform.schedule.startingToday(dateLabel);
+  return platform.schedule.startingNextWeek(dateLabel);
 }
 
-/** 0 = Sunday, 1 = Monday, ... 6 = Saturday (matches JS Date.getDay()) */
+/** @deprecated Prefer getWeekdayOptions(locale) from locale-labels. */
 export const WEEKDAY_OPTIONS = [
   { label: "Mon", value: 1 },
   { label: "Tue", value: 2 },
@@ -111,13 +119,19 @@ export function generateRecurringScheduleDates(
 export function describeSchedulePreview(
   anchor: Date,
   weekdays: number[],
-  weeks: number
+  weeks: number,
+  locale: CheckoutLocale = "en"
 ): string {
+  const platform = getPlatformCopy(locale);
   const dates = generateRecurringScheduleDates(anchor, weekdays, weeks);
-  if (dates.length === 0) return "Select at least one day and one week.";
+  if (dates.length === 0) return platform.schedule.selectDayAndWeek;
 
   const first = dates[0];
   const last = dates[dates.length - 1];
 
-  return `${dates.length} session${dates.length === 1 ? "" : "s"} · ${format(new Date(first + "T12:00:00"), "MMM d")} – ${format(new Date(last + "T12:00:00"), "MMM d, yyyy")}`;
+  return platform.schedule.sessionRange(
+    dates.length,
+    formatLocalized(new Date(first + "T12:00:00"), "MMM d", locale),
+    formatLocalized(new Date(last + "T12:00:00"), "MMM d, yyyy", locale)
+  );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { format, isSameDay, isToday, isTomorrow } from "date-fns";
+import { isSameDay, isToday, isTomorrow } from "date-fns";
 import { motion } from "framer-motion";
 import {
   Apple,
@@ -12,10 +12,11 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { usePlatformCopy } from "@/components/locale-provider";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import type { DailyTask, TaskCategory } from "@/lib/daily-tasks";
-import { TASK_CATEGORY_LABELS } from "@/lib/daily-tasks";
 import { localizeCardioTitle } from "@/lib/cardio-catalog";
+import { formatLocalized } from "@/lib/date-locale";
+import { getTaskCategoryLabels } from "@/lib/locale-labels";
 import type { CalendarDayStatus } from "@/lib/dashboard-task-enrichment";
 import { cn } from "@/lib/utils";
 
@@ -46,18 +47,6 @@ interface CalendarDayCardProps {
   strip?: boolean;
 }
 
-function dayLabel(date: Date): string {
-  if (isToday(date)) return "Today";
-  if (isTomorrow(date)) return "Tomorrow";
-  return format(date, "EEE");
-}
-
-function stripDayLabel(date: Date): string {
-  if (isToday(date)) return "Today";
-  if (isTomorrow(date)) return "Tmrw";
-  return format(date, "EEE");
-}
-
 export function CalendarDayCard({
   date,
   selected,
@@ -69,7 +58,19 @@ export function CalendarDayCard({
   strip = false,
 }: CalendarDayCardProps) {
   const platform = usePlatformCopy();
+  const locale = useLocale();
+  const categoryLabels = getTaskCategoryLabels(locale);
   const todayDay = isToday(date);
+  const dayLabel = isToday(date)
+    ? platform.calendar.today
+    : isTomorrow(date)
+      ? platform.calendar.tomorrow
+      : formatLocalized(date, "EEE", locale);
+  const stripLabel = isToday(date)
+    ? platform.calendar.today
+    : isTomorrow(date)
+      ? platform.calendar.tomorrowShort
+      : formatLocalized(date, "EEE", locale);
   const visibleTasks = strip ? tasks.slice(0, 4) : compact ? tasks.slice(0, 4) : tasks;
   const hiddenCount = tasks.length - visibleTasks.length;
   const categories = [...new Set(tasks.map((task) => task.category))];
@@ -136,7 +137,7 @@ export function CalendarDayCard({
                   : "text-xs"
             )}
           >
-            {strip ? stripDayLabel(date) : dayLabel(date)}
+            {strip ? stripLabel : dayLabel}
           </p>
           <div
             className={cn(
@@ -154,7 +155,7 @@ export function CalendarDayCard({
                     : "text-2xl"
               )}
             >
-              {format(date, "d")}
+              {formatLocalized(date, "d", locale)}
             </p>
             {isComplete && (
               <span
@@ -162,7 +163,7 @@ export function CalendarDayCard({
                   "flex shrink-0 items-center justify-center rounded-full bg-green-500 text-white",
                   strip ? "h-4 w-4 sm:h-5 sm:w-5" : "h-5 w-5"
                 )}
-                aria-label="All tasks completed"
+                aria-label={platform.calendar.allTasksCompleted}
               >
                 <Check className={strip ? "h-2.5 w-2.5 sm:h-3 sm:w-3" : "h-3 w-3"} />
               </span>
@@ -173,7 +174,7 @@ export function CalendarDayCard({
                   "flex shrink-0 items-center justify-center rounded-full bg-red-500 text-white",
                   strip ? "h-4 w-4 sm:h-5 sm:w-5" : "h-5 w-5"
                 )}
-                aria-label="Tasks incomplete"
+                aria-label={platform.calendar.tasksIncomplete}
               >
                 <X className={strip ? "h-2.5 w-2.5 sm:h-3 sm:w-3" : "h-3 w-3"} />
               </span>
@@ -184,7 +185,10 @@ export function CalendarDayCard({
                   "flex shrink-0 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-none text-white sm:text-[10px]",
                   strip ? "h-4 min-w-4 sm:h-5 sm:min-w-5" : "h-5 min-w-5"
                 )}
-                aria-label={`${doneCount} of ${tasks.length} tasks completed`}
+                aria-label={platform.calendar.tasksCompletedAria(
+                  doneCount,
+                  tasks.length
+                )}
               >
                 {doneCount}/{tasks.length}
               </span>
@@ -198,11 +202,11 @@ export function CalendarDayCard({
           )}
         >
           <p className="text-[10px] font-medium uppercase">
-            {format(date, "MMM")}
+            {formatLocalized(date, "MMM", locale)}
           </p>
           {hasTasks ? (
             <p className="text-[10px] sm:text-xs">
-              {doneCount}/{tasks.length} done
+              {doneCount}/{tasks.length} {platform.calendar.done}
             </p>
           ) : (
             <p className="text-[10px] sm:text-xs text-muted-foreground/70">—</p>
@@ -226,16 +230,18 @@ export function CalendarDayCard({
                       category === "habits" && "bg-violet-400",
                       category === "water" && "bg-sky-400"
                     )}
-                    title={TASK_CATEGORY_LABELS[category]}
+                    title={categoryLabels[category]}
                   />
                 ))}
               </div>
               <p className="text-[9px] font-medium text-muted-foreground">
-                {tasks.length} tasks
+                {platform.calendar.tasksCount(tasks.length)}
               </p>
             </>
           ) : (
-            <p className="text-[9px] font-medium text-muted-foreground/70">No tasks</p>
+            <p className="text-[9px] font-medium text-muted-foreground/70">
+              {platform.calendar.noTasks}
+            </p>
           )}
         </div>
       )}
@@ -319,7 +325,7 @@ export function CalendarDayCard({
               strip ? "px-1 text-[9px] md:text-[10px]" : "px-2 text-[10px]"
             )}
           >
-            +{hiddenCount} more
+            {platform.calendar.moreTasks(hiddenCount)}
           </li>
         )}
       </ul>
@@ -342,6 +348,9 @@ export function CalendarDayDot({
   onSelect: () => void;
   size?: "default" | "large";
 }) {
+  const platform = usePlatformCopy();
+  const locale = useLocale();
+  const categoryLabels = getTaskCategoryLabels(locale);
   const todayDay = isToday(date);
   const categories = [...new Set(tasks.map((t) => t.category))];
   const isComplete = dayStatus === "complete";
@@ -383,7 +392,7 @@ export function CalendarDayDot({
       )}
     >
       <span className={cn("font-bold leading-none", large ? "text-base" : "text-xs")}>
-        {format(date, "d")}
+        {formatLocalized(date, "d", locale)}
       </span>
       {isComplete ? (
         <span
@@ -391,7 +400,7 @@ export function CalendarDayDot({
             "flex items-center justify-center rounded-full bg-green-500 text-white",
             large ? "h-6 w-6" : "mt-0.5 h-4 w-4"
           )}
-          aria-label="All tasks completed"
+          aria-label={platform.calendar.allTasksCompleted}
         >
           <Check className={large ? "h-3.5 w-3.5" : "h-2.5 w-2.5"} />
         </span>
@@ -401,7 +410,7 @@ export function CalendarDayDot({
             "flex items-center justify-center rounded-full bg-red-500 text-white",
             large ? "h-6 w-6" : "mt-0.5 h-4 w-4"
           )}
-          aria-label="Tasks incomplete"
+          aria-label={platform.calendar.tasksIncomplete}
         >
           <X className={large ? "h-3.5 w-3.5" : "h-2.5 w-2.5"} />
         </span>
@@ -411,7 +420,7 @@ export function CalendarDayDot({
             "rounded-full bg-amber-500 font-bold leading-none text-white",
             large ? "px-2 py-1 text-[11px]" : "mt-0.5 px-1 text-[9px]"
           )}
-          aria-label={`${doneCount} of ${tasks.length} tasks completed`}
+          aria-label={platform.calendar.tasksCompletedAria(doneCount, tasks.length)}
         >
           {doneCount}/{tasks.length}
         </span>
@@ -431,7 +440,7 @@ export function CalendarDayDot({
                   large ? "h-1.5 w-1.5" : "h-1 w-1",
                   selected ? "bg-primary-foreground/80" : "bg-primary/70"
                 )}
-                title={TASK_CATEGORY_LABELS[category]}
+                title={categoryLabels[category]}
               />
             ))}
           </div>

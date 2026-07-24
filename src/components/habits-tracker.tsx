@@ -1,7 +1,8 @@
 "use client";
-import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
-import { format, isToday } from "date-fns";
+import { isToday } from "date-fns";
+import { formatLocalized } from "@/lib/date-locale";
 import { ListChecks, Pencil, Plus, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -42,6 +43,7 @@ export function HabitsTracker({
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
+  const locale = useLocale();
   const router = useRouter();
   const { selectedDate } = useSelectedDate();
   const readOnly = useIsPastSelectedDay();
@@ -107,7 +109,7 @@ export function HabitsTracker({
 
   const dateLabel = isToday(selectedDate)
     ? platform.common.today
-    : format(selectedDate, "MMM d");
+    : formatLocalized(selectedDate, "MMM d", locale);
   const doneCount = displayHabits.filter((h) => h.completed).length;
   const missedHabits = displayHabits.filter((h) => h.status === "missed");
   const missedCount = missedHabits.length;

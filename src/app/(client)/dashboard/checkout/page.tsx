@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireClient } from "@/lib/actions/auth";
 import { getPreferredLocale } from "@/lib/actions/profile";
+import { getCheckoutReferralState } from "@/lib/actions/referrals";
 import { CheckoutClient } from "@/components/checkout-client";
 import { PageTransition } from "@/components/page-transition";
 import type { BillingInterval, SubscriptionPlanId } from "@/lib/subscription-plans";
@@ -14,7 +15,7 @@ export default async function CheckoutPage({
     interval?: string;
   }>;
 }) {
-  await requireClient();
+  const profile = await requireClient();
   const params = await searchParams;
   const planId = params.plan as SubscriptionPlanId | undefined;
   const interval = params.interval as BillingInterval | undefined;
@@ -28,6 +29,7 @@ export default async function CheckoutPage({
   }
 
   const displayPrice = getPlanPrice(planId, interval);
+  const referral = await getCheckoutReferralState(profile.id);
 
   return (
     <PageTransition>
@@ -36,6 +38,7 @@ export default async function CheckoutPage({
         interval={interval}
         locale={locale}
         displayPrice={displayPrice}
+        referral={referral}
       />
     </PageTransition>
   );

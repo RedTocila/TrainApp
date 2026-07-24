@@ -22,6 +22,7 @@ import {
   formatProgressMonthLabel,
   getProgressPhotoCountdown,
   getProgressPhotoDisplaySet,
+  getProgressPhotoTimelineRows,
   progressMonthKey,
   progressSetComplete,
   progressSetHasPhotos,
@@ -73,6 +74,7 @@ function PhotoSlot({
   url,
   uploading,
   canUploadPhotos,
+  canUpload = true,
   onRequireReadMe,
   onPick,
   onRemove,
@@ -82,6 +84,7 @@ function PhotoSlot({
   url: string | null;
   uploading: boolean;
   canUploadPhotos: boolean;
+  canUpload?: boolean;
   onRequireReadMe: () => void;
   onPick: (file: File) => void;
   onRemove: () => void;
@@ -122,7 +125,7 @@ function PhotoSlot({
               className="h-full w-full object-cover"
             />
           </button>
-        ) : (
+        ) : canUpload ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground">
             {uploading ? (
               <span className="text-xs font-medium">{platform.photos.analyzing}</span>
@@ -148,6 +151,10 @@ function PhotoSlot({
                 />
               </>
             )}
+          </div>
+        ) : (
+          <div className="flex h-full items-center justify-center px-2 text-center text-xs text-muted-foreground/70">
+            {platform.photos.noPhoto}
           </div>
         )}
         {url && !uploading ? (
@@ -396,15 +403,75 @@ function ProgressPhotosCardInner({
 
   const currentComplete = currentSet ? progressSetComplete(currentSet) : false;
   const countdown = useMemo(
-    () => getProgressPhotoCountdown({ sets, currentSet }),
-    [sets, currentSet]
+    () => getProgressPhotoCountdown({ sets, currentSet, locale }),
+    [sets, currentSet, locale]
   );
   const cycleLabel = useMemo(() => {
     if (displaySet && progressSetHasPhotos(displaySet)) {
-      return formatProgressCycleLabel(new Date(displaySet.created_at));
+      return formatProgressCycleLabel(new Date(displaySet.created_at), locale);
     }
-    return formatProgressMonthLabel(currentMonth);
-  }, [displaySet, currentMonth]);
+    return formatProgressMonthLabel(currentMonth, locale);
+  }, [displaySet, currentMonth, locale]);
+
+  const nextCheckIn = useMemo(() => {
+    if (!currentComplete || !currentSet) return null;
+    const rows = getProgressPhotoTimelineRows(sets, new Date(), locale);
+    return rows.find((row) => row.isUpcoming) ?? null;
+  }, [currentComplete, currentSet, sets, locale]);
+
+  const handleNextUpload = async (pose: ProgressPhotoPose, file: File) => {
+    if (!nextCheckIn || !ensureCanUpload()) return;
+    setError(null);
+    setUploadingPose(pose);
+    try {
+      const supabase = createClient();
+      const result = await uploadProgressPhotoWithAiReview({
+        supabase,
+        clientId,
+        monthKey: nextCheckIn.monthKey,
+        pose,
+        file,
+        locale,
+      });
+
+      if (result.status === "rejected") {
+        setAlexDialog({
+          title: platform.photos.alexWrongPhotoTitle,
+          message: result.analysis.alex_message,
+          primaryLabel: platform.photos.retakePhoto,
+        });
+        return;
+      }
+
+      if (result.status === "error") {
+        setError(result.message);
+        return;
+      }
+
+      if (result.analysis?.valid && result.analysis.alex_message) {
+        setAlexDialog({
+          title: platform.photos.alexAcceptedTitle,
+          message: result.analysis.alex_message,
+          primaryLabel: platform.common.done,
+        });
+      }
+
+      const nextSets = upsertPhotoPathInSets(
+        sets,
+        clientId,
+        nextCheckIn.monthKey,
+        pose,
+        result.path
+      );
+      setSets(nextSets);
+      setProgressPhotosSetsCache(clientId, nextSets);
+      refreshSets();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : platform.photos.uploadFailed);
+    } finally {
+      setUploadingPose(null);
+    }
+  };
 
   return (
     <>
@@ -478,6 +545,46 @@ function ProgressPhotosCardInner({
               ))}
             </div>
           </div>
+
+          {nextCheckIn ? (
+            <div>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                    {platform.photos.nextCheckIn}
+                  </p>
+                  <p className="mt-1 text-sm font-bold">{nextCheckIn.title}</p>
+                  {nextCheckIn.subtitle ? (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {nextCheckIn.subtitle}
+                    </p>
+                  ) : null}
+                </div>
+                <DashboardStatusIcon
+                  status="pending"
+                  aria-label={platform.photos.monthIncomplete}
+                />
+              </div>
+              <div className={cn("grid grid-cols-3 gap-3", dashboardInteractive)}>
+                {photoPoses.map(({ pose, label }) => (
+                  <PhotoSlot
+                    key={`next-${pose}`}
+                    label={label}
+                    url={null}
+                    uploading={uploadingPose === pose || isPending}
+                    canUpload={nextCheckIn.canUpload}
+                    canUploadPhotos={canUploadPhotos}
+                    onRequireReadMe={ensureCanUpload}
+                    onPick={(file) => {
+                      void handleNextUpload(pose, file);
+                    }}
+                    onRemove={() => {}}
+                    onPreview={() => {}}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
         </div>

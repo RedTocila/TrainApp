@@ -77,6 +77,11 @@ export interface Profile {
   subscription_expires_at?: string | null;
   /** Set once when the AI Pro free trial starts; never re-granted. */
   trial_started_at?: string | null;
+  referral_code?: string | null;
+  referred_by?: string | null;
+  referral_credit_balance_cents?: number;
+  referral_credits_earned_cents?: number;
+  referral_money_saved_cents?: number;
   phone?: string | null;
   dismissed_habit_suggestions?: string[];
   intake_responses?: IntakeResponses;

@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
 
 export function AiCoachFab() {
+  const platform = usePlatformCopy();
   const { isOpen, openChat } = useAiCoachChat();
   const [mounted, setMounted] = useState(false);
 
@@ -20,7 +22,7 @@ export function AiCoachFab() {
     <button
       type="button"
       onClick={openChat}
-      aria-label="Ask AI Coach"
+      aria-label={platform.nav.aiCoach}
       className={cn(
         "fixed z-[70] overflow-hidden rounded-full",
         "border-2 border-primary/50 shadow-xl shadow-primary/35",

@@ -1,8 +1,10 @@
 "use client";
 
 import type { Ref } from "react";
-import { format, isAfter, isBefore, isToday, startOfDay } from "date-fns";
+import { isAfter, isBefore, isToday, startOfDay } from "date-fns";
 import { Check, X } from "lucide-react";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
+import { formatLocalized } from "@/lib/date-locale";
 import type { DailyTask, TaskCategory } from "@/lib/daily-tasks";
 import type { CalendarDayStatus } from "@/lib/dashboard-task-enrichment";
 import { cn } from "@/lib/utils";
@@ -25,11 +27,6 @@ interface CalendarStripDayProps {
   buttonRef?: Ref<HTMLButtonElement>;
 }
 
-function dayAbbreviation(date: Date): string {
-  if (isToday(date)) return "Today";
-  return format(date, "EEE");
-}
-
 export function CalendarStripDay({
   date,
   selected,
@@ -39,6 +36,8 @@ export function CalendarStripDay({
   onSelect,
   buttonRef,
 }: CalendarStripDayProps) {
+  const platform = usePlatformCopy();
+  const locale = useLocale();
   const future = isAfter(startOfDay(date), startOfDay(new Date()));
   const hasTasks = tasks.length > 0;
   const categories = [...new Set(tasks.map((task) => task.category))];
@@ -47,6 +46,10 @@ export function CalendarStripDay({
   const isComplete = dayStatus === "complete";
   const isIncompletePast = dayStatus === "incomplete_past";
   const isIncompleteActive = dayStatus === "incomplete_active";
+
+  const dayAbbreviation = isToday(date)
+    ? platform.calendar.today
+    : formatLocalized(date, "EEE", locale);
 
   const circleBorder = cn(
     "flex h-9 w-9 items-center justify-center rounded-full border transition-colors sm:h-10 sm:w-10",
@@ -94,7 +97,7 @@ export function CalendarStripDay({
       type="button"
       onClick={onSelect}
       disabled={inactive}
-      aria-label={format(date, "EEEE, MMMM d")}
+      aria-label={formatLocalized(date, "EEEE, MMMM d", locale)}
       aria-pressed={selected}
       className={cn(
         "group relative flex min-w-[3rem] flex-1 flex-col items-center gap-1.5 px-1 py-2 transition-opacity sm:min-w-0 sm:gap-2 sm:py-2.5",
@@ -119,7 +122,7 @@ export function CalendarStripDay({
               : "text-muted-foreground"
         )}
       >
-        {dayAbbreviation(date)}
+        {dayAbbreviation}
       </span>
 
       <span className={cn(circleBorder, "relative z-10")}>
@@ -131,7 +134,7 @@ export function CalendarStripDay({
               : "text-foreground"
           )}
         >
-          {format(date, "d")}
+          {formatLocalized(date, "d", locale)}
         </span>
 
         {isComplete && (

@@ -1,5 +1,5 @@
 "use client";
-import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import { ChevronRight, Clock, Dumbbell, Layers, List, Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -38,6 +38,7 @@ import { WorkoutResultsDropdown } from "@/components/workout-results-dropdown";
 import { WorkoutExerciseList } from "@/components/workout-exercise-list";
 import { WorkoutMuscleMap, MuscleMapLegend } from "@/components/workout-muscle-map";
 import { WorkoutProgressionChart, WorkoutProgressionSkeleton } from "@/components/workout-progression-chart";
+import { formatLocalized } from "@/lib/date-locale";
 import { formatDateKey, cn } from "@/lib/utils";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import {
@@ -122,6 +123,7 @@ export function DashboardWorkoutCard({
 }) {
   const seedWorkouts = initialWorkouts ?? (initialWorkout ? [initialWorkout] : []);
   const coachLabels = useCoachLabels();
+  const locale = useLocale();
   const platform = usePlatformCopy();
   const router = useRouter();
   const { selectedDate, todayKey } = useSelectedDate();
@@ -530,7 +532,7 @@ export function DashboardWorkoutCard({
     const totalSets =
       workout?.exercises.reduce((sum, exercise) => sum + exercise.sets, 0) ?? 0;
     const exerciseCount = workout?.exercises.length ?? 0;
-    const dayLabel = format(selectedDate, "EEEE");
+    const dayLabel = formatLocalized(selectedDate, "EEEE", locale);
     const undertrained = !workout && trainedDaysLastWeek <= 2;
     const durationLabel = workout
       ? formatWorkoutDurationShort(

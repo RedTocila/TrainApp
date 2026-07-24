@@ -31,7 +31,7 @@ export function ThemeToggle({
           )}
         >
           <Moon className="h-4 w-4" />
-          Dark
+          {platform.settings.darkMode}
         </button>
         <button
           type="button"
@@ -44,7 +44,7 @@ export function ThemeToggle({
           )}
         >
           <Sun className="h-4 w-4" />
-          Light
+          {platform.settings.lightMode}
         </button>
       </div>
     );
@@ -55,7 +55,7 @@ export function ThemeToggle({
       <button
         type="button"
         onClick={() => setTheme(isLight ? "dark" : "light")}
-        aria-label={isLight ? "Switch to dark mode" : "Switch to light mode"}
+        aria-label={isLight ? platform.settings.switchToDark : platform.settings.switchToLight}
         className={cn(
           "inline-flex items-center justify-center rounded-lg border border-border p-2 text-muted-foreground transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 hover:bg-secondary hover:text-foreground",
           className
@@ -80,7 +80,7 @@ export function ThemeToggle({
         type="button"
         role="switch"
         aria-checked={isLight}
-        aria-label={isLight ? "Switch to dark mode" : "Switch to light mode"}
+        aria-label={isLight ? platform.settings.switchToDark : platform.settings.switchToLight}
         onClick={() => setTheme(isLight ? "dark" : "light")}
         className={cn(
           "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors",

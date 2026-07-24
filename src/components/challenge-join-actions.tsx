@@ -110,12 +110,16 @@ export function ChallengeJoinActions({
     setMessage(null);
     startTransition(async () => {
       const result = await createFlashChallengeEntryCheckout(challenge.id, action);
-      if (result.error) {
+      if ("error" in result && result.error) {
         setError(result.error);
         return;
       }
-      if (result.checkoutUrl) {
+      if ("checkoutUrl" in result && result.checkoutUrl) {
         router.push(result.checkoutUrl);
+        return;
+      }
+      if ("success" in result && result.success) {
+        router.refresh();
       }
     });
   };

@@ -13,7 +13,10 @@ import {
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
 import type { PlanPrice } from "@/lib/subscription-plans";
+import { formatReferralCreditEuros } from "@/lib/referral";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { CheckoutLayout } from "@/components/checkout-layout";
 import { usePlatformCopy } from "@/components/locale-provider";
 
@@ -46,11 +49,18 @@ export function CheckoutClient({
   interval,
   locale,
   displayPrice,
+  referral,
 }: {
   planId: SubscriptionPlanId;
   interval: BillingInterval;
   locale: CheckoutLocale;
   displayPrice: PlanPrice;
+  referral: {
+    canApplyInviteeDiscount: boolean;
+    inviteeDiscountCents: number;
+    creditBalanceCents: number;
+    canApplyCode: boolean;
+  };
 }) {
   const platform = usePlatformCopy();
   const router = useRouter();
@@ -59,17 +69,41 @@ export function CheckoutClient({
   const [localOrderId, setLocalOrderId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [referralCode, setReferralCode] = useState("");
+  const [useCredits, setUseCredits] = useState(referral.creditBalanceCents > 0);
 
   const plan = getPlan(planId);
   const price = displayPrice;
+  const inviteeDiscount = referral.canApplyInviteeDiscount
+    ? referral.inviteeDiscountCents
+    : 0;
+  const creditsPreview = useCredits
+    ? Math.min(
+        referral.creditBalanceCents,
+        Math.max(0, (price?.amountCents ?? 0) - inviteeDiscount)
+      )
+    : 0;
+  const payableCents = Math.max(
+    0,
+    (price?.amountCents ?? 0) - inviteeDiscount - creditsPreview
+  );
 
   const startCheckout = () => {
     setError(null);
 
     startTransition(async () => {
-      const result = await createCheckoutOrder(planId, interval);
+      const result = await createCheckoutOrder(planId, interval, {
+        useCredits,
+        referralCode: referral.canApplyCode ? referralCode : undefined,
+      });
       if ("error" in result && result.error) {
         setError(result.error);
+        return;
+      }
+      if ("paidWithCredits" in result && result.paidWithCredits) {
+        router.push(
+          `/dashboard/checkout/success?localOrderId=${result.localOrderId}`
+        );
         return;
       }
       if ("orderId" in result && result.orderId) {
@@ -97,7 +131,11 @@ export function CheckoutClient({
     <CheckoutLayout
       backHref="/dashboard/pricing"
       subtitle={plan ? `${plan.name} · ${intervalLabel}` : platform.checkoutFlow.completePurchase}
-      totalLabel={price?.label}
+      totalLabel={
+        payableCents !== price?.amountCents
+          ? formatReferralCreditEuros(payableCents, locale)
+          : price?.label
+      }
       summary={
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-secondary/25 p-4">
@@ -118,6 +156,32 @@ export function CheckoutClient({
                 </div>
               ) : null}
             </div>
+            {inviteeDiscount > 0 || creditsPreview > 0 ? (
+              <div className="mt-3 space-y-1 border-t border-border/60 pt-3 text-sm">
+                {inviteeDiscount > 0 ? (
+                  <p className="flex justify-between gap-2 text-emerald-400">
+                    <span>{platform.referral.inviteeDiscount}</span>
+                    <span>
+                      −{formatReferralCreditEuros(inviteeDiscount, locale)}
+                    </span>
+                  </p>
+                ) : null}
+                {creditsPreview > 0 ? (
+                  <p className="flex justify-between gap-2 text-emerald-400">
+                    <span>{platform.referral.creditsApplied(
+                      formatReferralCreditEuros(creditsPreview, locale)
+                    )}</span>
+                    <span>
+                      −{formatReferralCreditEuros(creditsPreview, locale)}
+                    </span>
+                  </p>
+                ) : null}
+                <p className="flex justify-between gap-2 font-bold">
+                  <span>{platform.checkoutFlow.priceLabel}</span>
+                  <span>{formatReferralCreditEuros(payableCents, locale)}</span>
+                </p>
+              </div>
+            ) : null}
           </div>
 
           {plan?.features?.length ? (
@@ -153,16 +217,53 @@ export function CheckoutClient({
       payment={
         <>
           {!checkoutStarted && (
-            <Button className="w-full" onClick={startCheckout} disabled={isPending}>
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {platform.checkoutFlow.preparing}
-                </>
-              ) : (
-                platform.checkoutFlow.primaryCta
-              )}
-            </Button>
+            <div className="space-y-4">
+              {referral.canApplyCode ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="checkout-referral">{platform.referral.enterCode}</Label>
+                  <Input
+                    id="checkout-referral"
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value)}
+                    placeholder={platform.referral.codePlaceholder}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                  />
+                </div>
+              ) : null}
+
+              {referral.creditBalanceCents > 0 ? (
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
+                  <input
+                    type="checkbox"
+                    checked={useCredits}
+                    onChange={(e) => setUseCredits(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                  />
+                  <span className="text-sm">
+                    <span className="font-semibold">{platform.referral.useCredits}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {platform.referral.creditsAvailable(
+                        formatReferralCreditEuros(referral.creditBalanceCents, locale)
+                      )}
+                    </span>
+                  </span>
+                </label>
+              ) : null}
+
+              <Button className="w-full" onClick={startCheckout} disabled={isPending}>
+                {isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {platform.checkoutFlow.preparing}
+                  </>
+                ) : payableCents === 0 ? (
+                  platform.referral.payWithCredits
+                ) : (
+                  platform.checkoutFlow.primaryCta
+                )}
+              </Button>
+            </div>
           )}
 
           {checkoutStarted && isPending && !orderId && (

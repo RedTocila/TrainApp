@@ -42,6 +42,7 @@ import {
   ProgressPhotoReadMeProvider,
   useProgressPhotoReadMe,
 } from "@/components/progress-photo-read-me-context";
+import { DashboardStatusIcon } from "@/components/section-completed-badge";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,8 @@ type PoseFrame = {
 function buildPoseFrames(
   pose: ProgressPhotoPose,
   sets: ProgressPhotoSet[],
-  urlsByMonth: Map<string, PoseUrls>
+  urlsByMonth: Map<string, PoseUrls>,
+  locale: ReturnType<typeof useLocale>
 ): PoseFrame[] {
   return [...sets]
     .filter((set) => {
@@ -78,7 +80,7 @@ function buildPoseFrames(
       return {
         url: urls[pose]!,
         monthKey: set.month_key,
-        title: formatProgressMonthLabel(set.month_key),
+        title: formatProgressMonthLabel(set.month_key, locale),
       };
     })
     .filter((frame) => Boolean(frame.url));
@@ -205,6 +207,7 @@ function PoseSlider({
   onClose: () => void;
   onIndexChange: (index: number) => void;
 }) {
+  const platform = usePlatformCopy();
   const [mounted, setMounted] = useState(false);
   const frame = frames[index];
   const canPrev = index > 0;
@@ -249,7 +252,7 @@ function PoseSlider({
           variant="ghost"
           size="icon"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={platform.common.close}
           className="text-white hover:bg-white/10 hover:text-white"
         >
           <X className="h-5 w-5" />
@@ -261,7 +264,7 @@ function PoseSlider({
           <button
             type="button"
             onClick={() => onIndexChange(index - 1)}
-            aria-label="Previous photo"
+            aria-label={platform.photos.previousPhoto}
             className="absolute left-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20 sm:left-4"
           >
             <ChevronLeft className="h-6 w-6" />
@@ -279,7 +282,7 @@ function PoseSlider({
           <button
             type="button"
             onClick={() => onIndexChange(index + 1)}
-            aria-label="Next photo"
+            aria-label={platform.photos.nextPhoto}
             className="absolute right-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20 sm:right-4"
           >
             <ChevronRight className="h-6 w-6" />
@@ -321,16 +324,28 @@ function TimelineRow({
         row.isUpcoming && "border-t border-border pt-8"
       )}
     >
-      <div>
-        {row.isUpcoming ? (
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            {platform.photos.nextCheckIn}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          {row.isUpcoming ? (
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              {platform.photos.nextCheckIn}
+            </p>
+          ) : null}
+          <p className={cn("text-sm font-bold", row.isUpcoming && "mt-1")}>
+            {row.title}
           </p>
-        ) : null}
-        <p className={cn("text-sm font-bold", row.isUpcoming && "mt-1")}>{row.title}</p>
-        {row.subtitle ? (
-          <p className="mt-0.5 text-xs text-muted-foreground">{row.subtitle}</p>
-        ) : null}
+          {row.subtitle ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">{row.subtitle}</p>
+          ) : null}
+        </div>
+        <DashboardStatusIcon
+          status={row.isComplete ? "completed" : "pending"}
+          aria-label={
+            row.isComplete
+              ? platform.photos.monthComplete
+              : platform.photos.monthIncomplete
+          }
+        />
       </div>
       <div className="grid grid-cols-3 gap-3">
         {photoPoses.map(({ pose, label }) => (
@@ -400,7 +415,10 @@ function ProgressPhotosHistoryPageInner({
   const locale = useLocale();
   const photoPoses = getProgressPhotoPoses(locale);
 
-  const timelineRows = useMemo(() => getProgressPhotoTimelineRows(sets), [sets]);
+  const timelineRows = useMemo(
+    () => getProgressPhotoTimelineRows(sets, new Date(), locale),
+    [sets, locale]
+  );
 
   const monthKeysToLoad = useMemo(
     () => [...new Set(timelineRows.map((row) => row.monthKey))],
@@ -578,7 +596,7 @@ function ProgressPhotosHistoryPageInner({
   };
 
   const openPoseSlider = (pose: ProgressPhotoPose, monthKey: string) => {
-    const frames = buildPoseFrames(pose, sets, urlsByMonth);
+    const frames = buildPoseFrames(pose, sets, urlsByMonth, locale);
     const index = frames.findIndex((frame) => frame.monthKey === monthKey);
     if (index >= 0) {
       setSlider({ pose, index });
@@ -586,7 +604,7 @@ function ProgressPhotosHistoryPageInner({
   };
 
   const sliderFrames = slider
-    ? buildPoseFrames(slider.pose, sets, urlsByMonth)
+    ? buildPoseFrames(slider.pose, sets, urlsByMonth, locale)
     : [];
   const sliderPoseLabel =
     photoPoses.find((p) => p.pose === slider?.pose)?.label ?? "";

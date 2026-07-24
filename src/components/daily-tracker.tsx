@@ -1,8 +1,9 @@
 "use client";
-import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import { useEffect, useMemo, useState } from "react";
-import { format, isToday } from "date-fns";
+import { isToday } from "date-fns";
+import { formatLocalized } from "@/lib/date-locale";
 import { Apple, Camera, ChevronRight, ClipboardList } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -102,6 +103,7 @@ export function DailyTracker({
 }: DailyTrackerProps) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
+  const locale = useLocale();
   const router = useRouter();
   const [logMealOpen, setLogMealOpen] = useState(false);
   const [mealPlanOpen, setMealPlanOpen] = useState(false);
@@ -183,10 +185,10 @@ export function DailyTracker({
   const nutritionChecked = nutritionCompleted || healthGood;
   const showNutritionStatus = nutritionChecked || macrosOverTarget || macrosExceeded;
 
-  const nutritionTitle = isToday(date) ? platform.dashboard.nutrition : format(date, "MMM d");
+  const nutritionTitle = isToday(date) ? platform.dashboard.nutrition : formatLocalized(date, "MMM d", locale);
   const mealPlanDialogTitle = isToday(date)
     ? platform.dashboard.todaysMealPlan
-    : platform.dashboard.mealPlanOnDay(format(date, "MMM d"));
+    : platform.dashboard.mealPlanOnDay(formatLocalized(date, "MMM d", locale));
 
   const handleAddWater = (amount: number) => {
     setLocalWaterMl((prev) => {

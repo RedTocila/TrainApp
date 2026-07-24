@@ -138,16 +138,27 @@ export async function createFlashChallengeEntryCheckout(
   }
 
   const baseUrl = getAppBaseUrl();
+  const { getCheckoutReferralState } = await import("@/lib/actions/referrals");
+  const referralState = await getCheckoutReferralState(profile.id);
+  const creditsToApply = Math.min(
+    referralState.creditBalanceCents,
+    entryFeeCents
+  );
+  // Prefer using available credits automatically when they cover the fee fully;
+  // partial credit + PokPay for the remainder.
+  const chargeCents = Math.max(0, entryFeeCents - creditsToApply);
+
   const { data: orderRow, error: insertError } = await admin
     .from("subscription_orders")
     .insert({
       user_id: profile.id,
       plan: "core",
       billing_interval: "monthly",
-      amount_cents: entryFeeCents,
+      amount_cents: chargeCents,
       currency_code: CHECKOUT_CURRENCY,
       status: "pending",
       order_kind: "flash_challenge_entry",
+      referral_credits_applied_cents: creditsToApply,
       metadata: {
         challenge_id: challengeId,
         challenge_slug: challenge.slug,
@@ -162,6 +173,23 @@ export async function createFlashChallengeEntryCheckout(
     return { error: insertError?.message ?? "Could not start checkout" };
   }
 
+  if (chargeCents === 0) {
+    const completed = await completeFlashChallengeEntryOrder({
+      id: orderRow.id,
+      user_id: profile.id,
+      status: "pending",
+      pokpay_order_id: null,
+      metadata: {
+        challenge_id: challengeId,
+        challenge_slug: challenge.slug,
+        action,
+      },
+      referral_credits_applied_cents: creditsToApply,
+      amount_cents: 0,
+    });
+    return completed;
+  }
+
   try {
     const redirectUrl = `${baseUrl}/dashboard/checkout/flash-challenge/success?localOrderId=${orderRow.id}`;
     const failRedirectUrl = `${baseUrl}/dashboard/checkout/flash-challenge?localOrderId=${orderRow.id}`;
@@ -170,11 +198,11 @@ export async function createFlashChallengeEntryCheckout(
       {
         name: `${challenge.title} · entry fee`,
         quantity: 1,
-        price: entryFeeCents,
+        price: chargeCents,
       },
     ];
     const sdkOrder = await createSdkOrder({
-      amountCents: entryFeeCents,
+      amountCents: chargeCents,
       currencyCode: CHECKOUT_CURRENCY,
       redirectUrl,
       failRedirectUrl,
@@ -192,6 +220,8 @@ export async function createFlashChallengeEntryCheckout(
     return {
       localOrderId: orderRow.id,
       checkoutUrl: `/dashboard/checkout/flash-challenge?localOrderId=${orderRow.id}`,
+      amountCents: chargeCents,
+      referralCreditsAppliedCents: creditsToApply,
     };
   } catch (err) {
     await admin
@@ -210,18 +240,23 @@ async function completeFlashChallengeEntryOrder(order: {
   status: string;
   pokpay_order_id: string | null;
   metadata: Record<string, unknown> | null;
+  referral_credits_applied_cents?: number;
+  amount_cents?: number;
 }) {
   if (order.status === "completed") {
     return { success: true, alreadyCompleted: true as const };
   }
-  if (!order.pokpay_order_id) {
+  if (!order.pokpay_order_id && (order.amount_cents ?? 0) > 0) {
     return { error: "Payment not started" };
   }
 
   const admin = createAdminClient();
-  const sdkOrder = await getSdkOrder(order.pokpay_order_id);
-  if (!isSdkOrderPaid(sdkOrder)) {
-    return { error: "Payment not completed yet" };
+
+  if (order.pokpay_order_id) {
+    const sdkOrder = await getSdkOrder(order.pokpay_order_id);
+    if (!isSdkOrderPaid(sdkOrder)) {
+      return { error: "Payment not completed yet" };
+    }
   }
 
   const metadata = (order.metadata ?? {}) as {
@@ -318,6 +353,26 @@ async function completeFlashChallengeEntryOrder(order: {
     .update({ status: "completed", completed_at: paidAt })
     .eq("id", order.id);
 
+  const creditsApplied = order.referral_credits_applied_cents ?? 0;
+  if (creditsApplied > 0) {
+    const { settleReferralCreditsSpend, spendDescriptionForOrder } = await import(
+      "@/lib/actions/referrals"
+    );
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("preferred_locale")
+      .eq("id", order.user_id)
+      .maybeSingle();
+    const { parseCheckoutLocale } = await import("@/lib/checkout-i18n");
+    const locale = parseCheckoutLocale(profile?.preferred_locale);
+    await settleReferralCreditsSpend(admin, {
+      userId: order.user_id,
+      orderId: order.id,
+      amountCents: creditsApplied,
+      description: await spendDescriptionForOrder(locale, "flash"),
+    });
+  }
+
   if (action === "join") {
     const { data: participant } = await admin
       .from("challenge_participants")
@@ -349,7 +404,9 @@ export async function activateFlashChallengeEntryFromLocalOrder(localOrderId: st
   const admin = createAdminClient();
   const { data: order } = await admin
     .from("subscription_orders")
-    .select("id, user_id, status, pokpay_order_id, metadata, order_kind")
+    .select(
+      "id, user_id, status, pokpay_order_id, metadata, order_kind, referral_credits_applied_cents, amount_cents"
+    )
     .eq("id", localOrderId)
     .eq("user_id", user.id)
     .single();
@@ -365,6 +422,8 @@ export async function activateFlashChallengeEntryFromLocalOrder(localOrderId: st
     status: order.status as string,
     pokpay_order_id: order.pokpay_order_id as string | null,
     metadata: (order.metadata as Record<string, unknown> | null) ?? null,
+    referral_credits_applied_cents: order.referral_credits_applied_cents ?? 0,
+    amount_cents: order.amount_cents ?? 0,
   });
 }
 
@@ -372,7 +431,9 @@ export async function activateFlashChallengeEntryFromPokPayOrder(pokpayOrderId: 
   const admin = createAdminClient();
   const { data: order } = await admin
     .from("subscription_orders")
-    .select("id, user_id, status, pokpay_order_id, metadata, order_kind")
+    .select(
+      "id, user_id, status, pokpay_order_id, metadata, order_kind, referral_credits_applied_cents, amount_cents"
+    )
     .eq("pokpay_order_id", pokpayOrderId)
     .maybeSingle();
 
@@ -385,5 +446,7 @@ export async function activateFlashChallengeEntryFromPokPayOrder(pokpayOrderId: 
     status: order.status as string,
     pokpay_order_id: order.pokpay_order_id as string | null,
     metadata: (order.metadata as Record<string, unknown> | null) ?? null,
+    referral_credits_applied_cents: order.referral_credits_applied_cents ?? 0,
+    amount_cents: order.amount_cents ?? 0,
   });
 }

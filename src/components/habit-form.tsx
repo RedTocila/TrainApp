@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { saveHabit, type SaveHabitInput } from "@/lib/actions/habits";
 import {
-  WEEKDAY_OPTIONS,
   describeSchedulePreview,
   formatScheduleAnchorLabel,
   getScheduleAnchorDate,
@@ -11,7 +10,8 @@ import {
 } from "@/lib/schedule-utils";
 import type { ClientHabit } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { usePlatformCopy } from "@/components/locale-provider";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
+import { getWeekdayOptions } from "@/lib/locale-labels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,8 @@ export function HabitForm({
   onDelete?: () => void;
 }) {
   const platform = usePlatformCopy();
+  const locale = useLocale();
+  const weekdayOptions = getWeekdayOptions(locale);
   const [title, setTitle] = useState("");
   const [timeStart, setTimeStart] = useState("");
   const [timeEnd, setTimeEnd] = useState("");
@@ -58,8 +60,8 @@ export function HabitForm({
 
   const anchor = useMemo(() => getScheduleAnchorDate(startMode), [startMode]);
   const preview = useMemo(
-    () => describeSchedulePreview(anchor, weekdays, weeks),
-    [anchor, weekdays, weeks]
+    () => describeSchedulePreview(anchor, weekdays, weeks, locale),
+    [anchor, weekdays, weeks, locale]
   );
 
   const toggleWeekday = (value: number) => {
@@ -105,19 +107,19 @@ export function HabitForm({
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-xl font-black tracking-tight sm:text-2xl">
-          {habit ? "Edit habit" : "Add habit"}
+          {habit ? platform.habits.editHabit : platform.habits.addHabit}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Set name, repeat schedule, and an optional time window. Leave times empty for all-day habits.
+          {platform.habits.formHint}
         </p>
       </div>
 
       <div className="space-y-5">
         <div className="space-y-1">
-          <Label htmlFor="habit-title">Habit name</Label>
+          <Label htmlFor="habit-title">{platform.habits.habitName}</Label>
           <Input
             id="habit-title"
-            placeholder="e.g. Morning stretch"
+            placeholder={platform.habits.habitNamePlaceholder}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             autoFocus
@@ -126,7 +128,7 @@ export function HabitForm({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <Label htmlFor="habit-time-start">From (optional)</Label>
+            <Label htmlFor="habit-time-start">{platform.habits.fromOptional}</Label>
             <Input
               id="habit-time-start"
               type="time"
@@ -135,7 +137,7 @@ export function HabitForm({
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="habit-time-end">Until (optional)</Label>
+            <Label htmlFor="habit-time-end">{platform.habits.untilOptional}</Label>
             <Input
               id="habit-time-end"
               type="time"
@@ -146,12 +148,12 @@ export function HabitForm({
         </div>
 
         <div className="space-y-2">
-          <Label>When to start</Label>
+          <Label>{platform.workout.whenToStart}</Label>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {(
               [
-                { mode: "now" as const, label: "Start right now" },
-                { mode: "next_week" as const, label: "Next week (Monday)" },
+                { mode: "now" as const, label: platform.workout.startNow },
+                { mode: "next_week" as const, label: platform.workout.startNextMonday },
               ] as const
             ).map(({ mode, label }) => (
               <button
@@ -167,7 +169,7 @@ export function HabitForm({
               >
                 <p className="font-semibold">{label}</p>
                 <p className="mt-0.5 text-xs opacity-80">
-                  {formatScheduleAnchorLabel(mode)}
+                  {formatScheduleAnchorLabel(mode, locale)}
                 </p>
               </button>
             ))}
@@ -175,9 +177,9 @@ export function HabitForm({
         </div>
 
         <div className="space-y-2">
-          <Label>Repeat on these days</Label>
+          <Label>{platform.workout.repeatDays}</Label>
           <div className="flex flex-wrap gap-2">
-            {WEEKDAY_OPTIONS.map(({ label, value }) => (
+            {weekdayOptions.map(({ label, value }) => (
               <button
                 key={value}
                 type="button"
@@ -196,7 +198,7 @@ export function HabitForm({
         </div>
 
         <div className="space-y-1">
-          <Label htmlFor="habit-weeks">Repeat for how many weeks?</Label>
+          <Label htmlFor="habit-weeks">{platform.workout.repeatWeeks}</Label>
           <select
             id="habit-weeks"
             value={weeks}
@@ -235,7 +237,7 @@ export function HabitForm({
           disabled={isPending || !title.trim() || weekdays.length === 0}
           onClick={handleSave}
         >
-          {isPending ? "Saving…" : habit ? "Save changes" : "Add habit"}
+          {isPending ? platform.common.saving : habit ? platform.settings.saveChanges : platform.habits.addHabit}
         </Button>
       </div>
     </div>

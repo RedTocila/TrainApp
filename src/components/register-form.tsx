@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Sparkles } from "lucide-react";
 import {
   completePendingSignup,
@@ -31,10 +31,12 @@ type PendingSignup = {
   fullName: string;
   phone: string | null;
   intakeJson: string | null;
+  referralCode: string | null;
 };
 
 export function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [intakeJson, setIntakeJson] = useState<string | null>(null);
   const [macroPreview, setMacroPreview] = useState<string | null>(null);
@@ -44,6 +46,7 @@ export function RegisterForm() {
   const [continuePending, setContinuePending] = useState(false);
   const [continueMessage, setContinueMessage] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
 
   useEffect(() => {
     const draft = loadIntakeDraft();
@@ -56,6 +59,11 @@ export function RegisterForm() {
       );
     }
   }, []);
+
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref?.trim()) setReferralCode(ref.trim());
+  }, [searchParams]);
 
   const finishSignup = (role?: string) => {
     clearIntakeDraft();
@@ -75,10 +83,10 @@ export function RegisterForm() {
 
     router.refresh();
     const result = await completeRegistration(registrationInput);
-    if (result?.error) {
+    if (!result || "error" in result) {
       setError(
         formatUserError(
-          result.error,
+          result?.error ?? "Unknown error",
           "Account created but setup failed. Try signing in — your profile may already be ready."
         )
       );
@@ -101,12 +109,13 @@ export function RegisterForm() {
         phone: pendingSignup.phone,
         password: pendingSignup.password,
         intakeJson: pendingSignup.intakeJson,
+        referralCode: pendingSignup.referralCode,
       });
 
-      if (result?.error) {
+      if (!result || "error" in result) {
         setContinueMessage(
           formatUserError(
-            result.error,
+            result?.error ?? "Unknown error",
             "Email not confirmed yet. Open the link in your inbox, then try again."
           )
         );
@@ -139,12 +148,17 @@ export function RegisterForm() {
       const email = (new FormData(form).get("email") as string).trim().toLowerCase();
       const phone = ((new FormData(form).get("phone") as string) || "").trim() || null;
       const password = new FormData(form).get("password") as string;
+      const referralFromForm =
+        ((new FormData(form).get("referral_code") as string) || "").trim() ||
+        referralCode.trim() ||
+        null;
 
       const registrationInput = {
         fullName,
         email,
         phone,
         intakeJson,
+        referralCode: referralFromForm,
       };
 
       console.log("[RegisterForm] signup submit", {
@@ -313,6 +327,18 @@ export function RegisterForm() {
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <PasswordInput id="password" name="password" required minLength={6} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="referral_code">Referral code (optional)</Label>
+            <Input
+              id="referral_code"
+              name="referral_code"
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value)}
+              placeholder="Friend's code"
+              autoCapitalize="off"
+              autoCorrect="off"
+            />
           </div>
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
             <input

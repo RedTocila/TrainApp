@@ -1,7 +1,7 @@
 "use client";
-import { usePlatformCopy } from "@/components/locale-provider";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 
-import { format, isToday, isTomorrow } from "date-fns";
+import { isToday, isTomorrow } from "date-fns";
 import { useMemo } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { useDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
@@ -9,13 +9,18 @@ import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { dashboard } from "@/components/dashboard-ui";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import { enrichTasksForDate } from "@/lib/dashboard-task-enrichment";
+import { formatLocalized } from "@/lib/date-locale";
 import { cn, formatDateKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-function panelTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>): string {
+function panelTitle(
+  date: Date,
+  platform: ReturnType<typeof usePlatformCopy>,
+  locale: ReturnType<typeof useLocale>
+): string {
   if (isToday(date)) return platform.dashboard.toDoToday;
   if (isTomorrow(date)) return platform.dashboard.toDoTomorrow;
-  return platform.dashboard.toDoOnDay(format(date, "EEEE"));
+  return platform.dashboard.toDoOnDay(formatLocalized(date, "EEEE", locale));
 }
 
 export function DayTasksPanel({
@@ -27,6 +32,7 @@ export function DayTasksPanel({
   initialEnrichment?: unknown;
 }) {
   const platform = usePlatformCopy();
+  const locale = useLocale();
   const { selectedDate, goToToday } = useSelectedDate();
   const { enrichment } = useDashboardEnrichment();
   const dateKey = formatDateKey(selectedDate);
@@ -41,16 +47,17 @@ export function DayTasksPanel({
   const viewingToday = isToday(selectedDate);
   const completionPct =
     tasks.length > 0 ? Math.round((completed.length / tasks.length) * 100) : 0;
+  const title = panelTitle(selectedDate, platform, locale);
 
   return (
     <>
       <section
-        aria-label={panelTitle(selectedDate, platform)}
+        aria-label={title}
         className="rounded-3xl border border-border/50 bg-secondary/40 p-4 shadow-inner sm:p-5"
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-black tracking-tight sm:text-2xl">
-            {panelTitle(selectedDate, platform)}
+            {title}
           </h1>
           <div className="flex items-center gap-2">
             {tasks.length > 0 && (
@@ -60,7 +67,7 @@ export function DayTasksPanel({
             )}
             {!viewingToday && (
               <Button type="button" variant="outline" size="sm" onClick={goToToday}>
-                Today
+                {platform.calendar.today}
               </Button>
             )}
           </div>

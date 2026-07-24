@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { AlertTriangle, BadgeCheck, CreditCard, Settings2, UserRound } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, BadgeCheck, CreditCard, Gift, Settings2, UserRound } from "lucide-react";
 import { getProfileWithEmail } from "@/lib/actions/profile";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ProfileSettings } from "@/components/profile-settings";
@@ -12,6 +13,7 @@ import { getPlatformCopy } from "@/lib/platform-copy";
 import { cn } from "@/lib/utils";
 import { getClientIntakeStatus } from "@/lib/client-intake-utils";
 import { resolveProfileGoal } from "@/lib/intake-display";
+import { buttonVariants } from "@/components/ui/button";
 
 export default async function ProfilePage() {
   const profile = await getProfileWithEmail();
@@ -102,6 +104,32 @@ export default async function ProfilePage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <Gift className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-black">{platform.referral.profileCardTitle}</p>
+                <p className="text-xs text-muted-foreground">
+                  {platform.referral.profileCardHint}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard/referrals"
+              className={buttonVariants({
+                variant: "secondary",
+                size: "sm",
+                className: "rounded-full",
+              })}
+            >
+              {platform.referral.open}
+            </Link>
+          </CardContent>
+        </Card>
 
         <ClientIntakeForm profile={profile} />
 

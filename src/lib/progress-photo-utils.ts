@@ -1,4 +1,7 @@
 import { addMonths, differenceInCalendarDays, format, startOfMonth } from "date-fns";
+import type { CheckoutLocale } from "@/lib/checkout-i18n";
+import { formatLocalized } from "@/lib/date-locale";
+import { getPlatformCopy } from "@/lib/platform-copy";
 import type { ProgressPhotoPose } from "@/lib/types";
 
 export const PROGRESS_PHOTO_POSES: {
@@ -22,9 +25,12 @@ export function progressMonthFolder(monthKey: string): string {
   return monthKey.slice(0, 7);
 }
 
-export function formatProgressMonthLabel(monthKey: string): string {
+export function formatProgressMonthLabel(
+  monthKey: string,
+  locale: CheckoutLocale = "en"
+): string {
   const [year, month] = monthKey.split("-").map(Number);
-  return format(new Date(year, month - 1, 1), "MMMM yyyy");
+  return formatLocalized(new Date(year, month - 1, 1), "MMMM yyyy", locale);
 }
 
 export function progressSetComplete(set: {
@@ -47,9 +53,12 @@ export function progressCycleEnd(cycleStart: Date): Date {
   return addMonths(cycleStart, 1);
 }
 
-export function formatProgressCycleLabel(cycleStart: Date): string {
+export function formatProgressCycleLabel(
+  cycleStart: Date,
+  locale: CheckoutLocale = "en"
+): string {
   const cycleEnd = progressCycleEnd(cycleStart);
-  return `${format(cycleStart, "MMM d")} – ${format(cycleEnd, "MMM d, yyyy")}`;
+  return `${formatLocalized(cycleStart, "MMM d", locale)} – ${formatLocalized(cycleEnd, "MMM d, yyyy", locale)}`;
 }
 
 /** True while the client may still replace or remove photos for a cycle. */
@@ -81,45 +90,48 @@ export function getProgressPhotoCountdown(options: {
   sets: ProgressPhotoSetLike[];
   currentSet: ProgressPhotoSetLike | null;
   now?: Date;
+  locale?: CheckoutLocale;
 }): ProgressPhotoCountdown | null {
   const now = options.now ?? new Date();
+  const locale = options.locale ?? "en";
+  const photos = getPlatformCopy(locale).photos;
   const anchorSet = findAnchorSet(options.sets, options.currentSet);
   if (!anchorSet) return null;
 
   const cycleStart = new Date(anchorSet.created_at);
   const nextDue = progressCycleEnd(cycleStart);
   const daysUntil = differenceInCalendarDays(nextDue, now);
-  const dueLabel = format(nextDue, "MMM d");
+  const dueLabel = formatLocalized(nextDue, "MMM d", locale);
   const anchorIsCurrent = options.currentSet?.id === anchorSet.id;
   const anchorComplete = progressSetComplete(anchorSet);
 
   if (anchorIsCurrent && !anchorComplete) {
     if (daysUntil < 0) {
-      return { label: "Overdue — finish your photos", urgency: "soon" };
+      return { label: photos.overdueFinish, urgency: "soon" };
     }
     if (daysUntil === 0) {
-      return { label: "Due today — finish your photos", urgency: "soon" };
+      return { label: photos.dueTodayFinish, urgency: "soon" };
     }
     if (daysUntil === 1) {
-      return { label: "1 day left to finish your photos", urgency: "soon" };
+      return { label: photos.oneDayLeft, urgency: "soon" };
     }
     return {
-      label: `${daysUntil} days left to finish your photos`,
+      label: photos.daysLeft(daysUntil),
       urgency: daysUntil <= 3 ? "soon" : "normal",
     };
   }
 
   if (daysUntil < 0) {
-    return { label: `Next photos overdue · due ${dueLabel}`, urgency: "soon" };
+    return { label: photos.nextOverdue(dueLabel), urgency: "soon" };
   }
   if (daysUntil === 0) {
-    return { label: `Next photos due today · ${dueLabel}`, urgency: "soon" };
+    return { label: photos.nextDueToday(dueLabel), urgency: "soon" };
   }
   if (daysUntil === 1) {
-    return { label: `Next photos in 1 day · ${dueLabel}`, urgency: "normal" };
+    return { label: photos.nextInOneDay(dueLabel), urgency: "normal" };
   }
   return {
-    label: `Next photos in ${daysUntil} days · ${dueLabel}`,
+    label: photos.nextInDays(daysUntil, dueLabel),
     urgency: anchorComplete && anchorIsCurrent ? "complete" : "normal",
   };
 }
@@ -162,18 +174,20 @@ export type ProgressPhotoTimelineRow = {
   /** Can replace or remove existing photos. */
   canModify: boolean;
   isUpcoming: boolean;
+  isComplete: boolean;
 };
 
 /** Logged months (newest first), optional active cycle, plus one empty next check-in row. */
 export function getProgressPhotoTimelineRows(
   sets: ProgressPhotoSetLike[],
-  now = new Date()
+  now = new Date(),
+  locale: CheckoutLocale = "en"
 ): ProgressPhotoTimelineRow[] {
   const currentMonth = progressMonthKey(now);
   const setsByMonth = new Map(sets.map((set) => [set.month_key, set]));
   const currentSet = setsByMonth.get(currentMonth) ?? null;
   const anchor = findAnchorSet(sets, currentSet);
-  const countdown = getProgressPhotoCountdown({ sets, currentSet, now });
+  const countdown = getProgressPhotoCountdown({ sets, currentSet, now, locale });
 
   const loggedRows: ProgressPhotoTimelineRow[] = [...sets]
     .filter((set) => progressSetHasPhotos(set) && progressSetComplete(set))
@@ -183,11 +197,12 @@ export function getProgressPhotoTimelineRows(
       set,
       title:
         set.month_key === currentMonth
-          ? formatProgressCycleLabel(new Date(set.created_at))
-          : formatProgressMonthLabel(set.month_key),
+          ? formatProgressCycleLabel(new Date(set.created_at), locale)
+          : formatProgressMonthLabel(set.month_key, locale),
       canUpload: false,
       canModify: isProgressPhotoCycleOpen(set.created_at, now),
       isUpcoming: false,
+      isComplete: true,
     }));
 
   const activeCycleOpen =
@@ -198,11 +213,12 @@ export function getProgressPhotoTimelineRows(
       ? {
           monthKey: currentMonth,
           set: currentSet,
-          title: formatProgressCycleLabel(new Date(currentSet.created_at)),
+          title: formatProgressCycleLabel(new Date(currentSet.created_at), locale),
           subtitle: countdown?.label,
           canUpload: Boolean(activeCycleOpen),
           canModify: Boolean(activeCycleOpen),
           isUpcoming: false,
+          isComplete: false,
         }
       : null;
 
@@ -216,17 +232,18 @@ export function getProgressPhotoTimelineRows(
     !anchor || (anchorComplete && daysUntil <= 0 && !activeRow);
 
   const nextTitle = !anchor
-    ? formatProgressMonthLabel(currentMonth)
-    : formatProgressCycleLabel(nextCycleStart);
+    ? formatProgressMonthLabel(currentMonth, locale)
+    : formatProgressCycleLabel(nextCycleStart, locale);
 
   const nextRow: ProgressPhotoTimelineRow = {
-    monthKey: currentMonth,
+    monthKey: progressMonthKey(nextCycleStart),
     set: null,
     title: nextTitle,
     subtitle: countdown?.label,
     canUpload: nextCanUpload,
     canModify: false,
     isUpcoming: true,
+    isComplete: false,
   };
 
   return [...loggedRows, ...(activeRow ? [activeRow] : []), nextRow];

@@ -7,7 +7,6 @@ import { scheduleCardioSeries } from "@/lib/actions/user-cardio";
 import { localizeCardioTitle } from "@/lib/cardio-catalog";
 import type { ClientCardio } from "@/lib/types";
 import {
-  WEEKDAY_OPTIONS,
   describeSchedulePreview,
   formatScheduleAnchorLabel,
   getScheduleAnchorDate,
@@ -15,7 +14,8 @@ import {
 } from "@/lib/schedule-utils";
 import { cn } from "@/lib/utils";
 import { DialogPortal } from "@/components/dialog-portal";
-import { usePlatformCopy } from "@/components/locale-provider";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
+import { getWeekdayOptions } from "@/lib/locale-labels";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
@@ -33,6 +33,8 @@ export function CardioScheduleDialog({
   onScheduled,
 }: CardioScheduleDialogProps) {
   const platform = usePlatformCopy();
+  const locale = useLocale();
+  const weekdayOptions = getWeekdayOptions(locale);
   const [weekdays, setWeekdays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [weeks, setWeeks] = useState(4);
   const [startMode, setStartMode] = useState<ScheduleStartMode>("now");
@@ -64,8 +66,8 @@ export function CardioScheduleDialog({
 
   const anchor = useMemo(() => getScheduleAnchorDate(startMode), [startMode]);
   const preview = useMemo(
-    () => describeSchedulePreview(anchor, weekdays, weeks),
-    [anchor, weekdays, weeks]
+    () => describeSchedulePreview(anchor, weekdays, weeks, locale),
+    [anchor, weekdays, weeks, locale]
   );
 
   const toggleWeekday = (value: number) => {
@@ -79,7 +81,7 @@ export function CardioScheduleDialog({
   const handleSchedule = () => {
     if (!cardio) return;
     if (weekdays.length === 0) {
-      setError("Select at least one day");
+      setError(platform.schedule.selectAtLeastOneDay);
       return;
     }
     setError(null);
@@ -96,7 +98,7 @@ export function CardioScheduleDialog({
         setError(result.error);
         return;
       }
-      setSuccess(`Scheduled ${result.count} session${result.count === 1 ? "" : "s"}`);
+      setSuccess(platform.workout.scheduleSaved(result.count ?? 0));
       onScheduled();
     });
   };
@@ -108,7 +110,7 @@ export function CardioScheduleDialog({
       <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
         <button
           type="button"
-          aria-label="Close"
+          aria-label={platform.common.close}
           className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
           onClick={onClose}
         />
@@ -119,24 +121,24 @@ export function CardioScheduleDialog({
         >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-lg font-black">Schedule cardio</h2>
+            <h2 className="text-lg font-black">{platform.cardio.schedule} {platform.cardio.title}</h2>
             <p className="text-sm text-muted-foreground">
               {localizeCardioTitle(cardio.title, platform.cardio.types)}
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label={platform.common.close}>
             <X className="h-5 w-5" />
           </Button>
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
           <div className="space-y-2">
-            <Label>When to start</Label>
+            <Label>{platform.workout.whenToStart}</Label>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {(
                 [
-                  { mode: "now" as const, label: "Start right now" },
-                  { mode: "next_week" as const, label: "Next week (Monday)" },
+                  { mode: "now" as const, label: platform.workout.startNow },
+                  { mode: "next_week" as const, label: platform.workout.startNextMonday },
                 ] as const
               ).map(({ mode, label }) => (
                 <button
@@ -152,7 +154,7 @@ export function CardioScheduleDialog({
                 >
                   <p className="font-semibold">{label}</p>
                   <p className="mt-0.5 text-xs opacity-80">
-                    {formatScheduleAnchorLabel(mode)}
+                    {formatScheduleAnchorLabel(mode, locale)}
                   </p>
                 </button>
               ))}
@@ -160,9 +162,9 @@ export function CardioScheduleDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Repeat on these days</Label>
+            <Label>{platform.workout.repeatDays}</Label>
             <div className="flex flex-wrap gap-2">
-              {WEEKDAY_OPTIONS.map(({ label, value }) => (
+              {weekdayOptions.map(({ label, value }) => (
                 <button
                   key={value}
                   type="button"
@@ -181,7 +183,7 @@ export function CardioScheduleDialog({
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="cardio-schedule-weeks">Repeat for how many weeks?</Label>
+            <Label htmlFor="cardio-schedule-weeks">{platform.workout.repeatWeeks}</Label>
             <select
               id="cardio-schedule-weeks"
               value={weeks}
@@ -206,7 +208,7 @@ export function CardioScheduleDialog({
 
         <div className="flex gap-2 border-t border-border px-5 py-4">
           <Button variant="outline" className="flex-1" onClick={onClose}>
-            {success ? "Done" : "Cancel"}
+            {success ? platform.common.done : platform.common.cancel}
           </Button>
           {!success && (
             <Button
@@ -215,7 +217,7 @@ export function CardioScheduleDialog({
               onClick={handleSchedule}
             >
               <Calendar className="mr-1.5 h-4 w-4" />
-              {isPending ? "Scheduling…" : "Schedule"}
+              {isPending ? platform.common.saving : platform.cardio.schedule}
             </Button>
           )}
         </div>

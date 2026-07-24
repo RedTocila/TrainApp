@@ -16,6 +16,7 @@ type RegistrationInput = {
   email: string;
   phone: string | null;
   intakeJson?: string | null;
+  referralCode?: string | null;
 };
 
 async function signInWithPasswordOnly(email: string, password: string) {
@@ -57,11 +58,13 @@ async function ensureProfileExists(
     process.env.ADMIN_EMAIL && input.email === process.env.ADMIN_EMAIL ? "admin" : "client";
 
   const trialGrant = role === "client" ? buildFreeTrialGrant() : null;
+  const referralCode = Math.random().toString(36).slice(2, 10);
 
   const { error } = await supabase.from("profiles").insert({
     id: userId,
     full_name: input.fullName || input.email.split("@")[0] || "Member",
     role,
+    referral_code: referralCode,
     ...(trialGrant ?? {}),
   });
 
@@ -167,6 +170,20 @@ async function finalizeNewUserProfile(
     .eq("id", userId)
     .single();
 
+  const referralCode =
+    input.referralCode?.trim() ||
+    (typeof _userMetadata?.referral_code === "string"
+      ? _userMetadata.referral_code
+      : null);
+  if (referralCode) {
+    try {
+      const { applyReferralCode } = await import("@/lib/actions/referrals");
+      await applyReferralCode(referralCode);
+    } catch {
+      // Non-blocking — user can apply at checkout.
+    }
+  }
+
   revalidatePath("/", "layout");
   return { success: true as const, role: profile?.role ?? "client" };
 }
@@ -185,6 +202,9 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
   };
   if (input.phone) {
     userMetadata.phone = input.phone;
+  }
+  if (input.referralCode?.trim()) {
+    userMetadata.referral_code = input.referralCode.trim();
   }
 
   const requestPayload = {

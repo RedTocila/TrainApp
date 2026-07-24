@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
 
 /** Finger travel (px) required before refresh arms — intentionally long. */
@@ -14,9 +15,13 @@ const STROKE = 3;
 function PullRefreshSpinner({
   progress,
   spinning,
+  refreshingLabel,
+  pullLabel,
 }: {
   progress: number;
   spinning: boolean;
+  refreshingLabel: string;
+  pullLabel: string;
 }) {
   const radius = (INDICATOR_SIZE - STROKE) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -31,7 +36,7 @@ function PullRefreshSpinner({
       )}
       role="status"
       aria-live="polite"
-      aria-label={spinning ? "Refreshing" : "Pull to refresh"}
+      aria-label={spinning ? refreshingLabel : pullLabel}
     >
       <svg
         width={INDICATOR_SIZE}
@@ -65,6 +70,7 @@ function PullRefreshSpinner({
 }
 
 export function DashboardPullToRefresh() {
+  const platform = usePlatformCopy();
   const [mounted, setMounted] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -180,7 +186,12 @@ export function DashboardPullToRefresh() {
       }}
       aria-hidden={!visible}
     >
-      <PullRefreshSpinner progress={progress} spinning={refreshing} />
+      <PullRefreshSpinner
+        progress={progress}
+        spinning={refreshing}
+        refreshingLabel={platform.common.refreshing}
+        pullLabel={platform.common.pullToRefresh}
+      />
     </div>,
     document.body
   );

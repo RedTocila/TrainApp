@@ -47,6 +47,8 @@ async function completeSubscriptionOrder(
     plan: string;
     billingInterval: BillingInterval;
     pokpayOrderId: string | null;
+    referralCreditsAppliedCents?: number;
+    preferredLocale?: string | null;
   }
 ): Promise<{ success: true } | { error: string }> {
   const now = new Date();
@@ -72,6 +74,23 @@ async function completeSubscriptionOrder(
 
   await admin.from("subscription_orders").update(orderUpdate).eq("id", args.orderId);
 
+  const { settleReferralCreditsSpend, grantInviterCreditForSubscription, spendDescriptionForOrder } =
+    await import("@/lib/actions/referrals");
+  const { parseCheckoutLocale } = await import("@/lib/checkout-i18n");
+
+  const locale = parseCheckoutLocale(args.preferredLocale);
+  await settleReferralCreditsSpend(admin, {
+    userId: args.userId,
+    orderId: args.orderId,
+    amountCents: args.referralCreditsAppliedCents ?? 0,
+    description: await spendDescriptionForOrder(locale, "subscription"),
+  });
+
+  await grantInviterCreditForSubscription(admin, {
+    referredUserId: args.userId,
+    orderId: args.orderId,
+  });
+
   return { success: true };
 }
 
@@ -84,7 +103,8 @@ function revalidateSubscriptionPaths() {
 
 export async function createCheckoutOrder(
   planId: SubscriptionPlanId,
-  interval: BillingInterval
+  interval: BillingInterval,
+  options?: { useCredits?: boolean; referralCode?: string }
 ) {
   const supabase = await createClient();
   const admin = createAdminClient();
@@ -106,21 +126,85 @@ export async function createCheckoutOrder(
     };
   }
 
+  const { applyReferralCode, getCheckoutReferralState } = await import(
+    "@/lib/actions/referrals"
+  );
+
+  if (options?.referralCode?.trim()) {
+    const applied = await applyReferralCode(options.referralCode);
+    if ("error" in applied && applied.error) {
+      // Ignore "already referred" when code matches existing; block other errors
+      const state = await getCheckoutReferralState(user.id);
+      if (!state.referredBy) {
+        return { error: applied.error };
+      }
+    }
+  }
+
+  const referralState = await getCheckoutReferralState(user.id);
+  const inviteeDiscountCents = referralState.inviteeDiscountCents;
+  const creditsToApply = options?.useCredits
+    ? Math.min(
+        referralState.creditBalanceCents,
+        Math.max(0, price.amountCents - inviteeDiscountCents)
+      )
+    : 0;
+  const chargeCents = Math.max(
+    0,
+    price.amountCents - inviteeDiscountCents - creditsToApply
+  );
+
   const { data: orderRow, error: insertError } = await admin
     .from("subscription_orders")
     .insert({
       user_id: user.id,
       plan: planId,
       billing_interval: interval,
-      amount_cents: price.amountCents,
+      amount_cents: chargeCents,
       currency_code: CHECKOUT_CURRENCY,
       status: "pending",
+      order_kind: "subscription",
+      invitee_discount_cents: inviteeDiscountCents,
+      referral_credits_applied_cents: creditsToApply,
     })
     .select("id")
     .single();
 
   if (insertError || !orderRow) {
     return { error: insertError?.message ?? "Could not start checkout" };
+  }
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("preferred_locale")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  // Fully covered by discounts/credits — activate without PokPay.
+  if (chargeCents === 0) {
+    const result = await completeSubscriptionOrder(admin, {
+      orderId: orderRow.id,
+      userId: user.id,
+      plan: planId,
+      billingInterval: interval,
+      pokpayOrderId: null,
+      referralCreditsAppliedCents: creditsToApply,
+      preferredLocale: profile?.preferred_locale,
+    });
+    if ("error" in result) return result;
+    revalidateSubscriptionPaths();
+    return {
+      localOrderId: orderRow.id,
+      orderId: null as string | null,
+      amountCents: 0,
+      planId,
+      interval,
+      planName: plan.name,
+      priceLabel: price.label,
+      paidWithCredits: true as const,
+      inviteeDiscountCents,
+      referralCreditsAppliedCents: creditsToApply,
+    };
   }
 
   try {
@@ -131,11 +215,11 @@ export async function createCheckoutOrder(
       {
         name: `${plan.name} · ${interval === "monthly" ? "Monthly" : "Annual"}`,
         quantity: 1,
-        price: price.amountCents,
+        price: chargeCents,
       },
     ];
     const sdkOrder = await createSdkOrder({
-      amountCents: price.amountCents,
+      amountCents: chargeCents,
       currencyCode: CHECKOUT_CURRENCY,
       redirectUrl,
       failRedirectUrl,
@@ -153,11 +237,13 @@ export async function createCheckoutOrder(
     return {
       localOrderId: orderRow.id,
       orderId: sdkOrder.id,
-      amountCents: price.amountCents,
+      amountCents: chargeCents,
       planId,
       interval,
       planName: plan.name,
       priceLabel: price.label,
+      inviteeDiscountCents,
+      referralCreditsAppliedCents: creditsToApply,
     };
   } catch (err) {
     await admin
@@ -180,7 +266,9 @@ export async function activateSubscriptionFromLocalOrder(localOrderId: string) {
   const admin = createAdminClient();
   const { data: order } = await admin
     .from("subscription_orders")
-    .select("id, user_id, plan, billing_interval, status, pokpay_order_id, amount_cents, created_at")
+    .select(
+      "id, user_id, plan, billing_interval, status, pokpay_order_id, amount_cents, created_at, referral_credits_applied_cents"
+    )
     .eq("id", localOrderId)
     .eq("user_id", user.id)
     .single();
@@ -190,7 +278,30 @@ export async function activateSubscriptionFromLocalOrder(localOrderId: string) {
     return { success: true, alreadyCompleted: true };
   }
 
-  if (!order.pokpay_order_id) return { error: "Payment not started" };
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("preferred_locale")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  // Credit-only / fully discounted orders have no PokPay id.
+  if (!order.pokpay_order_id) {
+    if ((order.amount_cents as number) > 0) {
+      return { error: "Payment not started" };
+    }
+    const result = await completeSubscriptionOrder(admin, {
+      orderId: order.id,
+      userId: user.id,
+      plan: order.plan,
+      billingInterval: order.billing_interval as BillingInterval,
+      pokpayOrderId: null,
+      referralCreditsAppliedCents: order.referral_credits_applied_cents ?? 0,
+      preferredLocale: profile?.preferred_locale,
+    });
+    if ("error" in result) return result;
+    revalidateSubscriptionPaths();
+    return { success: true };
+  }
 
   try {
     const sdkOrder = await getSdkOrder(order.pokpay_order_id);
@@ -204,6 +315,8 @@ export async function activateSubscriptionFromLocalOrder(localOrderId: string) {
       plan: order.plan,
       billingInterval: order.billing_interval as BillingInterval,
       pokpayOrderId: order.pokpay_order_id,
+      referralCreditsAppliedCents: order.referral_credits_applied_cents ?? 0,
+      preferredLocale: profile?.preferred_locale,
     });
     if ("error" in result) return result;
 
@@ -274,7 +387,7 @@ export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string)
   const { data: order } = await admin
     .from("subscription_orders")
     .select(
-      "id, user_id, plan, billing_interval, status, pokpay_order_id, order_kind, amount_cents, created_at"
+      "id, user_id, plan, billing_interval, status, pokpay_order_id, order_kind, amount_cents, created_at, referral_credits_applied_cents"
     )
     .eq("pokpay_order_id", pokpayOrderId)
     .single();
@@ -294,11 +407,19 @@ export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string)
     return;
   }
 
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("preferred_locale")
+    .eq("id", order.user_id)
+    .maybeSingle();
+
   await completeSubscriptionOrder(admin, {
     orderId: order.id,
     userId: order.user_id,
     plan: order.plan,
     billingInterval: order.billing_interval as BillingInterval,
     pokpayOrderId,
+    referralCreditsAppliedCents: order.referral_credits_applied_cents ?? 0,
+    preferredLocale: profile?.preferred_locale,
   });
 }

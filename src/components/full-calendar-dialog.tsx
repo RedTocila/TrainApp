@@ -6,7 +6,6 @@ import {
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
-  format,
   isBefore,
   isSameDay,
   isSameMonth,
@@ -20,7 +19,10 @@ import { useEffect, useMemo, useState } from "react";
 import { DialogPortal } from "@/components/dialog-portal";
 import { CalendarDayDot } from "@/components/calendar-day-card";
 import { groupTasksByStatus } from "@/components/day-tasks-list";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { formatLocalized } from "@/lib/date-locale";
+import { getSundayFirstWeekdayLabels } from "@/lib/locale-labels";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import {
   enrichTasksForDate,
@@ -38,8 +40,6 @@ interface FullCalendarDialogProps {
   enrichment: DashboardEnrichmentData;
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 export function FullCalendarDialog({
   open,
   onClose,
@@ -48,6 +48,9 @@ export function FullCalendarDialog({
   schedule,
   enrichment,
 }: FullCalendarDialogProps) {
+  const platform = usePlatformCopy();
+  const locale = useLocale();
+  const weekdays = useMemo(() => getSundayFirstWeekdayLabels(locale), [locale]);
   const [viewMonth, setViewMonth] = useState(startOfMonth(selectedDate));
   const [now, setNow] = useState(() => new Date());
   const activeFrom = useMemo(() => {
@@ -105,24 +108,24 @@ export function FullCalendarDialog({
       <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
         <button
           type="button"
-          aria-label="Close calendar"
+          aria-label={platform.calendar.closeCalendar}
           className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
           onClick={onClose}
         />
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Full calendar"
+          aria-label={platform.calendar.fullCalendarTitle}
           className="relative z-10 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
         >
         <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6">
           <div>
-            <h2 className="text-lg font-black">Full Calendar</h2>
+            <h2 className="text-lg font-black">{platform.calendar.fullCalendarTitle}</h2>
             <p className="text-sm text-muted-foreground">
-              Tap a day to view its summary below
+              {platform.calendar.tapDayHint}
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label={platform.common.close}>
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -133,18 +136,18 @@ export function FullCalendarDialog({
               variant="outline"
               size="icon"
               onClick={() => setViewMonth((m) => subMonths(m, 1))}
-              aria-label="Previous month"
+              aria-label={platform.calendar.previousMonth}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <h3 className="text-base font-black tracking-tight">
-              {format(viewMonth, "MMMM yyyy")}
+              {formatLocalized(viewMonth, "MMMM yyyy", locale)}
             </h3>
             <Button
               variant="outline"
               size="icon"
               onClick={() => setViewMonth((m) => addMonths(m, 1))}
-              aria-label="Next month"
+              aria-label={platform.calendar.nextMonth}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -152,21 +155,21 @@ export function FullCalendarDialog({
 
           <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-green-500" /> Complete
+              <span className="h-2 w-2 rounded-full bg-green-500" /> {platform.calendar.complete}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-red-500" /> Missed
+              <span className="h-2 w-2 rounded-full bg-red-500" /> {platform.calendar.missed}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-primary/70" /> Upcoming / active
+              <span className="h-2 w-2 rounded-full bg-primary/70" /> {platform.calendar.upcomingActive}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-muted-foreground/30" /> Pre-account
+              <span className="h-2 w-2 rounded-full bg-muted-foreground/30" /> {platform.calendar.preAccount}
             </span>
           </div>
 
           <div className="mb-2 grid grid-cols-7 gap-1.5">
-            {WEEKDAYS.map((day) => (
+            {weekdays.map((day) => (
               <div
                 key={day}
                 className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
@@ -206,14 +209,16 @@ export function FullCalendarDialog({
 
           <div className="mt-6 rounded-xl border border-border bg-secondary/40 p-4">
             <p className="text-sm font-bold">
-              {format(selectedDate, "EEEE, MMMM d")}
+              {formatLocalized(selectedDate, "EEEE, MMMM d", locale)}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
               {activeFrom && isBefore(selectedDate, activeFrom)
-                ? "No activity yet (before account creation)"
-                : `${active.length} active · ${completed.length} completed${
-                    missed.length > 0 ? ` · ${missed.length} missed` : ""
-                  }`}
+                ? platform.calendar.noActivityYet
+                : platform.calendar.daySummary(
+                    active.length,
+                    completed.length,
+                    missed.length
+                  )}
             </p>
           </div>
         </div>

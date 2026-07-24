@@ -79,8 +79,8 @@ export function WorkoutScheduleForm({
 
   const anchor = useMemo(() => getScheduleAnchorDate(startMode), [startMode]);
   const preview = useMemo(
-    () => describeSchedulePreview(anchor, weekdays, weeks),
-    [anchor, weekdays, weeks]
+    () => describeSchedulePreview(anchor, weekdays, weeks, locale),
+    [anchor, weekdays, weeks, locale]
   );
 
   const toggleWeekday = (value: number) => {
@@ -176,7 +176,7 @@ export function WorkoutScheduleForm({
             >
               <p className="font-semibold">{label}</p>
               <p className="mt-0.5 text-xs opacity-80">
-                {formatScheduleAnchorLabel(mode)}
+                {formatScheduleAnchorLabel(mode, locale)}
               </p>
             </button>
           ))}

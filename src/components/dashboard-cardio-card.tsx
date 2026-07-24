@@ -1,8 +1,9 @@
 "use client";
-import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
-import { format, isToday, isTomorrow } from "date-fns";
+import { isToday, isTomorrow } from "date-fns";
+import { formatLocalized } from "@/lib/date-locale";
 import { ChevronLeft, ChevronRight, HeartPulse } from "lucide-react";
 import {
   useCallback,
@@ -48,10 +49,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-function cardioTitle(date: Date, platform: ReturnType<typeof usePlatformCopy>) {
+function cardioTitle(
+  date: Date,
+  platform: ReturnType<typeof usePlatformCopy>,
+  locale: ReturnType<typeof useLocale>
+) {
   if (isToday(date)) return platform.dashboard.todaysCardio;
   if (isTomorrow(date)) return platform.dashboard.tomorrowsCardio;
-  return platform.dashboard.cardioOnDay(format(date, "EEEE"));
+  return platform.dashboard.cardioOnDay(formatLocalized(date, "EEEE", locale));
 }
 
 type CardioCompletionInfo = {
@@ -114,6 +119,7 @@ export function DashboardCardioCard({
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
+  const locale = useLocale();
   const { selectedDate, todayKey } = useSelectedDate();
   const readOnly = useIsPastSelectedDay();
   const { version, patches } = useDashboardSync();
@@ -513,7 +519,7 @@ export function DashboardCardioCard({
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <HeartPulse className="h-5 w-5 text-orange-400" />
-          <p className="text-lg font-black">{cardioTitle(selectedDate, platform)}</p>
+          <p className="text-lg font-black">{cardioTitle(selectedDate, platform, locale)}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <Link href="/dashboard/workout/cardio">

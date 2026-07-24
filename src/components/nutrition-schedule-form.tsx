@@ -86,8 +86,8 @@ export function NutritionScheduleForm({
 
   const anchor = useMemo(() => getScheduleAnchorDate(startMode), [startMode]);
   const preview = useMemo(
-    () => describeSchedulePreview(anchor, weekdays, weeks),
-    [anchor, weekdays, weeks]
+    () => describeSchedulePreview(anchor, weekdays, weeks, locale),
+    [anchor, weekdays, weeks, locale]
   );
 
   const toggleWeekday = (value: number) => {
@@ -201,7 +201,7 @@ export function NutritionScheduleForm({
                     : "border-border bg-secondary/60 hover:border-primary/40"
                 )}
               >
-                {formatScheduleAnchorLabel(mode)}
+                {formatScheduleAnchorLabel(mode, locale)}
               </button>
             ))}
           </div>

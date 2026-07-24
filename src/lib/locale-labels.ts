@@ -32,6 +32,12 @@ export function getWeekdayOptions(locale: CheckoutLocale) {
   }));
 }
 
+/** Sunday-first short labels for calendar grids that start on Sunday. */
+export function getSundayFirstWeekdayLabels(locale: CheckoutLocale): string[] {
+  const labels = locale === "en" ? weekdayLabelsEn : weekdayLabelsAl;
+  return [0, 1, 2, 3, 4, 5, 6].map((value) => labels[value]);
+}
+
 const taskCategoryLabelsEn: Record<TaskCategory, string> = {
   workout: "Workout",
   nutrition: "Nutrition",

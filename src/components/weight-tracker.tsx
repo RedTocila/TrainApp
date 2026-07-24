@@ -1,7 +1,8 @@
 "use client";
-import { useCoachCopy, useCoachLabels, usePlatformCopy, useBodyUnits } from "@/components/locale-provider";
+import { useCoachCopy, useCoachLabels, useLocale, usePlatformCopy, useBodyUnits } from "@/components/locale-provider";
 
-import { format, isToday } from "date-fns";
+import { isToday } from "date-fns";
+import { formatLocalized } from "@/lib/date-locale";
 import { Plus } from "lucide-react";
 import { ElectronicScale } from "@/components/icons/electronic-scale";
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -43,6 +44,7 @@ export function WeightTracker({
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
+  const locale = useLocale();
   const units = useBodyUnits();
   const { selectedDate, todayKey } = useSelectedDate();
   const readOnly = useIsPastSelectedDay();
@@ -88,7 +90,7 @@ export function WeightTracker({
 
   const dateLabel = isToday(selectedDate)
     ? platform.common.today
-    : format(selectedDate, "MMM d");
+    : formatLocalized(selectedDate, "MMM d", locale);
 
   const refreshHistory = useCallback(async () => {
     const fetchedHistory = await getBodyWeightHistory(clientId);
