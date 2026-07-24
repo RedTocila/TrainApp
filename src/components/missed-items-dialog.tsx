@@ -1,10 +1,9 @@
 "use client";
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +78,6 @@ export function MissedItemsDialog({
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
-  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -95,20 +93,8 @@ export function MissedItemsDialog({
   if (!open) return null;
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label={platform.aria.close}
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-          className="relative z-10 flex max-h-[min(85vh,28rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
-        >
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-md" aria-label={title} className="max-h-[min(92%,28rem)]">
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
             <h2
@@ -165,8 +151,7 @@ export function MissedItemsDialog({
             {coachLabels.illDoBetter}
           </Button>
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }

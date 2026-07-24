@@ -1,6 +1,5 @@
 "use client";
 import { useCoachCopy, useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Plus, Trash2, X } from "lucide-react";
@@ -23,7 +22,7 @@ import {
 import type { MealType } from "@/lib/types";
 import { getMealTypeOptions } from "@/lib/locale-labels";
 import { MealDetailsFields } from "@/components/meal-details-fields";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,8 +49,6 @@ function EditMealDialog({
     setForm(mealFormFromMeal(item.meal));
     setError(null);
   }, [open, item]);
-
-  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -84,15 +81,8 @@ function EditMealDialog({
   };
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label={platform.aria.close}
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,36rem)]">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="text-lg font-black">{platform.meals.editMeal}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -124,9 +114,8 @@ function EditMealDialog({
             {isPending ? platform.common.saving : platform.common.save}
           </Button>
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }
 
@@ -158,8 +147,6 @@ function AddMealToFolderDialog({
     setPlans([]);
     setError(null);
   }, [open, item]);
-
-  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -219,15 +206,8 @@ function AddMealToFolderDialog({
     folders.find((f) => f.id === selectedFolderId)?.name ?? "folder";
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label={platform.aria.close}
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div className="relative z-10 flex max-h-[min(85vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-md" className="max-h-[min(92%,32rem)]">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -305,9 +285,8 @@ function AddMealToFolderDialog({
           )}
           {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }
 
@@ -341,8 +320,6 @@ function CreateMealDialog({
     setPlans([]);
     setError(null);
   }, [open, defaultMealType]);
-
-  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -410,15 +387,8 @@ function CreateMealDialog({
     folders.find((f) => f.id === selectedFolderId)?.name ?? "folder";
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label={platform.aria.close}
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,36rem)]">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -536,9 +506,8 @@ function CreateMealDialog({
             </Button>
           </div>
         )}
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }
 

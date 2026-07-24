@@ -1,5 +1,4 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { isToday, isTomorrow } from "date-fns";
 import { X } from "lucide-react";
@@ -14,7 +13,7 @@ import {
 } from "@/lib/daily-tasks";
 import { formatLocalized } from "@/lib/date-locale";
 import { formatDateKey } from "@/lib/utils";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { Button } from "@/components/ui/button";
 
@@ -53,8 +52,6 @@ export function DayTasksDialog({
     });
   }, [open, date, clientId, schedule]);
 
-  useLockBodyScroll(open);
-
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -76,22 +73,10 @@ export function DayTasksDialog({
       : formatLocalized(date, "EEEE", locale);
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label={platform.common.close}
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={platform.calendar.tasksFor(
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-md" aria-label={platform.calendar.tasksFor(
             formatLocalized(date, "MMMM d", locale)
-          )}
-          className="relative z-10 flex max-h-[min(85vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
-        >
+          )} className="max-h-[min(92%,32rem)]">
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -127,8 +112,7 @@ export function DayTasksDialog({
             {platform.common.close}
           </Button>
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }

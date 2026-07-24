@@ -1,9 +1,8 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Minus, X } from "lucide-react";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { dashboard } from "@/components/dashboard-ui";
 import { fetchWorkoutDifficultyInsight } from "@/lib/actions/workout-difficulty-ai";
@@ -60,8 +59,6 @@ export function WorkoutDifficultyExplainDialog({
     hasIntake: boolean;
   } | null>(null);
   const requestIdRef = useRef(0);
-
-  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -151,21 +148,8 @@ export function WorkoutDifficultyExplainDialog({
   };
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label={platform.aria.close}
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={platform.workout.difficultyExplainTitle}
-          className="relative z-10 flex max-h-[min(85dvh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
-          onClick={(event) => event.stopPropagation()}
-        >
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-md" aria-label={platform.workout.difficultyExplainTitle} className="max-h-[min(92%,32rem)]">
         <div className="flex items-start gap-3 border-b border-border px-4 py-4 sm:px-5">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -249,8 +233,7 @@ export function WorkoutDifficultyExplainDialog({
             </p>
           ) : null}
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }

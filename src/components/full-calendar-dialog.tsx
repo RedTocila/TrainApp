@@ -1,5 +1,4 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import {
   addMonths,
@@ -16,7 +15,7 @@ import {
 } from "date-fns";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { CalendarDayDot } from "@/components/calendar-day-card";
 import { groupTasksByStatus } from "@/components/day-tasks-list";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
@@ -69,8 +68,6 @@ export function FullCalendarDialog({
     if (open) setViewMonth(startOfMonth(selectedDate));
   }, [open, selectedDate]);
 
-  useLockBodyScroll(open);
-
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -104,20 +101,8 @@ export function FullCalendarDialog({
   if (!open) return null;
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label={platform.calendar.closeCalendar}
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={platform.calendar.fullCalendarTitle}
-          className="relative z-10 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
-        >
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-4xl" aria-label={platform.calendar.fullCalendarTitle} className="max-h-[92%]">
         <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6">
           <div>
             <h2 className="text-lg font-black">{platform.calendar.fullCalendarTitle}</h2>
@@ -222,8 +207,7 @@ export function FullCalendarDialog({
             </p>
           </div>
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }

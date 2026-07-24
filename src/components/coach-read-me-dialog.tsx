@@ -1,12 +1,10 @@
 "use client";
 
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export function CoachReadMeDialog({
   open,
@@ -31,53 +29,22 @@ export function CoachReadMeDialog({
 }) {
   const [agreed, setAgreed] = useState(false);
 
-  useLockBodyScroll(open);
-
   useEffect(() => {
     if (open) setAgreed(false);
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
 
   if (!open) return null;
 
   const canProceed = !required || agreed;
 
   return (
-    <DialogPortal open={open}>
-      <div
-        className={cn(
-          "fixed inset-0 z-[120] flex items-center justify-center px-4",
-          // Keep the sheet in the visible band above the mobile bottom nav
-          "py-4 pb-[calc(var(--dashboard-mobile-nav-height,4.25rem)+0.75rem)]",
-          "lg:pb-4"
-        )}
-      >
-      {!required && (
-        <button
-          type="button"
-          aria-label="Close"
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-      )}
-      {required && (
-        <div className="overlay-backdrop absolute inset-0 backdrop-blur-sm" aria-hidden />
-      )}
-      <div
-        role="dialog"
-        aria-modal="true"
+    <AppOverlay open={open} onClose={onClose} closeOnBackdrop={!required}>
+      <AppOverlayPanel
+        maxWidth="max-w-md"
         aria-labelledby="coach-read-me-title"
-        className="relative z-10 flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
+        className="max-h-[min(92%,36rem)]"
       >
-        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-5">
+        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-2 sm:pt-4">
           <h2 id="coach-read-me-title" className="text-lg font-bold">
             {title}
           </h2>
@@ -92,7 +59,7 @@ export function CoachReadMeDialog({
         </div>
 
         <div
-          className="min-h-0 flex-1 overflow-y-auto px-5 py-4"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
           data-scroll-lock-scrollable
         >
           <ul className="space-y-3 text-sm leading-relaxed text-muted-foreground">
@@ -127,8 +94,7 @@ export function CoachReadMeDialog({
             {gotItLabel}
           </Button>
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }

@@ -22,7 +22,6 @@ import {
   formatProgressMonthLabel,
   getProgressPhotoCountdown,
   getProgressPhotoDisplaySet,
-  getProgressPhotoTimelineRows,
   progressMonthKey,
   progressSetComplete,
   progressSetHasPhotos,
@@ -413,66 +412,6 @@ function ProgressPhotosCardInner({
     return formatProgressMonthLabel(currentMonth, locale);
   }, [displaySet, currentMonth, locale]);
 
-  const nextCheckIn = useMemo(() => {
-    if (!currentComplete || !currentSet) return null;
-    const rows = getProgressPhotoTimelineRows(sets, new Date(), locale);
-    return rows.find((row) => row.isUpcoming) ?? null;
-  }, [currentComplete, currentSet, sets, locale]);
-
-  const handleNextUpload = async (pose: ProgressPhotoPose, file: File) => {
-    if (!nextCheckIn || !ensureCanUpload()) return;
-    setError(null);
-    setUploadingPose(pose);
-    try {
-      const supabase = createClient();
-      const result = await uploadProgressPhotoWithAiReview({
-        supabase,
-        clientId,
-        monthKey: nextCheckIn.monthKey,
-        pose,
-        file,
-        locale,
-      });
-
-      if (result.status === "rejected") {
-        setAlexDialog({
-          title: platform.photos.alexWrongPhotoTitle,
-          message: result.analysis.alex_message,
-          primaryLabel: platform.photos.retakePhoto,
-        });
-        return;
-      }
-
-      if (result.status === "error") {
-        setError(result.message);
-        return;
-      }
-
-      if (result.analysis?.valid && result.analysis.alex_message) {
-        setAlexDialog({
-          title: platform.photos.alexAcceptedTitle,
-          message: result.analysis.alex_message,
-          primaryLabel: platform.common.done,
-        });
-      }
-
-      const nextSets = upsertPhotoPathInSets(
-        sets,
-        clientId,
-        nextCheckIn.monthKey,
-        pose,
-        result.path
-      );
-      setSets(nextSets);
-      setProgressPhotosSetsCache(clientId, nextSets);
-      refreshSets();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : platform.photos.uploadFailed);
-    } finally {
-      setUploadingPose(null);
-    }
-  };
-
   return (
     <>
       <DashboardThemedShell
@@ -521,78 +460,40 @@ function ProgressPhotosCardInner({
                 </span>
               ) : null}
             </div>
-            <div className={cn("grid grid-cols-3 gap-3", dashboardInteractive)}>
-              {photoPoses.map(({ pose, label }) => (
-                <PhotoSlot
-                  key={pose}
-                  label={label}
-                  url={currentUrls[pose]}
-                  uploading={uploadingPose === pose || isPending}
-                  canUploadPhotos={canUploadPhotos}
-                  onRequireReadMe={ensureCanUpload}
-                  onPick={(file) => void handleUpload(pose, file)}
-                  onRemove={() => {
-                    confirmGiveUp({
-                      ...coachCopy.removeProgressPhoto(label),
-                      onConfirm: () => handleRemove(pose),
-                    });
-                  }}
-                  onPreview={() => {
-                    const url = currentUrls[pose];
-                    if (url) setPreview({ url, label });
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {nextCheckIn ? (
-            <div>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                    {platform.photos.nextCheckIn}
-                  </p>
-                  <p className="mt-1 text-sm font-bold">{nextCheckIn.title}</p>
-                  {nextCheckIn.subtitle ? (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {nextCheckIn.subtitle}
-                    </p>
-                  ) : null}
-                </div>
-                <DashboardStatusIcon
-                  status="pending"
-                  aria-label={platform.photos.monthIncomplete}
-                />
-              </div>
+            <div className="relative">
               <div className={cn("grid grid-cols-3 gap-3", dashboardInteractive)}>
                 {photoPoses.map(({ pose, label }) => (
                   <PhotoSlot
-                    key={`next-${pose}`}
+                    key={pose}
                     label={label}
-                    url={null}
+                    url={currentUrls[pose]}
                     uploading={uploadingPose === pose || isPending}
-                    canUpload={nextCheckIn.canUpload}
                     canUploadPhotos={canUploadPhotos}
                     onRequireReadMe={ensureCanUpload}
-                    onPick={(file) => {
-                      void handleNextUpload(pose, file);
+                    onPick={(file) => void handleUpload(pose, file)}
+                    onRemove={() => {
+                      confirmGiveUp({
+                        ...coachCopy.removeProgressPhoto(label),
+                        onConfirm: () => handleRemove(pose),
+                      });
                     }}
-                    onRemove={() => {}}
-                    onPreview={() => {}}
+                    onPreview={() => {
+                      const url = currentUrls[pose];
+                      if (url) setPreview({ url, label });
+                    }}
                   />
                 ))}
               </div>
+              <ChevronRight
+                className="pointer-events-none absolute bottom-0 right-0 z-[2] h-5 w-5 text-muted-foreground"
+                aria-hidden
+              />
             </div>
-          ) : null}
+          </div>
 
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
         </div>
         </DashboardCardNavBody>
-        <ChevronRight
-          className="pointer-events-none absolute bottom-4 right-4 z-[2] h-5 w-5 text-muted-foreground"
-          aria-hidden
-        />
       </DashboardThemedShell>
 
       {giveUpDialog}

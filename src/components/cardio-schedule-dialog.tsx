@@ -1,5 +1,4 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Calendar, X } from "lucide-react";
@@ -13,7 +12,7 @@ import {
   type ScheduleStartMode,
 } from "@/lib/schedule-utils";
 import { cn } from "@/lib/utils";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { getWeekdayOptions } from "@/lib/locale-labels";
 import { Button } from "@/components/ui/button";
@@ -50,8 +49,6 @@ export function CardioScheduleDialog({
     setError(null);
     setSuccess(null);
   }, [open, cardio?.id]);
-
-  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -106,19 +103,8 @@ export function CardioScheduleDialog({
   if (!open || !cardio) return null;
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label={platform.common.close}
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="relative z-10 flex max-h-[min(90vh,40rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
-        >
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,40rem)]">
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
             <h2 className="text-lg font-black">{platform.cardio.schedule} {platform.cardio.title}</h2>
@@ -221,8 +207,7 @@ export function CardioScheduleDialog({
             </Button>
           )}
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+      </AppOverlay>
   );
 }

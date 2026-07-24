@@ -1,11 +1,10 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import type { Meal } from "@/lib/types";
 import { formatMealMacrosSummary, normalizeMealMacros } from "@/lib/meal-utils";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +23,6 @@ export function MealOptionPickerDialog({
   onSelect: (meal: Meal) => void;
   isPending?: boolean;
 }) {
-  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -40,20 +38,12 @@ export function MealOptionPickerDialog({
   if (!open) return null;
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label="Close"
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Choose ${slotLabel}`}
-          className="relative z-10 flex max-h-[min(90vh,32rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
-        >
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel
+        maxWidth="max-w-md"
+        aria-label={`Choose ${slotLabel}`}
+        className="max-h-[min(92%,32rem)]"
+      >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
             <h2 className="text-lg font-black">{slotLabel}</h2>
@@ -99,8 +89,7 @@ export function MealOptionPickerDialog({
             Cancel
           </Button>
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+      </AppOverlay>
   );
 }

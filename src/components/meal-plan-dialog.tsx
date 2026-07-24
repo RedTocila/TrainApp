@@ -1,9 +1,8 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useState } from "react";
 import { ShoppingCart, X } from "lucide-react";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { MealPlanViewer } from "@/components/meal-plan-viewer";
 import { GroceryListDialog } from "@/components/grocery-list-dialog";
 import type { PlannedMealSlot } from "@/lib/meal-times";
@@ -33,8 +32,6 @@ export function MealPlanDialog({
   const [groceryOpen, setGroceryOpen] = useState(false);
   const showGrocery = Boolean(clientId && planId);
 
-  useLockBodyScroll(open);
-
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -54,20 +51,8 @@ export function MealPlanDialog({
 
   return (
     <>
-      <DialogPortal open={open}>
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <button
-            type="button"
-            aria-label={platform.common.close}
-            className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-            onClick={onClose}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="meal-plan-title"
-            className="relative z-10 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-xl"
-          >
+      <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-lg" aria-labelledby="meal-plan-title" className="max-h-[92%]">
           <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div className="min-w-0 flex-1">
               <h2 id="meal-plan-title" className="text-base font-bold">
@@ -105,9 +90,8 @@ export function MealPlanDialog({
           <div className="overflow-y-auto px-4 py-5">
             <MealPlanViewer slots={slots} emptyMessage={emptyMessage} />
           </div>
-        </div>
-        </div>
-      </DialogPortal>
+        </AppOverlayPanel>
+    </AppOverlay>
 
       {showGrocery && clientId && planId ? (
         <GroceryListDialog

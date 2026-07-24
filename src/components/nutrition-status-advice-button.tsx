@@ -2,12 +2,11 @@
 
 import { useEffect, useState, type MouseEvent } from "react";
 import { Loader2, X } from "lucide-react";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { OpenAiCoachChatButton } from "@/components/open-ai-coach-chat-button";
 import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 import { analyzeDayMacroOverageAction } from "@/lib/actions/ai-macro-overage";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import {
   buildLocalDayOverageInsights,
   nutrientLabel,
@@ -125,8 +124,6 @@ export function NutritionStatusAdviceButton({
   const styles = STATUS_STYLES[status];
   const showOverageInsights = status === "too_much";
 
-  useLockBodyScroll(open);
-
   useEffect(() => {
     if (!open || !showOverageInsights) return;
 
@@ -227,20 +224,8 @@ export function NutritionStatusAdviceButton({
         )}
       </button>
 
-      <DialogPortal open={open}>
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <button
-            type="button"
-            aria-label={platform.aria.close}
-            className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative z-10 flex max-h-[min(85vh,36rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <AppOverlay open={open} onClose={() => setOpen(false)}>
+        <AppOverlayPanel maxWidth="max-w-md" className="max-h-[min(92%,36rem)]">
                 <div className="flex items-start justify-between border-b border-border px-5 py-4">
                   <div className="flex items-center gap-3">
                     <AiCoachAvatar size="sm" className="h-10 w-10 shrink-0" />
@@ -310,9 +295,8 @@ export function NutritionStatusAdviceButton({
                     {coachLabels.illDoBetter}
                   </Button>
                 </div>
-              </div>
-            </div>
-      </DialogPortal>
+              </AppOverlayPanel>
+      </AppOverlay>
     </>
   );
 }

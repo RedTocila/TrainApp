@@ -1,9 +1,7 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { DialogPortal } from "@/components/dialog-portal";
 import { usePathname } from "next/navigation";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import {
@@ -32,6 +30,7 @@ import { useRecipeCatalog } from "@/hooks/use-recipe-catalog";
 import { MealDetailsFields } from "@/components/meal-details-fields";
 import { MealPhotoLogStep } from "@/components/meal-photo-log-step";
 import { MealTextLogStep } from "@/components/meal-text-log-step";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -114,19 +113,6 @@ export function LogMealDialog({
     setIsSaving(false);
     savingRef.current = false;
   }, [open]);
-
-  useLockBodyScroll(open);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !savingRef.current) onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -338,7 +324,7 @@ export function LogMealDialog({
   const header = (
     <div
       className={cn(
-        "flex shrink-0 items-center gap-2 border-b border-border px-4 py-4",
+        "flex shrink-0 items-center gap-2 border-b border-border px-4 py-3 sm:py-4",
         isPhotoReviewFullscreen &&
           "bg-background/95 pt-[max(0.75rem,env(safe-area-inset-top,0px))] backdrop-blur-md"
       )}
@@ -673,49 +659,39 @@ export function LogMealDialog({
   );
 
   return (
-    <DialogPortal open={open}>
-      <div
+    <AppOverlay
+      open={open}
+      onClose={() => {
+        if (!savingRef.current) onClose();
+      }}
+      fullscreen={isPhotoReviewFullscreen}
+      closeOnBackdrop={!isSaving}
+    >
+      <AppOverlayPanel
+        fullscreen={isPhotoReviewFullscreen}
+        showHandle={!isPhotoReviewFullscreen}
+        maxWidth="max-w-lg"
+        aria-label={
+          isPhotoReviewFullscreen ? platform.mealLog.photoLog : platform.mealLog.logAMeal
+        }
         className={cn(
-          "fixed inset-0 z-[120] h-dvh w-full",
-          isPhotoReviewFullscreen
-            ? "flex flex-col bg-background"
-            : "flex items-center justify-center p-4"
-        )}
-      >
-      {!isPhotoReviewFullscreen && (
-        <button
-          type="button"
-          aria-label={platform.aria.close}
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={isSaving ? undefined : onClose}
-          disabled={isSaving}
-        />
-      )}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={isPhotoReviewFullscreen ? platform.mealLog.photoLog : platform.mealLog.logAMeal}
-        className={cn(
-          "relative z-10 flex min-h-0 flex-col overflow-hidden",
-          isPhotoReviewFullscreen
-            ? "h-full min-h-0 w-full bg-background"
-            : "max-h-[min(92vh,48rem)] w-full max-w-lg rounded-2xl border border-border/80 bg-card shadow-2xl"
+          !isPhotoReviewFullscreen && "max-h-[min(92%,48rem)]"
         )}
       >
         {header}
         <div
           className={cn(
-            "min-h-0 flex-1 overflow-y-auto",
+            "min-h-0 flex-1 overflow-y-auto overscroll-contain",
             isPhotoReviewFullscreen ? "px-4 py-4" : "px-5 py-4"
           )}
+          data-scroll-lock-scrollable
         >
           <div className={cn(isPhotoReviewFullscreen && "mx-auto w-full max-w-lg")}>
             {body}
           </div>
         </div>
         {footer}
-      </div>
-    </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }

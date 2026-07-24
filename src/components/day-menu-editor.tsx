@@ -1,5 +1,4 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -20,7 +19,7 @@ import {
   type PersonalMealLibraryItem,
 } from "@/lib/actions/user-nutrition";
 import { MealDetailsFields } from "@/components/meal-details-fields";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,8 +57,6 @@ function MealEditDialog({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  useLockBodyScroll(open);
-
   useEffect(() => {
     if (open && meal) setForm(mealFormFromMeal(meal));
   }, [open, meal]);
@@ -84,15 +81,8 @@ function MealEditDialog({
   };
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label="Close"
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,36rem)]">
           <div className="border-b border-border px-5 py-4">
             <h2 className="text-lg font-black">Edit meal</h2>
         </div>
@@ -121,9 +111,8 @@ function MealEditDialog({
             {isPending ? "Saving…" : "Save"}
           </Button>
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }
 
@@ -148,20 +137,11 @@ function AddMealDialog({
   }));
   const slotMeta = MEAL_SLOTS.find((s) => s.slot === slot)!;
 
-  useLockBodyScroll(open);
-
   if (!open) return null;
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label="Close"
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div className="relative z-10 flex max-h-[min(85vh,32rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl">
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,32rem)]">
           <div className="border-b border-border px-5 py-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
               Add to {slotMeta.label}
@@ -241,9 +221,8 @@ function AddMealDialog({
             </Button>
           </div>
         )}
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }
 

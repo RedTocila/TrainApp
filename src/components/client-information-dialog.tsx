@@ -1,9 +1,8 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import type { ClientIntakeInfo } from "@/lib/actions/client-intake";
 import { formatGender } from "@/lib/intake-display";
 
@@ -28,7 +27,6 @@ export function ClientInformationDialog({
   intake: ClientIntakeInfo | null;
   preferences?: string | null;
 }) {
-  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -46,20 +44,8 @@ export function ClientInformationDialog({
   const { profile, latestWeightKg, goalLabel } = intake;
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label="Close"
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Client information"
-          className="relative z-10 flex max-h-[min(90vh,36rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
-        >
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-lg" aria-label="Client information" className="max-h-[min(92%,36rem)]">
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div>
             <h2 className="text-lg font-black">Client information</h2>
@@ -110,8 +96,7 @@ export function ClientInformationDialog({
               </p>
             )}
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+      </AppOverlay>
   );
 }

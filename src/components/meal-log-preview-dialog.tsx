@@ -1,10 +1,9 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { CheckCircle2, Target, Trash2, X } from "lucide-react";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useCoachCopy, usePlatformCopy } from "@/components/locale-provider";
 import type { MealFormData } from "@/lib/meal-utils";
@@ -47,8 +46,6 @@ export function MealLogPreviewDialog({
   useEffect(() => {
     if (open && meal) setAdviceKey(Date.now());
   }, [open, meal]);
-
-  useLockBodyScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -94,20 +91,8 @@ export function MealLogPreviewDialog({
   const summary = formatMealMacrosSummary(meal.macros);
 
   return (
-    <DialogPortal open={open}>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label="Close"
-          className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Meal logged preview"
-          className="relative z-10 flex max-h-[min(90vh,42rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl"
-        >
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-lg" aria-label="Meal logged preview" className="max-h-[min(92%,42rem)]">
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
           <div className="space-y-1">
             <p className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -240,9 +225,8 @@ export function MealLogPreviewDialog({
             </Button>
           )}
         </div>
-      </div>
-      </div>
-    </DialogPortal>
+      </AppOverlayPanel>
+      </AppOverlay>
   );
 }
 

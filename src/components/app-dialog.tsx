@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { X } from "lucide-react";
-import { DialogPortal } from "@/components/dialog-portal";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
+import {
+  APP_DIALOG_Z_INDEX,
+  AppOverlay,
+  AppOverlayPanel,
+} from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/** Above dashboard mobile nav (z-100) and common chrome. */
-export const APP_DIALOG_Z_INDEX = 120;
+export { APP_DIALOG_Z_INDEX };
 
 export function AppDialog({
   open,
@@ -21,6 +23,7 @@ export function AppDialog({
   maxWidth = "max-w-lg",
   className,
   zIndex = APP_DIALOG_Z_INDEX,
+  closeOnBackdrop = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -32,117 +35,65 @@ export function AppDialog({
   maxWidth?: string;
   className?: string;
   zIndex?: number;
+  closeOnBackdrop?: boolean;
 }) {
   const titleId = useId();
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [fullPage, setFullPage] = useState(false);
-
-  useLockBodyScroll(open);
-
-  useLayoutEffect(() => {
-    if (!open) {
-      setFullPage((prev) => (prev ? false : prev));
-      return;
-    }
-
-    const measure = () => {
-      const panel = panelRef.current;
-      if (!panel) return;
-      const available = window.innerHeight - 32;
-      const next = panel.scrollHeight > available;
-      setFullPage((prev) => (prev === next ? prev : next));
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    if (panelRef.current) observer.observe(panelRef.current);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open, onClose]);
-
-  const shell = (
-    <div
-      ref={panelRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={title ? titleId : undefined}
-      aria-label={ariaLabel}
-      className={cn(
-        "relative z-10 flex w-full flex-col border border-border/80 bg-card shadow-2xl",
-        fullPage
-          ? "min-h-full max-h-none rounded-none"
-          : cn("overflow-hidden rounded-2xl", maxWidth),
-        className
-      )}
-    >
-      {(title || description) && (
-        <div className="flex shrink-0 items-start justify-between gap-3 px-5 py-4">
-          <div className="min-w-0">
-            {title ? (
-              <h2 id={titleId} className="text-lg font-black">
-                {title}
-              </h2>
-            ) : null}
-            {description ? (
-              <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-            ) : null}
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-      )}
-
-      <div
-        className={cn("min-h-0", !title && !description && "pt-4", !fullPage && "overflow-y-auto")}
-        data-scroll-lock-scrollable
-      >
-        {children}
-      </div>
-
-      {footer ? (
-        <div className="shrink-0 px-5 py-4">{footer}</div>
-      ) : null}
-    </div>
-  );
 
   return (
-    <DialogPortal open={open}>
-      {fullPage ? (
-        <div className="fixed inset-0 overflow-y-auto bg-background" style={{ zIndex }}>
-          <button
-            type="button"
-            aria-label="Close"
-            className="overlay-backdrop fixed inset-0"
-            onClick={onClose}
-          />
-          <div className="relative z-10 flex min-h-full flex-col">{shell}</div>
+    <AppOverlay
+      open={open}
+      onClose={onClose}
+      zIndex={zIndex}
+      closeOnBackdrop={closeOnBackdrop}
+    >
+      <AppOverlayPanel
+        maxWidth={maxWidth}
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={ariaLabel}
+        className={className}
+      >
+        {(title || description) && (
+          <div className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-1 sm:pt-4">
+            <div className="min-w-0">
+              {title ? (
+                <h2 id={titleId} className="text-lg font-black leading-tight">
+                  {title}
+                </h2>
+              ) : null}
+              {description ? (
+                <p className="mt-1 text-sm leading-snug text-muted-foreground">
+                  {description}
+                </p>
+              ) : null}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
+
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+            !title && !description && "pt-2"
+          )}
+          data-scroll-lock-scrollable
+        >
+          {children}
         </div>
-      ) : (
-        <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
-          <button
-            type="button"
-            aria-label="Close"
-            className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-            onClick={onClose}
-          />
-          {shell}
-        </div>
-      )}
-    </DialogPortal>
+
+        {footer ? (
+          <div className="shrink-0 border-t border-border/60 px-5 py-3 sm:py-4">
+            {footer}
+          </div>
+        ) : null}
+      </AppOverlayPanel>
+    </AppOverlay>
   );
 }

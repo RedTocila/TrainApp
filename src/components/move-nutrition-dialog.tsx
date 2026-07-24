@@ -1,10 +1,9 @@
 "use client";
-import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Folder, FolderInput, X } from "lucide-react";
-import { DialogPortal } from "@/components/dialog-portal";
+import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { moveNutritionPlanToFolder } from "@/lib/actions/user-nutrition";
 import { resolveNutritionFolderId } from "@/lib/nutrition-folders";
 import { Button } from "@/components/ui/button";
@@ -29,7 +28,6 @@ export function MoveNutritionDialog({
   folders,
   onMoved,
 }: MoveNutritionDialogProps) {
-  useLockBodyScroll(open);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -53,9 +51,8 @@ export function MoveNutritionDialog({
   if (!open) return null;
 
   return (
-    <DialogPortal open={open}>
-      <div className="overlay-backdrop fixed inset-0 z-[120] flex items-end justify-center p-0 sm:items-center sm:p-4">
-        <div className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-border/80 bg-card shadow-2xl sm:rounded-2xl">
+    <AppOverlay open={open} onClose={onClose}>
+      <AppOverlayPanel maxWidth="max-w-md" className="max-h-[92%]">
         <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -94,9 +91,8 @@ export function MoveNutritionDialog({
           )}
           {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
         </div>
-        </div>
-      </div>
-    </DialogPortal>
+        </AppOverlayPanel>
+    </AppOverlay>
   );
 }
 
