@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Check, ChevronDown, Dumbbell, Loader2, PenLine, Sparkles, Zap } from "lucide-react";
 import {
   applyAiWorkoutPlanAction,
@@ -10,11 +10,8 @@ import {
 } from "@/lib/actions/ai-plan-builder";
 import type { AiWorkoutPlanResult } from "@/lib/ai/plan-builder-types";
 import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
+import { inferAiWorkoutKind } from "@/lib/ai/infer-workout-kind";
 import { AiPlanProfileSummary } from "@/components/ai-plan-profile-summary";
-import {
-  WorkoutTypeChooser,
-  type CreateWorkoutType,
-} from "@/components/workout-type-chooser";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +31,6 @@ export function AiWorkoutPlanBuilder({
   intakeComplete: boolean;
 }) {
   const router = useRouter();
-  const [workoutType, setWorkoutType] = useState<CreateWorkoutType>("strength");
   const [preferences, setPreferences] = useState("");
   const [plan, setPlan] = useState<AiWorkoutPlanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,12 +39,17 @@ export function AiWorkoutPlanBuilder({
   const [showEditor, setShowEditor] = useState(true);
   const [isPending, startTransition] = useTransition();
   const exerciseGender = resolveProfileGender(profile.gender);
+  const detectedKind = useMemo(
+    () => inferAiWorkoutKind(preferences),
+    [preferences]
+  );
 
   const handleGenerate = () => {
     setError(null);
     setApplied(false);
     startTransition(async () => {
-      const result = await generateAiWorkoutPlanAction(preferences, workoutType);
+      // Detect fitness vs HIIT from what the user wrote.
+      const result = await generateAiWorkoutPlanAction(preferences, null);
       if ("error" in result) {
         setError(result.error);
         return;
@@ -91,8 +92,8 @@ export function AiWorkoutPlanBuilder({
                 Build workout plan
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Choose fitness (sets &amp; reps) or HIIT (intervals), then let AI build from your
-                goal, schedule, and experience. Review before applying.
+                Describe what you want — mention HIIT/intervals or a normal fitness plan with
+                sets &amp; reps. AI picks the right builder from your text.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -104,39 +105,60 @@ export function AiWorkoutPlanBuilder({
               )}
 
               <div className="space-y-2">
-                <Label>Workout type</Label>
-                <WorkoutTypeChooser value={workoutType} onChange={setWorkoutType} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="workout-preferences">Extra preferences (optional)</Label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label htmlFor="workout-preferences">What should the workout be?</Label>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                      detectedKind === "hiit"
+                        ? "bg-fuchsia-500/15 text-fuchsia-300"
+                        : "bg-primary/10 text-primary"
+                    )}
+                  >
+                    {detectedKind === "hiit" ? (
+                      <>
+                        <Zap className="h-3 w-3" />
+                        HIIT
+                      </>
+                    ) : (
+                      <>
+                        <Dumbbell className="h-3 w-3" />
+                        Fitness
+                      </>
+                    )}
+                  </span>
+                </div>
                 <Textarea
                   id="workout-preferences"
-                  rows={3}
+                  rows={4}
                   placeholder={
-                    workoutType === "hiit"
-                      ? "e.g. Low impact, ~20 min, bodyweight only, focus on conditioning…"
-                      : "e.g. Home gym only, 45 min sessions, no barbell squats, train 4 days…"
+                    detectedKind === "hiit"
+                      ? "e.g. HIIT ~20 min, low impact, bodyweight only…"
+                      : "e.g. Full body fitness, home gym, 45 min, 4 days — or write “HIIT” for intervals…"
                   }
                   value={preferences}
                   onChange={(e) => setPreferences(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Tip: write “HIIT”, “tabata”, or “intervals” for a timer session; otherwise you get
+                  a sets &amp; reps plan.
+                </p>
               </div>
 
               <Button className="w-full" onClick={handleGenerate} disabled={isPending}>
                 {isPending && !plan ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Building your {workoutType === "hiit" ? "HIIT" : "workout"}…
+                    Building your {detectedKind === "hiit" ? "HIIT" : "workout"}…
                   </>
                 ) : (
                   <>
                     <Sparkles className="mr-2 h-4 w-4" />
                     {plan
-                      ? workoutType === "hiit"
+                      ? detectedKind === "hiit"
                         ? "Regenerate HIIT workout"
                         : "Regenerate workout plan"
-                      : workoutType === "hiit"
+                      : detectedKind === "hiit"
                         ? "Generate HIIT workout"
                         : "Generate workout plan"}
                   </>

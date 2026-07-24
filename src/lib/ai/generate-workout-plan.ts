@@ -9,7 +9,10 @@ import type {
   AiWorkoutPlanResult,
 } from "@/lib/ai/plan-builder-types";
 import { normalizeHiitConfig, type HiitConfig, type WorkoutPlanKind } from "@/lib/hiit";
+import { inferAiWorkoutKind } from "@/lib/ai/infer-workout-kind";
 import type { Profile } from "@/lib/types";
+
+export { inferAiWorkoutKind } from "@/lib/ai/infer-workout-kind";
 
 function clampSets(n: unknown): number {
   const v = typeof n === "number" ? n : parseInt(String(n), 10);
@@ -19,33 +22,6 @@ function clampSets(n: unknown): number {
 function clampRest(n: unknown): number {
   const v = typeof n === "number" ? n : parseInt(String(n), 10);
   return Number.isFinite(v) ? Math.min(300, Math.max(30, v)) : 60;
-}
-
-/**
- * Prefer an explicit kind from the UI/tool.
- * Otherwise detect HIIT from preferences; default to traditional strength.
- */
-export function inferAiWorkoutKind(
-  preferences?: string,
-  explicit?: WorkoutPlanKind | null
-): WorkoutPlanKind {
-  if (explicit === "hiit" || explicit === "strength") return explicit;
-  const text = (preferences ?? "").toLowerCase();
-  if (!text.trim()) return "strength";
-
-  const wantsHiit =
-    /\b(hiit|high[\s-]?intensity(\s+interval)?(\s+training)?|tabata|interval\s*training|timed\s*intervals?|circuit\s*timer)\b/i.test(
-      text
-    );
-  if (!wantsHiit) return "strength";
-
-  const wantsTraditional =
-    /\b(traditional|strength\s*training|hypertrophy|bodybuilding|powerlifting|sets?\s*(and|&|\/)\s*reps?)\b/i.test(
-      text
-    ) && !/\b(hiit|tabata)\b/i.test(text);
-  if (wantsTraditional) return "strength";
-
-  return "hiit";
 }
 
 function normalizeWorkoutPlan(raw: AiGeneratedWorkoutPlan): AiGeneratedWorkoutPlan {
@@ -215,11 +191,17 @@ export async function generateHiitPlanFromProfile(
   preferences?: string
 ): Promise<AiGeneratedHiitPlan> {
   const intake = buildIntakeContextForAi(profile, preferences);
+  const sessionRequest =
+    preferences?.trim() ||
+    "A timed HIIT session that matches my goals, schedule, and available equipment.";
 
   const prompt = `You are an expert HIIT coach. Create ONE timed-interval HIIT workout session (work / rest timers, rounds, cycles) tailored to this client.
 
 CLIENT PROFILE:
 ${intake}
+
+SESSION REQUEST:
+${sessionRequest}
 
 Rules:
 - This is a HIIT interval workout — NOT traditional sets × reps strength training.
@@ -299,7 +281,29 @@ function normalizeWorkoutDay(raw: AiGeneratedWorkoutDay): AiGeneratedWorkoutDay 
   };
 }
 
-export async function generateWorkoutDayFromProfile(
+export type AiDaySessionResult =
+  | { kind: "strength"; workout: AiGeneratedWorkoutDay }
+  | { kind: "hiit"; plan: AiGeneratedHiitPlan };
+
+/** One calendar-day session — HIIT timer or sets/reps based on the prompt. */
+export async function generateWorkoutSessionFromProfile(
+  profile: Profile,
+  prompt: string
+): Promise<AiDaySessionResult> {
+  const kind = inferAiWorkoutKind(prompt);
+  if (kind === "hiit") {
+    return {
+      kind: "hiit",
+      plan: await generateHiitPlanFromProfile(profile, prompt),
+    };
+  }
+  return {
+    kind: "strength",
+    workout: await generateStrengthWorkoutDayFromProfile(profile, prompt),
+  };
+}
+
+async function generateStrengthWorkoutDayFromProfile(
   profile: Profile,
   prompt: string
 ): Promise<AiGeneratedWorkoutDay> {
@@ -318,7 +322,7 @@ ${sessionRequest}
 
 Rules:
 - Return exactly ONE session — not a weekly plan or split.
-- If they asked for HIIT/intervals, still return traditional sets × reps for this one-off calendar slot (full HIIT timer plans are built from the AI workout plan builder). Prefer metabolic / conditioning-style exercises with shorter rests.
+- This is a traditional sets × reps fitness session (not a HIIT interval timer).
 - Respect injuries and medical conditions — avoid aggravating movements and suggest alternatives in notes.
 - Match volume to goal, age, schedule, and recovery capacity.
 - Use clear exercise names (no equipment codes).
@@ -354,4 +358,12 @@ Respond with ONLY valid JSON:
   }
 
   return workout;
+}
+
+/** @deprecated Prefer generateWorkoutSessionFromProfile — kept for strength-only callers. */
+export async function generateWorkoutDayFromProfile(
+  profile: Profile,
+  prompt: string
+): Promise<AiGeneratedWorkoutDay> {
+  return generateStrengthWorkoutDayFromProfile(profile, prompt);
 }

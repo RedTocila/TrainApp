@@ -11,18 +11,18 @@ import {
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
 import { isAiConfigured } from "@/lib/ai/providers";
-import { generateWorkoutDayFromProfile, generateWorkoutPlanFromProfile } from "@/lib/ai/generate-workout-plan";
+import { generateWorkoutPlanFromProfile, generateWorkoutSessionFromProfile } from "@/lib/ai/generate-workout-plan";
+import type { AiDaySessionResult } from "@/lib/ai/generate-workout-plan";
 import { generateNutritionPlanFromProfile } from "@/lib/ai/generate-nutrition-plan";
 import type {
   AiGeneratedHiitPlan,
   AiGeneratedNutritionPlan,
-  AiGeneratedWorkoutDay,
   AiGeneratedWorkoutPlan,
   AiWorkoutPlanResult,
 } from "@/lib/ai/plan-builder-types";
 import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import { saveWorkoutDay } from "@/lib/actions/plans";
-import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan, addWorkoutToDay } from "@/lib/actions/user-workouts";
+import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan, addWorkoutToDay, getPersonalWorkoutPlanWithDetails } from "@/lib/actions/user-workouts";
 import { savePersonalHiitPlan } from "@/lib/actions/user-hiit";
 import { enrichExerciseWithGif } from "@/lib/exercise-gif";
 import type { WorkoutPlanKind } from "@/lib/hiit";
@@ -99,13 +99,13 @@ export async function generateAiWorkoutPlanAction(
 
 export async function generateAiWorkoutDayAction(
   prompt: string
-): Promise<{ workout: AiGeneratedWorkoutDay } | { error: string }> {
+): Promise<{ session: AiDaySessionResult } | { error: string }> {
   const access = await requireAiPlanBuilder();
   if (!access.success) return { error: access.error };
 
   try {
-    const workout = await generateWorkoutDayFromProfile(access.profile, prompt);
-    return { workout };
+    const session = await generateWorkoutSessionFromProfile(access.profile, prompt);
+    return { session };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Failed to generate workout",
@@ -115,13 +115,11 @@ export async function generateAiWorkoutDayAction(
 
 export async function applyAiWorkoutDayToDateAction(
   dateKey: string,
-  workout: AiGeneratedWorkoutDay
+  session: AiDaySessionResult
 ): Promise<{ planId: string } | { error: string }> {
   try {
     const access = await requireAiPlanBuilder();
     if (!access.success) return { error: access.error };
-
-    if (!workout.exercises?.length) return { error: "No exercises to add" };
 
     const createAccess = await ensureManualPlanCreation();
     if ("error" in createAccess) return { error: createAccess.error };
@@ -138,6 +136,37 @@ export async function applyAiWorkoutDayToDateAction(
     if (existingAny) {
       return { error: "Only one workout per day. Remove the current workout first." };
     }
+
+    if (session.kind === "hiit") {
+      const plan = session.plan;
+      if (!plan.config?.exercises?.length) return { error: "No HIIT exercises to add" };
+
+      const saved = await savePersonalHiitPlan({
+        title: plan.title,
+        description: plan.description?.trim() || "AI Coach · HIIT · one-off session",
+        config: plan.config,
+        assign: true,
+      });
+      if (saved.error || !saved.data) {
+        return { error: saved.error ?? "Could not create HIIT workout" };
+      }
+
+      const { days } = await getPersonalWorkoutPlanWithDetails(saved.data.id);
+      const dayId = days[0]?.id;
+      if (!dayId) {
+        return { error: "Could not save HIIT workout day" };
+      }
+
+      const scheduled = await addWorkoutToDay(dateKey, saved.data.id, dayId);
+      if (scheduled.error) return { error: scheduled.error };
+
+      revalidatePath("/dashboard");
+      revalidatePath("/dashboard/workout");
+      return { planId: saved.data.id };
+    }
+
+    const workout = session.workout;
+    if (!workout.exercises?.length) return { error: "No exercises to add" };
 
     const title = workout.title?.trim() || "AI Workout";
     const { data: plan, error: planError } = await admin

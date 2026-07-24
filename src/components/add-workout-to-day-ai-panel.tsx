@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { Check, ChevronDown, Loader2, PenLine, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Check, ChevronDown, Dumbbell, Loader2, PenLine, Sparkles, Zap } from "lucide-react";
 import {
   applyAiWorkoutDayToDateAction,
   generateAiWorkoutDayAction,
   getAiPlanBuilderProfile,
 } from "@/lib/actions/ai-plan-builder";
-import type { AiGeneratedWorkoutDay } from "@/lib/ai/plan-builder-types";
+import type { AiDaySessionResult } from "@/lib/ai/generate-workout-plan";
+import { inferAiWorkoutKind } from "@/lib/ai/infer-workout-kind";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { hasAiAccess } from "@/lib/subscription";
 import { buildPricingHref } from "@/lib/pricing-nav";
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { resolveProfileGender } from "@/lib/exercise-gif";
+import { hiitSummaryLabel } from "@/lib/hiit";
 
 export function AddWorkoutToDayAiPanel({
   dateKey,
@@ -35,7 +37,7 @@ export function AddWorkoutToDayAiPanel({
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [prompt, setPrompt] = useState("");
-  const [workout, setWorkout] = useState<AiGeneratedWorkoutDay | null>(null);
+  const [session, setSession] = useState<AiDaySessionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
   const [exercisesOpen, setExercisesOpen] = useState(true);
@@ -43,6 +45,7 @@ export function AddWorkoutToDayAiPanel({
   const [isGenerating, startGenerate] = useTransition();
   const [isApplying, setIsApplying] = useState(false);
   const exerciseGender = resolveProfileGender(profile?.gender);
+  const detectedKind = useMemo(() => inferAiWorkoutKind(prompt), [prompt]);
 
   useEffect(() => {
     setProfileLoading(true);
@@ -65,7 +68,7 @@ export function AddWorkoutToDayAiPanel({
           setError(result.error);
           return;
         }
-        setWorkout(result.workout);
+        setSession(result.session);
         setExercisesOpen(true);
         setShowEditor(false);
       } catch (err) {
@@ -80,12 +83,12 @@ export function AddWorkoutToDayAiPanel({
   };
 
   const handleApply = () => {
-    if (!workout || isApplying || applied) return;
+    if (!session || isApplying || applied) return;
     setError(null);
     setIsApplying(true);
     void (async () => {
       try {
-        const result = await applyAiWorkoutDayToDateAction(dateKey, workout);
+        const result = await applyAiWorkoutDayToDateAction(dateKey, session);
         if ("error" in result) {
           setError(result.error);
           return;
@@ -134,33 +137,55 @@ export function AddWorkoutToDayAiPanel({
               <div className="min-w-0 flex-1">
                 <p className="font-bold">{platform.aiUpgrade.aiWorkoutPlan}</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  Describe what you want — AI builds one session for {dayLabel} only.
+                  Describe what you want — AI builds fitness or HIIT for {dayLabel} only.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ai-day-workout-prompt">What should today&apos;s workout be?</Label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label htmlFor="ai-day-workout-prompt">What should today&apos;s workout be?</Label>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+                  detectedKind === "hiit"
+                    ? "bg-fuchsia-500/15 text-fuchsia-300"
+                    : "bg-primary/10 text-primary"
+                )}
+              >
+                {detectedKind === "hiit" ? (
+                  <>
+                    <Zap className="h-3 w-3" />
+                    HIIT
+                  </>
+                ) : (
+                  <>
+                    <Dumbbell className="h-3 w-3" />
+                    Fitness
+                  </>
+                )}
+              </span>
+            </div>
             <Textarea
               id="ai-day-workout-prompt"
               rows={3}
-              placeholder="e.g. 45 min upper body, dumbbells only, focus on chest and triceps…"
+              placeholder="e.g. 45 min upper body… or HIIT 20 min bodyweight intervals…"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
             />
           </div>
 
           <Button className="w-full gap-1.5" onClick={handleGenerate} disabled={busy}>
-            {isGenerating && !workout ? (
+            {isGenerating && !session ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Building session…
+                Building {detectedKind === "hiit" ? "HIIT" : "session"}…
               </>
             ) : (
               <>
                 <Sparkles className="h-4 w-4" />
-                {workout
+                {session
                   ? platform.workout.regenerateWorkout
                   : platform.workout.generateWorkout}
               </>
@@ -171,80 +196,166 @@ export function AddWorkoutToDayAiPanel({
         </>
       ) : null}
 
-      {workout && !showEditor ? (
-        <div className="overflow-hidden rounded-xl border border-border/60 bg-card/80">
-          <div className="border-b border-border/60 px-3 py-2.5">
-            <p className="text-sm font-semibold">{workout.title}</p>
-            {workout.description ? (
-              <p className="mt-0.5 text-xs text-muted-foreground">{workout.description}</p>
+      {session && !showEditor ? (
+        session.kind === "hiit" ? (
+          <div className="overflow-hidden rounded-xl border border-fuchsia-500/25 bg-card/80">
+            <div className="border-b border-border/60 px-3 py-2.5">
+              <div className="mb-1 flex items-center gap-1.5 text-fuchsia-400">
+                <Zap className="h-3.5 w-3.5" />
+                <span className="text-[11px] font-semibold uppercase tracking-wide">HIIT</span>
+                <span className="text-[11px] text-muted-foreground">
+                  · {hiitSummaryLabel(session.plan.config)}
+                </span>
+              </div>
+              <p className="text-sm font-semibold">{session.plan.title}</p>
+              {session.plan.description ? (
+                <p className="mt-0.5 text-xs text-muted-foreground">{session.plan.description}</p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setExercisesOpen((open) => !open)}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary/40"
+            >
+              <span>{platform.common.exercises(session.plan.config.exercises.length)}</span>
+              <ChevronDown
+                className={cn("h-4 w-4 transition-transform", exercisesOpen && "rotate-180")}
+              />
+            </button>
+            {exercisesOpen ? (
+              <ul className="space-y-1.5 border-t border-border/60 px-3 py-2">
+                {session.plan.config.exercises.map((ex) => (
+                  <li
+                    key={ex.name}
+                    className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
+                  >
+                    <ExerciseGifThumbnail
+                      name={ex.name}
+                      imageUrl={ex.image_url}
+                      videoUrl={ex.video_url}
+                      gender={exerciseGender}
+                      size="sm"
+                      expandable
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{ex.name}</p>
+                      <p className="text-muted-foreground">
+                        {ex.work_seconds}s work · {ex.rest_seconds}s rest
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="flex flex-wrap gap-2 border-t border-border/60 px-3 py-2.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEditPrompt}
+                disabled={busy || applied}
+              >
+                <PenLine className="mr-1.5 h-3.5 w-3.5" />
+                Edit & regenerate
+              </Button>
+              <Button size="sm" onClick={handleApply} disabled={busy || applied}>
+                {applied ? (
+                  <>
+                    <Check className="mr-1.5 h-3.5 w-3.5" />
+                    {platform.common.done}
+                  </>
+                ) : isApplying ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    {platform.common.saving}
+                  </>
+                ) : (
+                  platform.workout.addToDay
+                )}
+              </Button>
+            </div>
+            {error ? (
+              <p className="border-t border-border/60 px-3 py-2 text-sm text-red-400">{error}</p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={() => setExercisesOpen((open) => !open)}
-            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary/40"
-          >
-            <span>{platform.common.exercises(workout.exercises.length)}</span>
-            <ChevronDown
-              className={cn("h-4 w-4 transition-transform", exercisesOpen && "rotate-180")}
-            />
-          </button>
-          {exercisesOpen ? (
-            <ul className="space-y-1.5 border-t border-border/60 px-3 py-2">
-              {workout.exercises.map((ex) => (
-                <li
-                  key={ex.name}
-                  className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
-                >
-                  <ExerciseGifThumbnail
-                    name={ex.name}
-                    imageUrl={ex.image_url}
-                    videoUrl={ex.video_url}
-                    gender={exerciseGender}
-                    size="sm"
-                    expandable
-                  />
-                  <div className="min-w-0 flex-1">
-                  <p className="font-medium">{ex.name}</p>
-                  <p className="text-muted-foreground">
-                    {ex.sets} sets × {ex.reps} · {ex.rest_seconds}s rest
-                  </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <div className="flex flex-wrap gap-2 border-t border-border/60 px-3 py-2.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleEditPrompt}
-              disabled={busy || applied}
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-border/60 bg-card/80">
+            <div className="border-b border-border/60 px-3 py-2.5">
+              <p className="text-sm font-semibold">{session.workout.title}</p>
+              {session.workout.description ? (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {session.workout.description}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setExercisesOpen((open) => !open)}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary/40"
             >
-              <PenLine className="mr-1.5 h-3.5 w-3.5" />
-              Edit & regenerate
-            </Button>
-            <Button size="sm" onClick={handleApply} disabled={busy || applied}>
-              {applied ? (
-                <>
-                  <Check className="mr-1.5 h-3.5 w-3.5" />
-                  {platform.common.done}
-                </>
-              ) : isApplying ? (
-                <>
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  {platform.common.saving}
-                </>
-              ) : (
-                platform.workout.addToDay
-              )}
-            </Button>
+              <span>{platform.common.exercises(session.workout.exercises.length)}</span>
+              <ChevronDown
+                className={cn("h-4 w-4 transition-transform", exercisesOpen && "rotate-180")}
+              />
+            </button>
+            {exercisesOpen ? (
+              <ul className="space-y-1.5 border-t border-border/60 px-3 py-2">
+                {session.workout.exercises.map((ex) => (
+                  <li
+                    key={ex.name}
+                    className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
+                  >
+                    <ExerciseGifThumbnail
+                      name={ex.name}
+                      imageUrl={ex.image_url}
+                      videoUrl={ex.video_url}
+                      gender={exerciseGender}
+                      size="sm"
+                      expandable
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{ex.name}</p>
+                      <p className="text-muted-foreground">
+                        {ex.sets} sets × {ex.reps} · {ex.rest_seconds}s rest
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="flex flex-wrap gap-2 border-t border-border/60 px-3 py-2.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEditPrompt}
+                disabled={busy || applied}
+              >
+                <PenLine className="mr-1.5 h-3.5 w-3.5" />
+                Edit & regenerate
+              </Button>
+              <Button size="sm" onClick={handleApply} disabled={busy || applied}>
+                {applied ? (
+                  <>
+                    <Check className="mr-1.5 h-3.5 w-3.5" />
+                    {platform.common.done}
+                  </>
+                ) : isApplying ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    {platform.common.saving}
+                  </>
+                ) : (
+                  platform.workout.addToDay
+                )}
+              </Button>
+            </div>
+            {error ? (
+              <p className="border-t border-border/60 px-3 py-2 text-sm text-red-400">{error}</p>
+            ) : null}
           </div>
-          {error ? <p className="border-t border-border/60 px-3 py-2 text-sm text-red-400">{error}</p> : null}
-        </div>
+        )
       ) : null}
 
-      {!showEditor && !workout && error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {!showEditor && !session && error ? <p className="text-sm text-red-400">{error}</p> : null}
     </div>
   );
 }
