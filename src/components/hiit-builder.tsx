@@ -323,16 +323,14 @@ export function HiitBuilder({
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
-      <div className="sticky bottom-[calc(var(--dashboard-mobile-nav-height,0px)+0.75rem)] z-10 lg:static">
-        <Button
-          className="w-full"
-          size="lg"
-          disabled={isPending || !title.trim()}
-          onClick={handleSave}
-        >
-          {isPending ? "Saving…" : wizard ? "Continue" : "Save HIIT workout"}
-        </Button>
-      </div>
+      <Button
+        className="w-full"
+        size="lg"
+        disabled={isPending || !title.trim()}
+        onClick={handleSave}
+      >
+        {isPending ? "Saving…" : wizard ? "Continue" : "Save HIIT workout"}
+      </Button>
     </div>
   );
 }
