@@ -20,6 +20,7 @@ export function WorkoutExerciseList({
     reps: string;
     notes: string | null;
     image_url?: string | null;
+    video_url?: string | null;
   }[];
   className?: string;
   variant?: "default" | "dropdown";
@@ -42,6 +43,7 @@ export function WorkoutExerciseList({
             <ExerciseGifThumbnail
               name={exercise.name}
               imageUrl={exercise.image_url}
+              videoUrl={exercise.video_url}
               gender={gender}
               size="sm"
               expandable
@@ -80,6 +82,7 @@ export function WorkoutExerciseList({
             <ExerciseGifThumbnail
               name={exercise.name}
               imageUrl={exercise.image_url}
+              videoUrl={exercise.video_url}
               gender={gender}
               size="md"
               expandable

@@ -22,6 +22,8 @@ export function MuscleMapLegend({
   className?: string;
   layout?: "row" | "column";
 }) {
+  const platform = usePlatformCopy();
+
   return (
     <div
       className={cn(
@@ -34,15 +36,15 @@ export function MuscleMapLegend({
     >
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2 w-2 shrink-0 rounded-full bg-[#FF3B30]" aria-hidden />
-        Main
+        {platform.workout.muscleMapMain}
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2 w-2 shrink-0 rounded-full bg-[#FF9500]" aria-hidden />
-        Second
+        {platform.workout.muscleMapSecond}
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2 w-2 shrink-0 rounded-full bg-[#AEB4BC]" aria-hidden />
-        Support
+        {platform.workout.muscleMapSupport}
       </span>
     </div>
   );

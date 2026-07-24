@@ -160,7 +160,9 @@ export function AddWorkoutToDayAiPanel({
             ) : (
               <>
                 <Sparkles className="h-4 w-4" />
-                {workout ? "Regenerate workout" : "Generate workout"}
+                {workout
+                  ? platform.workout.regenerateWorkout
+                  : platform.workout.generateWorkout}
               </>
             )}
           </Button>
@@ -182,7 +184,7 @@ export function AddWorkoutToDayAiPanel({
             onClick={() => setExercisesOpen((open) => !open)}
             className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary/40"
           >
-            <span>{workout.exercises.length} exercises</span>
+            <span>{platform.common.exercises(workout.exercises.length)}</span>
             <ChevronDown
               className={cn("h-4 w-4 transition-transform", exercisesOpen && "rotate-180")}
             />
@@ -226,15 +228,15 @@ export function AddWorkoutToDayAiPanel({
               {applied ? (
                 <>
                   <Check className="mr-1.5 h-3.5 w-3.5" />
-                  Added
+                  {platform.common.done}
                 </>
               ) : isApplying ? (
                 <>
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  Adding…
+                  {platform.common.saving}
                 </>
               ) : (
-                "Add to day"
+                platform.workout.addToDay
               )}
             </Button>
           </div>

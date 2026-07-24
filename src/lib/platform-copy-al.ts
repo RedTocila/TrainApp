@@ -399,6 +399,87 @@ export const platformCopyAl = {
     musclesTargetedToday: "Muskujt e synuar sot",
     muscleMapFront: "Para",
     muscleMapBack: "Prapa",
+    muscleMapMain: "Kryesor",
+    muscleMapSecond: "Dytësor",
+    muscleMapSupport: "Mbështetës",
+    chooseWorkoutType: "Zgjidh llojin e stërvitjes",
+    chooseWorkoutTypeDesc:
+      "Fitness me seri & përsëritje, ose intervale HIIT me kohëmatës.",
+    fitnessWorkout: "Stërvitje fitness",
+    fitnessWorkoutDesc:
+      "Stërvitje klasike me seri, përsëritje dhe pushim midis serive.",
+    hiitWorkout: "Stërvitje HIIT",
+    hiitWorkoutDesc:
+      "Intervale me kohë — punë, pushim, raunde dhe cikle me kohëmatës live.",
+    addWorkout: "Shto stërvitje",
+    addWorkoutToDayDesc: (day: string) =>
+      `Shto një seancë vetëm për ${day} — nuk ndryshon orarin tënd të përsëritur.`,
+    addWorkoutToDayAria: "Shto stërvitje në ditë",
+    fromLibrary: "Nga biblioteka",
+    createNew: "Krijo të re",
+    libraryEmptyHint:
+      "Ende nuk ke stërvitje në bibliotekë — krijo një për këtë ditë.",
+    removeWorkoutFromDay: "Hiq stërvitjen nga kjo ditë",
+    removeWorkoutFromDayDesc:
+      "Hiqet vetëm nga orari i sotëm — programi yt mbetet i ruajtur.",
+    removeWorkoutFromDayAria: "Hiq stërvitjen nga dita",
+    nothingScheduledToRemove: "Nuk ka asgjë të planifikuar për të hequr këtë ditë.",
+    changeWorkout: "Ndrysho stërvitjen",
+    changeWorkoutDesc:
+      "Zgjidh një program, redakto orarin, ose ndërto një të ri.",
+    changeWorkoutAria: "Ndrysho stërvitjen",
+    allWorkoutsBrowse: "Të gjitha stërvitjet",
+    allWorkoutsBrowseDesc: "Shfleto programet dhe planifiko një ditë tjetër.",
+    editSchedule: "Redakto orarin",
+    editScheduleDesc: "Ndrysho se cilat ditë shfaqen në kalendar.",
+    generateNewPlanAi: "Gjeneroni një plan të ri me AI.",
+    buildWorkout: "Ndërto stërvitje",
+    buildHiitWorkout: "Ndërto stërvitje HIIT",
+    buildWorkoutDesc: "Krijo një program fitness ose HIIT nga e para.",
+    newWorkout: "Stërvitje e re",
+    forThisDayOnly: "Vetëm për këtë ditë",
+    scheduleWorkout: "Planifiko stërvitjen",
+    addToDay: "Shto në ditë",
+    generateWorkout: "Gjenero stërvitje",
+    regenerateWorkout: "Rigjenero stërvitjen",
+    progressionTitle: "Progresi",
+    progressionVolume: "Volumi",
+    progressionReps: "Përsëritjet totale",
+    progressionWorkouts: "Stërvitje të përfunduara",
+    progressionForm: "Forma e stërvitjes",
+    progressionTrained: "Stërvitur",
+    progressionRest: "Pushim",
+    progressionSkipped: "Anashkaluar",
+    progressionAvgWeight: "Mesatarja e fundit e peshës",
+    progressionLastDays: "2 javët e fundit",
+    progressionLoadTitle: "Ngarkesa e stërvitjes",
+    progressionLoadVolumeHint:
+      "Pesha × përsëritjet për seancë — lart do të thotë më shumë punë.",
+    progressionLoadRepsHint:
+      "Përsëritjet totale për seancë — lart do të thotë më shumë punë.",
+    progressionScoreTitle: "Rezultati i progresit",
+    progressionScoreHint:
+      "Ngrihet kur ngre më shumë ose bën më shumë — qëndron kur mban të njëjtën — zbehet nëse ndalon 5+ ditë.",
+    progressionHeadlineNew: "Fillo stërvitjen për të parë progresin",
+    progressionDetailNew:
+      "Pas disa stërvitjeve do të shohësh sa konsistent ke qenë.",
+    progressionHeadlineStronger: "Po forcohesh",
+    progressionDetailStronger:
+      "Peshat ose ngarkesa e stërvitjes kanë shkuar lart. Vazhdo kështu.",
+    progressionHeadlineSteady: "Po mban ritmin",
+    progressionDetailSteady:
+      "Pesha të ngjashme dhe rutinë e qëndrueshme — konsistenca ka rëndësi.",
+    progressionHeadlineMissed: "Disa stërvitje u anashkaluan",
+    progressionDetailMissed: (n: number) =>
+      `Anashkalove ${n} stërvitje të planifikuar së fundmi. Kthimi në ritëm ndihmon.`,
+    progressionHeadlineOff: "Stërvitja ra pak",
+    progressionDetailOff:
+      "Ngarkesa ose konsistenca ra së fundmi. Disa seanca të forta ndihmojnë.",
+    progressionEmpty:
+      "Përfundo stërvitje për të parë si po shkon trajnimi yt.",
+    progressionLatest: "E fundit",
+    progressionSince: (date: string) => `që nga ${date}`,
+    progressionChartAria: "Rezultati i progresit me kalimin e kohës",
     noResultsLogged: "Nuk u regjistruan seri për këtë stërvitje.",
     foldersMeta: (folders: number, programs: number) =>
       `${folders} dosje · ${programs} program${programs === 1 ? "" : "e"}`,

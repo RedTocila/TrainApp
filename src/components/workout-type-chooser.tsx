@@ -1,6 +1,7 @@
 "use client";
 
 import { Dumbbell, Zap } from "lucide-react";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
 
 export type CreateWorkoutType = "strength" | "hiit";
@@ -14,6 +15,8 @@ export function WorkoutTypeChooser({
   onChange: (type: CreateWorkoutType) => void;
   className?: string;
 }) {
+  const platform = usePlatformCopy();
+
   return (
     <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
       <button
@@ -29,9 +32,11 @@ export function WorkoutTypeChooser({
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15">
           <Dumbbell className="h-5 w-5 text-primary" />
         </div>
-        <p className="mt-4 text-lg font-black tracking-tight">Fitness workout</p>
+        <p className="mt-4 text-lg font-black tracking-tight">
+          {platform.workout.fitnessWorkout}
+        </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Classic training with sets, reps, and rest between sets.
+          {platform.workout.fitnessWorkoutDesc}
         </p>
       </button>
 
@@ -48,9 +53,11 @@ export function WorkoutTypeChooser({
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-fuchsia-500/15">
           <Zap className="h-5 w-5 text-fuchsia-400" />
         </div>
-        <p className="mt-4 text-lg font-black tracking-tight">HIIT workout</p>
+        <p className="mt-4 text-lg font-black tracking-tight">
+          {platform.workout.hiitWorkout}
+        </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Timed intervals — work, rest, rounds, and cycles with a live timer.
+          {platform.workout.hiitWorkoutDesc}
         </p>
       </button>
     </div>

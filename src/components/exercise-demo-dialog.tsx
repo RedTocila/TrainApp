@@ -9,6 +9,7 @@ export function ExerciseDemoDialog({
   onClose,
   name,
   imageUrl,
+  fallbackImageUrl,
   videoUrl,
   gender,
 }: {
@@ -16,6 +17,7 @@ export function ExerciseDemoDialog({
   onClose: () => void;
   name: string;
   imageUrl?: string | null;
+  fallbackImageUrl?: string | null;
   videoUrl?: string | null;
   gender?: ExerciseGender | null;
 }) {
@@ -25,13 +27,14 @@ export function ExerciseDemoDialog({
       onClose={onClose}
       title={name}
       description="Exercise demonstration"
-      maxWidth="max-w-md"
+      maxWidth="max-w-2xl"
       zIndex={120}
     >
-      <div className="px-5 pb-5">
+      <div className="px-4 pb-5 sm:px-6">
         <ExerciseDemoPlayer
           name={name}
           imageUrl={imageUrl}
+          fallbackImageUrl={fallbackImageUrl}
           videoUrl={videoUrl}
           gender={gender}
           autoplay

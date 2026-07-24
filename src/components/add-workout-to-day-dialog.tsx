@@ -106,9 +106,9 @@ export function AddWorkoutToDayDialog({
       <AppDialog
         open={open && !wizardOpen}
         onClose={onClose}
-        title="Add workout"
-        description={`Add a session for ${dayLabel} only — it won't change your recurring schedule.`}
-        ariaLabel="Add workout to day"
+        title={platform.workout.addWorkout}
+        description={platform.workout.addWorkoutToDayDesc(dayLabel)}
+        ariaLabel={platform.workout.addWorkoutToDayAria}
         maxWidth="max-w-md"
       >
         <div className="flex flex-wrap gap-2 px-5 pb-1 pt-1">
@@ -117,14 +117,14 @@ export function AddWorkoutToDayDialog({
             variant={mode === "library" ? "default" : "outline"}
             onClick={() => setMode("library")}
           >
-            From library
+            {platform.workout.fromLibrary}
           </Button>
           <Button
             size="sm"
             variant={mode === "create" ? "default" : "outline"}
             onClick={() => setMode("create")}
           >
-            Create new
+            {platform.workout.createNew}
           </Button>
           <Button
             size="sm"
@@ -144,10 +144,10 @@ export function AddWorkoutToDayDialog({
             ) : libraryEntries.length === 0 ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  No workouts in your library yet — create one for this day instead.
+                  {platform.workout.libraryEmptyHint}
                 </p>
                 <Button size="sm" onClick={() => setMode("create")}>
-                  Create new
+                  {platform.workout.createNew}
                 </Button>
               </div>
             ) : (

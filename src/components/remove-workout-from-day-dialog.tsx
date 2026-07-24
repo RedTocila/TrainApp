@@ -58,15 +58,15 @@ export function RemoveWorkoutFromDayDialog({
     <AppDialog
       open={open}
       onClose={onClose}
-      title="Remove workout from this day"
-      description="This only removes it from today's schedule — your program stays saved."
-      ariaLabel="Remove workout from day"
+      title={platform.workout.removeWorkoutFromDay}
+      description={platform.workout.removeWorkoutFromDayDesc}
+      ariaLabel={platform.workout.removeWorkoutFromDayAria}
       maxWidth="max-w-md"
     >
       <div className="space-y-4 px-5 py-4">
         {removable.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nothing scheduled to remove for this day.
+            {platform.workout.nothingScheduledToRemove}
           </p>
         ) : (
           <ul className="space-y-2">

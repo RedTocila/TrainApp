@@ -183,6 +183,8 @@ export interface TodaysWorkoutInfo {
   scheduledDate: string | null;
   scheduledWorkoutId?: string | null;
   taskId: string;
+  /** Completed session kept visible after schedule was removed/replaced. */
+  historySessionId?: string | null;
   exercises: {
     id: string;
     name: string;
@@ -219,49 +221,190 @@ function mapScheduledToWorkoutInfo(
   };
 }
 
+async function clientUsesExplicitWorkoutSchedule(
+  clientId: string
+): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("scheduled_workouts")
+    .select("id")
+    .eq("client_id", clientId)
+    .limit(1)
+    .maybeSingle();
+  return !!data;
+}
+
+function sessionMatchesResolvedWorkout(
+  session: {
+    id: string;
+    scheduled_workout_id: string | null;
+    plan_id: string | null;
+    day_id: string | null;
+  },
+  workout: TodaysWorkoutInfo
+): boolean {
+  if (workout.historySessionId && workout.historySessionId === session.id) {
+    return true;
+  }
+  if (
+    workout.scheduledWorkoutId &&
+    session.scheduled_workout_id === workout.scheduledWorkoutId
+  ) {
+    return true;
+  }
+  return (
+    !!session.plan_id &&
+    !!session.day_id &&
+    session.plan_id === workout.planId &&
+    session.day_id === workout.dayId &&
+    !workout.historySessionId
+  );
+}
+
+/** Past completions for a date that are no longer on the schedule. */
+async function loadHistoricalWorkoutsForDate(
+  clientId: string,
+  dateKey: string,
+  alreadyResolved: TodaysWorkoutInfo[]
+): Promise<TodaysWorkoutInfo[]> {
+  const supabase = await createClient();
+
+  const select = `
+      id,
+      plan_id,
+      day_id,
+      scheduled_workout_id,
+      day_title,
+      plan_title,
+      workout_session_exercises(
+        exercise_id,
+        name,
+        target_sets,
+        target_reps,
+        notes,
+        order_index
+      )
+    `;
+
+  const { data: bySchedule } = await supabase
+    .from("workout_sessions")
+    .select(select)
+    .eq("client_id", clientId)
+    .eq("status", "completed")
+    .eq("scheduled_date", dateKey)
+    .order("completed_at", { ascending: true });
+
+  let sessions = bySchedule ?? [];
+
+  if (sessions.length === 0) {
+    const { data: byCompletedAt } = await supabase
+      .from("workout_sessions")
+      .select(select)
+      .eq("client_id", clientId)
+      .eq("status", "completed")
+      .is("scheduled_date", null)
+      .gte("completed_at", `${dateKey}T00:00:00`)
+      .lte("completed_at", `${dateKey}T23:59:59.999Z`)
+      .order("completed_at", { ascending: true });
+    sessions = byCompletedAt ?? [];
+  }
+
+  if (!sessions.length) return [];
+
+  const historical: TodaysWorkoutInfo[] = [];
+
+  for (const session of sessions) {
+    const covered = alreadyResolved.some((workout) =>
+      sessionMatchesResolvedWorkout(session, workout)
+    );
+    if (covered) continue;
+
+    const sessionExercises = (
+      (session.workout_session_exercises as {
+        exercise_id: string | null;
+        name: string;
+        target_sets: number | null;
+        target_reps: string | null;
+        notes: string | null;
+        order_index: number;
+      }[]) ?? []
+    ).sort((a, b) => a.order_index - b.order_index);
+
+    historical.push({
+      planId: session.plan_id ?? session.id,
+      dayId: session.day_id ?? session.id,
+      planTitle: session.plan_title ?? "Workout",
+      dayTitle: session.day_title ?? "Workout",
+      scheduledDate: dateKey,
+      scheduledWorkoutId: null,
+      historySessionId: session.id,
+      taskId: workoutTaskId(dateKey, `history-${session.id}`),
+      exercises: sessionExercises.map((ex) => ({
+        id: ex.exercise_id ?? `${session.id}-${ex.order_index}`,
+        name: ex.name,
+        sets: ex.target_sets ?? 0,
+        reps: ex.target_reps ?? "",
+        notes: ex.notes,
+      })),
+    });
+  }
+
+  return historical;
+}
+
 export async function resolveWorkoutsForDate(
   clientId: string,
   dateKey: string
 ): Promise<TodaysWorkoutInfo[]> {
   const scheduled = await getScheduledWorkoutsForDate(clientId, dateKey);
+  let workouts: TodaysWorkoutInfo[] = [];
+
   if (scheduled.length > 0) {
-    return scheduled
+    workouts = scheduled
       .map((entry) => mapScheduledToWorkoutInfo(entry, dateKey))
       .filter((entry): entry is TodaysWorkoutInfo => entry != null);
+  } else if (!(await clientUsesExplicitWorkoutSchedule(clientId))) {
+    // Legacy: assignment only (no scheduled_workouts rows) — rotate by weekday.
+    const assignment = await getClientWorkoutAssignment(clientId);
+    const days =
+      assignment?.workout_plans?.workout_days?.sort(
+        (a: { day_index: number }, b: { day_index: number }) =>
+          a.day_index - b.day_index
+      ) ?? [];
+    if (days.length > 0 && assignment?.plan_id) {
+      const date = new Date(dateKey + "T12:00:00");
+      const day = days[date.getDay() % days.length];
+      const exercises = (day.exercises ?? []).sort(
+        (a: Exercise, b: Exercise) => a.order_index - b.order_index
+      );
+
+      workouts = [
+        {
+          planId: assignment.plan_id,
+          dayId: day.id,
+          planTitle: assignment.workout_plans?.title ?? "Workout",
+          dayTitle: day.title,
+          scheduledDate: null,
+          scheduledWorkoutId: null,
+          taskId: workoutTaskId(dateKey, null),
+          exercises: exercises.map((ex: Exercise) => ({
+            id: ex.id,
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            notes: ex.notes,
+          })),
+        },
+      ];
+    }
   }
 
-  const assignment = await getClientWorkoutAssignment(clientId);
-  const days =
-    assignment?.workout_plans?.workout_days?.sort(
-      (a: { day_index: number }, b: { day_index: number }) =>
-        a.day_index - b.day_index
-    ) ?? [];
-  if (days.length === 0 || !assignment?.plan_id) return [];
-
-  const date = new Date(dateKey + "T12:00:00");
-  const day = days[date.getDay() % days.length];
-  const exercises = (day.exercises ?? []).sort(
-    (a: Exercise, b: Exercise) => a.order_index - b.order_index
+  const historical = await loadHistoricalWorkoutsForDate(
+    clientId,
+    dateKey,
+    workouts
   );
-
-  return [
-    {
-      planId: assignment.plan_id,
-      dayId: day.id,
-      planTitle: assignment.workout_plans?.title ?? "Workout",
-      dayTitle: day.title,
-      scheduledDate: null,
-      scheduledWorkoutId: null,
-      taskId: workoutTaskId(dateKey, null),
-      exercises: exercises.map((ex: Exercise) => ({
-        id: ex.id,
-        name: ex.name,
-        sets: ex.sets,
-        reps: ex.reps,
-        notes: ex.notes,
-      })),
-    },
-  ];
+  return [...workouts, ...historical];
 }
 
 export async function resolveWorkoutForDate(
@@ -277,6 +420,8 @@ async function findCompletedSessionIdForWorkout(
   dateKey: string,
   workout: TodaysWorkoutInfo
 ): Promise<string | null> {
+  if (workout.historySessionId) return workout.historySessionId;
+
   const supabase = await createClient();
 
   if (workout.scheduledWorkoutId) {
@@ -475,6 +620,13 @@ export async function getWorkoutCompletionStatusForDate(
   > = {};
 
   for (const workout of workouts) {
+    if (workout.historySessionId) {
+      status[workout.taskId] = {
+        completed: true,
+        sessionId: workout.historySessionId,
+      };
+      continue;
+    }
     const sessionId = matchCompletedSessionId(workout, completedSessions);
     status[workout.taskId] = {
       completed: !!sessionId || taskCompletions.has(workout.taskId),
@@ -511,6 +663,8 @@ function matchCompletedSessionId(
   workout: TodaysWorkoutInfo,
   sessions: CompletedSessionRef[]
 ): string | null {
+  if (workout.historySessionId) return workout.historySessionId;
+
   if (workout.scheduledWorkoutId) {
     const byScheduled = sessions.find(
       (session) => session.scheduled_workout_id === workout.scheduledWorkoutId
@@ -818,6 +972,260 @@ export async function getExerciseHistories(
     })
   );
   return Object.fromEntries(entries);
+}
+
+export type WorkoutProgressionDayKind = "trained" | "rest" | "skipped";
+
+export interface WorkoutProgressionPoint {
+  date: string;
+  sessionId: string | null;
+  kind: WorkoutProgressionDayKind;
+  /** Training-form score (weights up → rises, same weights → flat, skip → drops, rest → holds). */
+  score: number;
+  volumeKg: number;
+  totalReps: number;
+  /** Average working weight across logged sets that day (kg). */
+  avgWeightKg: number | null;
+}
+
+function addDaysToDateKey(dateKey: string, days: number): string {
+  const d = new Date(`${dateKey}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return formatDateKey(d);
+}
+
+function eachDateKeyInclusive(fromKey: string, toKey: string): string[] {
+  const keys: string[] = [];
+  let cursor = fromKey;
+  while (cursor <= toKey) {
+    keys.push(cursor);
+    cursor = addDaysToDateKey(cursor, 1);
+    if (keys.length > 120) break;
+  }
+  return keys;
+}
+
+/**
+ * Training-form series: weight/volume progress, flat on plateaus,
+ * holds through rest days, drops on skipped scheduled workouts.
+ */
+export async function getClientWorkoutProgression(): Promise<
+  WorkoutProgressionPoint[]
+> {
+  const { supabase, userId } = await requireUserId();
+  const todayKey = formatDateKey(new Date());
+  const fromKey = addDaysToDateKey(todayKey, -41);
+
+  const [{ data: sessions }, { data: scheduled }, { data: profile }] =
+    await Promise.all([
+      supabase
+        .from("workout_sessions")
+        .select("id, completed_at, scheduled_date")
+        .eq("client_id", userId)
+        .eq("status", "completed")
+        .order("completed_at", { ascending: true })
+        .limit(90),
+      supabase
+        .from("scheduled_workouts")
+        .select("scheduled_date")
+        .eq("client_id", userId)
+        .gte("scheduled_date", fromKey)
+        .lte("scheduled_date", todayKey),
+      supabase
+        .from("profiles")
+        .select("created_at")
+        .eq("id", userId)
+        .maybeSingle(),
+    ]);
+
+  const accountFrom = profile?.created_at
+    ? formatDateKey(new Date(profile.created_at))
+    : fromKey;
+  const rangeStart = accountFrom > fromKey ? accountFrom : fromKey;
+
+  const sessionIds = (sessions ?? []).map((s) => s.id);
+  const volumeBySession = new Map<
+    string,
+    { volumeKg: number; totalReps: number; weightSum: number; weightSets: number }
+  >();
+
+  if (sessionIds.length > 0) {
+    const { data: exerciseRows } = await supabase
+      .from("workout_session_exercises")
+      .select("session_id, workout_session_sets(reps, weight_kg)")
+      .in("session_id", sessionIds);
+
+    for (const row of exerciseRows ?? []) {
+      const sessionId = row.session_id as string;
+      const existing = volumeBySession.get(sessionId) ?? {
+        volumeKg: 0,
+        totalReps: 0,
+        weightSum: 0,
+        weightSets: 0,
+      };
+      for (const set of (row.workout_session_sets as {
+        reps: number | null;
+        weight_kg: number | null;
+      }[]) ?? []) {
+        const reps = set.reps != null ? Number(set.reps) : 0;
+        const weight = set.weight_kg != null ? Number(set.weight_kg) : null;
+        if (Number.isFinite(reps) && reps > 0) existing.totalReps += reps;
+        if (weight != null && Number.isFinite(weight) && weight > 0) {
+          existing.weightSum += weight;
+          existing.weightSets += 1;
+          if (Number.isFinite(reps) && reps > 0) {
+            existing.volumeKg += weight * reps;
+          }
+        }
+      }
+      volumeBySession.set(sessionId, existing);
+    }
+  }
+
+  const trainedByDate = new Map<
+    string,
+    {
+      sessionId: string;
+      volumeKg: number;
+      totalReps: number;
+      avgWeightKg: number | null;
+    }
+  >();
+
+  for (const session of sessions ?? []) {
+    const dateKey =
+      session.scheduled_date ??
+      (session.completed_at
+        ? formatDateKey(new Date(session.completed_at))
+        : null);
+    if (!dateKey || dateKey < rangeStart || dateKey > todayKey) continue;
+
+    const stats = volumeBySession.get(session.id) ?? {
+      volumeKg: 0,
+      totalReps: 0,
+      weightSum: 0,
+      weightSets: 0,
+    };
+    const avgWeightKg =
+      stats.weightSets > 0 ? stats.weightSum / stats.weightSets : null;
+    const existing = trainedByDate.get(dateKey);
+    if (existing) {
+      existing.volumeKg += Math.round(stats.volumeKg);
+      existing.totalReps += Math.round(stats.totalReps);
+      existing.sessionId = session.id;
+      if (avgWeightKg != null) {
+        existing.avgWeightKg =
+          existing.avgWeightKg != null
+            ? (existing.avgWeightKg + avgWeightKg) / 2
+            : avgWeightKg;
+      }
+    } else {
+      trainedByDate.set(dateKey, {
+        sessionId: session.id,
+        volumeKg: Math.round(stats.volumeKg),
+        totalReps: Math.round(stats.totalReps),
+        avgWeightKg,
+      });
+    }
+  }
+
+  const scheduledDates = new Set(
+    (scheduled ?? [])
+      .map((row) => row.scheduled_date as string)
+      .filter((key) => key >= rangeStart && key <= todayKey)
+  );
+
+  const firstActivity = [
+    ...trainedByDate.keys(),
+    ...scheduledDates,
+  ].sort()[0];
+  if (!firstActivity) return [];
+
+  const timelineStart = firstActivity > rangeStart ? firstActivity : rangeStart;
+  let score = 50;
+  let lastPerformance: number | null = null;
+  let daysSinceTrain = 0;
+  const points: WorkoutProgressionPoint[] = [];
+
+  for (const dateKey of eachDateKeyInclusive(timelineStart, todayKey)) {
+    const trained = trainedByDate.get(dateKey);
+    if (trained) {
+      daysSinceTrain = 0;
+      const performance =
+        trained.avgWeightKg != null && trained.avgWeightKg > 0
+          ? trained.avgWeightKg
+          : trained.volumeKg > 0
+            ? trained.volumeKg
+            : trained.totalReps > 0
+              ? trained.totalReps
+              : null;
+
+      if (performance != null && lastPerformance != null && lastPerformance > 0) {
+        const ratio = performance / lastPerformance;
+        if (Math.abs(ratio - 1) < 0.05) {
+          // Same weights / load — hold the line
+        } else if (ratio > 1) {
+          score = Math.min(100, score + Math.min(12, (ratio - 1) * 40));
+        } else {
+          score = Math.max(0, score - Math.min(12, (1 - ratio) * 40));
+        }
+      } else if (performance != null && lastPerformance == null) {
+        score = 55;
+      }
+
+      if (performance != null) lastPerformance = performance;
+
+      points.push({
+        date: dateKey,
+        sessionId: trained.sessionId,
+        kind: "trained",
+        score: Math.round(score * 10) / 10,
+        volumeKg: trained.volumeKg,
+        totalReps: trained.totalReps,
+        avgWeightKg: trained.avgWeightKg,
+      });
+      continue;
+    }
+
+    daysSinceTrain += 1;
+    const wasScheduled = scheduledDates.has(dateKey);
+    const isPast = dateKey < todayKey;
+
+    if (wasScheduled && isPast) {
+      score = Math.max(0, score - 8);
+      // Long gaps still fade further after the miss penalty.
+      if (daysSinceTrain >= 5) {
+        score = Math.max(0, score * 0.88);
+      }
+      points.push({
+        date: dateKey,
+        sessionId: null,
+        kind: "skipped",
+        score: Math.round(score * 10) / 10,
+        volumeKg: 0,
+        totalReps: 0,
+        avgWeightKg: null,
+      });
+      continue;
+    }
+
+    // Rest / inactive: keep score for a few recovery days, then fade toward 0.
+    if (daysSinceTrain >= 5) {
+      score = Math.max(0, score * 0.88);
+    }
+
+    points.push({
+      date: dateKey,
+      sessionId: null,
+      kind: "rest",
+      score: Math.round(score * 10) / 10,
+      volumeKg: 0,
+      totalReps: 0,
+      avgWeightKg: null,
+    });
+  }
+
+  return points;
 }
 
 export async function startWorkout({

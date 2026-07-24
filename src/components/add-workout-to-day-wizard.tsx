@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { FullScreenFlow } from "@/components/programs/full-screen-flow";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { WorkoutBuilder } from "@/components/workout-builder";
 import { HiitBuilder } from "@/components/hiit-builder";
 import { WorkoutTypeDialog } from "@/components/workout-type-dialog";
@@ -26,6 +27,7 @@ export function AddWorkoutToDayWizard({
   /** When set, skip the type chooser and open the matching builder. */
   initialType?: CreateWorkoutType | null;
 }) {
+  const platform = usePlatformCopy();
   const [phase, setPhase] = useState<"type" | "build">(
     initialType ? "build" : "type"
   );
@@ -96,8 +98,12 @@ export function AddWorkoutToDayWizard({
                 setWorkoutType(null);
               }
         }
-        title={workoutType === "hiit" ? "Build HIIT workout" : "Build workout"}
-        subtitle="For this day only"
+        title={
+          workoutType === "hiit"
+            ? platform.workout.buildHiitWorkout
+            : platform.workout.buildWorkout
+        }
+        subtitle={platform.workout.forThisDayOnly}
       >
         <div className="space-y-4">
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
@@ -118,7 +124,7 @@ export function AddWorkoutToDayWizard({
           ) : null}
           {isPending ? (
             <p className="text-sm text-muted-foreground" role="status">
-              Adding to your day…
+              {platform.common.saving}
             </p>
           ) : null}
         </div>

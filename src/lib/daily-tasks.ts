@@ -128,8 +128,7 @@ export function buildDailyTasks(
   const waterGoal = schedule.waterGoalMl ?? 2500;
 
   const scheduledDays = getScheduledWorkoutDays(date, schedule.scheduledWorkouts);
-  const workoutDay =
-    scheduledDays[0] ?? getWorkoutDayForDate(date, schedule.workoutAssignment);
+  const hasExplicitSchedule = (schedule.scheduledWorkouts ?? []).length > 0;
 
   if (scheduledDays.length > 0) {
     for (const scheduledDay of scheduledDays) {
@@ -146,27 +145,32 @@ export function buildDailyTasks(
             : scheduledDay.planTitle,
       });
     }
-  } else if (workoutDay) {
-    const exerciseCount = workoutDay.exercises?.length ?? 0;
-    const assignmentPlanTitle = schedule.workoutAssignment?.workout_plans?.title;
-    tasks.push({
-      id: workoutTaskId(dateKey, null),
-      category: "workout",
-      label: workoutDay.title,
-      detail:
-        exerciseCount > 0
-          ? `${exerciseCount} exercise${exerciseCount === 1 ? "" : "s"}${
-              assignmentPlanTitle ? ` · ${assignmentPlanTitle}` : ""
-            }`
-          : assignmentPlanTitle,
-    });
-  } else if (!schedule.workoutAssignment && !schedule.scheduledWorkouts?.length) {
-    tasks.push({
-      id: `${dateKey}-workout-pending`,
-      category: "workout",
-      label: "Apply for workout plan",
-    });
+  } else if (!hasExplicitSchedule) {
+    // Legacy assignment-only rotation when nothing is on the calendar yet.
+    const workoutDay = getWorkoutDayForDate(date, schedule.workoutAssignment);
+    if (workoutDay) {
+      const exerciseCount = workoutDay.exercises?.length ?? 0;
+      const assignmentPlanTitle = schedule.workoutAssignment?.workout_plans?.title;
+      tasks.push({
+        id: workoutTaskId(dateKey, null),
+        category: "workout",
+        label: workoutDay.title,
+        detail:
+          exerciseCount > 0
+            ? `${exerciseCount} exercise${exerciseCount === 1 ? "" : "s"}${
+                assignmentPlanTitle ? ` · ${assignmentPlanTitle}` : ""
+              }`
+            : assignmentPlanTitle,
+      });
+    } else if (!schedule.workoutAssignment) {
+      tasks.push({
+        id: `${dateKey}-workout-pending`,
+        category: "workout",
+        label: "Apply for workout plan",
+      });
+    }
   }
+  // else: calendar scheduling is in use but nothing today → rest day
 
   const scheduledNutrition = getScheduledNutritionDay(
     date,

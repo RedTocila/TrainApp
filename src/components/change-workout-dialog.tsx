@@ -62,25 +62,25 @@ export function ChangeWorkoutDialog({
       <AppDialog
         open={open}
         onClose={onClose}
-        title="Change workout"
-        description="Pick a program, edit your schedule, or build a new one."
-        ariaLabel="Change workout"
+        title={platform.workout.changeWorkout}
+        description={platform.workout.changeWorkoutDesc}
+        ariaLabel={platform.workout.changeWorkoutAria}
         maxWidth="max-w-md"
       >
         <div className="space-y-3 px-5 py-4">
           <DialogLinkRow
             href="/dashboard/workout/workouts"
             icon={List}
-            title="All workouts"
-            description="Browse programs and schedule a different day."
+            title={platform.workout.allWorkoutsBrowse}
+            description={platform.workout.allWorkoutsBrowseDesc}
             onNavigate={onClose}
           />
           {planId ? (
             <DialogLinkRow
               href={`/dashboard/workout/${planId}/edit?tab=schedule`}
               icon={Dumbbell}
-              title="Edit schedule"
-              description="Change which days run on your calendar."
+              title={platform.workout.editSchedule}
+              description={platform.workout.editScheduleDesc}
               onNavigate={onClose}
             />
           ) : null}
@@ -92,7 +92,7 @@ export function ChangeWorkoutDialog({
               <div className="min-w-0 flex-1">
                 <p className="font-bold">{platform.aiUpgrade.aiWorkoutPlan}</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  Generate a new plan with AI.
+                  {platform.workout.generateNewPlanAi}
                 </p>
                 <Link
                   href="/dashboard/ai/plans/workout"
@@ -110,9 +110,9 @@ export function ChangeWorkoutDialog({
                 <Dumbbell className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-bold">Build workout</p>
+                <p className="font-bold">{platform.workout.buildWorkout}</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  Create a fitness or HIIT program from scratch.
+                  {platform.workout.buildWorkoutDesc}
                 </p>
                 <Button
                   variant="secondary"
@@ -123,7 +123,7 @@ export function ChangeWorkoutDialog({
                     onClose();
                   }}
                 >
-                  New workout
+                  {platform.workout.newWorkout}
                 </Button>
               </div>
             </div>

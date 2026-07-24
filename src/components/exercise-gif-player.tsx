@@ -16,12 +16,12 @@ export function ExerciseGifPlayer({
   if (!gifUrl && !fallbackUrl) return null;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-muted">
+    <div className="overflow-hidden rounded-xl border border-border bg-muted">
       <ExerciseGifImage
         gifUrl={gifUrl}
         fallbackUrl={fallbackUrl}
         alt={`${title} demonstration`}
-        className="relative mx-auto aspect-square w-full max-w-md"
+        className="relative mx-auto aspect-square w-full max-w-2xl"
         imgClassName="absolute inset-0"
       />
     </div>

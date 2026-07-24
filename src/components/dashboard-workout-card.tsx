@@ -5,14 +5,13 @@ import { ChevronRight, Clock, Dumbbell, Layers, List, Play } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addDays, format, startOfDay } from "date-fns";
-import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
 import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import { DashboardWorkoutCompactRow } from "@/components/dashboard-workout-compact-row";
-import { DashboardWorkoutDetailSection } from "@/components/dashboard-workout-detail-section";
+import { DashboardWorkoutDetailSection, DashboardWorkoutDetailSkeleton } from "@/components/dashboard-workout-detail-section";
 import {
   DashboardStatusCheck,
   DashboardStatusIcon,
@@ -30,12 +29,15 @@ import {
   getWorkoutCompletionStatusForDate,
   getCompletedWorkoutResultsForDate,
   getCompletedWorkoutResultsForSession,
+  getClientWorkoutProgression,
   type TodaysWorkoutInfo,
   type CompletedWorkoutResults,
+  type WorkoutProgressionPoint,
 } from "@/lib/actions/workout-sessions";
 import { WorkoutResultsDropdown } from "@/components/workout-results-dropdown";
 import { WorkoutExerciseList } from "@/components/workout-exercise-list";
 import { WorkoutMuscleMap, MuscleMapLegend } from "@/components/workout-muscle-map";
+import { WorkoutProgressionChart, WorkoutProgressionSkeleton } from "@/components/workout-progression-chart";
 import { formatDateKey, cn } from "@/lib/utils";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import {
@@ -145,10 +147,22 @@ export function DashboardWorkoutCard({
   >(null);
   const [workoutResults, setWorkoutResults] =
     useState<CompletedWorkoutResults | null>(initialWorkoutResults);
-  const [loadedDateKey, setLoadedDateKey] = useState(dateKey);
+  const [loadedDateKey, setLoadedDateKey] = useState(() =>
+    seedWorkouts.length > 0 ? dateKey : ""
+  );
   const [addWorkoutOpen, setAddWorkoutOpen] = useState(false);
   const [removeWorkoutOpen, setRemoveWorkoutOpen] = useState(false);
+  const [progression, setProgression] = useState<WorkoutProgressionPoint[] | null>(
+    null
+  );
+  const [loadingProgression, setLoadingProgression] = useState(
+    variant === "detail"
+  );
   const workoutCacheRef = useRef<Map<string, WorkoutDayCache>>(new Map());
+  const selectedDateRef = useRef(selectedDate);
+  selectedDateRef.current = selectedDate;
+  const patchesRef = useRef(patches);
+  patchesRef.current = patches;
 
   const seedFromSchedule = useCallback(
     (key: string): WorkoutDayCache | null => {
@@ -178,6 +192,28 @@ export function DashboardWorkoutCard({
   }, [router]);
 
   useEffect(() => {
+    if (variant !== "detail") return;
+    let cancelled = false;
+    setLoadingProgression(true);
+    void getClientWorkoutProgression()
+      .then((data) => {
+        if (cancelled) return;
+        setProgression(data);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setProgression([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProgression(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, version]);
+
+  useEffect(() => {
+    if (seedWorkouts.length === 0) return;
     const snapshot: WorkoutDayCache = {
       workouts: seedWorkouts,
       completedByTaskId: Object.fromEntries(
@@ -224,47 +260,57 @@ export function DashboardWorkoutCard({
     prevDateKeyRef.current = dateKey;
     setSelectedCompactWorkoutKey(null);
 
-    const cached = workoutCacheRef.current.get(dateKey);
-    if (cached) {
+    const applyCache = (cached: WorkoutDayCache, markLoaded: boolean) => {
       setWorkouts(cached.workouts);
       setCompletedByTaskId(cached.completedByTaskId);
       setSessionIdByTaskId(cached.sessionIdByTaskId);
       setWorkoutResults(cached.results);
-      setLoadedDateKey(dateKey);
-      return;
+      if (markLoaded) setLoadedDateKey(dateKey);
+    };
+
+    const isPastDay = dateKey < todayKey;
+
+    const cached = workoutCacheRef.current.get(dateKey);
+    if (cached) {
+      // Past empty cache may be a stale rest seed — wait for server refresh.
+      const trustCache = !isPastDay || cached.workouts.length > 0;
+      applyCache(cached, trustCache);
+      if (trustCache) return;
     }
 
     const shared = getWorkoutDayCache(clientId, dateKey);
     if (shared) {
+      const trustShared = !isPastDay || shared.workouts.length > 0;
       workoutCacheRef.current.set(dateKey, {
         ...shared,
         sessionIdByTaskId: shared.sessionIdByTaskId ?? {},
       });
-      setWorkouts(shared.workouts);
-      setCompletedByTaskId(shared.completedByTaskId);
-      setSessionIdByTaskId(shared.sessionIdByTaskId ?? {});
-      setWorkoutResults(shared.results);
-      setLoadedDateKey(dateKey);
-      return;
+      applyCache(
+        {
+          ...shared,
+          sessionIdByTaskId: shared.sessionIdByTaskId ?? {},
+        },
+        trustShared
+      );
+      if (trustShared) return;
     }
 
     const scheduleSeed = seedFromSchedule(dateKey);
-    if (scheduleSeed) {
+    if (scheduleSeed && scheduleSeed.workouts.length > 0) {
       workoutCacheRef.current.set(dateKey, scheduleSeed);
-      setWorkouts(scheduleSeed.workouts);
-      setCompletedByTaskId(scheduleSeed.completedByTaskId);
-      setSessionIdByTaskId(scheduleSeed.sessionIdByTaskId);
-      setWorkoutResults(scheduleSeed.results);
-      setLoadedDateKey(dateKey);
+      applyCache(scheduleSeed, true);
       return;
     }
 
+    // Past days with no schedule seed: keep unloaded until refresh finds history.
     setWorkouts([]);
     setCompletedByTaskId({});
     setSessionIdByTaskId({});
     setWorkoutResults(null);
-    setLoadedDateKey(dateKey);
-  }, [clientId, dateKey, seedFromSchedule]);
+    if (!isPastDay) {
+      setLoadedDateKey(dateKey);
+    }
+  }, [clientId, dateKey, todayKey, seedFromSchedule]);
 
   useEffect(() => {
     if (workouts.length > 0) return;
@@ -281,59 +327,70 @@ export function DashboardWorkoutCard({
   }, [clientId, dateKey, workouts.length, seedFromSchedule]);
 
   const refreshWorkout = useCallback(async () => {
-    const key = formatDateKey(selectedDate);
-    const resolved = await resolveWorkoutsForDate(clientId, key);
-    if (formatDateKey(selectedDate) !== key) return;
+    const key = formatDateKey(selectedDateRef.current);
+    try {
+      const resolved = await resolveWorkoutsForDate(clientId, key);
+      if (formatDateKey(selectedDateRef.current) !== key) return;
 
-    const status = await getWorkoutCompletionStatusForDate(
-      clientId,
-      key,
-      resolved
-    );
-    const allCompleted =
-      resolved.length > 0 &&
-      resolved.every((workout) => status[workout.taskId]?.completed);
+      const status = await getWorkoutCompletionStatusForDate(
+        clientId,
+        key,
+        resolved
+      );
+      if (formatDateKey(selectedDateRef.current) !== key) return;
 
-    const completedMap = Object.fromEntries(
-      Object.entries(status).map(([taskId, entry]) => [taskId, entry.completed])
-    );
-    const sessionMap = Object.fromEntries(
-      Object.entries(status).map(([taskId, entry]) => [taskId, entry.sessionId])
-    );
-    const previous = workoutCacheRef.current.get(key);
+      const allCompleted =
+        resolved.length > 0 &&
+        resolved.every((workout) => status[workout.taskId]?.completed);
 
-    workoutCacheRef.current.set(key, {
-      workouts: resolved,
-      completedByTaskId: completedMap,
-      sessionIdByTaskId: sessionMap,
-      allCompleted,
-      results: allCompleted ? (previous?.results ?? null) : null,
-    });
-    setWorkoutDayCache(clientId, key, workoutCacheRef.current.get(key)!);
+      const completedMap = Object.fromEntries(
+        Object.entries(status).map(([taskId, entry]) => [taskId, entry.completed])
+      );
+      const sessionMap = Object.fromEntries(
+        Object.entries(status).map(([taskId, entry]) => [taskId, entry.sessionId])
+      );
+      const previous = workoutCacheRef.current.get(key);
 
-    setWorkouts(resolved);
-    setCompletedByTaskId(completedMap);
-    setSessionIdByTaskId(sessionMap);
-    setLoadedDateKey(key);
+      workoutCacheRef.current.set(key, {
+        workouts: resolved,
+        completedByTaskId: completedMap,
+        sessionIdByTaskId: sessionMap,
+        allCompleted,
+        results: allCompleted ? (previous?.results ?? null) : null,
+      });
+      setWorkoutDayCache(clientId, key, workoutCacheRef.current.get(key)!);
 
-    if (!allCompleted) {
-      setWorkoutResults(null);
-      return;
-    }
+      setWorkouts(resolved);
+      setCompletedByTaskId(completedMap);
+      setSessionIdByTaskId(sessionMap);
 
-    void loadWorkoutResults(clientId, key, patches.workoutSessionIds[key]).then(
-      (results) => {
-        if (formatDateKey(selectedDate) !== key) return;
-        setWorkoutResults(results);
-        const cached = workoutCacheRef.current.get(key);
-        if (cached) cached.results = results;
+      if (!allCompleted) {
+        setWorkoutResults(null);
+      } else {
+        void loadWorkoutResults(
+          clientId,
+          key,
+          patchesRef.current.workoutSessionIds[key]
+        ).then((results) => {
+          if (formatDateKey(selectedDateRef.current) !== key) return;
+          setWorkoutResults(results);
+          const cached = workoutCacheRef.current.get(key);
+          if (cached) cached.results = results;
+        });
       }
-    );
-  }, [clientId, selectedDate, patches]);
+    } catch {
+      // Still settle the day below so the UI never sticks on skeleton.
+    } finally {
+      if (formatDateKey(selectedDateRef.current) === key) {
+        setLoadedDateKey(key);
+      }
+    }
+  }, [clientId]);
 
   const skipWorkoutRefresh =
+    dateKey >= todayKey &&
     isDashboardDayCacheFresh(workoutDayCacheKey(clientId, dateKey)) &&
-    getWorkoutDayCache(clientId, dateKey) !== undefined &&
+    (getWorkoutDayCache(clientId, dateKey)?.workouts.length ?? 0) > 0 &&
     (variant === "detail" ||
       ((variant === "compact" || variant === "hero") &&
         dateKey === todayKey &&
@@ -342,6 +399,13 @@ export function DashboardWorkoutCard({
   const isFetchSettled = useDashboardDateFetch(dateKey, refreshWorkout, [clientId, version], {
     enabled: !skipWorkoutRefresh,
   });
+
+  // If the fetch settled but loadedDateKey lagged (errors / races), unlock the UI.
+  useEffect(() => {
+    if (isFetchSettled && loadedDateKey !== dateKey) {
+      setLoadedDateKey(dateKey);
+    }
+  }, [isFetchSettled, loadedDateKey, dateKey]);
 
   const isDayLoaded = loadedDateKey === dateKey;
   const isRevalidating = !isFetchSettled;
@@ -374,6 +438,7 @@ export function DashboardWorkoutCard({
   const removableWorkoutCount = workoutsForDay.filter(
     (workout) => workout.scheduledWorkoutId
   ).length;
+  const hasScheduledWorkout = removableWorkoutCount > 0;
   const showCompletedState = allWorkoutsComplete;
   const resultsReady = variant !== "detail" && showCompletedState;
   const patchedSessionId =
@@ -467,15 +532,6 @@ export function DashboardWorkoutCard({
     const exerciseCount = workout?.exercises.length ?? 0;
     const dayLabel = format(selectedDate, "EEEE");
     const undertrained = !workout && trainedDaysLastWeek <= 2;
-    const restTitle = undertrained
-      ? coachLabels.undertrainedTitle
-      : coachLabels.restDayTitle;
-    const restMessage = undertrained
-      ? coachLabels.undertrainedMessage
-      : coachLabels.restDayMessage;
-    const restTips = undertrained
-      ? coachLabels.undertrainedTips
-      : coachLabels.restDayTips;
     const durationLabel = workout
       ? formatWorkoutDurationShort(
           estimateWorkoutDurationSeconds(
@@ -518,10 +574,10 @@ export function DashboardWorkoutCard({
                 ) : null}
               </div>
               <div className={cn("flex shrink-0 items-center gap-1", dashboardInteractive)}>
-                {!readOnly ? (
+                {!hasScheduledWorkout || (!readOnly && removableWorkoutCount > 0) ? (
                   <DashboardWorkoutPlusMenu
-                    canAdd={!hasWorkout}
-                    canRemove={removableWorkoutCount > 0}
+                    canAdd={!hasScheduledWorkout}
+                    canRemove={!readOnly && removableWorkoutCount > 0}
                     onAddWorkout={() => setAddWorkoutOpen(true)}
                     onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
                   />
@@ -617,40 +673,32 @@ export function DashboardWorkoutCard({
                   )}
                 </div>
               </>
+            ) : isRevalidating ? (
+              <div
+                className="flex flex-1 flex-col gap-3"
+                role="status"
+                aria-busy="true"
+                aria-live="polite"
+              >
+                <div className="h-8 w-40 animate-pulse rounded-lg bg-secondary/80" />
+                <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] items-center gap-3">
+                  <div className="flex flex-col gap-2">
+                    <div className="h-24 animate-pulse rounded-2xl bg-secondary/80" />
+                    <div className="h-16 animate-pulse rounded-2xl bg-secondary/80" />
+                  </div>
+                  <div className="h-36 animate-pulse rounded-2xl bg-secondary/80" />
+                </div>
+                <div className="h-10 animate-pulse rounded-full bg-secondary/80" />
+              </div>
             ) : (
               <>
-                <div className="flex flex-1 flex-col gap-4">
-                  <div className="flex items-start gap-3">
-                    <AiCoachAvatar
-                      size="sm"
-                      className="mt-0.5 h-10 w-10 ring-2 ring-primary/20"
-                    />
-                    <div className="min-w-0 space-y-1.5">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Coach Alex
-                      </p>
-                      <h2 className="text-2xl font-black uppercase tracking-tight sm:text-3xl">
-                        {restTitle}
-                      </h2>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {restMessage}
-                      </p>
-                    </div>
-                  </div>
-                  <ul className="space-y-2 rounded-2xl border border-primary/20 bg-primary/10 p-3.5 text-sm">
-                    {restTips.map((tip) => (
-                      <li key={tip} className="flex gap-2.5 leading-snug">
-                        <span
-                          className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
-                          aria-hidden
-                        />
-                        <span>{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="flex flex-1 flex-col justify-center py-6">
+                  <h2 className="text-2xl font-black uppercase tracking-tight sm:text-3xl">
+                    {coachLabels.restDayTitle}
+                  </h2>
                 </div>
 
-                {!readOnly ? (
+                {!hasScheduledWorkout ? (
                   <div className={cn("mt-auto", dashboardInteractive)}>
                     <button
                       type="button"
@@ -662,7 +710,7 @@ export function DashboardWorkoutCard({
                       })}
                     >
                       <Dumbbell className="h-4 w-4" />
-                      {coachLabels.createWorkout}
+                      {platform.workout.addWorkout}
                     </button>
                   </div>
                 ) : null}
@@ -705,11 +753,11 @@ export function DashboardWorkoutCard({
           ariaLabel={platform.trainTabs.workout}
         />
         <div className="absolute right-3 top-3 z-20 flex items-center gap-1">
-          {!readOnly ? (
+          {!hasScheduledWorkout || (!readOnly && removableWorkoutCount > 0) ? (
             <DashboardWorkoutPlusMenu
               className={dashboardInteractive}
-              canAdd={workoutsForDay.length === 0}
-              canRemove={removableWorkoutCount > 0}
+              canAdd={!hasScheduledWorkout}
+              canRemove={!readOnly && removableWorkoutCount > 0}
               onAddWorkout={() => setAddWorkoutOpen(true)}
               onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
             />
@@ -834,10 +882,10 @@ export function DashboardWorkoutCard({
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {!readOnly ? (
+              {!hasScheduledWorkout || (!readOnly && removableWorkoutCount > 0) ? (
                 <DashboardWorkoutPlusMenu
-                  canAdd={workoutsForDay.length === 0}
-                  canRemove={removableWorkoutCount > 0}
+                  canAdd={!hasScheduledWorkout}
+                  canRemove={!readOnly && removableWorkoutCount > 0}
                   onAddWorkout={() => setAddWorkoutOpen(true)}
                   onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
                 />
@@ -845,8 +893,18 @@ export function DashboardWorkoutCard({
             </div>
           </div>
 
+          {loadingProgression ? (
+            <div className={cn(dashboard.tile, "mt-4 p-4 sm:p-5")}>
+              <WorkoutProgressionSkeleton />
+            </div>
+          ) : progression && progression.length > 0 ? (
+            <div className={cn(dashboard.tile, "mt-4 p-4 sm:p-5")}>
+              <WorkoutProgressionChart points={progression} />
+            </div>
+          ) : null}
+
           {workoutsForDay.length > 0 ? (
-            <div className="space-y-4">
+            <div className="mt-4 space-y-4">
               {workoutsForDay.map((workout) => {
                 const workoutKey = workoutNavKey(workout);
                 return (
@@ -867,8 +925,27 @@ export function DashboardWorkoutCard({
               })}
             </div>
           ) : isDayLoaded ? (
-            <DashboardEmptyState>{coachLabels.noWorkoutToday}</DashboardEmptyState>
-          ) : null}
+            <div className="mt-4 space-y-4">
+              <DashboardEmptyState>{coachLabels.noWorkoutToday}</DashboardEmptyState>
+              {!hasScheduledWorkout ? (
+                <button
+                  type="button"
+                  onClick={() => setAddWorkoutOpen(true)}
+                  className={buttonVariants({
+                    className:
+                      "h-12 w-full rounded-full text-sm font-black uppercase",
+                  })}
+                >
+                  <Dumbbell className="h-4 w-4" />
+                  {platform.workout.addWorkout}
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-4">
+              <DashboardWorkoutDetailSkeleton />
+            </div>
+          )}
         </div>
         <AddWorkoutToDayDialog
           open={addWorkoutOpen}

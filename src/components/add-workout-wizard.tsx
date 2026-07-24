@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getPersonalWorkoutPlanWithDetails } from "@/lib/actions/user-workouts";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { WorkoutBuilder } from "@/components/workout-builder";
 import { HiitBuilder } from "@/components/hiit-builder";
 import { WorkoutTypeDialog } from "@/components/workout-type-dialog";
@@ -19,6 +20,7 @@ interface AddWorkoutWizardProps {
 type WizardPhase = "type" | "build" | "schedule";
 
 export function AddWorkoutWizard({ open, folderId, onClose, onComplete }: AddWorkoutWizardProps) {
+  const platform = usePlatformCopy();
   const [phase, setPhase] = useState<WizardPhase>("type");
   const [workoutType, setWorkoutType] = useState<CreateWorkoutType | null>(null);
   const [planId, setPlanId] = useState<string | null>(null);
@@ -70,10 +72,10 @@ export function AddWorkoutWizard({ open, folderId, onClose, onComplete }: AddWor
         subtitle={phase === "build" ? "Step 1 of 2" : "Step 2 of 2"}
         title={
           phase === "schedule"
-            ? "Schedule workout"
+            ? platform.workout.scheduleWorkout
             : workoutType === "hiit"
-              ? "Build HIIT workout"
-              : "Build workout"
+              ? platform.workout.buildHiitWorkout
+              : platform.workout.buildWorkout
         }
       >
         {phase === "build" ? (

@@ -82,7 +82,8 @@ export function ExerciseGifThumbnail({
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         name={name}
-        imageUrl={imageUrl ?? url}
+        imageUrl={url}
+        fallbackImageUrl={fallbackUrl}
         videoUrl={videoUrl}
         gender={resolvedGender}
       />

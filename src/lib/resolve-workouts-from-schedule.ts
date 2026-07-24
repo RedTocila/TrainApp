@@ -51,6 +51,12 @@ export function resolveWorkoutsFromSchedule(
       .filter((entry): entry is TodaysWorkoutInfo => entry != null);
   }
 
+  // Explicit calendar scheduling: unscheduled days are rest days.
+  if ((schedule.scheduledWorkouts ?? []).length > 0) {
+    return [];
+  }
+
+  // Legacy: assignment only (no scheduled_workouts rows) — rotate by weekday.
   const assignment = schedule.workoutAssignment;
   const days =
     assignment?.workout_plans?.workout_days?.sort(

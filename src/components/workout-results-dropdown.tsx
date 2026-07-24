@@ -105,7 +105,7 @@ export function WorkoutResultsContent({
                     <ExerciseGifThumbnail
                       name={exercise.name}
                       gender={gender}
-                      size="sm"
+                      size="md"
                       expandable
                     />
                     <p className="min-w-0 flex-1 text-sm font-semibold">{exercise.name}</p>
@@ -191,7 +191,7 @@ export function WorkoutResultsContent({
               <ExerciseGifThumbnail
                 name={exercise.name}
                 gender={gender}
-                size="sm"
+                size="md"
                 expandable
               />
               <div className="min-w-0 flex-1 space-y-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { DashboardWorkoutCompactStats } from "@/components/dashboard-workout-compact-meta";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
@@ -17,17 +17,40 @@ import {
 } from "@/lib/actions/workout-sessions";
 import { cn } from "@/lib/utils";
 
-function WorkoutResultsLoading() {
+function Pulse({ className }: { className?: string }) {
+  return (
+    <div className={cn("animate-pulse rounded-xl bg-secondary/80", className)} />
+  );
+}
+
+function WorkoutResultsSkeleton() {
+  return (
+    <div className="space-y-2" role="status" aria-busy="true" aria-live="polite">
+      <Pulse className="h-12 w-full rounded-xl" />
+      <Pulse className="h-12 w-full rounded-xl" />
+      <Pulse className="h-12 w-full rounded-xl" />
+    </div>
+  );
+}
+
+export function DashboardWorkoutDetailSkeleton() {
   return (
     <div
-      className={cn(dashboard.listRow, "justify-center py-6")}
+      className="space-y-4 rounded-2xl border border-border/60 bg-card/40 p-4 sm:p-5"
       role="status"
-      aria-live="polite"
       aria-busy="true"
+      aria-live="polite"
     >
-      <span className="coach-alex-nav-loading__pulse-dot" />
-      <span className="coach-alex-nav-loading__pulse-dot" />
-      <span className="coach-alex-nav-loading__pulse-dot" />
+      <div className="space-y-2">
+        <Pulse className="h-7 w-48 rounded-md" />
+        <Pulse className="h-4 w-36 rounded-md" />
+      </div>
+      <Pulse className="h-40 w-full rounded-2xl" />
+      <div className="space-y-2">
+        <Pulse className="h-14 w-full rounded-xl" />
+        <Pulse className="h-14 w-full rounded-xl" />
+        <Pulse className="h-14 w-full rounded-xl" />
+      </div>
     </div>
   );
 }
@@ -59,6 +82,21 @@ export function DashboardWorkoutDetailSection({
   const sectionRef = useRef<HTMLElement>(null);
   const [results, setResults] = useState<CompletedWorkoutResults | null>(null);
   const [loadingResults, setLoadingResults] = useState(false);
+  const isHistory = !!workout.historySessionId;
+  const canStart = !done && !readOnly && !isHistory;
+  const resultsSessionId = sessionId ?? workout.historySessionId ?? null;
+
+  const mapExercises = useMemo(() => {
+    if (workout.exercises.length > 0) return workout.exercises;
+    if (!results?.exercises.length) return [];
+    return results.exercises.map((ex) => ({
+      id: ex.id,
+      name: ex.name,
+      sets: Math.max(1, ex.sets.length),
+      reps: ex.targetReps || String(ex.sets[0]?.reps ?? ""),
+      notes: null as string | null,
+    }));
+  }, [workout.exercises, results]);
 
   useEffect(() => {
     if (!highlighted) return;
@@ -83,20 +121,23 @@ export function DashboardWorkoutDetailSection({
   }, [workout.taskId]);
 
   useEffect(() => {
-    if (!done || !sessionId) return;
+    if (!done || !resultsSessionId) return;
 
     let cancelled = false;
     setLoadingResults(true);
-    void getCompletedWorkoutResultsForSession(sessionId).then((data) => {
-      if (cancelled) return;
-      setResults(data);
-      setLoadingResults(false);
-    });
+    void getCompletedWorkoutResultsForSession(resultsSessionId)
+      .then((data) => {
+        if (cancelled) return;
+        setResults(data);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingResults(false);
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [done, sessionId]);
+  }, [done, resultsSessionId]);
 
   return (
     <section
@@ -113,49 +154,54 @@ export function DashboardWorkoutDetailSection({
             <h2
               className={cn(
                 "text-lg font-black tracking-tight sm:text-xl",
-                done && "text-muted-foreground line-through"
+                done && "text-muted-foreground"
               )}
             >
               {workout.dayTitle}
             </h2>
-            {workout.exercises.length > 0 ? (
+            {mapExercises.length > 0 && !done ? (
               <WorkoutDifficultyInsightButton
-                exercises={workout.exercises}
+                exercises={mapExercises}
                 intakeProfile={intakeProfile}
                 size="compact"
               />
             ) : null}
+            {done ? (
+              <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                {platform.common.completed}
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {workout.planTitle}
-            {workout.exercises.length > 0
-              ? ` · ${platform.common.exercises(workout.exercises.length)}`
+            {results?.planTitle ?? workout.planTitle}
+            {mapExercises.length > 0
+              ? ` · ${platform.common.exercises(mapExercises.length)}`
               : null}
           </p>
-          {workout.exercises.length > 0 ? (
+          {mapExercises.length > 0 ? (
             <DashboardWorkoutCompactStats
-              exercises={workout.exercises}
+              exercises={mapExercises}
               className="mt-2"
             />
           ) : null}
         </div>
         <div className="shrink-0">
-          {done || readOnly ? null : (
+          {canStart ? (
             <StartTodaysWorkoutButton
               date={selectedDate}
               workout={workout}
               disabled={!isDayLoaded}
               display="text"
             />
-          )}
+          ) : null}
         </div>
       </div>
 
-      {workout.exercises.length > 0 ? (
+      {mapExercises.length > 0 ? (
         <div className={cn(dashboard.tile, "p-4 sm:p-5")}>
           <WorkoutMuscleMap
-            exercises={workout.exercises}
-            dayTitle={workout.dayTitle}
+            exercises={mapExercises}
+            dayTitle={results?.dayTitle ?? workout.dayTitle}
             gender={gender}
           />
         </div>
@@ -163,7 +209,7 @@ export function DashboardWorkoutDetailSection({
 
       {done ? (
         loadingResults ? (
-          <WorkoutResultsLoading />
+          <WorkoutResultsSkeleton />
         ) : results ? (
           <WorkoutResultsDropdown results={results} variant="open" gender={gender} />
         ) : (
@@ -171,8 +217,8 @@ export function DashboardWorkoutDetailSection({
             {platform.workout.noResultsLogged}
           </p>
         )
-      ) : workout.exercises.length > 0 ? (
-        <WorkoutExerciseList exercises={workout.exercises} gender={gender} />
+      ) : mapExercises.length > 0 ? (
+        <WorkoutExerciseList exercises={mapExercises} gender={gender} />
       ) : null}
     </section>
   );

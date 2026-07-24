@@ -2,7 +2,7 @@
 
 import { ExerciseGifPlayer } from "@/components/exercise-gif-player";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
-import { isGifUrl, resolveExerciseGifUrls, type ExerciseGender } from "@/lib/exercise-gif";
+import { resolveExerciseGifUrls, type ExerciseGender } from "@/lib/exercise-gif";
 import { isValidYoutubeUrl } from "@/lib/youtube";
 
 interface ExerciseDemoPlayerProps {
@@ -23,17 +23,24 @@ export function ExerciseDemoPlayer({
   autoplay = false,
 }: ExerciseDemoPlayerProps) {
   const resolved = resolveExerciseGifUrls({ name, imageUrl, gender });
-  const gifUrl = imageUrl?.trim() || resolved.url;
+  const gifUrl = resolved.url;
   const fallbackUrl = fallbackImageUrl ?? resolved.fallbackUrl;
 
-  if (gifUrl && isGifUrl(gifUrl)) {
+  // Prefer GIF (including same-origin /api/exercise-gif/… proxy URLs).
+  if (gifUrl || fallbackUrl) {
     return (
-      <ExerciseGifPlayer gifUrl={gifUrl} fallbackUrl={fallbackUrl} title={name} />
+      <ExerciseGifPlayer
+        gifUrl={gifUrl}
+        fallbackUrl={fallbackUrl}
+        title={name}
+      />
     );
   }
 
   if (videoUrl && isValidYoutubeUrl(videoUrl)) {
-    return <ExerciseVideoPlayer videoUrl={videoUrl} title={name} autoplay={autoplay} />;
+    return (
+      <ExerciseVideoPlayer videoUrl={videoUrl} title={name} autoplay={autoplay} />
+    );
   }
 
   return null;
