@@ -25,6 +25,8 @@ interface CalendarStripDayProps {
   inactive?: boolean;
   onSelect: () => void;
   buttonRef?: Ref<HTMLButtonElement>;
+  /** Scroll strip needs a fixed width; grid cells fill their column. */
+  layout?: "scroll" | "grid";
 }
 
 export function CalendarStripDay({
@@ -35,6 +37,7 @@ export function CalendarStripDay({
   inactive = false,
   onSelect,
   buttonRef,
+  layout = "scroll",
 }: CalendarStripDayProps) {
   const platform = usePlatformCopy();
   const locale = useLocale();
@@ -100,7 +103,10 @@ export function CalendarStripDay({
       aria-label={formatLocalized(date, "EEEE, MMMM d", locale)}
       aria-pressed={selected}
       className={cn(
-        "group relative flex min-w-[3rem] flex-1 flex-col items-center gap-1.5 px-1 py-2 transition-opacity sm:min-w-0 sm:gap-2 sm:py-2.5",
+        "group relative flex flex-col items-center gap-1.5 px-1 py-2 transition-opacity sm:gap-2 sm:py-2.5",
+        layout === "scroll"
+          ? "w-[3.25rem] shrink-0 sm:w-[3.75rem] md:w-16"
+          : "min-w-0 w-full",
         inactive && "cursor-default opacity-35",
         !inactive && "active:scale-[0.97]"
       )}
@@ -114,7 +120,7 @@ export function CalendarStripDay({
 
       <span
         className={cn(
-          "relative z-10 text-[0.625rem] font-medium tracking-wide sm:text-[11px]",
+          "relative z-10 max-w-full truncate text-[0.625rem] font-medium tracking-wide sm:text-[11px]",
           selected && !inactive
             ? "text-foreground"
             : future || inactive

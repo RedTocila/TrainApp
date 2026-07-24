@@ -122,6 +122,7 @@ export function CalendarStrip({
             tasks={tasks}
             dayStatus={dayStatus}
             inactive={inactive}
+            layout="scroll"
             onSelect={() => onSelectDate(day)}
           />
         ))}
@@ -137,6 +138,7 @@ export function CalendarStrip({
             tasks={tasks}
             dayStatus={dayStatus}
             inactive={inactive}
+            layout="grid"
             onSelect={() => onSelectDate(day)}
           />
         ))}

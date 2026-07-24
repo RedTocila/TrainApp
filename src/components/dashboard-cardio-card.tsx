@@ -315,14 +315,14 @@ export function DashboardCardioCard({
       <DashboardThemedShell
         id="dashboard-cardio"
         theme="cardio"
-        className={cn(dashboard.pairTile, "relative")}
+        className={cn(dashboard.pairTile, "relative isolate")}
       >
         <DashboardCardNavLink
           href="/dashboard/workout/cardio"
           ariaLabel={platform.cardio.title}
         />
-        <DashboardCardNavBody className="flex h-full flex-col">
-          <div className="flex items-center justify-between gap-2">
+        <DashboardCardNavBody className="flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <HeartPulse className="h-5 w-5 shrink-0 text-orange-600 dark:text-orange-300" />
               <p className="truncate text-sm font-black">{platform.cardio.title}</p>
@@ -414,19 +414,19 @@ export function DashboardCardioCard({
                         ref={(node) => {
                           slideRefs.current[index] = node;
                         }}
-                        className="flex w-full shrink-0 snap-start flex-col items-center justify-center gap-1.5 px-0.5"
+                        className="flex w-full shrink-0 snap-start flex-col items-center justify-center gap-1 px-0.5"
                       >
                         <div
                           className={cn(
-                            "flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl sm:h-20 sm:w-20",
+                            "flex h-16 w-16 items-center justify-center rounded-2xl sm:h-[4.25rem] sm:w-[4.25rem]",
                             iconBg
                           )}
                         >
-                          <Icon className={cn("h-9 w-9 sm:h-10 sm:w-10", iconAccent)} />
+                          <Icon className={cn("h-8 w-8 sm:h-9 sm:w-9", iconAccent)} />
                         </div>
                         <p
                           className={cn(
-                            "line-clamp-2 max-w-full px-1 text-center text-sm font-semibold leading-snug",
+                            "line-clamp-2 max-w-full px-1 text-center text-xs font-semibold leading-snug sm:text-sm",
                             completed && "text-muted-foreground line-through"
                           )}
                         >
@@ -487,22 +487,22 @@ export function DashboardCardioCard({
               ) : null}
             </div>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 py-2 text-center">
-              <div className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl bg-orange-500/15 sm:h-20 sm:w-20 dark:bg-orange-500/20">
-                <HeartPulse className="h-9 w-9 text-orange-600 sm:h-10 sm:w-10 dark:text-orange-300" />
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 py-2 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/15 sm:h-[4.25rem] sm:w-[4.25rem] dark:bg-orange-500/20">
+                <HeartPulse className="h-8 w-8 text-orange-600 sm:h-9 sm:w-9 dark:text-orange-300" />
               </div>
               <p className="text-xs text-muted-foreground">{coachLabels.noCardioToday}</p>
             </div>
           )}
 
-          <div className={cn("mt-auto flex gap-1.5 pt-2", dashboardInteractive)}>
-            <Link href="/dashboard/workout/cardio" className="flex-1">
+          <div className={cn("mt-auto flex shrink-0 gap-1.5 pt-2", dashboardInteractive)}>
+            <Link href="/dashboard/workout/cardio" className="min-w-0 flex-1">
               <Button size="sm" variant="outline" className="h-8 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-2 text-[11px] hover:bg-orange-500/15">
                 {platform.cardio.myCardio}
               </Button>
             </Link>
             {activeCardio && !activeCompleted && !readOnly ? (
-              <Link href={sessionHref} className="flex-1">
+              <Link href={sessionHref} className="min-w-0 flex-1">
                 <Button size="sm" className="h-8 w-full rounded-full px-2 text-[11px]">
                   {startLabel}
                 </Button>

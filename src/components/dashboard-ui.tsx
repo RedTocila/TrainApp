@@ -26,8 +26,9 @@ export const dashboard = {
   warningTile: "border-orange-500/30 bg-orange-500/5",
   chipButton:
     "pressable inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur-sm transition-[transform,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] active:scale-[0.97] active:opacity-90 hover:border-primary/30 hover:bg-background/80 dark:bg-background/40",
+  /** Side-by-side water/cardio tiles — auto height, never spill onto the next section. */
   pairTile:
-    "relative flex h-full min-h-[13rem] flex-col p-3 sm:min-h-[14rem] sm:p-4",
+    "relative flex min-h-0 flex-col overflow-hidden p-3 sm:p-3.5 md:p-4",
   /** One line below trigger; aligned to the end (icon menus). */
   dropdownPanelBelowEnd: "absolute right-0 top-full z-30 mt-1",
   /** Cursor-style stack: main bar + attached tail sharing one outer border. */

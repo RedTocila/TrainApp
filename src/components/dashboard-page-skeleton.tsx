@@ -16,9 +16,9 @@ function HomeSkeleton() {
           <Pulse className="h-52 w-full" />
           <Pulse className="h-52 w-full" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Pulse className="h-28 w-full" />
-          <Pulse className="h-28 w-full" />
+        <div className="grid grid-cols-2 items-start gap-3">
+          <Pulse className="h-44 w-full sm:h-48" />
+          <Pulse className="h-44 w-full sm:h-48" />
         </div>
         <Pulse className="h-40 w-full" />
         <Pulse className="h-36 w-full" />

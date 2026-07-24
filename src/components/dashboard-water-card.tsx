@@ -90,7 +90,7 @@ export function DashboardWaterCard({
   const remaining = waterRemainingToMinimum(waterMl, waterGoalMl);
 
   const waterVisual = (ringSize: number) => (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex flex-col items-center gap-1">
       <MiniProgressRing
         progress={progress}
         icon={GlassWater}
@@ -99,7 +99,12 @@ export function DashboardWaterCard({
         ringClass="text-cyan-500 transition-[stroke-dashoffset] duration-500 ease-out"
         iconClass="text-cyan-400"
       />
-      <p className="text-2xl font-black tabular-nums leading-none">
+      <p
+        className={cn(
+          "font-black tabular-nums leading-none",
+          compact ? "text-xl sm:text-2xl" : "text-2xl"
+        )}
+      >
         {Math.round(waterMl)}
         <span className="ml-0.5 text-sm font-semibold text-muted-foreground">ml</span>
       </p>
@@ -126,7 +131,13 @@ export function DashboardWaterCard({
   };
 
   const addButtons = (
-    <div className={cn("flex gap-1.5", dashboardInteractive, compact ? "mt-auto pt-2" : "mt-4")}>
+    <div
+      className={cn(
+        "flex gap-1.5",
+        dashboardInteractive,
+        compact ? "mt-auto shrink-0 pt-2" : "mt-4"
+      )}
+    >
       {[250, 500].map((amount) => (
         <button
           key={amount}
@@ -197,23 +208,23 @@ export function DashboardWaterCard({
         <DashboardThemedShell
           id="dashboard-water"
           theme="water"
-          className={cn(dashboard.pairTile, "relative")}
+          className={cn(dashboard.pairTile, "relative isolate")}
         >
           <DashboardCardNavLink
             href={DASHBOARD_DAY_NUTRITION_PATH}
             ariaLabel={platform.nutrition.water}
           />
-          <DashboardCardNavBody className="flex h-full flex-col">
-          {titleRow("text-sm")}
-          <div className="flex flex-1 flex-col items-center justify-center py-2">
-            {waterVisual(80)}
-            {!waterCompleted && remaining > 0 && (
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                {Math.round(remaining)} ml left
-              </p>
-            )}
-          </div>
-          {readOnly ? null : addButtons}
+          <DashboardCardNavBody className="flex min-h-0 flex-1 flex-col">
+            {titleRow("text-sm")}
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-2">
+              {waterVisual(72)}
+              {!waterCompleted && remaining > 0 && (
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {Math.round(remaining)} ml left
+                </p>
+              )}
+            </div>
+            {readOnly ? null : addButtons}
           </DashboardCardNavBody>
         </DashboardThemedShell>
         {goalDialog}
