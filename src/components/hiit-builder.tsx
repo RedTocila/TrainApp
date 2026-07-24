@@ -30,6 +30,7 @@ function NumberField({
   min = 0,
   max = 600,
   suffix,
+  className,
 }: {
   label: string;
   value: number;
@@ -37,10 +38,13 @@ function NumberField({
   min?: number;
   max?: number;
   suffix?: string;
+  className?: string;
 }) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+    <div className={cn("min-w-0 space-y-1.5", className)}>
+      <Label className="block text-xs leading-snug text-muted-foreground">
+        {label}
+      </Label>
       <div className="relative">
         <Input
           type="number"
@@ -51,7 +55,7 @@ function NumberField({
             const next = Number(e.target.value);
             onChange(Number.isFinite(next) ? next : min);
           }}
-          className={cn(suffix && "pr-10")}
+          className={cn("w-full min-w-0", suffix && "pr-10")}
         />
         {suffix ? (
           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
@@ -143,105 +147,115 @@ export function HiitBuilder({
   };
 
   return (
-    <div className="space-y-6 pb-[calc(var(--dashboard-mobile-nav-height,4.25rem)+1rem)] lg:pb-0">
-      <Card className="overflow-hidden border-orange-500/30">
-        <div className="h-1.5 w-full bg-orange-500" aria-hidden />
-        <CardHeader className="flex flex-row items-start gap-3 space-y-0">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15">
-            <Zap className="h-5 w-5 text-orange-400" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <CardTitle>HIIT program</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Build timed intervals. Estimate:{" "}
-              <span className="font-semibold text-foreground">{durationLabel}</span>
-              {previewConfig.exercises.length > 0
-                ? ` · ${hiitSummaryLabel(previewConfig)}`
-                : null}
-            </p>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Title</Label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Full body HIIT"
-            />
-          </div>
-          <div className="space-y-2">
-            {showDescription ? (
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                placeholder="Optional description"
+    <div
+      className={cn(
+        "w-full space-y-5 sm:space-y-6",
+        wizard
+          ? "pb-2"
+          : "pb-[calc(var(--dashboard-mobile-nav-height,4.25rem)+1rem)] lg:pb-4"
+      )}
+    >
+      <div className="grid gap-5 sm:gap-6 lg:grid-cols-2 lg:items-start">
+        <Card className="overflow-hidden border-orange-500/30">
+          <div className="h-1.5 w-full bg-orange-500" aria-hidden />
+          <CardHeader className="flex flex-row items-start gap-3 space-y-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15">
+              <Zap className="h-5 w-5 text-orange-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <CardTitle>HIIT program</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Build timed intervals. Estimate:{" "}
+                <span className="font-semibold text-foreground">{durationLabel}</span>
+                {previewConfig.exercises.length > 0
+                  ? ` · ${hiitSummaryLabel(previewConfig)}`
+                  : null}
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Full body HIIT"
               />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowDescription(true)}
-                className="text-sm text-primary hover:underline"
-              >
-                Add description
-              </button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+            <div className="space-y-2">
+              {showDescription ? (
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  placeholder="Optional description"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowDescription(true)}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Add description
+                </button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Structure</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <NumberField
-            label="Prepare"
-            value={config.prepare_seconds}
-            onChange={(prepare_seconds) =>
-              setConfig((c) => ({ ...c, prepare_seconds }))
-            }
-            min={0}
-            max={60}
-            suffix="sec"
-          />
-          <NumberField
-            label="Rounds"
-            value={config.rounds}
-            onChange={(rounds) => setConfig((c) => ({ ...c, rounds }))}
-            min={1}
-            max={50}
-          />
-          <NumberField
-            label="Rest between rounds"
-            value={config.round_rest_seconds}
-            onChange={(round_rest_seconds) =>
-              setConfig((c) => ({ ...c, round_rest_seconds }))
-            }
-            min={0}
-            max={600}
-            suffix="sec"
-          />
-          <NumberField
-            label="Cycles"
-            value={config.cycles}
-            onChange={(cycles) => setConfig((c) => ({ ...c, cycles }))}
-            min={1}
-            max={20}
-          />
-          <NumberField
-            label="Rest between cycles"
-            value={config.cycle_rest_seconds}
-            onChange={(cycle_rest_seconds) =>
-              setConfig((c) => ({ ...c, cycle_rest_seconds }))
-            }
-            min={0}
-            max={900}
-            suffix="sec"
-          />
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Structure</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <NumberField
+              label="Prepare"
+              value={config.prepare_seconds}
+              onChange={(prepare_seconds) =>
+                setConfig((c) => ({ ...c, prepare_seconds }))
+              }
+              min={0}
+              max={60}
+              suffix="sec"
+            />
+            <NumberField
+              label="Rounds"
+              value={config.rounds}
+              onChange={(rounds) => setConfig((c) => ({ ...c, rounds }))}
+              min={1}
+              max={50}
+            />
+            <NumberField
+              label="Rest between rounds"
+              value={config.round_rest_seconds}
+              onChange={(round_rest_seconds) =>
+                setConfig((c) => ({ ...c, round_rest_seconds }))
+              }
+              min={0}
+              max={600}
+              suffix="sec"
+              className="sm:col-span-2"
+            />
+            <NumberField
+              label="Cycles"
+              value={config.cycles}
+              onChange={(cycles) => setConfig((c) => ({ ...c, cycles }))}
+              min={1}
+              max={20}
+            />
+            <NumberField
+              label="Rest between cycles"
+              value={config.cycle_rest_seconds}
+              onChange={(cycle_rest_seconds) =>
+                setConfig((c) => ({ ...c, cycle_rest_seconds }))
+              }
+              min={0}
+              max={900}
+              suffix="sec"
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
@@ -265,7 +279,7 @@ export function HiitBuilder({
         {config.exercises.map((ex, index) => (
           <Card key={index} className="border-border/60">
             <CardContent className="space-y-3 pt-4">
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2 sm:gap-3">
                 <span className="mt-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-500/15 text-xs font-black text-orange-300">
                   {index + 1}
                 </span>
@@ -275,7 +289,7 @@ export function HiitBuilder({
                     onChange={(e) => updateExercise(index, { name: e.target.value })}
                     placeholder="Exercise name"
                   />
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
                     <NumberField
                       label="Work"
                       value={ex.work_seconds}
@@ -323,14 +337,16 @@ export function HiitBuilder({
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
-      <Button
-        className="w-full"
-        size="lg"
-        disabled={isPending || !title.trim()}
-        onClick={handleSave}
-      >
-        {isPending ? "Saving…" : wizard ? "Continue" : "Save HIIT workout"}
-      </Button>
+      <div className="flex justify-stretch pt-1 sm:justify-end">
+        <Button
+          className="w-full sm:w-auto sm:min-w-[14rem]"
+          size="lg"
+          disabled={isPending || !title.trim()}
+          onClick={handleSave}
+        >
+          {isPending ? "Saving…" : wizard ? "Continue" : "Save HIIT workout"}
+        </Button>
+      </div>
     </div>
   );
 }
