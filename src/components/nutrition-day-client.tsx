@@ -27,6 +27,7 @@ import {
 import type { DailyLog, DailyMealLog, Meal, MealSlot } from "@/lib/types";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import { formatDateKey } from "@/lib/utils";
+import { NutritionDaySkeleton } from "@/components/dashboard-page-skeleton";
 
 type MacroTargets = {
   calories: number;
@@ -162,7 +163,7 @@ export function NutritionDayClient({
     };
   }, [clientId, dateKey]);
 
-  const { data: overview } = useCachedDashboardDate({
+  const { data: overview, isRevalidating } = useCachedDashboardDate({
     clientId,
     dateKey,
     namespace: "overview",
@@ -173,7 +174,7 @@ export function NutritionDayClient({
         enrichmentMeals !== undefined &&
         enrichmentWater !== undefined),
     fetcher: loadOverview,
-    trackGlobalLoading: false,
+    trackGlobalLoading: true,
   });
 
   useEffect(() => {
@@ -227,6 +228,11 @@ export function NutritionDayClient({
   const display = overview ?? seedOverview;
   const dailyMeals =
     localMeals ?? display?.dailyMeals ?? enrichmentMeals ?? [];
+
+  // First paint / date change with no cached seed — show meal + macro skeleton.
+  if (!display && (isRevalidating || overview === null)) {
+    return <NutritionDaySkeleton />;
+  }
 
   return (
     <DailyTracker

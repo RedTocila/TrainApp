@@ -3,17 +3,28 @@ export const trainTabs = [
   { href: "/dashboard/nutrition", label: "Nutrition" },
 ] as const;
 
+function pathOnly(pathname: string) {
+  const q = pathname.indexOf("?");
+  return q === -1 ? pathname : pathname.slice(0, q);
+}
+
 export function isTrainPath(pathname: string) {
+  const path = pathOnly(pathname);
   return (
-    pathname === "/dashboard/workout" ||
-    pathname.startsWith("/dashboard/workout/") ||
-    pathname === "/dashboard/nutrition" ||
-    pathname.startsWith("/dashboard/nutrition/")
+    path === "/dashboard/workout" ||
+    path.startsWith("/dashboard/workout/") ||
+    path === "/dashboard/nutrition" ||
+    path.startsWith("/dashboard/nutrition/")
   );
 }
 
+/** Full-screen session UIs — hide train tabs + bottom nav (workout + cardio). */
 export function isActiveWorkoutSessionPath(pathname: string) {
-  return /^\/dashboard\/workout\/session\/[^/]+$/.test(pathname);
+  const path = pathOnly(pathname);
+  return (
+    /^\/dashboard\/workout\/session\/[^/]+$/.test(path) ||
+    path === "/dashboard/workout/cardio/session"
+  );
 }
 
 /** Active workout sessions are opened from Home — don't highlight Programs. */
@@ -22,13 +33,15 @@ export function isProgramsNavActive(pathname: string) {
 }
 
 export function isHomeNavActive(pathname: string) {
+  const path = pathOnly(pathname);
   return (
-    pathname === "/dashboard" ||
-    pathname.startsWith("/dashboard/day/") ||
-    isActiveWorkoutSessionPath(pathname)
+    path === "/dashboard" ||
+    path.startsWith("/dashboard/day/") ||
+    isActiveWorkoutSessionPath(path)
   );
 }
 
 export function isTrainTabActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const path = pathOnly(pathname);
+  return path === href || path.startsWith(`${href}/`);
 }

@@ -123,6 +123,56 @@ function DayDetailSkeleton() {
   );
 }
 
+/** Nutrition day — macro detail cards + meal feed placeholders. */
+function NutritionDaySkeleton() {
+  return (
+    <div
+      className="mx-auto max-w-3xl space-y-3"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <Pulse className="h-28 w-full rounded-2xl" />
+      <Pulse className="h-28 w-full rounded-2xl" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Pulse className="h-28 w-full rounded-2xl" />
+        <Pulse className="h-28 w-full rounded-2xl" />
+        <Pulse className="h-28 w-full rounded-2xl" />
+        <Pulse className="h-28 w-full rounded-2xl" />
+      </div>
+      <div className="space-y-2.5 pt-1">
+        <Pulse className="h-5 w-32 rounded-md" />
+        <Pulse className="h-20 w-full rounded-2xl" />
+        <Pulse className="h-20 w-full rounded-2xl" />
+        <Pulse className="h-20 w-full rounded-2xl" />
+      </div>
+    </div>
+  );
+}
+
+/** Meal library / plans list with macro-ish row cards. */
+function NutritionMealsSkeleton() {
+  return (
+    <div
+      className="mx-auto max-w-5xl space-y-4"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <Pulse className="h-9 w-40 rounded-lg" />
+        <Pulse className="h-9 w-24 rounded-full" />
+      </div>
+      <Pulse className="h-10 w-full rounded-full" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Pulse key={i} className="h-28 w-full rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SessionSkeleton() {
   return (
     <div
@@ -155,10 +205,25 @@ function GenericSkeleton() {
 
 /** Page-shaped pulse placeholders matched to dashboard routes. */
 export function DashboardPageSkeleton({ href }: { href?: string | null }) {
-  const path = href ?? "";
+  const path = (href ?? "").split("?")[0] ?? "";
 
   if (!path || path === "/dashboard") return <HomeSkeleton />;
-  if (path.startsWith("/dashboard/workout/session/")) return <SessionSkeleton />;
+  if (
+    path.startsWith("/dashboard/workout/session/") ||
+    path === "/dashboard/workout/cardio/session"
+  ) {
+    return <SessionSkeleton />;
+  }
+  if (path === "/dashboard/day/nutrition") return <NutritionDaySkeleton />;
+  if (
+    path === "/dashboard/nutrition/meals" ||
+    path.startsWith("/dashboard/nutrition/meals/") ||
+    path.startsWith("/dashboard/nutrition/folder/") ||
+    path === "/dashboard/nutrition" ||
+    path.startsWith("/dashboard/nutrition/")
+  ) {
+    return <NutritionMealsSkeleton />;
+  }
   if (path.startsWith("/dashboard/day/") || path.startsWith("/dashboard/progress-photos")) {
     return <DayDetailSkeleton />;
   }
@@ -167,14 +232,11 @@ export function DashboardPageSkeleton({ href }: { href?: string | null }) {
     return <ClassesSkeleton />;
   }
   if (path.startsWith("/dashboard/profile")) return <ProfileSkeleton />;
-  if (
-    path === "/dashboard/workout" ||
-    path.startsWith("/dashboard/workout/") ||
-    path === "/dashboard/nutrition" ||
-    path.startsWith("/dashboard/nutrition/")
-  ) {
+  if (path === "/dashboard/workout" || path.startsWith("/dashboard/workout/")) {
     return <ListPageSkeleton />;
   }
 
   return <GenericSkeleton />;
 }
+
+export { NutritionDaySkeleton };
