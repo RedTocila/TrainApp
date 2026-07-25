@@ -312,10 +312,11 @@ export function DashboardCardioCard({
 
   if (compact) {
     return (
+      <div className="flex h-full min-h-0 flex-col">
       <DashboardThemedShell
         id="dashboard-cardio"
         theme="cardio"
-        className={cn(dashboard.pairTile, "relative isolate")}
+        className={cn(dashboard.pairTile, "relative isolate flex-1")}
       >
         <DashboardCardNavLink
           href="/dashboard/workout/cardio"
@@ -511,6 +512,7 @@ export function DashboardCardioCard({
           </div>
         </DashboardCardNavBody>
       </DashboardThemedShell>
+      </div>
     );
   }
 

@@ -204,11 +204,11 @@ export function DashboardWaterCard({
 
   if (compact) {
     return (
-      <>
+      <div className="flex h-full min-h-0 flex-col">
         <DashboardThemedShell
           id="dashboard-water"
           theme="water"
-          className={cn(dashboard.pairTile, "relative isolate")}
+          className={cn(dashboard.pairTile, "relative isolate flex-1")}
         >
           <DashboardCardNavLink
             href={DASHBOARD_DAY_NUTRITION_PATH}
@@ -228,7 +228,7 @@ export function DashboardWaterCard({
           </DashboardCardNavBody>
         </DashboardThemedShell>
         {goalDialog}
-      </>
+      </div>
     );
   }
 
