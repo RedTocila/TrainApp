@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, Sparkles } from "lucide-react";
+import { Mail, Sparkles, Flame, Beef, Wheat, Droplets, CheckCircle2 } from "lucide-react";
 import {
   completePendingSignup,
   completeRegistration,
@@ -17,12 +17,16 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
+import {
+  calculateMacrosFromIntakeResponses,
+  type MacroTargets,
+} from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 import {
   formatUserError,
   isDirectSignupRejection,
 } from "@/lib/format-user-error";
+import { cn } from "@/lib/utils";
 
 const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
 
@@ -40,7 +44,7 @@ export function RegisterForm() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [intakeJson, setIntakeJson] = useState<string | null>(null);
-  const [macroPreview, setMacroPreview] = useState<string | null>(null);
+  const [macroTargets, setMacroTargets] = useState<MacroTargets | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
   const [existingAccount, setExistingAccount] = useState<PendingSignup | null>(null);
@@ -55,11 +59,7 @@ export function RegisterForm() {
     if (!draft) return;
     setIntakeJson(JSON.stringify(draft));
     const macros = calculateMacrosFromIntakeResponses(draft);
-    if (macros) {
-      setMacroPreview(
-        `${macros.calories} cal · P${macros.protein} C${macros.carbs} F${macros.fat}`
-      );
-    }
+    if (macros) setMacroTargets(macros);
   }, []);
 
   useEffect(() => {
@@ -365,16 +365,113 @@ export function RegisterForm() {
       </CardHeader>
       <CardContent>
         {intakeJson ? (
-          <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm">
-            <div className="flex items-center gap-2 font-semibold text-primary">
-              <Sparkles className="h-4 w-4" />
-              Health profile attached
+          <div className="mb-4 overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent">
+            <div className="flex items-center gap-2 border-b border-primary/20 px-3.5 py-2.5">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-primary">Health profile ready</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Daily targets from your questionnaire
+                </p>
+              </div>
             </div>
-            {macroPreview && (
-              <p className="mt-1 text-muted-foreground">
-                Estimated targets:{" "}
-                <span className="font-medium text-foreground">{macroPreview}</span>
-              </p>
+
+            {macroTargets ? (
+              <div className="space-y-3 p-3.5">
+                <div className="flex items-center gap-3 rounded-xl bg-background/50 px-3 py-2.5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-400">
+                    <Flame className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Daily calories
+                    </p>
+                    <p className="text-xl font-black leading-none tracking-tight">
+                      {macroTargets.calories}
+                      <span className="ml-1 text-sm font-semibold text-muted-foreground">
+                        kcal
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      {
+                        key: "protein",
+                        label: "Protein",
+                        value: macroTargets.protein,
+                        icon: Beef,
+                        color: "text-rose-400",
+                        bg: "bg-rose-500/15",
+                        bar: "bg-rose-500",
+                      },
+                      {
+                        key: "carbs",
+                        label: "Carbs",
+                        value: macroTargets.carbs,
+                        icon: Wheat,
+                        color: "text-amber-400",
+                        bg: "bg-amber-500/15",
+                        bar: "bg-amber-500",
+                      },
+                      {
+                        key: "fat",
+                        label: "Fat",
+                        value: macroTargets.fat,
+                        icon: Droplets,
+                        color: "text-sky-400",
+                        bg: "bg-sky-500/15",
+                        bar: "bg-sky-500",
+                      },
+                    ] as const
+                  ).map((macro) => {
+                    const Icon = macro.icon;
+                    const max = Math.max(
+                      macroTargets.protein,
+                      macroTargets.carbs,
+                      macroTargets.fat,
+                      1
+                    );
+                    const width = Math.max(12, (macro.value / max) * 100);
+                    return (
+                      <div
+                        key={macro.key}
+                        className="rounded-xl border border-border/60 bg-background/40 px-2.5 py-2.5"
+                      >
+                        <div
+                          className={cn(
+                            "mb-2 flex h-7 w-7 items-center justify-center rounded-lg",
+                            macro.bg,
+                            macro.color
+                          )}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                        </div>
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          {macro.label}
+                        </p>
+                        <p className="mt-0.5 text-base font-black leading-none">
+                          {macro.value}
+                          <span className="text-xs font-semibold text-muted-foreground">g</span>
+                        </p>
+                        <div className="mt-2 h-1 overflow-hidden rounded-full bg-secondary">
+                          <div
+                            className={cn("h-full rounded-full", macro.bar)}
+                            style={{ width: `${width}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3.5 py-3 text-sm text-muted-foreground">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Your answers are saved and ready to apply.
+              </div>
             )}
           </div>
         ) : (

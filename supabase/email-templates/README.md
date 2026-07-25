@@ -30,7 +30,12 @@ For each row: open the template in Supabase, paste the **subject** from the `.tx
 
 All templates use the same RUTINA branding (red header, logo, white card, primary CTA button).
 
+**Confirm signup** links straight to `https://rutina.al/login` (account is unlocked at signup — Supabase OTP links would already be invalid).
+**Reset / magic link / invite / change email** use `token_hash` → `/auth/callback` so links work across devices (no PKCE cookie required).
+
 Logo image: [`public/email-logo.png`](../../public/email-logo.png) — served at `https://rutina.al/email-logo.png` (deploy required for emails to show the image).
+
+After changing templates in this folder, paste them again into the Supabase Dashboard — the app does not sync them automatically.
 
 ## Test
 

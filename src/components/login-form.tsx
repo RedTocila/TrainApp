@@ -17,7 +17,7 @@ export function LoginForm({ authError }: { authError?: string }) {
   const emailPrefill = searchParams.get("email")?.trim() ?? "";
   const [error, setError] = useState<string | null>(() => {
     if (authError === "auth") {
-      return "That link expired or did not work. Sign in below — you can still open the app with your email and password.";
+      return "Your account is ready — sign in with your email and password to open the app.";
     }
     if (authError === "config") {
       return "Sign-in is temporarily unavailable. Please try again later.";
