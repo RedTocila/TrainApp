@@ -57,6 +57,7 @@ import {
 } from "@/lib/hiit-timer-storage";
 import { formatUserError } from "@/lib/format-user-error";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { useLocale } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import type { WorkoutSession } from "@/lib/types";
 import { cn, formatDateKey } from "@/lib/utils";
@@ -193,6 +194,7 @@ export function ActiveHiitClient({
   config: HiitConfig;
 }) {
   const router = useRouter();
+  const locale = useLocale();
   const { notifySync, patchDashboard } = useDashboardSync();
   const [timer, setTimer] = useState<HiitTimerState | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -257,7 +259,7 @@ export function ActiveHiitClient({
       setTimer(done);
       if (playSound && lastPhaseSoundRef.current !== nextIndex) {
         lastPhaseSoundRef.current = nextIndex;
-        playHiitComplete();
+        playHiitComplete(locale);
       }
       return;
     }
@@ -270,7 +272,7 @@ export function ActiveHiitClient({
     setTimer(advanced);
     if (playSound && lastPhaseSoundRef.current !== nextIndex) {
       lastPhaseSoundRef.current = nextIndex;
-      playHiitPhaseChange(next.type);
+      playHiitPhaseChange(next.type, locale);
     }
   };
 
@@ -294,13 +296,13 @@ export function ActiveHiitClient({
     }
     if (lastTickSecondRef.current === secondsLeft) return;
     lastTickSecondRef.current = secondsLeft;
-    playHiitTick(secondsLeft);
-  }, [hydrated, timer, remainingMs, isDone]);
+    playHiitTick(secondsLeft, locale);
+  }, [hydrated, timer, remainingMs, isDone, locale]);
 
   const handleStart = () => {
     setError(null);
-    unlockHiitAudio();
-    playHiitStart();
+    unlockHiitAudio(locale);
+    playHiitStart(locale);
     startTransition(async () => {
       if (!session.started_at) {
         const result = await beginWorkoutSession(session.id);
@@ -322,7 +324,7 @@ export function ActiveHiitClient({
   };
 
   const handleResume = () => {
-    unlockHiitAudio();
+    unlockHiitAudio(locale);
     lastTickSecondRef.current = null;
     setTimer(resumeHiitTimer(session.id));
   };
@@ -336,7 +338,7 @@ export function ActiveHiitClient({
     const next = !muted;
     setMuted(next);
     setHiitSoundsMuted(next);
-    if (!next) unlockHiitAudio();
+    if (!next) unlockHiitAudio(locale);
   };
 
   const handleReset = () => {
