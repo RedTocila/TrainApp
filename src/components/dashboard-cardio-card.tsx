@@ -312,206 +312,206 @@ export function DashboardCardioCard({
 
   if (compact) {
     return (
-      <div className="flex h-full min-h-0 flex-col">
-      <DashboardThemedShell
-        id="dashboard-cardio"
-        theme="cardio"
-        className={cn(dashboard.pairTile, "relative isolate flex-1")}
-      >
-        <DashboardCardNavLink
-          href="/dashboard/workout/cardio"
-          ariaLabel={platform.cardio.title}
-        />
-        <DashboardCardNavBody className="flex min-h-0 flex-1 flex-col">
-          <div className="flex shrink-0 items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <HeartPulse className="h-5 w-5 shrink-0 text-orange-600 dark:text-orange-300" />
-              <p className="truncate text-sm font-black">{platform.cardio.title}</p>
-            </div>
-            {scheduledList.length > 0 ? (
-              <DashboardStatusIcon
-                status={dashboardCompletionStatus(
-                  allCompleted,
-                  isDayEnded(dateKey)
-                )}
-                aria-label={
-                  allCompleted
-                    ? platform.aria.completed
-                    : platform.common.incomplete
-                }
-              />
-            ) : null}
-          </div>
-
-          {scheduledList.length > 0 ? (
-            <div className="flex min-h-0 flex-1 flex-col justify-center gap-1.5 py-1">
-              <div
-                className={cn(
-                  "relative flex items-center gap-0.5",
-                  dashboardInteractive
-                )}
-              >
-                {scheduledList.length > 1 ? (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      scrollToSlide(Math.max(0, slide - 1));
-                    }}
-                    disabled={slide <= 0}
-                    aria-label={
-                      scheduledList[slide - 1]?.client_cardio?.title
-                        ? `Previous: ${localizeCardioTitle(
-                            scheduledList[slide - 1]!.client_cardio!.title,
-                            platform.cardio.types
-                          )}`
-                        : "Previous cardio"
-                    }
-                    className={cn(
-                      "pointer-events-auto relative z-[2] flex h-8 w-7 shrink-0 items-center justify-center rounded-full",
-                      "text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
-                      "disabled:pointer-events-none disabled:opacity-25"
-                    )}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                ) : null}
-
-                <div
-                  ref={scrollRef}
-                  className={cn(
-                    "min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto",
-                    "flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-                    "pointer-events-auto relative z-[2] touch-pan-x overscroll-x-contain"
-                  )}
-                  aria-label={platform.cardio.title}
-                >
-                  {scheduledList.map((entry, index) => {
-                    const cardio = entry.client_cardio;
-                    if (!cardio) return null;
-                    const completed = isEntryCompleted(entry);
-                    const cardioId = entryCardioId(entry);
-                    const elapsed =
-                      cardioId != null
-                        ? display?.completions[cardioId]?.elapsedSeconds ?? null
-                        : null;
-                    const typeDisplay = getCardioTypeDisplay(
-                      cardio.title,
-                      platform.cardio.types
-                    );
-                    const Icon = typeDisplay?.icon ?? HeartPulse;
-                    const iconAccent = "text-orange-600 dark:text-orange-300";
-                    const iconBg = "bg-orange-500/15 dark:bg-orange-500/20";
-                    const badge = durationBadgeFor(
-                      cardio,
-                      completed,
-                      elapsed,
-                      platform
-                    );
-
-                    return (
-                      <div
-                        key={entry.id}
-                        ref={(node) => {
-                          slideRefs.current[index] = node;
-                        }}
-                        className="flex w-full shrink-0 snap-start flex-col items-center justify-center gap-1 px-0.5"
-                      >
-                        <div
-                          className={cn(
-                            "flex h-16 w-16 items-center justify-center rounded-2xl sm:h-[4.25rem] sm:w-[4.25rem]",
-                            iconBg
-                          )}
-                        >
-                          <Icon className={cn("h-8 w-8 sm:h-9 sm:w-9", iconAccent)} />
-                        </div>
-                        <p
-                          className={cn(
-                            "line-clamp-2 max-w-full px-1 text-center text-xs font-semibold leading-snug sm:text-sm",
-                            completed && "text-muted-foreground line-through"
-                          )}
-                        >
-                          {localizeCardioTitle(cardio.title, platform.cardio.types)}
-                        </p>
-                        {badge && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {badge}
-                          </Badge>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {scheduledList.length > 1 ? (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      scrollToSlide(
-                        Math.min(scheduledList.length - 1, slide + 1)
-                      );
-                    }}
-                    disabled={slide >= scheduledList.length - 1}
-                    aria-label={
-                      scheduledList[slide + 1]?.client_cardio?.title
-                        ? `Next: ${localizeCardioTitle(
-                            scheduledList[slide + 1]!.client_cardio!.title,
-                            platform.cardio.types
-                          )}`
-                        : "Next cardio"
-                    }
-                    className={cn(
-                      "pointer-events-auto relative z-[2] flex h-8 w-7 shrink-0 items-center justify-center rounded-full",
-                      "text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
-                      "disabled:pointer-events-none disabled:opacity-25"
-                    )}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                ) : null}
+      <div className="min-w-0">
+        <DashboardThemedShell
+          id="dashboard-cardio"
+          theme="cardio"
+          className={cn(dashboard.pairTile, "relative isolate")}
+        >
+          <DashboardCardNavLink
+            href="/dashboard/workout/cardio"
+            ariaLabel={platform.cardio.title}
+          />
+          <DashboardCardNavBody className="flex flex-col">
+            <div className="flex shrink-0 items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <HeartPulse className="h-5 w-5 shrink-0 text-orange-600 dark:text-orange-300" />
+                <p className="truncate text-sm font-black">{platform.cardio.title}</p>
               </div>
-              {scheduledList.length > 1 ? (
-                <div className={cn("pointer-events-auto relative z-[2]", dashboardInteractive)}>
-                  <DashboardCarouselDots
-                    count={scheduledList.length}
-                    active={Math.min(slide, scheduledList.length - 1)}
-                    onSelect={scrollToSlide}
-                    getLabel={(index) => {
-                      const title = scheduledList[index]?.client_cardio?.title;
-                      return title
-                        ? localizeCardioTitle(title, platform.cardio.types)
-                        : `Cardio ${index + 1}`;
-                    }}
-                  />
-                </div>
+              {scheduledList.length > 0 ? (
+                <DashboardStatusIcon
+                  status={dashboardCompletionStatus(
+                    allCompleted,
+                    isDayEnded(dateKey)
+                  )}
+                  aria-label={
+                    allCompleted
+                      ? platform.aria.completed
+                      : platform.common.incomplete
+                  }
+                />
               ) : null}
             </div>
-          ) : (
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 py-2 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/15 sm:h-[4.25rem] sm:w-[4.25rem] dark:bg-orange-500/20">
-                <HeartPulse className="h-8 w-8 text-orange-600 sm:h-9 sm:w-9 dark:text-orange-300" />
-              </div>
-              <p className="text-xs text-muted-foreground">{coachLabels.noCardioToday}</p>
-            </div>
-          )}
 
-          <div className={cn("mt-auto flex shrink-0 gap-1.5 pt-2", dashboardInteractive)}>
-            <Link href="/dashboard/workout/cardio" className="min-w-0 flex-1">
-              <Button size="sm" variant="outline" className="h-8 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-2 text-[11px] hover:bg-orange-500/15">
-                {platform.cardio.myCardio}
-              </Button>
-            </Link>
-            {activeCardio && !activeCompleted && !readOnly ? (
-              <Link href={sessionHref} className="min-w-0 flex-1">
-                <Button size="sm" className="h-8 w-full rounded-full px-2 text-[11px]">
-                  {startLabel}
+            {scheduledList.length > 0 ? (
+              <div className="flex flex-col justify-center gap-1.5 py-1">
+                <div
+                  className={cn(
+                    "relative flex items-center gap-0.5",
+                    dashboardInteractive
+                  )}
+                >
+                  {scheduledList.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        scrollToSlide(Math.max(0, slide - 1));
+                      }}
+                      disabled={slide <= 0}
+                      aria-label={
+                        scheduledList[slide - 1]?.client_cardio?.title
+                          ? `Previous: ${localizeCardioTitle(
+                              scheduledList[slide - 1]!.client_cardio!.title,
+                              platform.cardio.types
+                            )}`
+                          : "Previous cardio"
+                      }
+                      className={cn(
+                        "pointer-events-auto relative z-[2] flex h-8 w-7 shrink-0 items-center justify-center rounded-full",
+                        "text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
+                        "disabled:pointer-events-none disabled:opacity-25"
+                      )}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                  ) : null}
+
+                  <div
+                    ref={scrollRef}
+                    className={cn(
+                      "min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto",
+                      "flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+                      "pointer-events-auto relative z-[2] touch-pan-x overscroll-x-contain"
+                    )}
+                    aria-label={platform.cardio.title}
+                  >
+                    {scheduledList.map((entry, index) => {
+                      const cardio = entry.client_cardio;
+                      if (!cardio) return null;
+                      const completed = isEntryCompleted(entry);
+                      const cardioId = entryCardioId(entry);
+                      const elapsed =
+                        cardioId != null
+                          ? display?.completions[cardioId]?.elapsedSeconds ?? null
+                          : null;
+                      const typeDisplay = getCardioTypeDisplay(
+                        cardio.title,
+                        platform.cardio.types
+                      );
+                      const Icon = typeDisplay?.icon ?? HeartPulse;
+                      const iconAccent = "text-orange-600 dark:text-orange-300";
+                      const iconBg = "bg-orange-500/15 dark:bg-orange-500/20";
+                      const badge = durationBadgeFor(
+                        cardio,
+                        completed,
+                        elapsed,
+                        platform
+                      );
+
+                      return (
+                        <div
+                          key={entry.id}
+                          ref={(node) => {
+                            slideRefs.current[index] = node;
+                          }}
+                          className="flex w-full shrink-0 snap-start flex-col items-center justify-center gap-1 px-0.5"
+                        >
+                          <div
+                            className={cn(
+                              "flex h-16 w-16 items-center justify-center rounded-2xl sm:h-[4.25rem] sm:w-[4.25rem]",
+                              iconBg
+                            )}
+                          >
+                            <Icon className={cn("h-8 w-8 sm:h-9 sm:w-9", iconAccent)} />
+                          </div>
+                          <p
+                            className={cn(
+                              "line-clamp-2 max-w-full px-1 text-center text-xs font-semibold leading-snug sm:text-sm",
+                              completed && "text-muted-foreground line-through"
+                            )}
+                          >
+                            {localizeCardioTitle(cardio.title, platform.cardio.types)}
+                          </p>
+                          {badge && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {badge}
+                            </Badge>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {scheduledList.length > 1 ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        scrollToSlide(
+                          Math.min(scheduledList.length - 1, slide + 1)
+                        );
+                      }}
+                      disabled={slide >= scheduledList.length - 1}
+                      aria-label={
+                        scheduledList[slide + 1]?.client_cardio?.title
+                          ? `Next: ${localizeCardioTitle(
+                              scheduledList[slide + 1]!.client_cardio!.title,
+                              platform.cardio.types
+                            )}`
+                          : "Next cardio"
+                      }
+                      className={cn(
+                        "pointer-events-auto relative z-[2] flex h-8 w-7 shrink-0 items-center justify-center rounded-full",
+                        "text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
+                        "disabled:pointer-events-none disabled:opacity-25"
+                      )}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+                {scheduledList.length > 1 ? (
+                  <div className={cn("pointer-events-auto relative z-[2]", dashboardInteractive)}>
+                    <DashboardCarouselDots
+                      count={scheduledList.length}
+                      active={Math.min(slide, scheduledList.length - 1)}
+                      onSelect={scrollToSlide}
+                      getLabel={(index) => {
+                        const title = scheduledList[index]?.client_cardio?.title;
+                        return title
+                          ? localizeCardioTitle(title, platform.cardio.types)
+                          : `Cardio ${index + 1}`;
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-2 py-2 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/15 sm:h-[4.25rem] sm:w-[4.25rem] dark:bg-orange-500/20">
+                  <HeartPulse className="h-8 w-8 text-orange-600 sm:h-9 sm:w-9 dark:text-orange-300" />
+                </div>
+                <p className="text-xs text-muted-foreground">{coachLabels.noCardioToday}</p>
+              </div>
+            )}
+
+            <div className={cn("flex shrink-0 gap-1.5 pt-2", dashboardInteractive)}>
+              <Link href="/dashboard/workout/cardio" className="min-w-0 flex-1">
+                <Button size="sm" variant="outline" className="h-8 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-2 text-[11px] hover:bg-orange-500/15">
+                  {platform.cardio.myCardio}
                 </Button>
               </Link>
-            ) : null}
-          </div>
-        </DashboardCardNavBody>
-      </DashboardThemedShell>
+              {activeCardio && !activeCompleted && !readOnly ? (
+                <Link href={sessionHref} className="min-w-0 flex-1">
+                  <Button size="sm" className="h-8 w-full rounded-full px-2 text-[11px]">
+                    {startLabel}
+                  </Button>
+                </Link>
+              ) : null}
+            </div>
+          </DashboardCardNavBody>
+        </DashboardThemedShell>
       </div>
     );
   }

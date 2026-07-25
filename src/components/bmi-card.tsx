@@ -170,7 +170,7 @@ export function BmiCard({
     );
 
   return (
-    <DashboardThemedShell theme="bmi" className="relative isolate overflow-hidden p-0">
+    <DashboardThemedShell theme="bmi" className="relative z-0 overflow-hidden p-0">
       <CardContent className="relative z-10 space-y-4 bg-transparent p-4 shadow-none sm:space-y-5 sm:p-5">
         <DashboardSectionHeader
           icon={Activity}

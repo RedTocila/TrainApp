@@ -131,7 +131,7 @@ export function DashboardThemedShell({
         )}
         aria-hidden
       />
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col text-foreground">
+      <div className="relative z-10 flex w-full flex-col text-foreground">
         {children}
       </div>
     </div>

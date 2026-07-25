@@ -135,7 +135,7 @@ export function DashboardWaterCard({
       className={cn(
         "flex gap-1.5",
         dashboardInteractive,
-        compact ? "mt-auto shrink-0 pt-2" : "mt-4"
+        compact ? "shrink-0 pt-2" : "mt-4"
       )}
     >
       {[250, 500].map((amount) => (
@@ -204,19 +204,19 @@ export function DashboardWaterCard({
 
   if (compact) {
     return (
-      <div className="flex h-full min-h-0 flex-col">
+      <div className="min-w-0">
         <DashboardThemedShell
           id="dashboard-water"
           theme="water"
-          className={cn(dashboard.pairTile, "relative isolate flex-1")}
+          className={cn(dashboard.pairTile, "relative isolate")}
         >
           <DashboardCardNavLink
             href={DASHBOARD_DAY_NUTRITION_PATH}
             ariaLabel={platform.nutrition.water}
           />
-          <DashboardCardNavBody className="flex min-h-0 flex-1 flex-col">
-            {titleRow("text-sm")}
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-2">
+          <DashboardCardNavBody className="flex flex-col">
+            <div className="shrink-0">{titleRow("text-sm")}</div>
+            <div className="flex flex-col items-center justify-center py-2">
               {waterVisual(72)}
               {!waterCompleted && remaining > 0 && (
                 <p className="mt-1 text-[10px] text-muted-foreground">

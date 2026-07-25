@@ -23,7 +23,7 @@ export function BodyMetricsSection({
   const [history, setHistory] = useState(initialHistory);
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-5 md:gap-5">
+    <div className="flex shrink-0 flex-col gap-4 sm:gap-5 md:gap-5">
       <BmiCard
         heightCm={heightCm}
         intakeWeightKg={intakeWeightKg}
