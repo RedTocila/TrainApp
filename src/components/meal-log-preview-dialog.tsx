@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { CheckCircle2, Target, Trash2, X } from "lucide-react";
+import { Check, CheckCircle2, Target, Trash2, X } from "lucide-react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useCoachCopy, usePlatformCopy } from "@/components/locale-provider";
@@ -93,33 +93,73 @@ export function MealLogPreviewDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" aria-label="Meal logged preview" className="max-h-[min(92%,42rem)]">
-        <div className="flex items-start justify-between border-b border-border px-5 py-4">
-          <div className="space-y-1">
-            <p className="flex items-center gap-2 text-sm font-semibold text-primary">
-              <CheckCircle2 className="h-4 w-4" />
-              {variant === "new" ? "Meal logged" : "Meal insights"}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-black">{meal.name}</h2>
-              <Badge variant="secondary" className="capitalize">
-                {meal.meal_type}
-              </Badge>
+        <div className="shrink-0 space-y-2 border-b border-border px-5 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <p className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <CheckCircle2 className="h-4 w-4" />
+                {variant === "new" ? "Meal logged" : "Meal insights"}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-black">{meal.name}</h2>
+                <Badge variant="secondary" className="capitalize">
+                  {meal.meal_type}
+                </Badge>
+              </div>
             </div>
-            {summary && <p className="text-xs text-muted-foreground">{summary}</p>}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={onClose}
+              disabled={isDeleting}
+              aria-label={platform.aria.close}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {summary ? (
+              <p className="min-w-0 flex-1 text-xs text-muted-foreground">{summary}</p>
+            ) : (
+              <span className="min-w-0 flex-1" />
+            )}
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/15 px-2.5 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300"
+                onClick={onClose}
+                disabled={isDeleting}
+              >
+                <Check className="h-3.5 w-3.5" />
+                {platform.common.done}
+              </Button>
+              {variant === "view" && onDelete ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg border border-red-500/30 bg-red-500/15 text-red-400 hover:bg-red-500/25 hover:text-red-300"
+                  onClick={onDelete}
+                  disabled={isDeleting}
+                  aria-label={platform.aria.deleteMeal}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4" data-scroll-lock-scrollable>
           {photoUrl ? (
-            <div className="relative mb-4 aspect-[4/3] w-full overflow-hidden rounded-xl border border-border bg-secondary/30">
+            <div className="mb-4 overflow-hidden rounded-xl border border-border bg-secondary/30">
               <Image
                 src={photoUrl}
                 alt={meal.name}
-                fill
-                className="object-cover"
+                width={1200}
+                height={1200}
+                className="mx-auto h-auto max-h-[min(60vh,28rem)] w-full object-contain"
                 unoptimized
               />
             </div>
@@ -201,29 +241,29 @@ export function MealLogPreviewDialog({
               </CardContent>
             </Card>
           )}
-        </div>
 
-        <div className="border-t border-border px-5 py-3">
-          {variant === "view" && onDelete ? (
-            <div className="flex flex-col gap-2">
-              <Button className="w-full" onClick={onClose} disabled={isDeleting}>
+          <div className="mt-4 space-y-2 border-t border-border pt-4 pb-1">
+            {variant === "view" && onDelete ? (
+              <>
+                <Button className="w-full" onClick={onClose} disabled={isDeleting}>
+                  {platform.common.done}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full text-red-400 hover:text-red-300"
+                  onClick={onDelete}
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {isDeleting ? platform.common.saving : platform.aria.deleteMeal}
+                </Button>
+              </>
+            ) : (
+              <Button className="w-full" onClick={onClose}>
                 {platform.common.done}
               </Button>
-              <Button
-                variant="outline"
-                className="w-full text-red-400 hover:text-red-300"
-                onClick={onDelete}
-                disabled={isDeleting}
-              >
-                <Trash2 className="h-4 w-4" />
-                {isDeleting ? platform.common.saving : platform.aria.deleteMeal}
-              </Button>
-            </div>
-          ) : (
-            <Button className="w-full" onClick={onClose}>
-              {platform.common.done}
-            </Button>
-          )}
+            )}
+          </div>
         </div>
       </AppOverlayPanel>
       </AppOverlay>

@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   BookOpen,
   Camera,
+  Check,
   Loader2,
   Plus,
   Search,
@@ -324,7 +325,7 @@ export function LogMealDialog({
   const header = (
     <div
       className={cn(
-        "flex shrink-0 items-center gap-2 border-b border-border px-4 py-3 sm:py-4",
+        "flex shrink-0 items-center gap-1.5 border-b border-border px-4 py-2.5 sm:py-3",
         isPhotoReviewFullscreen &&
           "bg-background/95 pt-[max(0.75rem,env(safe-area-inset-top,0px))] backdrop-blur-md"
       )}
@@ -333,26 +334,49 @@ export function LogMealDialog({
         <Button
           variant="ghost"
           size="icon"
-          className="shrink-0"
+          className="h-8 w-8 shrink-0"
           onClick={handleBack}
           disabled={isSaving}
           aria-label={platform.mealLog.goBack}
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-4 w-4" />
         </Button>
       ) : isPhotoReviewFullscreen ? (
-        <div className="w-10 shrink-0" aria-hidden />
+        <div className="h-8 w-8 shrink-0" aria-hidden />
       ) : null}
       <h2
         className={cn(
-          "flex-1 text-lg font-black",
+          "min-w-0 flex-1 truncate text-base font-black sm:text-lg",
           isPhotoReviewFullscreen && "text-center"
         )}
       >
         {title}
       </h2>
-      <Button variant="ghost" size="icon" className="shrink-0" onClick={onClose} aria-label={platform.aria.close} disabled={isSaving}>
-        <X className="h-5 w-5" />
+      {canLogCustom && !isPhotoReviewFullscreen ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 shrink-0 gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/15 px-2.5 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300"
+          onClick={handleLogCustom}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Check className="h-3.5 w-3.5" />
+          )}
+          {platform.common.save}
+        </Button>
+      ) : null}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 shrink-0"
+        onClick={onClose}
+        aria-label={platform.aria.close}
+        disabled={isSaving}
+      >
+        <X className="h-4 w-4" />
       </Button>
     </div>
   );
@@ -573,6 +597,8 @@ export function LogMealDialog({
                 onPhotoDataUrlChange={setMealPhotoDataUrl}
                 confidence={aiConfidence}
                 onConfidenceChange={setAiConfidence}
+                onSave={handleLogCustom}
+                isSaving={isSaving}
               />
             ) : (
               <div className="space-y-4 py-4 text-center">
@@ -629,34 +655,28 @@ export function LogMealDialog({
     </>
   );
 
-  const footer = (
-    <div
-      className={cn(
-        "shrink-0 space-y-2 border-t border-border py-4",
-        isPhotoReviewFullscreen
-          ? "bg-background/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] backdrop-blur-md"
-          : "px-5"
-      )}
-    >
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      {canLogCustom ? (
-        <Button className="w-full" disabled={isSaving} onClick={handleLogCustom}>
-          {isSaving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {platform.common.saving}
-            </>
-          ) : (
-            logButtonLabel
-          )}
-        </Button>
-      ) : mode !== "picker" ? (
-        <Button variant="outline" className="w-full" onClick={onClose} disabled={isSaving}>
-          {platform.common.close}
-        </Button>
-      ) : null}
-    </div>
-  );
+  const footerActions =
+    canLogCustom || mode !== "picker" || error ? (
+      <div className="mt-4 space-y-2 border-t border-border pt-4 pb-1">
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        {canLogCustom ? (
+          <Button className="w-full" disabled={isSaving} onClick={handleLogCustom}>
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {platform.common.saving}
+              </>
+            ) : (
+              logButtonLabel
+            )}
+          </Button>
+        ) : mode !== "picker" ? (
+          <Button variant="outline" className="w-full" onClick={onClose} disabled={isSaving}>
+            {platform.common.close}
+          </Button>
+        ) : null}
+      </div>
+    ) : null;
 
   return (
     <AppOverlay
@@ -682,15 +702,17 @@ export function LogMealDialog({
         <div
           className={cn(
             "min-h-0 flex-1 overflow-y-auto overscroll-contain",
-            isPhotoReviewFullscreen ? "px-4 py-4" : "px-5 py-4"
+            isPhotoReviewFullscreen
+              ? "px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]"
+              : "px-5 py-4"
           )}
           data-scroll-lock-scrollable
         >
           <div className={cn(isPhotoReviewFullscreen && "mx-auto w-full max-w-lg")}>
             {body}
+            {footerActions}
           </div>
         </div>
-        {footer}
       </AppOverlayPanel>
     </AppOverlay>
   );

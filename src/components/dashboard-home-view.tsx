@@ -110,24 +110,28 @@ export function DashboardHomeView({
         schedule={schedule}
       />
 
-      <div className="relative z-0 grid shrink-0 grid-cols-2 items-stretch gap-3 sm:gap-3.5 md:gap-4">
-        <DashboardWaterCard
-          clientId={clientId}
-          initialWaterMl={initialWaterMl}
-          waterGoalMl={waterGoalMl}
-          variant="compact"
-        />
+      {/* Flex (not grid+h-full): iPad Safari collapses percentage grid rows and BMI overlaps the pair. */}
+      <div className="flex w-full shrink-0 flex-col gap-3 sm:gap-4 md:gap-5">
+        <div className="flex w-full items-stretch gap-3 sm:gap-3.5 md:gap-4">
+          <div className="w-1/2 min-w-0">
+            <DashboardWaterCard
+              clientId={clientId}
+              initialWaterMl={initialWaterMl}
+              waterGoalMl={waterGoalMl}
+              variant="compact"
+            />
+          </div>
+          <div className="w-1/2 min-w-0">
+            <DashboardCardioCard
+              clientId={clientId}
+              initialScheduled={initialCardios}
+              initialCompletions={initialCardioCompletions}
+              variant="compact"
+              schedule={schedule}
+            />
+          </div>
+        </div>
 
-        <DashboardCardioCard
-          clientId={clientId}
-          initialScheduled={initialCardios}
-          initialCompletions={initialCardioCompletions}
-          variant="compact"
-          schedule={schedule}
-        />
-      </div>
-
-      <div className="relative z-0 shrink-0">
         <BodyMetricsSection
           clientId={clientId}
           heightCm={heightCm}

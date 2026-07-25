@@ -18,10 +18,10 @@ import {
   urlsCoverSet,
 } from "@/lib/progress-photo-urls";
 import {
-  formatProgressCycleLabel,
-  formatProgressMonthLabel,
+  getProgressPhotoCardCycleLabel,
   getProgressPhotoCountdown,
   getProgressPhotoDisplaySet,
+  getProgressPhotoUploadMonthKey,
   progressMonthKey,
   progressSetComplete,
   progressSetHasPhotos,
@@ -314,8 +314,13 @@ function ProgressPhotosCardInner({
     void loadUrls(displaySet);
   }, [clientId, displaySet, loadUrls, currentUrls]);
 
+  const uploadMonthKey = useMemo(
+    () => getProgressPhotoUploadMonthKey(sets),
+    [sets]
+  );
+
   const handleRemove = async (pose: ProgressPhotoPose) => {
-    const monthKey = displaySet?.month_key ?? currentMonth;
+    const monthKey = displaySet?.month_key ?? uploadMonthKey;
     setError(null);
     setUploadingPose(pose);
     try {
@@ -342,7 +347,7 @@ function ProgressPhotosCardInner({
       const result = await uploadProgressPhotoWithAiReview({
         supabase,
         clientId,
-        monthKey: currentMonth,
+        monthKey: uploadMonthKey,
         pose,
         file,
         locale,
@@ -373,7 +378,7 @@ function ProgressPhotosCardInner({
       const nextSets = upsertPhotoPathInSets(
         sets,
         clientId,
-        currentMonth,
+        uploadMonthKey,
         pose,
         result.path
       );
@@ -405,12 +410,10 @@ function ProgressPhotosCardInner({
     () => getProgressPhotoCountdown({ sets, currentSet, locale }),
     [sets, currentSet, locale]
   );
-  const cycleLabel = useMemo(() => {
-    if (displaySet && progressSetHasPhotos(displaySet)) {
-      return formatProgressCycleLabel(new Date(displaySet.created_at), locale);
-    }
-    return formatProgressMonthLabel(currentMonth, locale);
-  }, [displaySet, currentMonth, locale]);
+  const cycleLabel = useMemo(
+    () => getProgressPhotoCardCycleLabel(sets, new Date(), locale),
+    [sets, locale]
+  );
 
   return (
     <>

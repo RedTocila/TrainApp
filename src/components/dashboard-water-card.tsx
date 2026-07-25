@@ -203,7 +203,7 @@ export function DashboardWaterCard({
 
   if (compact) {
     return (
-      <div className="flex h-full min-w-0 flex-col">
+      <>
         <DashboardThemedShell
           id="dashboard-water"
           theme="water"
@@ -213,7 +213,7 @@ export function DashboardWaterCard({
             href={DASHBOARD_DAY_NUTRITION_PATH}
             ariaLabel={platform.nutrition.water}
           />
-          <DashboardCardNavBody className="flex h-full flex-col">
+          <DashboardCardNavBody className="flex flex-1 flex-col">
             <div className="shrink-0">{titleRow("text-sm")}</div>
             <div className="flex flex-1 flex-col items-center justify-center py-2">
               {waterVisual(72)}
@@ -231,7 +231,7 @@ export function DashboardWaterCard({
           </DashboardCardNavBody>
         </DashboardThemedShell>
         {goalDialog}
-      </div>
+      </>
     );
   }
 

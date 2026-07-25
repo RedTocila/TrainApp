@@ -153,7 +153,11 @@ function findAnchorSet<T extends ProgressPhotoSetLike>(
   return sets.find((set) => progressSetHasPhotos(set)) ?? null;
 }
 
-/** Set whose photos should appear on the dashboard card. */
+/**
+ * Set whose photos should appear on the dashboard card.
+ * Once a completed cycle ends, returns null so the card shows empty
+ * slots for the next check-in instead of the previous month's photos.
+ */
 export function getProgressPhotoDisplaySet<T extends ProgressPhotoSetLike>(
   sets: T[],
   now = new Date()
@@ -161,7 +165,99 @@ export function getProgressPhotoDisplaySet<T extends ProgressPhotoSetLike>(
   const currentMonth = progressMonthKey(now);
   const currentSet =
     sets.find((set) => normalizeMonthKey(set.month_key) === currentMonth) ?? null;
-  return findAnchorSet(sets, currentSet);
+
+  if (currentSet && progressSetHasPhotos(currentSet)) {
+    if (
+      isProgressPhotoCycleOpen(currentSet.created_at, now) ||
+      !progressSetComplete(currentSet)
+    ) {
+      return (
+        sets.find((set) => set.id === currentSet.id) ??
+        sets.find(
+          (set) =>
+            normalizeMonthKey(set.month_key) ===
+            normalizeMonthKey(currentSet.month_key)
+        ) ??
+        (currentSet as T)
+      );
+    }
+    // Complete + locked calendar-month set → ready for the next check-in.
+    return null;
+  }
+
+  const anchor = findAnchorSet(sets, currentSet);
+  if (!anchor) return null;
+
+  // Still inside the previous cycle window — keep showing those photos.
+  if (isProgressPhotoCycleOpen(anchor.created_at, now)) {
+    return anchor;
+  }
+
+  // Cycle ended incomplete: keep showing the locked set (read-only).
+  if (!progressSetComplete(anchor)) {
+    return anchor;
+  }
+
+  // Complete cycle ended — empty slots for the new period.
+  return null;
+}
+
+/** Month key to write new/replacement photos for on the dashboard card. */
+export function getProgressPhotoUploadMonthKey(
+  sets: ProgressPhotoSetLike[],
+  now = new Date()
+): string {
+  const displaySet = getProgressPhotoDisplaySet(sets, now);
+  if (
+    displaySet &&
+    progressSetHasPhotos(displaySet) &&
+    isProgressPhotoCycleOpen(displaySet.created_at, now)
+  ) {
+    return normalizeMonthKey(displaySet.month_key);
+  }
+
+  const currentMonth = progressMonthKey(now);
+  const currentSet =
+    sets.find((set) => normalizeMonthKey(set.month_key) === currentMonth) ?? null;
+  const anchor = findAnchorSet(sets, currentSet);
+
+  if (
+    anchor &&
+    progressSetComplete(anchor) &&
+    !isProgressPhotoCycleOpen(anchor.created_at, now)
+  ) {
+    return progressMonthKey(progressCycleEnd(new Date(anchor.created_at)));
+  }
+
+  return displaySet
+    ? normalizeMonthKey(displaySet.month_key)
+    : currentMonth;
+}
+
+/** Cycle / month label shown on the dashboard progress-photos card. */
+export function getProgressPhotoCardCycleLabel(
+  sets: ProgressPhotoSetLike[],
+  now = new Date(),
+  locale: CheckoutLocale = "en"
+): string {
+  const displaySet = getProgressPhotoDisplaySet(sets, now);
+  if (displaySet && progressSetHasPhotos(displaySet)) {
+    return formatProgressCycleLabel(new Date(displaySet.created_at), locale);
+  }
+
+  const currentMonth = progressMonthKey(now);
+  const currentSet =
+    sets.find((set) => normalizeMonthKey(set.month_key) === currentMonth) ?? null;
+  const anchor = findAnchorSet(sets, currentSet);
+
+  if (!anchor) {
+    return formatProgressMonthLabel(currentMonth, locale);
+  }
+
+  return formatProgressCycleLabel(
+    progressCycleEnd(new Date(anchor.created_at)),
+    locale
+  );
 }
 
 export type ProgressPhotoTimelineRow = {

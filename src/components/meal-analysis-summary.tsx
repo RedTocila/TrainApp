@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   Beef,
+  Check,
   Coffee,
   Droplets,
   Flame,
@@ -19,7 +20,7 @@ import { ConfidenceBadge } from "@/components/confidence-badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { getMealTypeOptions } from "@/lib/locale-labels";
-import type { MealFormData, MealMacros } from "@/lib/meal-utils";
+import { formatMealMacrosSummary, type MealFormData, type MealMacros } from "@/lib/meal-utils";
 import type { MealType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -169,12 +170,16 @@ export function MealAnalysisSummary({
   imageUrl,
   onRefineWithSpecification,
   isRefining = false,
+  onSave,
+  isSaving = false,
 }: {
   form: MealFormData;
   confidence: number | null;
   imageUrl?: string | null;
   onRefineWithSpecification?: (specification: string) => void;
   isRefining?: boolean;
+  onSave?: () => void;
+  isSaving?: boolean;
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
@@ -189,6 +194,7 @@ export function MealAnalysisSummary({
   const mealMeta = MEAL_TYPE_META[form.meal_type];
   const MealIcon = mealMeta.icon;
   const ingredients = form.ingredients.filter((item) => item.name.trim());
+  const summary = formatMealMacrosSummary(form.macros);
 
   const handleRefine = () => {
     const trimmed = specification.trim();
@@ -200,7 +206,38 @@ export function MealAnalysisSummary({
     <div className="space-y-4">
       {imageUrl && (
         <div className="overflow-hidden rounded-2xl border border-border bg-secondary/20">
-          <img src={imageUrl} alt={platform.mealLog.mealPreview} className="aspect-[4/3] w-full object-cover" />
+          <img
+            src={imageUrl}
+            alt={platform.mealLog.mealPreview}
+            className="mx-auto h-auto max-h-[min(60vh,28rem)] w-full object-contain"
+          />
+        </div>
+      )}
+
+      {(summary || onSave) && (
+        <div className="flex items-center gap-2">
+          {summary ? (
+            <p className="min-w-0 flex-1 text-xs text-muted-foreground">{summary}</p>
+          ) : (
+            <span className="min-w-0 flex-1" />
+          )}
+          {onSave ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 shrink-0 gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/15 px-2.5 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300"
+              onClick={onSave}
+              disabled={isSaving || isRefining}
+            >
+              {isSaving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              {platform.common.save}
+            </Button>
+          ) : null}
         </div>
       )}
 
@@ -234,7 +271,7 @@ export function MealAnalysisSummary({
                 size="icon"
                 className="h-9 w-9 rounded-xl"
                 onClick={() => setIsEditingWithAi((value) => !value)}
-                disabled={isRefining}
+                disabled={isRefining || isSaving}
                 aria-label={platform.common.edit}
                 aria-pressed={isEditingWithAi}
               >

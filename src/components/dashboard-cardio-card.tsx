@@ -314,41 +314,40 @@ export function DashboardCardioCard({
     const showStart = Boolean(activeCardio && !activeCompleted && !readOnly);
 
     return (
-      <div className="flex h-full min-w-0 flex-col">
-        <DashboardThemedShell
-          id="dashboard-cardio"
-          theme="cardio"
-          className={cn(dashboard.pairTile, "relative isolate")}
-        >
-          <DashboardCardNavLink
-            href="/dashboard/workout/cardio"
-            ariaLabel={platform.cardio.title}
-          />
-          <DashboardCardNavBody className="flex h-full flex-col">
-            <div className="flex h-7 shrink-0 items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <HeartPulse className="h-5 w-5 shrink-0 text-orange-600 dark:text-orange-300" />
-                <p className="truncate text-sm font-black">{platform.cardio.title}</p>
-              </div>
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center">
-                {scheduledList.length > 0 ? (
-                  <DashboardStatusIcon
-                    status={dashboardCompletionStatus(
-                      allCompleted,
-                      isDayEnded(dateKey)
-                    )}
-                    aria-label={
-                      allCompleted
-                        ? platform.aria.completed
-                        : platform.common.incomplete
-                    }
-                  />
-                ) : null}
-              </div>
+      <DashboardThemedShell
+        id="dashboard-cardio"
+        theme="cardio"
+        className={cn(dashboard.pairTile, "relative isolate")}
+      >
+        <DashboardCardNavLink
+          href="/dashboard/workout/cardio"
+          ariaLabel={platform.cardio.title}
+        />
+        <DashboardCardNavBody className="flex flex-1 flex-col">
+          <div className="flex h-7 shrink-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <HeartPulse className="h-5 w-5 shrink-0 text-orange-600 dark:text-orange-300" />
+              <p className="truncate text-sm font-black">{platform.cardio.title}</p>
             </div>
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center">
+              {scheduledList.length > 0 ? (
+                <DashboardStatusIcon
+                  status={dashboardCompletionStatus(
+                    allCompleted,
+                    isDayEnded(dateKey)
+                  )}
+                  aria-label={
+                    allCompleted
+                      ? platform.aria.completed
+                      : platform.common.incomplete
+                  }
+                />
+              ) : null}
+            </div>
+          </div>
 
-            {scheduledList.length > 0 ? (
-              <div className="flex flex-1 flex-col justify-center gap-1.5 py-1">
+          {scheduledList.length > 0 ? (
+            <div className="flex flex-1 flex-col justify-center gap-1.5 py-1">
                 <div
                   className={cn(
                     "relative flex items-center gap-0.5",
@@ -535,7 +534,6 @@ export function DashboardCardioCard({
             </div>
           </DashboardCardNavBody>
         </DashboardThemedShell>
-      </div>
     );
   }
 

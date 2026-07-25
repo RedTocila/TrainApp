@@ -22,6 +22,8 @@ export function MealPhotoLogStep({
   onPhotoDataUrlChange,
   confidence,
   onConfidenceChange,
+  onSave,
+  isSaving = false,
 }: {
   form: MealFormData;
   onFormChange: (form: MealFormData) => void;
@@ -30,6 +32,8 @@ export function MealPhotoLogStep({
   onPhotoDataUrlChange?: (dataUrl: string | null) => void;
   confidence: number | null;
   onConfidenceChange: (value: number | null) => void;
+  onSave?: () => void;
+  isSaving?: boolean;
 }) {
   const platform = usePlatformCopy();
   const [phase, setPhase] = useState<PhotoPhase>("capture");
@@ -157,6 +161,8 @@ export function MealPhotoLogStep({
           imageUrl={previewUrl}
           onRefineWithSpecification={handleRefineWithSpecification}
           isRefining={isPending}
+          onSave={onSave}
+          isSaving={isSaving}
         />
       </div>
     );
@@ -177,11 +183,13 @@ export function MealPhotoLogStep({
       )}
 
       {previewUrl ? (
-        <img
-          src={previewUrl}
-          alt={platform.mealLog.mealPreview}
-          className="mx-auto max-h-52 w-full rounded-xl border border-border object-cover"
-        />
+        <div className="overflow-hidden rounded-xl border border-border bg-secondary/30">
+          <img
+            src={previewUrl}
+            alt={platform.mealLog.mealPreview}
+            className="mx-auto h-auto max-h-[min(60vh,28rem)] w-full object-contain"
+          />
+        </div>
       ) : phase !== "compressing" ? (
         <ImageSourceButtons
           layout="zone"
