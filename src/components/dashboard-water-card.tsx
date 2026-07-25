@@ -133,9 +133,8 @@ export function DashboardWaterCard({
   const addButtons = (
     <div
       className={cn(
-        "flex gap-1.5",
         dashboardInteractive,
-        compact ? "shrink-0 pt-2" : "mt-4"
+        compact ? dashboard.pairFooter : "mt-4 flex gap-1.5"
       )}
     >
       {[250, 500].map((amount) => (
@@ -146,7 +145,7 @@ export function DashboardWaterCard({
           className={cn(
             dashboard.chipButton,
             compact
-              ? "px-2 py-1.5 text-[11px] hover:border-cyan-500/40 hover:bg-cyan-500/10"
+              ? "h-8 px-2 py-0 text-[11px] hover:border-cyan-500/40 hover:bg-cyan-500/10"
               : "hover:border-cyan-500/40 hover:bg-cyan-500/10"
           )}
         >
@@ -204,7 +203,7 @@ export function DashboardWaterCard({
 
   if (compact) {
     return (
-      <div className="min-w-0">
+      <div className="flex h-full min-w-0 flex-col">
         <DashboardThemedShell
           id="dashboard-water"
           theme="water"
@@ -214,17 +213,21 @@ export function DashboardWaterCard({
             href={DASHBOARD_DAY_NUTRITION_PATH}
             ariaLabel={platform.nutrition.water}
           />
-          <DashboardCardNavBody className="flex flex-col">
+          <DashboardCardNavBody className="flex h-full flex-col">
             <div className="shrink-0">{titleRow("text-sm")}</div>
-            <div className="flex flex-col items-center justify-center py-2">
+            <div className="flex flex-1 flex-col items-center justify-center py-2">
               {waterVisual(72)}
-              {!waterCompleted && remaining > 0 && (
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  {Math.round(remaining)} ml left
-                </p>
-              )}
+              <p className={dashboard.pairCaption}>
+                {!waterCompleted && remaining > 0
+                  ? `${Math.round(remaining)} ml left`
+                  : "\u00A0"}
+              </p>
             </div>
-            {readOnly ? null : addButtons}
+            {readOnly ? (
+              <div className={dashboard.pairFooter} aria-hidden />
+            ) : (
+              addButtons
+            )}
           </DashboardCardNavBody>
         </DashboardThemedShell>
         {goalDialog}

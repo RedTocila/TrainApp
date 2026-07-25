@@ -311,8 +311,10 @@ export function DashboardCardioCard({
     : platform.cardio.startCardio;
 
   if (compact) {
+    const showStart = Boolean(activeCardio && !activeCompleted && !readOnly);
+
     return (
-      <div className="min-w-0">
+      <div className="flex h-full min-w-0 flex-col">
         <DashboardThemedShell
           id="dashboard-cardio"
           theme="cardio"
@@ -322,29 +324,31 @@ export function DashboardCardioCard({
             href="/dashboard/workout/cardio"
             ariaLabel={platform.cardio.title}
           />
-          <DashboardCardNavBody className="flex flex-col">
-            <div className="flex shrink-0 items-center justify-between gap-2">
+          <DashboardCardNavBody className="flex h-full flex-col">
+            <div className="flex h-7 shrink-0 items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
                 <HeartPulse className="h-5 w-5 shrink-0 text-orange-600 dark:text-orange-300" />
                 <p className="truncate text-sm font-black">{platform.cardio.title}</p>
               </div>
-              {scheduledList.length > 0 ? (
-                <DashboardStatusIcon
-                  status={dashboardCompletionStatus(
-                    allCompleted,
-                    isDayEnded(dateKey)
-                  )}
-                  aria-label={
-                    allCompleted
-                      ? platform.aria.completed
-                      : platform.common.incomplete
-                  }
-                />
-              ) : null}
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center">
+                {scheduledList.length > 0 ? (
+                  <DashboardStatusIcon
+                    status={dashboardCompletionStatus(
+                      allCompleted,
+                      isDayEnded(dateKey)
+                    )}
+                    aria-label={
+                      allCompleted
+                        ? platform.aria.completed
+                        : platform.common.incomplete
+                    }
+                  />
+                ) : null}
+              </div>
             </div>
 
             {scheduledList.length > 0 ? (
-              <div className="flex flex-col justify-center gap-1.5 py-1">
+              <div className="flex flex-1 flex-col justify-center gap-1.5 py-1">
                 <div
                   className={cn(
                     "relative flex items-center gap-0.5",
@@ -427,17 +431,23 @@ export function DashboardCardioCard({
                           </div>
                           <p
                             className={cn(
-                              "line-clamp-2 max-w-full px-1 text-center text-xs font-semibold leading-snug sm:text-sm",
+                              "line-clamp-2 min-h-[2.25rem] max-w-full px-1 text-center text-xs font-semibold leading-snug sm:min-h-[2.5rem] sm:text-sm",
                               completed && "text-muted-foreground line-through"
                             )}
                           >
                             {localizeCardioTitle(cardio.title, platform.cardio.types)}
                           </p>
-                          {badge && (
-                            <Badge variant="secondary" className="text-[10px]">
-                              {badge}
-                            </Badge>
-                          )}
+                          <div className="flex min-h-[1.25rem] items-center justify-center">
+                            {badge ? (
+                              <Badge variant="secondary" className="text-[10px]">
+                                {badge}
+                              </Badge>
+                            ) : (
+                              <span className="invisible text-[10px]" aria-hidden>
+                                —
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -488,23 +498,36 @@ export function DashboardCardioCard({
                 ) : null}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center gap-2 py-2 text-center">
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 py-2 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/15 sm:h-[4.25rem] sm:w-[4.25rem] dark:bg-orange-500/20">
                   <HeartPulse className="h-8 w-8 text-orange-600 sm:h-9 sm:w-9 dark:text-orange-300" />
                 </div>
-                <p className="text-xs text-muted-foreground">{coachLabels.noCardioToday}</p>
+                <p className="min-h-[2.25rem] text-xs leading-snug text-muted-foreground sm:min-h-[2.5rem]">
+                  {coachLabels.noCardioToday}
+                </p>
+                <div className="min-h-[1.25rem]" aria-hidden />
               </div>
             )}
 
-            <div className={cn("flex shrink-0 gap-1.5 pt-2", dashboardInteractive)}>
-              <Link href="/dashboard/workout/cardio" className="min-w-0 flex-1">
-                <Button size="sm" variant="outline" className="h-8 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-2 text-[11px] hover:bg-orange-500/15">
+            <div className={cn(dashboard.pairFooter, dashboardInteractive)}>
+              <Link
+                href="/dashboard/workout/cardio"
+                className={cn("min-w-0", showStart ? "flex-1" : "w-full")}
+              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-2 text-[11px] hover:bg-orange-500/15"
+                >
                   {platform.cardio.myCardio}
                 </Button>
               </Link>
-              {activeCardio && !activeCompleted && !readOnly ? (
+              {showStart ? (
                 <Link href={sessionHref} className="min-w-0 flex-1">
-                  <Button size="sm" className="h-8 w-full rounded-full px-2 text-[11px]">
+                  <Button
+                    size="sm"
+                    className="h-8 w-full rounded-full px-2 text-[11px]"
+                  >
                     {startLabel}
                   </Button>
                 </Link>

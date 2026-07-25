@@ -110,7 +110,7 @@ export function DashboardHomeView({
         schedule={schedule}
       />
 
-      <div className="relative z-0 grid shrink-0 grid-cols-2 items-start gap-3 sm:gap-3.5 md:gap-4">
+      <div className="relative z-0 grid shrink-0 grid-cols-2 items-stretch gap-3 sm:gap-3.5 md:gap-4">
         <DashboardWaterCard
           clientId={clientId}
           initialWaterMl={initialWaterMl}
