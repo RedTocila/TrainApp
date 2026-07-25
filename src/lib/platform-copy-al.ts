@@ -88,7 +88,8 @@ export const platformCopyAl = {
         ? "1 ditë e mbetur në provën falas"
         : `${days} ditë të mbetura në provën falas`,
     freeTrialBlurb:
-      "Je në një provë falas 7-ditore të AI Pro — stërvitje, ushqim dhe Coach AI i plotë. Klasat live dhe sfidat kërkojnë Elite.",
+      "Je në një provë falas 7-ditore të AI Pro — stërvitje, ushqim dhe Coach AI i plotë. Klasat live dhe sfidat kërkojnë Elite. Karta ngarkohet kur mbaron prova nëse nuk e anulon.",
+    trialCancelHint: "Anulo kur të duash nga këtu për të shmangur pagesën.",
     accessUntil: (date: string) =>
       `Akses deri më ${date}, pastaj kthehet në modalitetin falas`,
     renewsExpires: (date: string) => `Rinovohet / skadon ${date}`,
@@ -931,10 +932,12 @@ export const platformCopyAl = {
     step: "Hapi 3 — Zgjidh paketën",
     choosePlan: "Zgjidh planin tënd",
     onboardingBlurb:
-      "Abonohu tani ose anashkalo dhe eksploro applikacionin — mund të përmirësosh planin kur të duash.",
+      "Fillo një provë falas 7-ditore AI Pro me kartë (pagesa pas provës), abonohu tani, ose anashkalo dhe eksploro fillimisht.",
     upgradeBlurb:
       "Tre nivele që rriten me ty — nga ndjekja e strukturuar te coach AI dhe komuniteti Elite.",
     skipForNow: "Anashkalo për tani",
+    startFreeTrial: "Fillo provën falas 7-ditore",
+    trialCardRequired: "Shto kartën për të filluar — €0 sot. Anulo kur të duash para ditës 7.",
     monthly: "Mujore",
     annual: "Vjetore",
     perMonth: "muaj",
@@ -960,6 +963,18 @@ export const platformCopyAl = {
     errorTitle: "Pothuajse",
     goDashboard: "Shko te paneli",
     backPricing: "Zgjidh një plan tjetër",
+  },
+  trialCheckout: {
+    title: "Fillo provën falas AI Pro",
+    subtitle: (days: number) =>
+      `Shto një kartë për të hapur ${days} ditë falas. Sot nuk ngarkohesh.`,
+    chargeLater: (price: string, per: string, days: number) =>
+      `${price}/${per} fillon pas ${days} ditëve nëse nuk e anulon.`,
+    cancelAnytime: "Anulo kur të duash gjatë provës — pa pagesë.",
+    secureBlurb: "Detajet e kartës sigurohen nga PokPay. Ne nuk ruajmë numrin e plotë.",
+    submitCard: "Fillo provën falas",
+    starting: "Po nisim provën…",
+    todayTotal: "€0 sot",
   },
   bmi: {
     title: "BMI",
@@ -1056,7 +1071,7 @@ export const platformCopyAl = {
     aiPro: {
       name: "RUTINA AI Pro",
       tagline:
-        "Gjithçka në Basic, plus coach-i yt AI i fitnesit që përshtatet me progresin tënd. Përfshin 7 ditë provë falas.",
+        "Gjithçka në Basic, plus coach-i yt AI. Fillo falas për 7 ditë me kartë — anulo kur të duash.",
       badge: "7 ditë provë falas",
       includesFrom: "RUTINA Basic",
       features: [

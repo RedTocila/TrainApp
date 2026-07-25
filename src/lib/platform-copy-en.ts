@@ -86,7 +86,8 @@ export const platformCopyEn = {
     freeTrialDaysLeft: (days: number) =>
       days === 1 ? "1 day left on free trial" : `${days} days left on free trial`,
     freeTrialBlurb:
-      "You're on a 7-day free trial of AI Pro — workouts, nutrition, and full AI Coach. Live classes and challenges need Elite.",
+      "You're on a 7-day free trial of AI Pro — workouts, nutrition, and full AI Coach. Live classes and challenges need Elite. Your card is charged when the trial ends unless you cancel.",
+    trialCancelHint: "Cancel anytime from here to avoid being charged.",
     accessUntil: (date: string) => `Access until ${date}, then back to free preview`,
     renewsExpires: (date: string) => `Renews / expires ${date}`,
     trialEnds: (date: string) => `Trial ends ${date}`,
@@ -917,10 +918,12 @@ export const platformCopyEn = {
     step: "Step 3 — Pick a package",
     choosePlan: "Choose your plan",
     onboardingBlurb:
-      "Subscribe now or skip and explore the app first — you can upgrade anytime.",
+      "Start a 7-day AI Pro free trial with your card (charged after the trial), subscribe now, or skip and explore first.",
     upgradeBlurb:
       "Three tiers built to grow with you — from structured tracking to AI coaching and elite community access.",
     skipForNow: "Skip for now",
+    startFreeTrial: "Start 7-day free trial",
+    trialCardRequired: "Add a card to start — €0 today. Cancel anytime before day 7.",
     monthly: "Monthly",
     annual: "Annual",
     perMonth: "mo",
@@ -946,6 +949,18 @@ export const platformCopyEn = {
     errorTitle: "Almost there",
     goDashboard: "Hit the dashboard",
     backPricing: "Pick another plan",
+  },
+  trialCheckout: {
+    title: "Start your AI Pro free trial",
+    subtitle: (days: number) =>
+      `Add a card to unlock ${days} days free. You won't be charged today.`,
+    chargeLater: (price: string, per: string, days: number) =>
+      `${price}/${per} starts after ${days} days if you don't cancel.`,
+    cancelAnytime: "Cancel anytime during the trial — no charge.",
+    secureBlurb: "Card details are secured by PokPay. We never store your full card number.",
+    submitCard: "Start free trial",
+    starting: "Starting your trial…",
+    todayTotal: "€0 today",
   },
   bmi: {
     title: "BMI",
@@ -1042,7 +1057,7 @@ export const platformCopyEn = {
     aiPro: {
       name: "RUTINA AI Pro",
       tagline:
-        "Everything in Basic, plus your own AI fitness coach that adapts to your progress. Includes a 7-day free trial.",
+        "Everything in Basic, plus your own AI fitness coach. Start free for 7 days with a card — cancel anytime.",
       badge: "7-day free trial",
       includesFrom: "RUTINA Basic",
       features: [

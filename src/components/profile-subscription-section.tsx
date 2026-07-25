@@ -79,6 +79,8 @@ export function ProfileSubscriptionSection({
               <p className="text-sm text-muted-foreground">
                 {platform.subscription.freeTrialBlurb}
                 {expires ? ` ${platform.subscription.trialEnds(expires)}` : null}
+                {" "}
+                {platform.subscription.trialCancelHint}
               </p>
             ) : expires ? (
               <p className="text-sm text-muted-foreground">
@@ -102,7 +104,7 @@ export function ProfileSubscriptionSection({
                 ? coachLabels.levelUp
                 : coachLabels.pickAPlan}
           </Link>
-          {plan && isActive && !onTrial ? <ProfileSubscriptionActions /> : null}
+          {plan && (isActive || onTrial) ? <ProfileSubscriptionActions /> : null}
         </div>
       </CardContent>
     </Card>

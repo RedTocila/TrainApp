@@ -236,6 +236,116 @@ export async function getSdkOrder(orderId: string): Promise<PokPaySdkOrder> {
   return (data.sdkOrder ?? data) as PokPaySdkOrder;
 }
 
+export type PokPayAddCardPayload = {
+  csFlexCard: {
+    jwe: string;
+    expirationYear?: string;
+    expirationMonth?: string;
+  };
+  billingInfo: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    countryCode: string;
+    administrativeArea: string;
+    locality: string;
+    address1: string;
+    postalCode: string;
+    phoneNumber: string;
+  };
+  securityCode: string;
+};
+
+export type PokPayTokenizedCard = {
+  id: string;
+  last4?: string | null;
+  brand?: string | null;
+};
+
+/** Exchange AddCardForm / encryptCard payload for a permanent vaulted card id. */
+export async function tokenizeGuestCard(
+  payload: PokPayAddCardPayload
+): Promise<PokPayTokenizedCard> {
+  const accessToken = await pokpayLogin();
+  const data = await pokPayFetch<
+    | PokPayTokenizedCard
+    | { creditDebitCard?: PokPayTokenizedCard; card?: PokPayTokenizedCard; cardId?: string }
+  >("/credit-debit-cards/tokenize-guest-card", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      csFlexCard: payload.csFlexCard,
+      billingInfo: {
+        ...payload.billingInfo,
+        sameAsShipping: true,
+      },
+      securityCode: payload.securityCode,
+    }),
+  });
+
+  const card =
+    (data as { creditDebitCard?: PokPayTokenizedCard }).creditDebitCard ??
+    (data as { card?: PokPayTokenizedCard }).card ??
+    (typeof (data as { cardId?: string }).cardId === "string"
+      ? { id: (data as { cardId: string }).cardId }
+      : null) ??
+    (typeof (data as PokPayTokenizedCard).id === "string"
+      ? (data as PokPayTokenizedCard)
+      : null);
+
+  if (!card?.id) {
+    throw new Error("PokPay tokenize did not return a card id.");
+  }
+  return card;
+}
+
+export async function setupTokenized3ds(params: {
+  cardId: string;
+  sdkOrderId: string;
+}): Promise<{ payerAuthentication?: unknown }> {
+  const accessToken = await pokpayLogin();
+  return pokPayFetch<{ payerAuthentication?: unknown }>(
+    `/credit-debit-cards/${params.cardId}/setup-tokenized-3ds`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        sdkOrder: { id: params.sdkOrderId },
+      }),
+    }
+  );
+}
+
+/** Charge a previously vaulted card against an SDK order (server-side). */
+export async function guestConfirmSdkOrder(params: {
+  sdkOrderId: string;
+  cardId: string;
+  consumerAuthenticationInformation?: unknown;
+}): Promise<unknown> {
+  const accessToken = await pokpayLogin();
+  const body: Record<string, unknown> = {
+    creditCardId: params.cardId,
+  };
+  if (params.consumerAuthenticationInformation != null) {
+    body.consumerAuthenticationInformation = params.consumerAuthenticationInformation;
+  }
+
+  return pokPayFetch(`/sdk-orders/${params.sdkOrderId}/guest-confirm`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 export function isSdkOrderPaid(order: PokPaySdkOrder): boolean {
   if (order.capturedAmount != null && order.capturedAmount >= order.amount) {
     return true;

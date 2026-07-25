@@ -9,7 +9,6 @@ import { getAuthEmailRedirectUrl } from "@/lib/app-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatUserError, isEmailNotConfirmedError } from "@/lib/format-user-error";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
-import { buildFreeTrialGrant } from "@/lib/subscription";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type RegistrationInput = {
@@ -98,7 +97,6 @@ async function ensureProfileExists(
   const role =
     process.env.ADMIN_EMAIL && input.email === process.env.ADMIN_EMAIL ? "admin" : "client";
 
-  const trialGrant = role === "client" ? buildFreeTrialGrant() : null;
   const referralCode = Math.random().toString(36).slice(2, 10);
 
   const { error } = await supabase.from("profiles").insert({
@@ -106,7 +104,7 @@ async function ensureProfileExists(
     full_name: input.fullName || input.email.split("@")[0] || "Member",
     role,
     referral_code: referralCode,
-    ...(trialGrant ?? {}),
+    subscription_status: "inactive",
   });
 
   if (error && !error.message.toLowerCase().includes("duplicate")) {
@@ -187,23 +185,7 @@ async function finalizeNewUserProfile(
     }
   }
 
-  // Ensure new clients get the AI Pro free trial (trigger + fallback insert paths).
-  if (!(process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL)) {
-    const { data: subRow } = await supabase
-      .from("profiles")
-      .select("role, trial_started_at, subscription_status, subscription_plan")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (
-      subRow?.role === "client" &&
-      !subRow.trial_started_at &&
-      (!subRow.subscription_status || subRow.subscription_status === "inactive") &&
-      !subRow.subscription_plan
-    ) {
-      await supabase.from("profiles").update(buildFreeTrialGrant()).eq("id", userId);
-    }
-  }
+  // AI Pro free trial is card-backed and starts from pricing — not auto-granted here.
 
   const { data: profile } = await supabase
     .from("profiles")

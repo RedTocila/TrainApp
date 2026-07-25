@@ -60,7 +60,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     id: "ai",
     name: PLATFORM_AI_PRO_NAME,
     tagline:
-      "Everything in Basic, plus your own AI fitness coach that adapts to your progress. Includes a 7-day free trial.",
+      "Everything in Basic, plus your own AI fitness coach. Start free for 7 days with a card — cancel anytime.",
     monthly: { amountEurCents: 2000 },
     annual: { amountEurCents: 20_000 },
     highlighted: true,

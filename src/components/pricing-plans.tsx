@@ -146,12 +146,15 @@ export function PricingPlans({
   checkoutBasePath = "/dashboard/checkout",
   currentPlan,
   subscribed,
+  trialEligible = false,
 }: {
   interval: BillingInterval;
   onIntervalChange: (interval: BillingInterval) => void;
   checkoutBasePath?: string;
   currentPlan?: string | null;
   subscribed?: boolean;
+  /** User can start the card-backed AI Pro free trial. */
+  trialEligible?: boolean;
 }) {
   const locale = useLocale();
   const platform = usePlatformCopy();
@@ -163,11 +166,25 @@ export function PricingPlans({
     if (subscribed && currentPlan && plans.some((p) => p.id === currentPlan)) {
       return currentPlan;
     }
+    if (trialEligible) {
+      return plans.find((p) => p.id === "ai")?.id ?? plans.find((p) => p.highlighted)?.id ?? plans[0].id;
+    }
     return plans.find((p) => p.highlighted)?.id ?? plans[0].id;
   });
 
   const selectedPlan = plans.find((p) => p.id === selectedId) ?? plans[0];
   const selectedIsCurrent = Boolean(subscribed && currentPlan === selectedPlan.id);
+  const startTrial = trialEligible && selectedPlan.id === "ai";
+  const checkoutHref = startTrial
+    ? `/dashboard/checkout/trial?interval=${interval}`
+    : `${checkoutBasePath}?plan=${selectedPlan.id}&interval=${interval}`;
+  const ctaLabel = selectedIsCurrent
+    ? cardLabels.currentPlan
+    : startTrial
+      ? pricing.startFreeTrial
+      : subscribed
+        ? cardLabels.switchPlan
+        : cardLabels.subscribe;
 
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
@@ -212,15 +229,15 @@ export function PricingPlans({
           {cardLabels.currentPlan}
         </Button>
       ) : (
-        <Link
-          href={`${checkoutBasePath}?plan=${selectedPlan.id}&interval=${interval}`}
-          className="block"
-        >
+        <Link href={checkoutHref} className="block">
           <Button className="w-full shadow-md shadow-primary/25" size="lg">
-            {subscribed ? cardLabels.switchPlan : cardLabels.subscribe}
+            {ctaLabel}
           </Button>
         </Link>
       )}
+      {startTrial ? (
+        <p className="text-center text-xs text-muted-foreground">{pricing.trialCardRequired}</p>
+      ) : null}
     </div>
   );
 }

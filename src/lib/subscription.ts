@@ -124,18 +124,30 @@ export function addBillingPeriod(from: Date, interval: "monthly" | "annual"): Da
 export type FreeTrialGrant = {
   subscription_plan: typeof FREE_TRIAL_PLAN_ID;
   subscription_status: "trialing";
-  subscription_interval: null;
+  subscription_interval: "monthly" | "annual";
   subscription_expires_at: string;
   trial_started_at: string;
 };
 
-export function buildFreeTrialGrant(from: Date = new Date()): FreeTrialGrant {
+export function buildFreeTrialGrant(
+  from: Date = new Date(),
+  interval: "monthly" | "annual" = "monthly"
+): FreeTrialGrant {
   const started = from.toISOString();
   return {
     subscription_plan: FREE_TRIAL_PLAN_ID,
     subscription_status: "trialing",
-    subscription_interval: null,
+    subscription_interval: interval,
     subscription_expires_at: addFreeTrialPeriod(from).toISOString(),
     trial_started_at: started,
   };
+}
+
+/** True when the user has never started an AI Pro card trial. */
+export function isEligibleForAiProTrial(
+  profile: Pick<Profile, "role" | "trial_started_at" | "subscription_status" | "subscription_expires_at">
+): boolean {
+  if (profile.role === "admin") return false;
+  if (profile.trial_started_at) return false;
+  return !isSubscriptionActive(profile);
 }

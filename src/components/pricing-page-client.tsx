@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 import type { BillingInterval } from "@/lib/subscription-plans";
 import type { Profile } from "@/lib/types";
-import { hasPaidAccess } from "@/lib/subscription";
+import { hasPaidAccess, isEligibleForAiProTrial } from "@/lib/subscription";
 
 export function PricingPageClient({
   profile,
@@ -23,6 +23,7 @@ export function PricingPageClient({
   const platform = usePlatformCopy();
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const subscribed = hasPaidAccess(profile);
+  const trialEligible = isEligibleForAiProTrial(profile);
 
   // After email confirmation, finish profile setup (intake draft, phone).
   useEffect(() => {
@@ -85,6 +86,7 @@ export function PricingPageClient({
         onIntervalChange={setInterval}
         currentPlan={profile.subscription_plan}
         subscribed={subscribed}
+        trialEligible={trialEligible}
       />
       {onboarding && (
         <div className="text-center">

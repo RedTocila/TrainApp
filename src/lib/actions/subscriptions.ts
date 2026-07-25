@@ -348,7 +348,7 @@ export async function cancelSubscription(): Promise<{ error: string } | { succes
     return { error: "No active subscription to cancel." };
   }
 
-  // Ending a free trial early returns the user to free preview.
+  // Ending a free trial early returns the user to free preview and skips the later charge.
   if (profile.subscription_status === "trialing") {
     const { error } = await admin
       .from("profiles")
@@ -357,6 +357,7 @@ export async function cancelSubscription(): Promise<{ error: string } | { succes
         subscription_plan: null,
         subscription_interval: null,
         subscription_expires_at: new Date().toISOString(),
+        pokpay_card_id: null,
       })
       .eq("id", user.id);
 
