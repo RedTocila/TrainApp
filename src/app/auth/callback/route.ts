@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/dashboard/pricing?onboarding=1";
+  const nextPath = next.startsWith("/") ? next : `/${next}`;
 
   if (!supabase) {
     return NextResponse.redirect(`${origin}/login?error=config`);
@@ -15,9 +16,10 @@ export async function GET(request: NextRequest) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(`${origin}${nextPath}`);
     }
   }
 
+  // Expired / already-used link — send them to sign in so the chain can continue.
   return NextResponse.redirect(`${origin}/login?error=auth`);
 }

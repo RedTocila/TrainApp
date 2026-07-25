@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { signIn } from "@/lib/actions/auth";
 import { BrandWordmark } from "@/components/app-logo";
@@ -12,9 +13,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function LoginForm({ authError }: { authError?: string }) {
+  const searchParams = useSearchParams();
+  const emailPrefill = searchParams.get("email")?.trim() ?? "";
   const [error, setError] = useState<string | null>(() => {
     if (authError === "auth") {
-      return "That link expired or did not work. Sign in below with your email and password.";
+      return "That link expired or did not work. Sign in below — you can still open the app with your email and password.";
     }
     if (authError === "config") {
       return "Sign-in is temporarily unavailable. Please try again later.";
@@ -51,7 +54,14 @@ export function LoginForm({ authError }: { authError?: string }) {
         <form action={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required placeholder="you@email.com" />
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              placeholder="you@email.com"
+              defaultValue={emailPrefill}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>

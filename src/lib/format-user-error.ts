@@ -173,7 +173,7 @@ function humanizeErrorCode(code: string): string {
     case "user_banned":
       return "This account cannot be created. Contact support if you need help.";
     case "email_not_confirmed":
-      return "Confirm your email before signing in. Check your inbox for the verification link.";
+      return "You can open the app now — verify your email anytime from the link we sent.";
     case "invalid_credentials":
       return "Wrong email or password. If you just signed up, wait a minute and try again.";
     case "not_found_error":

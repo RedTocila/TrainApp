@@ -1,9 +1,11 @@
-"use server";
-
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile } from "@/lib/types";
-import { subscriptionLabel } from "@/lib/subscription";
-import { hasPaidAccess } from "@/lib/subscription";
+import {
+  freeTrialDaysRemaining,
+  hasPaidAccess,
+  isOnFreeTrial,
+  subscriptionLabel,
+} from "@/lib/subscription";
 
 export type RevenuePeriod = "1d" | "7d" | "30d" | "90d" | "all";
 
@@ -50,6 +52,8 @@ export async function getAdminRevenue(period: RevenuePeriod = "30d") {
 export interface AdminClientRow extends Profile {
   email?: string;
   activeSubscription: boolean;
+  onFreeTrial: boolean;
+  trialDaysLeft: number | null;
   subscriptionLabel: string;
   subscriptionExpiresAt: string | null;
 }
@@ -64,12 +68,17 @@ export async function getAdminClientsWithSubscriptions(): Promise<AdminClientRow
 
   return (clientsResult ?? []).map((client) => {
     const profile = client as Profile;
+    const onTrial = isOnFreeTrial(profile);
+    const trialDaysLeft = onTrial ? freeTrialDaysRemaining(profile) : null;
     return {
       ...profile,
       activeSubscription: hasPaidAccess(profile),
+      onFreeTrial: onTrial,
+      trialDaysLeft,
       subscriptionLabel: subscriptionLabel(
         profile.subscription_plan ?? null,
-        profile.subscription_interval ?? null
+        profile.subscription_interval ?? null,
+        onTrial ? { trial: true, trialDaysLeft } : undefined
       ),
       subscriptionExpiresAt: profile.subscription_expires_at ?? null,
     };
@@ -83,9 +92,16 @@ export async function getAdminDashboardStats() {
     getAdminRevenue("all"),
   ]);
 
+  const freeTrialCount = clients.filter((c) => c.onFreeTrial).length;
+  const paidSubscribers = clients.filter(
+    (c) => c.activeSubscription && !c.onFreeTrial
+  ).length;
+
   return {
     clientCount: clients.length,
     activeSubscribers: clients.filter((c) => c.activeSubscription).length,
+    paidSubscribers,
+    freeTrialCount,
     revenue30d,
     revenueAll,
   };

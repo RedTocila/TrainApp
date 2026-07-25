@@ -931,9 +931,10 @@ export const platformCopyAl = {
     step: "Hapi 3 — Zgjidh paketën",
     choosePlan: "Zgjidh planin tënd",
     onboardingBlurb:
-      "Fillo me ndjekje të strukturuar ose zhblloko coach-in AI — abonohu tani ose eksploro fillimisht.",
+      "Abonohu tani ose anashkalo dhe eksploro applikacionin — mund të përmirësosh planin kur të duash.",
     upgradeBlurb:
       "Tre nivele që rriten me ty — nga ndjekja e strukturuar te coach AI dhe komuniteti Elite.",
+    skipForNow: "Anashkalo për tani",
     monthly: "Mujore",
     annual: "Vjetore",
     perMonth: "muaj",

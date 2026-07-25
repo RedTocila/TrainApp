@@ -85,14 +85,15 @@ SUPABASE_DB_PASSWORD=your-db-password
 
 **Authentication → Providers → Email**
 - Enable Email provider
-- For dev: disable "Confirm email" so login works immediately
+- Confirm email can stay enabled — the app unlocks access immediately and lets users verify later
 
 **Authentication → URL Configuration**
-- Site URL: `https://rutina.al` (production) or `http://localhost:3000` (dev)
-- Redirect URLs:
-  - `http://localhost:3000/auth/callback`
+- Site URL: **`https://rutina.al`** (use production even for email tests — phones cannot open localhost)
+- Redirect URLs (allowlist both):
   - `https://rutina.al/auth/callback`
   - `https://www.rutina.al/auth/callback`
+  - `http://localhost:3000/auth/callback` (local browser only)
+- Auth emails use `APP_URL` / `getAuthEmailRedirectUrl()` and **never** embed localhost
 
 ## Branded confirmation emails (Resend)
 

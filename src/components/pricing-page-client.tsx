@@ -1,9 +1,9 @@
 "use client";
-import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { usePlatformCopy } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import { PricingBackButton } from "@/components/pricing-back-button";
 import { completeRegistration } from "@/lib/actions/auth";
 import { PricingPlans } from "@/components/pricing-plans";
@@ -20,7 +20,6 @@ export function PricingPageClient({
   profile: Profile;
   onboarding?: boolean;
 }) {
-  const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const subscribed = hasPaidAccess(profile);
@@ -41,14 +40,35 @@ export function PricingPageClient({
   }, [onboarding, profile.full_name, profile.phone]);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <Suspense
-        fallback={
-          <div className="h-8 w-16 animate-pulse rounded-md bg-muted/50" aria-hidden />
-        }
-      >
-        <PricingBackButton />
-      </Suspense>
+    <div className="relative mx-auto max-w-6xl space-y-8">
+      {onboarding ? (
+        <div className="flex items-center justify-between gap-3">
+          <Suspense
+            fallback={
+              <div className="h-8 w-16 animate-pulse rounded-md bg-muted/50" aria-hidden />
+            }
+          >
+            <PricingBackButton />
+          </Suspense>
+          <Link href="/dashboard" aria-label={platform.pricing.skipForNow}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 rounded-lg border border-border bg-secondary/40"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <Suspense
+          fallback={
+            <div className="h-8 w-16 animate-pulse rounded-md bg-muted/50" aria-hidden />
+          }
+        >
+          <PricingBackButton />
+        </Suspense>
+      )}
       <div className="space-y-2 text-center">
         {onboarding && (
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -66,11 +86,11 @@ export function PricingPageClient({
         currentPlan={profile.subscription_plan}
         subscribed={subscribed}
       />
-      {onboarding && !subscribed && (
+      {onboarding && (
         <div className="text-center">
           <Link href="/dashboard">
-            <Button variant="ghost" className="gap-2 text-muted-foreground">
-              {coachLabels.skipForNow}
+            <Button variant="outline" className="gap-2">
+              {platform.pricing.skipForNow}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>

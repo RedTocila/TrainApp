@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { LoginForm } from "@/components/login-form";
 
 export default async function LoginPage({
@@ -9,7 +10,9 @@ export default async function LoginPage({
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <LoginForm authError={error} />
+      <Suspense fallback={<div className="h-80 w-full max-w-md animate-pulse rounded-xl bg-muted/40" />}>
+        <LoginForm authError={error} />
+      </Suspense>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { Mail, Sparkles } from "lucide-react";
 import {
   completePendingSignup,
   completeRegistration,
+  resumeExistingAccount,
   signInAfterRegistration,
   signUpAccount,
 } from "@/lib/actions/auth";
@@ -42,6 +43,7 @@ export function RegisterForm() {
   const [macroPreview, setMacroPreview] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
+  const [existingAccount, setExistingAccount] = useState<PendingSignup | null>(null);
   const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null);
   const [continuePending, setContinuePending] = useState(false);
   const [continueMessage, setContinueMessage] = useState<string | null>(null);
@@ -116,7 +118,39 @@ export function RegisterForm() {
         setContinueMessage(
           formatUserError(
             result?.error ?? "Unknown error",
-            "Email not confirmed yet. Open the link in your inbox, then try again."
+            "Could not continue yet. Try signing in with the same email and password."
+          )
+        );
+        return;
+      }
+
+      finishSignup(result.role);
+    } finally {
+      setContinuePending(false);
+    }
+  };
+
+  const handleResumeExisting = async () => {
+    if (!existingAccount) return;
+    setContinuePending(true);
+    setError(null);
+    setContinueMessage(null);
+
+    try {
+      const result = await resumeExistingAccount({
+        fullName: existingAccount.fullName,
+        email: existingAccount.email,
+        phone: existingAccount.phone,
+        password: existingAccount.password,
+        intakeJson: existingAccount.intakeJson,
+        referralCode: existingAccount.referralCode,
+      });
+
+      if (!result || "error" in result) {
+        setContinueMessage(
+          formatUserError(
+            result?.error ?? "Unknown error",
+            "Could not sign in. Use Sign in with your password, or reset it if needed."
           )
         );
         return;
@@ -134,6 +168,7 @@ export function RegisterForm() {
     setContinueMessage(null);
     setNeedsEmailConfirmation(false);
     setPendingSignup(null);
+    setExistingAccount(null);
 
     if (!acceptedTerms) {
       setError("Please accept the Terms of Service and Privacy Policy to continue.");
@@ -183,6 +218,12 @@ export function RegisterForm() {
 
       console.log("[RegisterForm] signUpAccount result", serverResult);
 
+      if ("existingAccount" in serverResult && serverResult.existingAccount) {
+        setExistingAccount({ ...registrationInput, password });
+        setError(serverResult.error ?? "This email is already registered.");
+        return;
+      }
+
       if ("error" in serverResult && serverResult.error) {
         if (isDirectSignupRejection(serverResult.error)) {
           setError(serverResult.error);
@@ -213,7 +254,16 @@ export function RegisterForm() {
         return;
       }
 
-      setError(signInResult.error);
+      // Access unlocked but client session missing — resume with password.
+      const resumed = await resumeExistingAccount({
+        ...registrationInput,
+        password,
+      });
+      if (!resumed || "error" in resumed) {
+        setError(signInResult.error ?? resumed?.error ?? "Could not open your account.");
+        return;
+      }
+      finishSignup(resumed.role);
     } catch (err) {
       console.error("[RegisterForm] unexpected signup error", err);
       setError(formatUserError(err, "Could not create account. Please try again."));
@@ -231,40 +281,71 @@ export function RegisterForm() {
           </div>
           <CardTitle className="text-2xl font-black">Check your email</CardTitle>
           <CardDescription>
-            We sent a confirmation link to{" "}
+            We sent a verification link to{" "}
             <span className="font-medium text-foreground">{pendingSignup.email}</span>.
-            Open it to activate your account, then continue here.
+            You can verify anytime — continue into the app now.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
           <p>Your questionnaire answers stay on this device until you finish setup.</p>
           {error && <p className="text-red-400">{error}</p>}
-          {continueMessage && (
-            <p
-              className={
-                continueMessage.toLowerCase().includes("not confirmed") ||
-                continueMessage.toLowerCase().includes("could not") ||
-                continueMessage.toLowerCase().includes("confirm")
-                  ? "text-red-400"
-                  : "text-green-400"
-              }
-            >
-              {continueMessage}
-            </p>
-          )}
+          {continueMessage && <p className="text-red-400">{continueMessage}</p>}
           <Button
             type="button"
             className="w-full"
             disabled={continuePending}
             onClick={() => void handleContinueAfterConfirm()}
           >
-            {continuePending ? "Checking…" : "I've confirmed — continue"}
+            {continuePending ? "Opening…" : "Continue to app"}
           </Button>
-          <Link href="/login">
+          <Link href={`/login?email=${encodeURIComponent(pendingSignup.email)}`}>
             <Button variant="outline" className="w-full">
               Sign in instead
             </Button>
           </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (existingAccount) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-black">Welcome back</CardTitle>
+          <CardDescription>
+            <span className="font-medium text-foreground">{existingAccount.email}</span> already
+            has an account. Continue where you left off — no need to register again.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
+          {error && <p className="text-red-400">{error}</p>}
+          {continueMessage && <p className="text-red-400">{continueMessage}</p>}
+          <Button
+            type="button"
+            className="w-full"
+            disabled={continuePending}
+            onClick={() => void handleResumeExisting()}
+          >
+            {continuePending ? "Opening…" : "Continue to app"}
+          </Button>
+          <Link href={`/login?email=${encodeURIComponent(existingAccount.email)}`}>
+            <Button variant="outline" className="w-full">
+              Sign in with password
+            </Button>
+          </Link>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            onClick={() => {
+              setExistingAccount(null);
+              setError(null);
+              setContinueMessage(null);
+            }}
+          >
+            Use a different email
+          </Button>
         </CardContent>
       </Card>
     );

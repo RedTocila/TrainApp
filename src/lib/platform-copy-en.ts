@@ -916,9 +916,11 @@ export const platformCopyEn = {
   pricing: {
     step: "Step 3 — Pick a package",
     choosePlan: "Choose your plan",
-    onboardingBlurb: "Start with structured tracking or unlock AI coaching — subscribe now or explore first.",
+    onboardingBlurb:
+      "Subscribe now or skip and explore the app first — you can upgrade anytime.",
     upgradeBlurb:
       "Three tiers built to grow with you — from structured tracking to AI coaching and elite community access.",
+    skipForNow: "Skip for now",
     monthly: "Monthly",
     annual: "Annual",
     perMonth: "mo",

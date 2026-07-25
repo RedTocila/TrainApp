@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/cached-profile";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
-import { getAppBaseUrl } from "@/lib/app-url";
+import { getAuthEmailRedirectUrl } from "@/lib/app-url";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { formatUserError, isEmailNotConfirmedError } from "@/lib/format-user-error";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 import { buildFreeTrialGrant } from "@/lib/subscription";
@@ -33,14 +34,54 @@ async function signInWithPasswordOnly(email: string, password: string) {
       return {
         error: formatUserError(
           error,
-          "Confirm your email before signing in. Check your inbox for the verification link."
+          "Confirm your email when you can — or tap continue below if you just signed up."
         ),
+        code: "email_not_confirmed" as const,
       };
     }
-    return { error: formatUserError(error, "Sign in failed. Check your email and password.") };
+    return {
+      error: formatUserError(error, "Sign in failed. Check your email and password."),
+      code: null as null,
+    };
   }
 
-  return { error: null as null };
+  return { error: null as null, code: null as null };
+}
+
+/** Mark email confirmed so the user can enter the app; they can still open the verify link later. */
+async function confirmEmailForAccess(userId: string): Promise<string | null> {
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.auth.admin.updateUserById(userId, {
+      email_confirm: true,
+    });
+    if (error) {
+      console.error("[confirmEmailForAccess] failed", error.message);
+      return error.message;
+    }
+    return null;
+  } catch (err) {
+    console.error("[confirmEmailForAccess] threw", err);
+    return err instanceof Error ? err.message : "Could not unlock account access.";
+  }
+}
+
+async function findAuthUserIdByEmail(email: string): Promise<string | null> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    });
+    if (error || !data.user?.id) {
+      console.error("[findAuthUserIdByEmail] failed", error?.message);
+      return null;
+    }
+    return data.user.id;
+  } catch (err) {
+    console.error("[findAuthUserIdByEmail] threw", err);
+    return null;
+  }
 }
 
 async function ensureProfileExists(
@@ -189,13 +230,13 @@ async function finalizeNewUserProfile(
 }
 
 /**
- * Create account via Supabase Auth signUp so confirmation emails go through SMTP (Resend).
- * Do NOT use admin.createUser with email_confirm: true — that skips the confirmation email.
+ * Create account via Supabase Auth signUp so verification emails go through SMTP (Resend).
+ * Users enter the platform immediately; email confirmation can be completed later.
  */
 export async function signUpAccount(input: RegistrationInput & { password: string }) {
   const email = input.email.trim().toLowerCase();
   const supabase = await createClient();
-  const emailRedirectTo = `${getAppBaseUrl()}/auth/callback`;
+  const emailRedirectTo = getAuthEmailRedirectUrl();
 
   const userMetadata: Record<string, string> = {
     full_name: input.fullName,
@@ -255,35 +296,65 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
   }
 
   // Supabase returns a user with empty identities when the email is already registered
-  // (anti-enumeration). Treat that as an existing account.
+  // (anti-enumeration). Guide them back into the app instead of a dead end.
   if ((data.user.identities?.length ?? 0) === 0) {
-    return { error: "This email is already registered. Sign in instead." };
-  }
-
-  // Confirm-email enabled: SMTP sends the message; no session until the link is clicked.
-  if (!data.session) {
-    console.log("[signUpAccount] awaiting email confirmation", {
-      userId: data.user.id,
-      email,
-    });
     return {
-      success: true as const,
-      needsEmailConfirmation: true as const,
-      role: "client" as const,
+      existingAccount: true as const,
+      email,
+      error: "This email is already registered. Sign in to continue where you left off.",
     };
   }
 
-  // Confirm-email disabled in Supabase: session is immediate — finish profile now.
-  const finalized = await finalizeNewUserProfile(supabase, data.user.id, data.user.user_metadata, {
-    ...input,
-    email,
-  });
+  let emailVerificationSent = !data.session;
+
+  // Confirm-email enabled: unlock access now so signup → platform stays one chain.
+  // Verification email was already sent; they can confirm anytime.
+  if (!data.session) {
+    console.log("[signUpAccount] unlocking access before email confirm", {
+      userId: data.user.id,
+      email,
+    });
+    const confirmError = await confirmEmailForAccess(data.user.id);
+    if (confirmError) {
+      console.error("[signUpAccount] could not unlock access", confirmError);
+      return {
+        success: true as const,
+        needsEmailConfirmation: true as const,
+        emailVerificationSent: true as const,
+        role: "client" as const,
+      };
+    }
+    emailVerificationSent = true;
+
+    const unlockSignIn = await signInWithPasswordOnly(email, input.password);
+    if (unlockSignIn.error) {
+      console.error("[signUpAccount] sign-in after unlock failed", unlockSignIn.error);
+      return {
+        success: true as const,
+        needsEmailConfirmation: true as const,
+        emailVerificationSent: true as const,
+        role: "client" as const,
+      };
+    }
+  }
+
+  const sessionClient = await createClient();
+  const finalized = await finalizeNewUserProfile(
+    sessionClient,
+    data.user.id,
+    data.user.user_metadata,
+    {
+      ...input,
+      email,
+    }
+  );
 
   if (finalized.error) {
     console.error("[signUpAccount] profile setup failed after signUp", finalized.error);
     return {
       success: true as const,
       needsEmailConfirmation: false as const,
+      emailVerificationSent,
       role: "client" as const,
       profileSetupDeferred: true as const,
     };
@@ -292,7 +363,34 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
   return {
     ...finalized,
     needsEmailConfirmation: false as const,
+    emailVerificationSent,
   };
+}
+
+/**
+ * Resume signup/login when the user returns to register with an existing email.
+ * Unconfirmed accounts are unlocked so they can enter the platform immediately.
+ */
+export async function resumeExistingAccount(
+  input: RegistrationInput & { password: string }
+) {
+  const email = input.email.trim().toLowerCase();
+
+  let signInResult = await signInWithPasswordOnly(email, input.password);
+
+  if (signInResult.code === "email_not_confirmed") {
+    const userId = await findAuthUserIdByEmail(email);
+    if (userId) {
+      await confirmEmailForAccess(userId);
+      signInResult = await signInWithPasswordOnly(email, input.password);
+    }
+  }
+
+  if (signInResult.error) {
+    return { error: signInResult.error };
+  }
+
+  return completeRegistration({ ...input, email });
 }
 
 /** Apply profile + intake after the browser client has established an auth session. */
@@ -332,22 +430,24 @@ export async function signInAfterRegistration(email: string, password: string) {
 export async function completePendingSignup(
   input: RegistrationInput & { password: string }
 ) {
-  const email = input.email.trim().toLowerCase();
-
-  const { error: signInError } = await signInWithPasswordOnly(email, input.password);
-  if (signInError) {
-    return { error: signInError };
-  }
-
-  return completeRegistration({ ...input, email });
+  return resumeExistingAccount(input);
 }
 
 export async function signIn(formData: FormData) {
-  const email = formData.get("email") as string;
+  const email = (formData.get("email") as string).trim().toLowerCase();
   const password = formData.get("password") as string;
 
-  const { error } = await signInWithPasswordOnly(email, password);
-  if (error) return { error };
+  let result = await signInWithPasswordOnly(email, password);
+
+  if (result.code === "email_not_confirmed") {
+    const userId = await findAuthUserIdByEmail(email);
+    if (userId) {
+      await confirmEmailForAccess(userId);
+      result = await signInWithPasswordOnly(email, password);
+    }
+  }
+
+  if (result.error) return { error: result.error };
 
   const supabase = await createClient();
   const {

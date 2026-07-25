@@ -74,7 +74,12 @@ export function AdminClientsList({
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-base font-semibold leading-snug">{client.full_name}</h2>
-                  {client.activeSubscription ? (
+                  {client.onFreeTrial ? (
+                    <>
+                      <Badge className="bg-amber-500/15 text-amber-400">Free trial</Badge>
+                      <Badge variant="outline">{client.subscriptionLabel}</Badge>
+                    </>
+                  ) : client.activeSubscription ? (
                     <>
                       <Badge className="bg-green-500/15 text-green-400">Subscribed</Badge>
                       <Badge variant="outline">{client.subscriptionLabel}</Badge>
@@ -111,8 +116,13 @@ export function AdminClientsList({
 
                 {client.subscriptionExpiresAt && client.activeSubscription ? (
                   <p className="text-xs text-muted-foreground">
-                    {client.subscription_interval === "annual" ? "Expires" : "Renews"}{" "}
-                    {format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}
+                    {client.onFreeTrial
+                      ? client.trialDaysLeft != null && client.trialDaysLeft > 0
+                        ? `Trial ends in ${client.trialDaysLeft}d · ${format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}`
+                        : `Trial ends ${format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}`
+                      : client.subscription_interval === "annual"
+                        ? `Expires ${format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}`
+                        : `Renews ${format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}`}
                   </p>
                 ) : null}
               </div>
