@@ -6,6 +6,7 @@ import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiAccess } from "@/lib/subscription";
 import { isAiConfigured } from "@/lib/ai/providers";
+import { formatUserError } from "@/lib/format-user-error";
 import {
   analyzeMealPhoto,
   mealAnalysisToForm,
@@ -75,9 +76,9 @@ export async function analyzeMealPhotoAction(
     await storeMealAnalysis(access.profile.id, "photo", result);
     return { result, form: mealAnalysisToForm(result) };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to analyze meal photo";
-    return { error: message };
+    return {
+      error: formatUserError(error, "Failed to analyze meal photo"),
+    };
   }
 }
 
@@ -110,9 +111,9 @@ export async function refineMealPhotoAction(
     await storeMealAnalysis(access.profile.id, "photo", result, specification.trim());
     return { result, form: mealAnalysisToForm(result) };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to refine meal analysis";
-    return { error: message };
+    return {
+      error: formatUserError(error, "Failed to refine meal analysis"),
+    };
   }
 }
 
@@ -127,9 +128,9 @@ export async function analyzeMealTextAction(
     await storeMealAnalysis(access.profile.id, "text", result, text);
     return { result, form: mealAnalysisToForm(result) };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to parse meal description";
-    return { error: message };
+    return {
+      error: formatUserError(error, "Failed to parse meal description"),
+    };
   }
 }
 

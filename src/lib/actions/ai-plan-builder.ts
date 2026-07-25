@@ -11,6 +11,7 @@ import {
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
 import { isAiConfigured } from "@/lib/ai/providers";
+import { formatUserError } from "@/lib/format-user-error";
 import { generateWorkoutPlanFromProfile, generateWorkoutSessionFromProfile } from "@/lib/ai/generate-workout-plan";
 import type { AiDaySessionResult } from "@/lib/ai/generate-workout-plan";
 import { generateNutritionPlanFromProfile } from "@/lib/ai/generate-nutrition-plan";
@@ -92,7 +93,7 @@ export async function generateAiWorkoutPlanAction(
     return { plan };
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Failed to generate workout plan",
+      error: formatUserError(error, "Failed to generate workout plan"),
     };
   }
 }
@@ -108,7 +109,7 @@ export async function generateAiWorkoutDayAction(
     return { session };
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Failed to generate workout",
+      error: formatUserError(error, "Failed to generate workout"),
     };
   }
 }
@@ -253,7 +254,7 @@ export async function applyAiWorkoutDayToDateAction(
     return { planId };
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Failed to add workout",
+      error: formatUserError(error, "Failed to add workout"),
     };
   }
 }
@@ -269,7 +270,7 @@ export async function generateAiNutritionPlanAction(
     return { plan };
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Failed to generate nutrition plan",
+      error: formatUserError(error, "Failed to generate nutrition plan"),
     };
   }
 }

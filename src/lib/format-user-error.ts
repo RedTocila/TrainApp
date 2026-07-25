@@ -1,36 +1,156 @@
-/** Turn API / server-action errors into safe user-facing strings (never `{}`). */
-export function formatUserError(value: unknown, fallback = "Something went wrong. Please try again."): string {
+/** Turn API / server-action errors into safe user-facing strings (never raw JSON dumps). */
+export function formatUserError(
+  value: unknown,
+  fallback = "Something went wrong. Please try again."
+): string {
   if (value == null) return fallback;
 
   if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed || trimmed === "{}") return fallback;
-    return trimmed;
+    return sanitizeErrorText(value, fallback);
   }
 
   if (value instanceof Error) {
-    const trimmed = value.message.trim();
-    return trimmed && trimmed !== "{}" ? trimmed : fallback;
+    return sanitizeErrorText(value.message, fallback);
   }
 
   if (typeof value === "object") {
+    const fromStructured = messageFromApiObject(value as Record<string, unknown>);
+    if (fromStructured) return sanitizeErrorText(fromStructured, fallback);
+
     const record = value as Record<string, unknown>;
-
-    for (const key of ["message", "msg", "error_description", "error"] as const) {
-      const candidate = record[key];
-      if (typeof candidate === "string") {
-        const trimmed = candidate.trim();
-        if (trimmed && trimmed !== "{}") return trimmed;
-      }
-    }
-
-    const code = record.code ?? record.error_code;
+    const code = record.code ?? record.error_code ?? record.type;
     if (typeof code === "string" && code.trim()) {
       return humanizeErrorCode(code.trim());
     }
   }
 
   return fallback;
+}
+
+function sanitizeErrorText(raw: string, fallback: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === "{}") return fallback;
+
+  // Anthropic / OpenAI often surface as: `404 {"type":"error",...}`
+  const jsonPayload = extractJsonObject(trimmed);
+  if (jsonPayload) {
+    const fromJson = messageFromApiObject(jsonPayload);
+    if (fromJson) return humanizeAiMessage(fromJson);
+  }
+
+  if (looksLikeRawApiDump(trimmed)) {
+    return humanizeAiMessage(trimmed);
+  }
+
+  return humanizeAiMessage(trimmed);
+}
+
+function extractJsonObject(text: string): Record<string, unknown> | null {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(text.slice(start, end + 1)) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function messageFromApiObject(record: Record<string, unknown>): string | null {
+  const nestedError = record.error;
+  if (nestedError && typeof nestedError === "object" && !Array.isArray(nestedError)) {
+    const nested = nestedError as Record<string, unknown>;
+    if (typeof nested.message === "string" && nested.message.trim()) {
+      return nested.message.trim();
+    }
+    if (typeof nested.type === "string" && nested.type.trim()) {
+      return nested.type.trim();
+    }
+  }
+
+  for (const key of ["message", "msg", "error_description"] as const) {
+    const candidate = record[key];
+    if (typeof candidate === "string") {
+      const trimmed = candidate.trim();
+      if (trimmed && trimmed !== "{}") return trimmed;
+    }
+  }
+
+  if (typeof nestedError === "string") {
+    const trimmed = nestedError.trim();
+    if (trimmed && trimmed !== "{}") return trimmed;
+  }
+
+  return null;
+}
+
+function looksLikeRawApiDump(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    (lower.includes('"type":"error"') || lower.includes('"error":')) &&
+    (lower.includes("request_id") || lower.includes("not_found") || /^\d{3}\s*\{/.test(text))
+  );
+}
+
+function humanizeAiMessage(message: string): string {
+  const lower = message.toLowerCase();
+
+  if (
+    lower.includes("not_found_error") ||
+    lower.includes("model:") ||
+    (lower.includes("model") && lower.includes("not_found"))
+  ) {
+    return "AI is temporarily unavailable (model configuration). Please try again later.";
+  }
+
+  if (
+    lower.includes("invalid_api_key") ||
+    lower.includes("authentication") ||
+    lower.includes("unauthorized") ||
+    lower.includes("401")
+  ) {
+    return "AI is not configured correctly. Please try again later.";
+  }
+
+  if (
+    lower.includes("rate_limit") ||
+    lower.includes("too many requests") ||
+    lower.includes("429")
+  ) {
+    return "AI is busy right now. Please wait a moment and try again.";
+  }
+
+  if (
+    lower.includes("insufficient_quota") ||
+    lower.includes("billing") ||
+    lower.includes("credit")
+  ) {
+    return "AI usage limit reached. Please try again later.";
+  }
+
+  if (lower.includes("timeout") || lower.includes("timed out") || lower.includes("econnreset")) {
+    return "The AI request timed out. Please try again.";
+  }
+
+  if (lower.includes("network") || lower.includes("fetch failed") || lower.includes("enotfound")) {
+    return "Could not reach AI right now. Check your connection and try again.";
+  }
+
+  // Never show JSON / status-code dumps to users.
+  if (looksLikeRawApiDump(message) || /^\d{3}\b/.test(message.trim()) || message.trim().startsWith("{")) {
+    return "Something went wrong with AI. Please try again.";
+  }
+
+  // Keep short, readable app messages; truncate runaway provider text.
+  if (message.length > 180) {
+    return "Something went wrong. Please try again.";
+  }
+
+  return message;
 }
 
 function humanizeErrorCode(code: string): string {
@@ -56,6 +176,8 @@ function humanizeErrorCode(code: string): string {
       return "Confirm your email before signing in. Check your inbox for the verification link.";
     case "invalid_credentials":
       return "Wrong email or password. If you just signed up, wait a minute and try again.";
+    case "not_found_error":
+      return "AI is temporarily unavailable. Please try again later.";
     default:
       return `Could not continue (${code}). Please try again.`;
   }

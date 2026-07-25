@@ -10,7 +10,11 @@ export async function runServerAction<TResult>(
   fallback = "Something went wrong. Please try again."
 ): Promise<TResult | { error: string }> {
   try {
-    return await action();
+    const result = await action();
+    if (isActionError(result)) {
+      return { error: formatUserError(result.error, fallback) };
+    }
+    return result;
   } catch (error) {
     if (isStaleClientError(error)) {
       return {

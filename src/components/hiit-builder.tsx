@@ -258,23 +258,7 @@ export function HiitBuilder({
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-black">Exercises</h2>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setConfig((c) => ({
-                ...c,
-                exercises: [...c.exercises, emptyExercise()],
-              }))
-            }
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add
-          </Button>
-        </div>
+        <h2 className="text-lg font-black">Exercises</h2>
 
         {config.exercises.map((ex, index) => (
           <Card key={index} className="border-border/60">
@@ -333,6 +317,22 @@ export function HiitBuilder({
             </CardContent>
           </Card>
         ))}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() =>
+            setConfig((c) => ({
+              ...c,
+              exercises: [...c.exercises, emptyExercise()],
+            }))
+          }
+        >
+          <Plus className="mr-1.5 h-4 w-4" />
+          Add
+        </Button>
       </div>
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}

@@ -16,6 +16,8 @@ import {
   RotateCcw,
   SkipForward,
   Square,
+  Volume2,
+  VolumeX,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
@@ -31,6 +33,15 @@ import {
   type HiitPhase,
   type HiitPhaseType,
 } from "@/lib/hiit";
+import {
+  getHiitSoundsMuted,
+  playHiitComplete,
+  playHiitPhaseChange,
+  playHiitStart,
+  playHiitTick,
+  setHiitSoundsMuted,
+  unlockHiitAudio,
+} from "@/lib/hiit-sounds";
 import {
   advanceHiitPhase,
   clearHiitTimerState,
@@ -186,8 +197,11 @@ export function ActiveHiitClient({
   const [timer, setTimer] = useState<HiitTimerState | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [muted, setMuted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const advancingRef = useRef(false);
+  const lastTickSecondRef = useRef<number | null>(null);
+  const lastPhaseSoundRef = useRef<number | null>(null);
   const phases = buildHiitPhases(config);
   const hash = hiitConfigHash(config);
   const { remainingMs, elapsedMs } = useHiitClock(timer);
@@ -231,14 +245,20 @@ export function ActiveHiitClient({
     } else if (existing) {
       clearHiitTimerState(session.id);
     }
+    setMuted(getHiitSoundsMuted());
     setHydrated(true);
   }, [session.id, hash]);
 
-  const goToPhase = (nextIndex: number) => {
+  const goToPhase = (nextIndex: number, { playSound = true } = {}) => {
     const next = phases[nextIndex];
+    lastTickSecondRef.current = null;
     if (!next || next.type === "done") {
       const done = advanceHiitPhase(session.id, nextIndex, 0, true);
       setTimer(done);
+      if (playSound && lastPhaseSoundRef.current !== nextIndex) {
+        lastPhaseSoundRef.current = nextIndex;
+        playHiitComplete();
+      }
       return;
     }
     const advanced = advanceHiitPhase(
@@ -248,6 +268,10 @@ export function ActiveHiitClient({
       false
     );
     setTimer(advanced);
+    if (playSound && lastPhaseSoundRef.current !== nextIndex) {
+      lastPhaseSoundRef.current = nextIndex;
+      playHiitPhaseChange(next.type);
+    }
   };
 
   useEffect(() => {
@@ -260,8 +284,23 @@ export function ActiveHiitClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- advance on phase expiry only
   }, [hydrated, timer, remainingMs]);
 
+  // Countdown ticks for the last 5 seconds of any phase.
+  useEffect(() => {
+    if (!hydrated || !timer || timer.status !== "running" || isDone) return;
+    const secondsLeft = Math.ceil(remainingMs / 1000);
+    if (secondsLeft < 1 || secondsLeft > 5) {
+      if (secondsLeft > 5) lastTickSecondRef.current = null;
+      return;
+    }
+    if (lastTickSecondRef.current === secondsLeft) return;
+    lastTickSecondRef.current = secondsLeft;
+    playHiitTick(secondsLeft);
+  }, [hydrated, timer, remainingMs, isDone]);
+
   const handleStart = () => {
     setError(null);
+    unlockHiitAudio();
+    playHiitStart();
     startTransition(async () => {
       if (!session.started_at) {
         const result = await beginWorkoutSession(session.id);
@@ -272,6 +311,8 @@ export function ActiveHiitClient({
       }
       const first = phases.find((p) => p.type !== "done") ?? phases[0];
       if (!first) return;
+      lastTickSecondRef.current = null;
+      lastPhaseSoundRef.current = 0;
       setTimer(startHiitTimer(session.id, first.durationSeconds * 1000, hash));
     });
   };
@@ -281,6 +322,8 @@ export function ActiveHiitClient({
   };
 
   const handleResume = () => {
+    unlockHiitAudio();
+    lastTickSecondRef.current = null;
     setTimer(resumeHiitTimer(session.id));
   };
 
@@ -289,8 +332,17 @@ export function ActiveHiitClient({
     goToPhase(timer.phaseIndex + 1);
   };
 
+  const handleToggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    setHiitSoundsMuted(next);
+    if (!next) unlockHiitAudio();
+  };
+
   const handleReset = () => {
     resetHiitTimer(session.id);
+    lastTickSecondRef.current = null;
+    lastPhaseSoundRef.current = null;
     setTimer(null);
   };
 
@@ -383,6 +435,16 @@ export function ActiveHiitClient({
           <p className="font-mono text-xs text-muted-foreground">{totalElapsed}</p>
         </div>
         <div className="flex gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            onClick={handleToggleMute}
+            aria-label={muted ? "Unmute sounds" : "Mute sounds"}
+          >
+            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </Button>
           <Button
             type="button"
             variant="ghost"

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import type { AiProvider, ChatImageAttachment, ChatTurn } from "@/lib/ai/types";
+import { formatUserError } from "@/lib/format-user-error";
 
 type AnthropicImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
@@ -119,7 +120,7 @@ export async function runTextPrompt(
 
       const client = getAnthropicClient();
       const response = await client.messages.create({
-        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-20250514",
+        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-6",
         max_tokens: options?.maxTokens ?? 1200,
         messages: [{ role: "user", content: prompt }],
       });
@@ -129,7 +130,9 @@ export async function runTextPrompt(
       }
       return textBlock.text;
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+      lastError = new Error(
+        formatUserError(error, "AI request failed")
+      );
     }
   }
 
@@ -165,7 +168,7 @@ export async function runChatCompletion(
 
       const client = getAnthropicClient();
       const response = await client.messages.create({
-        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-20250514",
+        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-6",
         max_tokens: options?.maxTokens ?? 900,
         ...(systemMessage ? { system: systemMessage } : {}),
         messages: conversation
@@ -178,7 +181,7 @@ export async function runChatCompletion(
       }
       return textBlock.text;
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+      lastError = new Error(formatUserError(error, "AI chat request failed"));
     }
   }
 
@@ -221,7 +224,7 @@ export async function* streamChatCompletion(
 
       const client = getAnthropicClient();
       const stream = client.messages.stream({
-        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-20250514",
+        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-6",
         max_tokens: options?.maxTokens ?? 900,
         ...(systemMessage ? { system: systemMessage } : {}),
         messages: conversation
@@ -240,7 +243,7 @@ export async function* streamChatCompletion(
       return;
     } catch (error) {
       if (options?.signal?.aborted) return;
-      lastError = error instanceof Error ? error : new Error(String(error));
+      lastError = new Error(formatUserError(error, "AI chat stream failed"));
     }
   }
 
@@ -286,7 +289,7 @@ export async function runVisionPrompt(
       const client = getAnthropicClient();
       const mediaType = mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
       const response = await client.messages.create({
-        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-20250514",
+        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-6",
         max_tokens: 900,
         messages: [
           {
@@ -311,7 +314,7 @@ export async function runVisionPrompt(
       }
       return textBlock.text;
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+      lastError = new Error(formatUserError(error, "AI vision request failed"));
     }
   }
 

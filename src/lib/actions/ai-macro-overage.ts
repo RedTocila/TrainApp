@@ -5,6 +5,7 @@ import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiAccess } from "@/lib/subscription";
 import { isAiConfigured } from "@/lib/ai/providers";
+import { formatUserError } from "@/lib/format-user-error";
 import {
   buildLocalDayOverageInsights,
   fallbackMacroOverageInsight,
@@ -74,11 +75,9 @@ export async function analyzeMacroOverageAction({
 
     return { insight };
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to analyze today's meals";
-    return { error: message };
+    return {
+      error: formatUserError(error, "Failed to analyze today's meals"),
+    };
   }
 }
 
@@ -134,11 +133,12 @@ export async function analyzeDayMacroOverageAction({
         }),
       };
     } catch {
-      const message =
-        error instanceof Error
-          ? error.message
-          : `Failed to analyze meals${hasAiAccess(profile) ? "" : ` — upgrade to ${PLATFORM_AI_NAME} for deeper AI review`}`;
-      return { error: message };
+      return {
+        error: formatUserError(
+          error,
+          `Failed to analyze meals${hasAiAccess(profile) ? "" : ` — upgrade to ${PLATFORM_AI_NAME} for deeper AI review`}`
+        ),
+      };
     }
   }
 }

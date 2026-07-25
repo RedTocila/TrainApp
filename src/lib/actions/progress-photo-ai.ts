@@ -9,6 +9,7 @@ import {
   priorProgressNotesForPose,
 } from "@/lib/ai/progress-photo-context";
 import { isAiConfigured } from "@/lib/ai/providers";
+import { formatUserError } from "@/lib/format-user-error";
 import { getProgressPhotoSetForMonth, saveProgressPhotoAnalysis } from "@/lib/actions/progress-photos";
 import { hasAiAccess } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -148,9 +149,9 @@ export async function analyzeProgressPhotoAction(input: {
 
     return { analysis };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to analyze progress photo";
-    return { error: message };
+    return {
+      error: formatUserError(error, "Failed to analyze progress photo"),
+    };
   }
 }
 
