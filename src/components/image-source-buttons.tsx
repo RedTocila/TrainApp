@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 type ImageSourceButtonsProps = {
   onSelect: (file: File) => void;
   disabled?: boolean;
-  layout?: "row" | "icons" | "icon" | "zone" | "button";
+  layout?: "row" | "icons" | "icon" | "zone" | "button" | "tiles";
   cameraLabel?: string;
   galleryLabel?: string;
   zoneLabel?: string;
@@ -34,7 +34,7 @@ export function ImageSourceButtons({
 }: ImageSourceButtonsProps) {
   const platform = usePlatformCopy();
   const resolvedCameraLabel = cameraLabel ?? platform.mealLog.takePhoto;
-  const resolvedGalleryLabel = galleryLabel ?? platform.mealLog.changePhoto;
+  const resolvedGalleryLabel = galleryLabel ?? platform.mealLog.fromGallery;
   const resolvedZoneLabel =
     zoneLabel ?? (cameraOnly ? resolvedCameraLabel : platform.mealLog.addMealPhoto);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -68,6 +68,55 @@ export function ImageSourceButtons({
       onChange={(e) => handleChange(e.target.files?.[0])}
     />
   );
+
+  if (layout === "tiles") {
+    const tileClass = cn(
+      "relative flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 p-4 text-center transition-colors",
+      "hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+      "disabled:cursor-not-allowed disabled:opacity-50"
+    );
+
+    return (
+      <div
+        className={cn(
+          "grid gap-3",
+          cameraOnly ? "grid-cols-1" : "grid-cols-2",
+          className
+        )}
+      >
+        {cameraInput}
+        {galleryInput}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => cameraRef.current?.click()}
+          className={tileClass}
+        >
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <Camera className="h-7 w-7" strokeWidth={1.75} />
+          </div>
+          <span className="text-sm font-semibold leading-tight">
+            {resolvedCameraLabel}
+          </span>
+        </button>
+        {!cameraOnly ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => galleryRef.current?.click()}
+            className={tileClass}
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted text-foreground">
+              <ImageIcon className="h-7 w-7" strokeWidth={1.75} />
+            </div>
+            <span className="text-sm font-semibold leading-tight">
+              {resolvedGalleryLabel}
+            </span>
+          </button>
+        ) : null}
+      </div>
+    );
+  }
 
   if (layout === "zone") {
     return (

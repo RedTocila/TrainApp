@@ -6,6 +6,7 @@ import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
 import { hasAiAccess } from "@/lib/subscription";
 import { isAiConfigured } from "@/lib/ai/providers";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { formatUserError } from "@/lib/format-user-error";
 import {
   analyzeMealPhoto,
@@ -22,6 +23,11 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/webp",
   "image/gif",
 ]);
+
+export type AnalyzeMealPhotoActionResult =
+  | { result: MealAnalysisResult; form: ReturnType<typeof mealAnalysisToForm> }
+  | { rejected: true; alexMessage: string }
+  | { error: string };
 
 async function requireAiMealAccess(): Promise<
   { success: true; profile: NonNullable<Awaited<ReturnType<typeof getSubscriptionProfile>>> } |
@@ -57,7 +63,7 @@ async function storeMealAnalysis(
 export async function analyzeMealPhotoAction(
   imageBase64: string,
   mimeType: string
-): Promise<{ result: MealAnalysisResult; form: ReturnType<typeof mealAnalysisToForm> } | { error: string }> {
+): Promise<AnalyzeMealPhotoActionResult> {
   const access = await requireAiMealAccess();
   if (!access.success) return { error: access.error };
 
@@ -72,7 +78,16 @@ export async function analyzeMealPhotoAction(
   }
 
   try {
-    const result = await analyzeMealPhoto(imageBase64, mimeType);
+    const locale = parseCheckoutLocale(access.profile.preferred_locale);
+    const result = await analyzeMealPhoto(imageBase64, mimeType, locale);
+    if (result.valid === false) {
+      return {
+        rejected: true,
+        alexMessage:
+          result.alex_message ||
+          "That's not food. Try again when you have something edible in the frame.",
+      };
+    }
     await storeMealAnalysis(access.profile.id, "photo", result);
     return { result, form: mealAnalysisToForm(result) };
   } catch (error) {
@@ -87,7 +102,7 @@ export async function refineMealPhotoAction(
   mimeType: string,
   specification: string,
   previousResult?: MealAnalysisResult
-): Promise<{ result: MealAnalysisResult; form: ReturnType<typeof mealAnalysisToForm> } | { error: string }> {
+): Promise<AnalyzeMealPhotoActionResult> {
   const access = await requireAiMealAccess();
   if (!access.success) return { error: access.error };
 
@@ -102,12 +117,22 @@ export async function refineMealPhotoAction(
   }
 
   try {
+    const locale = parseCheckoutLocale(access.profile.preferred_locale);
     const result = await refineMealPhoto(
       imageBase64,
       mimeType,
       specification,
-      previousResult
+      previousResult,
+      locale
     );
+    if (result.valid === false) {
+      return {
+        rejected: true,
+        alexMessage:
+          result.alex_message ||
+          "That's not food. Try again when you have something edible in the frame.",
+      };
+    }
     await storeMealAnalysis(access.profile.id, "photo", result, specification.trim());
     return { result, form: mealAnalysisToForm(result) };
   } catch (error) {

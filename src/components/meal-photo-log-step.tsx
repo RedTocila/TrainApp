@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { analyzeMealPhotoAction, refineMealPhotoAction } from "@/lib/actions/ai-meal";
 import { isActionError, runServerAction } from "@/lib/run-server-action";
@@ -10,9 +10,22 @@ import { type MealFormData } from "@/lib/meal-utils";
 import type { MealAnalysisResult } from "@/lib/ai/types";
 import { MealAnalysisSummary } from "@/components/meal-analysis-summary";
 import { ImageSourceButtons } from "@/components/image-source-buttons";
+import { ProgressPhotoAlexDialog } from "@/components/progress-photo-alex-dialog";
 import { Button } from "@/components/ui/button";
 
 type PhotoPhase = "capture" | "compressing" | "analyzing" | "review";
+
+function isMealPhotoRejected(
+  result: unknown
+): result is { rejected: true; alexMessage: string } {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "rejected" in result &&
+    (result as { rejected?: unknown }).rejected === true &&
+    typeof (result as { alexMessage?: unknown }).alexMessage === "string"
+  );
+}
 
 export function MealPhotoLogStep({
   form,
@@ -39,59 +52,50 @@ export function MealPhotoLogStep({
   const [phase, setPhase] = useState<PhotoPhase>("capture");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [lastAnalysis, setLastAnalysis] = useState<MealAnalysisResult | null>(null);
+  const [alexRoast, setAlexRoast] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const analyzeGenRef = useRef(0);
 
   const setPhaseWithReady = (next: PhotoPhase) => {
     setPhase(next);
     onReadyChange?.(next === "review");
   };
 
-  const handleFile = async (file: File | null) => {
-    onError(null);
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      onError(platform.mealLog.chooseImage);
-      return;
-    }
-
-    setPhaseWithReady("compressing");
-    try {
-      const compressed = await compressImageFile(file);
-      const dataUrl = await fileToDataUrl(compressed);
-      setPreviewUrl(dataUrl);
-      onPhotoDataUrlChange?.(dataUrl);
-      setPhaseWithReady("capture");
-    } catch {
-      onError(platform.mealLog.processFailed);
-      setPhaseWithReady("capture");
-    }
+  const resetToCapture = () => {
+    setPreviewUrl(null);
+    onPhotoDataUrlChange?.(null);
+    setLastAnalysis(null);
+    setPhaseWithReady("capture");
+    onConfidenceChange(null);
   };
 
-  const handleAnalyze = () => {
-    if (!previewUrl) {
-      onError(platform.mealLog.takePhotoFirst);
-      return;
-    }
-
-    const match = previewUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  const analyzeDataUrl = (dataUrl: string) => {
+    const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
     if (!match) {
       onError(platform.mealLog.readFailed);
+      setPhaseWithReady("capture");
       return;
     }
 
     const [, mimeType, imageBase64] = match;
     onError(null);
     setPhaseWithReady("analyzing");
+    const gen = ++analyzeGenRef.current;
 
     startTransition(async () => {
       try {
         const response = await runServerAction(() =>
           analyzeMealPhotoAction(imageBase64, mimeType)
         );
+        if (gen !== analyzeGenRef.current) return;
         if (isActionError(response)) {
           onError(response.error);
-          setPhaseWithReady("capture");
+          resetToCapture();
+          return;
+        }
+        if (isMealPhotoRejected(response)) {
+          setAlexRoast(response.alexMessage);
+          resetToCapture();
           return;
         }
         onFormChange(response.form);
@@ -99,19 +103,43 @@ export function MealPhotoLogStep({
         setLastAnalysis(response.result);
         setPhaseWithReady("review");
       } catch {
+        if (gen !== analyzeGenRef.current) return;
         onError(platform.mealLog.uploadTooLarge);
-        setPhaseWithReady("capture");
+        resetToCapture();
       }
     });
   };
 
-  const handleRetake = () => {
-    setPreviewUrl(null);
-    onPhotoDataUrlChange?.(null);
-    setLastAnalysis(null);
-    setPhaseWithReady("capture");
-    onConfidenceChange(null);
+  const handleFile = async (file: File | null) => {
     onError(null);
+    setAlexRoast(null);
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      onError(platform.mealLog.chooseImage);
+      return;
+    }
+
+    // Invalidate any in-flight analysis from a previous pick.
+    analyzeGenRef.current += 1;
+    setPhaseWithReady("compressing");
+    try {
+      const compressed = await compressImageFile(file);
+      const dataUrl = await fileToDataUrl(compressed);
+      setPreviewUrl(dataUrl);
+      onPhotoDataUrlChange?.(dataUrl);
+      analyzeDataUrl(dataUrl);
+    } catch {
+      onError(platform.mealLog.processFailed);
+      setPhaseWithReady("capture");
+    }
+  };
+
+  const handleRetake = () => {
+    analyzeGenRef.current += 1;
+    setAlexRoast(null);
+    onError(null);
+    resetToCapture();
   };
 
   const handleRefineWithSpecification = (specification: string) => {
@@ -143,6 +171,11 @@ export function MealPhotoLogStep({
           onError(response.error);
           return;
         }
+        if (isMealPhotoRejected(response)) {
+          setAlexRoast(response.alexMessage);
+          resetToCapture();
+          return;
+        }
         onFormChange(response.form);
         onConfidenceChange(response.result.confidence);
         setLastAnalysis(response.result);
@@ -163,73 +196,63 @@ export function MealPhotoLogStep({
           isRefining={isPending}
           onSave={onSave}
           isSaving={isSaving}
+          saveLabel={platform.mealLog.logMeal}
         />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-full"
+          onClick={handleRetake}
+          disabled={isSaving || isPending}
+        >
+          {platform.mealLog.retakePhoto}
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Take a photo or choose one from your gallery. AI will identify the food and estimate
-        macros — you can edit everything before logging.
-      </p>
-
-      {phase === "compressing" && (
-        <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 py-8 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Preparing photo…
+      {phase === "compressing" || phase === "analyzing" ? (
+        <div className="space-y-3">
+          {previewUrl ? (
+            <div className="overflow-hidden rounded-xl border border-border bg-secondary/30">
+              <img
+                src={previewUrl}
+                alt={platform.mealLog.mealPreview}
+                className="mx-auto h-auto max-h-[min(50vh,22rem)] w-full object-contain opacity-80"
+              />
+            </div>
+          ) : null}
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 py-8 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {phase === "compressing"
+              ? "Preparing photo…"
+              : "Analyzing meal…"}
+          </div>
         </div>
-      )}
-
-      {previewUrl ? (
-        <div className="overflow-hidden rounded-xl border border-border bg-secondary/30">
-          <img
-            src={previewUrl}
-            alt={platform.mealLog.mealPreview}
-            className="mx-auto h-auto max-h-[min(60vh,28rem)] w-full object-contain"
-          />
-        </div>
-      ) : phase !== "compressing" ? (
-        <ImageSourceButtons
-          layout="zone"
-          onSelect={(file) => void handleFile(file)}
-          disabled={phase === "analyzing"}
-          zoneLabel={platform.mealLog.addMealPhoto}
-        />
-      ) : null}
-
-      {previewUrl && (
-        <div className="flex flex-wrap gap-2">
+      ) : (
+        <>
+          <p className="text-sm text-muted-foreground">
+            Choose how to add your meal photo — AI analyzes it right away.
+          </p>
           <ImageSourceButtons
-            layout="button"
+            layout="tiles"
             onSelect={(file) => void handleFile(file)}
-            disabled={phase === "analyzing" || phase === "compressing"}
-            galleryLabel={platform.mealLog.changePhoto}
+            cameraLabel={platform.mealLog.takePhoto}
+            galleryLabel={platform.mealLog.fromGallery}
           />
-          <Button type="button" variant="ghost" size="sm" onClick={handleRetake}>
-            Clear
-          </Button>
-        </div>
+        </>
       )}
 
-      <Button
-        className="w-full"
-        disabled={!previewUrl || isPending || phase === "analyzing" || phase === "compressing"}
-        onClick={handleAnalyze}
-      >
-        {isPending || phase === "analyzing" ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Analyzing meal…
-          </>
-        ) : (
-          <>
-            <Sparkles className="mr-2 h-4 w-4" />
-            Analyze with AI
-          </>
-        )}
-      </Button>
+      <ProgressPhotoAlexDialog
+        open={Boolean(alexRoast)}
+        onClose={() => setAlexRoast(null)}
+        title={platform.mealLog.alexNotFoodTitle}
+        message={alexRoast ?? ""}
+        primaryLabel={platform.mealLog.retakePhoto}
+      />
     </div>
   );
 }

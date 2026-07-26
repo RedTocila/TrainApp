@@ -258,11 +258,7 @@ export function MealLogPreviewDialog({
                   {isDeleting ? platform.common.saving : platform.aria.deleteMeal}
                 </Button>
               </>
-            ) : (
-              <Button className="w-full" onClick={onClose}>
-                {platform.common.done}
-              </Button>
-            )}
+            ) : null}
           </div>
         </div>
       </AppOverlayPanel>

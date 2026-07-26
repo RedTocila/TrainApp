@@ -172,6 +172,7 @@ export function MealAnalysisSummary({
   isRefining = false,
   onSave,
   isSaving = false,
+  saveLabel,
 }: {
   form: MealFormData;
   confidence: number | null;
@@ -180,6 +181,7 @@ export function MealAnalysisSummary({
   isRefining?: boolean;
   onSave?: () => void;
   isSaving?: boolean;
+  saveLabel?: string;
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
@@ -214,32 +216,9 @@ export function MealAnalysisSummary({
         </div>
       )}
 
-      {(summary || onSave) && (
-        <div className="flex items-center gap-2">
-          {summary ? (
-            <p className="min-w-0 flex-1 text-xs text-muted-foreground">{summary}</p>
-          ) : (
-            <span className="min-w-0 flex-1" />
-          )}
-          {onSave ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 shrink-0 gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/15 px-2.5 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300"
-              onClick={onSave}
-              disabled={isSaving || isRefining}
-            >
-              {isSaving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Check className="h-3.5 w-3.5" />
-              )}
-              {platform.common.save}
-            </Button>
-          ) : null}
-        </div>
-      )}
+      {summary ? (
+        <p className="text-xs text-muted-foreground">{summary}</p>
+      ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card transition-colors">
         <div className="border-b border-border/70 bg-primary/5 px-4 py-3">
@@ -344,19 +323,37 @@ export function MealAnalysisSummary({
         </div>
       )}
 
-      <p className="text-center text-xs text-muted-foreground">
-        {isEditingWithAi ? (
-          <>
-            Add details above, then tap{" "}
-            <span className="font-medium text-foreground">{platform.mealLog.refineWithAi}</span>.
-          </>
-        ) : (
-          <>
-            Looks good? Tap <span className="font-medium text-foreground">Confirm &amp; log meal</span>{" "}
-            below - or tap edit to tell AI what to fix.
-          </>
-        )}
-      </p>
+      {onSave ? (
+        <Button
+          type="button"
+          className="w-full"
+          disabled={isSaving || isRefining}
+          onClick={onSave}
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {platform.common.saving}
+            </>
+          ) : (
+            <>
+              <Check className="mr-2 h-4 w-4" />
+              {saveLabel ?? platform.mealLog.logMeal}
+            </>
+          )}
+        </Button>
+      ) : (
+        <p className="text-center text-xs text-muted-foreground">
+          {isEditingWithAi ? (
+            <>
+              Add details above, then tap{" "}
+              <span className="font-medium text-foreground">{platform.mealLog.refineWithAi}</span>.
+            </>
+          ) : (
+            <>Review the analysis, then log when it looks right.</>
+          )}
+        </p>
+      )}
     </div>
   );
 }

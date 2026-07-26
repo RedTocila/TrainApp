@@ -49,6 +49,10 @@ export interface MealAnalysisResult {
     fat: number;
   };
   ingredients: MealIngredient[];
+  /** False when the photo is not food/drink/consumable — do not log. */
+  valid?: boolean;
+  /** Coach Alex roast when valid is false. */
+  alex_message?: string;
 }
 
 export interface MealSuggestion {

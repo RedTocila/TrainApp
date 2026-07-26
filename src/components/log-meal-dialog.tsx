@@ -314,9 +314,9 @@ export function LogMealDialog({
   const showBack = mode !== "picker";
   const canLogCustom =
     mode === "custom" ||
-    (mode === "photo" && hasAiAccess && photoReady) ||
     (mode === "text" && hasAiAccess && textReady) ||
     (mode === "picker" && hasAiAccess && textReady);
+  // Photo review logs from MealAnalysisSummary's single primary button.
 
   const logButtonLabel = platform.mealLog.logMeal;
 
@@ -395,33 +395,31 @@ export function LogMealDialog({
                   type="button"
                   onClick={() => goToMode(option.mode)}
                   className={cn(
-                    "relative flex aspect-square flex-col items-center justify-center rounded-xl border border-border bg-secondary/30 p-4 text-left transition-colors hover:bg-secondary/60",
+                    "relative flex aspect-square flex-col items-center justify-center gap-3 rounded-xl border border-border bg-secondary/30 px-3 pb-4 pt-5 text-center transition-colors hover:bg-secondary/60",
                     locked && "opacity-90"
                   )}
                 >
                   {option.ai && (
-                    <Badge className="absolute right-3 top-3 gap-1 bg-primary/15 text-primary">
+                    <Badge className="absolute right-2.5 top-2.5 gap-1 bg-primary/15 text-primary">
                       <Sparkles className="h-3 w-3" />
                       AI
                     </Badge>
                   )}
                   <div
                     className={cn(
-                      "flex h-16 w-16 shrink-0 items-center justify-center rounded-xl",
+                      "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl",
                       option.ai ? "bg-primary/15 text-primary" : "bg-muted text-foreground"
                     )}
                   >
-                    <Icon className="h-8 w-8" />
+                    <Icon className="h-7 w-7" />
                   </div>
-                  <div className="absolute bottom-3 left-4 right-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="font-semibold">{option.label}</span>
-                    </div>
-                    {locked && (
-                      <div className="mt-2 flex items-center justify-center">
-                        <Badge variant="secondary">{platform.ai.upgrade}</Badge>
-                      </div>
-                    )}
+                  <div className="w-full space-y-1.5">
+                    <span className="block text-sm font-semibold leading-snug">
+                      {option.label}
+                    </span>
+                    {locked ? (
+                      <Badge variant="secondary">{platform.ai.upgrade}</Badge>
+                    ) : null}
                   </div>
                 </button>
               );
