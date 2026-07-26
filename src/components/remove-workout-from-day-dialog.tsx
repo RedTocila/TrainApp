@@ -19,37 +19,47 @@ export function RemoveWorkoutFromDayDialog({
   onClose: () => void;
   dateKey: string;
   workouts: TodaysWorkoutInfo[];
-  onRemoved?: (scheduledWorkoutId: string) => void;
+  onRemoved?: (scheduledWorkoutIds: string[]) => void;
 }) {
   const platform = usePlatformCopy();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) {
-      setSelectedId(null);
+      setSelectedIds([]);
       setError(null);
       return;
     }
-    const first = workouts.find((workout) => workout.scheduledWorkoutId);
-    if (first?.scheduledWorkoutId && workouts.filter((w) => w.scheduledWorkoutId).length === 1) {
-      setSelectedId(first.scheduledWorkoutId);
+    const removableIds = workouts
+      .map((workout) => workout.scheduledWorkoutId)
+      .filter((id): id is string => Boolean(id));
+    if (removableIds.length === 1) {
+      setSelectedIds(removableIds);
+    } else {
+      setSelectedIds([]);
     }
   }, [open, workouts]);
 
   const removable = workouts.filter((workout) => workout.scheduledWorkoutId);
 
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((selected) => selected !== id) : [...prev, id]
+    );
+  };
+
   const handleRemove = () => {
-    if (!selectedId) return;
+    if (selectedIds.length === 0) return;
     setError(null);
     startTransition(async () => {
-      const result = await unscheduleWorkout(dateKey, selectedId);
+      const result = await unscheduleWorkout(dateKey, selectedIds);
       if (result.error) {
         setError(result.error);
         return;
       }
-      onRemoved?.(selectedId);
+      onRemoved?.(selectedIds);
       onClose();
     });
   };
@@ -72,13 +82,14 @@ export function RemoveWorkoutFromDayDialog({
           <ul className="space-y-2">
             {removable.map((workout) => {
               const id = workout.scheduledWorkoutId!;
-              const selected = selectedId === id;
+              const selected = selectedIds.includes(id);
               return (
                 <li key={workout.taskId}>
                   <button
                     type="button"
                     disabled={isPending}
-                    onClick={() => setSelectedId(id)}
+                    aria-pressed={selected}
+                    onClick={() => toggleSelected(id)}
                     className={cn(
                       "flex w-full flex-col rounded-xl border px-3 py-2.5 text-left transition-colors",
                       selected
@@ -99,7 +110,7 @@ export function RemoveWorkoutFromDayDialog({
           <Button
             variant="destructive"
             onClick={handleRemove}
-            disabled={isPending || !selectedId}
+            disabled={isPending || selectedIds.length === 0}
           >
             {isPending ? platform.common.saving : "Remove"}
           </Button>

@@ -338,7 +338,7 @@ export async function replacePlanSchedule({
 
 export async function unscheduleWorkout(
   scheduledDate: string,
-  scheduledWorkoutId?: string
+  scheduledWorkoutId?: string | string[]
 ) {
   const { supabase, userId } = await requireUserId();
 
@@ -348,7 +348,11 @@ export async function unscheduleWorkout(
     .eq("client_id", userId);
 
   if (scheduledWorkoutId) {
-    query = query.eq("id", scheduledWorkoutId);
+    const ids = Array.isArray(scheduledWorkoutId)
+      ? scheduledWorkoutId
+      : [scheduledWorkoutId];
+    if (ids.length === 0) return { error: "No workouts selected" };
+    query = ids.length === 1 ? query.eq("id", ids[0]) : query.in("id", ids);
   } else {
     query = query.eq("scheduled_date", scheduledDate);
   }

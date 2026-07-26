@@ -404,11 +404,14 @@ export function DashboardWorkoutCard({
   }, [clientId]);
 
   const handleWorkoutRemoved = useCallback(
-    (scheduledWorkoutId: string) => {
+    (scheduledWorkoutIds: string[]) => {
+      const removed = new Set(scheduledWorkoutIds);
       const key = dateKey;
       setWorkouts((prev) => {
         const next = prev.filter(
-          (workout) => workout.scheduledWorkoutId !== scheduledWorkoutId
+          (workout) =>
+            !workout.scheduledWorkoutId ||
+            !removed.has(workout.scheduledWorkoutId)
         );
         if (next.length === 0) {
           confirmedEmptyRef.current.add(key);
