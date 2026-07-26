@@ -88,9 +88,11 @@ function AdminClientCalendarInner({
     return raw;
   }, [selectedDate, schedule, enrichment, now, activeFrom]);
 
+  const completedCount = selectedDayTasks.filter((task) => task.completed).length;
+
   return (
     <Card>
-      <CardHeader className="space-y-3">
+      <CardHeader className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-base">Days report</CardTitle>
           <div className="flex items-center gap-2">
@@ -115,92 +117,133 @@ function AdminClientCalendarInner({
             </Button>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
-          <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3">
-            <p className="text-2xl font-black text-green-400">{monthStats.complete}</p>
-            <p className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-              Complete days
+
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          <div className="rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-center">
+            <p className="text-xl font-black text-green-400 sm:text-2xl">
+              {monthStats.complete}
+            </p>
+            <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground sm:text-[11px]">
+              Complete
             </p>
           </div>
-          <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3">
-            <p className="text-2xl font-black text-red-400">{monthStats.missed}</p>
-            <p className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-              Lacking days
+          <div className="rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-center">
+            <p className="text-xl font-black text-red-400 sm:text-2xl">
+              {monthStats.missed}
+            </p>
+            <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground sm:text-[11px]">
+              Lacking
             </p>
           </div>
-          <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3">
-            <p className="text-2xl font-black">{monthStats.scheduled}</p>
-            <p className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-              Scheduled days
+          <div className="rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-center">
+            <p className="text-xl font-black sm:text-2xl">{monthStats.scheduled}</p>
+            <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground sm:text-[11px]">
+              Scheduled
             </p>
           </div>
-          <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3">
-            <p className="text-2xl font-black text-primary">{monthStats.rate}%</p>
-            <p className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-              Completion rate
+          <div className="rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-center">
+            <p className="text-xl font-black text-primary sm:text-2xl">
+              {monthStats.rate}%
+            </p>
+            <p className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground sm:text-[11px]">
+              Rate
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/30 px-3 py-1.5">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white">
-              <Check className="h-3 w-3" />
+
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-green-500 text-white">
+              <Check className="h-2.5 w-2.5" />
             </span>
             Complete
           </span>
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/30 px-3 py-1.5">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white">
-              <X className="h-3 w-3" />
+          <span className="inline-flex items-center gap-1.5">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white">
+              <X className="h-2.5 w-2.5" />
             </span>
             Lacking
           </span>
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/30 px-3 py-1.5">
-            <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="rounded-full bg-amber-500 px-1 py-0.5 text-[9px] font-bold text-white">
               1/3
             </span>
             In progress
           </span>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
-          {WEEKDAYS.map((day) => (
-            <div
-              key={day}
-              className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:py-2 sm:text-sm"
-            >
-              {day.slice(0, 1)}
-              <span className="hidden sm:inline">{day.slice(1)}</span>
-            </div>
-          ))}
-          {monthDays.map((day) => {
-            const rawTasks = enrichTasksForDate(day, schedule, enrichment, now);
-            const beforeActive = activeFrom ? isBefore(day, activeFrom) : false;
-            const tasks = beforeActive ? [] : rawTasks;
-            const dayStatus = getCalendarDayStatus(tasks, day, now);
-            const selected = isSameDay(day, selectedDate);
-            const inMonth = isSameMonth(day, viewMonth);
 
-            return (
-              <div key={day.toISOString()} className={cn(!inMonth && "opacity-35")}>
-                <CalendarDayDot
-                  date={day}
-                  tasks={tasks}
-                  dayStatus={dayStatus}
-                  selected={selected}
-                  size="large"
-                  onSelect={() => setSelectedDate(day)}
+      <CardContent>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)] lg:items-start lg:gap-6">
+          <div className="min-w-0">
+            <div className="mb-2 grid grid-cols-7 gap-1 sm:gap-1.5">
+              {WEEKDAYS.map((day) => (
+                <div
+                  key={day}
+                  className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+                >
+                  {day.slice(0, 1)}
+                  <span className="hidden sm:inline">{day.slice(1)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+              {monthDays.map((day) => {
+                const rawTasks = enrichTasksForDate(day, schedule, enrichment, now);
+                const beforeActive = activeFrom ? isBefore(day, activeFrom) : false;
+                const tasks = beforeActive ? [] : rawTasks;
+                const dayStatus = getCalendarDayStatus(tasks, day, now);
+                const selected = isSameDay(day, selectedDate);
+                const inMonth = isSameMonth(day, viewMonth);
+
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={cn(!inMonth && "opacity-35")}
+                  >
+                    <CalendarDayDot
+                      date={day}
+                      tasks={tasks}
+                      dayStatus={dayStatus}
+                      selected={selected}
+                      onSelect={() => setSelectedDate(day)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <aside className="min-w-0 rounded-2xl border border-border/60 bg-secondary/30 p-4 lg:sticky lg:top-4">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  To-do
+                </p>
+                <p className="text-sm font-bold leading-snug">
+                  {format(selectedDate, "EEEE, MMM d")}
+                </p>
+              </div>
+              {selectedDayTasks.length > 0 ? (
+                <span className="shrink-0 rounded-full bg-background/70 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
+                  {completedCount}/{selectedDayTasks.length}
+                </span>
+              ) : null}
+            </div>
+            {selectedDayTasks.length > 0 ? (
+              <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-background/60">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out"
+                  style={{
+                    width: `${Math.round(
+                      (completedCount / selectedDayTasks.length) * 100
+                    )}%`,
+                  }}
                 />
               </div>
-            );
-          })}
-        </div>
-
-        <div className="rounded-xl border border-border bg-secondary/30 p-4">
-          <p className="text-sm font-bold">{format(selectedDate, "EEEE, MMMM d")}</p>
-          <div className="mt-4">
+            ) : null}
             <AdminDayTasksList tasks={selectedDayTasks} />
-          </div>
+          </aside>
         </div>
       </CardContent>
     </Card>

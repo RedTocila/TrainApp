@@ -47,8 +47,12 @@ export function DeleteClientAccountButton({
         variant={variant}
         size={size}
         className={cn(
-          "gap-1.5",
-          variant === "outline" && "border-destructive/40 text-destructive hover:bg-destructive/10",
+          size !== "icon" && "gap-1.5",
+          size === "icon" &&
+            "h-9 w-9 !rounded-lg bg-red-500 text-white shadow-none hover:bg-red-600 hover:text-white",
+          size !== "icon" &&
+            variant === "outline" &&
+            "border-destructive/40 text-destructive hover:bg-destructive/10",
           className
         )}
         onClick={(event) => {

@@ -1,19 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/actions/auth";
-import {
-  getClientWorkoutAssignment,
-  getClientNutritionAssignment,
-} from "@/lib/actions/plans";
 import { getAdminClientCalendarData } from "@/lib/actions/admin-client-calendar";
 import { getAdminClientProgressPhotoGallery } from "@/lib/actions/admin-progress-photos";
 import { AdminClientProgressPhotos } from "@/components/admin-client-progress-photos";
 import { DeleteClientAccountButton } from "@/components/delete-client-account-button";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { PageTransition } from "@/components/page-transition";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Phone } from "lucide-react";
+import { ArrowLeft, Mail, Phone } from "lucide-react";
 import { AdminClientCalendar } from "@/components/admin-client-calendar";
 
 export default async function ClientDetailPage({
@@ -33,17 +29,17 @@ export default async function ClientDetailPage({
 
   if (!client) notFound();
 
-  const [workout, nutrition, calendarData, progressPhotos] = await Promise.all([
-    getClientWorkoutAssignment(id),
-    getClientNutritionAssignment(id),
+  const [calendarData, progressPhotos, authUser] = await Promise.all([
     getAdminClientCalendarData(id),
     getAdminClientProgressPhotoGallery(id),
+    createAdminClient().auth.admin.getUserById(id),
   ]);
+  const email = authUser.data.user?.email ?? null;
 
   return (
     <PageTransition>
       <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
             <Link href="/admin/clients">
               <Button variant="ghost" size="sm" className="-ml-2">
@@ -53,22 +49,37 @@ export default async function ClientDetailPage({
             </Link>
             <div>
               <h1 className="text-2xl font-black break-words">{client.full_name}</h1>
-              <p className="text-muted-foreground">Days report & plan assignment</p>
-              {client.phone ? (
-                <a
-                  href={`sms:${client.phone.replace(/\s/g, "")}`}
-                  className="mt-1 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-                >
-                  <Phone className="h-3.5 w-3.5" />
-                  {client.phone}
-                </a>
-              ) : null}
+              <p className="text-muted-foreground">Days report</p>
+              {(email || client.phone) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  {email ? (
+                    <a
+                      href={`mailto:${email}`}
+                      className="inline-flex min-w-0 items-center gap-1.5 text-primary hover:underline"
+                    >
+                      <Mail className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{email}</span>
+                    </a>
+                  ) : null}
+                  {client.phone ? (
+                    <a
+                      href={`sms:${client.phone.replace(/\s/g, "")}`}
+                      className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                    >
+                      <Phone className="h-3.5 w-3.5 shrink-0" />
+                      {client.phone}
+                    </a>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
           <DeleteClientAccountButton
             clientId={client.id}
             clientName={client.full_name}
-            className="w-full sm:w-auto"
+            size="icon"
+            variant="destructive"
+            className="shrink-0"
           />
         </div>
 
@@ -80,33 +91,6 @@ export default async function ClientDetailPage({
         )}
 
         <AdminClientProgressPhotos months={progressPhotos} />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Workout Plan</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {workout?.workout_plans ? (
-                <p className="font-medium break-words">{workout.workout_plans.title}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground">No active plan</p>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Nutrition Plan</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {nutrition?.nutrition_plans ? (
-                <p className="font-medium break-words">{nutrition.nutrition_plans.title}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground">No active plan</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </PageTransition>
   );

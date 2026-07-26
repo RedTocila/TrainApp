@@ -60,11 +60,14 @@ export interface AdminClientRow extends Profile {
 
 export async function getAdminClientsWithSubscriptions(): Promise<AdminClientRow[]> {
   const admin = createAdminClient();
-  const { data: clientsResult } = await admin
-    .from("profiles")
-    .select("*")
-    .eq("role", "client")
-    .order("created_at", { ascending: false });
+  const [{ data: clientsResult }, emailById] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("*")
+      .eq("role", "client")
+      .order("created_at", { ascending: false }),
+    fetchAuthEmailMap(admin),
+  ]);
 
   return (clientsResult ?? []).map((client) => {
     const profile = client as Profile;
@@ -72,6 +75,7 @@ export async function getAdminClientsWithSubscriptions(): Promise<AdminClientRow
     const trialDaysLeft = onTrial ? freeTrialDaysRemaining(profile) : null;
     return {
       ...profile,
+      email: emailById[profile.id],
       activeSubscription: hasPaidAccess(profile),
       onFreeTrial: onTrial,
       trialDaysLeft,
@@ -85,6 +89,29 @@ export async function getAdminClientsWithSubscriptions(): Promise<AdminClientRow
   });
 }
 
+async function fetchAuthEmailMap(
+  admin: ReturnType<typeof createAdminClient>
+): Promise<Record<string, string>> {
+  const map: Record<string, string> = {};
+  let page = 1;
+
+  while (page < 50) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+    if (error) break;
+    const users = data.users ?? [];
+    for (const user of users) {
+      if (user.email) map[user.id] = user.email;
+    }
+    if (users.length < 200) break;
+    page += 1;
+  }
+
+  return map;
+}
+
 export async function getAdminDashboardStats() {
   const [clients, revenue30d, revenueAll] = await Promise.all([
     getAdminClientsWithSubscriptions(),
@@ -96,12 +123,14 @@ export async function getAdminDashboardStats() {
   const paidSubscribers = clients.filter(
     (c) => c.activeSubscription && !c.onFreeTrial
   ).length;
+  const noSubscriptionCount = clients.filter((c) => !c.activeSubscription).length;
 
   return {
     clientCount: clients.length,
     activeSubscribers: clients.filter((c) => c.activeSubscription).length,
     paidSubscribers,
     freeTrialCount,
+    noSubscriptionCount,
     revenue30d,
     revenueAll,
   };
