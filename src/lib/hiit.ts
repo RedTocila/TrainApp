@@ -1,4 +1,57 @@
-export type WorkoutPlanKind = "strength" | "hiit";
+export type WorkoutPlanKind = "strength" | "hiit" | "warmup" | "stretch";
+
+/** Warmup / stretching — can sit on a day next to a main workout. */
+export function isExtraWorkoutKind(
+  kind: string | null | undefined
+): boolean {
+  return kind === "warmup" || kind === "stretch";
+}
+
+export function isMainWorkoutKind(kind: string | null | undefined): boolean {
+  return !isExtraWorkoutKind(kind);
+}
+
+/** True when every main (strength/HIIT) session is done — extras do not block. */
+export function areMainWorkoutsComplete<
+  T extends { planKind?: string | null; taskId: string },
+>(workouts: T[], isCompleted: (taskId: string) => boolean): boolean {
+  const mains = workouts.filter((w) => isMainWorkoutKind(w.planKind));
+  if (mains.length === 0) return false;
+  return mains.every((w) => isCompleted(w.taskId));
+}
+
+/** Main done but warm-up and/or stretching still open. */
+export function hasIncompleteWorkoutExtras<
+  T extends { planKind?: string | null; taskId: string },
+>(workouts: T[], isCompleted: (taskId: string) => boolean): boolean {
+  if (!areMainWorkoutsComplete(workouts, isCompleted)) return false;
+  return workouts.some(
+    (w) => isExtraWorkoutKind(w.planKind) && !isCompleted(w.taskId)
+  );
+}
+
+/** Display order on a calendar day: warm-up → main → stretching. */
+export function sessionKindSortOrder(kind: string | null | undefined): number {
+  if (kind === "warmup") return 0;
+  if (kind === "stretch") return 2;
+  return 1;
+}
+
+export function sortWorkoutsBySessionOrder<
+  T extends { planKind?: string | null },
+>(workouts: T[]): T[] {
+  return [...workouts].sort(
+    (a, b) =>
+      sessionKindSortOrder(a.planKind) - sessionKindSortOrder(b.planKind)
+  );
+}
+
+export function normalizeWorkoutPlanKind(
+  kind: string | null | undefined
+): WorkoutPlanKind {
+  if (kind === "hiit" || kind === "warmup" || kind === "stretch") return kind;
+  return "strength";
+}
 
 export interface HiitExerciseConfig {
   name: string;
@@ -99,6 +152,18 @@ export function isHiitPlan(
   plan: { kind?: string | null; hiit_config?: unknown } | null | undefined
 ): boolean {
   return plan?.kind === "hiit";
+}
+
+/** HIIT, warm-up, and stretching sessions that run on the interval timer. */
+export function isIntervalPlan(
+  plan: { kind?: string | null; hiit_config?: unknown } | null | undefined
+): boolean {
+  if (!plan) return false;
+  if (plan.kind === "hiit") return true;
+  if (plan.kind === "warmup" || plan.kind === "stretch") {
+    return normalizeHiitConfig(plan.hiit_config) != null;
+  }
+  return false;
 }
 
 export function estimateHiitDurationSeconds(config: HiitConfig): number {

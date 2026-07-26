@@ -1,4 +1,5 @@
 import type { ClientSchedule } from "@/lib/daily-tasks";
+import { normalizeWorkoutPlanKind } from "@/lib/hiit";
 import type { Exercise } from "@/lib/types";
 import { workoutTaskId } from "@/lib/workout-task-id";
 import { formatDateKey } from "@/lib/utils";
@@ -18,6 +19,7 @@ function mapScheduledDayToWorkout(
     dayId: day.id,
     planTitle: entry.workout_plans?.title ?? "Workout",
     dayTitle: day.title,
+    planKind: normalizeWorkoutPlanKind(entry.workout_plans?.kind),
     scheduledDate: dateKey,
     scheduledWorkoutId: entry.id,
     taskId: workoutTaskId(dateKey, entry.id),
@@ -75,6 +77,7 @@ export function resolveWorkoutsFromSchedule(
       dayId: day.id,
       planTitle: assignment.workout_plans?.title ?? "Workout",
       dayTitle: day.title,
+      planKind: normalizeWorkoutPlanKind(assignment.workout_plans?.kind),
       scheduledDate: null,
       scheduledWorkoutId: null,
       taskId: workoutTaskId(dateKey, null),

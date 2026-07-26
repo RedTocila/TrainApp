@@ -11,7 +11,7 @@ import {
   type ProgramEditTab,
 } from "@/components/programs/program-edit-tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { isHiitPlan, parseHiitConfig } from "@/lib/hiit";
+import { isIntervalPlan, parseHiitConfig } from "@/lib/hiit";
 import type { Exercise, WorkoutDay, WorkoutPlan } from "@/lib/types";
 import type { InferredSchedule } from "@/lib/schedule-utils";
 
@@ -33,7 +33,7 @@ export function EditWorkoutClient({
   const initialTab: ProgramEditTab =
     searchParams.get("tab") === "schedule" ? "schedule" : "build";
   const [tab, setTab] = useState<ProgramEditTab>(initialTab);
-  const hiit = isHiitPlan(plan);
+  const interval = isIntervalPlan(plan);
   const hiitConfig = parseHiitConfig(plan.hiit_config);
 
   const handleRefresh = useCallback(() => {
@@ -64,13 +64,18 @@ export function EditWorkoutClient({
       </div>
 
       {tab === "build" ? (
-        hiit ? (
+        interval ? (
           <HiitBuilder
             stayOnPage
             planId={plan.id}
             initialTitle={plan.title}
             initialDescription={plan.description ?? ""}
             initialConfig={hiitConfig}
+            planKind={
+              plan.kind === "warmup" || plan.kind === "stretch"
+                ? plan.kind
+                : "hiit"
+            }
             onSaved={handleRefresh}
           />
         ) : (
@@ -101,8 +106,8 @@ export function EditWorkoutClient({
           <CardHeader>
             <CardTitle>Schedule on calendar</CardTitle>
             <p className="text-sm text-muted-foreground">
-              {hiit
-                ? "Pick weekdays to repeat this HIIT session on your calendar."
+              {interval
+                ? "Pick weekdays to repeat this interval session on your calendar."
                 : "Pick which workout day to repeat and on which weekdays. You can schedule different days from the same program separately."}
             </p>
           </CardHeader>

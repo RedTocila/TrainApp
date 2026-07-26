@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Check,
+  Loader2,
   Pause,
   Play,
   RotateCcw,
@@ -532,15 +533,12 @@ export function ActiveHiitClient({
           </div>
           <div className="flex flex-col items-center">
             {isDone ? (
-              <Button
-                size="lg"
-                className="h-14 w-14 rounded-full bg-primary text-primary-foreground"
-                disabled={isPending}
-                onClick={handleComplete}
-                aria-label="Complete workout"
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400"
+                aria-hidden
               >
-                <Check className="h-6 w-6" />
-              </Button>
+                <Check className="h-7 w-7" strokeWidth={2.5} />
+              </div>
             ) : isIdle ? (
               <button
                 type="button"
@@ -570,8 +568,13 @@ export function ActiveHiitClient({
                 <Play className="h-6 w-6 fill-current" />
               </button>
             )}
-            <p className="mt-1 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-amber-300">
-              {isDone ? "Complete" : isIdle ? "Start" : isRunning ? "Pause" : "Resume"}
+            <p
+              className={cn(
+                "mt-1 text-[0.65rem] font-bold uppercase tracking-[0.2em]",
+                isDone ? "text-emerald-400" : "text-amber-300"
+              )}
+            >
+              {isDone ? "Done" : isIdle ? "Start" : isRunning ? "Pause" : "Resume"}
             </p>
           </div>
           <div className="text-right">
@@ -608,12 +611,21 @@ export function ActiveHiitClient({
           <Button
             type="button"
             size="lg"
-            className="h-11 w-full shrink-0"
+            className="h-12 w-full shrink-0 gap-2 text-base font-black uppercase tracking-wide"
             disabled={isPending}
             onClick={handleComplete}
           >
-            <Check className="mr-2 h-4 w-4" />
-            {isPending ? "Saving…" : "Complete workout"}
+            {isPending ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              <>
+                <Check className="h-5 w-5" strokeWidth={2.5} />
+                Complete workout
+              </>
+            )}
           </Button>
         ) : null}
         {error ? <p className="text-center text-sm text-red-400">{error}</p> : null}

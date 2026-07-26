@@ -77,6 +77,7 @@ export function HiitBuilder({
   stayOnPage = false,
   onSaved,
   folderId,
+  planKind = "hiit",
 }: {
   planId?: string;
   initialTitle?: string;
@@ -87,6 +88,8 @@ export function HiitBuilder({
   stayOnPage?: boolean;
   onSaved?: () => void;
   folderId?: string;
+  /** Warm-up / stretching reuse the same interval builder. */
+  planKind?: "hiit" | "warmup" | "stretch";
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -129,9 +132,10 @@ export function HiitBuilder({
         folderId,
         config,
         assign: !initialPlanId,
+        kind: planKind,
       });
       if (result.error || !result.data) {
-        setError(result.error ?? "Could not save HIIT workout");
+        setError(result.error ?? "Could not save interval workout");
         return;
       }
       if (wizard && onWizardComplete) {

@@ -5,6 +5,7 @@ import {
   type UnitSystem,
 } from "@/lib/body-units";
 import {
+  buildFullIntakeSummaryFromResponses,
   buildIntakeSummaryFromResponses,
   profileToResponses,
 } from "@/lib/intake-questionnaire";
@@ -81,4 +82,17 @@ export function buildIntakeSummary(
   push("Vices", profile.vices);
 
   return items;
+}
+
+/** Full questionnaire dump for admin / coach review. */
+export function buildFullIntakeSummary(
+  profile: Profile,
+  unitSystem: UnitSystem = profile.unit_system ?? "metric"
+): IntakeSummaryItem[] {
+  const fromQuestionnaire = buildFullIntakeSummaryFromResponses(
+    profileToResponses(profile),
+    unitSystem
+  );
+  if (fromQuestionnaire.length > 0) return fromQuestionnaire;
+  return buildIntakeSummary(profile, unitSystem);
 }

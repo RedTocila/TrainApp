@@ -2,15 +2,32 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { Check, ChevronDown, Dumbbell, Loader2, PenLine, Sparkles, Zap } from "lucide-react";
 import {
-  applyAiWorkoutDayToDateAction,
-  generateAiWorkoutDayAction,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
+import {
+  Check,
+  ChevronDown,
+  Dumbbell,
+  Flame,
+  Loader2,
+  PenLine,
+  PersonStanding,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+import {
+  applyAiFullTrainingDayToDateAction,
+  generateAiFullTrainingDayAction,
   getAiPlanBuilderProfile,
 } from "@/lib/actions/ai-plan-builder";
-import type { AiDaySessionResult } from "@/lib/ai/generate-workout-plan";
-import { inferAiWorkoutKind } from "@/lib/ai/infer-workout-kind";
+import type { AiDayProgramResult } from "@/lib/ai/generate-workout-plan";
+import { inferAiMainWorkoutKind } from "@/lib/ai/infer-workout-kind";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { hasAiAccess } from "@/lib/subscription";
 import { buildPricingHref } from "@/lib/pricing-nav";
@@ -27,25 +44,32 @@ export function AddWorkoutToDayAiPanel({
   dateKey,
   dayLabel,
   onAdded,
+  onFooterChange,
 }: {
   dateKey: string;
   dayLabel: string;
   onAdded: () => void;
+  onFooterChange?: (footer: ReactNode | null) => void;
 }) {
   const platform = usePlatformCopy();
   const pathname = usePathname();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [prompt, setPrompt] = useState("");
-  const [session, setSession] = useState<AiDaySessionResult | null>(null);
+  const [program, setProgram] = useState<AiDayProgramResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [applied, setApplied] = useState(false);
-  const [exercisesOpen, setExercisesOpen] = useState(true);
+  const [openSection, setOpenSection] = useState<"warmup" | "main" | "stretch" | null>(
+    "main"
+  );
   const [showEditor, setShowEditor] = useState(true);
   const [isGenerating, startGenerate] = useTransition();
   const [isApplying, setIsApplying] = useState(false);
   const exerciseGender = resolveProfileGender(profile?.gender);
-  const detectedKind = useMemo(() => inferAiWorkoutKind(prompt), [prompt]);
+  const detectedMainKind = useMemo(
+    () => inferAiMainWorkoutKind(prompt),
+    [prompt]
+  );
 
   useEffect(() => {
     setProfileLoading(true);
@@ -63,16 +87,18 @@ export function AddWorkoutToDayAiPanel({
     setApplied(false);
     startGenerate(async () => {
       try {
-        const result = await generateAiWorkoutDayAction(prompt);
+        const result = await generateAiFullTrainingDayAction(prompt);
         if ("error" in result) {
           setError(result.error);
           return;
         }
-        setSession(result.session);
-        setExercisesOpen(true);
+        setProgram(result.program);
+        setOpenSection("main");
         setShowEditor(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to generate workout");
+        setError(
+          err instanceof Error ? err.message : "Failed to generate training day"
+        );
       }
     });
   };
@@ -80,28 +106,92 @@ export function AddWorkoutToDayAiPanel({
   const handleEditPrompt = () => {
     setError(null);
     setShowEditor(true);
+    onFooterChange?.(null);
   };
 
   const handleApply = () => {
-    if (!session || isApplying || applied) return;
+    if (!program || isApplying || applied) return;
     setError(null);
     setIsApplying(true);
     void (async () => {
       try {
-        const result = await applyAiWorkoutDayToDateAction(dateKey, session);
+        const result = await applyAiFullTrainingDayToDateAction(dateKey, program);
         if ("error" in result) {
           setError(result.error);
           return;
         }
         setApplied(true);
         onAdded();
+        window.setTimeout(() => {
+          onFooterChange?.(null);
+        }, 500);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to add workout");
+        setError(err instanceof Error ? err.message : "Failed to add training day");
       } finally {
         setIsApplying(false);
       }
     })();
   };
+
+  const handleEditPromptRef = useRef(handleEditPrompt);
+  const handleApplyRef = useRef(handleApply);
+  handleEditPromptRef.current = handleEditPrompt;
+  handleApplyRef.current = handleApply;
+
+  useEffect(() => {
+    if (!onFooterChange) return;
+    if (!program || showEditor) {
+      onFooterChange(null);
+      return;
+    }
+
+    onFooterChange(
+      <div className="relative z-30 flex w-full flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => handleEditPromptRef.current()}
+          disabled={busy || applied}
+        >
+          <PenLine className="mr-1.5 h-3.5 w-3.5" />
+          Edit & regenerate
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => handleApplyRef.current()}
+          disabled={busy || applied}
+        >
+          {applied ? (
+            <>
+              <Check className="mr-1.5 h-3.5 w-3.5" />
+              {platform.common.done}
+            </>
+          ) : isApplying ? (
+            <>
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              {platform.common.saving}
+            </>
+          ) : (
+            platform.workout.addFullDay
+          )}
+        </Button>
+      </div>
+    );
+
+    return () => onFooterChange(null);
+  }, [
+    program,
+    showEditor,
+    busy,
+    applied,
+    isApplying,
+    onFooterChange,
+    platform.common.done,
+    platform.common.saving,
+    platform.workout.addFullDay,
+  ]);
 
   if (profileLoading) {
     return <p className="text-sm text-muted-foreground">{platform.common.loading}</p>;
@@ -135,9 +225,9 @@ export function AddWorkoutToDayAiPanel({
                 <Sparkles className="h-5 w-5 text-violet-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-bold">{platform.aiUpgrade.aiWorkoutPlan}</p>
+                <p className="font-bold">{platform.workout.aiFullDayTitle}</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
-                  Describe what you want — AI builds fitness or HIIT for {dayLabel} only.
+                  {platform.workout.aiDayWorkoutHint(dayLabel)}
                 </p>
               </div>
             </div>
@@ -145,16 +235,18 @@ export function AddWorkoutToDayAiPanel({
 
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label htmlFor="ai-day-workout-prompt">What should today&apos;s workout be?</Label>
+              <Label htmlFor="ai-day-workout-prompt">
+                {platform.workout.aiFullDayPromptLabel}
+              </Label>
               <span
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
-                  detectedKind === "hiit"
+                  detectedMainKind === "hiit"
                     ? "bg-fuchsia-500/15 text-fuchsia-300"
                     : "bg-primary/10 text-primary"
                 )}
               >
-                {detectedKind === "hiit" ? (
+                {detectedMainKind === "hiit" ? (
                   <>
                     <Zap className="h-3 w-3" />
                     HIIT
@@ -170,24 +262,32 @@ export function AddWorkoutToDayAiPanel({
             <Textarea
               id="ai-day-workout-prompt"
               rows={3}
-              placeholder="e.g. 45 min upper body… or HIIT 20 min bodyweight intervals…"
+              placeholder={platform.workout.aiFullDayPlaceholder}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              {platform.workout.aiFullDayHint}
+            </p>
           </div>
 
-          <Button className="w-full gap-1.5" onClick={handleGenerate} disabled={busy}>
-            {isGenerating && !session ? (
+          <Button
+            type="button"
+            className="w-full gap-1.5"
+            onClick={handleGenerate}
+            disabled={busy}
+          >
+            {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Building {detectedKind === "hiit" ? "HIIT" : "session"}…
+                {platform.workout.buildingFullDay}
               </>
             ) : (
               <>
                 <Sparkles className="h-4 w-4" />
-                {session
+                {program
                   ? platform.workout.regenerateWorkout
-                  : platform.workout.generateWorkout}
+                  : platform.workout.generateFullDay}
               </>
             )}
           </Button>
@@ -196,35 +296,77 @@ export function AddWorkoutToDayAiPanel({
         </>
       ) : null}
 
-      {session && !showEditor ? (
-        session.kind === "hiit" ? (
-          <div className="overflow-hidden rounded-xl border border-fuchsia-500/25 bg-card/80">
-            <div className="border-b border-border/60 px-3 py-2.5">
-              <div className="mb-1 flex items-center gap-1.5 text-fuchsia-400">
-                <Zap className="h-3.5 w-3.5" />
-                <span className="text-[11px] font-semibold uppercase tracking-wide">HIIT</span>
-                <span className="text-[11px] text-muted-foreground">
-                  · {hiitSummaryLabel(session.plan.config)}
-                </span>
-              </div>
-              <p className="text-sm font-semibold">{session.plan.title}</p>
-              {session.plan.description ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">{session.plan.description}</p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => setExercisesOpen((open) => !open)}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary/40"
-            >
-              <span>{platform.common.exercises(session.plan.config.exercises.length)}</span>
-              <ChevronDown
-                className={cn("h-4 w-4 transition-transform", exercisesOpen && "rotate-180")}
-              />
-            </button>
-            {exercisesOpen ? (
-              <ul className="space-y-1.5 border-t border-border/60 px-3 py-2">
-                {session.plan.config.exercises.map((ex) => (
+      {program && !showEditor ? (
+        <div className="space-y-2">
+          <ProgramSection
+            id="warmup"
+            open={openSection === "warmup"}
+            onToggle={() =>
+              setOpenSection((cur) => (cur === "warmup" ? null : "warmup"))
+            }
+            tone="warmup"
+            icon={Flame}
+            label={platform.workout.sessionTypeWarmup}
+            title={program.warmup.title}
+            summary={hiitSummaryLabel(program.warmup.config)}
+            exerciseCount={program.warmup.config.exercises.length}
+            exercisesLabel={platform.common.exercises}
+          >
+            {program.warmup.config.exercises.map((ex) => (
+              <li
+                key={ex.name}
+                className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
+              >
+                <ExerciseGifThumbnail
+                  name={ex.name}
+                  imageUrl={ex.image_url}
+                  videoUrl={ex.video_url}
+                  gender={exerciseGender}
+                  size="sm"
+                  expandable
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{ex.name}</p>
+                  <p className="text-muted-foreground">
+                    {ex.work_seconds}s work · {ex.rest_seconds}s rest
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ProgramSection>
+
+          <ProgramSection
+            id="main"
+            open={openSection === "main"}
+            onToggle={() =>
+              setOpenSection((cur) => (cur === "main" ? null : "main"))
+            }
+            tone={program.main.kind === "hiit" ? "hiit" : "main"}
+            icon={program.main.kind === "hiit" ? Zap : Dumbbell}
+            label={
+              program.main.kind === "hiit"
+                ? "HIIT"
+                : platform.workout.sessionTypeMain
+            }
+            title={
+              program.main.kind === "hiit"
+                ? program.main.plan.title
+                : program.main.workout.title
+            }
+            summary={
+              program.main.kind === "hiit"
+                ? hiitSummaryLabel(program.main.plan.config)
+                : platform.common.exercises(program.main.workout.exercises.length)
+            }
+            exerciseCount={
+              program.main.kind === "hiit"
+                ? program.main.plan.config.exercises.length
+                : program.main.workout.exercises.length
+            }
+            exercisesLabel={platform.common.exercises}
+          >
+            {program.main.kind === "hiit"
+              ? program.main.plan.config.exercises.map((ex) => (
                   <li
                     key={ex.name}
                     className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
@@ -244,62 +386,8 @@ export function AddWorkoutToDayAiPanel({
                       </p>
                     </div>
                   </li>
-                ))}
-              </ul>
-            ) : null}
-            <div className="flex flex-wrap gap-2 border-t border-border/60 px-3 py-2.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEditPrompt}
-                disabled={busy || applied}
-              >
-                <PenLine className="mr-1.5 h-3.5 w-3.5" />
-                Edit & regenerate
-              </Button>
-              <Button size="sm" onClick={handleApply} disabled={busy || applied}>
-                {applied ? (
-                  <>
-                    <Check className="mr-1.5 h-3.5 w-3.5" />
-                    {platform.common.done}
-                  </>
-                ) : isApplying ? (
-                  <>
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    {platform.common.saving}
-                  </>
-                ) : (
-                  platform.workout.addToDay
-                )}
-              </Button>
-            </div>
-            {error ? (
-              <p className="border-t border-border/60 px-3 py-2 text-sm text-red-400">{error}</p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-border/60 bg-card/80">
-            <div className="border-b border-border/60 px-3 py-2.5">
-              <p className="text-sm font-semibold">{session.workout.title}</p>
-              {session.workout.description ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {session.workout.description}
-                </p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => setExercisesOpen((open) => !open)}
-              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary/40"
-            >
-              <span>{platform.common.exercises(session.workout.exercises.length)}</span>
-              <ChevronDown
-                className={cn("h-4 w-4 transition-transform", exercisesOpen && "rotate-180")}
-              />
-            </button>
-            {exercisesOpen ? (
-              <ul className="space-y-1.5 border-t border-border/60 px-3 py-2">
-                {session.workout.exercises.map((ex) => (
+                ))
+              : program.main.workout.exercises.map((ex) => (
                   <li
                     key={ex.name}
                     className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
@@ -320,42 +408,117 @@ export function AddWorkoutToDayAiPanel({
                     </div>
                   </li>
                 ))}
-              </ul>
-            ) : null}
-            <div className="flex flex-wrap gap-2 border-t border-border/60 px-3 py-2.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEditPrompt}
-                disabled={busy || applied}
-              >
-                <PenLine className="mr-1.5 h-3.5 w-3.5" />
-                Edit & regenerate
-              </Button>
-              <Button size="sm" onClick={handleApply} disabled={busy || applied}>
-                {applied ? (
-                  <>
-                    <Check className="mr-1.5 h-3.5 w-3.5" />
-                    {platform.common.done}
-                  </>
-                ) : isApplying ? (
-                  <>
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    {platform.common.saving}
-                  </>
-                ) : (
-                  platform.workout.addToDay
-                )}
-              </Button>
-            </div>
-            {error ? (
-              <p className="border-t border-border/60 px-3 py-2 text-sm text-red-400">{error}</p>
-            ) : null}
-          </div>
-        )
-      ) : null}
+          </ProgramSection>
 
-      {!showEditor && !session && error ? <p className="text-sm text-red-400">{error}</p> : null}
+          <ProgramSection
+            id="stretch"
+            open={openSection === "stretch"}
+            onToggle={() =>
+              setOpenSection((cur) => (cur === "stretch" ? null : "stretch"))
+            }
+            tone="stretch"
+            icon={PersonStanding}
+            label={platform.workout.sessionTypeStretch}
+            title={program.stretch.title}
+            summary={hiitSummaryLabel(program.stretch.config)}
+            exerciseCount={program.stretch.config.exercises.length}
+            exercisesLabel={platform.common.exercises}
+          >
+            {program.stretch.config.exercises.map((ex) => (
+              <li
+                key={ex.name}
+                className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
+              >
+                <ExerciseGifThumbnail
+                  name={ex.name}
+                  imageUrl={ex.image_url}
+                  videoUrl={ex.video_url}
+                  gender={exerciseGender}
+                  size="sm"
+                  expandable
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{ex.name}</p>
+                  <p className="text-muted-foreground">
+                    {ex.work_seconds}s work · {ex.rest_seconds}s rest
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ProgramSection>
+
+          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ProgramSection({
+  open,
+  onToggle,
+  tone,
+  icon: Icon,
+  label,
+  title,
+  summary,
+  exerciseCount,
+  exercisesLabel,
+  children,
+}: {
+  id: string;
+  open: boolean;
+  onToggle: () => void;
+  tone: "warmup" | "main" | "hiit" | "stretch";
+  icon: typeof Flame;
+  label: string;
+  title: string;
+  summary: string;
+  exerciseCount: number;
+  exercisesLabel: (n: number) => string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border bg-card/80",
+        tone === "warmup" && "border-orange-500/25",
+        tone === "stretch" && "border-teal-500/25",
+        tone === "hiit" && "border-fuchsia-500/25",
+        tone === "main" && "border-border/60"
+      )}
+    >
+      <div className="border-b border-border/60 px-3 py-2.5">
+        <div
+          className={cn(
+            "mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide",
+            tone === "warmup" && "text-orange-400",
+            tone === "stretch" && "text-teal-400",
+            tone === "hiit" && "text-fuchsia-400",
+            tone === "main" && "text-primary"
+          )}
+        >
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+          <span className="font-normal normal-case text-muted-foreground">
+            · {summary}
+          </span>
+        </div>
+        <p className="text-sm font-semibold">{title}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary/40"
+      >
+        <span>{exercisesLabel(exerciseCount)}</span>
+        <ChevronDown
+          className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
+        />
+      </button>
+      {open ? (
+        <ul className="space-y-1.5 border-t border-border/60 px-3 py-2">{children}</ul>
+      ) : null}
     </div>
   );
 }

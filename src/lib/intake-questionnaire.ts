@@ -534,48 +534,67 @@ export function getStepMissingFields(
   }
 }
 
-export function buildDetailedIntakeContextForAi(responses: IntakeResponses): string {
-  const lines: string[] = [];
-  const add = (label: string, value: string | null | undefined) => {
-    if (value) lines.push(`${label}: ${value}`);
+export function buildFullIntakeSummaryFromResponses(
+  responses: IntakeResponses,
+  unitSystem: UnitSystem = "metric"
+): { label: string; value: string }[] {
+  const items: { label: string; value: string }[] = [];
+  const push = (label: string, value: string | null | undefined) => {
+    if (value) items.push({ label, value });
   };
 
-  add("Age", responses.age ? `${responses.age} years` : null);
-  add(
+  push("Age", responses.age ? `${responses.age} years` : null);
+  push(
     "Gender",
     GENDER_OPTIONS.find((o) => o.value === responses.gender)?.label ?? responses.gender
   );
-  add("Weight", responses.intake_weight_kg ? `${responses.intake_weight_kg} kg` : null);
-  add("Height", responses.height_cm ? `${responses.height_cm} cm` : null);
-  add("Goal", GOAL_LABELS[responses.goal ?? ""] ?? responses.goal);
-  add("Timeline", labelFor(GOAL_TIMELINE_OPTIONS, responses.goal_timeline));
-  add("Training experience", labelFor(TRAINING_EXPERIENCE_OPTIONS, responses.training_experience));
-  add("Training days/week", labelFor(TRAINING_DAYS_OPTIONS, responses.training_days_per_week));
-  add("Workout time", labelFor(TRAINING_TIME_OPTIONS, responses.training_time_preference));
-  add("Equipment", labelsFor(EQUIPMENT_OPTIONS, responses.equipment_access));
-  add("Activities", labelsFor(ACTIVITY_OPTIONS, responses.current_activities));
-  add("Job type", labelFor(JOB_TYPE_OPTIONS, responses.job_type));
-  add("Work hours", labelFor(WORK_HOURS_OPTIONS, responses.work_hours));
-  add("Commute", labelFor(COMMUTE_OPTIONS, responses.commute));
-  add("Daily steps", labelFor(DAILY_STEPS_OPTIONS, responses.daily_steps));
-  add("Sleep", labelFor(SLEEP_HOURS_OPTIONS, responses.sleep_hours));
-  add("Wake time", responses.wake_time);
-  add("Bedtime", responses.bedtime);
-  add("Energy", labelFor(ENERGY_OPTIONS, responses.energy_level));
-  add("Diet", labelFor(DIET_TYPE_OPTIONS, responses.diet_type));
-  add("Meals/day", labelFor(MEALS_PER_DAY_OPTIONS, responses.meals_per_day));
-  add("Cooking", labelFor(COOKING_OPTIONS, responses.cooking_frequency));
-  add("Allergies", labelsFor(ALLERGY_OPTIONS, responses.food_allergies));
-  add("Food dislikes", responses.food_dislikes);
-  add("Injuries", buildInjuriesText(responses));
-  add("Health conditions", buildMedicalConditionsText(responses));
-  add("Medications", responses.medications);
-  add("Smoking", labelFor(SMOKING_OPTIONS, responses.smoking));
-  add("Alcohol", labelFor(ALCOHOL_OPTIONS, responses.alcohol));
-  add("Stress", labelFor(STRESS_OPTIONS, responses.stress_level));
-  add("Water habits", labelFor(WATER_HABITS_OPTIONS, responses.water_habits));
+  push(
+    "Weight",
+    responses.intake_weight_kg
+      ? formatWeightWithUnitFromKg(responses.intake_weight_kg, unitSystem)
+      : null
+  );
+  push(
+    "Height",
+    responses.height_cm
+      ? formatHeightWithUnitFromCm(responses.height_cm, unitSystem)
+      : null
+  );
+  push("Goal", GOAL_LABELS[responses.goal ?? ""] ?? responses.goal);
+  push("Timeline", labelFor(GOAL_TIMELINE_OPTIONS, responses.goal_timeline));
+  push("Training experience", labelFor(TRAINING_EXPERIENCE_OPTIONS, responses.training_experience));
+  push("Training days/week", labelFor(TRAINING_DAYS_OPTIONS, responses.training_days_per_week));
+  push("Workout time", labelFor(TRAINING_TIME_OPTIONS, responses.training_time_preference));
+  push("Equipment", labelsFor(EQUIPMENT_OPTIONS, responses.equipment_access));
+  push("Activities", labelsFor(ACTIVITY_OPTIONS, responses.current_activities));
+  push("Job type", labelFor(JOB_TYPE_OPTIONS, responses.job_type));
+  push("Work hours", labelFor(WORK_HOURS_OPTIONS, responses.work_hours));
+  push("Commute", labelFor(COMMUTE_OPTIONS, responses.commute));
+  push("Daily steps", labelFor(DAILY_STEPS_OPTIONS, responses.daily_steps));
+  push("Sleep", labelFor(SLEEP_HOURS_OPTIONS, responses.sleep_hours));
+  push("Wake time", responses.wake_time);
+  push("Bedtime", responses.bedtime);
+  push("Energy", labelFor(ENERGY_OPTIONS, responses.energy_level));
+  push("Diet", labelFor(DIET_TYPE_OPTIONS, responses.diet_type));
+  push("Meals/day", labelFor(MEALS_PER_DAY_OPTIONS, responses.meals_per_day));
+  push("Cooking", labelFor(COOKING_OPTIONS, responses.cooking_frequency));
+  push("Allergies", labelsFor(ALLERGY_OPTIONS, responses.food_allergies));
+  push("Food dislikes", responses.food_dislikes);
+  push("Injuries", buildInjuriesText(responses));
+  push("Health conditions", buildMedicalConditionsText(responses));
+  push("Medications", responses.medications);
+  push("Smoking", labelFor(SMOKING_OPTIONS, responses.smoking));
+  push("Alcohol", labelFor(ALCOHOL_OPTIONS, responses.alcohol));
+  push("Stress", labelFor(STRESS_OPTIONS, responses.stress_level));
+  push("Water habits", labelFor(WATER_HABITS_OPTIONS, responses.water_habits));
 
-  return lines.join("\n");
+  return items;
+}
+
+export function buildDetailedIntakeContextForAi(responses: IntakeResponses): string {
+  return buildFullIntakeSummaryFromResponses(responses)
+    .map((item) => `${item.label}: ${item.value}`)
+    .join("\n");
 }
 
 export function buildIntakeSummaryFromResponses(

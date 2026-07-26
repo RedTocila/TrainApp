@@ -6,7 +6,29 @@ import { DashboardWorkoutCompactStats } from "@/components/dashboard-workout-com
 import { DashboardStatusCheck } from "@/components/section-completed-badge";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import type { TodaysWorkoutInfo } from "@/lib/actions/workout-sessions";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+function planKindBadge(
+  planKind: TodaysWorkoutInfo["planKind"],
+  platform: ReturnType<typeof usePlatformCopy>
+) {
+  if (planKind === "warmup") {
+    return (
+      <Badge className="bg-orange-500/15 text-[10px] text-orange-400">
+        {platform.workout.sessionTypeWarmup}
+      </Badge>
+    );
+  }
+  if (planKind === "stretch") {
+    return (
+      <Badge className="bg-teal-500/15 text-[10px] text-teal-400">
+        {platform.workout.sessionTypeStretch}
+      </Badge>
+    );
+  }
+  return null;
+}
 
 export function DashboardWorkoutCompactRow({
   workout,
@@ -28,6 +50,7 @@ export function DashboardWorkoutCompactRow({
   readOnly?: boolean;
 }) {
   const platform = usePlatformCopy();
+  const kindBadge = planKindBadge(workout.planKind, platform);
 
   return (
     <li
@@ -43,14 +66,17 @@ export function DashboardWorkoutCompactRow({
         aria-pressed={selected}
       >
         <div className="min-w-0 flex-1">
-          <p
-            className={cn(
-              "text-sm font-bold leading-snug",
-              done && "text-muted-foreground line-through"
-            )}
-          >
-            {workout.dayTitle}
-          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p
+              className={cn(
+                "text-sm font-bold leading-snug",
+                done && "text-muted-foreground line-through"
+              )}
+            >
+              {workout.dayTitle}
+            </p>
+            {kindBadge}
+          </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {workout.planTitle}
             {workout.exercises.length > 0

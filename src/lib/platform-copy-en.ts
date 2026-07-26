@@ -459,8 +459,27 @@ export const platformCopyEn = {
       "Timed intervals — work, rest, rounds, and cycles with a live timer.",
     addWorkout: "Add workout",
     addWorkoutToDayDesc: (day: string) =>
-      `Add a session for ${day} only — it won't change your recurring schedule.`,
+      `Add a warm-up, main workout, and/or stretching for ${day} — does not change your recurring schedule.`,
     addWorkoutToDayAria: "Add workout to day",
+    sessionTypeMain: "Main workout",
+    sessionTypeWarmup: "Warm-up",
+    sessionTypeStretch: "Stretching",
+    sessionTypeLabel: "Session type",
+    sessionTypeHint:
+      "You can add a warm-up, one main workout, and stretching on the same day.",
+    aiFullDayTitle: "Full training day",
+    aiFullDayPromptLabel: "What should today’s training focus on?",
+    aiFullDayPlaceholder:
+      "e.g. upper body push… or HIIT 20 min bodyweight…",
+    aiFullDayHint:
+      "AI builds warm-up + main workout + stretching together for this day.",
+    generateFullDay: "Generate full day",
+    buildingFullDay: "Building warm-up, main & stretch…",
+    addFullDay: "Add full day",
+    extrasIncompleteWarning:
+      "Main workout done — warm-up or stretching still open.",
+    aiDayWorkoutHint: (day: string) =>
+      `Describe the focus — AI builds warm-up, main, and stretching for ${day}.`,
     fromLibrary: "From library",
     createNew: "Create new",
     libraryEmptyHint:

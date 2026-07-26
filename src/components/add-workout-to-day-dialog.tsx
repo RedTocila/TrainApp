@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { Sparkles } from "lucide-react";
 import { AppDialog } from "@/components/app-dialog";
 import { AddWorkoutToDayAiPanel } from "@/components/add-workout-to-day-ai-panel";
@@ -49,6 +49,7 @@ export function AddWorkoutToDayDialog({
   const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [aiFooter, setAiFooter] = useState<ReactNode>(null);
 
   useEffect(() => {
     if (!open) {
@@ -56,6 +57,7 @@ export function AddWorkoutToDayDialog({
       setWizardOpen(false);
       setWizardType(null);
       setError(null);
+      setAiFooter(null);
       return;
     }
     setLoading(true);
@@ -64,6 +66,10 @@ export function AddWorkoutToDayDialog({
       setLoading(false);
     });
   }, [open]);
+
+  useEffect(() => {
+    if (mode !== "ai") setAiFooter(null);
+  }, [mode]);
 
   const libraryEntries = useMemo(
     () =>
@@ -75,7 +81,13 @@ export function AddWorkoutToDayDialog({
           dayTitle: day.title,
           exerciseCount: day.exercises?.length ?? 0,
           category:
-            plan.kind === "hiit" ? ("hiit" as const) : inferDayCategory(day),
+            plan.kind === "hiit" ||
+            plan.kind === "warmup" ||
+            plan.kind === "stretch"
+              ? plan.kind === "hiit"
+                ? ("hiit" as const)
+                : inferDayCategory(day)
+              : inferDayCategory(day),
         }))
       ),
     [workouts]
@@ -90,7 +102,7 @@ export function AddWorkoutToDayDialog({
         return;
       }
       onAdded?.();
-      onClose();
+      // Stay open so they can also add warmup / main / stretch.
     });
   };
 
@@ -110,8 +122,9 @@ export function AddWorkoutToDayDialog({
         description={platform.workout.addWorkoutToDayDesc(dayLabel)}
         ariaLabel={platform.workout.addWorkoutToDayAria}
         maxWidth="max-w-md"
+        footer={mode === "ai" ? aiFooter : undefined}
       >
-        <div className="flex flex-wrap gap-2 px-5 pb-1 pt-1">
+        <div className="sticky top-0 z-20 flex flex-wrap gap-2 border-b border-border/50 bg-card px-5 pb-3 pt-1">
           <Button
             size="sm"
             variant={mode === "library" ? "default" : "outline"}
@@ -137,7 +150,7 @@ export function AddWorkoutToDayDialog({
           </Button>
         </div>
 
-        <div className="max-h-[min(50vh,22rem)] overflow-y-auto px-5 py-4">
+        <div className="px-5 py-4">
           {mode === "library" ? (
             loading ? (
               <p className="text-sm text-muted-foreground">{platform.common.loading}</p>
@@ -189,6 +202,7 @@ export function AddWorkoutToDayDialog({
             <AddWorkoutToDayAiPanel
               dateKey={dateKey}
               dayLabel={dayLabel}
+              onFooterChange={setAiFooter}
               onAdded={() => {
                 onAdded?.();
                 onClose();
@@ -211,7 +225,7 @@ export function AddWorkoutToDayDialog({
           onAdded?.();
           setWizardOpen(false);
           setWizardType(null);
-          onClose();
+          // Stay on add dialog so another session (warmup/stretch) can be added.
         }}
       />
     </>

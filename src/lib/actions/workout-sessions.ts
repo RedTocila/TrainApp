@@ -11,6 +11,7 @@ import {
 import { getClientWorkoutAssignment } from "@/lib/actions/plans";
 import { getScheduledWorkoutsForDate } from "@/lib/actions/user-workouts";
 import { getTaskCompletionsForDate } from "@/lib/actions/task-completions";
+import { isMainWorkoutKind, normalizeWorkoutPlanKind } from "@/lib/hiit";
 import { formatDateKey } from "@/lib/utils";
 import { workoutTaskId } from "@/lib/workout-task-id";
 import type {
@@ -180,6 +181,7 @@ export interface TodaysWorkoutInfo {
   dayId: string;
   planTitle: string;
   dayTitle: string;
+  planKind?: import("@/lib/hiit").WorkoutPlanKind;
   scheduledDate: string | null;
   scheduledWorkoutId?: string | null;
   taskId: string;
@@ -208,6 +210,7 @@ function mapScheduledToWorkoutInfo(
     dayId: day.id,
     planTitle: scheduled.workout_plans?.title ?? "Workout",
     dayTitle: day.title,
+    planKind: normalizeWorkoutPlanKind(scheduled.workout_plans?.kind),
     scheduledDate: dateKey,
     scheduledWorkoutId: scheduled.id,
     taskId: workoutTaskId(dateKey, scheduled.id),
@@ -765,14 +768,17 @@ export async function isWorkoutCompletedOnDate(
 ): Promise<boolean> {
   const workouts =
     preloadedWorkouts ?? (await resolveWorkoutsForDate(clientId, dateKey));
-  if (workouts.length === 0) return false;
+  const mains = workouts.filter((workout) =>
+    isMainWorkoutKind(workout.planKind)
+  );
+  if (mains.length === 0) return false;
 
   const status = await getWorkoutCompletionStatusForDate(
     clientId,
     dateKey,
     workouts
   );
-  return workouts.every((workout) => status[workout.taskId]?.completed);
+  return mains.every((workout) => status[workout.taskId]?.completed);
 }
 
 export async function getInProgressSession(): Promise<WorkoutSession | null> {
@@ -826,7 +832,7 @@ async function getSessionWithDetails(sessionId: string) {
   if ("error" in auth) return null;
   const { admin } = auth;
 
-  let planKind: "strength" | "hiit" = "strength";
+  let planKind: import("@/lib/hiit").WorkoutPlanKind = "strength";
   let hiitConfig: import("@/lib/hiit").HiitConfig | null = null;
 
   if (session.plan_id) {
@@ -836,14 +842,15 @@ async function getSessionWithDetails(sessionId: string) {
       .eq("id", session.plan_id)
       .maybeSingle();
 
-    if (plan?.kind === "hiit") {
-      planKind = "hiit";
-      const { parseHiitConfig } = await import("@/lib/hiit");
+    const { isIntervalPlan, normalizeWorkoutPlanKind, parseHiitConfig } =
+      await import("@/lib/hiit");
+    if (plan && isIntervalPlan(plan)) {
+      planKind = normalizeWorkoutPlanKind(plan.kind);
       hiitConfig = parseHiitConfig(plan.hiit_config);
     }
   }
 
-  if (planKind === "hiit") {
+  if (hiitConfig) {
     return {
       session: session as WorkoutSession,
       exercises: [] as WorkoutSessionExercise[],

@@ -5,18 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { ensureManualPlanCreation, ensurePlanMutationAccess } from "@/lib/actions/usage-limits";
 import { enrichExerciseWithGif } from "@/lib/exercise-gif";
 import {
+  isIntervalPlan,
   normalizeHiitConfig,
   type HiitConfig,
 } from "@/lib/hiit";
 import { WORKOUT_PLAN_LIST_COLUMNS } from "@/lib/db-selects";
 import { UNCATEGORIZED_FOLDER_ID } from "@/lib/workout-folders";
 import { assignPersonalWorkoutPlan } from "@/lib/actions/user-workouts";
-
-async function requireMutationAdmin() {
-  const access = await ensurePlanMutationAccess();
-  if ("error" in access) throw new Error(access.error);
-  return { admin: access.admin, userId: access.userId };
-}
 
 export async function savePersonalHiitPlan(input: {
   planId?: string;
@@ -25,6 +20,8 @@ export async function savePersonalHiitPlan(input: {
   folderId?: string | null;
   config: HiitConfig;
   assign?: boolean;
+  /** Defaults to hiit. Warm-up / stretching also use interval config. */
+  kind?: "hiit" | "warmup" | "stretch";
 }) {
   const access = input.planId
     ? await ensurePlanMutationAccess()
@@ -37,6 +34,14 @@ export async function savePersonalHiitPlan(input: {
 
   const config = normalizeHiitConfig(input.config);
   if (!config) return { error: "Add at least one exercise with a name" };
+
+  const planKind = input.kind ?? "hiit";
+  const dayTitle =
+    planKind === "warmup"
+      ? "Warm-up"
+      : planKind === "stretch"
+        ? "Stretching"
+        : "HIIT";
 
   const resolvedFolderId =
     input.folderId && input.folderId !== UNCATEGORIZED_FOLDER_ID
@@ -64,13 +69,19 @@ export async function savePersonalHiitPlan(input: {
         created_by: userId,
         is_personal: true,
         folder_id: resolvedFolderId,
-        kind: "hiit",
+        kind: planKind,
         hiit_config: config,
       })
       .select("id")
       .single();
 
-    if (error || !data) return { error: error?.message ?? "Failed to create HIIT plan" };
+    if (error || !data) {
+      return {
+        error:
+          error?.message ??
+          `Failed to create ${planKind === "hiit" ? "HIIT" : planKind} plan`,
+      };
+    }
     planId = data.id;
   } else {
     const { data: existing } = await admin
@@ -87,7 +98,7 @@ export async function savePersonalHiitPlan(input: {
       .update({
         title,
         description: input.description?.trim() || null,
-        kind: "hiit",
+        kind: planKind,
         hiit_config: config,
       })
       .eq("id", planId);
@@ -110,18 +121,18 @@ export async function savePersonalHiitPlan(input: {
       .insert({
         plan_id: planId,
         day_index: 0,
-        title: "HIIT",
+        title: dayTitle,
       })
       .select("id")
       .single();
     if (dayError || !day) {
-      return { error: dayError?.message ?? "Failed to create HIIT day" };
+      return { error: dayError?.message ?? "Failed to create session day" };
     }
     dayId = day.id;
   } else {
     await admin
       .from("workout_days")
-      .update({ title: "HIIT", day_index: 0 })
+      .update({ title: dayTitle, day_index: 0 })
       .eq("id", dayId);
     await admin.from("exercises").delete().eq("day_id", dayId);
   }
@@ -183,7 +194,7 @@ export async function getPersonalHiitPlan(planId: string) {
     .eq("is_personal", true)
     .single();
 
-  if (!plan || plan.kind !== "hiit") {
+  if (!plan || !isIntervalPlan(plan)) {
     return { plan: null, config: null, dayId: null };
   }
 

@@ -4,7 +4,7 @@ import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/** One workout per day: show add only when empty, remove only when a workout exists. */
+/** Add/remove sessions for a day — warm-up, main, and stretching can share a day. */
 export function DashboardWorkoutPlusMenu({
   onAddWorkout,
   onRemoveWorkout,

@@ -20,7 +20,7 @@ export default async function WorkoutSessionPage({
 
   if (!data) notFound();
 
-  const { session, exercises, planKind, hiitConfig } = data;
+  const { session, exercises, hiitConfig } = data;
 
   if (session.status === "completed") {
     redirect("/dashboard/workout");
@@ -30,8 +30,8 @@ export default async function WorkoutSessionPage({
     notFound();
   }
 
-  if (planKind === "hiit") {
-    if (!hiitConfig) notFound();
+  // HIIT, warm-up, and stretching all run on the interval timer.
+  if (hiitConfig) {
     return (
       <PageTransition>
         <ActiveHiitClient session={session} config={hiitConfig} />

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ensureManualPlanCreation, ensurePlanMutationAccess } from "@/lib/actions/usage-limits";
 import { generateRecurringScheduleDates, inferScheduleFromSessions } from "@/lib/schedule-utils";
 import { WORKOUT_DAY_WITH_EXERCISES, WORKOUT_PLAN_LIST_COLUMNS } from "@/lib/db-selects";
+import { isExtraWorkoutKind, isMainWorkoutKind } from "@/lib/hiit";
 import { UNCATEGORIZED_FOLDER_ID } from "@/lib/workout-folders";
 import type { ScheduledWorkout, WorkoutDay, Exercise } from "@/lib/types";
 
@@ -369,7 +370,7 @@ export async function addWorkoutToDay(
 
   const { data: plan } = await admin
     .from("workout_plans")
-    .select("id, is_personal, created_by")
+    .select("id, is_personal, created_by, kind")
     .eq("id", planId)
     .single();
 
@@ -400,20 +401,68 @@ export async function addWorkoutToDay(
 
   if (!day) return { error: "Workout day not found" };
 
-  const { data: existingAny } = await admin
+  const { data: existingRows } = await admin
     .from("scheduled_workouts")
-    .select("id, plan_id, day_id")
+    .select("id, plan_id, day_id, order_index, workout_plans(kind)")
     .eq("client_id", userId)
     .eq("scheduled_date", scheduledDate)
-    .limit(1)
-    .maybeSingle();
+    .order("order_index", { ascending: false });
 
-  if (existingAny) {
-    if (existingAny.plan_id === planId && existingAny.day_id === dayId) {
-      return { data: existingAny, alreadyScheduled: true as const };
-    }
-    return { error: "Only one workout per day. Remove the current workout first." };
+  const existing = existingRows ?? [];
+  const duplicate = existing.find(
+    (row) => row.plan_id === planId && row.day_id === dayId
+  );
+  if (duplicate) {
+    return { data: duplicate, alreadyScheduled: true as const };
   }
+
+  const addingExtra = isExtraWorkoutKind(plan.kind as string | null);
+  if (addingExtra) {
+    const hasSameExtra = existing.some((row) => {
+      const kind = Array.isArray(row.workout_plans)
+        ? row.workout_plans[0]?.kind
+        : (row.workout_plans as { kind?: string } | null)?.kind;
+      return kind === plan.kind;
+    });
+    if (hasSameExtra) {
+      return {
+        error:
+          plan.kind === "warmup"
+            ? "This day already has a warm-up. You can still add a main workout or stretching."
+            : "This day already has a stretching session. You can still add a warm-up or main workout.",
+      };
+    }
+  } else {
+    const hasMain = existing.some((row) => {
+      const kind = Array.isArray(row.workout_plans)
+        ? row.workout_plans[0]?.kind
+        : (row.workout_plans as { kind?: string } | null)?.kind;
+      return isMainWorkoutKind(kind);
+    });
+    if (hasMain) {
+      return {
+        error:
+          "This day already has a main workout. You can still add a warmup or stretching session.",
+      };
+    }
+  }
+
+  // Warm-up → main → stretch visual order on the day.
+  const kindOrder =
+    plan.kind === "warmup" ? 0 : plan.kind === "stretch" ? 200 : 100;
+  const sameBand = existing.filter((row) => {
+    const kind = Array.isArray(row.workout_plans)
+      ? row.workout_plans[0]?.kind
+      : (row.workout_plans as { kind?: string } | null)?.kind;
+    const rowOrder =
+      kind === "warmup" ? 0 : kind === "stretch" ? 200 : 100;
+    return rowOrder === kindOrder;
+  });
+  const orderIndex =
+    kindOrder +
+    (sameBand.length > 0
+      ? Math.max(...sameBand.map((row) => (row.order_index ?? kindOrder) % 100)) + 1
+      : 0);
 
   const { data, error } = await admin
     .from("scheduled_workouts")
@@ -422,7 +471,7 @@ export async function addWorkoutToDay(
       scheduled_date: scheduledDate,
       plan_id: planId,
       day_id: dayId,
-      order_index: 0,
+      order_index: orderIndex,
     })
     .select("id")
     .single();
@@ -439,7 +488,7 @@ export async function getScheduledWorkoutsInRange(from: string, to: string) {
   const { data } = await supabase
     .from("scheduled_workouts")
     .select(
-      "*, workout_plans(title), workout_days(title, day_index, exercises(id, name, sets, reps, order_index))"
+      "*, workout_plans(title, kind), workout_days(title, day_index, exercises(id, name, sets, reps, order_index))"
     )
     .eq("client_id", userId)
     .gte("scheduled_date", from)

@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/actions/auth";
 import { getAdminClientCalendarData } from "@/lib/actions/admin-client-calendar";
 import { getAdminClientProgressPhotoGallery } from "@/lib/actions/admin-progress-photos";
+import { getClientIntakeInfo } from "@/lib/actions/client-intake";
 import { AdminClientProgressPhotos } from "@/components/admin-client-progress-photos";
+import { AdminClientHealthProfile } from "@/components/admin-client-health-profile";
 import { DeleteClientAccountButton } from "@/components/delete-client-account-button";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,10 +31,11 @@ export default async function ClientDetailPage({
 
   if (!client) notFound();
 
-  const [calendarData, progressPhotos, authUser] = await Promise.all([
+  const [calendarData, progressPhotos, authUser, intake] = await Promise.all([
     getAdminClientCalendarData(id),
     getAdminClientProgressPhotoGallery(id),
     createAdminClient().auth.admin.getUserById(id),
+    getClientIntakeInfo(id),
   ]);
   const email = authUser.data.user?.email ?? null;
 
@@ -91,6 +94,8 @@ export default async function ClientDetailPage({
         )}
 
         <AdminClientProgressPhotos months={progressPhotos} />
+
+        <AdminClientHealthProfile intake={intake} />
       </div>
     </PageTransition>
   );

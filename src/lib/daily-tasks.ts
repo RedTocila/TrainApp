@@ -1,6 +1,7 @@
 import { workoutTaskId } from "@/lib/workout-task-id";
 import { cardioTaskId } from "@/lib/cardio-task-id";
 import { formatHabitTimeWindow, getHabitWindowPhase } from "@/lib/habit-utils";
+import { isExtraWorkoutKind } from "@/lib/hiit";
 import { formatDateKey } from "@/lib/utils";
 import type {
   NutritionAssignment,
@@ -77,7 +78,13 @@ function getScheduledWorkoutDays(
   if (!scheduledWorkouts?.length) return [];
   const dateKey = formatDateKey(date);
   return scheduledWorkouts
-    .filter((entry) => entry.scheduled_date === dateKey && entry.workout_days)
+    .filter(
+      (entry) =>
+        entry.scheduled_date === dateKey &&
+        entry.workout_days &&
+        // Warm-up / stretching stay on the workout card, not the calendar todo list.
+        !isExtraWorkoutKind(entry.workout_plans?.kind)
+    )
     .sort(
       (a, b) =>
         (a.order_index ?? 0) - (b.order_index ?? 0) ||

@@ -469,8 +469,27 @@ export const platformCopyAl = {
       "Intervale me kohë — punë, pushim, raunde dhe cikle me kohëmatës live.",
     addWorkout: "Shto stërvitje",
     addWorkoutToDayDesc: (day: string) =>
-      `Shto një seancë vetëm për ${day} — nuk ndryshon orarin tënd të përsëritur.`,
+      `Shto ngrohje, stërvitje kryesore dhe/ose shtrirje për ${day} — nuk ndryshon orarin tënd të përsëritur.`,
     addWorkoutToDayAria: "Shto stërvitje në ditë",
+    sessionTypeMain: "Stërvitja kryesore",
+    sessionTypeWarmup: "Ngrohje",
+    sessionTypeStretch: "Shtrirje",
+    sessionTypeLabel: "Lloji i seancës",
+    sessionTypeHint:
+      "Mund të shtosh ngrohje, një stërvitje kryesore dhe shtrirje në të njëjtën ditë.",
+    aiFullDayTitle: "Ditë e plotë stërvitjeje",
+    aiFullDayPromptLabel: "Ku duhet të fokusohet stërvitja e sotme?",
+    aiFullDayPlaceholder:
+      "p.sh. upper body push… ose HIIT 20 min me peshën e trupit…",
+    aiFullDayHint:
+      "AI ndërton ngrohje + stërvitjen kryesore + shtrirje së bashku për këtë ditë.",
+    generateFullDay: "Gjenero ditën e plotë",
+    buildingFullDay: "Duke ndërtuar ngrohje, kryesore & shtrirje…",
+    addFullDay: "Shto ditën e plotë",
+    extrasIncompleteWarning:
+      "Stërvitja kryesore u krye — ngrohja ose shtrirja janë ende hapur.",
+    aiDayWorkoutHint: (day: string) =>
+      `Përshkruaj fokusin — AI ndërton ngrohje, stërvitje kryesore dhe shtrirje për ${day}.`,
     fromLibrary: "Nga biblioteka",
     createNew: "Krijo të re",
     libraryEmptyHint:
