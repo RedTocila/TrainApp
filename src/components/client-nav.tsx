@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import {
-  Bot,
   Dumbbell,
   Home,
   Trophy,
@@ -13,6 +12,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AiCoachFab } from "@/components/ai-coach-fab";
+import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { AppLogo } from "@/components/app-logo";
 import { SignOutButton } from "@/components/sign-out-button";
 import { InstantNavLink } from "@/components/instant-nav-link";
@@ -58,14 +59,14 @@ export function ClientNav({
 }) {
   const pathname = usePathname();
   const { pendingHref, setPendingHref } = useDashboardNavPending();
+  const { isOpen: alexChatOpen } = useAiCoachChat();
   const platform = usePlatformCopy();
   const reduceMotion = useReducedMotion();
   const activePath = pendingHref ?? pathname;
   const hideNav = isActiveWorkoutSessionPath(activePath);
+  const hideMobileChrome = hideNav || alexChatOpen;
   const programsActive = isProgramsNavActive(activePath);
   const homeActive = isHomeNavActive(activePath);
-  const [navCompact, setNavCompact] = useState(false);
-  const scrollIdleTimer = useRef(0);
 
   const prefetchRoutes = useMemo(
     () => [
@@ -82,7 +83,7 @@ export function ClientNav({
   usePrefetchRoutes(prefetchRoutes);
 
   useEffect(() => {
-    if (!hideNav) return;
+    if (!hideMobileChrome) return;
     const root = document.documentElement;
     const previous = root.style.getPropertyValue("--dashboard-mobile-nav-height");
     root.style.setProperty("--dashboard-mobile-nav-height", "0px");
@@ -93,30 +94,7 @@ export function ClientNav({
         root.style.removeProperty("--dashboard-mobile-nav-height");
       }
     };
-  }, [hideNav]);
-
-  // Shrink floating pill while scrolling; restore when scrolling stops.
-  // Capture on .dashboard-main so home day-page vertical scroll is included
-  // (scroll does not bubble; day pages scroll inside the pager, not on main).
-  useEffect(() => {
-    if (hideNav) return;
-    const main = document.querySelector<HTMLElement>(".dashboard-main");
-    if (!main) return;
-
-    const onScroll = () => {
-      setNavCompact(true);
-      window.clearTimeout(scrollIdleTimer.current);
-      scrollIdleTimer.current = window.setTimeout(() => {
-        setNavCompact(false);
-      }, 140);
-    };
-
-    main.addEventListener("scroll", onScroll, { passive: true, capture: true });
-    return () => {
-      main.removeEventListener("scroll", onScroll, { capture: true });
-      window.clearTimeout(scrollIdleTimer.current);
-    };
-  }, [hideNav, pathname]);
+  }, [hideMobileChrome]);
 
   if (hideNav) return null;
 
@@ -139,14 +117,6 @@ export function ClientNav({
       label: platform.nav.programs,
       icon: Dumbbell,
       active: programsActive,
-      tapSlop: 16,
-    },
-    {
-      href: "/dashboard/ai",
-      label: platform.nav.aiCoach,
-      icon: Bot,
-      active:
-        activePath === "/dashboard/ai" || activePath.startsWith("/dashboard/ai/"),
       tapSlop: 16,
     },
     {
@@ -176,8 +146,6 @@ export function ClientNav({
         ? "bg-primary/10 text-primary"
         : "text-muted-foreground hover:bg-secondary hover:text-foreground"
     );
-
-  const iconSize = navCompact ? "h-5 w-5" : "h-6 w-6";
 
   return (
     <>
@@ -212,58 +180,60 @@ export function ClientNav({
         </div>
       </aside>
 
-      <div className="dashboard-mobile-nav pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex justify-center bg-transparent px-3 pb-[max(0.75rem,var(--safe-area-bottom))] lg:hidden">
-        <nav
-          className={cn(
-            "dashboard-instant-nav pointer-events-auto isolate relative flex w-full max-w-md items-center justify-around",
-            "rounded-full border border-border/50 bg-background/45 shadow-[0_8px_28px_rgba(0,0,0,0.08)] backdrop-blur-2xl",
-            "transition-[transform,height,padding,box-shadow,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-            "dark:border-white/15 dark:bg-background/35 dark:shadow-[0_8px_28px_rgba(0,0,0,0.22)]",
-            navCompact
-              ? "h-11 scale-[0.92] p-1"
-              : "h-14 scale-100 p-1.5"
-          )}
-          aria-label="Primary"
-        >
-          {mobileNavItems.map((item) => (
-            <InstantNavLink
-              key={item.href}
-              href={item.href}
-              pressToNavigate
-              onNavigateStart={setPendingHref}
-              tapSlop={item.tapSlop}
-              aria-label={item.label}
-              aria-current={item.active ? "page" : undefined}
+      {!alexChatOpen ? (
+        <>
+          <div className="dashboard-mobile-nav pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex items-end justify-center gap-2.5 bg-transparent px-3 pb-[max(0.75rem,var(--safe-area-bottom))] lg:hidden">
+            <nav
               className={cn(
-                mobileNavLinkClass,
-                item.active ? "text-primary" : "text-muted-foreground"
+                "dashboard-instant-nav pointer-events-auto isolate relative flex h-14 w-full max-w-[min(28rem,calc(100%-3.75rem))] items-center justify-around p-1.5",
+                "rounded-full border border-border/50 bg-background/45 shadow-[0_8px_28px_rgba(0,0,0,0.08)] backdrop-blur-2xl",
+                "dark:border-white/15 dark:bg-background/35 dark:shadow-[0_8px_28px_rgba(0,0,0,0.22)]"
               )}
+              aria-label="Primary"
             >
-              {item.active ? (
-                <motion.span
-                  layoutId="mobile-nav-active-pill"
-                  className="absolute inset-0 rounded-full bg-primary/12 dark:bg-primary/20"
-                  transition={
-                    reduceMotion
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 420, damping: 32, mass: 0.7 }
-                  }
-                  aria-hidden
-                />
-              ) : null}
-              {item.showDot ? (
-                <NavIconWithDot
-                  icon={item.icon}
-                  showDot
-                  className={cn(iconSize, liveChallengeActive && "animate-pulse")}
-                />
-              ) : (
-                <item.icon className={cn("relative z-[1]", iconSize)} />
-              )}
-            </InstantNavLink>
-          ))}
-        </nav>
-      </div>
+              {mobileNavItems.map((item) => (
+                <InstantNavLink
+                  key={item.href}
+                  href={item.href}
+                  pressToNavigate
+                  onNavigateStart={setPendingHref}
+                  tapSlop={item.tapSlop}
+                  aria-label={item.label}
+                  aria-current={item.active ? "page" : undefined}
+                  className={cn(
+                    mobileNavLinkClass,
+                    item.active ? "text-primary" : "text-muted-foreground"
+                  )}
+                >
+                  {item.active ? (
+                    <motion.span
+                      layoutId="mobile-nav-active-pill"
+                      className="absolute inset-0 rounded-full bg-primary/12 dark:bg-primary/20"
+                      transition={
+                        reduceMotion
+                          ? { duration: 0 }
+                          : { type: "spring", stiffness: 420, damping: 32, mass: 0.7 }
+                      }
+                      aria-hidden
+                    />
+                  ) : null}
+                  {item.showDot ? (
+                    <NavIconWithDot
+                      icon={item.icon}
+                      showDot
+                      className={cn("h-6 w-6", liveChallengeActive && "animate-pulse")}
+                    />
+                  ) : (
+                    <item.icon className="relative z-[1] h-6 w-6" />
+                  )}
+                </InstantNavLink>
+              ))}
+            </nav>
+            <AiCoachFab placement="docked" onNavigateStart={setPendingHref} />
+          </div>
+          <AiCoachFab placement="corner" onNavigateStart={setPendingHref} />
+        </>
+      ) : null}
     </>
   );
 }

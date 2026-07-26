@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { X } from "lucide-react";
 import { DialogPortal } from "@/components/dialog-portal";
 import { AiChatClientLazy } from "@/components/ai-chat-client-lazy";
@@ -51,7 +51,7 @@ export function AiCoachChatDialog() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-coach-chat-title"
-        className="fixed inset-x-0 top-0 bottom-[var(--dashboard-mobile-nav-height,3.375rem)] z-[90] flex flex-col overflow-hidden bg-background lg:bottom-0"
+        className="fixed inset-0 z-[110] flex flex-col overflow-hidden bg-background"
       >
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
         <div className="flex min-w-0 items-center gap-2.5">

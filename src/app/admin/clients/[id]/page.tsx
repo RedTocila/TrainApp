@@ -56,13 +56,13 @@ export default async function ClientDetailPage({
               {(email || client.phone) && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                   {email ? (
-                    <a
-                      href={`mailto:${email}`}
+                    <Link
+                      href={`/admin/mail?clientId=${id}`}
                       className="inline-flex min-w-0 items-center gap-1.5 text-primary hover:underline"
                     >
                       <Mail className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">{email}</span>
-                    </a>
+                    </Link>
                   ) : null}
                   {client.phone ? (
                     <a

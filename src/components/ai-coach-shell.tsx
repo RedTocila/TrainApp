@@ -4,10 +4,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, Sparkles } from "lucide-react";
-import { AiCoachFab } from "@/components/ai-coach-fab";
-import { AiCoachChatDialog } from "@/components/ai-coach-chat-dialog";
 import { AiCoachChatAutoOpen } from "@/components/ai-coach-chat-auto-open";
-import { AiCoachChatProvider } from "@/components/ai-coach-chat-context";
 import { Button } from "@/components/ui/button";
 
 export function AiCoachShell({ children }: { children: React.ReactNode }) {
@@ -15,7 +12,7 @@ export function AiCoachShell({ children }: { children: React.ReactNode }) {
   const isRoot = pathname === "/dashboard/ai" || pathname === "/dashboard/ai/";
 
   return (
-    <AiCoachChatProvider>
+    <>
       <Suspense fallback={null}>
         <AiCoachChatAutoOpen />
       </Suspense>
@@ -39,8 +36,6 @@ export function AiCoachShell({ children }: { children: React.ReactNode }) {
         )}
         {children}
       </div>
-      <AiCoachFab />
-      <AiCoachChatDialog />
-    </AiCoachChatProvider>
+    </>
   );
 }

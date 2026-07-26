@@ -39,9 +39,9 @@ export default async function DashboardLayout({
         <DashboardSyncProvider>
         <DashboardDateLoadingProvider>
         <DashboardNavPendingProvider>
+        <DashboardAiCoachProvider>
         <div className="dashboard-shell flex min-h-0 overflow-hidden bg-background">
           <ClientNav fullName={profile.full_name} liveChallengeActive={liveChallengeActive} />
-          <DashboardAiCoachProvider>
           <FullCalendarProvider>
             <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
               <main
@@ -55,8 +55,8 @@ export default async function DashboardLayout({
               </main>
             </div>
           </FullCalendarProvider>
-          </DashboardAiCoachProvider>
         </div>
+        </DashboardAiCoachProvider>
         </DashboardNavPendingProvider>
         </DashboardDateLoadingProvider>
         </DashboardSyncProvider>
