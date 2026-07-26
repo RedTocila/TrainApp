@@ -577,6 +577,7 @@ export const platformCopyEn = {
     finish: "Finish",
     discardSession: "Discard session",
     stillGoing: "Cardio in progress",
+    ongoing: "Ongoing",
     readyToStart: "Ready to start",
     planned: "Planned",
     elapsed: "Elapsed",

@@ -590,6 +590,7 @@ export const platformCopyAl = {
     finish: "Përfundo",
     discardSession: "Anulo seancën",
     stillGoing: "Kardio në vazhdim",
+    ongoing: "Në vazhdim",
     readyToStart: "Gati për të filluar",
     planned: "Planifikuar",
     elapsed: "Koha",

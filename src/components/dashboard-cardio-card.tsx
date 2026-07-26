@@ -5,7 +5,7 @@ import Link from "next/link";
 import { isToday, isTomorrow } from "date-fns";
 import { formatLocalized } from "@/lib/date-locale";
 import { HeartPulse } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import {
   DashboardCardNavBody,
   DashboardCardNavLink,
@@ -26,16 +26,17 @@ import { getScheduledCardiosForDate } from "@/lib/actions/user-cardio";
 import { getCardioCompletionForDate } from "@/lib/actions/task-completions";
 import { formatCardioElapsedMinutes } from "@/lib/cardio-completion";
 import { cardioTaskId } from "@/lib/cardio-task-id";
-import { isCardioTimerActive } from "@/lib/cardio-timer-storage";
 import {
   scheduledCardiosForDate,
   sortScheduledCardios,
 } from "@/lib/cardio-utils";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
+import { useCardioSessionClock } from "@/hooks/use-cardio-session-clock";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import type { ScheduledCardio } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 import { isDayEnded } from "@/lib/meal-times";
+import { formatElapsedClock } from "@/lib/workout-duration";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -227,10 +228,8 @@ export function DashboardCardioCard({
     ? `/dashboard/workout/cardio/session?date=${dateKey}&cardioId=${encodeURIComponent(activeCardioId)}`
     : `/dashboard/workout/cardio/session?date=${dateKey}`;
 
-  const [sessionActive, setSessionActive] = useState(false);
-  useEffect(() => {
-    setSessionActive(isCardioTimerActive(dateKey, activeCardioId));
-  }, [dateKey, activeCardioId, version]);
+  const sessionClock = useCardioSessionClock(dateKey, activeCardioId, version);
+  const sessionActive = sessionClock.active && !activeCompleted;
 
   const startLabel = sessionActive
     ? platform.cardio.continueCardio
@@ -246,10 +245,14 @@ export function DashboardCardioCard({
       ? getCardioTypeDisplay(activeCardio.title, platform.cardio.types)
       : null;
     const Icon = typeDisplay?.icon ?? HeartPulse;
-    const badge =
+    const plannedBadge =
       activeCardio != null
         ? durationBadgeFor(activeCardio, activeCompleted, elapsed, platform)
         : null;
+    const sessionBadge = sessionActive
+      ? formatElapsedClock(sessionClock.elapsedSeconds)
+      : null;
+    const badge = sessionBadge ?? plannedBadge;
 
     return (
       <DashboardThemedShell
@@ -297,9 +300,37 @@ export function DashboardCardioCard({
               >
                 {localizeCardioTitle(activeCardio.title, platform.cardio.types)}
               </p>
-              <div className="flex min-h-[1.125rem] items-center justify-center">
+              <div
+                className={cn(
+                  "flex flex-col items-center justify-center gap-0.5",
+                  sessionActive ? "min-h-[2.25rem]" : "min-h-[1.125rem]"
+                )}
+              >
+                {sessionActive ? (
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-300">
+                    {sessionClock.paused
+                      ? platform.cardio.pause
+                      : platform.cardio.ongoing}
+                  </p>
+                ) : null}
                 {badge ? (
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      "tabular-nums",
+                      sessionActive
+                        ? "border-orange-500/30 bg-orange-500/15 px-2.5 py-0.5 text-sm font-bold text-orange-700 dark:text-orange-300"
+                        : "text-[10px]",
+                      sessionClock.running && "animate-pulse"
+                    )}
+                    aria-label={
+                      sessionActive
+                        ? sessionClock.running
+                          ? platform.cardio.elapsed
+                          : platform.cardio.pause
+                        : undefined
+                    }
+                  >
                     {badge}
                   </Badge>
                 ) : (
@@ -358,10 +389,13 @@ export function DashboardCardioCard({
     ? getCardioTypeDisplay(activeCardio.title, platform.cardio.types)
     : null;
   const Icon = typeDisplay?.icon ?? HeartPulse;
-  const badge =
+  const plannedBadge =
     activeCardio != null
       ? durationBadgeFor(activeCardio, activeCompleted, elapsed, platform)
       : null;
+  const badge = sessionActive
+    ? formatElapsedClock(sessionClock.elapsedSeconds)
+    : plannedBadge;
 
   return (
     <div id="dashboard-cardio" className={cn(dashboard.tile, "relative p-4")}>
@@ -406,7 +440,22 @@ export function DashboardCardioCard({
                     >
                       {localizeCardioTitle(activeCardio.title, platform.cardio.types)}
                     </p>
-                    {badge && <Badge variant="secondary">{badge}</Badge>}
+                    {badge ? (
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "tabular-nums",
+                          sessionActive
+                            ? "border-orange-500/30 bg-orange-500/15 px-2.5 py-0.5 text-sm font-bold text-orange-700 dark:text-orange-300"
+                            : undefined,
+                          sessionClock.running && "animate-pulse"
+                        )}
+                      >
+                        {sessionActive
+                          ? `${sessionClock.paused ? platform.cardio.pause : platform.cardio.ongoing} · ${badge}`
+                          : badge}
+                      </Badge>
+                    ) : null}
                     {activeCompleted ? (
                       <DashboardStatusCheck aria-label={platform.aria.completed} />
                     ) : null}

@@ -12,10 +12,20 @@ export type CardioTimerState = {
 };
 
 const STORAGE_PREFIX = "cardio-timer-";
+export const CARDIO_TIMER_CHANGE_EVENT = "cardio-timer-change";
 
 function storageKey(dateKey: string, cardioId?: string | null) {
   if (cardioId) return `${STORAGE_PREFIX}${dateKey}-${cardioId}`;
   return `${STORAGE_PREFIX}${dateKey}`;
+}
+
+function notifyCardioTimerChange(dateKey: string, cardioId?: string | null) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(CARDIO_TIMER_CHANGE_EVENT, {
+      detail: { dateKey, cardioId: cardioId ?? null },
+    })
+  );
 }
 
 function readRaw(key: string): CardioTimerState | null {
@@ -71,6 +81,7 @@ export function setCardioTimerState(state: CardioTimerState) {
   if (state.cardioId) {
     localStorage.removeItem(storageKey(state.dateKey));
   }
+  notifyCardioTimerChange(state.dateKey, state.cardioId);
 }
 
 export function clearCardioTimerState(
@@ -81,6 +92,7 @@ export function clearCardioTimerState(
     localStorage.removeItem(storageKey(dateKey, cardioId));
   }
   localStorage.removeItem(storageKey(dateKey));
+  notifyCardioTimerChange(dateKey, cardioId);
 }
 
 export function isCardioTimerActive(
@@ -155,4 +167,26 @@ export function resumeCardioTimer(
   };
   setCardioTimerState(next);
   return next;
+}
+
+/** Subscribe to local cardio timer writes (same tab + cross-tab storage). */
+export function subscribeCardioTimerChange(onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  const onCustom = () => onChange();
+  const onStorage = (event: StorageEvent) => {
+    if (event.key && event.key.startsWith(STORAGE_PREFIX)) onChange();
+  };
+  const onVisible = () => {
+    if (document.visibilityState === "visible") onChange();
+  };
+
+  window.addEventListener(CARDIO_TIMER_CHANGE_EVENT, onCustom);
+  window.addEventListener("storage", onStorage);
+  document.addEventListener("visibilitychange", onVisible);
+  return () => {
+    window.removeEventListener(CARDIO_TIMER_CHANGE_EVENT, onCustom);
+    window.removeEventListener("storage", onStorage);
+    document.removeEventListener("visibilitychange", onVisible);
+  };
 }
