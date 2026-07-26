@@ -40,3 +40,30 @@ export function getWallClockDate(
     local.getUTCMilliseconds()
   );
 }
+
+/**
+ * Half-open UTC ISO bounds [start, end) for a calendar `yyyy-MM-dd` in the
+ * viewer's timezone (`Date#getTimezoneOffset()` minutes).
+ */
+export function localDateKeyRangeUtc(
+  dateKey: string,
+  timezoneOffsetMinutes = 0
+): { startIso: string; endIso: string } {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const startMs =
+    Date.UTC(year, month - 1, day) + timezoneOffsetMinutes * 60_000;
+  const endMs = startMs + 24 * 60 * 60 * 1000;
+  return {
+    startIso: new Date(startMs).toISOString(),
+    endIso: new Date(endMs).toISOString(),
+  };
+}
+
+/** Calendar date key for an instant in the viewer's timezone. */
+export function formatDateKeyInTimezone(
+  instant: Date | string,
+  timezoneOffsetMinutes = 0
+): string {
+  const at = typeof instant === "string" ? new Date(instant) : instant;
+  return getDateKeyForTimezoneOffset(timezoneOffsetMinutes, at);
+}

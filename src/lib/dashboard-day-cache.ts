@@ -20,6 +20,10 @@ export function setDashboardDayCache<T>(key: string, data: T): void {
   cache.set(key, { data, fetchedAt: Date.now() });
 }
 
+export function deleteDashboardDayCache(key: string): void {
+  cache.delete(key);
+}
+
 export function isDashboardDayCacheFresh(
   key: string,
   maxAgeMs = DASHBOARD_DAY_CACHE_TTL_MS

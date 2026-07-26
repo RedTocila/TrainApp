@@ -6,6 +6,7 @@ import {
   getWorkoutFoldersForMove,
   getWorkoutsAvailableForFolder,
 } from "@/lib/actions/user-workouts";
+import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import { FolderWorkoutsPage } from "@/components/folder-workouts-page";
 import { PageTransition } from "@/components/page-transition";
 
@@ -20,10 +21,11 @@ export default async function FolderWorkoutsRoute({
 
   if (!folder) notFound();
 
-  const [workouts, folders, availableWorkouts] = await Promise.all([
+  const [workouts, folders, availableWorkouts, profile] = await Promise.all([
     getPersonalWorkoutsWithSchedules(folderId),
     getWorkoutFoldersForMove(),
     getWorkoutsAvailableForFolder(folderId),
+    getSubscriptionProfile(),
   ]);
 
   return (
@@ -34,6 +36,7 @@ export default async function FolderWorkoutsRoute({
         workouts={workouts}
         folders={folders}
         availableWorkouts={availableWorkouts}
+        gender={profile?.gender}
       />
     </PageTransition>
   );

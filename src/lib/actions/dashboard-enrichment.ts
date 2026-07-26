@@ -10,12 +10,16 @@ import {
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
 import { createClient } from "@/lib/supabase/server";
 import type { DailyMealLog } from "@/lib/types";
-import { formatDateKey } from "@/lib/utils";
+import {
+  formatDateKeyInTimezone,
+  localDateKeyRangeUtc,
+} from "@/lib/utils";
 
 export async function fetchDashboardEnrichmentFields(
   clientId: string,
   from: string,
-  to: string
+  to: string,
+  timezoneOffsetMinutes = 0
 ): Promise<
   Pick<
     DashboardEnrichmentData,
@@ -23,9 +27,15 @@ export async function fetchDashboardEnrichmentFields(
   >
 > {
   const supabase = await createClient();
+  const { startIso } = localDateKeyRangeUtc(from, timezoneOffsetMinutes);
+  const { endIso } = localDateKeyRangeUtc(to, timezoneOffsetMinutes);
 
-  const [logsResult, mealsResult, scheduledWorkoutsResult, unscheduledWorkoutsResult] =
-    await Promise.all([
+  const [
+    logsResult,
+    mealsResult,
+    scheduledWorkoutsResult,
+    unscheduledWorkoutsResult,
+  ] = await Promise.all([
     supabase
       .from("daily_logs")
       .select("date, water_ml")
@@ -52,8 +62,8 @@ export async function fetchDashboardEnrichmentFields(
       .eq("client_id", clientId)
       .eq("status", "completed")
       .is("scheduled_date", null)
-      .gte("completed_at", `${from}T00:00:00`)
-      .lte("completed_at", `${to}T23:59:59.999Z`),
+      .gte("completed_at", startIso)
+      .lt("completed_at", endIso),
   ]);
 
   const waterByDate: Record<string, number> = {};
@@ -69,10 +79,15 @@ export async function fetchDashboardEnrichmentFields(
 
   const workoutCompletedDates = [
     ...new Set(
-      [...(scheduledWorkoutsResult.data ?? []), ...(unscheduledWorkoutsResult.data ?? [])]
+      [
+        ...(scheduledWorkoutsResult.data ?? []),
+        ...(unscheduledWorkoutsResult.data ?? []),
+      ]
         .map((row) =>
           row.scheduled_date ??
-          (row.completed_at ? formatDateKey(new Date(row.completed_at)) : null)
+          (row.completed_at
+            ? formatDateKeyInTimezone(row.completed_at, timezoneOffsetMinutes)
+            : null)
         )
         .filter((dateKey): dateKey is string => !!dateKey)
     ),
@@ -84,7 +99,8 @@ export async function fetchDashboardEnrichmentFields(
 export async function fetchDashboardEnrichmentData(
   clientId: string,
   from: string,
-  to: string
+  to: string,
+  timezoneOffsetMinutes = 0
 ): Promise<DashboardEnrichmentData> {
   const supabase = await createClient();
 
@@ -97,8 +113,13 @@ export async function fetchDashboardEnrichmentData(
   ] = await Promise.all([
     getTaskCompletionsInRange(clientId, from, to),
     getHabitCompletionsInRange(clientId, from, to),
-    getWorkoutCompletedTaskIdsInRange(clientId, from, to),
-    fetchDashboardEnrichmentFields(clientId, from, to),
+    getWorkoutCompletedTaskIdsInRange(
+      clientId,
+      from,
+      to,
+      timezoneOffsetMinutes
+    ),
+    fetchDashboardEnrichmentFields(clientId, from, to, timezoneOffsetMinutes),
     supabase.from("profiles").select("created_at").eq("id", clientId).maybeSingle(),
   ]);
 
@@ -115,7 +136,13 @@ export async function fetchDashboardEnrichmentData(
 /** Lightweight fetch for a single day — used after user actions instead of full range reload. */
 export async function fetchDashboardEnrichmentForDate(
   clientId: string,
-  dateKey: string
+  dateKey: string,
+  timezoneOffsetMinutes = 0
 ): Promise<DashboardEnrichmentData> {
-  return fetchDashboardEnrichmentData(clientId, dateKey, dateKey);
+  return fetchDashboardEnrichmentData(
+    clientId,
+    dateKey,
+    dateKey,
+    timezoneOffsetMinutes
+  );
 }

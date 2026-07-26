@@ -71,7 +71,13 @@ export function useCachedDashboardDate<T>({
     }
 
     let cancelled = false;
+    let unregistered = false;
     const unregister = markLoading?.(dateKey) ?? (() => {});
+    const safeUnregister = () => {
+      if (unregistered) return;
+      unregistered = true;
+      unregister();
+    };
     setIsRevalidating(true);
 
     void fetcherRef
@@ -83,12 +89,12 @@ export function useCachedDashboardDate<T>({
       })
       .finally(() => {
         if (!cancelled) setIsRevalidating(false);
-        unregister();
+        safeUnregister();
       });
 
     return () => {
       cancelled = true;
-      unregister();
+      safeUnregister();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- depsKey encodes refresh triggers
   }, [cacheKey, dateKey, depsKey, markLoading, skipFetch, seed, trackGlobalLoading]);

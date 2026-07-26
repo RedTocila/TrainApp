@@ -3,6 +3,7 @@ import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import type { CompletedWorkoutResults, TodaysWorkoutInfo } from "@/lib/actions/workout-sessions";
 import {
   dashboardDayCacheKey,
+  deleteDashboardDayCache,
   getDashboardDayCache,
   isDashboardDayCacheFresh,
   setDashboardDayCache,
@@ -49,6 +50,10 @@ export function setWorkoutDayCache(
   data: WorkoutDayCache
 ) {
   setDashboardDayCache(workoutDayCacheKey(clientId, dateKey), data);
+}
+
+export function clearWorkoutDayCache(clientId: string, dateKey: string) {
+  deleteDashboardDayCache(workoutDayCacheKey(clientId, dateKey));
 }
 
 export function nutritionExtrasCacheKey(clientId: string) {

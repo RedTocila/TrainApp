@@ -19,7 +19,7 @@ export function RemoveWorkoutFromDayDialog({
   onClose: () => void;
   dateKey: string;
   workouts: TodaysWorkoutInfo[];
-  onRemoved?: () => void;
+  onRemoved?: (scheduledWorkoutId: string) => void;
 }) {
   const platform = usePlatformCopy();
   const [isPending, startTransition] = useTransition();
@@ -49,7 +49,7 @@ export function RemoveWorkoutFromDayDialog({
         setError(result.error);
         return;
       }
-      onRemoved?.();
+      onRemoved?.(selectedId);
       onClose();
     });
   };

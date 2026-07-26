@@ -116,6 +116,7 @@ export function WorkoutMuscleMap({
   className,
   variant = "full",
   showLegend = true,
+  bodyMinHeightClass,
 }: {
   exercises: { name: string }[];
   dayTitle?: string;
@@ -123,6 +124,8 @@ export function WorkoutMuscleMap({
   className?: string;
   variant?: "full" | "compact" | "hero";
   showLegend?: boolean;
+  /** Override default map body height (compact / hero). */
+  bodyMinHeightClass?: string;
 }) {
   const platform = usePlatformCopy();
   const bodyGender = resolveBodyMapGender(gender);
@@ -137,19 +140,21 @@ export function WorkoutMuscleMap({
   }
 
   if (variant === "hero") {
+    const height =
+      bodyMinHeightClass ?? "min-h-[8.5rem] max-h-[10rem]";
     return (
       <div className={cn("grid w-full grid-cols-2 gap-0.5", className)}>
         <CompactMuscleMapBody
           highlightData={highlightData}
           bodyGender={bodyGender}
           side="front"
-          minHeightClass="min-h-[8.5rem] max-h-[10rem]"
+          minHeightClass={height}
         />
         <CompactMuscleMapBody
           highlightData={highlightData}
           bodyGender={bodyGender}
           side="back"
-          minHeightClass="min-h-[8.5rem] max-h-[10rem]"
+          minHeightClass={height}
         />
       </div>
     );
@@ -163,11 +168,13 @@ export function WorkoutMuscleMap({
             highlightData={highlightData}
             bodyGender={bodyGender}
             side="front"
+            minHeightClass={bodyMinHeightClass}
           />
           <CompactMuscleMapBody
             highlightData={highlightData}
             bodyGender={bodyGender}
             side="back"
+            minHeightClass={bodyMinHeightClass}
           />
         </div>
         {showLegend ? <MuscleMapLegend /> : null}

@@ -83,7 +83,12 @@ export function DashboardDateLoadingProvider({
       return;
     }
 
-    if (!hadPendingForDateRef.current) return;
+    if (!hadPendingForDateRef.current) {
+      // No tracked fetch for this date — settle immediately (avoid infinite loading).
+      setLastSettledDate(dateKey);
+      setAwaitingNonTodayLoad(false);
+      return;
+    }
 
     hadPendingForDateRef.current = false;
     setLastSettledDate(dateKey);
@@ -185,16 +190,22 @@ export function useDashboardDateFetch(
     }
 
     let cancelled = false;
+    let unregistered = false;
     const unregister = markLoading?.(dateKey) ?? (() => {});
+    const safeUnregister = () => {
+      if (unregistered) return;
+      unregistered = true;
+      unregister();
+    };
 
     void fetcher().finally(() => {
       if (!cancelled) setSettledKey(dateKey);
-      unregister();
+      safeUnregister();
     });
 
     return () => {
       cancelled = true;
-      unregister();
+      safeUnregister();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- depsKey encodes refresh triggers
   }, [dateKey, depsKey, fetcher, markLoading, trackGlobalLoading, enabled]);

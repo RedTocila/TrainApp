@@ -12,7 +12,7 @@ import { getClientWorkoutAssignment } from "@/lib/actions/plans";
 import { getScheduledWorkoutsForDate } from "@/lib/actions/user-workouts";
 import { getTaskCompletionsForDate } from "@/lib/actions/task-completions";
 import { isMainWorkoutKind, normalizeWorkoutPlanKind } from "@/lib/hiit";
-import { formatDateKey } from "@/lib/utils";
+import { formatDateKey, localDateKeyRangeUtc, formatDateKeyInTimezone } from "@/lib/utils";
 import { workoutTaskId } from "@/lib/workout-task-id";
 import type {
   Exercise,
@@ -268,9 +268,14 @@ function sessionMatchesResolvedWorkout(
 async function loadHistoricalWorkoutsForDate(
   clientId: string,
   dateKey: string,
-  alreadyResolved: TodaysWorkoutInfo[]
+  alreadyResolved: TodaysWorkoutInfo[],
+  timezoneOffsetMinutes = 0
 ): Promise<TodaysWorkoutInfo[]> {
   const supabase = await createClient();
+  const { startIso, endIso } = localDateKeyRangeUtc(
+    dateKey,
+    timezoneOffsetMinutes
+  );
 
   const select = `
       id,
@@ -306,8 +311,8 @@ async function loadHistoricalWorkoutsForDate(
       .eq("client_id", clientId)
       .eq("status", "completed")
       .is("scheduled_date", null)
-      .gte("completed_at", `${dateKey}T00:00:00`)
-      .lte("completed_at", `${dateKey}T23:59:59.999Z`)
+      .gte("completed_at", startIso)
+      .lt("completed_at", endIso)
       .order("completed_at", { ascending: true });
     sessions = byCompletedAt ?? [];
   }
@@ -357,7 +362,8 @@ async function loadHistoricalWorkoutsForDate(
 
 export async function resolveWorkoutsForDate(
   clientId: string,
-  dateKey: string
+  dateKey: string,
+  timezoneOffsetMinutes = 0
 ): Promise<TodaysWorkoutInfo[]> {
   const scheduled = await getScheduledWorkoutsForDate(clientId, dateKey);
   let workouts: TodaysWorkoutInfo[] = [];
@@ -405,7 +411,8 @@ export async function resolveWorkoutsForDate(
   const historical = await loadHistoricalWorkoutsForDate(
     clientId,
     dateKey,
-    workouts
+    workouts,
+    timezoneOffsetMinutes
   );
   return [...workouts, ...historical];
 }
@@ -472,9 +479,14 @@ async function findCompletedSessionIdForWorkout(
 
 async function findCompletedSessionIdForDate(
   clientId: string,
-  dateKey: string
+  dateKey: string,
+  timezoneOffsetMinutes = 0
 ): Promise<string | null> {
-  const workouts = await resolveWorkoutsForDate(clientId, dateKey);
+  const workouts = await resolveWorkoutsForDate(
+    clientId,
+    dateKey,
+    timezoneOffsetMinutes
+  );
   for (const workout of workouts) {
     const sessionId = await findCompletedSessionIdForWorkout(
       clientId,
@@ -485,6 +497,10 @@ async function findCompletedSessionIdForDate(
   }
 
   const supabase = await createClient();
+  const { startIso, endIso } = localDateKeyRangeUtc(
+    dateKey,
+    timezoneOffsetMinutes
+  );
   const { data: bySchedule } = await supabase
     .from("workout_sessions")
     .select("id")
@@ -501,8 +517,9 @@ async function findCompletedSessionIdForDate(
     .select("id")
     .eq("client_id", clientId)
     .eq("status", "completed")
-    .gte("completed_at", `${dateKey}T00:00:00`)
-    .lte("completed_at", `${dateKey}T23:59:59.999Z`)
+    .is("scheduled_date", null)
+    .gte("completed_at", startIso)
+    .lt("completed_at", endIso)
     .order("completed_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -550,9 +567,12 @@ async function resolveWorkoutTaskIdForSession(
 export async function getWorkoutCompletedTaskIdsInRange(
   clientId: string,
   from: string,
-  to: string
+  to: string,
+  timezoneOffsetMinutes = 0
 ): Promise<Record<string, Set<string>>> {
   const supabase = await createClient();
+  const { startIso } = localDateKeyRangeUtc(from, timezoneOffsetMinutes);
+  const { endIso } = localDateKeyRangeUtc(to, timezoneOffsetMinutes);
 
   const [scheduledResult, unscheduledResult] = await Promise.all([
     supabase
@@ -569,8 +589,8 @@ export async function getWorkoutCompletedTaskIdsInRange(
       .eq("client_id", clientId)
       .eq("status", "completed")
       .is("scheduled_date", null)
-      .gte("completed_at", `${from}T00:00:00`)
-      .lte("completed_at", `${to}T23:59:59.999Z`),
+      .gte("completed_at", startIso)
+      .lt("completed_at", endIso),
   ]);
 
   const dates = new Set<string>();
@@ -579,7 +599,9 @@ export async function getWorkoutCompletedTaskIdsInRange(
   }
   for (const row of unscheduledResult.data ?? []) {
     if (row.completed_at) {
-      dates.add(formatDateKey(new Date(row.completed_at)));
+      dates.add(
+        formatDateKeyInTimezone(row.completed_at, timezoneOffsetMinutes)
+      );
     }
   }
 
@@ -754,9 +776,14 @@ export async function getCompletedWorkoutResultsForSession(
 
 export async function getCompletedWorkoutResultsForDate(
   clientId: string,
-  dateKey: string
+  dateKey: string,
+  timezoneOffsetMinutes = 0
 ): Promise<CompletedWorkoutResults | null> {
-  const sessionId = await findCompletedSessionIdForDate(clientId, dateKey);
+  const sessionId = await findCompletedSessionIdForDate(
+    clientId,
+    dateKey,
+    timezoneOffsetMinutes
+  );
   if (!sessionId) return null;
   return getCompletedWorkoutResultsForSession(sessionId);
 }

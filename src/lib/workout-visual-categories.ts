@@ -6,8 +6,9 @@ import {
   Flame,
   Footprints,
   Layers,
-  Moon,
   PersonStanding,
+  StretchHorizontal,
+  Sun,
   Target,
   Zap,
 } from "lucide-react";
@@ -21,7 +22,8 @@ export type WorkoutCategory =
   | "hiit"
   | "core"
   | "upper"
-  | "rest"
+  | "warmup"
+  | "stretch"
   | "general";
 
 export interface WorkoutCategoryStyle {
@@ -161,20 +163,35 @@ const CATEGORY_STYLES: Record<WorkoutCategory, WorkoutCategoryStyle> = {
     scheduleBg: "bg-cyan-500/10",
     scheduleText: "text-cyan-300",
   },
-  rest: {
-    id: "rest",
-    label: "Rest",
-    shortLabel: "Rest",
-    icon: Moon,
-    stripe: "bg-slate-500",
-    chip: "bg-slate-500/20 border-slate-500/40",
-    chipText: "text-slate-300",
-    iconBg: "bg-slate-500/20",
-    iconText: "text-slate-400",
-    cardBorder: "border-slate-500/35",
-    cardBg: "bg-slate-500/[0.06]",
-    scheduleBg: "bg-slate-500/10",
-    scheduleText: "text-slate-300",
+  warmup: {
+    id: "warmup",
+    label: "Warm-up",
+    shortLabel: "Warm-up",
+    icon: Sun,
+    stripe: "bg-orange-500",
+    chip: "bg-orange-500/20 border-orange-500/40",
+    chipText: "text-orange-300",
+    iconBg: "bg-orange-500/20",
+    iconText: "text-orange-400",
+    cardBorder: "border-orange-500/35",
+    cardBg: "bg-orange-500/[0.06]",
+    scheduleBg: "bg-orange-500/10",
+    scheduleText: "text-orange-300",
+  },
+  stretch: {
+    id: "stretch",
+    label: "Stretch",
+    shortLabel: "Stretch",
+    icon: StretchHorizontal,
+    stripe: "bg-teal-500",
+    chip: "bg-teal-500/20 border-teal-500/40",
+    chipText: "text-teal-300",
+    iconBg: "bg-teal-500/20",
+    iconText: "text-teal-400",
+    cardBorder: "border-teal-500/35",
+    cardBg: "bg-teal-500/[0.06]",
+    scheduleBg: "bg-teal-500/10",
+    scheduleText: "text-teal-300",
   },
   general: {
     id: "general",
@@ -202,7 +219,8 @@ const INFERENCE_CATEGORIES: WorkoutCategory[] = [
   "hiit",
   "core",
   "upper",
-  "rest",
+  "warmup",
+  "stretch",
 ];
 
 /** Shown in the filter strip. */
@@ -277,7 +295,27 @@ const KEYWORD_SCORES: Record<WorkoutCategory, string[]> = {
   ],
   core: ["core", "abs", "ab ", "plank", "crunch", "oblique"],
   upper: ["upper", "upper body", "torso"],
-  rest: ["rest", "recovery", "deload", "mobility", "stretch", "yoga", "off day"],
+  warmup: [
+    "warm-up",
+    "warmup",
+    "warm up",
+    "activation",
+    "primer",
+    "ngrohje",
+    "ngrohja",
+  ],
+  stretch: [
+    "stretch",
+    "stretching",
+    "mobility",
+    "cool-down",
+    "cooldown",
+    "cool down",
+    "yoga",
+    "flexibility",
+    "shtrirje",
+    "shtrirja",
+  ],
   general: [],
 };
 
@@ -337,6 +375,8 @@ export function inferProgramCategory(
   planKind?: string | null
 ): WorkoutCategory {
   if (planKind === "hiit") return "hiit";
+  if (planKind === "warmup") return "warmup";
+  if (planKind === "stretch") return "stretch";
 
   if (days.length === 0) {
     return inferWorkoutCategoryFromText(planTitle);
@@ -361,6 +401,12 @@ export function getProgramStripeClasses(
   if (planKind === "hiit") {
     return getWorkoutCategoryStyle("hiit").stripe;
   }
+  if (planKind === "warmup") {
+    return getWorkoutCategoryStyle("warmup").stripe;
+  }
+  if (planKind === "stretch") {
+    return getWorkoutCategoryStyle("stretch").stripe;
+  }
 
   const dayCategories = days.map((day) => inferDayCategory(day));
   const unique = [...new Set(dayCategories.filter((c) => c !== "general"))];
@@ -378,7 +424,9 @@ export function isMultiCategoryProgram(
   days: { title: string; exercises?: { name: string }[] | null }[],
   planKind?: string | null
 ): boolean {
-  if (planKind === "hiit") return false;
+  if (planKind === "hiit" || planKind === "warmup" || planKind === "stretch") {
+    return false;
+  }
   const dayCategories = days.map((day) => inferDayCategory(day));
   const unique = [...new Set(dayCategories.filter((c) => c !== "general"))];
   return unique.length > 1;
@@ -394,8 +442,10 @@ export function workoutMatchesCategory(
 ): boolean {
   if (filter === "all") return true;
   if (planKind === "hiit") return filter === "hiit";
+  if (planKind === "warmup") return filter === "warmup";
+  if (planKind === "stretch") return filter === "stretch";
   if (inferProgramCategory(planTitle, days, planKind) === filter) return true;
-  if (filter === "hiit") return false;
+  if (filter === "hiit" || filter === "warmup" || filter === "stretch") return false;
   return days.some((day) => inferDayCategory(day) === filter);
 }
 
@@ -415,7 +465,8 @@ export function countWorkoutsByCategory(
     hiit: 0,
     core: 0,
     upper: 0,
-    rest: 0,
+    warmup: 0,
+    stretch: 0,
     general: 0,
   };
 

@@ -261,7 +261,7 @@ export function DashboardCardioCard({
         className={cn(dashboard.pairTile, "relative isolate")}
       >
         <DashboardCardNavLink
-          href="/dashboard/workout/cardio"
+          href={sessionActive ? sessionHref : "/dashboard/workout/cardio"}
           ariaLabel={platform.cardio.title}
         />
         <DashboardCardNavBody className="flex flex-1 flex-col gap-1">

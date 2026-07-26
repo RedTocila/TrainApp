@@ -244,7 +244,7 @@ function inferCategoriesFromText(...parts: (string | null | undefined)[]): strin
 
   if (categories.length === 0) {
     const inferred = inferWorkoutCategoryFromText(...parts);
-    if (inferred !== "general" && inferred !== "rest") {
+    if (inferred !== "general") {
       categories.push(inferred);
     }
   }

@@ -8,7 +8,13 @@ import { startPlanWorkout } from "@/lib/actions/workout-sessions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function StartWorkoutDayButton({ planId }: { planId: string }) {
+export function StartWorkoutDayButton({
+  planId,
+  iconOnly = false,
+}: {
+  planId: string;
+  iconOnly?: boolean;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -33,14 +39,17 @@ export function StartWorkoutDayButton({ planId }: { planId: string }) {
     <div className="inline-flex flex-col items-end gap-1">
       <StartWorkoutLoadingShell isLoading={isPending} ring={false}>
         <Button
-          size="sm"
+          size={iconOnly ? "icon" : "sm"}
           disabled={isPending}
           onClick={handleStart}
           aria-busy={isPending}
-          className="min-w-[5.75rem] justify-center"
+          aria-label="Start workout"
+          className={cn(
+            iconOnly ? "h-8 w-8 shrink-0" : "min-w-[5.75rem] justify-center"
+          )}
         >
-          <Play className={cn("mr-1 h-3 w-3", isPending && "opacity-50")} />
-          {isPending ? "Opening…" : "Start"}
+          <Play className={cn("h-3.5 w-3.5", !iconOnly && "mr-1", isPending && "opacity-50")} />
+          {iconOnly ? null : isPending ? "Opening…" : "Start"}
         </Button>
       </StartWorkoutLoadingShell>
       {error && <p className="text-xs text-red-400">{error}</p>}

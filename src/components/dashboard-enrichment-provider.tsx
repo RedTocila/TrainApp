@@ -86,8 +86,14 @@ export function DashboardEnrichmentProvider({
 
   const loadRange = useCallback(async () => {
     if (inflightRef.current) return inflightRef.current;
+    const timezoneOffsetMinutes = new Date().getTimezoneOffset();
 
-    const request = fetchDashboardEnrichmentData(clientId, range.from, range.to)
+    const request = fetchDashboardEnrichmentData(
+      clientId,
+      range.from,
+      range.to,
+      timezoneOffsetMinutes
+    )
       .then((data) => {
         setEnrichment(data);
       })
@@ -109,6 +115,7 @@ export function DashboardEnrichmentProvider({
       ...Object.keys(patches.workoutCompleted),
       ...Object.keys(patches.workoutSessionIds),
     ]);
+    const timezoneOffsetMinutes = new Date().getTimezoneOffset();
 
     if (dateKeys.size === 0) {
       await loadRange();
@@ -117,7 +124,11 @@ export function DashboardEnrichmentProvider({
 
     const days = await Promise.all(
       [...dateKeys].map((dateKey) =>
-        fetchDashboardEnrichmentForDate(clientId, dateKey)
+        fetchDashboardEnrichmentForDate(
+          clientId,
+          dateKey,
+          timezoneOffsetMinutes
+        )
       )
     );
 

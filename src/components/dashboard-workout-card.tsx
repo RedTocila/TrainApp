@@ -2,7 +2,7 @@
 import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import { ChevronRight, Clock, Dumbbell, Layers, List, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addDays, format, startOfDay } from "date-fns";
 import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
@@ -46,6 +46,7 @@ import {
 import {
   setWorkoutDayCache,
   getWorkoutDayCache,
+  clearWorkoutDayCache,
   workoutDayCacheKey,
 } from "@/lib/dashboard-route-cache";
 import { isDashboardDayCacheFresh } from "@/lib/dashboard-day-cache";
@@ -85,13 +86,18 @@ type WorkoutDayCache = {
 async function loadWorkoutResults(
   clientId: string,
   dateKey: string,
-  sessionId?: string
+  sessionId?: string,
+  timezoneOffsetMinutes = 0
 ): Promise<CompletedWorkoutResults | null> {
   if (sessionId) {
     const bySession = await getCompletedWorkoutResultsForSession(sessionId);
     if (bySession) return bySession;
   }
-  return getCompletedWorkoutResultsForDate(clientId, dateKey);
+  return getCompletedWorkoutResultsForDate(
+    clientId,
+    dateKey,
+    timezoneOffsetMinutes
+  );
 }
 
 export function DashboardWorkoutCard({
@@ -125,7 +131,7 @@ export function DashboardWorkoutCard({
   const { selectedDate, todayKey } = useSelectedDate();
   const readOnly = useIsPastSelectedDay();
   const enrichment = useOptionalDashboardEnrichment()?.enrichment;
-  const { version, patches } = useDashboardSync();
+  const { version, patches, notifySync } = useDashboardSync();
   const dateKey = formatDateKey(selectedDate);
   const [workouts, setWorkouts] = useState(seedWorkouts);
   const [completedByTaskId, setCompletedByTaskId] = useState<Record<string, boolean>>(
@@ -145,6 +151,7 @@ export function DashboardWorkoutCard({
   const [loadedDateKey, setLoadedDateKey] = useState(() =>
     seedWorkouts.length > 0 ? dateKey : ""
   );
+  const confirmedEmptyRef = useRef<Set<string>>(new Set());
   const [addWorkoutOpen, setAddWorkoutOpen] = useState(false);
   const [removeWorkoutOpen, setRemoveWorkoutOpen] = useState(false);
   const [progression, setProgression] = useState<WorkoutProgressionPoint[] | null>(
@@ -251,7 +258,7 @@ export function DashboardWorkoutCard({
   ]);
 
   const prevDateKeyRef = useRef(dateKey);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (prevDateKeyRef.current === dateKey) return;
     prevDateKeyRef.current = dateKey;
 
@@ -297,7 +304,7 @@ export function DashboardWorkoutCard({
       return;
     }
 
-    // Past days with no schedule seed: keep unloaded until refresh finds history.
+    // Clear previous day immediately so results/completions don't bleed across dates.
     setWorkouts([]);
     setCompletedByTaskId({});
     setSessionIdByTaskId({});
@@ -309,6 +316,7 @@ export function DashboardWorkoutCard({
 
   useEffect(() => {
     if (workouts.length > 0) return;
+    if (confirmedEmptyRef.current.has(dateKey)) return;
     const seed = seedFromSchedule(dateKey);
     if (!seed?.workouts.length) return;
 
@@ -323,8 +331,13 @@ export function DashboardWorkoutCard({
 
   const refreshWorkout = useCallback(async () => {
     const key = formatDateKey(selectedDateRef.current);
+    const timezoneOffsetMinutes = new Date().getTimezoneOffset();
     try {
-      const resolved = await resolveWorkoutsForDate(clientId, key);
+      const resolved = await resolveWorkoutsForDate(
+        clientId,
+        key,
+        timezoneOffsetMinutes
+      );
       if (formatDateKey(selectedDateRef.current) !== key) return;
 
       const status = await getWorkoutCompletionStatusForDate(
@@ -333,6 +346,12 @@ export function DashboardWorkoutCard({
         resolved
       );
       if (formatDateKey(selectedDateRef.current) !== key) return;
+
+      if (resolved.length === 0) {
+        confirmedEmptyRef.current.add(key);
+      } else {
+        confirmedEmptyRef.current.delete(key);
+      }
 
       const allCompleted = areMainWorkoutsComplete(
         resolved,
@@ -366,7 +385,8 @@ export function DashboardWorkoutCard({
         void loadWorkoutResults(
           clientId,
           key,
-          patchesRef.current.workoutSessionIds[key]
+          patchesRef.current.workoutSessionIds[key],
+          timezoneOffsetMinutes
         ).then((results) => {
           if (formatDateKey(selectedDateRef.current) !== key) return;
           setWorkoutResults(results);
@@ -382,6 +402,65 @@ export function DashboardWorkoutCard({
       }
     }
   }, [clientId]);
+
+  const handleWorkoutRemoved = useCallback(
+    (scheduledWorkoutId: string) => {
+      const key = dateKey;
+      setWorkouts((prev) => {
+        const next = prev.filter(
+          (workout) => workout.scheduledWorkoutId !== scheduledWorkoutId
+        );
+        if (next.length === 0) {
+          confirmedEmptyRef.current.add(key);
+          workoutCacheRef.current.set(key, {
+            workouts: [],
+            completedByTaskId: {},
+            sessionIdByTaskId: {},
+            allCompleted: false,
+            results: null,
+          });
+          clearWorkoutDayCache(clientId, key);
+          setCompletedByTaskId({});
+          setSessionIdByTaskId({});
+          setWorkoutResults(null);
+          setLoadedDateKey(key);
+        } else {
+          const snapshot: WorkoutDayCache = {
+            workouts: next,
+            completedByTaskId,
+            sessionIdByTaskId,
+            allCompleted: areMainWorkoutsComplete(
+              next,
+              (taskId) => completedByTaskId[taskId] === true
+            ),
+            results: null,
+          };
+          workoutCacheRef.current.set(key, snapshot);
+          setWorkoutDayCache(clientId, key, snapshot);
+        }
+        return next;
+      });
+      notifySync();
+      router.refresh();
+      void refreshWorkout();
+    },
+    [
+      clientId,
+      completedByTaskId,
+      dateKey,
+      notifySync,
+      refreshWorkout,
+      router,
+      sessionIdByTaskId,
+    ]
+  );
+
+  const handleWorkoutAdded = useCallback(() => {
+    confirmedEmptyRef.current.delete(dateKey);
+    notifySync();
+    router.refresh();
+    void refreshWorkout();
+  }, [dateKey, notifySync, refreshWorkout, router]);
 
   const skipWorkoutRefresh =
     dateKey >= todayKey &&
@@ -453,8 +532,11 @@ export function DashboardWorkoutCard({
   const showCompletedState = allWorkoutsComplete;
   const resultsReady = variant !== "detail" && showCompletedState;
   const patchedSessionId =
-    Object.values(patches.workoutSessionIds).find(Boolean) ??
-    patches.workoutSessionIds[dateKey];
+    patches.workoutSessionIds[dateKey] ??
+    workoutsForDay
+      .map((workout) => patches.workoutSessionIds[workout.taskId])
+      .find((id): id is string => Boolean(id)) ??
+    null;
 
   useEffect(() => {
     if (!patchedSessionId || workoutResults) return;
@@ -472,13 +554,15 @@ export function DashboardWorkoutCard({
 
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const timezoneOffsetMinutes = new Date().getTimezoneOffset();
 
     async function attempt(retryIndex: number) {
       if (cancelled) return;
       const results = await loadWorkoutResults(
         clientId,
         dateKey,
-        patches.workoutSessionIds[dateKey]
+        patches.workoutSessionIds[dateKey],
+        timezoneOffsetMinutes
       );
       if (cancelled) return;
       if (results) {
@@ -691,7 +775,7 @@ export function DashboardWorkoutCard({
                   </div>
                 ) : null}
               </>
-            ) : isRevalidating ? (
+            ) : !isDayLoaded && isRevalidating ? (
               <div
                 className="flex flex-1 flex-col gap-3"
                 role="status"
@@ -740,14 +824,14 @@ export function DashboardWorkoutCard({
           open={addWorkoutOpen}
           onClose={() => setAddWorkoutOpen(false)}
           dateKey={dateKey}
-          onAdded={() => void refreshWorkout()}
+          onAdded={handleWorkoutAdded}
         />
         <RemoveWorkoutFromDayDialog
           open={removeWorkoutOpen}
           onClose={() => setRemoveWorkoutOpen(false)}
           dateKey={dateKey}
           workouts={workoutsForDay}
-          onRemoved={() => void refreshWorkout()}
+          onRemoved={handleWorkoutRemoved}
         />
       </>
     );
@@ -861,14 +945,14 @@ export function DashboardWorkoutCard({
         open={addWorkoutOpen}
         onClose={() => setAddWorkoutOpen(false)}
         dateKey={dateKey}
-        onAdded={() => void refreshWorkout()}
+        onAdded={handleWorkoutAdded}
       />
       <RemoveWorkoutFromDayDialog
         open={removeWorkoutOpen}
         onClose={() => setRemoveWorkoutOpen(false)}
         dateKey={dateKey}
         workouts={workoutsForDay}
-        onRemoved={() => void refreshWorkout()}
+        onRemoved={handleWorkoutRemoved}
       />
       </>
     );
@@ -966,14 +1050,14 @@ export function DashboardWorkoutCard({
           open={addWorkoutOpen}
           onClose={() => setAddWorkoutOpen(false)}
           dateKey={dateKey}
-          onAdded={() => void refreshWorkout()}
+          onAdded={handleWorkoutAdded}
         />
         <RemoveWorkoutFromDayDialog
           open={removeWorkoutOpen}
           onClose={() => setRemoveWorkoutOpen(false)}
           dateKey={dateKey}
           workouts={workoutsForDay}
-          onRemoved={() => void refreshWorkout()}
+          onRemoved={handleWorkoutRemoved}
         />
       </>
     );
