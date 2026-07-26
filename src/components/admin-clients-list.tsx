@@ -159,8 +159,8 @@ export function AdminClientsList({
               className="block rounded-xl outline-none transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.995]"
             >
               <Card className="transition-colors hover:border-border hover:bg-card/90">
-                <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
-                  <div className="min-w-0 flex-1 space-y-2">
+                <CardContent className="space-y-4 p-4 sm:p-5">
+                  <div className="min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-base font-semibold leading-snug">
                         {client.full_name}
@@ -232,15 +232,19 @@ export function AdminClientsList({
                     ) : null}
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-3 self-end sm:self-center">
-                    {scores[client.id] ? (
-                      <ParticipantPlatformScoreRing
-                        score={scores[client.id]!.score}
-                        breakdown={scores[client.id]!.breakdown}
-                      />
-                    ) : null}
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="shrink-0">
+                      {scores[client.id] ? (
+                        <ParticipantPlatformScoreRing
+                          score={scores[client.id]!.score}
+                          breakdown={scores[client.id]!.breakdown}
+                        />
+                      ) : (
+                        <div className="h-16 w-16" aria-hidden />
+                      )}
+                    </div>
                     <ChevronRight
-                      className="h-5 w-5 text-muted-foreground"
+                      className="mb-1 h-5 w-5 shrink-0 text-muted-foreground"
                       aria-hidden
                     />
                   </div>
