@@ -27,17 +27,16 @@ export const dashboard = {
   chipButton:
     "pressable inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur-sm transition-[transform,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] active:scale-[0.97] active:opacity-90 hover:border-primary/30 hover:bg-background/80 dark:bg-background/40",
   /**
-   * Side-by-side water/cardio tiles.
-   * Fixed min-height only — never height:100%. iPad Safari + % heights collapses
-   * the row so BMI paints over the pair.
+   * Side-by-side water/cardio tiles — matching min-height (never height:100%).
+   * iPad Safari + % heights collapses the row so BMI paints over the pair.
    */
   pairTile:
-    "relative box-border flex w-full flex-col overflow-hidden p-3 sm:p-3.5 md:p-4 min-h-[19rem] sm:min-h-[20rem] md:min-h-[21rem]",
+    "relative box-border flex w-full flex-col overflow-hidden p-2.5 sm:p-3 min-h-[15rem] sm:min-h-[15.5rem]",
   /** Footer row shared by pair tiles — fixed height when actions change. */
-  pairFooter: "mt-auto flex h-10 shrink-0 items-end gap-1.5 pt-2",
+  pairFooter: "mt-auto flex h-8 shrink-0 items-end gap-1.5 pt-1.5",
   /** One reserved caption line under the pair visual (remaining / empty). */
   pairCaption:
-    "mt-1 min-h-[1rem] truncate px-1 text-center text-[10px] leading-4 text-muted-foreground",
+    "mt-0.5 min-h-[0.875rem] truncate px-1 text-center text-[10px] leading-tight text-muted-foreground",
   /** One line below trigger; aligned to the end (icon menus). */
   dropdownPanelBelowEnd: "absolute right-0 top-full z-30 mt-1",
   /** Cursor-style stack: main bar + attached tail sharing one outer border. */

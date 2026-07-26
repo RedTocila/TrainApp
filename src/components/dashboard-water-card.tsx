@@ -90,7 +90,7 @@ export function DashboardWaterCard({
   const remaining = waterRemainingToMinimum(waterMl, waterGoalMl);
 
   const waterVisual = (ringSize: number) => (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-0.5">
       <MiniProgressRing
         progress={progress}
         icon={GlassWater}
@@ -102,13 +102,13 @@ export function DashboardWaterCard({
       <p
         className={cn(
           "font-black tabular-nums leading-none",
-          compact ? "text-xl sm:text-2xl" : "text-2xl"
+          compact ? "text-lg sm:text-xl" : "text-2xl"
         )}
       >
         {Math.round(waterMl)}
-        <span className="ml-0.5 text-sm font-semibold text-muted-foreground">ml</span>
+        <span className="ml-0.5 text-xs font-semibold text-muted-foreground sm:text-sm">ml</span>
       </p>
-      <p className="text-[10px] text-muted-foreground sm:text-xs">/ {waterGoalMl} ml</p>
+      <p className="text-[10px] text-muted-foreground">/ {waterGoalMl} ml</p>
     </div>
   );
 
@@ -145,7 +145,7 @@ export function DashboardWaterCard({
           className={cn(
             dashboard.chipButton,
             compact
-              ? "h-8 px-2 py-0 text-[11px] hover:border-cyan-500/40 hover:bg-cyan-500/10"
+              ? "h-7 px-2 py-0 text-[11px] hover:border-cyan-500/40 hover:bg-cyan-500/10"
               : "hover:border-cyan-500/40 hover:bg-cyan-500/10"
           )}
         >
@@ -213,10 +213,10 @@ export function DashboardWaterCard({
             href={DASHBOARD_DAY_NUTRITION_PATH}
             ariaLabel={platform.nutrition.water}
           />
-          <DashboardCardNavBody className="flex flex-1 flex-col">
+          <DashboardCardNavBody className="flex flex-1 flex-col gap-1">
             <div className="shrink-0">{titleRow("text-sm")}</div>
-            <div className="flex flex-1 flex-col items-center justify-center py-2">
-              {waterVisual(72)}
+            <div className="flex flex-1 flex-col items-center justify-center py-0.5">
+              {waterVisual(56)}
               <p className={dashboard.pairCaption}>
                 {!waterCompleted && remaining > 0
                   ? `${Math.round(remaining)} ml left`

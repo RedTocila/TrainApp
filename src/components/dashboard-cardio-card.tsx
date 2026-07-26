@@ -4,14 +4,8 @@ import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-
 import Link from "next/link";
 import { isToday, isTomorrow } from "date-fns";
 import { formatLocalized } from "@/lib/date-locale";
-import { ChevronLeft, ChevronRight, HeartPulse } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { HeartPulse } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DashboardCardNavBody,
   DashboardCardNavLink,
@@ -25,18 +19,15 @@ import { DashboardStatusCheck, DashboardStatusIcon, dashboardCompletionStatus } 
 import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import {
   dashboard,
-  DashboardCarouselDots,
   DashboardEmptyState,
 } from "@/components/dashboard-ui";
 import { getCardioTypeDisplay, localizeCardioTitle } from "@/lib/cardio-catalog";
 import { getScheduledCardiosForDate } from "@/lib/actions/user-cardio";
-import { scrollElementIntoHorizontalView } from "@/lib/scroll-horizontal";
 import { getCardioCompletionForDate } from "@/lib/actions/task-completions";
 import { formatCardioElapsedMinutes } from "@/lib/cardio-completion";
 import { cardioTaskId } from "@/lib/cardio-task-id";
 import { isCardioTimerActive } from "@/lib/cardio-timer-storage";
 import {
-  pickDefaultCardioIndex,
   scheduledCardiosForDate,
   sortScheduledCardios,
 } from "@/lib/cardio-utils";
@@ -209,7 +200,8 @@ export function DashboardCardioCard({
   });
 
   const display = cardioDay ?? seedCardio;
-  const scheduledList = display?.scheduled ?? [];
+  // Only one cardio per day — use the first scheduled entry if any.
+  const activeEntry = display?.scheduled[0] ?? null;
 
   const isEntryCompleted = useCallback(
     (entry: ScheduledCardio) => {
@@ -228,69 +220,6 @@ export function DashboardCardioCard({
     [dateKey, display?.completions, enrichment?.completionsByDate, patches.completions]
   );
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [slide, setSlide] = useState(0);
-
-  const scheduledIdsKey = scheduledList.map((entry) => entry.id).join(",");
-
-  useEffect(() => {
-    const next = pickDefaultCardioIndex(scheduledList, isEntryCompleted);
-    setSlide(next);
-    const frame = requestAnimationFrame(() => {
-      const node = slideRefs.current[next];
-      if (!node) return;
-      scrollElementIntoHorizontalView(node, {
-        behavior: "auto",
-        inline: "start",
-        scroller: scrollRef.current,
-      });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [dateKey, scheduledIdsKey]); // intentionally omit isEntryCompleted — don't jump slides when completions change
-
-  const scrollToSlide = useCallback((index: number) => {
-    const node = slideRefs.current[index];
-    if (node) {
-      scrollElementIntoHorizontalView(node, {
-        behavior: "smooth",
-        inline: "start",
-        scroller: scrollRef.current,
-      });
-    }
-    setSlide(index);
-  }, []);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || scheduledList.length <= 1) return;
-
-    const onScroll = () => {
-      const slides = slideRefs.current.filter(
-        (node): node is HTMLDivElement => node !== null
-      );
-      if (slides.length === 0) return;
-
-      const scrollLeft = el.scrollLeft;
-      let closest = 0;
-      let minDistance = Infinity;
-
-      slides.forEach((slideNode, index) => {
-        const distance = Math.abs(slideNode.offsetLeft - scrollLeft);
-        if (distance < minDistance) {
-          minDistance = distance;
-          closest = index;
-        }
-      });
-
-      setSlide(closest);
-    };
-
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [scheduledList.length]);
-
-  const activeEntry = scheduledList[slide] ?? scheduledList[0] ?? null;
   const activeCardio = activeEntry?.client_cardio ?? null;
   const activeCardioId = activeEntry ? entryCardioId(activeEntry) : null;
   const activeCompleted = activeEntry ? isEntryCompleted(activeEntry) : false;
@@ -303,15 +232,24 @@ export function DashboardCardioCard({
     setSessionActive(isCardioTimerActive(dateKey, activeCardioId));
   }, [dateKey, activeCardioId, version]);
 
-  const allCompleted =
-    scheduledList.length > 0 && scheduledList.every((entry) => isEntryCompleted(entry));
-
   const startLabel = sessionActive
     ? platform.cardio.continueCardio
     : platform.cardio.startCardio;
 
   if (compact) {
     const showStart = Boolean(activeCardio && !activeCompleted && !readOnly);
+    const elapsed =
+      activeCardioId != null
+        ? display?.completions[activeCardioId]?.elapsedSeconds ?? null
+        : null;
+    const typeDisplay = activeCardio
+      ? getCardioTypeDisplay(activeCardio.title, platform.cardio.types)
+      : null;
+    const Icon = typeDisplay?.icon ?? HeartPulse;
+    const badge =
+      activeCardio != null
+        ? durationBadgeFor(activeCardio, activeCompleted, elapsed, platform)
+        : null;
 
     return (
       <DashboardThemedShell
@@ -323,21 +261,21 @@ export function DashboardCardioCard({
           href="/dashboard/workout/cardio"
           ariaLabel={platform.cardio.title}
         />
-        <DashboardCardNavBody className="flex flex-1 flex-col">
+        <DashboardCardNavBody className="flex flex-1 flex-col gap-1">
           <div className="flex h-7 shrink-0 items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <HeartPulse className="h-5 w-5 shrink-0 text-orange-600 dark:text-orange-300" />
               <p className="truncate text-sm font-black">{platform.cardio.title}</p>
             </div>
             <div className="flex h-7 w-7 shrink-0 items-center justify-center">
-              {scheduledList.length > 0 ? (
+              {activeEntry ? (
                 <DashboardStatusIcon
                   status={dashboardCompletionStatus(
-                    allCompleted,
+                    activeCompleted,
                     isDayEnded(dateKey)
                   )}
                   aria-label={
-                    allCompleted
+                    activeCompleted
                       ? platform.aria.completed
                       : platform.common.incomplete
                   }
@@ -346,196 +284,84 @@ export function DashboardCardioCard({
             </div>
           </div>
 
-          {scheduledList.length > 0 ? (
-            <div className="flex flex-1 flex-col justify-center gap-1.5 py-1">
-                <div
-                  className={cn(
-                    "relative flex items-center gap-0.5",
-                    dashboardInteractive
-                  )}
-                >
-                  {scheduledList.length > 1 ? (
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        scrollToSlide(Math.max(0, slide - 1));
-                      }}
-                      disabled={slide <= 0}
-                      aria-label={
-                        scheduledList[slide - 1]?.client_cardio?.title
-                          ? `Previous: ${localizeCardioTitle(
-                              scheduledList[slide - 1]!.client_cardio!.title,
-                              platform.cardio.types
-                            )}`
-                          : "Previous cardio"
-                      }
-                      className={cn(
-                        "pointer-events-auto relative z-[2] flex h-8 w-7 shrink-0 items-center justify-center rounded-full",
-                        "text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
-                        "disabled:pointer-events-none disabled:opacity-25"
-                      )}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                  ) : null}
-
-                  <div
-                    ref={scrollRef}
-                    className={cn(
-                      "min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto",
-                      "flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-                      "pointer-events-auto relative z-[2] touch-pan-x overscroll-x-contain"
-                    )}
-                    aria-label={platform.cardio.title}
-                  >
-                    {scheduledList.map((entry, index) => {
-                      const cardio = entry.client_cardio;
-                      if (!cardio) return null;
-                      const completed = isEntryCompleted(entry);
-                      const cardioId = entryCardioId(entry);
-                      const elapsed =
-                        cardioId != null
-                          ? display?.completions[cardioId]?.elapsedSeconds ?? null
-                          : null;
-                      const typeDisplay = getCardioTypeDisplay(
-                        cardio.title,
-                        platform.cardio.types
-                      );
-                      const Icon = typeDisplay?.icon ?? HeartPulse;
-                      const iconAccent = "text-orange-600 dark:text-orange-300";
-                      const iconBg = "bg-orange-500/15 dark:bg-orange-500/20";
-                      const badge = durationBadgeFor(
-                        cardio,
-                        completed,
-                        elapsed,
-                        platform
-                      );
-
-                      return (
-                        <div
-                          key={entry.id}
-                          ref={(node) => {
-                            slideRefs.current[index] = node;
-                          }}
-                          className="flex w-full shrink-0 snap-start flex-col items-center justify-center gap-1 px-0.5"
-                        >
-                          <div
-                            className={cn(
-                              "flex h-16 w-16 items-center justify-center rounded-2xl sm:h-[4.25rem] sm:w-[4.25rem]",
-                              iconBg
-                            )}
-                          >
-                            <Icon className={cn("h-8 w-8 sm:h-9 sm:w-9", iconAccent)} />
-                          </div>
-                          <p
-                            className={cn(
-                              "line-clamp-2 min-h-[2.25rem] max-w-full px-1 text-center text-xs font-semibold leading-snug sm:min-h-[2.5rem] sm:text-sm",
-                              completed && "text-muted-foreground line-through"
-                            )}
-                          >
-                            {localizeCardioTitle(cardio.title, platform.cardio.types)}
-                          </p>
-                          <div className="flex min-h-[1.25rem] items-center justify-center">
-                            {badge ? (
-                              <Badge variant="secondary" className="text-[10px]">
-                                {badge}
-                              </Badge>
-                            ) : (
-                              <span className="invisible text-[10px]" aria-hidden>
-                                —
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {scheduledList.length > 1 ? (
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        scrollToSlide(
-                          Math.min(scheduledList.length - 1, slide + 1)
-                        );
-                      }}
-                      disabled={slide >= scheduledList.length - 1}
-                      aria-label={
-                        scheduledList[slide + 1]?.client_cardio?.title
-                          ? `Next: ${localizeCardioTitle(
-                              scheduledList[slide + 1]!.client_cardio!.title,
-                              platform.cardio.types
-                            )}`
-                          : "Next cardio"
-                      }
-                      className={cn(
-                        "pointer-events-auto relative z-[2] flex h-8 w-7 shrink-0 items-center justify-center rounded-full",
-                        "text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
-                        "disabled:pointer-events-none disabled:opacity-25"
-                      )}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  ) : null}
-                </div>
-                {scheduledList.length > 1 ? (
-                  <div className={cn("pointer-events-auto relative z-[2]", dashboardInteractive)}>
-                    <DashboardCarouselDots
-                      count={scheduledList.length}
-                      active={Math.min(slide, scheduledList.length - 1)}
-                      onSelect={scrollToSlide}
-                      getLabel={(index) => {
-                        const title = scheduledList[index]?.client_cardio?.title;
-                        return title
-                          ? localizeCardioTitle(title, platform.cardio.types)
-                          : `Cardio ${index + 1}`;
-                      }}
-                    />
-                  </div>
-                ) : null}
+          {activeCardio ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/15 dark:bg-orange-500/20">
+                <Icon className="h-6 w-6 text-orange-600 dark:text-orange-300" />
               </div>
-            ) : (
-              <div className="flex flex-1 flex-col items-center justify-center gap-2 py-2 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/15 sm:h-[4.25rem] sm:w-[4.25rem] dark:bg-orange-500/20">
-                  <HeartPulse className="h-8 w-8 text-orange-600 sm:h-9 sm:w-9 dark:text-orange-300" />
-                </div>
-                <p className="min-h-[2.25rem] text-xs leading-snug text-muted-foreground sm:min-h-[2.5rem]">
-                  {coachLabels.noCardioToday}
-                </p>
-                <div className="min-h-[1.25rem]" aria-hidden />
-              </div>
-            )}
-
-            <div className={cn(dashboard.pairFooter, dashboardInteractive)}>
-              <Link
-                href="/dashboard/workout/cardio"
-                className={cn("min-w-0", showStart ? "flex-1" : "w-full")}
+              <p
+                className={cn(
+                  "line-clamp-2 min-h-[2rem] max-w-full px-1 text-center text-xs font-semibold leading-snug",
+                  activeCompleted && "text-muted-foreground line-through"
+                )}
               >
+                {localizeCardioTitle(activeCardio.title, platform.cardio.types)}
+              </p>
+              <div className="flex min-h-[1.125rem] items-center justify-center">
+                {badge ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    {badge}
+                  </Badge>
+                ) : (
+                  <span className="invisible text-[10px]" aria-hidden>
+                    —
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/15 dark:bg-orange-500/20">
+                <HeartPulse className="h-6 w-6 text-orange-600 dark:text-orange-300" />
+              </div>
+              <p className="min-h-[2rem] px-1 text-xs leading-snug text-muted-foreground">
+                {coachLabels.noCardioToday}
+              </p>
+              <div className="min-h-[1.125rem]" aria-hidden />
+            </div>
+          )}
+
+          <div className={cn(dashboard.pairFooter, dashboardInteractive)}>
+            <Link
+              href="/dashboard/workout/cardio"
+              className={cn("min-w-0", showStart ? "flex-1" : "w-full")}
+            >
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-2 text-[11px] hover:bg-orange-500/15"
+              >
+                {platform.cardio.myCardio}
+              </Button>
+            </Link>
+            {showStart ? (
+              <Link href={sessionHref} className="min-w-0 flex-1">
                 <Button
                   size="sm"
-                  variant="outline"
-                  className="h-8 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-2 text-[11px] hover:bg-orange-500/15"
+                  className="h-7 w-full rounded-full px-2 text-[11px]"
                 >
-                  {platform.cardio.myCardio}
+                  {startLabel}
                 </Button>
               </Link>
-              {showStart ? (
-                <Link href={sessionHref} className="min-w-0 flex-1">
-                  <Button
-                    size="sm"
-                    className="h-8 w-full rounded-full px-2 text-[11px]"
-                  >
-                    {startLabel}
-                  </Button>
-                </Link>
-              ) : null}
-            </div>
-          </DashboardCardNavBody>
-        </DashboardThemedShell>
+            ) : null}
+          </div>
+        </DashboardCardNavBody>
+      </DashboardThemedShell>
     );
   }
+
+  const elapsed =
+    activeCardioId != null
+      ? display?.completions[activeCardioId]?.elapsedSeconds ?? null
+      : null;
+  const typeDisplay = activeCardio
+    ? getCardioTypeDisplay(activeCardio.title, platform.cardio.types)
+    : null;
+  const Icon = typeDisplay?.icon ?? HeartPulse;
+  const badge =
+    activeCardio != null
+      ? durationBadgeFor(activeCardio, activeCompleted, elapsed, platform)
+      : null;
 
   return (
     <div id="dashboard-cardio" className={cn(dashboard.tile, "relative p-4")}>
@@ -557,84 +383,56 @@ export function DashboardCardioCard({
               </Button>
             </Link>
           ) : null}
-          {allCompleted ? (
+          {activeCompleted ? (
             <DashboardStatusCheck aria-label={platform.aria.completed} />
           ) : null}
         </div>
       </div>
       <div className="mt-4 space-y-4">
-        {scheduledList.length > 0 ? (
-          scheduledList.map((entry) => {
-            const cardio = entry.client_cardio;
-            if (!cardio) return null;
-            const completed = isEntryCompleted(entry);
-            const cardioId = entryCardioId(entry);
-            const elapsed =
-              cardioId != null
-                ? display?.completions[cardioId]?.elapsedSeconds ?? null
-                : null;
-            const typeDisplay = getCardioTypeDisplay(cardio.title, platform.cardio.types);
-            const Icon = typeDisplay?.icon ?? HeartPulse;
-            const iconAccent = "text-orange-600 dark:text-orange-300";
-            const iconBg = "bg-orange-500/15 dark:bg-orange-500/20";
-            const badge = durationBadgeFor(cardio, completed, elapsed, platform);
-            const href = cardioId
-              ? `/dashboard/workout/cardio/session?date=${dateKey}&cardioId=${encodeURIComponent(cardioId)}`
-              : sessionHref;
-
-            return (
-              <div key={entry.id} className="space-y-3">
-                <div className={dashboard.listRow}>
-                  <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <div
+        {activeCardio && activeEntry ? (
+          <div className="space-y-3">
+            <div className={dashboard.listRow}>
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 dark:bg-orange-500/20">
+                  <Icon className="h-5 w-5 text-orange-600 dark:text-orange-300" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p
                       className={cn(
-                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                        iconBg
+                        "font-semibold",
+                        activeCompleted && "text-muted-foreground line-through"
                       )}
                     >
-                      <Icon className={cn("h-5 w-5", iconAccent)} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p
-                          className={cn(
-                            "font-semibold",
-                            completed && "text-muted-foreground line-through"
-                          )}
-                        >
-                          {localizeCardioTitle(cardio.title, platform.cardio.types)}
-                        </p>
-                        {badge && <Badge variant="secondary">{badge}</Badge>}
-                        {completed ? (
-                          <DashboardStatusCheck aria-label={platform.aria.completed} />
-                        ) : null}
-                      </div>
-                      {cardio.description && (
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {cardio.description}
-                        </p>
-                      )}
-                      {!completed && !readOnly ? (
-                        <Link href={href} className="mt-2 inline-block">
-                          <Button size="sm" className="h-8 rounded-full px-3 text-xs">
-                            {isCardioTimerActive(dateKey, cardioId)
-                              ? platform.cardio.continueCardio
-                              : platform.cardio.startCardio}
-                          </Button>
-                        </Link>
-                      ) : null}
-                    </div>
+                      {localizeCardioTitle(activeCardio.title, platform.cardio.types)}
+                    </p>
+                    {badge && <Badge variant="secondary">{badge}</Badge>}
+                    {activeCompleted ? (
+                      <DashboardStatusCheck aria-label={platform.aria.completed} />
+                    ) : null}
                   </div>
+                  {activeCardio.description && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {activeCardio.description}
+                    </p>
+                  )}
+                  {!activeCompleted && !readOnly ? (
+                    <Link href={sessionHref} className="mt-2 inline-block">
+                      <Button size="sm" className="h-8 rounded-full px-3 text-xs">
+                        {startLabel}
+                      </Button>
+                    </Link>
+                  ) : null}
                 </div>
-                {cardio.youtube_url && (
-                  <ExerciseVideoPlayer
-                    videoUrl={cardio.youtube_url}
-                    title={localizeCardioTitle(cardio.title, platform.cardio.types)}
-                  />
-                )}
               </div>
-            );
-          })
+            </div>
+            {activeCardio.youtube_url && (
+              <ExerciseVideoPlayer
+                videoUrl={activeCardio.youtube_url}
+                title={localizeCardioTitle(activeCardio.title, platform.cardio.types)}
+              />
+            )}
+          </div>
         ) : (
           <DashboardEmptyState>
             <p>{coachLabels.noCardioToday}</p>

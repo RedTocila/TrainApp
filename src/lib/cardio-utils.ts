@@ -52,13 +52,3 @@ export function scheduledCardiosForDate(
     entries.filter((entry) => entry.scheduled_date === dateKey)
   );
 }
-
-/** Prefer non-completed cardio when selecting a default slide. */
-export function pickDefaultCardioIndex(
-  entries: ScheduledCardio[],
-  isCompleted: (entry: ScheduledCardio) => boolean
-): number {
-  if (entries.length === 0) return 0;
-  const firstOpen = entries.findIndex((entry) => !isCompleted(entry));
-  return firstOpen >= 0 ? firstOpen : 0;
-}
