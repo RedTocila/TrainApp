@@ -102,6 +102,7 @@ async function loadWorkoutResults(
 
 export function DashboardWorkoutCard({
   clientId,
+  seedDateKey,
   gender,
   intakeProfile,
   initialWorkout,
@@ -113,6 +114,7 @@ export function DashboardWorkoutCard({
   schedule,
 }: {
   clientId: string;
+  seedDateKey?: string;
   gender?: string | null;
   intakeProfile?: Pick<Profile, "age" | "intake_responses"> | null;
   initialWorkout: TodaysWorkoutInfo | null;
@@ -133,6 +135,7 @@ export function DashboardWorkoutCard({
   const enrichment = useOptionalDashboardEnrichment()?.enrichment;
   const { version, patches, notifySync } = useDashboardSync();
   const dateKey = formatDateKey(selectedDate);
+  const isSeedDate = dateKey === (seedDateKey ?? todayKey);
   const [workouts, setWorkouts] = useState(seedWorkouts);
   const [completedByTaskId, setCompletedByTaskId] = useState<Record<string, boolean>>(
     () =>
@@ -232,7 +235,7 @@ export function DashboardWorkoutCard({
   }, []);
 
   useEffect(() => {
-    if (dateKey !== todayKey) return;
+    if (!isSeedDate) return;
     const snapshot: WorkoutDayCache = {
       workouts: seedWorkouts,
       completedByTaskId: Object.fromEntries(
@@ -253,7 +256,7 @@ export function DashboardWorkoutCard({
     initialWorkoutCompleted,
     initialWorkoutResults,
     dateKey,
-    todayKey,
+    isSeedDate,
     clientId,
   ]);
 
@@ -403,6 +406,46 @@ export function DashboardWorkoutCard({
     }
   }, [clientId]);
 
+  useEffect(() => {
+    if (dateKey !== todayKey) return;
+    const timezoneOffsetMinutes = new Date().getTimezoneOffset();
+    const adjacentKeys = [
+      formatDateKey(addDays(selectedDate, -1)),
+      formatDateKey(addDays(selectedDate, 1)),
+    ];
+    for (const key of adjacentKeys) {
+      if (isDashboardDayCacheFresh(workoutDayCacheKey(clientId, key))) continue;
+      void resolveWorkoutsForDate(clientId, key, timezoneOffsetMinutes)
+        .then(async (resolved) => {
+          const status = await getWorkoutCompletionStatusForDate(
+            clientId,
+            key,
+            resolved
+          );
+          const allCompleted = areMainWorkoutsComplete(
+            resolved,
+            (taskId) => status[taskId]?.completed === true
+          );
+          const completedMap = Object.fromEntries(
+            Object.entries(status).map(([taskId, entry]) => [taskId, entry.completed])
+          );
+          const sessionMap = Object.fromEntries(
+            Object.entries(status).map(([taskId, entry]) => [taskId, entry.sessionId])
+          );
+          const snapshot: WorkoutDayCache = {
+            workouts: resolved,
+            completedByTaskId: completedMap,
+            sessionIdByTaskId: sessionMap,
+            allCompleted,
+            results: null,
+          };
+          workoutCacheRef.current.set(key, snapshot);
+          setWorkoutDayCache(clientId, key, snapshot);
+        })
+        .catch(() => {});
+    }
+  }, [clientId, dateKey, selectedDate, todayKey]);
+
   const handleWorkoutRemoved = useCallback(
     (scheduledWorkoutIds: string[]) => {
       const removed = new Set(scheduledWorkoutIds);
@@ -471,7 +514,7 @@ export function DashboardWorkoutCard({
     (getWorkoutDayCache(clientId, dateKey)?.workouts.length ?? 0) > 0 &&
     (variant === "detail" ||
       ((variant === "compact" || variant === "hero") &&
-        dateKey === todayKey &&
+        isSeedDate &&
         seedWorkouts.length > 0));
 
   const isFetchSettled = useDashboardDateFetch(dateKey, refreshWorkout, [clientId, version], {

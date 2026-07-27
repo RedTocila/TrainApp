@@ -44,6 +44,7 @@ type OverviewDayData = {
 
 export function DashboardOverview({
   clientId,
+  seedDateKey,
   initialLog,
   initialDailyMeals,
   mealLibrary,
@@ -58,6 +59,7 @@ export function DashboardOverview({
   schedule,
 }: {
   clientId: string;
+  seedDateKey?: string;
   initialLog: DailyLog | null;
   initialDailyMeals: DailyMealLog[];
   mealLibrary: PersonalMealLibraryItem[];
@@ -91,6 +93,7 @@ export function DashboardOverview({
   const scheduleNutritionPlan = schedule
     ? nutritionPlanFromSchedule(selectedDate, schedule)
     : null;
+  const isSeedDate = dateKey === (seedDateKey ?? todayKey);
 
   const seedOverview = useMemo((): OverviewDayData | undefined => {
     const hasEnrichment =
@@ -117,7 +120,7 @@ export function DashboardOverview({
       };
     }
 
-    if (dateKey === todayKey) {
+    if (isSeedDate) {
       return {
         log: initialLog,
         dailyMeals: initialDailyMeals,
@@ -154,6 +157,7 @@ export function DashboardOverview({
     isInEnrichmentRange,
     schedule,
     scheduleNutritionPlan,
+    isSeedDate,
     todayKey,
   ]);
 

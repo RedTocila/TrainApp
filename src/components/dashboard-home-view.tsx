@@ -25,6 +25,7 @@ type HabitsProps = ComponentProps<typeof HabitsTracker>;
  */
 export function DashboardHomeView({
   clientId,
+  seedDateKey,
   schedule,
   accountCreatedAt,
   gender,
@@ -54,6 +55,7 @@ export function DashboardHomeView({
   suggestedHabits,
 }: {
   clientId: string;
+  seedDateKey: string;
   schedule: ClientSchedule;
   accountCreatedAt?: string | null;
   gender?: WorkoutProps["gender"];
@@ -86,6 +88,7 @@ export function DashboardHomeView({
     <DashboardHomeShell clientId={clientId} schedule={schedule}>
       <DashboardWorkoutCard
         clientId={clientId}
+        seedDateKey={seedDateKey}
         gender={gender}
         initialWorkout={initialWorkout}
         initialWorkouts={initialWorkouts}
@@ -97,6 +100,7 @@ export function DashboardHomeView({
 
       <DashboardOverview
         clientId={clientId}
+        seedDateKey={seedDateKey}
         initialLog={initialLog}
         initialDailyMeals={initialDailyMeals}
         mealLibrary={mealLibrary}
@@ -124,6 +128,7 @@ export function DashboardHomeView({
           <div className="w-1/2 min-w-0">
             <DashboardCardioCard
               clientId={clientId}
+              seedDateKey={seedDateKey}
               initialScheduled={initialCardios}
               initialCompletions={initialCardioCompletions}
               variant="compact"

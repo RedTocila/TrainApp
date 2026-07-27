@@ -98,12 +98,14 @@ function durationBadgeFor(
 
 export function DashboardCardioCard({
   clientId,
+  seedDateKey,
   initialScheduled = [],
   initialCompletions = {},
   variant = "compact",
   schedule,
 }: {
   clientId: string;
+  seedDateKey?: string;
   initialScheduled?: ScheduledCardio | ScheduledCardio[] | null;
   initialCompletions?: Record<string, CardioCompletionInfo>;
   variant?: "full" | "compact";
@@ -117,6 +119,7 @@ export function DashboardCardioCard({
   const { version, patches } = useDashboardSync();
   const enrichment = useOptionalDashboardEnrichment()?.enrichment;
   const dateKey = formatDateKey(selectedDate);
+  const isSeedDate = dateKey === (seedDateKey ?? todayKey);
   const compact = variant === "compact";
 
   const initialList = useMemo(
@@ -132,7 +135,7 @@ export function DashboardCardioCard({
   );
 
   const seedCardio = useMemo((): CardioDayData | undefined => {
-    if (dateKey === todayKey) {
+    if (isSeedDate) {
       return {
         scheduled: initialList,
         completions: initialCompletions,
@@ -161,7 +164,7 @@ export function DashboardCardioCard({
     return undefined;
   }, [
     dateKey,
-    todayKey,
+    isSeedDate,
     initialList,
     initialCompletions,
     enrichment?.completionsByDate,

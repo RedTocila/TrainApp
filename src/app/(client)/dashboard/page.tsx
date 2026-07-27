@@ -251,6 +251,7 @@ export default async function DashboardPage() {
       <ScrollToHash />
       <DashboardHomeView
         clientId={profile.id}
+        seedDateKey={dateKey}
         schedule={schedule}
         accountCreatedAt={profile.created_at}
         gender={profile.gender}
