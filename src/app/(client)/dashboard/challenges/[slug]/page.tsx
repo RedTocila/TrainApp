@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { requireClient } from "@/lib/actions/auth";
@@ -10,7 +10,6 @@ import {
   getUserTransformationChallengeStatus,
 } from "@/lib/actions/challenge-bracket";
 import { loadChallengeBracketWithPlatformScores } from "@/lib/actions/challenge-platform-scores";
-import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { ChallengeAnnouncements } from "@/components/challenge-announcements";
 import { ChallengeBracketDiagram } from "@/components/challenge-bracket-diagram";
 import { ChallengeDetailHero } from "@/components/challenge-detail-hero";
@@ -26,9 +25,9 @@ import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent } from "@/components/ui/card";
 import { getChallengeStatus } from "@/lib/challenge-utils";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
-import { PLATFORM_ELITE_NAME } from "@/lib/brand";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import { resolveChallengePlatformCopy } from "@/lib/challenge-platform-copy";
+import { buildPricingHref } from "@/lib/pricing-nav";
 import { hasEliteAccess } from "@/lib/subscription";
 import { GitBranch, Medal, Users } from "lucide-react";
 
@@ -50,21 +49,12 @@ export default async function ChallengeDetailPage({
     .eq("id", user!.id)
     .single();
 
-  const platform = getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale));
-
+  const detailPath = `/dashboard/challenges/${slug}`;
   if (!profile || !hasEliteAccess(profile)) {
-    return (
-      <PageTransition>
-        <div className="mx-auto max-w-2xl space-y-4">
-          <EliteUpgradeGate
-            title={`${PLATFORM_ELITE_NAME} required for community challenges`}
-            description={platform.classes.upgradeDescriptionShort}
-          />
-        </div>
-      </PageTransition>
-    );
+    redirect(buildPricingHref(detailPath));
   }
 
+  const platform = getPlatformCopy(parseCheckoutLocale(profile.preferred_locale));
   const challenge = await getChallengeBySlug(slug, profile.gender);
   if (!challenge) notFound();
 

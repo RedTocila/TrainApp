@@ -1,18 +1,15 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/server";
 import { requireClient } from "@/lib/actions/auth";
 import { getClassBySlug, getPublishedClasses } from "@/lib/actions/classes";
 import { ClassSessionPanel } from "@/components/class-session-panel";
-import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { PageTransition } from "@/components/page-transition";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { categoryStyles } from "@/lib/class-utils";
-import { parseCheckoutLocale } from "@/lib/checkout-i18n";
-import { getPlatformCopy } from "@/lib/platform-copy";
-import { PLATFORM_ELITE_NAME } from "@/lib/brand";
+import { buildPricingHref } from "@/lib/pricing-nav";
 import { hasEliteAccess } from "@/lib/subscription";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,19 +32,9 @@ export default async function ClassDetailPage({
     .eq("id", user!.id)
     .single();
 
-  const platform = getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale));
-
+  const detailPath = `/dashboard/classes/${slug}`;
   if (!profile || !hasEliteAccess(profile)) {
-    return (
-      <PageTransition>
-        <div className="mx-auto max-w-2xl space-y-4">
-          <EliteUpgradeGate
-            title={`${PLATFORM_ELITE_NAME} required for live coaching`}
-            description={platform.classes.upgradeDescriptionShort}
-          />
-        </div>
-      </PageTransition>
-    );
+    redirect(buildPricingHref(detailPath));
   }
 
   const [fitnessClass, allClasses] = await Promise.all([

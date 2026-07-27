@@ -3,7 +3,8 @@ import { hasAiAccess } from "@/lib/subscription";
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
-import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
+import { buildPricingHref } from "@/lib/pricing-nav";
+import { redirect } from "next/navigation";
 import { StatBar } from "@/components/ai/stat-bar";
 import { TipCard } from "@/components/ai/tip-card";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,7 +31,7 @@ export default async function AiRecommendationsPage() {
   const copy = platform.aiPages;
 
   if (!profile || !hasAiAccess(profile)) {
-    return <AiUpgradeGate title="AI recommendations" />;
+    redirect(buildPricingHref("/dashboard/ai/recommendations"));
   }
 
   const today = formatDateKey(new Date());

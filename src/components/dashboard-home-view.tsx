@@ -8,7 +8,9 @@ import { DashboardCardioCard } from "@/components/dashboard-cardio-card";
 import { BodyMetricsSection } from "@/components/body-metrics-section";
 import { ProgressPhotosCard } from "@/components/progress-photos-card";
 import { HabitsTracker } from "@/components/habits-tracker";
+import { ClientIntakeForm } from "@/components/client-intake-form";
 import type { ClientSchedule } from "@/lib/daily-tasks";
+import type { Profile } from "@/lib/types";
 import type { ComponentProps } from "react";
 
 type WorkoutProps = ComponentProps<typeof DashboardWorkoutCard>;
@@ -53,6 +55,7 @@ export function DashboardHomeView({
   initialCurrentUrls,
   habits,
   suggestedHabits,
+  profile,
 }: {
   clientId: string;
   seedDateKey: string;
@@ -83,6 +86,7 @@ export function DashboardHomeView({
   initialCurrentUrls: PhotosProps["initialCurrentUrls"];
   habits: HabitsProps["initialHabits"];
   suggestedHabits: HabitsProps["suggestedHabits"];
+  profile: Profile;
 }) {
   return (
     <DashboardHomeShell clientId={clientId} schedule={schedule}>
@@ -158,6 +162,8 @@ export function DashboardHomeView({
         initialHabits={habits}
         suggestedHabits={suggestedHabits}
       />
+
+      <ClientIntakeForm profile={profile} />
     </DashboardHomeShell>
   );
 }

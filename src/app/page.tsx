@@ -8,7 +8,7 @@ import { PLATFORM_NAME } from "@/lib/brand";
 export const metadata: Metadata = {
   title: `${PLATFORM_NAME} — Workouts, Nutrition & AI Coaching`,
   description:
-    "Premium fitness platform with workout builder, nutrition tracking, AI coach, and live coaching. From €20/month.",
+    "Premium fitness platform with workout builder, nutrition tracking, AI coach, and live coaching. From €19/month.",
   keywords: [
     "fitness app",
     "workout tracker",

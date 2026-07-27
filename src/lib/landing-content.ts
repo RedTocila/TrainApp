@@ -262,7 +262,7 @@ export const LANDING_HIGHLIGHTS = [
 
 export const LANDING_STATS = [
   { value: "2 min", label: "Setup time" },
-  { value: "€20", label: "AI from /mo" },
+  { value: "€19", label: "AI from /mo" },
   { value: "AI", label: "Smart coaching" },
   { value: "24/7", label: "Track anytime" },
 ];

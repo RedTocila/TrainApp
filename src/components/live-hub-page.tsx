@@ -15,11 +15,13 @@ export function LiveHubPage({
   challenges,
   profileGender,
   memberships = {},
+  requiresUpgrade = false,
 }: {
   classes: FitnessClass[];
   challenges: Challenge[];
   profileGender?: string | null;
   memberships?: Record<string, import("@/lib/actions/challenges").ChallengeCardMembership>;
+  requiresUpgrade?: boolean;
 }) {
   const [tab, setTab] = useState<LiveTab>("challenges");
 
@@ -88,10 +90,11 @@ export function LiveHubPage({
               challenges={challenges}
               profileGender={profileGender}
               memberships={memberships}
+              requiresUpgrade={requiresUpgrade}
             />
           </div>
         ) : (
-          <ClassesCatalog classes={classes} />
+          <ClassesCatalog classes={classes} requiresUpgrade={requiresUpgrade} />
         )}
       </div>
     </div>

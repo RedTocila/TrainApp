@@ -9,6 +9,7 @@ export type DashboardCardTheme =
   | "bmi"
   | "weight"
   | "habits"
+  | "lifestyle"
   | "photos";
 
 const THEME: Record<
@@ -69,6 +70,13 @@ const THEME: Record<
     blur: "bg-violet-400/25 dark:bg-violet-400/15",
     accent: "text-violet-700 dark:text-violet-300",
     border: "border-violet-500/40 dark:border-violet-500/30",
+  },
+  lifestyle: {
+    from: "from-rose-500/34 dark:from-rose-500/28",
+    radial: "rgba(244,63,94,0.34)",
+    blur: "bg-rose-400/25 dark:bg-rose-400/15",
+    accent: "text-rose-700 dark:text-rose-300",
+    border: "border-rose-500/40 dark:border-rose-500/30",
   },
   photos: {
     from: "from-fuchsia-500/34 dark:from-fuchsia-500/28",

@@ -11,7 +11,7 @@ import {
   SUBSCRIPTION_PLANS,
   type BillingInterval,
 } from "@/lib/subscription-plans";
-import { formatAnnualSavings } from "@/lib/checkout-i18n";
+import { formatAnnualSavings, getCompareAtLabel } from "@/lib/checkout-i18n";
 import { PricingPlanCard } from "@/components/pricing-plan-card";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
@@ -39,8 +39,8 @@ export function LandingPricing() {
             Plans that grow with your goals
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            Free for manual tracking. Upgrade for AI coaching (€20) or Elite community
-            (€30) — create an account first, subscribe when you&apos;re ready.
+            Free for manual tracking. Upgrade for AI coaching (€19) or Elite community
+            (€29) — create an account first, subscribe when you&apos;re ready.
           </p>
         </FadeIn>
 
@@ -60,6 +60,7 @@ export function LandingPricing() {
 
           <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-3 md:grid-cols-2 md:items-end">
             {SUBSCRIPTION_PLANS.map((plan) => {
+              const tier = interval === "monthly" ? plan.monthly : plan.annual;
               const savings =
                 interval === "annual"
                   ? formatAnnualSavings(plan.monthly, plan.annual)
@@ -72,6 +73,7 @@ export function LandingPricing() {
                   interval={interval}
                   labels={LANDING_LABELS}
                   savings={savings}
+                  compareAt={getCompareAtLabel(tier)}
                   showCta={false}
                 />
               );

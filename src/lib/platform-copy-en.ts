@@ -19,6 +19,13 @@ export const platformCopyEn = {
     title: "Profile",
     subtitle: "Account · subscription · health profile",
     healthProfile: "Health profile",
+    healthLifestyleTitle: "Health & lifestyle",
+    healthLifestyleCompleteHint:
+      "Your personalized plan uses this profile for macros, habits, and AI coaching.",
+    healthLifestyleIncompleteHint: (count: number, preview: string) =>
+      `${count} areas left — ${preview}`,
+    healthLifestyleLockedHint:
+      "Profile locked in. Update anytime if your routine or goals change.",
     complete: "Complete",
     inProgress: "In progress",
     incomplete: "Incomplete",
@@ -154,6 +161,7 @@ export const platformCopyEn = {
     close: "Close",
     next: "Next",
     update: "Update",
+    view: "View",
     choose: "Choose",
     saving: "Saving…",
     loading: "Loading…",
@@ -1019,7 +1027,7 @@ export const platformCopyEn = {
     onboardingBlurb:
       "The platform is free for manual tracking. Upgrade anytime for AI Pro or Elite.",
     upgradeBlurb:
-      "Free for manual workouts and meals. Upgrade for AI coaching (€20) or Elite community (€30).",
+      "Free for manual workouts and meals. Upgrade for AI coaching (€19) or Elite community (€29).",
     skipForNow: "Skip for now",
     startFreeTrial: "Start 3-day free trial",
     trialCardRequired: "Add a card to start — €0 today. Cancel anytime before day 3.",

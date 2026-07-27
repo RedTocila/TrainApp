@@ -12,10 +12,8 @@ import { scrollDashboardMainToTop } from "@/components/dashboard-main-reset";
 
 export function DashboardMainArea({
   children,
-  subscriptionBanner,
 }: {
   children: ReactNode;
-  subscriptionBanner: ReactNode;
 }) {
   const pathname = usePathname();
   const { pendingHref, routeLoadingCount } = useDashboardNavPending();
@@ -33,7 +31,6 @@ export function DashboardMainArea({
       <WorkoutPageChromeProvider>
         <DashboardMobileChrome />
         <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
-          {subscriptionBanner}
           <TrainSectionShell>
             {showPendingSkeleton ? (
               <div className="page-enter" key={`skeleton-${pendingHref}`}>

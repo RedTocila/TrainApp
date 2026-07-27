@@ -4,35 +4,20 @@ import {
   getPublishedChallenges,
   getUserChallengeMemberships,
 } from "@/lib/actions/challenges";
-import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { LiveHubPage } from "@/components/live-hub-page";
 import { PageTransition } from "@/components/page-transition";
-import { parseCheckoutLocale } from "@/lib/checkout-i18n";
-import { PLATFORM_ELITE_NAME } from "@/lib/brand";
-import { getPlatformCopy } from "@/lib/platform-copy";
 import { hasEliteAccess } from "@/lib/subscription";
 
 export default async function ClassesPage() {
   const profile = await requireClient();
-  const platform = getPlatformCopy(parseCheckoutLocale(profile.preferred_locale));
-
-  if (!hasEliteAccess(profile)) {
-    return (
-      <PageTransition>
-        <div className="mx-auto max-w-2xl space-y-4">
-          <EliteUpgradeGate
-            title={`${PLATFORM_ELITE_NAME} required for live sessions`}
-            description={platform.classes.upgradeDescriptionShort}
-          />
-        </div>
-      </PageTransition>
-    );
-  }
+  const requiresUpgrade = !hasEliteAccess(profile);
 
   const [classes, challenges, memberships] = await Promise.all([
     getPublishedClasses(),
     getPublishedChallenges(profile.gender),
-    getUserChallengeMemberships(profile.id),
+    requiresUpgrade
+      ? Promise.resolve({} as Awaited<ReturnType<typeof getUserChallengeMemberships>>)
+      : getUserChallengeMemberships(profile.id),
   ]);
 
   return (
@@ -42,6 +27,7 @@ export default async function ClassesPage() {
         challenges={challenges}
         profileGender={profile.gender}
         memberships={memberships}
+        requiresUpgrade={requiresUpgrade}
       />
     </PageTransition>
   );

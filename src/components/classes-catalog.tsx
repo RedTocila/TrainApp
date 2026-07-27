@@ -21,12 +21,21 @@ import {
   partitionClasses,
 } from "@/lib/class-utils";
 import type { FitnessClass } from "@/lib/types";
+import { buildPricingHref } from "@/lib/pricing-nav";
 
-function LiveClassCard({ fitnessClass }: { fitnessClass: FitnessClass }) {
+function LiveClassCard({
+  fitnessClass,
+  requiresUpgrade = false,
+}: {
+  fitnessClass: FitnessClass;
+  requiresUpgrade?: boolean;
+}) {
   const styles = categoryStyles[fitnessClass.category];
+  const detailPath = `/dashboard/classes/${fitnessClass.slug}`;
+  const href = requiresUpgrade ? buildPricingHref(detailPath) : detailPath;
 
   return (
-    <Link href={`/dashboard/classes/${fitnessClass.slug}`} className="group block">
+    <Link href={href} className="group block">
       <motion.article
         layout
         className={cn(
@@ -90,12 +99,20 @@ function LiveClassCard({ fitnessClass }: { fitnessClass: FitnessClass }) {
   );
 }
 
-function ClassCard({ fitnessClass }: { fitnessClass: FitnessClass }) {
+function ClassCard({
+  fitnessClass,
+  requiresUpgrade = false,
+}: {
+  fitnessClass: FitnessClass;
+  requiresUpgrade?: boolean;
+}) {
   const styles = categoryStyles[fitnessClass.category];
   const status = getClassStatus(fitnessClass);
+  const detailPath = `/dashboard/classes/${fitnessClass.slug}`;
+  const href = requiresUpgrade ? buildPricingHref(detailPath) : detailPath;
 
   return (
-    <Link href={`/dashboard/classes/${fitnessClass.slug}`} className="group block h-full">
+    <Link href={href} className="group block h-full">
       <motion.article
         layout
         className={cn(
@@ -149,7 +166,13 @@ function ClassCard({ fitnessClass }: { fitnessClass: FitnessClass }) {
   );
 }
 
-export function ClassesCatalog({ classes }: { classes: FitnessClass[] }) {
+export function ClassesCatalog({
+  classes,
+  requiresUpgrade = false,
+}: {
+  classes: FitnessClass[];
+  requiresUpgrade?: boolean;
+}) {
   const { live, upcoming, replays, ended } = useMemo(
     () => partitionClasses(classes),
     [classes]
@@ -183,7 +206,11 @@ export function ClassesCatalog({ classes }: { classes: FitnessClass[] }) {
           {live.length > 0 && (
             <section className="space-y-4">
               {live.map((fitnessClass) => (
-                <LiveClassCard key={fitnessClass.id} fitnessClass={fitnessClass} />
+                <LiveClassCard
+                  key={fitnessClass.id}
+                  fitnessClass={fitnessClass}
+                  requiresUpgrade={requiresUpgrade}
+                />
               ))}
             </section>
           )}
@@ -196,7 +223,11 @@ export function ClassesCatalog({ classes }: { classes: FitnessClass[] }) {
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {upcoming.map((fitnessClass) => (
-                  <ClassCard key={fitnessClass.id} fitnessClass={fitnessClass} />
+                  <ClassCard
+                    key={fitnessClass.id}
+                    fitnessClass={fitnessClass}
+                    requiresUpgrade={requiresUpgrade}
+                  />
                 ))}
               </div>
             </section>
@@ -209,7 +240,11 @@ export function ClassesCatalog({ classes }: { classes: FitnessClass[] }) {
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {replays.map((fitnessClass) => (
-                  <ClassCard key={fitnessClass.id} fitnessClass={fitnessClass} />
+                  <ClassCard
+                    key={fitnessClass.id}
+                    fitnessClass={fitnessClass}
+                    requiresUpgrade={requiresUpgrade}
+                  />
                 ))}
               </div>
             </section>
@@ -222,7 +257,11 @@ export function ClassesCatalog({ classes }: { classes: FitnessClass[] }) {
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {ended.map((fitnessClass) => (
-                  <ClassCard key={fitnessClass.id} fitnessClass={fitnessClass} />
+                  <ClassCard
+                    key={fitnessClass.id}
+                    fitnessClass={fitnessClass}
+                    requiresUpgrade={requiresUpgrade}
+                  />
                 ))}
               </div>
             </section>

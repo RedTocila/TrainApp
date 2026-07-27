@@ -5,7 +5,8 @@ import { computeProgressPrediction } from "@/lib/ai/progress-prediction";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import { formatDateKey } from "@/lib/utils";
-import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
+import { buildPricingHref } from "@/lib/pricing-nav";
+import { redirect } from "next/navigation";
 import { ScoreGauge } from "@/components/ai/score-gauge";
 import { ProgressPredictionStats } from "@/components/progress-prediction-stats";
 import { WeightChart } from "@/components/weight-chart";
@@ -24,7 +25,7 @@ export default async function AiPredictionsPage() {
   const copy = platform.aiPages;
 
   if (!profile || !hasAiAccess(profile)) {
-    return <AiUpgradeGate title={copy.predictionsTitle} />;
+    redirect(buildPricingHref("/dashboard/ai/predictions"));
   }
 
   const today = formatDateKey(new Date());

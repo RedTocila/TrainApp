@@ -4,7 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { StartupSplash } from "@/components/startup-splash";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LocaleProvider } from "@/components/locale-provider";
-import { getRequestLocale } from "@/lib/guest-locale";
+import { getRequestLocale } from "@/lib/guest-locale-server";
 import { getHtmlLang } from "@/lib/platform-copy";
 import { SITE_URL } from "@/lib/landing-content";
 import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/lib/brand";

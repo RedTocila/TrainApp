@@ -26,22 +26,22 @@ export function SubscriptionBanner({ profile }: { profile: Profile }) {
 
   if (onTrial) {
     return (
-      <Card className="mb-4 border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent sm:mb-6">
-        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-amber-500/15 p-2.5">
-              <Sparkles className="h-5 w-5 text-amber-400" />
+      <Card className="mb-3 border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent">
+        <CardContent className="flex flex-col gap-2.5 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <div className="shrink-0 rounded-md bg-amber-500/15 p-1.5">
+              <Sparkles className="h-4 w-4 text-amber-400" />
             </div>
-            <div>
-              <p className="font-semibold">{coachLabels.trialUnlockTitle}</p>
-              <p className="text-sm text-muted-foreground">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold leading-snug">{coachLabels.trialUnlockTitle}</p>
+              <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-muted-foreground sm:line-clamp-1">
                 {coachLabels.trialUnlockBlurb(daysLeft ?? 0)}
               </p>
             </div>
           </div>
-          <Link href={buildPricingHref(pathname)} className="shrink-0">
-            <Button>
-              <Crown className="mr-2 h-4 w-4" />
+          <Link href={buildPricingHref(pathname)} className="shrink-0 sm:self-center">
+            <Button size="sm" className="w-full sm:w-auto">
+              <Crown className="mr-1.5 h-3.5 w-3.5" />
               {coachLabels.keepAiPro}
             </Button>
           </Link>
@@ -53,20 +53,22 @@ export function SubscriptionBanner({ profile }: { profile: Profile }) {
   if (hasPaidAccess(profile)) return null;
 
   return (
-    <Card className="mb-4 border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent sm:mb-6">
-      <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-primary/15 p-2.5">
-            <Crown className="h-5 w-5 text-primary" />
+    <Card className="mb-3 border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
+      <CardContent className="flex flex-col gap-2.5 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <div className="shrink-0 rounded-md bg-primary/15 p-1.5">
+            <Crown className="h-4 w-4 text-primary" />
           </div>
-          <div>
-            <p className="font-semibold">{coachLabels.unlockDashboard}</p>
-            <p className="text-sm text-muted-foreground">{coachLabels.subscribeBlurb}</p>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-snug">{coachLabels.unlockDashboard}</p>
+            <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-muted-foreground sm:line-clamp-1">
+              {coachLabels.subscribeBlurb}
+            </p>
           </div>
         </div>
-        <Link href={buildPricingHref(pathname)} className="shrink-0">
-          <Button>
-            <Sparkles className="mr-2 h-4 w-4" />
+        <Link href={buildPricingHref(pathname)} className="shrink-0 sm:self-center">
+          <Button size="sm" className="w-full sm:w-auto">
+            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
             {coachLabels.viewPlans}
           </Button>
         </Link>

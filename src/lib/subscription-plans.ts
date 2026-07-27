@@ -43,8 +43,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     name: PLATFORM_AI_PRO_NAME,
     tagline:
       "Everything in free manual tracking, plus your own AI fitness coach. Start free for 3 days with a card — cancel anytime.",
-    monthly: { amountEurCents: 2000 },
-    annual: { amountEurCents: 20_000 },
+    monthly: { amountEurCents: 1900, compareAtEurCents: 4900 },
+    annual: { amountEurCents: 19_000, compareAtEurCents: 49_000 },
     highlighted: true,
     badge: "3-day free trial",
     includesFrom: "Free",
@@ -67,8 +67,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     name: PLATFORM_ELITE_NAME,
     tagline:
       "The complete fitness experience with coaching, community, and live events.",
-    monthly: { amountEurCents: 3000 },
-    annual: { amountEurCents: 30_000 },
+    monthly: { amountEurCents: 2900, compareAtEurCents: 7400 },
+    annual: { amountEurCents: 29_000, compareAtEurCents: 74_000 },
     includesFrom: PLATFORM_AI_PRO_NAME,
     features: [
       "Live training classes",

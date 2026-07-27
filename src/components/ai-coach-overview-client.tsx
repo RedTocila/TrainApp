@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowUp,
   BarChart3,
@@ -24,6 +25,7 @@ import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { MacroGap } from "@/lib/ai/types";
+import { buildPricingHref } from "@/lib/pricing-nav";
 import { cn } from "@/lib/utils";
 
 type WeeklyReportPreview = {
@@ -274,6 +276,7 @@ export function AiCoachOverviewClient({
   daysTracked,
   weekDaysCompleted,
   report,
+  requiresUpgrade = false,
 }: {
   firstName: string;
   insightMessage: string;
@@ -282,10 +285,14 @@ export function AiCoachOverviewClient({
   daysTracked: number;
   weekDaysCompleted: boolean[];
   report: WeeklyReportPreview | null;
+  requiresUpgrade?: boolean;
 }) {
   const platform = usePlatformCopy();
   const ai = platform.ai;
+  const pathname = usePathname();
+  const router = useRouter();
   const { openChat } = useAiCoachChat();
+  const pricingHref = buildPricingHref(pathname);
 
   const tipText =
     insightMessage && insightMessage !== ai.logMealsGuidance
@@ -296,6 +303,15 @@ export function AiCoachOverviewClient({
     gap && gap.targets.calories > 0
       ? Math.min(100, Math.round((gap.consumed.calories / gap.targets.calories) * 100))
       : report?.nutrition_score ?? 0;
+
+  const featureHref = (href: string) => (requiresUpgrade ? pricingHref : href);
+  const onLockedAction = () => {
+    if (requiresUpgrade) {
+      router.push(pricingHref);
+      return true;
+    }
+    return false;
+  };
 
   return (
     <div className="space-y-7">
@@ -318,7 +334,10 @@ export function AiCoachOverviewClient({
 
           <button
             type="button"
-            onClick={() => openChat()}
+            onClick={() => {
+              if (onLockedAction()) return;
+              openChat();
+            }}
             aria-label={ai.startChatting}
             className={cn(
               "chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1",
@@ -344,7 +363,10 @@ export function AiCoachOverviewClient({
                 <button
                   key={topic.id}
                   type="button"
-                  onClick={() => openChat(topic.prompt)}
+                  onClick={() => {
+                    if (onLockedAction()) return;
+                    openChat(topic.prompt);
+                  }}
                   className={cn(
                     "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 py-1.5",
                     "text-xs font-semibold text-foreground transition-colors",
@@ -365,7 +387,7 @@ export function AiCoachOverviewClient({
         <h3 className="text-base font-bold">{ai.howCanIHelp}</h3>
         <div className="grid grid-cols-2 gap-2.5">
           <HelpTile
-            href="/dashboard/ai/predictions"
+            href={featureHref("/dashboard/ai/predictions")}
             icon={LineChart}
             label={ai.helpTiles.progress.label}
             desc={ai.helpTiles.progress.desc}
@@ -376,7 +398,7 @@ export function AiCoachOverviewClient({
             glowClass="bg-amber-400/30"
           />
           <HelpTile
-            href="/dashboard/ai/recommendations"
+            href={featureHref("/dashboard/ai/recommendations")}
             icon={Lightbulb}
             label={ai.helpTiles.tips.label}
             desc={ai.helpTiles.tips.desc}
@@ -387,7 +409,7 @@ export function AiCoachOverviewClient({
             glowClass="bg-violet-400/30"
           />
           <HelpTile
-            href="/dashboard/ai/reports"
+            href={featureHref("/dashboard/ai/reports")}
             icon={FileText}
             label={ai.helpTiles.weeklyReport.label}
             desc={ai.helpTiles.weeklyReport.desc}
@@ -398,7 +420,7 @@ export function AiCoachOverviewClient({
             glowClass="bg-cyan-400/30"
           />
           <HelpTile
-            href="/dashboard/ai/meal-suggestions"
+            href={featureHref("/dashboard/ai/meal-suggestions")}
             icon={UtensilsCrossed}
             label={ai.helpTiles.mealIdeas.label}
             desc={ai.helpTiles.mealIdeas.desc}
@@ -416,7 +438,7 @@ export function AiCoachOverviewClient({
         <h3 className="text-base font-bold">{ai.buildPlan}</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <CreatePlanCard
-            href="/dashboard/ai/plans/workout"
+            href={featureHref("/dashboard/ai/plans/workout")}
             title={ai.buildWorkoutWithAi}
             description={ai.buildWorkoutWithAiDesc}
             icon={Dumbbell}
@@ -424,7 +446,7 @@ export function AiCoachOverviewClient({
             backgroundImage="/ai-coach/create-workout.png"
           />
           <CreatePlanCard
-            href="/dashboard/ai/plans/nutrition"
+            href={featureHref("/dashboard/ai/plans/nutrition")}
             title={ai.buildNutritionWithAi}
             description={ai.buildNutritionWithAiDesc}
             icon={Salad}
@@ -456,7 +478,10 @@ export function AiCoachOverviewClient({
               <button
                 key={item.question}
                 type="button"
-                onClick={() => openChat(item.prompt)}
+                onClick={() => {
+                  if (onLockedAction()) return;
+                  openChat(item.prompt);
+                }}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-card px-3.5 py-3 text-left",
                   "shadow-sm transition-[transform,border-color,background-color] duration-200",

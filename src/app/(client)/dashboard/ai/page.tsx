@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { hasAiAccess } from "@/lib/subscription";
 import { getDashboardAiInsight, getLatestWeeklyReport } from "@/lib/actions/ai-coach";
-import { AiUpgradeGate } from "@/components/ai-upgrade-gate";
 import { AiCoachOverviewClient } from "@/components/ai-coach-overview-client";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
@@ -25,10 +24,6 @@ export default async function AiCoachOverviewPage() {
     ? await Promise.all([getDashboardAiInsight(today), getLatestWeeklyReport()])
     : [null, null];
 
-  if (!aiAccess) {
-    return <AiUpgradeGate />;
-  }
-
   const message =
     insight && "message" in insight
       ? (insight.message ?? platform.ai.logMealsGuidance)
@@ -51,6 +46,7 @@ export default async function AiCoachOverviewPage() {
       workoutsThisWeek={workoutsThisWeek}
       daysTracked={daysTracked}
       weekDaysCompleted={weekDaysCompleted}
+      requiresUpgrade={!aiAccess}
       report={
         report
           ? {

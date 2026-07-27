@@ -1,19 +1,8 @@
-import { cookies } from "next/headers";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
-import { DEFAULT_CHECKOUT_LOCALE, parseCheckoutLocale } from "@/lib/checkout-i18n";
 
 export const LOCALE_COOKIE_NAME = "rutina_locale";
 export const LOCALE_STORAGE_KEY = "rutina_locale";
 export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
-
-export async function getRequestLocale(): Promise<CheckoutLocale> {
-  try {
-    const store = await cookies();
-    return parseCheckoutLocale(store.get(LOCALE_COOKIE_NAME)?.value);
-  } catch {
-    return DEFAULT_CHECKOUT_LOCALE;
-  }
-}
 
 /** Client-side: persist locale for guests (cookie + localStorage). */
 export function persistGuestLocale(locale: CheckoutLocale) {

@@ -279,6 +279,7 @@ export default async function DashboardPage() {
         initialCurrentUrls={initialCurrentUrls}
         habits={habits}
         suggestedHabits={suggestedHabits}
+        profile={profile}
       />
     </DashboardEnrichmentProvider>
   );

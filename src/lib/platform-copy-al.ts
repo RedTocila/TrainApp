@@ -19,6 +19,13 @@ export const platformCopyAl = {
     title: "Profili",
     subtitle: "Llogaria · abonimi · profili shëndetësor",
     healthProfile: "Profili shëndetësor",
+    healthLifestyleTitle: "Shëndeti & stili i jetesës",
+    healthLifestyleCompleteHint:
+      "Plani yt i personalizuar përdor këtë profil për makro, zakone dhe coach AI.",
+    healthLifestyleIncompleteHint: (count: number, preview: string) =>
+      `${count} fusha të mbetura — ${preview}`,
+    healthLifestyleLockedHint:
+      "Profili është i ruajtur. Përditësoje kur të ndryshojë rutina ose qëllimet.",
     complete: "I plotë",
     inProgress: "Në progres",
     incomplete: "I paplotë",
@@ -157,6 +164,7 @@ export const platformCopyAl = {
     close: "Mbyll",
     next: "Vazhdo",
     update: "Përditëso",
+    view: "Shiko",
     choose: "Zgjidh",
     saving: "Duke ruajtur…",
     loading: "Duke ngarkuar…",
@@ -1033,7 +1041,7 @@ export const platformCopyAl = {
     onboardingBlurb:
       "Platforma është falas për ndjekje manuale. Përmirësohu kur të duash për AI Pro ose Elite.",
     upgradeBlurb:
-      "Falas për stërvitje dhe vakte manuale. Përmirësohu për coach AI (20€) ose komunitetin Elite (30€).",
+      "Falas për stërvitje dhe vakte manuale. Përmirësohu për coach AI (19€) ose komunitetin Elite (29€).",
     skipForNow: "Anashkalo për tani",
     startFreeTrial: "Fillo provën falas 3-ditore",
     trialCardRequired: "Shto kartën për të filluar — €0 sot. Anulo kur të duash para ditës 3.",

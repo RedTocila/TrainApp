@@ -27,6 +27,7 @@ import {
 } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { buildPricingHref } from "@/lib/pricing-nav";
 import type { Challenge } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -44,9 +45,11 @@ function challengeDayProgressPct(challenge: Challenge): number {
 function CatalogChallengeCard({
   challenge,
   membership,
+  requiresUpgrade = false,
 }: {
   challenge: Challenge;
   membership?: ChallengeCardMembership;
+  requiresUpgrade?: boolean;
 }) {
   const platform = usePlatformCopy();
   const catalogCopy = platform.challenges.catalog as {
@@ -75,6 +78,8 @@ function CatalogChallengeCard({
     ? getFlashDurationLabel(challenge)
     : getTransformationDurationLabel(challenge);
   const meta = [durationLabel, leagueTag].filter(Boolean).join(" · ");
+  const detailPath = `/dashboard/challenges/${challenge.slug}`;
+  const href = requiresUpgrade ? buildPricingHref(detailPath) : detailPath;
 
   return (
     <div className="relative h-full">
@@ -84,7 +89,7 @@ function CatalogChallengeCard({
         variant="card"
         className="absolute right-3 top-3 z-20"
       />
-      <Link href={`/dashboard/challenges/${challenge.slug}`} className="group block h-full">
+      <Link href={href} className="group block h-full">
         <motion.article
           layout
           className={cn(
@@ -197,10 +202,12 @@ export function ChallengesCatalog({
   challenges,
   profileGender,
   memberships = {},
+  requiresUpgrade = false,
 }: {
   challenges: Challenge[];
   profileGender?: string | null;
   memberships?: Record<string, ChallengeCardMembership>;
+  requiresUpgrade?: boolean;
 }) {
   const platform = usePlatformCopy();
   const catalog = platform.challenges.catalog as {
@@ -275,6 +282,7 @@ export function ChallengesCatalog({
               key={challenge.id}
               challenge={challenge}
               membership={memberships[challenge.id]}
+              requiresUpgrade={requiresUpgrade}
             />
           ))}
         </div>

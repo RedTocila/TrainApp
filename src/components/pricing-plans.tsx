@@ -6,7 +6,7 @@ import { Check, ChevronDown, Sparkles } from "lucide-react";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import { Button } from "@/components/ui/button";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
-import { getCurrencyPrice } from "@/lib/checkout-i18n";
+import { getCompareAtLabel, getCurrencyPrice } from "@/lib/checkout-i18n";
 import { getPricingFeatureIcon } from "@/lib/pricing-feature-icons";
 import type { BillingInterval, SubscriptionPlan } from "@/lib/subscription-plans";
 import {
@@ -44,7 +44,9 @@ function PlanRow({
   onSelect: () => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const price = getCurrencyPrice(interval === "monthly" ? plan.monthly : plan.annual);
+  const tier = interval === "monthly" ? plan.monthly : plan.annual;
+  const price = getCurrencyPrice(tier);
+  const compareAt = getCompareAtLabel(tier);
 
   return (
     <div
@@ -91,7 +93,14 @@ function PlanRow({
             </p>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-2xl font-black tracking-tight">{price.label}</p>
+            <div className="flex items-baseline justify-end gap-1.5">
+              {compareAt && (
+                <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/70">
+                  {compareAt}
+                </span>
+              )}
+              <p className="text-2xl font-black tracking-tight">{price.label}</p>
+            </div>
             <p className="text-xs text-muted-foreground">/{perLabel}</p>
             {savings && (
               <p className="mt-0.5 text-[11px] font-semibold text-green-400">{savings}</p>
@@ -237,9 +246,6 @@ export function PricingPlans({
           </Button>
         </Link>
       )}
-      {startTrial ? (
-        <p className="text-center text-xs text-muted-foreground">{pricing.trialCardRequired}</p>
-      ) : null}
     </div>
   );
 }

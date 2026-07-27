@@ -8,7 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { BillingInterval, SubscriptionPlan } from "@/lib/subscription-plans";
-import { getCurrencyPrice } from "@/lib/checkout-i18n";
+import { getCompareAtLabel, getCurrencyPrice } from "@/lib/checkout-i18n";
 import { getPricingFeatureIcon } from "@/lib/pricing-feature-icons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +28,8 @@ type PricingPlanCardProps = {
   interval: BillingInterval;
   labels: PricingCardLabels;
   savings?: string | null;
+  /** Strikethrough compare-at price (e.g. 12× monthly on annual). */
+  compareAt?: string | null;
   isCurrent?: boolean;
   subscribed?: boolean;
   checkoutHref?: string;
@@ -51,6 +53,7 @@ export function PricingPlanCard({
   interval,
   labels,
   savings,
+  compareAt = null,
   isCurrent = false,
   subscribed = false,
   checkoutHref,
@@ -59,6 +62,7 @@ export function PricingPlanCard({
 }: PricingPlanCardProps) {
   const tier = interval === "monthly" ? plan.monthly : plan.annual;
   const price = getCurrencyPrice(tier);
+  const compareAtLabel = compareAt ?? getCompareAtLabel(tier);
   const isElite = plan.id === "elite";
 
   return (
@@ -109,7 +113,12 @@ export function PricingPlanCard({
             <p className="text-sm leading-relaxed text-muted-foreground">{plan.tagline}</p>
           </div>
           <div className="pt-1">
-            <div className="flex items-baseline gap-1">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              {compareAtLabel && (
+                <span className="text-lg font-semibold text-muted-foreground line-through decoration-muted-foreground/70">
+                  {compareAtLabel}
+                </span>
+              )}
               <span className="text-4xl font-black tracking-tight">{price.label}</span>
               <span className="text-sm text-muted-foreground">
                 /{interval === "monthly" ? labels.perMonth : labels.perYear}
