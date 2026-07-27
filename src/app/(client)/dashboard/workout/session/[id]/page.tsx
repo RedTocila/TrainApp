@@ -20,7 +20,7 @@ export default async function WorkoutSessionPage({
 
   if (!data) notFound();
 
-  const { session, exercises, hiitConfig } = data;
+  const { session, exercises, hiitConfig, planKind } = data;
 
   if (session.status === "completed") {
     redirect("/dashboard/workout");
@@ -34,7 +34,12 @@ export default async function WorkoutSessionPage({
   if (hiitConfig) {
     return (
       <PageTransition>
-        <ActiveHiitClient session={session} config={hiitConfig} />
+        <ActiveHiitClient
+          session={session}
+          config={hiitConfig}
+          planKind={planKind}
+          gender={profile?.gender}
+        />
       </PageTransition>
     );
   }
@@ -45,6 +50,7 @@ export default async function WorkoutSessionPage({
         session={session}
         exercises={exercises}
         gender={profile?.gender}
+        planKind={planKind}
       />
     </PageTransition>
   );

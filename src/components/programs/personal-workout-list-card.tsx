@@ -58,7 +58,8 @@ export function PersonalWorkoutListCard({
   const programCategory = inferProgramCategory(plan.title, days, plan.kind);
   const programStyle = getWorkoutCategoryStyle(programCategory);
   const dayTitle = days.length === 1 ? days[0].title : plan.title;
-  const detailsHref = `/dashboard/workout/${plan.id}/edit`;
+  const previewHref = `/dashboard/workout/${plan.id}`;
+  const editHref = `/dashboard/workout/${plan.id}/edit`;
 
   const meta = [
     programStyle.shortLabel,
@@ -77,7 +78,7 @@ export function PersonalWorkoutListCard({
         programStyle.cardBg
       )}
     >
-      <DashboardCardNavLink href={detailsHref} ariaLabel={plan.title} />
+      <DashboardCardNavLink href={previewHref} ariaLabel={plan.title} />
       <div className="flex">
         <div className={cn("w-1 shrink-0", programStyle.stripe)} aria-hidden />
         <DashboardCardNavBody className="flex min-w-0 flex-1 items-stretch gap-2 p-2.5">
@@ -111,7 +112,7 @@ export function PersonalWorkoutListCard({
             </p>
 
             <div className="mt-auto flex items-center gap-1">
-              <Link href={detailsHref}>
+              <Link href={editHref}>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -121,7 +122,7 @@ export function PersonalWorkoutListCard({
                   {platform.common.edit}
                 </Button>
               </Link>
-              <Link href={`${detailsHref}?tab=schedule`}>
+              <Link href={`${editHref}?tab=schedule`}>
                 <Button
                   size="sm"
                   variant="ghost"

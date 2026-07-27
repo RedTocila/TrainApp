@@ -14,10 +14,12 @@ export function LiveHubPage({
   classes,
   challenges,
   profileGender,
+  memberships = {},
 }: {
   classes: FitnessClass[];
   challenges: Challenge[];
   profileGender?: string | null;
+  memberships?: Record<string, import("@/lib/actions/challenges").ChallengeCardMembership>;
 }) {
   const [tab, setTab] = useState<LiveTab>("challenges");
 
@@ -82,7 +84,11 @@ export function LiveHubPage({
                 {liveChallengeCount} live now
               </span>
             )}
-            <ChallengesCatalog challenges={challenges} profileGender={profileGender} />
+            <ChallengesCatalog
+              challenges={challenges}
+              profileGender={profileGender}
+              memberships={memberships}
+            />
           </div>
         ) : (
           <ClassesCatalog classes={classes} />

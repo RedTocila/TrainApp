@@ -331,5 +331,63 @@ export function resolveBodyMapGender(
   return gender === "female" ? "female" : "male";
 }
 
+/** Coarse muscle groups for card subtitles (e.g. Arms · Shoulders · Chest). */
+export type MuscleGroupKey =
+  | "arms"
+  | "shoulders"
+  | "chest"
+  | "back"
+  | "core"
+  | "glutes"
+  | "legs"
+  | "calves";
+
+const SLUG_TO_MUSCLE_GROUP: Record<BodyMuscleSlug, MuscleGroupKey> = {
+  abs: "core",
+  adductors: "legs",
+  biceps: "arms",
+  calves: "calves",
+  chest: "chest",
+  deltoids: "shoulders",
+  forearm: "arms",
+  gluteal: "glutes",
+  hamstring: "legs",
+  "lower-back": "back",
+  neck: "shoulders",
+  obliques: "core",
+  quadriceps: "legs",
+  trapezius: "back",
+  triceps: "arms",
+  "upper-back": "back",
+};
+
+const MUSCLE_GROUP_ORDER: MuscleGroupKey[] = [
+  "chest",
+  "shoulders",
+  "arms",
+  "back",
+  "core",
+  "glutes",
+  "legs",
+  "calves",
+];
+
+export function resolvePrimaryMuscleGroups(
+  exercises: { name: string }[],
+  dayTitle?: string,
+  limit = 3
+): MuscleGroupKey[] {
+  const highlights = resolveWorkoutMuscleHighlights(exercises, dayTitle);
+  const primary = highlights.filter(
+    (item) => item.intensity === INTENSITY_PRIMARY_FOCUS
+  );
+  const source = primary.length > 0 ? primary : highlights;
+  const seen = new Set<MuscleGroupKey>();
+  for (const item of source) {
+    seen.add(SLUG_TO_MUSCLE_GROUP[item.slug]);
+  }
+  return MUSCLE_GROUP_ORDER.filter((key) => seen.has(key)).slice(0, limit);
+}
+
 export { findCatalogExercise, getCatalogExercises };
 export type { CatalogExercise };

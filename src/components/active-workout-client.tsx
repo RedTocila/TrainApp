@@ -23,11 +23,14 @@ import type {
   WorkoutSessionExercise,
   WorkoutSessionSet,
 } from "@/lib/types";
+import type { WorkoutPlanKind } from "@/lib/hiit";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
 import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { resolveExerciseGifUrl, resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { DayFlowProgress } from "@/components/day-flow-progress";
+import { useDayWorkoutFlowContinue } from "@/components/day-workout-flow";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { formatDateKey } from "@/lib/utils";
 import {
@@ -461,17 +464,24 @@ export function ActiveWorkoutClient({
   exercises: initialExercises,
   histories: initialHistories,
   gender,
+  planKind = "strength",
 }: {
   session: WorkoutSession;
   exercises: WorkoutSessionExercise[];
   histories?: Record<string, ExerciseHistoryEntry | null>;
   gender?: string | null;
+  planKind?: WorkoutPlanKind;
 }) {
   const coachCopy = useCoachCopy();
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const router = useRouter();
   const { patchDashboard, notifySync } = useDashboardSync();
+  const {
+    handleAfterComplete,
+    StretchOfferDialog,
+    isContinuing,
+  } = useDayWorkoutFlowContinue();
   const [newExerciseName, setNewExerciseName] = useState("");
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [showCompleteStep, setShowCompleteStep] = useState(false);
@@ -661,7 +671,15 @@ export function ActiveWorkoutClient({
         completed: true,
         workoutSessionId: session.id,
       });
-      router.push("/dashboard");
+      const flow = handleAfterComplete({
+        scheduledDate: dateKey,
+        taskId: result.taskId,
+        planKind: result.planKind ?? planKind,
+        nextWorkout: result.nextWorkout ?? null,
+      });
+      if (flow === "done") {
+        router.refresh();
+      }
     });
   };
 
@@ -674,6 +692,7 @@ export function ActiveWorkoutClient({
             {platform.common.back}
           </Button>
         </Link>
+        <DayFlowProgress currentKind={planKind} className="justify-start px-0" />
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -837,7 +856,7 @@ export function ActiveWorkoutClient({
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   className="flex-1"
-                  disabled={isPending}
+                  disabled={isPending || isContinuing}
                   onClick={() => handleFinishWorkout(!!sessionNote.trim())}
                 >
                   <Check className="mr-1 h-4 w-4" />
@@ -895,6 +914,7 @@ export function ActiveWorkoutClient({
       </div>
 
       {giveUpDialog}
+      {StretchOfferDialog}
     </div>
   );
 }

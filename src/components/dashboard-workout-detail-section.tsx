@@ -62,6 +62,7 @@ export function DashboardWorkoutDetailSection({
   workout,
   workoutKey,
   done,
+  skipped = false,
   highlighted = false,
   isDayLoaded,
   selectedDate,
@@ -73,6 +74,7 @@ export function DashboardWorkoutDetailSection({
   workout: TodaysWorkoutInfo;
   workoutKey: string;
   done: boolean;
+  skipped?: boolean;
   highlighted?: boolean;
   isDayLoaded: boolean;
   selectedDate: Date;
@@ -88,8 +90,11 @@ export function DashboardWorkoutDetailSection({
   const isExtra = isExtraWorkoutKind(workout.planKind);
   const [open, setOpen] = useState(!isExtra);
   const isHistory = !!workout.historySessionId;
-  const canStart = !done && !readOnly && !isHistory;
-  const resultsSessionId = sessionId ?? workout.historySessionId ?? null;
+  const handled = done || skipped;
+  const canStart = !handled && !readOnly && !isHistory;
+  const resultsSessionId = done
+    ? sessionId ?? workout.historySessionId ?? null
+    : null;
   const showMuscleMap = isMainWorkoutKind(workout.planKind);
   const showBody = !isExtra || open;
 
@@ -152,7 +157,7 @@ export function DashboardWorkoutDetailSection({
         <h2
           className={cn(
             "text-lg font-black tracking-tight sm:text-xl",
-            done && "text-muted-foreground"
+            handled && "text-muted-foreground"
           )}
         >
           {workout.dayTitle}
@@ -167,7 +172,12 @@ export function DashboardWorkoutDetailSection({
             {platform.workout.sessionTypeStretch}
           </Badge>
         ) : null}
-        {showBody && mapExercises.length > 0 && !done ? (
+        {isMainWorkoutKind(workout.planKind) ? (
+          <Badge className="bg-primary/15 text-[10px] text-primary">
+            {platform.workout.sessionTypeMain}
+          </Badge>
+        ) : null}
+        {showBody && mapExercises.length > 0 && !handled ? (
           <WorkoutDifficultyInsightButton
             exercises={mapExercises}
             intakeProfile={intakeProfile}
@@ -177,6 +187,11 @@ export function DashboardWorkoutDetailSection({
         {done ? (
           <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
             {platform.common.completed}
+          </span>
+        ) : null}
+        {skipped ? (
+          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-300">
+            {platform.workout.sessionSkipped}
           </span>
         ) : null}
       </div>
@@ -189,8 +204,9 @@ export function DashboardWorkoutDetailSection({
     </>
   );
 
-  const containerTone =
-    workout.planKind === "warmup"
+  const containerTone = skipped
+    ? "border-border/70 bg-secondary/30 opacity-90"
+    : workout.planKind === "warmup"
       ? "border-orange-500/35 bg-orange-500/[0.08]"
       : workout.planKind === "stretch"
         ? "border-teal-500/35 bg-teal-500/[0.08]"
@@ -230,14 +246,34 @@ export function DashboardWorkoutDetailSection({
             />
           ) : null}
         </div>
-        <div className="shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           {canStart ? (
             <StartTodaysWorkoutButton
               date={selectedDate}
-              workout={workout}
+              workout={
+                isMainWorkoutKind(workout.planKind) ? undefined : workout
+              }
+              dayFlow={isMainWorkoutKind(workout.planKind)}
               disabled={!isDayLoaded}
               display="text"
             />
+          ) : null}
+          {isExtra ? (
+            <button
+              type="button"
+              onClick={() => setOpen((value) => !value)}
+              className={cn(
+                "inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/70 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:text-foreground",
+                workout.planKind === "warmup" && "border-orange-500/30 text-orange-300",
+                workout.planKind === "stretch" && "border-teal-500/30 text-teal-300"
+              )}
+              aria-expanded={open}
+              aria-label={open ? "Collapse" : "Expand"}
+            >
+              <ChevronDown
+                className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
+              />
+            </button>
           ) : null}
         </div>
       </div>
@@ -254,38 +290,20 @@ export function DashboardWorkoutDetailSection({
             </div>
           ) : null}
 
+          {mapExercises.length > 0 ? (
+            <div className={cn(skipped && "opacity-70")}>
+              <WorkoutExerciseList exercises={mapExercises} gender={gender} />
+            </div>
+          ) : null}
+
           {done ? (
             loadingResults ? (
               <WorkoutResultsSkeleton />
             ) : results ? (
               <WorkoutResultsDropdown results={results} variant="open" gender={gender} />
-            ) : (
-              <p className={cn(dashboard.empty, "py-5 text-sm")}>
-                {platform.workout.noResultsLogged}
-              </p>
-            )
-          ) : mapExercises.length > 0 ? (
-            <WorkoutExerciseList exercises={mapExercises} gender={gender} />
+            ) : null
           ) : null}
         </>
-      ) : null}
-
-      {isExtra ? (
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          className={cn(
-            "absolute bottom-2.5 right-2.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background/70 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:text-foreground",
-            workout.planKind === "warmup" && "border-orange-500/30 text-orange-300",
-            workout.planKind === "stretch" && "border-teal-500/30 text-teal-300"
-          )}
-          aria-expanded={open}
-          aria-label={open ? "Collapse" : "Expand"}
-        >
-          <ChevronDown
-            className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
-          />
-        </button>
       ) : null}
     </section>
   );

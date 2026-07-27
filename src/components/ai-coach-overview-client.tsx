@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   ArrowUp,
+  BarChart3,
   Check,
   ChevronRight,
   Dumbbell,
@@ -16,7 +17,6 @@ import {
   Salad,
   Shield,
   Sparkles,
-  Star,
   UtensilsCrossed,
   Zap,
 } from "lucide-react";
@@ -37,15 +37,15 @@ function CreatePlanCard({
   title,
   description,
   icon: Icon,
-  imageSrc,
   accent = "primary",
+  backgroundImage,
 }: {
   href: string;
   title: string;
   description: string;
   icon: typeof Dumbbell;
-  imageSrc: string;
   accent?: "primary" | "emerald";
+  backgroundImage: string;
 }) {
   const isEmerald = accent === "emerald";
 
@@ -53,7 +53,7 @@ function CreatePlanCard({
     <Link
       href={href}
       className={cn(
-        "group relative flex min-h-[148px] flex-col justify-between overflow-hidden rounded-2xl border p-4",
+        "group relative flex min-h-[160px] flex-col justify-between overflow-hidden rounded-2xl border p-4 shadow-sm",
         "transition-[transform,border-color] duration-200 active:scale-[0.99]",
         isEmerald
           ? "border-emerald-500/35 hover:border-emerald-400/60"
@@ -62,24 +62,42 @@ function CreatePlanCard({
     >
       <div
         aria-hidden
-        className="absolute inset-0 bg-cover bg-center opacity-35"
-        style={{ backgroundImage: `url(${imageSrc})` }}
+        className="absolute inset-0 bg-cover bg-right"
+        style={{ backgroundImage: `url(${backgroundImage})` }}
+      />
+      {/* Accent wash so the photo matches the card border color */}
+      <div
+        aria-hidden
+        className={cn(
+          "absolute inset-0 bg-gradient-to-br via-transparent to-transparent",
+          isEmerald ? "from-emerald-500/45" : "from-primary/45"
+        )}
       />
       <div
         aria-hidden
         className={cn(
-          "absolute inset-0",
-          isEmerald
-            ? "bg-gradient-to-br from-background via-background/92 to-emerald-500/25"
-            : "bg-gradient-to-br from-background via-background/92 to-primary/25"
+          "absolute inset-0 bg-gradient-to-t via-transparent to-transparent",
+          isEmerald ? "from-emerald-950/55" : "from-primary/40"
+        )}
+      />
+      {/* Keep left text readable; right side shows the photo */}
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-gradient-to-r from-black/80 from-0% via-black/50 via-[42%] to-transparent to-[68%]"
+      />
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl",
+          isEmerald ? "bg-emerald-400/30" : "bg-primary/30"
         )}
       />
 
       <div className="relative z-10 flex items-start justify-between gap-3">
         <span
           className={cn(
-            "flex h-11 w-11 items-center justify-center rounded-full",
-            isEmerald ? "bg-emerald-500/20 text-emerald-400" : "bg-primary/20 text-primary"
+            "flex h-11 w-11 items-center justify-center rounded-full backdrop-blur-sm",
+            isEmerald ? "bg-emerald-500/25 text-emerald-300" : "bg-primary/25 text-primary"
           )}
         >
           <Icon className="h-5 w-5" />
@@ -94,9 +112,9 @@ function CreatePlanCard({
         </span>
       </div>
 
-      <div className="relative z-10 mt-6 space-y-1.5">
-        <p className="text-sm font-bold leading-snug">{title}</p>
-        <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
+      <div className="relative z-10 mt-5 max-w-[70%] space-y-1.5 text-white">
+        <p className="text-sm font-bold leading-snug drop-shadow-sm">{title}</p>
+        <p className="text-xs leading-relaxed text-white/75">{description}</p>
       </div>
     </Link>
   );
@@ -107,30 +125,43 @@ function HelpTile({
   icon: Icon,
   label,
   desc,
-  fadeClass,
   iconWellClass,
   iconClass,
   borderClass,
+  washClass,
+  glowClass,
 }: {
   href: string;
   icon: typeof Dumbbell;
   label: string;
   desc: string;
-  fadeClass: string;
   iconWellClass: string;
   iconClass: string;
   borderClass: string;
+  washClass: string;
+  glowClass: string;
 }) {
   return (
     <Link
       href={href}
       className={cn(
-        "group relative flex min-h-[132px] flex-col justify-between overflow-hidden rounded-2xl border p-3.5",
+        "group relative flex min-h-[128px] flex-col justify-between overflow-hidden rounded-2xl border bg-card p-3.5 shadow-sm",
         "transition-[transform,border-color] duration-200 active:scale-[0.99]",
         borderClass
       )}
     >
-      <div aria-hidden className={cn("absolute inset-0", fadeClass)} />
+      <div
+        aria-hidden
+        className={cn("absolute inset-0 bg-gradient-to-br via-card to-card", washClass)}
+      />
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full blur-2xl",
+          glowClass
+        )}
+      />
+
       <div className="relative z-10 flex items-start justify-between gap-2">
         <span
           className={cn(
@@ -147,7 +178,7 @@ function HelpTile({
           )}
         />
       </div>
-      <div className="relative z-10 mt-4 space-y-1">
+      <div className="relative z-10 mt-3 space-y-1">
         <p className="text-[13px] font-bold leading-snug">{label}</p>
         <p className="text-[11px] leading-relaxed text-muted-foreground">{desc}</p>
       </div>
@@ -155,67 +186,80 @@ function HelpTile({
   );
 }
 
-/** Matches mockup: icon in ring center, caption below (e.g. 4/7 Stërvitje). */
-function WeekStatRing({
-  value,
-  max,
-  icon: Icon,
-  caption,
-  colorClass,
+function WeeklyProgressCard({
+  workoutsThisWeek,
+  daysTracked,
+  nutritionPct,
+  weekDaysCompleted,
 }: {
-  value: number;
-  max: number;
-  icon: typeof Flame;
-  caption: string;
-  colorClass: string;
+  workoutsThisWeek: number;
+  daysTracked: number;
+  nutritionPct: number;
+  weekDaysCompleted: boolean[];
 }) {
-  const r = 28;
-  const stroke = 4;
-  const circumference = 2 * Math.PI * r;
-  const pct = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0;
-  const offset = circumference - pct * circumference;
-  const viewPad = stroke + 2;
-  const viewSize = 2 * (r + viewPad);
-  const viewMin = 50 - r - viewPad;
+  const platform = usePlatformCopy();
+  const ai = platform.ai;
+  const days = ai.weekDayLabels;
 
   return (
-    <div className="flex flex-col items-center gap-2 text-center">
-      <div className="relative h-16 w-16">
-        <svg
-          className="h-full w-full -rotate-90"
-          viewBox={`${viewMin} ${viewMin} ${viewSize} ${viewSize}`}
-          aria-hidden
-        >
-          <circle
-            cx="50"
-            cy="50"
-            r={r}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={stroke}
-            className="text-foreground/15"
-          />
-          <circle
-            cx="50"
-            cy="50"
-            r={r}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            className={colorClass}
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Icon className={cn("h-5 w-5", colorClass)} />
+    <section className="overflow-hidden rounded-3xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15">
+          <BarChart3 className="h-4 w-4 text-primary" />
+        </span>
+        <h3 className="text-base font-bold">{ai.progressThisWeek}</h3>
+      </div>
+
+      <div className="grid grid-cols-3 divide-x divide-border/70">
+        <div className="px-2 text-center first:pl-0 last:pr-0">
+          <p className="text-2xl font-black tabular-nums text-primary sm:text-3xl">
+            {workoutsThisWeek}
+          </p>
+          <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+            {ai.workoutsThisWeek}
+          </p>
+        </div>
+        <div className="px-2 text-center">
+          <p className="text-2xl font-black tabular-nums text-amber-500 sm:text-3xl">
+            {daysTracked}
+          </p>
+          <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+            {ai.daysTracked}
+          </p>
+        </div>
+        <div className="px-2 text-center">
+          <p className="text-2xl font-black tabular-nums text-emerald-500 sm:text-3xl">
+            {nutritionPct}%
+          </p>
+          <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+            {ai.nutrition}
+          </p>
         </div>
       </div>
-      <p className="max-w-[4.75rem] text-[11px] font-semibold leading-tight text-foreground/80">
-        {caption}
-      </p>
-    </div>
+
+      <div className="mt-5 grid grid-cols-7 gap-1.5">
+        {days.map((label, index) => {
+          const done = weekDaysCompleted[index] ?? false;
+          return (
+            <div key={`${label}-${index}`} className="flex flex-col items-center gap-1.5">
+              <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+                {label}
+              </span>
+              <span
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full border transition-colors",
+                  done
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/80 bg-transparent text-transparent"
+                )}
+              >
+                <Check className="h-3.5 w-3.5" strokeWidth={3} />
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -228,6 +272,7 @@ export function AiCoachOverviewClient({
   gap,
   workoutsThisWeek,
   daysTracked,
+  weekDaysCompleted,
   report,
 }: {
   firstName: string;
@@ -235,6 +280,7 @@ export function AiCoachOverviewClient({
   gap: MacroGap | null;
   workoutsThisWeek: number;
   daysTracked: number;
+  weekDaysCompleted: boolean[];
   report: WeeklyReportPreview | null;
 }) {
   const platform = usePlatformCopy();
@@ -245,16 +291,6 @@ export function AiCoachOverviewClient({
     insightMessage && insightMessage !== ai.logMealsGuidance
       ? insightMessage
       : ai.tipFallback;
-
-  const scores = [
-    report?.training_score,
-    report?.nutrition_score,
-    report?.consistency_score,
-  ].filter((v): v is number => typeof v === "number");
-  const overallScore =
-    scores.length > 0
-      ? Math.round(scores.reduce((sum, n) => sum + n, 0) / scores.length)
-      : null;
 
   const nutritionPct =
     gap && gap.targets.calories > 0
@@ -324,7 +360,7 @@ export function AiCoachOverviewClient({
         </div>
       </section>
 
-      {/* How can I help — above Create with AI, fade cards */}
+      {/* How can I help */}
       <section className="space-y-3">
         <h3 className="text-base font-bold">{ai.howCanIHelp}</h3>
         <div className="grid grid-cols-2 gap-2.5">
@@ -333,40 +369,44 @@ export function AiCoachOverviewClient({
             icon={LineChart}
             label={ai.helpTiles.progress.label}
             desc={ai.helpTiles.progress.desc}
-            fadeClass="bg-gradient-to-br from-background via-background/90 to-amber-500/20"
-            iconWellClass="bg-amber-500/20"
+            iconWellClass="bg-amber-500/15"
             iconClass="text-amber-500"
             borderClass="border-amber-500/30 hover:border-amber-400/55"
+            washClass="from-amber-500/18"
+            glowClass="bg-amber-400/30"
           />
           <HelpTile
             href="/dashboard/ai/recommendations"
             icon={Lightbulb}
             label={ai.helpTiles.tips.label}
             desc={ai.helpTiles.tips.desc}
-            fadeClass="bg-gradient-to-br from-background via-background/90 to-violet-500/20"
-            iconWellClass="bg-violet-500/20"
+            iconWellClass="bg-violet-500/15"
             iconClass="text-violet-400"
             borderClass="border-violet-500/30 hover:border-violet-400/55"
+            washClass="from-violet-500/18"
+            glowClass="bg-violet-400/30"
           />
           <HelpTile
             href="/dashboard/ai/reports"
             icon={FileText}
             label={ai.helpTiles.weeklyReport.label}
             desc={ai.helpTiles.weeklyReport.desc}
-            fadeClass="bg-gradient-to-br from-background via-background/90 to-sky-500/20"
-            iconWellClass="bg-sky-500/20"
-            iconClass="text-sky-400"
-            borderClass="border-sky-500/30 hover:border-sky-400/55"
+            iconWellClass="bg-cyan-500/15"
+            iconClass="text-cyan-400"
+            borderClass="border-cyan-500/35 hover:border-cyan-400/60"
+            washClass="from-cyan-500/18"
+            glowClass="bg-cyan-400/30"
           />
           <HelpTile
             href="/dashboard/ai/meal-suggestions"
             icon={UtensilsCrossed}
             label={ai.helpTiles.mealIdeas.label}
             desc={ai.helpTiles.mealIdeas.desc}
-            fadeClass="bg-gradient-to-br from-background via-background/90 to-rose-500/20"
-            iconWellClass="bg-rose-500/20"
+            iconWellClass="bg-rose-500/15"
             iconClass="text-rose-400"
             borderClass="border-rose-500/30 hover:border-rose-400/55"
+            washClass="from-rose-500/18"
+            glowClass="bg-rose-400/30"
           />
         </div>
       </section>
@@ -380,16 +420,16 @@ export function AiCoachOverviewClient({
             title={ai.buildWorkoutWithAi}
             description={ai.buildWorkoutWithAiDesc}
             icon={Dumbbell}
-            imageSrc="/ai-coach/create-workout.jpg"
             accent="primary"
+            backgroundImage="/ai-coach/create-workout.png"
           />
           <CreatePlanCard
             href="/dashboard/ai/plans/nutrition"
             title={ai.buildNutritionWithAi}
             description={ai.buildNutritionWithAiDesc}
             icon={Salad}
-            imageSrc="/ai-coach/create-nutrition.jpg"
             accent="emerald"
+            backgroundImage="/ai-coach/create-nutrition.png"
           />
         </div>
         <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
@@ -398,48 +438,13 @@ export function AiCoachOverviewClient({
         </p>
       </section>
 
-      {/* Weekly progress — mockup style */}
-      <section className="overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
-        <div className="flex items-center justify-between gap-2 px-4 pb-1 pt-4 sm:px-5">
-          <h3 className="text-base font-bold">{ai.progressThisWeek}</h3>
-          <Link
-            href="/dashboard/ai/reports"
-            className="text-xs font-semibold text-primary"
-          >
-            {ai.seeMore} →
-          </Link>
-        </div>
-        <div className="grid grid-cols-4 gap-1 px-2 pb-5 pt-3 sm:px-4">
-          <WeekStatRing
-            value={workoutsThisWeek}
-            max={7}
-            icon={Flame}
-            colorClass="text-orange-500"
-            caption={`${workoutsThisWeek}/7 ${ai.workoutsThisWeek}`}
-          />
-          <WeekStatRing
-            value={daysTracked}
-            max={7}
-            icon={Check}
-            colorClass="text-sky-500"
-            caption={`${daysTracked} ${ai.daysTracked}`}
-          />
-          <WeekStatRing
-            value={nutritionPct}
-            max={100}
-            icon={Check}
-            colorClass="text-emerald-500"
-            caption={`${nutritionPct}% ${ai.nutrition}`}
-          />
-          <WeekStatRing
-            value={overallScore ?? 0}
-            max={100}
-            icon={Star}
-            colorClass="text-amber-500"
-            caption={`${overallScore ?? "—"} ${ai.score}`}
-          />
-        </div>
-      </section>
+      {/* Weekly progress */}
+      <WeeklyProgressCard
+        workoutsThisWeek={workoutsThisWeek}
+        daysTracked={daysTracked}
+        nutritionPct={nutritionPct}
+        weekDaysCompleted={weekDaysCompleted}
+      />
 
       {/* FAQs — open chat + auto-generate */}
       <section className="space-y-3">

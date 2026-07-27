@@ -657,33 +657,40 @@ export async function getWorkoutCompletionStatusForDate(
     string,
     {
       completed: boolean;
+      skipped: boolean;
       sessionId: string | null;
     }
   >
 > {
   const workouts =
     preloadedWorkouts ?? (await resolveWorkoutsForDate(clientId, dateKey));
-  const [taskCompletions, completedSessions] = await Promise.all([
-    getTaskCompletionsForDate(clientId, dateKey),
-    loadCompletedSessionsForDate(clientId, dateKey),
-  ]);
+  const [taskCompletions, completedSessions, skippedSessions] =
+    await Promise.all([
+      getTaskCompletionsForDate(clientId, dateKey),
+      loadCompletedSessionsForDate(clientId, dateKey),
+      loadSkippedSessionsForDate(clientId, dateKey),
+    ]);
   const status: Record<
     string,
-    { completed: boolean; sessionId: string | null }
+    { completed: boolean; skipped: boolean; sessionId: string | null }
   > = {};
 
   for (const workout of workouts) {
     if (workout.historySessionId) {
       status[workout.taskId] = {
         completed: true,
+        skipped: false,
         sessionId: workout.historySessionId,
       };
       continue;
     }
     const sessionId = matchCompletedSessionId(workout, completedSessions);
+    const skippedId = matchCompletedSessionId(workout, skippedSessions);
+    const completed = !!sessionId || taskCompletions.has(workout.taskId);
     status[workout.taskId] = {
-      completed: !!sessionId || taskCompletions.has(workout.taskId),
-      sessionId,
+      completed,
+      skipped: !completed && !!skippedId,
+      sessionId: sessionId ?? skippedId,
     };
   }
 
@@ -708,6 +715,22 @@ async function loadCompletedSessionsForDate(
     .eq("client_id", clientId)
     .eq("status", "completed")
     .eq("scheduled_date", dateKey);
+
+  return (data ?? []) as CompletedSessionRef[];
+}
+
+async function loadSkippedSessionsForDate(
+  clientId: string,
+  dateKey: string
+): Promise<CompletedSessionRef[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("workout_sessions")
+    .select("id, scheduled_workout_id, plan_id, day_id, notes")
+    .eq("client_id", clientId)
+    .eq("status", "cancelled")
+    .eq("scheduled_date", dateKey)
+    .eq("notes", "skipped");
 
   return (data ?? []) as CompletedSessionRef[];
 }
@@ -899,9 +922,11 @@ async function getSessionWithDetails(sessionId: string) {
 
     const { isIntervalPlan, normalizeWorkoutPlanKind, parseHiitConfig } =
       await import("@/lib/hiit");
-    if (plan && isIntervalPlan(plan)) {
+    if (plan) {
       planKind = normalizeWorkoutPlanKind(plan.kind);
-      hiitConfig = parseHiitConfig(plan.hiit_config);
+      if (isIntervalPlan(plan)) {
+        hiitConfig = parseHiitConfig(plan.hiit_config);
+      }
     }
   }
 
@@ -1435,6 +1460,8 @@ export async function startTodaysWorkoutAndRedirect(
     planId?: string;
     dayId?: string;
     scheduledDate?: string | null;
+    /** Prefer warm-up → main → stretch order when picking what to start. */
+    dayFlow?: boolean;
   }
 ) {
   if (options?.planId && options?.dayId) {
@@ -1453,11 +1480,20 @@ export async function startTodaysWorkoutAndRedirect(
   }
 
   const status = await getWorkoutCompletionStatusForDate(userId, dateKey);
+  const isCompleted = (taskId: string) =>
+    status[taskId]?.completed === true || status[taskId]?.skipped === true;
+
+  const { pickNextDayFlowWorkout, sortWorkoutsBySessionOrder } = await import(
+    "@/lib/hiit"
+  );
+
   const targetWorkout =
     (options?.scheduledWorkoutId
       ? workouts.find((w) => w.scheduledWorkoutId === options.scheduledWorkoutId)
       : null) ??
-    workouts.find((w) => !status[w.taskId]?.completed) ??
+    (options?.dayFlow !== false
+      ? pickNextDayFlowWorkout(workouts, isCompleted)
+      : sortWorkoutsBySessionOrder(workouts).find((w) => !isCompleted(w.taskId))) ??
     workouts[0];
 
   if (!targetWorkout) {
@@ -1474,6 +1510,158 @@ export async function startTodaysWorkoutAndRedirect(
     scheduledDate: targetWorkout.scheduledDate ?? dateKey,
     scheduledWorkoutId: targetWorkout.scheduledWorkoutId,
   });
+}
+
+/** Leave the current day-flow session and jump to the next (warm-up → main → stretch). */
+export async function skipDayFlowSession(sessionId: string) {
+  const { admin, userId } = await requireMutationAdmin();
+
+  const { data: session } = await admin
+    .from("workout_sessions")
+    .select(
+      "id, client_id, status, scheduled_date, plan_id, day_id, scheduled_workout_id, day_title, plan_title"
+    )
+    .eq("id", sessionId)
+    .eq("client_id", userId)
+    .single();
+
+  if (!session) return { error: "Session not found" };
+
+  let planKind: string | null = null;
+  if (session.plan_id) {
+    const { data: plan } = await admin
+      .from("workout_plans")
+      .select("kind")
+      .eq("id", session.plan_id)
+      .maybeSingle();
+    planKind = plan?.kind ?? null;
+  }
+
+  if (session.status === "in_progress") {
+    await admin
+      .from("workout_sessions")
+      .update({ status: "cancelled", notes: "skipped" })
+      .eq("id", sessionId)
+      .eq("client_id", userId);
+  }
+
+  const dateKey = session.scheduled_date ?? formatDateKey(new Date());
+  const next = await getNextDayFlowWorkout(dateKey, planKind);
+  if (!next) {
+    return { success: true as const, sessionId: null as string | null };
+  }
+
+  return startWorkoutAndRedirect({
+    planId: next.planId,
+    dayId: next.dayId,
+    scheduledDate: next.scheduledDate,
+    scheduledWorkoutId: next.scheduledWorkoutId,
+  });
+}
+
+/** Mark a planned day-flow session as skipped without starting it (e.g. skip stretch offer). */
+export async function markDayFlowWorkoutSkipped(input: {
+  planId: string;
+  dayId: string;
+  scheduledDate: string;
+  scheduledWorkoutId?: string | null;
+  dayTitle?: string;
+  planTitle?: string;
+}) {
+  const { admin, userId } = await requireMutationAdmin();
+
+  const { data: existing } = await admin
+    .from("workout_sessions")
+    .select("id, status, notes")
+    .eq("client_id", userId)
+    .eq("scheduled_date", input.scheduledDate)
+    .eq("plan_id", input.planId)
+    .eq("day_id", input.dayId)
+    .in("status", ["completed", "cancelled", "in_progress"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.status === "completed") {
+    return { success: true as const };
+  }
+  if (existing?.status === "cancelled" && existing.notes === "skipped") {
+    return { success: true as const };
+  }
+
+  if (existing?.status === "in_progress") {
+    await admin
+      .from("workout_sessions")
+      .update({ status: "cancelled", notes: "skipped" })
+      .eq("id", existing.id)
+      .eq("client_id", userId);
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/workout");
+    return { success: true as const };
+  }
+
+  const { error } = await admin.from("workout_sessions").insert({
+    client_id: userId,
+    plan_id: input.planId,
+    day_id: input.dayId,
+    scheduled_date: input.scheduledDate,
+    scheduled_workout_id: input.scheduledWorkoutId ?? null,
+    day_title: input.dayTitle ?? null,
+    plan_title: input.planTitle ?? null,
+    status: "cancelled",
+    notes: "skipped",
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/workout");
+  return { success: true as const };
+}
+
+/** @deprecated Prefer skipDayFlowSession */
+export async function skipWarmupToMainWorkout(sessionId: string) {
+  return skipDayFlowSession(sessionId);
+}
+
+export type DayFlowNextWorkout = {
+  planId: string;
+  dayId: string;
+  scheduledDate: string;
+  scheduledWorkoutId: string | null;
+  planKind: import("@/lib/hiit").WorkoutPlanKind;
+  dayTitle: string;
+  taskId: string;
+};
+
+/** After finishing a session, find the next warm-up → main → stretch step (if any). */
+export async function getNextDayFlowWorkout(
+  dateKey: string,
+  completedPlanKind: string | null | undefined
+): Promise<DayFlowNextWorkout | null> {
+  const { userId } = await requireUserId();
+  const workouts = await resolveWorkoutsForDate(userId, dateKey);
+  if (workouts.length === 0) return null;
+
+  const status = await getWorkoutCompletionStatusForDate(userId, dateKey);
+  const { pickWorkoutAfterKind } = await import("@/lib/hiit");
+  const next = pickWorkoutAfterKind(
+    workouts,
+    completedPlanKind,
+    (taskId) =>
+      status[taskId]?.completed === true || status[taskId]?.skipped === true
+  );
+  if (!next) return null;
+
+  return {
+    planId: next.planId,
+    dayId: next.dayId,
+    scheduledDate: next.scheduledDate ?? dateKey,
+    scheduledWorkoutId: next.scheduledWorkoutId ?? null,
+    planKind: next.planKind ?? "strength",
+    dayTitle: next.dayTitle,
+    taskId: next.taskId,
+  };
 }
 
 export async function updateSessionSet(
@@ -1647,6 +1835,17 @@ export async function completeWorkoutSession(
     return { error: "Workout already finished" };
   }
 
+  let planKind: import("@/lib/hiit").WorkoutPlanKind = "strength";
+  if (session.plan_id) {
+    const { data: plan } = await admin
+      .from("workout_plans")
+      .select("kind")
+      .eq("id", session.plan_id)
+      .maybeSingle();
+    const { normalizeWorkoutPlanKind } = await import("@/lib/hiit");
+    planKind = normalizeWorkoutPlanKind(plan?.kind);
+  }
+
   const { data: exercises } = await admin
     .from("workout_session_exercises")
     .select("id, workout_session_sets(id, reps, weight_kg)")
@@ -1706,7 +1905,16 @@ export async function completeWorkoutSession(
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");
 
-  return { success: true, scheduledDate, sessionId, taskId };
+  const nextWorkout = await getNextDayFlowWorkout(scheduledDate, planKind);
+
+  return {
+    success: true,
+    scheduledDate,
+    sessionId,
+    taskId,
+    planKind,
+    nextWorkout,
+  };
 }
 
 export async function cancelWorkoutSession(sessionId: string) {

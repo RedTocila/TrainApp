@@ -20,13 +20,20 @@ export function areMainWorkoutsComplete<
   return mains.every((w) => isCompleted(w.taskId));
 }
 
-/** Main done but warm-up and/or stretching still open. */
+/** Main done but warm-up and/or stretching still open (not completed or skipped). */
 export function hasIncompleteWorkoutExtras<
   T extends { planKind?: string | null; taskId: string },
->(workouts: T[], isCompleted: (taskId: string) => boolean): boolean {
+>(
+  workouts: T[],
+  isCompleted: (taskId: string) => boolean,
+  isSkipped?: (taskId: string) => boolean
+): boolean {
   if (!areMainWorkoutsComplete(workouts, isCompleted)) return false;
   return workouts.some(
-    (w) => isExtraWorkoutKind(w.planKind) && !isCompleted(w.taskId)
+    (w) =>
+      isExtraWorkoutKind(w.planKind) &&
+      !isCompleted(w.taskId) &&
+      !(isSkipped?.(w.taskId) ?? false)
   );
 }
 
@@ -43,6 +50,33 @@ export function sortWorkoutsBySessionOrder<
   return [...workouts].sort(
     (a, b) =>
       sessionKindSortOrder(a.planKind) - sessionKindSortOrder(b.planKind)
+  );
+}
+
+/** First incomplete session in day order: warm-up → main → stretch. */
+export function pickNextDayFlowWorkout<
+  T extends { planKind?: string | null; taskId: string },
+>(workouts: T[], isCompleted: (taskId: string) => boolean): T | null {
+  const ordered = sortWorkoutsBySessionOrder(workouts);
+  return ordered.find((workout) => !isCompleted(workout.taskId)) ?? null;
+}
+
+/** Next session after finishing `completedKind` (warm-up → main → stretch). */
+export function pickWorkoutAfterKind<
+  T extends { planKind?: string | null; taskId: string },
+>(
+  workouts: T[],
+  completedKind: string | null | undefined,
+  isCompleted: (taskId: string) => boolean
+): T | null {
+  const ordered = sortWorkoutsBySessionOrder(workouts);
+  const completedOrder = sessionKindSortOrder(completedKind);
+  return (
+    ordered.find(
+      (workout) =>
+        sessionKindSortOrder(workout.planKind) > completedOrder &&
+        !isCompleted(workout.taskId)
+    ) ?? null
   );
 }
 

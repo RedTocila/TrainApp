@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Users } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { ChallengeCategoryFilterBar } from "@/components/challenge-category-filter-bar";
-import { ChallengeMediaFrame } from "@/components/challenge-media-frame";
-import { ChallengePrizePool } from "@/components/challenge-prize-pool";
 import { ChallengeShareButton } from "@/components/challenge-share-button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getChallengeCardVisual } from "@/lib/challenge-card-covers";
-import { getChallengeMaxParticipants, isFlashChallenge } from "@/lib/challenge-series";
+import type { ChallengeCardMembership } from "@/lib/actions/challenges";
+import {
+  getChallengeMaxParticipants,
+  isFlashChallenge,
+} from "@/lib/challenge-series";
 import { getChallengeLeagueTag } from "@/lib/challenge-platform-copy";
 import { getFlashDurationLabel } from "@/lib/flash-challenge-catalog";
 import {
@@ -20,26 +21,60 @@ import {
   type ChallengeListCategory,
 } from "@/lib/challenge-list-filters";
 import { getTransformationDurationLabel } from "@/lib/transformation-challenge-catalog";
+import {
+  getChallengePrizePoolCents,
+  getMaxChallengePrizePoolCents,
+} from "@/lib/challenge-utils";
+import { formatEurosFromCents } from "@/lib/format-currency";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { Challenge } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-function CatalogChallengeCard({ challenge }: { challenge: Challenge }) {
+function challengeDayProgressPct(challenge: Challenge): number {
+  const start = new Date(challenge.scheduled_at).getTime();
+  const now = Date.now();
+  const durationMs =
+    challenge.duration_days && challenge.duration_days > 0
+      ? challenge.duration_days * 24 * 60 * 60 * 1000
+      : Math.max(1, challenge.duration_months) * 30 * 24 * 60 * 60 * 1000;
+  if (now <= start) return 0;
+  return Math.min(100, Math.max(0, Math.round(((now - start) / durationMs) * 100)));
+}
+
+function CatalogChallengeCard({
+  challenge,
+  membership,
+}: {
+  challenge: Challenge;
+  membership?: ChallengeCardMembership;
+}) {
   const platform = usePlatformCopy();
-  const catalogCopy = platform.challenges.catalog;
-  const joinCopy = platform.challenges.join;
-  const prizeCopy = platform.challenges.prizePool;
+  const catalogCopy = platform.challenges.catalog as {
+    cardEyebrow: string;
+    participantsLabel: string;
+    spotsLeftLabel: string;
+    prizePoolLabel: string;
+    prizePoolUpTo: (amount: string) => string;
+    yourPosition: string;
+    daysProgress: string;
+    registeredBadge: string;
+  };
   const leagueTag = getChallengeLeagueTag(platform.challenges, challenge);
   const visual = getChallengeCardVisual(challenge);
   const isFlash = isFlashChallenge(challenge);
   const max = getChallengeMaxParticipants(challenge) ?? (isFlash ? 50 : 100);
   const participantCount = challenge.participant_count ?? 0;
+  const spotsLeft = Math.max(0, max - participantCount);
+  const joined = Boolean(membership);
+  const dayPct = challengeDayProgressPct(challenge);
+  const currentPrizeLabel = formatEurosFromCents(
+    getChallengePrizePoolCents(challenge, participantCount)
+  );
+  const maxPrizeLabel = formatEurosFromCents(getMaxChallengePrizePoolCents(challenge));
   const durationLabel = isFlash
     ? getFlashDurationLabel(challenge)
     : getTransformationDurationLabel(challenge);
-  const spotsLabel = joinCopy.spotsRemaining
-    .replace("{remaining}", String(Math.max(0, max - participantCount)))
-    .replace("{max}", String(max));
+  const meta = [durationLabel, leagueTag].filter(Boolean).join(" · ");
 
   return (
     <div className="relative h-full">
@@ -53,56 +88,104 @@ function CatalogChallengeCard({ challenge }: { challenge: Challenge }) {
         <motion.article
           layout
           className={cn(
-            "relative flex h-full flex-col overflow-hidden rounded-2xl border bg-card",
+            "relative flex h-full min-h-[210px] flex-col overflow-hidden rounded-3xl border p-4 sm:p-5",
             "transition-shadow hover:shadow-lg",
             visual.border,
             visual.shadow
           )}
-          whileHover={{ y: -3 }}
+          whileHover={{ y: -2 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
         >
-          <ChallengeMediaFrame
-            coverImage={visual.coverImage}
-            gradient={visual.gradient}
-            icon={visual.icon}
-            size="card"
-          >
-            <div className="absolute bottom-3 left-3 right-12 flex flex-wrap gap-1.5">
-              <Badge className={cn("border backdrop-blur-sm", visual.badge)}>
-                {durationLabel}
-              </Badge>
-              {leagueTag ? (
-                <Badge className="border-white/25 bg-black/35 text-white backdrop-blur-sm">
-                  {leagueTag}
-                </Badge>
-              ) : null}
-              {isFlash ? (
-                <Badge className="border-white/25 bg-black/35 text-white backdrop-blur-sm">
-                  {prizeCopy.entryFee}
-                </Badge>
+          {visual.coverImage ? (
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${visual.coverImage})` }}
+            />
+          ) : (
+            <div aria-hidden className={cn("absolute inset-0 bg-gradient-to-br", visual.gradient)} />
+          )}
+          {/* Left→middle gradient for readable text; right stays colorful */}
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-r from-black/80 from-0% via-black/45 via-[42%] to-transparent to-[55%]"
+          />
+
+          <div className="relative z-10 flex flex-1 flex-col gap-3 text-white">
+            <div className="flex items-center gap-2 pr-10">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-400/20 backdrop-blur-sm">
+                <Trophy className="h-4 w-4 text-amber-300" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold uppercase tracking-wide text-white/75">
+                  {catalogCopy.cardEyebrow}
+                  {meta ? ` · ${meta}` : null}
+                </p>
+              </div>
+              {joined ? (
+                <span className="ml-auto shrink-0 rounded-full bg-primary/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                  {catalogCopy.registeredBadge}
+                </span>
               ) : null}
             </div>
-          </ChallengeMediaFrame>
 
-          <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
-            <div className="space-y-2">
-              <h3 className="text-lg font-black leading-snug tracking-tight sm:text-xl">
-                {challenge.title}
-              </h3>
-              <ChallengePrizePool
-                challenge={challenge}
-                participantCount={participantCount}
-                variant="catalog"
-              />
-              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                {spotsLabel}
+            <h3 className="text-xl font-black leading-snug tracking-tight drop-shadow-sm">
+              {challenge.title}
+            </h3>
+
+            <div>
+              <p className="text-sm font-semibold text-amber-200">
+                {catalogCopy.prizePoolLabel}:{" "}
+                <span className="text-base font-black text-white">{currentPrizeLabel}</span>
+              </p>
+              <p className="mt-0.5 text-[11px] text-white/65">
+                {catalogCopy.prizePoolUpTo(maxPrizeLabel)}
               </p>
             </div>
-            <span className="mt-auto inline-flex items-center gap-2 self-start text-sm font-semibold text-primary">
-              {catalogCopy.viewChallenge}
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </span>
+
+            {joined ? (
+              <div className="mt-auto space-y-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-xs text-white/75">
+                    <span>{catalogCopy.daysProgress}</span>
+                    <span className="font-bold tabular-nums text-white">{dayPct}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white/20">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${dayPct}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[11px] text-white/70">{catalogCopy.yourPosition}</p>
+                    <p className="text-xl font-black tabular-nums">
+                      #{membership?.rank ?? "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-white/70">
+                      {catalogCopy.participantsLabel}
+                    </p>
+                    <p className="text-xl font-black tabular-nums">{participantCount}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-auto grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[11px] text-white/70">{catalogCopy.spotsLeftLabel}</p>
+                  <p className="text-xl font-black tabular-nums">{spotsLeft}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-white/70">
+                    {catalogCopy.participantsLabel}
+                  </p>
+                  <p className="text-xl font-black tabular-nums">{participantCount}</p>
+                </div>
+              </div>
+            )}
           </div>
         </motion.article>
       </Link>
@@ -113,9 +196,11 @@ function CatalogChallengeCard({ challenge }: { challenge: Challenge }) {
 export function ChallengesCatalog({
   challenges,
   profileGender,
+  memberships = {},
 }: {
   challenges: Challenge[];
   profileGender?: string | null;
+  memberships?: Record<string, ChallengeCardMembership>;
 }) {
   const platform = usePlatformCopy();
   const catalog = platform.challenges.catalog as {
@@ -129,7 +214,6 @@ export function ChallengesCatalog({
     flashTag: string;
     menTag: string;
     womenTag: string;
-    viewChallenge: string;
   };
   const longSubtitle =
     profileGender === "female" && catalog.longSubtitleWomen
@@ -187,7 +271,11 @@ export function ChallengesCatalog({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {visibleChallenges.map((challenge) => (
-            <CatalogChallengeCard key={challenge.id} challenge={challenge} />
+            <CatalogChallengeCard
+              key={challenge.id}
+              challenge={challenge}
+              membership={memberships[challenge.id]}
+            />
           ))}
         </div>
       )}

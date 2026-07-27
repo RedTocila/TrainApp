@@ -269,5 +269,50 @@ export async function getDashboardAiInsight(dateKey: string) {
     gap,
     workoutsThisWeek: ctx.workoutsCompleted,
     daysTracked: ctx.daysTracked,
+    weekDaysCompleted: await getWeekDaysCompleted(access.profile.id, dateKey),
   };
+}
+
+/** Monday→Sunday flags for activity (meals or completed workouts) this calendar week. */
+async function getWeekDaysCompleted(
+  clientId: string,
+  dateKey: string
+): Promise<boolean[]> {
+  const supabase = await createClient();
+  const anchor = new Date(`${dateKey}T12:00:00`);
+  const day = anchor.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(anchor);
+  monday.setDate(anchor.getDate() + mondayOffset);
+  const weekKeys = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return formatDateKey(d);
+  });
+  const weekStart = weekKeys[0]!;
+  const weekEnd = weekKeys[6]!;
+
+  const [meals, sessions] = await Promise.all([
+    supabase
+      .from("daily_meal_logs")
+      .select("date")
+      .eq("client_id", clientId)
+      .gte("date", weekStart)
+      .lte("date", weekEnd),
+    supabase
+      .from("workout_sessions")
+      .select("completed_at")
+      .eq("client_id", clientId)
+      .eq("status", "completed")
+      .gte("completed_at", `${weekStart}T00:00:00`)
+      .lte("completed_at", `${weekEnd}T23:59:59`),
+  ]);
+
+  const active = new Set<string>((meals.data ?? []).map((m) => m.date as string));
+  for (const session of sessions.data ?? []) {
+    if (!session.completed_at) continue;
+    active.add(formatDateKey(new Date(session.completed_at)));
+  }
+
+  return weekKeys.map((key) => active.has(key));
 }

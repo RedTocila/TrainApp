@@ -14,6 +14,7 @@ import type { ProgressPhotoPose } from "@/lib/supabase/storage";
 export type WorkoutDayCache = {
   workouts: TodaysWorkoutInfo[];
   completedByTaskId: Record<string, boolean>;
+  skippedByTaskId?: Record<string, boolean>;
   sessionIdByTaskId?: Record<string, string | null>;
   allCompleted: boolean;
   results: CompletedWorkoutResults | null;

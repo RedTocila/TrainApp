@@ -1,7 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
 import { requireClient } from "@/lib/actions/auth";
 import { getPublishedClasses } from "@/lib/actions/classes";
-import { getPublishedChallenges } from "@/lib/actions/challenges";
+import {
+  getPublishedChallenges,
+  getUserChallengeMemberships,
+} from "@/lib/actions/challenges";
 import { EliteUpgradeGate } from "@/components/elite-upgrade-gate";
 import { LiveHubPage } from "@/components/live-hub-page";
 import { PageTransition } from "@/components/page-transition";
@@ -27,14 +29,20 @@ export default async function ClassesPage() {
     );
   }
 
-  const [classes, challenges] = await Promise.all([
+  const [classes, challenges, memberships] = await Promise.all([
     getPublishedClasses(),
     getPublishedChallenges(profile.gender),
+    getUserChallengeMemberships(profile.id),
   ]);
 
   return (
     <PageTransition>
-      <LiveHubPage classes={classes} challenges={challenges} profileGender={profile.gender} />
+      <LiveHubPage
+        classes={classes}
+        challenges={challenges}
+        profileGender={profile.gender}
+        memberships={memberships}
+      />
     </PageTransition>
   );
 }

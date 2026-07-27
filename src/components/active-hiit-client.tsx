@@ -26,6 +26,7 @@ import {
   beginWorkoutSession,
   cancelWorkoutSession,
   completeWorkoutSession,
+  skipDayFlowSession,
 } from "@/lib/actions/workout-sessions";
 import {
   buildHiitPhases,
@@ -33,6 +34,7 @@ import {
   type HiitConfig,
   type HiitPhase,
   type HiitPhaseType,
+  type WorkoutPlanKind,
 } from "@/lib/hiit";
 import {
   getHiitSoundsMuted,
@@ -58,7 +60,15 @@ import {
 } from "@/lib/hiit-timer-storage";
 import { formatUserError } from "@/lib/format-user-error";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { DayFlowProgress } from "@/components/day-flow-progress";
+import {
+  isWarmupPlanKind,
+  useDayWorkoutFlowContinue,
+} from "@/components/day-workout-flow";
+import { ExerciseGifImage } from "@/components/exercise-gif-image";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { resolveExerciseGifUrls, resolveProfileGender } from "@/lib/exercise-gif";
 import type { WorkoutSession } from "@/lib/types";
 import { cn, formatDateKey } from "@/lib/utils";
 
@@ -189,12 +199,22 @@ function useHiitClock(state: HiitTimerState | null) {
 export function ActiveHiitClient({
   session,
   config,
+  planKind = "hiit",
+  gender,
 }: {
   session: WorkoutSession;
   config: HiitConfig;
+  planKind?: WorkoutPlanKind;
+  gender?: string | null;
 }) {
   const router = useRouter();
+  const platform = usePlatformCopy();
   const { notifySync, patchDashboard } = useDashboardSync();
+  const {
+    handleAfterComplete,
+    StretchOfferDialog,
+    isContinuing,
+  } = useDayWorkoutFlowContinue();
   const [timer, setTimer] = useState<HiitTimerState | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,6 +226,20 @@ export function ActiveHiitClient({
   const phases = buildHiitPhases(config);
   const hash = hiitConfigHash(config);
   const { remainingMs, elapsedMs } = useHiitClock(timer);
+  const isWarmup = isWarmupPlanKind(planKind);
+  const isStretch = planKind === "stretch";
+  const showDayFlow = isWarmup || isStretch || planKind === "hiit";
+  const sessionLabel =
+    planKind === "warmup"
+      ? platform.workout.sessionTypeWarmup
+      : planKind === "stretch"
+        ? platform.workout.sessionTypeStretch
+        : "HIIT";
+  const skipLabel = isWarmup
+    ? platform.workout.skipToMainWorkout
+    : isStretch
+      ? platform.workout.skipStretch
+      : platform.workout.skipSession;
 
   const phaseIndex = timer?.phaseIndex ?? 0;
   const phase: HiitPhase =
@@ -372,6 +406,32 @@ export function ActiveHiitClient({
           workoutSessionId: session.id,
         });
       }
+      const flow = handleAfterComplete({
+        scheduledDate: dateKey,
+        taskId: "taskId" in result ? result.taskId : undefined,
+        planKind: "planKind" in result ? result.planKind : planKind,
+        nextWorkout: "nextWorkout" in result ? result.nextWorkout : null,
+      });
+      if (flow === "done") {
+        router.refresh();
+      }
+    });
+  };
+
+  const handleSkipToMain = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await skipDayFlowSession(session.id);
+      if (result && "error" in result && result.error) {
+        setError(formatUserError(result.error));
+        return;
+      }
+      clearHiitTimerState(session.id);
+      notifySync();
+      if (result && "sessionId" in result && result.sessionId) {
+        router.push(`/dashboard/workout/session/${result.sessionId}`);
+        return;
+      }
       router.push("/dashboard");
       router.refresh();
     });
@@ -408,7 +468,15 @@ export function ActiveHiitClient({
   const headline =
     phase?.type === "work"
       ? phase.exerciseName ?? "Work"
-      : phase?.label ?? "HIIT";
+      : phase?.type === "prepare"
+        ? phase.exerciseName ?? phase?.label ?? "Prepare"
+        : phase?.label ?? "HIIT";
+  const phaseEyebrow =
+    phase?.type === "prepare"
+      ? platform.workout.getReadyFor
+      : phase?.type === "work"
+        ? "Work"
+        : phase?.label;
   const nextLabel =
     phase?.nextExerciseName ??
     nextPhase?.exerciseName ??
@@ -418,71 +486,134 @@ export function ActiveHiitClient({
         ? "Cycle rest"
         : nextPhase?.label);
 
+  // Always resolve a demo exercise: current work, prepare target, or first in list.
+  const demoFromPhaseName =
+    phase?.type === "work" || phase?.type === "prepare" || phase?.type === "rest"
+      ? phase.exerciseName ?? phase.nextExerciseName
+      : phase?.nextExerciseName ?? config.exercises[0]?.name ?? null;
+  const demoIndex =
+    config.exercises.length === 0
+      ? 0
+      : Math.max(
+          0,
+          Math.min(
+            config.exercises.length - 1,
+            phase?.exerciseIndex ?? 0
+          )
+        );
+  const demoExercise =
+    (demoFromPhaseName
+      ? config.exercises.find(
+          (exercise) =>
+            exercise.name.trim().toLowerCase() ===
+            demoFromPhaseName.trim().toLowerCase()
+        )
+      : null) ??
+    config.exercises[demoIndex] ??
+    (demoFromPhaseName
+      ? {
+          name: demoFromPhaseName,
+          video_url: null,
+          image_url: null,
+          work_seconds: 0,
+          rest_seconds: 0,
+        }
+      : null);
+  const demoGif = demoExercise?.name
+    ? resolveExerciseGifUrls({
+        name: demoExercise.name,
+        imageUrl: demoExercise.image_url,
+        gender: resolveProfileGender(gender) ?? "male",
+      })
+    : null;
+  const showDemo = Boolean(demoExercise?.name);
+
   return (
-    <div className="fixed inset-0 z-[110] flex h-dvh max-h-dvh flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 items-center justify-between gap-3 px-3 pb-1 pt-[max(0.5rem,var(--safe-area-top))]">
-        <Link
-          href="/dashboard"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-secondary/80 text-foreground"
-          aria-label="Back"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="text-center">
-          <p className="flex items-center justify-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-orange-400">
-            <Zap className="h-3 w-3" />
-            HIIT
-          </p>
-          <p className="font-mono text-xs text-muted-foreground">{totalElapsed}</p>
+    <div className="fixed inset-0 z-[200] flex h-dvh max-h-dvh flex-col overflow-hidden bg-background">
+      <header className="flex shrink-0 flex-col gap-2 px-3 pb-2 pt-[max(0.5rem,var(--safe-area-top))]">
+        <div className="relative flex h-12 items-center justify-between gap-2">
+          <Link
+            href="/dashboard"
+            className="relative z-10 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 text-foreground"
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+
+          <div className="pointer-events-none absolute inset-x-12 top-1/2 z-0 -translate-y-1/2 text-center">
+            <p className="flex items-center justify-center gap-1.5 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-orange-400">
+              <Zap className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{sessionLabel}</span>
+            </p>
+            <p className="font-mono text-sm font-semibold tabular-nums text-foreground">
+              {totalElapsed}
+            </p>
+          </div>
+
+          <div className="relative z-10 flex shrink-0 items-center gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={handleToggleMute}
+              aria-label={muted ? "Unmute sounds" : "Mute sounds"}
+            >
+              {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={handleReset}
+              disabled={isIdle || isPending}
+              aria-label="Reset"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={handleCancel}
+              disabled={isPending}
+              aria-label="Exit"
+            >
+              <Square className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-0.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            onClick={handleToggleMute}
-            aria-label={muted ? "Unmute sounds" : "Mute sounds"}
-          >
-            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            onClick={handleReset}
-            disabled={isIdle || isPending}
-            aria-label="Reset"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            onClick={handleCancel}
-            disabled={isPending}
-            aria-label="Exit"
-          >
-            <Square className="h-4 w-4" />
-          </Button>
-        </div>
+
+        {showDayFlow ? (
+          <DayFlowProgress currentKind={planKind} className="px-1" />
+        ) : null}
       </header>
 
       <div
         className={cn(
-          "flex min-h-0 flex-1 flex-col items-center justify-center gap-1.5 px-4 py-2 transition-colors",
+          "flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-2 transition-colors",
           theme.panel
         )}
       >
         <p className={cn("text-center text-[0.65rem] font-bold uppercase tracking-[0.25em]", theme.accent)}>
-          {phase?.type === "work" ? "Work" : phase?.label}
+          {phaseEyebrow}
         </p>
         <h1 className="line-clamp-2 max-w-full text-center text-lg font-black uppercase leading-tight tracking-tight sm:text-xl">
           {headline}
         </h1>
+        {showDemo ? (
+          <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-md sm:h-40 sm:w-40">
+            <ExerciseGifImage
+              gifUrl={demoGif?.url}
+              fallbackUrl={demoGif?.fallbackUrl}
+              alt={demoExercise?.name ?? "Exercise"}
+              className="h-full w-full"
+              imgClassName="absolute inset-0 object-contain"
+            />
+          </div>
+        ) : null}
         <HiitCountdownRing
           progress={ringProgress}
           trackClass={theme.ringTrack}
@@ -612,10 +743,10 @@ export function ActiveHiitClient({
             type="button"
             size="lg"
             className="h-12 w-full shrink-0 gap-2 text-base font-black uppercase tracking-wide"
-            disabled={isPending}
+            disabled={isPending || isContinuing}
             onClick={handleComplete}
           >
-            {isPending ? (
+            {isPending || isContinuing ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
                 Saving…
@@ -628,8 +759,26 @@ export function ActiveHiitClient({
             )}
           </Button>
         ) : null}
+        {(isWarmup || isStretch) ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            className="h-11 w-full shrink-0 gap-2 bg-white/10 text-sm font-semibold text-white hover:bg-white/15"
+            disabled={isPending}
+            onClick={handleSkipToMain}
+          >
+            {isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <SkipForward className="h-4 w-4" />
+            )}
+            {skipLabel}
+          </Button>
+        ) : null}
         {error ? <p className="text-center text-sm text-red-400">{error}</p> : null}
       </div>
+      {StretchOfferDialog}
     </div>
   );
 }

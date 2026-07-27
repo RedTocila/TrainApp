@@ -37,6 +37,10 @@ export default async function AiCoachOverviewPage() {
   const workoutsThisWeek =
     insight && "workoutsThisWeek" in insight ? (insight.workoutsThisWeek ?? 0) : 0;
   const daysTracked = insight && "daysTracked" in insight ? (insight.daysTracked ?? 0) : 0;
+  const weekDaysCompleted =
+    insight && "weekDaysCompleted" in insight && Array.isArray(insight.weekDaysCompleted)
+      ? insight.weekDaysCompleted
+      : [false, false, false, false, false, false, false];
   const firstName = (profile.full_name ?? "").trim().split(/\s+/)[0] ?? "";
 
   return (
@@ -46,6 +50,7 @@ export default async function AiCoachOverviewPage() {
       gap={gap}
       workoutsThisWeek={workoutsThisWeek}
       daysTracked={daysTracked}
+      weekDaysCompleted={weekDaysCompleted}
       report={
         report
           ? {

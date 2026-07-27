@@ -340,3 +340,35 @@ export async function deleteChallenge(id: string) {
   revalidatePath("/admin/challenges");
   revalidatePath("/dashboard/classes");
 }
+
+export type ChallengeCardMembership = {
+  rank: number;
+};
+
+/** Map of challenge_id → user's join rank (1-based by join time). */
+export async function getUserChallengeMemberships(
+  userId: string
+): Promise<Record<string, ChallengeCardMembership>> {
+  const supabase = await createClient();
+  const { data: mine } = await supabase
+    .from("challenge_participants")
+    .select("challenge_id, created_at")
+    .eq("user_id", userId);
+
+  if (!mine?.length) return {};
+
+  const result: Record<string, ChallengeCardMembership> = {};
+
+  await Promise.all(
+    mine.map(async (row) => {
+      const { count } = await supabase
+        .from("challenge_participants")
+        .select("id", { count: "exact", head: true })
+        .eq("challenge_id", row.challenge_id)
+        .lte("created_at", row.created_at);
+      result[row.challenge_id] = { rank: count ?? 1 };
+    })
+  );
+
+  return result;
+}

@@ -42,6 +42,15 @@ export function formatWorkoutDurationShort(totalSeconds: number): string {
   return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`;
 }
 
+/** Rough calorie burn for a strength session (display estimate on cards). */
+export function estimateWorkoutCaloriesKcal(
+  durationSeconds: number,
+  exerciseCount = 0
+): number {
+  const minutes = Math.max(1, Math.round(durationSeconds / 60));
+  return Math.max(40, Math.round(minutes * 7 + exerciseCount * 5));
+}
+
 export function getWorkoutSetStats(
   exercises: {
     target_sets: number;
