@@ -37,9 +37,11 @@ export default async function AiCoachOverviewPage() {
   const workoutsThisWeek =
     insight && "workoutsThisWeek" in insight ? (insight.workoutsThisWeek ?? 0) : 0;
   const daysTracked = insight && "daysTracked" in insight ? (insight.daysTracked ?? 0) : 0;
+  const firstName = (profile.full_name ?? "").trim().split(/\s+/)[0] ?? "";
 
   return (
     <AiCoachOverviewClient
+      firstName={firstName}
       insightMessage={message}
       gap={gap}
       workoutsThisWeek={workoutsThisWeek}

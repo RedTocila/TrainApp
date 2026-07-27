@@ -8,7 +8,6 @@ import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { CoachReadMeDialog } from "@/components/coach-read-me-dialog";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { SupportContactButton } from "@/components/support-contact-button";
 import { Button } from "@/components/ui/button";
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 
@@ -65,50 +64,49 @@ export function AiCoachChatDialog() {
           entered ? "translate-y-0 scale-100" : "translate-y-1 scale-[0.995]"
         }`}
       >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <AiCoachAvatar size="sm" className="h-9 w-9 shrink-0" />
-          <div className="min-w-0">
-            <h2 id="ai-coach-chat-title" className="text-base font-bold">
-              Coach Alex
-            </h2>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <AiCoachAvatar size="sm" className="h-9 w-9 shrink-0" />
+            <div className="min-w-0">
+              <h2 id="ai-coach-chat-title" className="text-base font-bold">
+                Coach Alex
+              </h2>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button
+              type="button"
+              onClick={openReadMe}
+              className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              {ai.readMeButton}
+            </button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={closeChat}
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            type="button"
-            onClick={openReadMe}
-            className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            {ai.readMeButton}
-          </button>
-          <SupportContactButton />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={closeChat}
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <AiChatClientLazy embedded />
         </div>
+        <CoachReadMeDialog
+          open={readMeOpen}
+          onClose={closeReadMe}
+          onAccept={acknowledgeReadMe}
+          title={ai.readMeTitle}
+          points={ai.readMeBody}
+          gotItLabel={ai.readMeGotIt}
+          agreeLabel={ai.readMeAgreeLabel}
+          required={!hasAcknowledgedReadMe}
+        />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <AiChatClientLazy embedded />
-      </div>
-      <CoachReadMeDialog
-        open={readMeOpen}
-        onClose={closeReadMe}
-        onAccept={acknowledgeReadMe}
-        title={ai.readMeTitle}
-        points={ai.readMeBody}
-        gotItLabel={ai.readMeGotIt}
-        agreeLabel={ai.readMeAgreeLabel}
-        required={!hasAcknowledgedReadMe}
-      />
-    </div>
     </DialogPortal>
   );
 }

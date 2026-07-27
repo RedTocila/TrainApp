@@ -301,7 +301,8 @@ function ChatCommandBar({
 export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const platform = usePlatformCopy();
   const ai = platform.ai;
-  const { openReadMe, canChat } = useAiCoachChat();
+  const { openReadMe, canChat, isOpen, pendingPrompt, consumePendingPrompt } =
+    useAiCoachChat();
   const starterPrompts = [...ai.starterPrompts];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -311,6 +312,12 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const sendMessageRef = useRef<(text: string) => Promise<void>>(async () => {});
+  const autoSendingRef = useRef(false);
+  const isStreamingRef = useRef(false);
+  const canChatRef = useRef(canChat);
+  isStreamingRef.current = isStreaming;
+  canChatRef.current = canChat;
 
   const handleAttachSelect = async (file: File) => {
     try {
@@ -330,14 +337,18 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, isStreaming]);
 
+  // Only abort in-flight requests when the chat dialog closes — not on remount.
   useEffect(() => {
-    return () => abortRef.current?.abort();
-  }, []);
+    if (isOpen) return;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    autoSendingRef.current = false;
+  }, [isOpen]);
 
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
     const attachment = attachmentPreviewUrl ? parseDataUrl(attachmentPreviewUrl) : null;
-    if ((!trimmed && !attachment) || isStreaming || !canChat) return;
+    if ((!trimmed && !attachment) || isStreamingRef.current || !canChatRef.current) return;
 
     setError(null);
     setInput("");
@@ -482,7 +493,17 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
         }
       }
     } catch (err) {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted) {
+        // Drop the optimistic user bubble if the request was cancelled.
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.role === "user" && last.content === messageContent) {
+            return prev.slice(0, -1);
+          }
+          return prev;
+        });
+        return;
+      }
       const msg = err instanceof Error ? err.message : ai.requestFailed;
       setError(msg);
       setMessages((prev) => {
@@ -505,8 +526,38 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     } finally {
       setIsStreaming(false);
       abortRef.current = null;
+      autoSendingRef.current = false;
     }
   };
+
+  sendMessageRef.current = sendMessage;
+
+  // Auto-send FAQ / suggestion prompts after chat is ready.
+  useEffect(() => {
+    if (!isOpen || !canChat || !pendingPrompt || isStreaming || autoSendingRef.current) {
+      return;
+    }
+
+    const prompt = pendingPrompt;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        if (autoSendingRef.current || isStreamingRef.current || !canChatRef.current) {
+          return;
+        }
+        autoSendingRef.current = true;
+        // Consume only when we are about to send, so Strict Mode cleanup
+        // clearing the timer cannot lose the prompt.
+        const toSend = consumePendingPrompt() ?? prompt;
+        try {
+          await sendMessageRef.current(toSend);
+        } finally {
+          autoSendingRef.current = false;
+        }
+      })();
+    }, 50);
+
+    return () => window.clearTimeout(timer);
+  }, [isOpen, canChat, pendingPrompt, isStreaming, consumePendingPrompt]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

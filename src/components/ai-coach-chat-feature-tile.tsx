@@ -21,7 +21,7 @@ export function AiCoachChatFeatureTile({
   return (
     <button
       type="button"
-      onClick={openChat}
+      onClick={() => openChat()}
       className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-4 text-center transition-colors hover:border-primary/40 hover:bg-secondary/40"
     >
       <div className={cn("flex h-12 w-12 items-center justify-center rounded-2xl", bgClass)}>
