@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Eye, HeartPulse, Pencil, Sparkles } from "lucide-react";
+import { AlertTriangle, ChevronDown, HeartPulse, Pencil, Sparkles } from "lucide-react";
 import { IntakeQuestionnaireWizard } from "@/components/intake-questionnaire-wizard";
 import { updateClientIntakeFromResponses } from "@/lib/actions/client-intake";
 import {
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DashboardSectionHeader } from "@/components/dashboard-ui";
 import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
 type PanelMode = "closed" | "view" | "update";
@@ -92,32 +93,39 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
           )
         }
         action={
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={mode === "view" ? "default" : "outline"}
-              className="h-8 rounded-full px-3 text-xs"
-              onClick={() => setMode((current) => (current === "view" ? "closed" : "view"))}
-              disabled={!complete && summary.length === 0}
-            >
-              <Eye className="mr-1.5 h-3.5 w-3.5" />
-              {platform.common.view}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={mode === "update" ? "default" : "outline"}
-              className="h-8 rounded-full px-3 text-xs"
-              onClick={() => setMode((current) => (current === "update" ? "closed" : "update"))}
-            >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              {platform.common.update}
-            </Button>
-          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant={mode === "update" ? "default" : "outline"}
+            className="h-8 rounded-full px-3 text-xs"
+            onClick={() => setMode((current) => (current === "update" ? "closed" : "update"))}
+          >
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+            {platform.common.update}
+          </Button>
         }
-        subtitle={subtitle}
       />
+
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <p className="min-w-0 flex-1 text-sm text-muted-foreground">{subtitle}</p>
+        <Button
+          type="button"
+          size="sm"
+          variant={mode === "view" ? "default" : "outline"}
+          className="h-8 shrink-0 rounded-full px-3 text-xs"
+          onClick={() => setMode((current) => (current === "view" ? "closed" : "view"))}
+          disabled={!complete && summary.length === 0}
+          aria-expanded={mode === "view"}
+        >
+          {platform.common.view}
+          <ChevronDown
+            className={cn(
+              "ml-1.5 h-3.5 w-3.5 transition-transform",
+              mode === "view" && "rotate-180"
+            )}
+          />
+        </Button>
+      </div>
 
       {mode === "view" && (
         <div className="mt-4 space-y-3">

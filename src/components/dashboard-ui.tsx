@@ -153,9 +153,9 @@ export function DashboardSectionHeader({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className={dashboard.cardTitle}>
+        <div className={cn(dashboard.cardTitle, "flex-wrap")}>
           <Icon className={cn("h-5 w-5 shrink-0", iconClassName)} />
-          <span className="truncate">{title}</span>
+          <span className="min-w-0">{title}</span>
           {badge}
         </div>
         {subtitle ? (
