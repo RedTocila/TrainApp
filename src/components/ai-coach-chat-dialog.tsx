@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { DialogPortal } from "@/components/dialog-portal";
 import { AiChatClientLazy } from "@/components/ai-chat-client-lazy";
@@ -24,8 +24,18 @@ export function AiCoachChatDialog() {
   } = useAiCoachChat();
   const platform = usePlatformCopy();
   const ai = platform.ai;
+  const [entered, setEntered] = useState(false);
 
   useLockBodyScroll(isOpen);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setEntered(false);
+      return;
+    }
+    const frame = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -51,7 +61,9 @@ export function AiCoachChatDialog() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-coach-chat-title"
-        className="fixed inset-0 z-[110] flex flex-col overflow-hidden bg-background"
+        className={`fixed inset-0 z-[110] flex flex-col overflow-hidden bg-background transition-transform duration-150 ease-out ${
+          entered ? "translate-y-0 scale-100" : "translate-y-1 scale-[0.995]"
+        }`}
       >
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
         <div className="flex min-w-0 items-center gap-2.5">

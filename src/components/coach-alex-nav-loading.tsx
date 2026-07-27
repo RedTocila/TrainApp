@@ -2,11 +2,14 @@
 
 import { useMemo } from "react";
 import Image from "next/image";
-import { AI_COACH_AVATAR_SRC } from "@/components/ai-coach-avatar";
+import { getAiCoachAvatarSrc } from "@/components/ai-coach-avatar";
 import { useCoachCopy } from "@/components/locale-provider";
+import { useTheme } from "@/components/theme-provider";
 
 export function CoachAlexNavLoading() {
   const coachCopy = useCoachCopy();
+  const { accentColor } = useTheme();
+  const avatarSrc = getAiCoachAvatarSrc(accentColor);
   const quip = useMemo(() => {
     const quips = coachCopy.navLoading.quips;
     return quips[Math.floor(Math.random() * quips.length)];
@@ -26,7 +29,8 @@ export function CoachAlexNavLoading() {
         />
         <div className="coach-alex-nav-loading__avatar absolute inset-4 overflow-hidden rounded-full border-2 border-primary/30 shadow-lg shadow-primary/10">
           <Image
-            src={AI_COACH_AVATAR_SRC}
+            key={avatarSrc}
+            src={avatarSrc}
             alt=""
             fill
             className="object-cover object-top"

@@ -2,11 +2,15 @@
 
 import Image from "next/image";
 import { Sparkles } from "lucide-react";
-import { AI_COACH_AVATAR_SRC } from "@/components/ai-coach-avatar";
+import { getAiCoachAvatarSrc } from "@/components/ai-coach-avatar";
 import { FadeIn } from "@/components/landing/landing-motion";
+import { useTheme } from "@/components/theme-provider";
 import { COACH_ALEX_HIGHLIGHTS } from "@/lib/landing-content";
 
 export function LandingCoachAlex() {
+  const { accentColor } = useTheme();
+  const avatarSrc = getAiCoachAvatarSrc(accentColor);
+
   return (
     <section
       id="coach-alex"
@@ -17,7 +21,8 @@ export function LandingCoachAlex() {
           <div className="pointer-events-none absolute -inset-8 rounded-full bg-primary/25 blur-3xl" />
           <div className="relative mx-auto aspect-square w-full">
             <Image
-              src={AI_COACH_AVATAR_SRC}
+              key={avatarSrc}
+              src={avatarSrc}
               alt="Coach Alex — your AI fitness coach"
               fill
               sizes="(min-width: 1024px) 480px, 90vw"

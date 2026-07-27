@@ -2,9 +2,10 @@
 
 import { usePlatformCopy } from "@/components/locale-provider";
 import Link from "next/link";
-import { OpenAiCoachChatButton } from "@/components/open-ai-coach-chat-button";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
+import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import {
+  ArrowUp,
   ChevronRight,
   Dumbbell,
   FileText,
@@ -115,6 +116,7 @@ export function AiCoachOverviewClient({
   report: WeeklyReportPreview | null;
 }) {
   const platform = usePlatformCopy();
+  const { openChat } = useAiCoachChat();
   const hasGap = gap && gap.targets.calories > 0;
 
   return (
@@ -131,9 +133,26 @@ export function AiCoachOverviewClient({
               </p>
             </div>
           </div>
-          <OpenAiCoachChatButton className="h-12 w-full text-base">
-            {platform.ai.startChatting}
-          </OpenAiCoachChatButton>
+          <button
+            type="button"
+            onClick={openChat}
+            aria-label={platform.ai.startChatting}
+            className={cn(
+              "chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-1 overflow-hidden",
+              "rounded-full border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm transition-colors",
+              "hover:border-border hover:bg-secondary/75 active:scale-[0.99]"
+            )}
+          >
+            <span className="col-start-1 mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <span className="col-start-2 row-start-1 min-w-0 truncate px-1 text-left text-sm text-foreground/75">
+              {platform.ai.placeholder}
+            </span>
+            <span className="col-start-3 mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)]">
+              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+            </span>
+          </button>
         </div>
       </section>
 
