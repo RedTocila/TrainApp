@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo, useCallback } from "react";
-import { Search, PlaySquare, Check, X, ChevronDown } from "lucide-react";
+import { Search, PlaySquare, Check, X, ChevronDown, Clipboard, ClipboardCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ function ExerciseVideoRow({ ex }: { ex: AdminExerciseRow }) {
   const [value, setValue] = useState(ex.youtube_url ?? "");
   const [saved, setSaved] = useState(ex.youtube_url ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const valid = !value.trim() || isValidYoutubeUrl(value.trim());
@@ -49,11 +50,32 @@ function ExerciseVideoRow({ ex }: { ex: AdminExerciseRow }) {
     if (e.key === "Escape") handleCancel();
   };
 
+  const handleCopyName = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(ex.name);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      setError("Could not copy exercise name.");
+    }
+  }, [ex.name]);
+
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
       {/* Left — exercise info */}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold leading-tight">{ex.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-semibold leading-tight">{ex.name}</p>
+          <button
+            type="button"
+            onClick={handleCopyName}
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label={`Copy ${ex.name}`}
+            title={copied ? "Copied" : "Copy name"}
+          >
+            {copied ? <ClipboardCheck className="h-3.5 w-3.5" /> : <Clipboard className="h-3.5 w-3.5" />}
+          </button>
+        </div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-muted-foreground">{ex.category}</span>
           {ex.body_parts.slice(0, 3).map((bp) => (

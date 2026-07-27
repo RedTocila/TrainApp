@@ -26,7 +26,13 @@ export function ExerciseDemoPlayer({
   const gifUrl = resolved.url;
   const fallbackUrl = fallbackImageUrl ?? resolved.fallbackUrl;
 
-  // Prefer GIF (including same-origin /api/exercise-gif/… proxy URLs).
+  if (videoUrl && isValidYoutubeUrl(videoUrl)) {
+    return (
+      <ExerciseVideoPlayer videoUrl={videoUrl} title={name} autoplay={autoplay} />
+    );
+  }
+
+  // Fall back to GIF (including same-origin /api/exercise-gif/… proxy URLs).
   if (gifUrl || fallbackUrl) {
     return (
       <ExerciseGifPlayer
@@ -34,12 +40,6 @@ export function ExerciseDemoPlayer({
         fallbackUrl={fallbackUrl}
         title={name}
       />
-    );
-  }
-
-  if (videoUrl && isValidYoutubeUrl(videoUrl)) {
-    return (
-      <ExerciseVideoPlayer videoUrl={videoUrl} title={name} autoplay={autoplay} />
     );
   }
 
