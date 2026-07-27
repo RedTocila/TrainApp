@@ -173,6 +173,34 @@ async function mapSessionExercises(
     }
   }
 
+  // For exercises without an explicit video_url, fall back to the admin-set catalog override.
+  const noVideoExercises = mappedExercises.filter((ex) => !ex.video_url && ex.name);
+  if (noVideoExercises.length > 0) {
+    const { findCatalogExercise } = await import("@/lib/exercise-catalog");
+    const catalogIds = noVideoExercises
+      .map((ex) => findCatalogExercise(ex.name)?.id)
+      .filter((id): id is string => Boolean(id));
+
+    if (catalogIds.length > 0) {
+      const { data: overrides } = await admin
+        .from("exercise_video_overrides")
+        .select("catalog_exercise_id, youtube_url")
+        .in("catalog_exercise_id", catalogIds);
+
+      const overrideMap = new Map(
+        (overrides ?? []).map((o) => [o.catalog_exercise_id, o.youtube_url as string])
+      );
+
+      for (const ex of noVideoExercises) {
+        const catalogId = findCatalogExercise(ex.name)?.id;
+        if (catalogId) {
+          const override = overrideMap.get(catalogId);
+          if (override) ex.video_url = override;
+        }
+      }
+    }
+  }
+
   return mappedExercises;
 }
 
