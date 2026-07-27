@@ -63,7 +63,7 @@ export function WorkoutPlanPreviewClient({
         name: ex.name,
         sets: 1,
         reps: `${ex.work_seconds}s`,
-        notes: ex.notes,
+        notes: ex.notes ?? null,
         image_url: ex.image_url,
         video_url: ex.video_url,
       }))
