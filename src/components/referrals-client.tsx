@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -12,15 +12,10 @@ import {
   Ticket,
   Wallet,
 } from "lucide-react";
-import {
-  applyReferralCode,
-  type ReferralDashboard,
-} from "@/lib/actions/referrals";
+import type { ReferralDashboard } from "@/lib/actions/referrals";
 import { formatReferralCreditEuros } from "@/lib/referral";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -32,12 +27,9 @@ export function ReferralsClient({
   const platform = usePlatformCopy();
   const locale = useLocale();
   const copy = platform.referral;
-  const [data, setData] = useState(initial);
-  const [codeInput, setCodeInput] = useState("");
+  const [data] = useState(initial);
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
 
   const balanceLabel = useMemo(
     () => formatReferralCreditEuros(data.balanceCents, locale),
@@ -52,21 +44,6 @@ export function ReferralsClient({
     } catch {
       setError(copy.invalidCode);
     }
-  };
-
-  const onApply = () => {
-    setError(null);
-    setMessage(null);
-    startTransition(async () => {
-      const result = await applyReferralCode(codeInput);
-      if ("error" in result && result.error) {
-        setError(result.error);
-        return;
-      }
-      setMessage(copy.codeApplied);
-      setCodeInput("");
-      setData((prev) => ({ ...prev, canApplyCode: false }));
-    });
   };
 
   return (
@@ -148,6 +125,7 @@ export function ReferralsClient({
           <p className="rounded-xl bg-muted/50 px-3 py-2 text-center text-xs text-muted-foreground">
             {copy.ruleTwo}
           </p>
+          <p className="text-center text-xs text-muted-foreground">{copy.checkoutOnlyHint}</p>
         </CardContent>
       </Card>
 
@@ -222,36 +200,14 @@ export function ReferralsClient({
         </Card>
       </div>
 
-      {data.canApplyCode ? (
-        <Card>
-          <CardContent className="space-y-3 p-4">
-            <div className="space-y-1">
-              <Label htmlFor="referral-code">{copy.enterCode}</Label>
-              <Input
-                id="referral-code"
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value)}
-                placeholder={copy.codePlaceholder}
-                autoCapitalize="off"
-                autoCorrect="off"
-              />
-            </div>
-            <Button
-              type="button"
-              disabled={isPending || !codeInput.trim()}
-              onClick={onApply}
-            >
-              {copy.applyCode}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : data.referredByCode ? (
+      {data.referredByCode ? (
         <p className="text-sm text-muted-foreground">
           {copy.codeApplied}: <span className="font-mono font-semibold">{data.referredByCode}</span>
         </p>
-      ) : null}
+      ) : (
+        <p className="text-sm text-muted-foreground">{copy.checkoutOnlyHint}</p>
+      )}
 
-      {message ? <p className="text-sm text-emerald-400">{message}</p> : null}
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
       <Card>

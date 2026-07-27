@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
 import { CreditCard, Lock, Loader2, ShieldCheck } from "lucide-react";
 import { PokPayGuestCheckout } from "@/components/pokpay-guest-checkout";
@@ -14,6 +14,10 @@ import {
 } from "@/lib/subscription-plans";
 import type { PlanPrice } from "@/lib/subscription-plans";
 import { formatReferralCreditEuros } from "@/lib/referral";
+import {
+  clearCheckoutReferralCode,
+  loadCheckoutReferralCode,
+} from "@/lib/referral-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +76,11 @@ export function CheckoutClient({
   const [referralCode, setReferralCode] = useState("");
   const [useCredits, setUseCredits] = useState(referral.creditBalanceCents > 0);
 
+  useEffect(() => {
+    const saved = loadCheckoutReferralCode();
+    if (saved && referral.canApplyCode) setReferralCode(saved);
+  }, [referral.canApplyCode]);
+
   const plan = getPlan(planId);
   const price = displayPrice;
   const inviteeDiscount = referral.canApplyInviteeDiscount
@@ -100,6 +109,7 @@ export function CheckoutClient({
         setError(result.error);
         return;
       }
+      clearCheckoutReferralCode();
       if ("paidWithCredits" in result && result.paidWithCredits) {
         router.push(
           `/dashboard/checkout/success?localOrderId=${result.localOrderId}`

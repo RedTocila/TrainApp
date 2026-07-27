@@ -11,12 +11,7 @@ export function getLocalizedSubscriptionPlans(
   const plans = copy.subscriptionPlans;
 
   return SUBSCRIPTION_PLANS.map((plan) => {
-    const localized =
-      plan.id === "basic"
-        ? plans.basic
-        : plan.id === "ai"
-          ? plans.aiPro
-          : plans.elite;
+    const localized = plan.id === "ai" ? plans.aiPro : plans.elite;
 
     return {
       ...plan,

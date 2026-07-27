@@ -176,7 +176,9 @@ export function PricingPlans({
   const selectedIsCurrent = Boolean(subscribed && currentPlan === selectedPlan.id);
   const startTrial = trialEligible && selectedPlan.id === "ai";
   const checkoutHref = startTrial
-    ? `/dashboard/checkout/trial?interval=${interval}`
+    ? checkoutBasePath === "/register"
+      ? `/register?plan=ai&interval=${interval}`
+      : `/dashboard/checkout/trial?interval=${interval}`
     : `${checkoutBasePath}?plan=${selectedPlan.id}&interval=${interval}`;
   const ctaLabel = selectedIsCurrent
     ? cardLabels.currentPlan

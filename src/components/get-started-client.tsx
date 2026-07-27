@@ -22,7 +22,7 @@ import { saveIntakeDraft, loadIntakeDraft } from "@/lib/intake-storage";
 const perks = [
   { icon: ClipboardList, text: "Macros tuned to your body" },
   { icon: UserPlus, text: "Habits matched to lifestyle" },
-  { icon: Package, text: "Pick a package after sign-up" },
+  { icon: Package, text: "Upgrade later for AI — free to start" },
 ];
 
 type Phase = "intro" | "wizard" | "complete";

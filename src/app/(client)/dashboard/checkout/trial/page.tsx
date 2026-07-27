@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireClient } from "@/lib/actions/auth";
 import { getPreferredLocale } from "@/lib/actions/profile";
+import { getCheckoutReferralState } from "@/lib/actions/referrals";
 import { TrialCheckoutClient } from "@/components/trial-checkout-client";
 import { PageTransition } from "@/components/page-transition";
 import { isEligibleForAiProTrial } from "@/lib/subscription";
@@ -27,12 +28,15 @@ export default async function TrialCheckoutPage({
     redirect("/dashboard/pricing");
   }
 
+  const referral = await getCheckoutReferralState(profile.id);
+
   return (
     <PageTransition>
       <TrialCheckoutClient
         interval={interval}
         locale={locale}
         displayPrice={displayPrice}
+        canApplyReferralCode={referral.canApplyCode}
       />
     </PageTransition>
   );

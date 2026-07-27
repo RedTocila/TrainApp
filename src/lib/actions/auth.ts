@@ -197,19 +197,7 @@ async function finalizeNewUserProfile(
     .eq("id", userId)
     .single();
 
-  const referralCode =
-    input.referralCode?.trim() ||
-    (typeof _userMetadata?.referral_code === "string"
-      ? _userMetadata.referral_code
-      : null);
-  if (referralCode) {
-    try {
-      const { applyReferralCode } = await import("@/lib/actions/referrals");
-      await applyReferralCode(referralCode);
-    } catch {
-      // Non-blocking — user can apply at checkout.
-    }
-  }
+  // Referral codes are applied only at package checkout — not at signup.
 
   revalidatePath("/", "layout");
   return { success: true as const, role: profile?.role ?? "client" };
@@ -229,9 +217,6 @@ export async function signUpAccount(input: RegistrationInput & { password: strin
   };
   if (input.phone) {
     userMetadata.phone = input.phone;
-  }
-  if (input.referralCode?.trim()) {
-    userMetadata.referral_code = input.referralCode.trim();
   }
 
   const requestPayload = {

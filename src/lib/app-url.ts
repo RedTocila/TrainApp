@@ -74,7 +74,7 @@ export function getAuthEmailRedirectBaseUrl(): string {
 /** Full redirect target embedded in Supabase auth emails. */
 export function getAuthEmailRedirectUrl(
   path = "/auth/callback",
-  next = "/dashboard/pricing?onboarding=1"
+  next = "/dashboard"
 ): string {
   const base = getAuthEmailRedirectBaseUrl();
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;

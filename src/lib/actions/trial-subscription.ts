@@ -33,12 +33,13 @@ function revalidateTrialPaths() {
 }
 
 /**
- * Save PokPay card (no charge) and start the 7-day AI Pro free trial.
+ * Save PokPay card (no charge) and start the 3-day AI Pro free trial.
  * After trial ends, cron charges the saved card for the chosen interval.
  */
 export async function startAiProTrialWithCard(params: {
   interval: BillingInterval;
   cardPayload: PokPayAddCardPayload;
+  referralCode?: string;
 }): Promise<{ success: true } | { error: string }> {
   const interval = params.interval;
   if (interval !== "monthly" && interval !== "annual") {
@@ -50,6 +51,18 @@ export async function startAiProTrialWithCard(params: {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  if (params.referralCode?.trim()) {
+    const { applyReferralCode } = await import("@/lib/actions/referrals");
+    const applied = await applyReferralCode(params.referralCode);
+    if ("error" in applied && applied.error) {
+      const { getCheckoutReferralState } = await import("@/lib/actions/referrals");
+      const state = await getCheckoutReferralState(user.id);
+      if (!state.referredBy) {
+        return { error: applied.error };
+      }
+    }
+  }
 
   const admin = createAdminClient();
   const { data: profile } = await admin

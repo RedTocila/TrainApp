@@ -47,19 +47,19 @@ export const platformCopyAl = {
     pendingInvites: "Ftesa në pritje",
     howItWorks: "Si funksionon",
     flowShareTitle: "Ndaj kodin",
-    flowShareDesc: "Miku regjistrohet ose e vendos në checkout",
+    flowShareDesc: "Miku e vendos në checkout",
     flowFriendTitle: "Ata marrin €5",
     flowFriendDesc: "Zbritje në abonimin e parë",
     flowYouTitle: "Ti fiton €10",
     flowYouDesc: "Kredia shtohet kur ata paguajnë",
     flowSpendTitle: "Përdor kreditë",
     flowSpendDesc: "Për abonim ose hyrje flash",
-    ruleInvitee: "Miqtë që përdorin kodin tënd marrin €5 zbritje në abonimin e parë.",
-    ruleInviter: "Ti fiton €10 kredi kur ata paguajnë — ruaji për më vonë.",
+    ruleInvitee: "Miqtë vendosin kodin tënd në checkout dhe marrin €5 zbritje në paketën e parë me pagesë.",
+    ruleInviter: "Ti fiton €10 kredi kur ata përfundojnë një paketë me pagesë — ruaji për më vonë.",
     ruleSpend:
       "Përdor kreditë në abonimin tënd ose për të hyrë në flash challenges me pagesë.",
     ruleTwo: "Dy ftesa (€20) mbulojnë një plan mujor AI Pro.",
-    enterCode: "Ke një kod?",
+    enterCode: "Kod referimi",
     codePlaceholder: "Vendos kodin e referimit",
     applyCode: "Apliko kodin",
     codeApplied: "Kodi i referimit u aplikua",
@@ -67,6 +67,7 @@ export const platformCopyAl = {
     cannotSelfRefer: "Nuk mund të përdorësh kodin tënd.",
     invalidCode: "Ky kod referimi nuk është i vlefshëm.",
     tooLate: "Kodet e referimit mund të shtohen vetëm para abonimit të parë me pagesë.",
+    checkoutOnlyHint: "Kodet e referimit vendosen kur blihet një paketë në checkout.",
     inviteeDiscount: "Zbritja e mikut",
     useCredits: "Përdor kreditë e referimit",
     creditsAvailable: (amount: string) => `${amount} të disponueshme`,
@@ -88,7 +89,7 @@ export const platformCopyAl = {
         ? "1 ditë e mbetur në provën falas"
         : `${days} ditë të mbetura në provën falas`,
     freeTrialBlurb:
-      "Je në një provë falas 7-ditore të AI Pro — stërvitje, ushqim dhe Coach AI i plotë. Klasat live dhe sfidat kërkojnë Elite. Karta ngarkohet kur mbaron prova nëse nuk e anulon.",
+      "Je në një provë falas 3-ditore të AI Pro — stërvitje, ushqim dhe Coach AI i plotë. Klasat live dhe sfidat kërkojnë Elite. Karta ngarkohet kur mbaron prova nëse nuk e anulon.",
     trialCancelHint: "Anulo kur të duash nga këtu për të shmangur pagesën.",
     accessUntil: (date: string) =>
       `Akses deri më ${date}, pastaj kthehet në modalitetin falas`,
@@ -1030,12 +1031,12 @@ export const platformCopyAl = {
     step: "Hapi 3 — Zgjidh paketën",
     choosePlan: "Zgjidh planin tënd",
     onboardingBlurb:
-      "Fillo një provë falas 7-ditore AI Pro me kartë (pagesa pas provës), abonohu tani, ose anashkalo dhe eksploro fillimisht.",
+      "Platforma është falas për ndjekje manuale. Përmirësohu kur të duash për AI Pro ose Elite.",
     upgradeBlurb:
-      "Tre nivele që rriten me ty — nga ndjekja e strukturuar te coach AI dhe komuniteti Elite.",
+      "Falas për stërvitje dhe vakte manuale. Përmirësohu për coach AI (20€) ose komunitetin Elite (30€).",
     skipForNow: "Anashkalo për tani",
-    startFreeTrial: "Fillo provën falas 7-ditore",
-    trialCardRequired: "Shto kartën për të filluar — €0 sot. Anulo kur të duash para ditës 7.",
+    startFreeTrial: "Fillo provën falas 3-ditore",
+    trialCardRequired: "Shto kartën për të filluar — €0 sot. Anulo kur të duash para ditës 3.",
     monthly: "Mujore",
     annual: "Vjetore",
     perMonth: "muaj",
@@ -1152,7 +1153,7 @@ export const platformCopyAl = {
     basic: {
       name: "RUTINA Basic",
       tagline:
-        "Ideale për përdoruesit që duan stërvitje të strukturuara, plane ushqimi dhe ndjekje progresi.",
+        "Plan i vjetër — ndjekja manuale tani është falas me çdo llogari.",
       features: [
         "Plane stërvitjeje të personalizuara",
         "Plane ushqimi",
@@ -1171,9 +1172,9 @@ export const platformCopyAl = {
     aiPro: {
       name: "RUTINA AI Pro",
       tagline:
-        "Gjithçka në Basic, plus coach-i yt AI. Fillo falas për 7 ditë me kartë — anulo kur të duash.",
-      badge: "7 ditë provë falas",
-      includesFrom: "RUTINA Basic",
+        "Gjithçka në ndjekjen manuale falas, plus coach-i yt AI. Fillo falas për 3 ditë me kartë — anulo kur të duash.",
+      badge: "3 ditë provë falas",
+      includesFrom: "Falas",
       features: [
         "Coach Fitnesi AI",
         "Coach Ushqimi AI",

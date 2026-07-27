@@ -12,6 +12,7 @@ export function PublicPricingClient() {
       interval={interval}
       onIntervalChange={setInterval}
       checkoutBasePath="/register"
+      trialEligible
     />
   );
 }

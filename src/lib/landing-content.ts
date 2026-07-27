@@ -109,8 +109,8 @@ export const FUNNEL_STEPS: FunnelStep[] = [
   {
     step: 3,
     icon: Package,
-    title: "Pick a package",
-    subtitle: "Skip anytime",
+    title: "Train free or upgrade",
+    subtitle: "AI & Elite optional",
   },
 ];
 

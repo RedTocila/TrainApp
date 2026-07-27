@@ -11,6 +11,7 @@ import {
 import {
   getPlan,
   getPlanPrice,
+  isSoldPlanId,
   type BillingInterval,
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
@@ -112,6 +113,10 @@ export async function createCheckoutOrder(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  if (!isSoldPlanId(planId)) {
+    return { error: "That plan is no longer available. Choose AI Pro or Elite." };
+  }
 
   const plan = getPlan(planId);
   if (!plan) return { error: "Invalid plan" };
@@ -388,7 +393,7 @@ export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string)
   const { data: order } = await admin
     .from("subscription_orders")
     .select(
-      "id, user_id, plan, billing_interval, status, pokpay_order_id, order_kind, amount_cents, created_at, referral_credits_applied_cents"
+      "id, user_id, pending_signup_id, plan, billing_interval, status, pokpay_order_id, order_kind, amount_cents, created_at, referral_credits_applied_cents"
     )
     .eq("pokpay_order_id", pokpayOrderId)
     .single();
@@ -407,6 +412,17 @@ export async function activateSubscriptionFromPokPayOrder(pokpayOrderId: string)
     await activateFlashChallengeEntryFromPokPayOrder(pokpayOrderId);
     return;
   }
+
+  // Guest checkout: create the auth account only after payment succeeds.
+  if (!order.user_id && order.pending_signup_id) {
+    const { activateGuestSubscriptionFromOrder } = await import(
+      "@/lib/actions/guest-signup"
+    );
+    await activateGuestSubscriptionFromOrder(order.id);
+    return;
+  }
+
+  if (!order.user_id) return;
 
   const { data: profile } = await admin
     .from("profiles")

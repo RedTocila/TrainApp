@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
 import type { AddCardData, PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
 import { CreditCard, Loader2, ShieldCheck } from "lucide-react";
 import { PokPayAddCard } from "@/components/pokpay-add-card";
@@ -12,20 +12,34 @@ import { startAiProTrialWithCard } from "@/lib/actions/trial-subscription";
 import { FREE_TRIAL_DAYS } from "@/lib/subscription";
 import type { BillingInterval, PlanPrice } from "@/lib/subscription-plans";
 import { PLATFORM_AI_PRO_NAME } from "@/lib/brand";
+import {
+  clearCheckoutReferralCode,
+  loadCheckoutReferralCode,
+} from "@/lib/referral-storage";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function TrialCheckoutClient({
   interval,
   locale,
   displayPrice,
+  canApplyReferralCode = false,
 }: {
   interval: BillingInterval;
   locale: CheckoutLocale;
   displayPrice: PlanPrice;
+  canApplyReferralCode?: boolean;
 }) {
   const platform = usePlatformCopy();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [referralCode, setReferralCode] = useState("");
+
+  useEffect(() => {
+    const saved = loadCheckoutReferralCode();
+    if (saved && canApplyReferralCode) setReferralCode(saved);
+  }, [canApplyReferralCode]);
 
   const handleSuccess = (payload: AddCardData) => {
     setError(null);
@@ -33,11 +47,13 @@ export function TrialCheckoutClient({
       const result = await startAiProTrialWithCard({
         interval,
         cardPayload: payload,
+        referralCode: canApplyReferralCode ? referralCode : undefined,
       });
       if ("error" in result && result.error) {
         setError(result.error);
         return;
       }
+      clearCheckoutReferralCode();
       router.push("/dashboard?trial=started");
       router.refresh();
     });
@@ -85,6 +101,19 @@ export function TrialCheckoutClient({
       }
       payment={
         <div className="space-y-3">
+          {canApplyReferralCode && !isPending ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="trial-referral">{platform.referral.enterCode}</Label>
+              <Input
+                id="trial-referral"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value)}
+                placeholder={platform.referral.codePlaceholder}
+                autoCapitalize="off"
+                autoCorrect="off"
+              />
+            </div>
+          ) : null}
           {isPending ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />

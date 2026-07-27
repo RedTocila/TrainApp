@@ -22,13 +22,12 @@ import {
   type MacroTargets,
 } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
+import { saveCheckoutReferralCode } from "@/lib/referral-storage";
 import {
   formatUserError,
   isDirectSignupRejection,
 } from "@/lib/format-user-error";
 import { cn } from "@/lib/utils";
-
-const ONBOARDING_PRICING = "/dashboard/pricing?onboarding=1";
 
 type PendingSignup = {
   email: string;
@@ -36,7 +35,6 @@ type PendingSignup = {
   fullName: string;
   phone: string | null;
   intakeJson: string | null;
-  referralCode: string | null;
 };
 
 export function RegisterForm() {
@@ -52,7 +50,6 @@ export function RegisterForm() {
   const [continuePending, setContinuePending] = useState(false);
   const [continueMessage, setContinueMessage] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [referralCode, setReferralCode] = useState("");
 
   useEffect(() => {
     const draft = loadIntakeDraft();
@@ -64,13 +61,13 @@ export function RegisterForm() {
 
   useEffect(() => {
     const ref = searchParams.get("ref");
-    if (ref?.trim()) setReferralCode(ref.trim());
+    if (ref?.trim()) saveCheckoutReferralCode(ref.trim());
   }, [searchParams]);
 
   const finishSignup = (role?: string) => {
     clearIntakeDraft();
     router.refresh();
-    router.push(role === "admin" ? "/admin" : ONBOARDING_PRICING);
+    router.push(role === "admin" ? "/admin" : "/dashboard");
   };
 
   const finishAfterSignIn = async (
@@ -111,7 +108,6 @@ export function RegisterForm() {
         phone: pendingSignup.phone,
         password: pendingSignup.password,
         intakeJson: pendingSignup.intakeJson,
-        referralCode: pendingSignup.referralCode,
       });
 
       if (!result || "error" in result) {
@@ -143,7 +139,6 @@ export function RegisterForm() {
         phone: existingAccount.phone,
         password: existingAccount.password,
         intakeJson: existingAccount.intakeJson,
-        referralCode: existingAccount.referralCode,
       });
 
       if (!result || "error" in result) {
@@ -183,17 +178,12 @@ export function RegisterForm() {
       const email = (new FormData(form).get("email") as string).trim().toLowerCase();
       const phone = ((new FormData(form).get("phone") as string) || "").trim() || null;
       const password = new FormData(form).get("password") as string;
-      const referralFromForm =
-        ((new FormData(form).get("referral_code") as string) || "").trim() ||
-        referralCode.trim() ||
-        null;
 
       const registrationInput = {
         fullName,
         email,
         phone,
         intakeJson,
-        referralCode: referralFromForm,
       };
 
       console.log("[RegisterForm] signup submit", {
@@ -359,8 +349,8 @@ export function RegisterForm() {
         </CardTitle>
         <CardDescription>
           {intakeJson
-            ? "Your preferences are saved — create your account to continue"
-            : "Create your account to get started"}
+            ? "Your preferences are saved — create your free account to continue"
+            : "Create your free account to get started"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -505,18 +495,6 @@ export function RegisterForm() {
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <PasswordInput id="password" name="password" required minLength={6} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="referral_code">Referral code (optional)</Label>
-            <Input
-              id="referral_code"
-              name="referral_code"
-              value={referralCode}
-              onChange={(e) => setReferralCode(e.target.value)}
-              placeholder="Friend's code"
-              autoCapitalize="off"
-              autoCorrect="off"
-            />
           </div>
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
             <input

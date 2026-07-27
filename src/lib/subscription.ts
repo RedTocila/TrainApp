@@ -15,7 +15,7 @@ export type SubscriptionStatus =
   | "trialing";
 
 /** Free trial of the second package (AI Pro). Does not include Elite. */
-export const FREE_TRIAL_DAYS = 7;
+export const FREE_TRIAL_DAYS = 3;
 export const FREE_TRIAL_PLAN_ID = "ai" as const;
 
 export function addFreeTrialPeriod(from: Date = new Date()): Date {
@@ -97,7 +97,7 @@ export function subscriptionLabel(
     }
     return `${PLATFORM_AI_PRO_NAME} · Free trial`;
   }
-  if (!plan) return "Free preview";
+  if (!plan) return "Free";
   const planName =
     plan === "elite"
       ? PLATFORM_ELITE_NAME

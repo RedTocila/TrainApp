@@ -47,19 +47,19 @@ export const platformCopyEn = {
     pendingInvites: "Pending invites",
     howItWorks: "How it works",
     flowShareTitle: "Share your code",
-    flowShareDesc: "Friend signs up or checks out with it",
+    flowShareDesc: "Friend enters it at checkout",
     flowFriendTitle: "They get €5 off",
     flowFriendDesc: "Discount on their first paid plan",
     flowYouTitle: "You get €10",
     flowYouDesc: "Credit banks when they pay",
     flowSpendTitle: "Spend credits",
     flowSpendDesc: "On your plan or a flash entry",
-    ruleInvitee: "Friends who use your code get €5 off their first subscription.",
-    ruleInviter: "You earn €10 credit when they pay — store it for later.",
+    ruleInvitee: "Friends enter your code at checkout and get €5 off their first paid package.",
+    ruleInviter: "You earn €10 credit when they complete a paid package — store it for later.",
     ruleSpend:
       "Use credits on your next subscription or to enter paid flash challenges.",
     ruleTwo: "Two invites (€20) cover a full AI Pro monthly plan.",
-    enterCode: "Have a code?",
+    enterCode: "Referral code",
     codePlaceholder: "Enter referral code",
     applyCode: "Apply code",
     codeApplied: "Referral code applied",
@@ -67,6 +67,7 @@ export const platformCopyEn = {
     invalidCode: "That referral code is not valid.",
     cannotSelfRefer: "You can’t use your own code.",
     tooLate: "Referral codes can only be added before your first paid subscription.",
+    checkoutOnlyHint: "Referral codes are entered when buying a package at checkout.",
     inviteeDiscount: "Friend discount",
     useCredits: "Use referral credits",
     creditsAvailable: (amount: string) => `${amount} available`,
@@ -86,7 +87,7 @@ export const platformCopyEn = {
     freeTrialDaysLeft: (days: number) =>
       days === 1 ? "1 day left on free trial" : `${days} days left on free trial`,
     freeTrialBlurb:
-      "You're on a 7-day free trial of AI Pro — workouts, nutrition, and full AI Coach. Live classes and challenges need Elite. Your card is charged when the trial ends unless you cancel.",
+      "You're on a 3-day free trial of AI Pro — workouts, nutrition, and full AI Coach. Live classes and challenges need Elite. Your card is charged when the trial ends unless you cancel.",
     trialCancelHint: "Cancel anytime from here to avoid being charged.",
     accessUntil: (date: string) => `Access until ${date}, then back to free preview`,
     renewsExpires: (date: string) => `Renews / expires ${date}`,
@@ -1016,12 +1017,12 @@ export const platformCopyEn = {
     step: "Step 3 — Pick a package",
     choosePlan: "Choose your plan",
     onboardingBlurb:
-      "Start a 7-day AI Pro free trial with your card (charged after the trial), subscribe now, or skip and explore first.",
+      "The platform is free for manual tracking. Upgrade anytime for AI Pro or Elite.",
     upgradeBlurb:
-      "Three tiers built to grow with you — from structured tracking to AI coaching and elite community access.",
+      "Free for manual workouts and meals. Upgrade for AI coaching (€20) or Elite community (€30).",
     skipForNow: "Skip for now",
-    startFreeTrial: "Start 7-day free trial",
-    trialCardRequired: "Add a card to start — €0 today. Cancel anytime before day 7.",
+    startFreeTrial: "Start 3-day free trial",
+    trialCardRequired: "Add a card to start — €0 today. Cancel anytime before day 3.",
     monthly: "Monthly",
     annual: "Annual",
     perMonth: "mo",
@@ -1138,7 +1139,7 @@ export const platformCopyEn = {
     basic: {
       name: "RUTINA Basic",
       tagline:
-        "Perfect for users who want structured workouts, nutrition plans, and progress tracking.",
+        "Legacy plan — manual tracking is now free with every account.",
       features: [
         "Personalized workout plans",
         "Nutrition plans",
@@ -1157,9 +1158,9 @@ export const platformCopyEn = {
     aiPro: {
       name: "RUTINA AI Pro",
       tagline:
-        "Everything in Basic, plus your own AI fitness coach. Start free for 7 days with a card — cancel anytime.",
-      badge: "7-day free trial",
-      includesFrom: "RUTINA Basic",
+        "Everything in free manual tracking, plus your own AI fitness coach. Start free for 3 days with a card — cancel anytime.",
+      badge: "3-day free trial",
+      includesFrom: "Free",
       features: [
         "AI Fitness Coach",
         "AI Nutrition Coach",

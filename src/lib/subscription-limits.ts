@@ -1,11 +1,12 @@
 import { hasAiAccess, hasPaidAccess } from "@/lib/subscription";
 import type { Profile } from "@/lib/types";
 
-export const FREE_ALEX_COMMANDS_PER_DAY = 5;
+/** @deprecated Legacy Basic subscribers only — Basic is no longer sold. */
 export const BASIC_ALEX_COMMANDS_PER_DAY = 10;
-export const FREE_MANUAL_PLANS_TOTAL = 1;
+/** @deprecated Legacy Basic subscribers only. */
 export const BASIC_AI_PLANS_PER_MONTH = 1;
 
+/** Grandfathered Basic/Core paid subscribers (plan no longer sold). */
 export function isBasicTier(
   profile: Pick<
     Profile,
@@ -26,6 +27,7 @@ export function hasUnlimitedAlexCommands(
   return hasAiAccess(profile);
 }
 
+/** Free accounts: no AI. Legacy Basic: limited. AI/Elite: unlimited. */
 export function getAlexDailyLimit(
   profile: Pick<
     Profile,
@@ -34,9 +36,10 @@ export function getAlexDailyLimit(
 ): number | null {
   if (hasUnlimitedAlexCommands(profile)) return null;
   if (isBasicTier(profile)) return BASIC_ALEX_COMMANDS_PER_DAY;
-  return FREE_ALEX_COMMANDS_PER_DAY;
+  return 0;
 }
 
+/** AI plan builders require AI Pro / Elite (or legacy Basic allowance). */
 export function hasAiPlanBuilderAccess(
   profile: Pick<
     Profile,

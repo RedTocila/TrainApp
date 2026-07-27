@@ -222,21 +222,21 @@ export const coachLabelsAl = {
   illDoBetter: "Do të bëj më mirë nesër",
   noHabitsToday: 'Sot nuk ka zakone. Coach Alex supozon se jeni "në pushim."',
   addHabitsHint: "Grumbulloni fitore të vogla para se Coach Alex të kritikojë qëndrueshmërinë tuaj",
-  unlockDashboard: "Ndalo të shfletosh. Fillo të stërvitesh vërtet.",
+  unlockDashboard: "Stërvitu falas. Hap AI kur të jesh gati.",
   subscribeBlurb:
-    "Modaliteti falas është i lezetshëm. Abonohu nëse don që Coach Alex të mbajë mend seritë, vaktet dhe dinjitetin tënd.",
+    "Stërvitjet, vaktet dhe ndjekja manuale janë falas. Përmirësohu për Coach Alex, planet AI dhe komunitetin Elite.",
   trialUnlockTitle: "Je në provën falas të AI Pro",
   trialUnlockBlurb: (days: number) =>
     days === 1
       ? "1 ditë e mbetur me akses të plotë te Coach AI. Klasat live dhe sfidat mbeten vetëm Elite — abonohu që të mbash AI Pro pas sot."
       : `${days} ditë të mbetura me akses të plotë te Coach AI. Klasat live dhe sfidat mbeten vetëm Elite — abonohu para se të mbarojë prova.`,
-  viewPlans: "Ndalo falas — shiko planet",
+  viewPlans: "Shiko planet AI & Elite",
   keepAiPro: "Mbaj AI Pro",
   noSubscription:
-    "Nuk keni plan të paguar. Jeni në modalitet parashikimi — Coach Alex ju sheh, por nuk po ruan progresin tuaj.",
-  pickAPlan: "Zgjidh një plan të vërtetë",
+    "Je në modalitetin manual falas — ndjekje e plotë pa AI. Përmirësohu për Coach Alex.",
+  pickAPlan: "Shiko planet",
   levelUp: "Përmirësohu",
-  coachHasOpinions: "Coach Alex ka mendime. Paguaj nëse don t'i dëgjosh.",
+  coachHasOpinions: "Coach Alex ka mendime. Përmirësohu nëse don t'i dëgjosh.",
   coachHasNotes: "Coach Alex ka shënime. Nuk do t'ju pëlqejnë.",
   skipForNow: "Mirë, do të vazhdoj gjysmë",
   noWorkoutToday: "Ditë pushimi — apo shmangie? Coach Alex nuk e di.",

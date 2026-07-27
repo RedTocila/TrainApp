@@ -121,20 +121,16 @@ export async function getReferralDashboard(): Promise<
 }
 
 /** Link current user to a referrer. Idempotent if already linked to same. */
-export async function applyReferralCode(rawCode: string): Promise<
-  { success: true } | { error: string }
-> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
+/** Link a referral for a known user id (used after deferred guest signup). */
+export async function applyReferralCodeForUser(
+  userId: string,
+  rawCode: string
+): Promise<{ success: true } | { error: string }> {
   const admin = createAdminClient();
   const { data: me } = await admin
     .from("profiles")
     .select("id, referral_code, referred_by, preferred_locale")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle();
 
   if (!me) return { error: "Profile not found" };
@@ -152,7 +148,7 @@ export async function applyReferralCode(rawCode: string): Promise<
     return { error: copy.alreadyReferred };
   }
 
-  if (await hasCompletedPaidSubscription(admin, user.id)) {
+  if (await hasCompletedPaidSubscription(admin, userId)) {
     return { error: copy.tooLate };
   }
 
@@ -162,21 +158,21 @@ export async function applyReferralCode(rawCode: string): Promise<
     .eq("referral_code", code)
     .maybeSingle();
 
-  if (!referrer || referrer.id === user.id) {
+  if (!referrer || referrer.id === userId) {
     return { error: copy.invalidCode };
   }
 
   const { error: linkError } = await admin
     .from("profiles")
     .update({ referred_by: referrer.id })
-    .eq("id", user.id)
+    .eq("id", userId)
     .is("referred_by", null);
 
   if (linkError) return { error: linkError.message };
 
   const { error: insertError } = await admin.from("referrals").insert({
     referrer_id: referrer.id,
-    referred_id: user.id,
+    referred_id: userId,
     status: "pending",
   });
 
@@ -188,6 +184,18 @@ export async function applyReferralCode(rawCode: string): Promise<
   revalidatePath("/dashboard/checkout");
   revalidatePath("/dashboard/profile");
   return { success: true };
+}
+
+export async function applyReferralCode(rawCode: string): Promise<
+  { success: true } | { error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  return applyReferralCodeForUser(user.id, rawCode);
 }
 
 export async function getCheckoutReferralState(userId: string): Promise<{

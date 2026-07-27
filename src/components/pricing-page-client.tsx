@@ -36,7 +36,7 @@ export function PricingPageClient({
       phone: profile.phone ?? null,
       intakeJson: draft ? JSON.stringify(draft) : null,
     }).then((result) => {
-      if (result.success && draft) clearIntakeDraft();
+      if ("success" in result && result.success && draft) clearIntakeDraft();
     });
   }, [onboarding, profile.full_name, profile.phone]);
 

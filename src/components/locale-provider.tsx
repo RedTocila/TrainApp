@@ -21,27 +21,34 @@ import {
   type UnitSystem,
 } from "@/lib/body-units";
 import { getCoachCopy, getCoachLabels } from "@/lib/coach-copy";
+import { persistGuestLocale, readStoredGuestLocale } from "@/lib/guest-locale";
 import { getPlatformCopy } from "@/lib/platform-copy";
 
 type LocaleContextValue = {
   locale: CheckoutLocale;
   unitSystem: UnitSystem;
   setLocalePreview: (locale: CheckoutLocale) => void;
+  /** Change language immediately and persist for guests (cookie + localStorage). */
+  setLocale: (locale: CheckoutLocale) => void;
 };
 
 const LocaleContext = createContext<LocaleContextValue>({
   locale: DEFAULT_CHECKOUT_LOCALE,
   unitSystem: "metric",
   setLocalePreview: () => {},
+  setLocale: () => {},
 });
 
 export function LocaleProvider({
   locale: serverLocale,
   unitSystem: serverUnitSystem = "metric",
+  /** When true, hydrate from localStorage if present (public pages). */
+  syncGuestStorage = false,
   children,
 }: {
   locale: CheckoutLocale;
   unitSystem?: UnitSystem;
+  syncGuestStorage?: boolean;
   children: React.ReactNode;
 }) {
   const [preview, setPreview] = useState<CheckoutLocale | null>(null);
@@ -50,11 +57,26 @@ export function LocaleProvider({
     setPreview(null);
   }, [serverLocale]);
 
+  useEffect(() => {
+    if (!syncGuestStorage) return;
+    const stored = readStoredGuestLocale();
+    if (stored && stored !== serverLocale) {
+      setPreview(stored);
+      persistGuestLocale(stored);
+    }
+  }, [syncGuestStorage, serverLocale]);
+
+  const setLocale = (next: CheckoutLocale) => {
+    setPreview(next);
+    persistGuestLocale(next);
+  };
+
   const value = useMemo(
     () => ({
       locale: preview ?? serverLocale,
       unitSystem: serverUnitSystem,
       setLocalePreview: setPreview,
+      setLocale,
     }),
     [preview, serverLocale, serverUnitSystem]
   );
@@ -70,6 +92,10 @@ export function useLocale(): CheckoutLocale {
 
 export function useLocalePreview(): (locale: CheckoutLocale) => void {
   return useContext(LocaleContext).setLocalePreview;
+}
+
+export function useSetLocale(): (locale: CheckoutLocale) => void {
+  return useContext(LocaleContext).setLocale;
 }
 
 export function useCoachCopy() {

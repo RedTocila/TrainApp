@@ -222,21 +222,21 @@ export const coachLabelsEn = {
   illDoBetter: "I'll do better tomorrow",
   noHabitsToday: 'No habits today. Coach Alex assumes you\'re "resting."',
   addHabitsHint: "Stack small wins before Coach Alex roasts your consistency",
-  unlockDashboard: "Stop browsing. Start actually training.",
+  unlockDashboard: "Train free. Unlock AI when you're ready.",
   subscribeBlurb:
-    "Free preview mode is cute. Subscribe if you want Coach Alex to remember your sets, meals, and dignity.",
+    "Manual workouts, meals, and tracking are free. Upgrade for Coach Alex, AI plans, and Elite community.",
   trialUnlockTitle: "You're on the AI Pro free trial",
   trialUnlockBlurb: (days: number) =>
     days === 1
       ? "1 day left of full AI Coach access. Live classes and challenges stay Elite-only — subscribe to keep AI Pro after today."
       : `${days} days left of full AI Coach access. Live classes and challenges stay Elite-only — subscribe before the trial ends.`,
-  viewPlans: "Stop freeloading — see plans",
+  viewPlans: "See AI & Elite plans",
   keepAiPro: "Keep AI Pro",
   noSubscription:
-    "No paid plan. You're in preview mode — Coach Alex sees you, but he's not saving your progress.",
-  pickAPlan: "Pick a real plan",
+    "You're on free manual mode — full tracking without AI. Upgrade for Coach Alex.",
+  pickAPlan: "See plans",
   levelUp: "Upgrade",
-  coachHasOpinions: "Coach Alex has opinions. Pay up if you want to hear them.",
+  coachHasOpinions: "Coach Alex has opinions. Upgrade if you want to hear them.",
   coachHasNotes: "Coach Alex has notes. You probably won't like them.",
   skipForNow: "Fine, I'll keep half-assing it",
   noWorkoutToday: "Rest day — or avoidance? Coach Alex can't tell.",

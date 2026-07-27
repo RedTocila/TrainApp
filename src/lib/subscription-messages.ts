@@ -1,16 +1,16 @@
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
 
 export const SUBSCRIPTION_REQUIRED_MESSAGE_EN =
-  "Subscribe to add workouts, meals, habits, and more — starting from €5.";
+  "Upgrade to AI Pro or Elite for Coach Alex and premium features — from €20/month.";
 
 export const SUBSCRIPTION_REQUIRED_MESSAGE_AL =
-  "Abonohu për të shtuar stërvitje, vakte, zakone dhe më shumë — duke filluar nga 5€.";
+  "Përmirësohu në AI Pro ose Elite për Coach Alex dhe funksione premium — nga 20€/muaj.";
 
 export const LIMIT_EXCEEDED_MESSAGE_EN =
-  "You have exceeded your limit, pick a plan to continue.";
+  "Upgrade to AI Pro or Elite to unlock this feature.";
 
 export const LIMIT_EXCEEDED_MESSAGE_AL =
-  "Ke tejkaluar limitin, zgjidh një plan për të vazhduar.";
+  "Përmirësohu në AI Pro ose Elite për të hapur këtë funksion.";
 
 /** @deprecated Use getSubscriptionRequiredMessage(locale) */
 export const SUBSCRIPTION_REQUIRED_MESSAGE = SUBSCRIPTION_REQUIRED_MESSAGE_AL;

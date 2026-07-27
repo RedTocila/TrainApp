@@ -7,12 +7,10 @@ import { getLimitExceededMessage } from "@/lib/subscription-messages";
 import {
   alexUsageKey,
   aiPlanUsageKey,
-  FREE_MANUAL_PLANS_TOTAL,
   getAiPlanMonthlyLimit,
   getAlexDailyLimit,
   hasUnlimitedAiPlans,
 } from "@/lib/subscription-limits";
-import { hasPaidAccess } from "@/lib/subscription";
 import type { Profile } from "@/lib/types";
 
 async function getUsageCount(userId: string, counterKey: string): Promise<number> {
@@ -58,6 +56,9 @@ export async function checkAlexCommandAllowed(
 ): Promise<{ allowed: true } | { allowed: false; error: string }> {
   const limit = getAlexDailyLimit(profile);
   if (limit == null) return { allowed: true };
+  if (limit <= 0) {
+    return { allowed: false, error: limitMessage(profile) };
+  }
 
   const used = await getUsageCount(profile.id, alexUsageKey());
   if (used >= limit) {
@@ -68,7 +69,7 @@ export async function checkAlexCommandAllowed(
 
 export async function consumeAlexCommand(profile: Profile): Promise<void> {
   const limit = getAlexDailyLimit(profile);
-  if (limit == null) return;
+  if (limit == null || limit <= 0) return;
   await incrementUsageCount(profile.id, alexUsageKey());
 }
 
@@ -78,7 +79,7 @@ export async function checkAiPlanApplyAllowed(
 ): Promise<{ allowed: true } | { allowed: false; error: string }> {
   const limit = getAiPlanMonthlyLimit(profile, type);
   if (limit == null) return { allowed: true };
-  if (limit === 0) {
+  if (limit <= 0) {
     return { allowed: false, error: limitMessage(profile) };
   }
 
@@ -114,15 +115,11 @@ export async function countPersonalPlans(userId: string): Promise<number> {
   return (workoutCount ?? 0) + (nutritionCount ?? 0);
 }
 
+/** Manual plans are free for every authenticated client. */
 export async function checkManualPlanCreationAllowed(
   profile: Profile
 ): Promise<{ allowed: true } | { allowed: false; error: string }> {
-  if (hasPaidAccess(profile)) return { allowed: true };
-
-  const total = await countPersonalPlans(profile.id);
-  if (total >= FREE_MANUAL_PLANS_TOTAL) {
-    return { allowed: false, error: limitMessage(profile) };
-  }
+  if (!profile) return { allowed: false, error: "Not authenticated" };
   return { allowed: true };
 }
 
@@ -132,34 +129,13 @@ export async function ensurePlanMutationAccess(): Promise<
 > {
   const profile = await getSubscriptionProfile();
   if (!profile) return { error: "Not authenticated" };
-
-  if (hasPaidAccess(profile)) {
-    const admin = createAdminClient();
-    return { profile, userId: profile.id, admin };
-  }
-
-  const total = await countPersonalPlans(profile.id);
-  if (total <= FREE_MANUAL_PLANS_TOTAL) {
-    const admin = createAdminClient();
-    return { profile, userId: profile.id, admin };
-  }
-
-  return { error: limitMessage(profile) };
+  const admin = createAdminClient();
+  return { profile, userId: profile.id, admin };
 }
 
 export async function ensureManualPlanCreation(): Promise<
   | { profile: Profile; userId: string; admin: ReturnType<typeof createAdminClient> }
   | { error: string }
 > {
-  const access = await ensurePlanMutationAccess();
-  if ("error" in access) return access;
-
-  if (hasPaidAccess(access.profile)) return access;
-
-  const total = await countPersonalPlans(access.userId);
-  if (total >= FREE_MANUAL_PLANS_TOTAL) {
-    return { error: limitMessage(access.profile) };
-  }
-
-  return access;
+  return ensurePlanMutationAccess();
 }
