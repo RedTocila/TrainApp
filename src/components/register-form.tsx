@@ -3,53 +3,59 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Mail, Sparkles, Flame, Beef, Wheat, Droplets, CheckCircle2 } from "lucide-react";
 import {
-  completePendingSignup,
-  completeRegistration,
-  resumeExistingAccount,
-  signInAfterRegistration,
-  signUpAccount,
-} from "@/lib/actions/auth";
+  Sparkles,
+  Flame,
+  Beef,
+  Wheat,
+  Droplets,
+  CheckCircle2,
+  Loader2,
+  CreditCard,
+} from "lucide-react";
+import {
+  completeGuestCheckoutAndSignIn,
+  createGuestCheckoutOrder,
+  type GuestSignupPayload,
+} from "@/lib/actions/guest-signup";
 import { BrandWordmark } from "@/components/app-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PokPayGuestCheckout } from "@/components/pokpay-guest-checkout";
 import {
   calculateMacrosFromIntakeResponses,
   type MacroTargets,
 } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 import { saveCheckoutReferralCode } from "@/lib/referral-storage";
-import {
-  formatUserError,
-  isDirectSignupRejection,
-} from "@/lib/format-user-error";
+import { formatUserError } from "@/lib/format-user-error";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/components/locale-provider";
 
-type PendingSignup = {
-  email: string;
-  password: string;
-  fullName: string;
-  phone: string | null;
-  intakeJson: string | null;
-};
+type PackagePlan = "ai" | "elite";
+
+const PACKAGE_OPTIONS: Array<{ id: PackagePlan; name: string; priceLabel: string }> = [
+  { id: "ai", name: "RUTINA AI Pro", priceLabel: "€20" },
+  { id: "elite", name: "RUTINA Elite", priceLabel: "€30" },
+];
 
 export function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const locale = useLocale();
   const [error, setError] = useState<string | null>(null);
   const [intakeJson, setIntakeJson] = useState<string | null>(null);
   const [macroTargets, setMacroTargets] = useState<MacroTargets | null>(null);
   const [isPending, setIsPending] = useState(false);
-  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
-  const [existingAccount, setExistingAccount] = useState<PendingSignup | null>(null);
-  const [pendingSignup, setPendingSignup] = useState<PendingSignup | null>(null);
-  const [continuePending, setContinuePending] = useState(false);
-  const [continueMessage, setContinueMessage] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PackagePlan>("ai");
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [localOrderId, setLocalOrderId] = useState<string | null>(null);
+  const [checkoutStarted, setCheckoutStarted] = useState(false);
+  const [paymentPending, setPaymentPending] = useState(false);
 
   useEffect(() => {
     const draft = loadIntakeDraft();
@@ -70,100 +76,9 @@ export function RegisterForm() {
     router.push(role === "admin" ? "/admin" : "/dashboard");
   };
 
-  const finishAfterSignIn = async (
-    registrationInput: Omit<PendingSignup, "password">,
-    serverAlreadyFinalized: boolean,
-    role?: string
-  ) => {
-    if (serverAlreadyFinalized) {
-      finishSignup(role);
-      return;
-    }
-
-    router.refresh();
-    const result = await completeRegistration(registrationInput);
-    if (!result || "error" in result) {
-      setError(
-        formatUserError(
-          result?.error ?? "Unknown error",
-          "Account created but setup failed. Try signing in — your profile may already be ready."
-        )
-      );
-      return;
-    }
-
-    finishSignup(result.role);
-  };
-
-  const handleContinueAfterConfirm = async () => {
-    if (!pendingSignup) return;
-    setContinuePending(true);
-    setContinueMessage(null);
-    setError(null);
-
-    try {
-      const result = await completePendingSignup({
-        fullName: pendingSignup.fullName,
-        email: pendingSignup.email,
-        phone: pendingSignup.phone,
-        password: pendingSignup.password,
-        intakeJson: pendingSignup.intakeJson,
-      });
-
-      if (!result || "error" in result) {
-        setContinueMessage(
-          formatUserError(
-            result?.error ?? "Unknown error",
-            "Could not continue yet. Try signing in with the same email and password."
-          )
-        );
-        return;
-      }
-
-      finishSignup(result.role);
-    } finally {
-      setContinuePending(false);
-    }
-  };
-
-  const handleResumeExisting = async () => {
-    if (!existingAccount) return;
-    setContinuePending(true);
-    setError(null);
-    setContinueMessage(null);
-
-    try {
-      const result = await resumeExistingAccount({
-        fullName: existingAccount.fullName,
-        email: existingAccount.email,
-        phone: existingAccount.phone,
-        password: existingAccount.password,
-        intakeJson: existingAccount.intakeJson,
-      });
-
-      if (!result || "error" in result) {
-        setContinueMessage(
-          formatUserError(
-            result?.error ?? "Unknown error",
-            "Could not sign in. Use Sign in with your password, or reset it if needed."
-          )
-        );
-        return;
-      }
-
-      finishSignup(result.role);
-    } finally {
-      setContinuePending(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    setContinueMessage(null);
-    setNeedsEmailConfirmation(false);
-    setPendingSignup(null);
-    setExistingAccount(null);
 
     if (!acceptedTerms) {
       setError("Please accept the Terms of Service and Privacy Policy to continue.");
@@ -179,162 +94,96 @@ export function RegisterForm() {
       const phone = ((new FormData(form).get("phone") as string) || "").trim() || null;
       const password = new FormData(form).get("password") as string;
 
-      const registrationInput = {
+      const signupPayload: GuestSignupPayload = {
         fullName,
         email,
         phone,
+        password,
         intakeJson,
+        referralCode: null,
       };
 
-      console.log("[RegisterForm] signup submit", {
-        email,
-        fullName,
-        hasPhone: Boolean(phone),
-        hasIntake: Boolean(intakeJson),
-      });
-
-      let serverResult: Awaited<ReturnType<typeof signUpAccount>>;
-
-      try {
-        serverResult = await signUpAccount({
-          ...registrationInput,
-          password,
-        });
-      } catch (err) {
-        console.error("[RegisterForm] signUpAccount threw", err);
-        setError(formatUserError(err, "Could not create account. Please try again."));
+      const result = await createGuestCheckoutOrder(signupPayload, selectedPlan, "monthly");
+      if ("error" in result) {
+        setError(result.error);
         return;
       }
 
-      console.log("[RegisterForm] signUpAccount result", serverResult);
-
-      if ("existingAccount" in serverResult && serverResult.existingAccount) {
-        setExistingAccount({ ...registrationInput, password });
-        setError(serverResult.error ?? "This email is already registered.");
-        return;
-      }
-
-      if ("error" in serverResult && serverResult.error) {
-        if (isDirectSignupRejection(serverResult.error)) {
-          setError(serverResult.error);
-          return;
-        }
-        setError(serverResult.error);
-        return;
-      }
-
-      if (
-        "needsEmailConfirmation" in serverResult &&
-        serverResult.needsEmailConfirmation
-      ) {
-        setPendingSignup({ ...registrationInput, password });
-        setNeedsEmailConfirmation(true);
-        return;
-      }
-
-      const signInResult = await signInAfterRegistration(email, password);
-      if (!signInResult.error) {
-        await finishAfterSignIn(
-          registrationInput,
-          "success" in serverResult &&
-            serverResult.success === true &&
-            !("profileSetupDeferred" in serverResult && serverResult.profileSetupDeferred),
-          "success" in serverResult && serverResult.success ? serverResult.role : undefined
-        );
-        return;
-      }
-
-      // Access unlocked but client session missing — resume with password.
-      const resumed = await resumeExistingAccount({
-        ...registrationInput,
-        password,
-      });
-      if (!resumed || "error" in resumed) {
-        setError(signInResult.error ?? resumed?.error ?? "Could not open your account.");
-        return;
-      }
-      finishSignup(resumed.role);
+      setOrderId(result.orderId);
+      setLocalOrderId(result.localOrderId);
+      setCheckoutStarted(true);
     } catch (err) {
-      console.error("[RegisterForm] unexpected signup error", err);
-      setError(formatUserError(err, "Could not create account. Please try again."));
+      setError(formatUserError(err, "Could not start checkout. Please try again."));
     } finally {
       setIsPending(false);
     }
   };
 
-  if (needsEmailConfirmation && pendingSignup) {
+  if (checkoutStarted && orderId && localOrderId) {
     return (
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
-            <Mail className="h-6 w-6" />
+          <CardTitle className="text-2xl font-black">Complete purchase</CardTitle>
+          <CardDescription>
+            Payment is required before your account is created.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
+          <div className="rounded-xl border border-border bg-secondary/30 p-3 text-left">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Selected package</p>
+            <p className="mt-1 text-base font-bold text-foreground">
+              {PACKAGE_OPTIONS.find((option) => option.id === selectedPlan)?.name} ·{" "}
+              {PACKAGE_OPTIONS.find((option) => option.id === selectedPlan)?.priceLabel}
+            </p>
           </div>
-          <CardTitle className="text-2xl font-black">Check your email</CardTitle>
-          <CardDescription>
-            We sent a verification link to{" "}
-            <span className="font-medium text-foreground">{pendingSignup.email}</span>.
-            You can verify anytime — continue into the app now.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
-          <p>Your questionnaire answers stay on this device until you finish setup.</p>
+          {paymentPending ? (
+            <div className="rounded-xl border border-border bg-secondary/30 py-8">
+              <p className="flex items-center justify-center gap-2 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Finalizing your account...
+              </p>
+            </div>
+          ) : (
+            <PokPayGuestCheckout
+              orderId={orderId}
+              locale={locale}
+              onSuccess={() => {
+                setError(null);
+                setPaymentPending(true);
+                void completeGuestCheckoutAndSignIn(localOrderId)
+                  .then((result) => {
+                    if ("error" in result) {
+                      setError(result.error);
+                      return;
+                    }
+                    finishSignup("client");
+                  })
+                  .finally(() => {
+                    setPaymentPending(false);
+                  });
+              }}
+              onError={(paymentError) => {
+                const message =
+                  typeof paymentError?.message === "string"
+                    ? paymentError.message
+                    : "Payment failed. Please try again.";
+                setError(message);
+              }}
+            />
+          )}
           {error && <p className="text-red-400">{error}</p>}
-          {continueMessage && <p className="text-red-400">{continueMessage}</p>}
-          <Button
-            type="button"
-            className="w-full"
-            disabled={continuePending}
-            onClick={() => void handleContinueAfterConfirm()}
-          >
-            {continuePending ? "Opening…" : "Continue to app"}
-          </Button>
-          <Link href={`/login?email=${encodeURIComponent(pendingSignup.email)}`}>
-            <Button variant="outline" className="w-full">
-              Sign in instead
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (existingAccount) {
-    return (
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-black">Welcome back</CardTitle>
-          <CardDescription>
-            <span className="font-medium text-foreground">{existingAccount.email}</span> already
-            has an account. Continue where you left off — no need to register again.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
-          {error && <p className="text-red-400">{error}</p>}
-          {continueMessage && <p className="text-red-400">{continueMessage}</p>}
-          <Button
-            type="button"
-            className="w-full"
-            disabled={continuePending}
-            onClick={() => void handleResumeExisting()}
-          >
-            {continuePending ? "Opening…" : "Continue to app"}
-          </Button>
-          <Link href={`/login?email=${encodeURIComponent(existingAccount.email)}`}>
-            <Button variant="outline" className="w-full">
-              Sign in with password
-            </Button>
-          </Link>
           <Button
             type="button"
             variant="ghost"
             className="w-full"
             onClick={() => {
-              setExistingAccount(null);
+              setCheckoutStarted(false);
+              setOrderId(null);
+              setLocalOrderId(null);
               setError(null);
-              setContinueMessage(null);
             }}
           >
-            Use a different email
+            Back to package selection
           </Button>
         </CardContent>
       </Card>
@@ -349,8 +198,8 @@ export function RegisterForm() {
         </CardTitle>
         <CardDescription>
           {intakeJson
-            ? "Your preferences are saved — create your free account to continue"
-            : "Create your free account to get started"}
+            ? "Your preferences are saved — complete package purchase to enter"
+            : "Create your account and buy a package to enter"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -496,6 +345,34 @@ export function RegisterForm() {
             <Label htmlFor="password">Password</Label>
             <PasswordInput id="password" name="password" required minLength={6} />
           </div>
+          <div className="space-y-2">
+            <Label>Choose package</Label>
+            <div className="grid grid-cols-1 gap-2">
+              {PACKAGE_OPTIONS.map((option) => {
+                const selected = selectedPlan === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setSelectedPlan(option.id)}
+                    className={cn(
+                      "rounded-xl border px-3 py-3 text-left transition-colors",
+                      selected
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-secondary/20 hover:bg-secondary/30"
+                    )}
+                    aria-pressed={selected}
+                  >
+                    <p className="text-sm font-semibold">{option.name}</p>
+                    <p className="text-xs text-muted-foreground">{option.priceLabel} / month</p>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              You must complete payment before account access is granted.
+            </p>
+          </div>
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
             <input
               id="accept_terms"
@@ -532,7 +409,17 @@ export function RegisterForm() {
           </label>
           {error && <p className="text-sm text-red-400">{error}</p>}
           <Button type="submit" className="w-full" disabled={isPending || !acceptedTerms}>
-            {isPending ? "Creating account..." : "Create Account"}
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Preparing checkout...
+              </>
+            ) : (
+              <>
+                <CreditCard className="mr-2 h-4 w-4" />
+                Continue to payment
+              </>
+            )}
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-muted-foreground">

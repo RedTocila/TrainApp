@@ -1041,7 +1041,7 @@ export const platformCopyAl = {
     onboardingBlurb:
       "Platforma është falas për ndjekje manuale. Përmirësohu kur të duash për AI Pro ose Elite.",
     upgradeBlurb:
-      "Falas për stërvitje dhe vakte manuale. Përmirësohu për coach AI (19€) ose komunitetin Elite (29€).",
+      "Falas për stërvitje dhe vakte manuale. Përmirësohu për coach AI (20€) ose komunitetin Elite (30€).",
     skipForNow: "Anashkalo për tani",
     startFreeTrial: "Fillo provën falas 3-ditore",
     trialCardRequired: "Shto kartën për të filluar — €0 sot. Anulo kur të duash para ditës 3.",

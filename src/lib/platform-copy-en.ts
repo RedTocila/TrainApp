@@ -1027,7 +1027,7 @@ export const platformCopyEn = {
     onboardingBlurb:
       "The platform is free for manual tracking. Upgrade anytime for AI Pro or Elite.",
     upgradeBlurb:
-      "Free for manual workouts and meals. Upgrade for AI coaching (€19) or Elite community (€29).",
+      "Free for manual workouts and meals. Upgrade for AI coaching (€20) or Elite community (€30).",
     skipForNow: "Skip for now",
     startFreeTrial: "Start 3-day free trial",
     trialCardRequired: "Add a card to start — €0 today. Cancel anytime before day 3.",
