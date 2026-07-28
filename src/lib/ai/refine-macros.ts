@@ -3,6 +3,7 @@ import { parseJsonObject } from "@/lib/ai/parse-json";
 import type { MacroTargets } from "@/lib/macro-calculator";
 import { clampTargets } from "@/lib/macro-calculator";
 import { buildDetailedIntakeContextForAi } from "@/lib/intake-questionnaire";
+import { buildRationaleLanguageRule } from "@/lib/ai/language-instructions";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
 export interface RefinedMacroResult {
@@ -73,7 +74,8 @@ function normalizeAiMacros(
 
 export async function refineMacrosWithAi(
   responses: IntakeResponses,
-  baseline: MacroTargets
+  baseline: MacroTargets,
+  preferredLocale?: string | null
 ): Promise<RefinedMacroResult | null> {
   const context = buildDetailedIntakeContextForAi(responses);
   const goal = responses.goal ?? "stay_fit";
@@ -97,6 +99,8 @@ Instructions:
 - Prefer conservative calories the client can sustain.
 - For lose_weight, usually BELOW the formula baseline.
 - Macros must approximately match calories (protein×4 + carbs×4 + fat×9).
+
+${buildRationaleLanguageRule(preferredLocale)}
 
 Respond with ONLY valid JSON:
 {

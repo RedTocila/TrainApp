@@ -32,7 +32,7 @@ export async function resolveMacroTargets(
   if (!baseline) return null;
 
   if (intake && isIntakeResponsesComplete(intake)) {
-    const refined = await refineMacrosWithAi(intake, baseline);
+    const refined = await refineMacrosWithAi(intake, baseline, profile.preferred_locale);
     if (refined) {
       return {
         targets: refined.targets,

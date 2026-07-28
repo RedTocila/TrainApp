@@ -1,4 +1,4 @@
-import type { ProgressPhotoAnalysis, ProgressPhotoPose } from "@/lib/types";
+import type { ProgressPhotoAnalysis, ProgressPhotoIdentity, ProgressPhotoPose } from "@/lib/types";
 import { clampConfidence, parseJsonObject } from "@/lib/ai/parse-json";
 import {
   finalizeProgressPhotoAnalysis,
@@ -6,7 +6,7 @@ import {
 import { runVisionPrompt } from "@/lib/ai/providers";
 import { calculateBmi, getBmiCategory } from "@/lib/bmi-utils";
 import { formatGender } from "@/lib/intake-display";
-import type { ProgressPhotoIdentity } from "@/lib/types";
+import { buildAlexMessageLanguageRule } from "@/lib/ai/language-instructions";
 
 const POSES: ProgressPhotoPose[] = ["front", "back", "side"];
 
@@ -75,12 +75,7 @@ function buildPrompt(
     body?: ProgressPhotoBodyContext | null;
   }
 ): string {
-  const language =
-    options?.locale === "al"
-      ? "Write alex_message in Albanian (shqip)."
-      : options?.locale === "en"
-        ? "Write alex_message in English."
-        : "Write alex_message in English unless the user's app is clearly Albanian.";
+  const language = buildAlexMessageLanguageRule(options?.locale);
 
   const genderLine = options?.profileGender
     ? `Profile gender (from intake): ${formatGender(options.profileGender) ?? options.profileGender}`

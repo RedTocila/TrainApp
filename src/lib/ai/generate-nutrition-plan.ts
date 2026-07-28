@@ -1,6 +1,7 @@
 import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
-import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
+import { buildIntakeContextForAi, getCriticalIntakeGaps } from "@/lib/ai/intake-context";
+import { buildPlanTextLanguageRule } from "@/lib/ai/language-instructions";
 import type { AiGeneratedNutritionPlan, AiNutritionMeal } from "@/lib/ai/plan-builder-types";
 import type { Profile } from "@/lib/types";
 import type { MealSlot } from "@/lib/meal-slots";
@@ -78,6 +79,12 @@ export async function generateNutritionPlanFromProfile(
   profile: Profile,
   preferences?: string
 ): Promise<AiGeneratedNutritionPlan> {
+  const criticalGaps = getCriticalIntakeGaps(profile);
+  if (criticalGaps.length > 0) {
+    throw new Error(
+      `Before I build your nutrition plan, clarify: ${criticalGaps.join(" ")}`
+    );
+  }
   const intake = buildIntakeContextForAi(profile, preferences);
 
   const prompt = `You are an expert sports nutritionist. Create a full-day meal plan with macro targets for this client.
@@ -90,9 +97,13 @@ Rules:
 - Provide exactly one primary meal per slot: breakfast, snack_1, lunch, snack_2, dinner.
 - Meal macros should sum close to daily_targets (within ~10%).
 - Use simple, whole-food meals with realistic portions.
-- Respect medical conditions and injuries where relevant to food choices.
+- Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, medical conditions, allergies, medications/supplements, food dislikes, or lifestyle notes when present.
+- Respect medical conditions and injuries where relevant to food choices, and avoid presenting medical treatment claims.
 - Include 2-5 ingredients per meal when helpful.
 - Add a weekly grocery_list with realistic total amounts for 7 days (merge duplicates, group by category).
+- Description and coach_notes must clearly explain how the plan is personalized to this client's profile constraints and goal.
+
+${buildPlanTextLanguageRule(profile.preferred_locale)}
 
 Respond with ONLY valid JSON:
 {

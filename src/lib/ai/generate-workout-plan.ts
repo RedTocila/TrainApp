@@ -1,6 +1,7 @@
 import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
-import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
+import { buildIntakeContextForAi, getCriticalIntakeGaps } from "@/lib/ai/intake-context";
+import { buildPlanTextLanguageRule } from "@/lib/ai/language-instructions";
 import { enrichExercisesWithDemoVideos } from "@/lib/ai/exercise-video-search";
 import type {
   AiGeneratedHiitPlan,
@@ -72,6 +73,12 @@ async function generateStrengthWorkoutPlanFromProfile(
   profile: Profile,
   preferences?: string
 ): Promise<AiGeneratedWorkoutPlan> {
+  const criticalGaps = getCriticalIntakeGaps(profile);
+  if (criticalGaps.length > 0) {
+    throw new Error(
+      `Before I build your workout plan, clarify: ${criticalGaps.join(" ")}`
+    );
+  }
   const intake = buildIntakeContextForAi(profile, preferences);
 
   const prompt = `You are an expert personal trainer. Create a safe, practical weekly TRADITIONAL strength/fitness workout plan (sets, reps, rest) tailored to this client.
@@ -82,11 +89,15 @@ ${intake}
 Rules:
 - This is NOT a HIIT / interval timer workout. Use classic sets × reps with rest between sets.
 - Respect injuries and medical conditions — avoid aggravating movements and suggest alternatives in notes.
+- Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match volume and split to goal, age, schedule, and recovery capacity.
 - Use clear exercise names (no equipment codes).
 - 3–5 training days per week unless schedule clearly allows fewer.
 - 4–8 exercises per session.
 - Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.
+- Description and coach_notes must explicitly mention why this plan is safe and appropriate for this specific profile.
+
+${buildPlanTextLanguageRule(profile.preferred_locale)}
 
 Respond with ONLY valid JSON:
 {
@@ -190,6 +201,12 @@ export async function generateHiitPlanFromProfile(
   profile: Profile,
   preferences?: string
 ): Promise<AiGeneratedHiitPlan> {
+  const criticalGaps = getCriticalIntakeGaps(profile);
+  if (criticalGaps.length > 0) {
+    throw new Error(
+      `Before I build your HIIT plan, clarify: ${criticalGaps.join(" ")}`
+    );
+  }
   const intake = buildIntakeContextForAi(profile, preferences);
   const sessionRequest =
     preferences?.trim() ||
@@ -207,11 +224,15 @@ Rules:
 - This is a HIIT interval workout — NOT traditional sets × reps strength training.
 - Return a single session config the app timer can run (prepare → work/rest per move → rounds → optional cycles).
 - Respect injuries — swap high-impact moves for low-impact alternatives when needed and note modifications.
+- Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match intensity and duration to fitness level and schedule (typically ~15–35 minutes total).
 - 4–8 exercises with clear names.
 - work_seconds usually 20–45; rest_seconds between moves usually 10–30.
 - rounds usually 2–5; cycles usually 1–2.
 - prepare_seconds 5–15; round_rest_seconds 45–120; cycle_rest_seconds 60–180 when cycles > 1.
+- Description and coach_notes must explicitly mention how the session is adapted to this specific profile.
+
+${buildPlanTextLanguageRule(profile.preferred_locale)}
 
 Respond with ONLY valid JSON:
 {
@@ -327,6 +348,12 @@ export async function generateFullTrainingDayFromProfile(
   profile: Profile,
   prompt: string
 ): Promise<AiDayProgramResult> {
+  const criticalGaps = getCriticalIntakeGaps(profile);
+  if (criticalGaps.length > 0) {
+    throw new Error(
+      `Before I build your full training day, clarify: ${criticalGaps.join(" ")}`
+    );
+  }
   const intake = buildIntakeContextForAi(profile, prompt);
   const mainKind = inferAiMainWorkoutKind(prompt);
   const sessionRequest =
@@ -370,6 +397,7 @@ ${sessionRequest}
 Rules:
 - Always return all three parts: warmup, main, stretch.
 - Warm-up and stretching use interval timers (work_seconds / rest_seconds) — NOT sets × reps.
+- Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Main workout kind for this day must be "${mainKind}" (${
     mainKind === "hiit"
       ? "timed intervals like HIIT"
@@ -379,6 +407,9 @@ Rules:
 - Stretching: 4–6 gentle stretches matched to muscles used in main, ~5–10 min. work_seconds 20–40, rest 5–15, rounds 1.
 - Main: 4–8 exercises. Respect injuries. Match the day request (push/pull/legs/full body/etc.).
 - Titles should be clear (e.g. "Upper warm-up", "Upper Push", "Upper stretch").
+- coach_notes must mention at least one concrete personalization tied to profile constraints or health/lifestyle data.
+
+${buildPlanTextLanguageRule(profile.preferred_locale)}
 
 Respond with ONLY valid JSON:
 {
@@ -499,6 +530,12 @@ async function generateStrengthWorkoutDayFromProfile(
   profile: Profile,
   prompt: string
 ): Promise<AiGeneratedWorkoutDay> {
+  const criticalGaps = getCriticalIntakeGaps(profile);
+  if (criticalGaps.length > 0) {
+    throw new Error(
+      `Before I build this workout, clarify: ${criticalGaps.join(" ")}`
+    );
+  }
   const intake = buildIntakeContextForAi(profile, prompt);
   const sessionRequest =
     prompt.trim() ||
@@ -516,10 +553,14 @@ Rules:
 - Return exactly ONE session — not a weekly plan or split.
 - This is a traditional sets × reps fitness session (not a HIIT interval timer).
 - Respect injuries and medical conditions — avoid aggravating movements and suggest alternatives in notes.
+- Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match volume to goal, age, schedule, and recovery capacity.
 - Use clear exercise names (no equipment codes).
 - 4–8 exercises per session.
 - Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.
+- coach_notes must include at least one line about how this session is adjusted for the client's profile.
+
+${buildPlanTextLanguageRule(profile.preferred_locale)}
 
 Respond with ONLY valid JSON:
 {
@@ -557,6 +598,12 @@ async function generateExtraIntervalSessionFromProfile(
   prompt: string,
   kind: "warmup" | "stretch"
 ): Promise<AiGeneratedHiitPlan> {
+  const criticalGaps = getCriticalIntakeGaps(profile);
+  if (criticalGaps.length > 0) {
+    throw new Error(
+      `Before I build this ${kind} session, clarify: ${criticalGaps.join(" ")}`
+    );
+  }
   const intake = buildIntakeContextForAi(profile, prompt);
   const isWarmup = kind === "warmup";
   const sessionRequest =
@@ -578,6 +625,7 @@ ${sessionRequest}
 Rules:
 - This runs on an interval timer (work seconds / rest seconds) — NOT sets × reps strength training.
 - This is an EXTRA next to a main workout (keep it short: typically ~5–12 minutes).
+- Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - ${
     isWarmup
       ? "Focus on dynamic warm-up: light activation, mobility, and movement prep. Avoid heavy strength or max-effort HIIT."
@@ -592,6 +640,9 @@ Rules:
   }
 - rounds usually 1–2; cycles usually 1.
 - prepare_seconds 5–10; round_rest_seconds 20–45 when rounds > 1.
+- coach_notes must mention safety or adaptation choices from the profile when such constraints exist.
+
+${buildPlanTextLanguageRule(profile.preferred_locale)}
 
 Respond with ONLY valid JSON:
 {

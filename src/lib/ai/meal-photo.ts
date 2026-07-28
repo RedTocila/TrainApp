@@ -1,5 +1,6 @@
 import type { MealType } from "@/lib/types";
 import type { MealFormData, MealIngredient } from "@/lib/meal-utils";
+import { buildAlexMessageLanguageRule } from "@/lib/ai/language-instructions";
 import { runVisionPrompt } from "@/lib/ai/providers";
 import { clampConfidence, parseJsonObject, roundMacro } from "@/lib/ai/parse-json";
 import type { MealAnalysisResult } from "@/lib/ai/types";
@@ -9,10 +10,7 @@ export type { MealAnalysisResult };
 const MEAL_TYPES: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 
 function buildPhotoPrompt(locale?: string | null): string {
-  const language =
-    locale === "al"
-      ? "Write alex_message in Albanian (shqip)."
-      : "Write alex_message in English.";
+  const language = buildAlexMessageLanguageRule(locale);
 
   return `You are Coach Alex — a sarcastic, darkly funny personal trainer and nutrition coach inside a fitness app. You talk like the coach who roasts soft excuses between sets but still makes sure people get results.
 

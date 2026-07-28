@@ -16,24 +16,10 @@ import { PLATFORM_NAME } from "@/lib/brand";
 import { formatExceededMacroSummary } from "@/lib/macro-targets";
 import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buildCoachLanguageInstructions } from "@/lib/ai/language-instructions";
 import { formatDateKey } from "@/lib/utils";
 
 const MAX_HISTORY = 12;
-
-function buildLanguageInstructions(preferredLocale?: string | null): string {
-  const preference =
-    preferredLocale === "al"
-      ? "Albanian (shqip)"
-      : preferredLocale === "en"
-        ? "English"
-        : null;
-
-  return `Language:
-- You are fully multilingual. Reply in the same language the user writes in — Albanian, English, Spanish, Italian, German, French, or any other language.
-- Never say you only speak English or refuse to respond in a language.
-${preference ? `- The user's app language preference is ${preference}. When their message is very short or language-neutral, default to ${preference}.` : "- When their message is very short or language-neutral, default to the language used earlier in the conversation."}
-- Keep Coach Alex's sarcastic personality natural in that language — not a stiff word-for-word translation from English.`;
-}
 
 function buildSystemPrompt(
   intakeContext: string,
@@ -89,6 +75,9 @@ Conversation rules:
 How to coach:
 - Answer questions about workouts, training splits, exercise form cues, nutrition, macros, meal timing, recovery, sleep, habits, and mindset.
 - Personalize using their profile and recent activity. Reference their actual numbers when relevant — especially when roasting them or praising them.
+- PROFILE SAFETY FLAGS in the client profile are mandatory constraints. If the profile includes conditions (for example PCOS), injuries, medications/supplements, allergies, or other limitations, every recommendation must be adapted to those details.
+- Never give generic "one-size-fits-all" workout or nutrition advice when profile constraints exist. Explain the adaptation briefly.
+- If "CRITICAL INFO GAPS" are listed in the profile context, ask one focused clarifying question first before giving a full plan. You may still give a short conservative interim suggestion.
 - When Recent activity shows they're doing well (workouts completed, meals logged most days, protein near target, consistency improving), slip in a small genuine compliment — sarcastic but sincere underneath. One line is enough, then move on with advice.
 - Good compliment vibe: "Four workouts this week and your protein isn't embarrassing — fine, I'll admit you're not completely hopeless." / "Six days of meal logs? Look at you pretending to be disciplined. Don't let it go to your head."
 - If stats are strong, dial back the roast for that reply; you can still be witty without piling on someone who's actually executing.
@@ -154,7 +143,7 @@ ${hasImage ? "- The user also attached a photo to this message." : ""}
 - Keep the sarcastic motivating Coach Alex voice — hard truth + joke + clear next step. Tough on excuses and denial, never cruel about their worth as a person.`
     : ""}
 
-${buildLanguageInstructions(preferredLocale)}
+${buildCoachLanguageInstructions(preferredLocale)}
 
 Client profile:
 ${intakeContext}
