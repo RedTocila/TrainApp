@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Loader2,
   CreditCard,
+  ArrowRight,
 } from "lucide-react";
 import {
   completeGuestCheckoutAndSignIn,
@@ -36,10 +37,39 @@ import { cn } from "@/lib/utils";
 import { useLocale } from "@/components/locale-provider";
 
 type PackagePlan = "ai" | "elite";
+type SignupDraft = GuestSignupPayload;
 
-const PACKAGE_OPTIONS: Array<{ id: PackagePlan; name: string; priceLabel: string }> = [
-  { id: "ai", name: "RUTINA AI Pro", priceLabel: "€20" },
-  { id: "elite", name: "RUTINA Elite", priceLabel: "€30" },
+const PACKAGE_OPTIONS: Array<{
+  id: PackagePlan;
+  name: string;
+  priceLabel: string;
+  subtitle: string;
+  features: string[];
+}> = [
+  {
+    id: "ai",
+    name: "RUTINA AI Pro",
+    priceLabel: "€20",
+    subtitle: "AI coaching and personalized fitness guidance.",
+    features: [
+      "AI Fitness Coach",
+      "AI Nutrition Coach",
+      "AI Workout Generator",
+      "Personalized recommendations",
+    ],
+  },
+  {
+    id: "elite",
+    name: "RUTINA Elite",
+    priceLabel: "€30",
+    subtitle: "Everything in AI Pro plus elite coaching and community.",
+    features: [
+      "Everything in AI Pro",
+      "Live training classes",
+      "Community challenges",
+      "Priority support",
+    ],
+  },
 ];
 
 export function RegisterForm() {
@@ -52,6 +82,7 @@ export function RegisterForm() {
   const [isPending, setIsPending] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PackagePlan>("ai");
+  const [signupDraft, setSignupDraft] = useState<SignupDraft | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [localOrderId, setLocalOrderId] = useState<string | null>(null);
   const [checkoutStarted, setCheckoutStarted] = useState(false);
@@ -85,16 +116,15 @@ export function RegisterForm() {
       return;
     }
 
-    setIsPending(true);
-
     try {
       const form = e.currentTarget;
-      const fullName = (new FormData(form).get("full_name") as string).trim();
-      const email = (new FormData(form).get("email") as string).trim().toLowerCase();
-      const phone = ((new FormData(form).get("phone") as string) || "").trim() || null;
-      const password = new FormData(form).get("password") as string;
+      const formData = new FormData(form);
+      const fullName = (formData.get("full_name") as string).trim();
+      const email = (formData.get("email") as string).trim().toLowerCase();
+      const phone = ((formData.get("phone") as string) || "").trim() || null;
+      const password = formData.get("password") as string;
 
-      const signupPayload: GuestSignupPayload = {
+      const nextDraft: SignupDraft = {
         fullName,
         email,
         phone,
@@ -102,8 +132,22 @@ export function RegisterForm() {
         intakeJson,
         referralCode: null,
       };
+      setSignupDraft(nextDraft);
+    } catch (err) {
+      setError(formatUserError(err, "Could not continue. Please try again."));
+    }
+  };
 
-      const result = await createGuestCheckoutOrder(signupPayload, selectedPlan, "monthly");
+  const handleStartCheckout = async () => {
+    if (!signupDraft) {
+      setError("Please complete signup details first.");
+      return;
+    }
+
+    setIsPending(true);
+    setError(null);
+    try {
+      const result = await createGuestCheckoutOrder(signupDraft, selectedPlan, "monthly");
       if ("error" in result) {
         setError(result.error ?? "Could not start checkout. Please try again.");
         return;
@@ -184,6 +228,85 @@ export function RegisterForm() {
             }}
           >
             Back to package selection
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (signupDraft) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-black">Choose your package</CardTitle>
+          <CardDescription>
+            Review package details and continue to payment.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border border-border bg-secondary/20 p-3 text-sm">
+            <p className="font-semibold text-foreground">{signupDraft.fullName}</p>
+            <p className="text-muted-foreground">{signupDraft.email}</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            {PACKAGE_OPTIONS.map((option) => {
+              const selected = selectedPlan === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setSelectedPlan(option.id)}
+                  className={cn(
+                    "rounded-xl border px-3 py-3 text-left transition-colors",
+                    selected
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-secondary/20 hover:bg-secondary/30"
+                  )}
+                  aria-pressed={selected}
+                >
+                  <p className="text-sm font-semibold">{option.name}</p>
+                  <p className="text-xs text-muted-foreground">{option.priceLabel} / month</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{option.subtitle}</p>
+                  <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    {option.features.map((feature) => (
+                      <li key={feature}>- {feature}</li>
+                    ))}
+                  </ul>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            You must complete payment before account access is granted.
+          </p>
+
+          {error && <p className="text-sm text-red-400">{error}</p>}
+
+          <Button type="button" className="w-full" onClick={handleStartCheckout} disabled={isPending}>
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Preparing checkout...
+              </>
+            ) : (
+              <>
+                <CreditCard className="mr-2 h-4 w-4" />
+                Continue to payment
+              </>
+            )}
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            onClick={() => {
+              setSignupDraft(null);
+              setError(null);
+            }}
+          >
+            Back to account details
           </Button>
         </CardContent>
       </Card>
@@ -345,34 +468,6 @@ export function RegisterForm() {
             <Label htmlFor="password">Password</Label>
             <PasswordInput id="password" name="password" required minLength={6} />
           </div>
-          <div className="space-y-2">
-            <Label>Choose package</Label>
-            <div className="grid grid-cols-1 gap-2">
-              {PACKAGE_OPTIONS.map((option) => {
-                const selected = selectedPlan === option.id;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setSelectedPlan(option.id)}
-                    className={cn(
-                      "rounded-xl border px-3 py-3 text-left transition-colors",
-                      selected
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-secondary/20 hover:bg-secondary/30"
-                    )}
-                    aria-pressed={selected}
-                  >
-                    <p className="text-sm font-semibold">{option.name}</p>
-                    <p className="text-xs text-muted-foreground">{option.priceLabel} / month</p>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              You must complete payment before account access is granted.
-            </p>
-          </div>
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
             <input
               id="accept_terms"
@@ -416,8 +511,8 @@ export function RegisterForm() {
               </>
             ) : (
               <>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Continue to payment
+                <ArrowRight className="mr-2 h-4 w-4" />
+                Continue
               </>
             )}
           </Button>
