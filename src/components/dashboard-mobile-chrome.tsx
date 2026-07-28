@@ -25,7 +25,6 @@ import { DashboardStatusCheck, DashboardStatusIcon } from "@/components/section-
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { TrainSectionTabs } from "@/components/train-section-tabs";
-import { WorkoutDifficultyInsightButton } from "@/components/workout-difficulty-insight-button";
 import { Button } from "@/components/ui/button";
 import {
   DASHBOARD_DAY_NUTRITION_PATH,
@@ -102,13 +101,6 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
             <span className="truncate text-xl font-black tracking-tight">
               {platform.trainTabs.workout}
             </span>
-            {workoutActions?.difficultyExercises?.length ? (
-              <WorkoutDifficultyInsightButton
-                exercises={workoutActions.difficultyExercises}
-                intakeProfile={workoutActions.intakeProfile}
-                size="compact"
-              />
-            ) : null}
           </Link>
         </div>
       ) : isProgressPhotosPage ? (

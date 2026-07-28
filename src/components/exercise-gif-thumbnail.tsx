@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Play } from "lucide-react";
 import { ExerciseGifImage } from "@/components/exercise-gif-image";
 import { ExerciseDemoDialog } from "@/components/exercise-demo-dialog";
@@ -10,6 +10,7 @@ import {
   resolveProfileGender,
   type ExerciseGender,
 } from "@/lib/exercise-gif";
+import { extractYoutubeId } from "@/lib/youtube";
 import { cn } from "@/lib/utils";
 
 const SIZE_CLASS = {
@@ -29,6 +30,11 @@ export function exerciseCanShowDemo(
   if (imageUrl?.trim()) return true;
   if (findCatalogExercise(name)) return true;
   return false;
+}
+
+function youtubeThumbnailUrl(videoUrl?: string | null): string | null {
+  const id = videoUrl?.trim() ? extractYoutubeId(videoUrl) : null;
+  return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
 }
 
 export function ExerciseGifThumbnail({
@@ -53,11 +59,30 @@ export function ExerciseGifThumbnail({
     () => resolveExerciseGifUrls({ name, imageUrl, gender: resolvedGender }),
     [name, imageUrl, resolvedGender]
   );
+  const youtubeThumb = useMemo(() => youtubeThumbnailUrl(videoUrl), [videoUrl]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [youtubeFailed, setYoutubeFailed] = useState(false);
   const hasDemo = exerciseCanShowDemo(name, videoUrl, imageUrl) || !!url;
   const sizeClass = SIZE_CLASS[size];
+  const showYoutube = Boolean(youtubeThumb) && !youtubeFailed;
 
-  const image = (
+  useEffect(() => {
+    setYoutubeFailed(false);
+  }, [youtubeThumb]);
+
+  const media = showYoutube ? (
+    <div className={cn("overflow-hidden bg-secondary/40", sizeClass, !expandable && className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={youtubeThumb!}
+        alt={`${name} demonstration`}
+        className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
+        onError={() => setYoutubeFailed(true)}
+      />
+    </div>
+  ) : (
     <ExerciseGifImage
       gifUrl={url}
       fallbackUrl={fallbackUrl}
@@ -67,7 +92,7 @@ export function ExerciseGifThumbnail({
   );
 
   if (!expandable || !hasDemo) {
-    return image;
+    return media;
   }
 
   return (
@@ -82,7 +107,17 @@ export function ExerciseGifThumbnail({
         )}
         aria-label={`Preview ${name}`}
       >
-        {url || fallbackUrl ? (
+        {showYoutube ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={youtubeThumb!}
+            alt={`${name} demonstration`}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onError={() => setYoutubeFailed(true)}
+          />
+        ) : url || fallbackUrl ? (
           <ExerciseGifImage
             gifUrl={url}
             fallbackUrl={fallbackUrl}

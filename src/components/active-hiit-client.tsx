@@ -61,6 +61,7 @@ import {
 import { formatUserError } from "@/lib/format-user-error";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { DayFlowProgress } from "@/components/day-flow-progress";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import {
   isWarmupPlanKind,
   useDayWorkoutFlowContinue,
@@ -195,6 +196,7 @@ export function ActiveHiitClient({
   session,
   config,
   planKind = "hiit",
+  gender,
 }: {
   session: WorkoutSession;
   config: HiitConfig;
@@ -496,6 +498,21 @@ export function ActiveHiitClient({
       : nextPhase?.type === "cycle_rest"
         ? "Cycle rest"
         : nextPhase?.label);
+  const upNextExerciseName =
+    phase?.type === "work" && phase.nextExerciseName
+      ? phase.nextExerciseName
+      : nextPhase?.type === "work"
+        ? nextPhase.exerciseName
+        : phase?.nextExerciseName ?? nextPhase?.exerciseName ?? null;
+  const upNextExercise = upNextExerciseName
+    ? (config.exercises.find((ex) => ex.name === upNextExerciseName) ?? null)
+    : null;
+  const showUpNextPreview =
+    Boolean(upNextExerciseName) && nextPhase?.type === "work";
+  const upNextHeadline =
+    phase?.type === "work" && phase.nextExerciseName
+      ? `Rest → ${phase.nextExerciseName}`
+      : nextLabel;
 
   const playLabel = isDone ? "Done" : isIdle ? "Start" : isRunning ? "Pause" : "Resume";
 
@@ -609,16 +626,25 @@ export function ActiveHiitClient({
       </div>
 
       {!isDone && nextLabel ? (
-        <div className="mx-3 mb-2 shrink-0 rounded-2xl border border-border/60 bg-card/80 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
+        <div className="mx-3 mb-2 shrink-0 rounded-2xl border border-border/60 bg-card/80 px-3 py-2.5">
+          <div className="flex items-center gap-2.5">
+            {showUpNextPreview ? (
+              <ExerciseGifThumbnail
+                name={upNextExerciseName!}
+                imageUrl={upNextExercise?.image_url}
+                videoUrl={upNextExercise?.video_url}
+                gender={gender}
+                size="md"
+                expandable
+                className="shrink-0"
+              />
+            ) : null}
+            <div className="min-w-0 flex-1">
               <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                 Up next
               </p>
-              <p className="mt-0.5 line-clamp-1 text-sm font-black uppercase tracking-tight text-foreground sm:text-base">
-                {phase?.type === "work" && phase.nextExerciseName
-                  ? `Rest → ${phase.nextExerciseName}`
-                  : nextLabel}
+              <p className="mt-0.5 line-clamp-1 text-sm font-black uppercase tracking-tight text-foreground">
+                {upNextHeadline}
               </p>
             </div>
             {nextPhase && nextPhase.type !== "done" ? (
@@ -626,6 +652,17 @@ export function ActiveHiitClient({
                 {formatHiitClock(nextPhase.durationSeconds)}
               </p>
             ) : null}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-8 shrink-0 gap-1.5 rounded-full px-3"
+              disabled={isIdle || isDone || isPending}
+              onClick={handleSkip}
+            >
+              <SkipForward className="h-3.5 w-3.5" />
+              Skip
+            </Button>
           </div>
         </div>
       ) : (
@@ -687,26 +724,6 @@ export function ActiveHiitClient({
               Cycles left
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="h-8 rounded-full px-3"
-            disabled={isIdle || isDone || isPending}
-            onClick={handleSkip}
-          >
-            <SkipForward className="mr-1.5 h-3.5 w-3.5" />
-            Skip
-          </Button>
-          <p className="text-[0.65rem] font-medium text-muted-foreground">
-            Round {phase?.round ?? 1}/{phase?.totalRounds ?? 1}
-            {phase && phase.totalCycles > 1
-              ? ` · Cycle ${phase.cycle}/${phase.totalCycles}`
-              : ""}
-          </p>
         </div>
 
         {!isIdle ? (
