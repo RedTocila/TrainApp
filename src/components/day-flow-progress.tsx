@@ -27,10 +27,13 @@ export function DayFlowProgress({
   currentKind,
   className,
   variant = "light",
+  compact = false,
 }: {
   currentKind: string | null | undefined;
   className?: string;
   variant?: "light" | "dark";
+  /** Smaller pills, no “Step X of 3” label. */
+  compact?: boolean;
 }) {
   const platform = usePlatformCopy();
   const current = normalizeStep(currentKind);
@@ -38,26 +41,28 @@ export function DayFlowProgress({
   const currentLabel = stepShortLabel(current, platform);
 
   return (
-    <div className={cn("w-full space-y-2", className)}>
-      <p
-        className={cn(
-          "text-center text-[11px] font-semibold",
-          variant === "dark" ? "text-white/70" : "text-muted-foreground"
-        )}
-      >
-        {platform.workout.dayFlowStepOf(currentIndex + 1, STEPS.length)}
-        <span className="mx-1.5 opacity-40">·</span>
-        <span
+    <div className={cn("w-full", compact ? "space-y-0" : "space-y-2", className)}>
+      {!compact ? (
+        <p
           className={cn(
-            "font-bold",
-            variant === "dark" ? "text-white" : "text-foreground"
+            "text-center text-[11px] font-semibold",
+            variant === "dark" ? "text-white/70" : "text-muted-foreground"
           )}
         >
-          {currentLabel}
-        </span>
-      </p>
+          {platform.workout.dayFlowStepOf(currentIndex + 1, STEPS.length)}
+          <span className="mx-1.5 opacity-40">·</span>
+          <span
+            className={cn(
+              "font-bold",
+              variant === "dark" ? "text-white" : "text-foreground"
+            )}
+          >
+            {currentLabel}
+          </span>
+        </p>
+      ) : null}
 
-      <ol className="grid grid-cols-3 gap-2">
+      <ol className={cn("grid grid-cols-3", compact ? "gap-1" : "gap-1.5")}>
         {STEPS.map((step, index) => {
           const done = index < currentIndex;
           const active = index === currentIndex;
@@ -66,27 +71,33 @@ export function DayFlowProgress({
             <li key={step} className="min-w-0">
               <div
                 className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-2xl border px-1.5 py-2 transition-colors",
+                  "flex items-center transition-colors",
+                  compact
+                    ? "justify-center gap-1 rounded-lg border px-1.5 py-1"
+                    : "gap-1.5 rounded-xl border px-2 py-1.5",
                   active &&
                     (variant === "dark"
-                      ? "border-white/40 bg-white text-black shadow-sm"
+                      ? "border-white/35 bg-white text-black shadow-sm"
                       : "border-primary/40 bg-primary text-primary-foreground shadow-sm"),
                   done &&
                     !active &&
                     (variant === "dark"
-                      ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-200"
-                      : "border-emerald-500/35 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"),
+                      ? "border-emerald-400/35 bg-emerald-500/15 text-emerald-200"
+                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"),
                   !done &&
                     !active &&
                     (variant === "dark"
                       ? "border-white/10 bg-white/5 text-white/45"
-                      : "border-border/70 bg-secondary/60 text-muted-foreground")
+                      : "border-border/60 bg-secondary/50 text-muted-foreground")
                 )}
                 aria-current={active ? "step" : undefined}
+                aria-label={label}
+                title={label}
               >
                 <span
                   className={cn(
-                    "flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-black tabular-nums",
+                    "flex shrink-0 items-center justify-center rounded-full font-black tabular-nums",
+                    compact ? "h-4 w-4 text-[9px]" : "h-5 w-5 text-[10px]",
                     active &&
                       (variant === "dark" ? "bg-black/10" : "bg-white/20"),
                     done &&
@@ -97,11 +108,21 @@ export function DayFlowProgress({
                       (variant === "dark" ? "bg-white/10" : "bg-background/70")
                   )}
                 >
-                  {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : index + 1}
+                  {done ? (
+                    <Check className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} strokeWidth={3} />
+                  ) : (
+                    index + 1
+                  )}
                 </span>
-                <span className="w-full truncate text-center text-[10px] font-bold uppercase tracking-wide">
-                  {label}
-                </span>
+                {!compact ? (
+                  <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-wide">
+                    {label}
+                  </span>
+                ) : (
+                  <span className="min-w-0 truncate text-[9px] font-bold uppercase tracking-wide">
+                    {label}
+                  </span>
+                )}
               </div>
             </li>
           );

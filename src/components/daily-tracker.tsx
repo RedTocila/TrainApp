@@ -428,7 +428,7 @@ export function DailyTracker({
                 </div>
                 {readOnly ? (
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {platform.nutrition.mealsLogged}: {dailyMeals.length}
+                    {platform.nutrition.loggedCount(dailyMeals.length)}
                   </p>
                 ) : null}
               </div>
@@ -448,7 +448,7 @@ export function DailyTracker({
             </div>
             {!readOnly ? (
               <div className="mt-5 flex items-center justify-between gap-2">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     className="h-8 rounded-full px-3"
@@ -457,10 +457,7 @@ export function DailyTracker({
                     <Camera className="h-3.5 w-3.5" />
                     {platform.nutrition.logMeal}
                   </Button>
-                  <span className="inline-flex items-center text-xs font-medium text-muted-foreground">
-                    {platform.nutrition.mealsLogged}: {dailyMeals.length}
-                  </span>
-                  {showMealPlanButton && (
+                  {showMealPlanButton ? (
                     <Button
                       size="sm"
                       variant="outline"
@@ -470,7 +467,10 @@ export function DailyTracker({
                       <ClipboardList className="h-3.5 w-3.5" />
                       {platform.nutrition.viewDietPlan}
                     </Button>
-                  )}
+                  ) : null}
+                  <span className="inline-flex items-center text-xs font-medium text-muted-foreground">
+                    {platform.nutrition.loggedCount(dailyMeals.length)}
+                  </span>
                 </div>
                 <ChevronRight
                   className="h-5 w-5 shrink-0 text-muted-foreground"

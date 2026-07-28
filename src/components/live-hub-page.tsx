@@ -31,7 +31,7 @@ export function LiveHubPage({
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto w-full min-w-0 max-w-5xl space-y-6">
       <header>
         <nav
           className="dashboard-instant-nav mb-3 flex rounded-full bg-secondary/50 p-1"

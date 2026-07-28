@@ -743,7 +743,7 @@ export function DashboardWorkoutCard({
           <DashboardCardNavBody className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <span className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground dark:bg-white dark:text-black">
+                <span className="inline-flex rounded-full border border-primary/45 bg-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary">
                   {dayLabel}
                 </span>
                 {workout && exerciseCount > 0 ? (

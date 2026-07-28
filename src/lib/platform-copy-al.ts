@@ -226,6 +226,7 @@ export const platformCopyAl = {
   },
   nutrition: {
     mealsLogged: "Vaktet e regjistruara",
+    loggedCount: (n: number) => `regjistruar: ${n}`,
     recentlyLogged: "Regjistruar së fundmi",
     recentlyUploaded: "Ngarkuar së fundmi",
     caloriesLeft: "Kalori të mbetura",

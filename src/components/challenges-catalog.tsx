@@ -82,18 +82,17 @@ function CatalogChallengeCard({
   const href = requiresUpgrade ? buildPricingHref(detailPath) : detailPath;
 
   return (
-    <div className="relative h-full">
+    <div className="relative h-full min-w-0 w-full max-w-full">
       <ChallengeShareButton
         slug={challenge.slug}
         title={challenge.title}
         variant="card"
-        className="absolute right-3 top-3 z-20"
+        className="absolute right-2.5 top-2.5 z-20 h-7 w-7"
       />
-      <Link href={href} className="group block h-full">
+      <Link href={href} className="group block h-full min-w-0 w-full max-w-full">
         <motion.article
-          layout
           className={cn(
-            "relative flex h-full min-h-[210px] flex-col overflow-hidden rounded-3xl border p-4 sm:p-5",
+            "relative flex h-full w-full max-w-full min-w-0 flex-col overflow-hidden rounded-2xl border p-3",
             "transition-shadow hover:shadow-lg",
             visual.border,
             visual.shadow
@@ -101,96 +100,91 @@ function CatalogChallengeCard({
           whileHover={{ y: -2 }}
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
         >
+          <div
+            aria-hidden
+            className={cn("absolute inset-0 bg-gradient-to-br", visual.gradient)}
+          />
           {visual.coverImage ? (
             <div
               aria-hidden
-              className="absolute inset-0 bg-cover bg-center"
+              className="absolute inset-0 bg-cover bg-[center_right] sm:bg-center"
               style={{ backgroundImage: `url(${visual.coverImage})` }}
             />
-          ) : (
-            <div aria-hidden className={cn("absolute inset-0 bg-gradient-to-br", visual.gradient)} />
-          )}
-          {/* Left→middle gradient for readable text; right stays colorful */}
+          ) : null}
           <div
             aria-hidden
-            className="absolute inset-0 bg-gradient-to-r from-black/80 from-0% via-black/45 via-[42%] to-transparent to-[55%]"
+            className="absolute inset-0 bg-gradient-to-r from-black/80 from-0% via-black/50 via-[38%] to-transparent to-[68%]"
           />
 
-          <div className="relative z-10 flex flex-1 flex-col gap-3 text-white">
-            <div className="flex items-center gap-2 pr-10">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-400/20 backdrop-blur-sm">
-                <Trophy className="h-4 w-4 text-amber-300" />
+          <div className="relative z-10 flex w-full min-w-0 max-w-[66%] flex-col gap-1.5 text-white">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-amber-400/20 backdrop-blur-sm">
+                <Trophy className="h-3 w-3 text-amber-300" />
               </span>
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold uppercase tracking-wide text-white/75">
-                  {catalogCopy.cardEyebrow}
-                  {meta ? ` · ${meta}` : null}
-                </p>
-              </div>
-              {joined ? (
-                <span className="ml-auto shrink-0 rounded-full bg-primary/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
-                  {catalogCopy.registeredBadge}
-                </span>
-              ) : null}
+              <p className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide text-white/75">
+                {catalogCopy.cardEyebrow}
+                {meta ? ` · ${meta}` : null}
+              </p>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                  joined
+                    ? "bg-primary text-primary-foreground"
+                    : "invisible pointer-events-none bg-primary text-primary-foreground"
+                )}
+                aria-hidden={!joined}
+              >
+                {catalogCopy.registeredBadge}
+              </span>
             </div>
 
-            <h3 className="text-xl font-black leading-snug tracking-tight drop-shadow-sm">
+            <h3 className="line-clamp-2 min-h-[2.4rem] text-[15px] font-black leading-tight tracking-tight drop-shadow-sm sm:text-base">
               {challenge.title}
             </h3>
 
-            <div>
-              <p className="text-sm font-semibold text-amber-200">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-amber-200">
                 {catalogCopy.prizePoolLabel}:{" "}
-                <span className="text-base font-black text-white">{currentPrizeLabel}</span>
+                <span className="font-black text-white">{currentPrizeLabel}</span>
               </p>
-              <p className="mt-0.5 text-[11px] text-white/65">
+              <p className="truncate text-[10px] leading-tight text-white/65">
                 {catalogCopy.prizePoolUpTo(maxPrizeLabel)}
               </p>
             </div>
 
-            {joined ? (
-              <div className="mt-auto space-y-3">
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2 text-xs text-white/75">
-                    <span>{catalogCopy.daysProgress}</span>
-                    <span className="font-bold tabular-nums text-white">{dayPct}%</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-white/20">
-                    <div
-                      className="h-full rounded-full bg-primary"
-                      style={{ width: `${dayPct}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-[11px] text-white/70">{catalogCopy.yourPosition}</p>
-                    <p className="text-xl font-black tabular-nums">
-                      #{membership?.rank ?? "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-white/70">
-                      {catalogCopy.participantsLabel}
-                    </p>
-                    <p className="text-xl font-black tabular-nums">{participantCount}</p>
-                  </div>
-                </div>
+            <div className="min-w-0 space-y-1">
+              <div className="flex min-w-0 items-center justify-between gap-2 text-[10px] text-white/75">
+                <span className="truncate">{catalogCopy.daysProgress}</span>
+                <span className="shrink-0 font-bold tabular-nums text-white">
+                  {dayPct}%
+                </span>
               </div>
-            ) : (
-              <div className="mt-auto grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-[11px] text-white/70">{catalogCopy.spotsLeftLabel}</p>
-                  <p className="text-xl font-black tabular-nums">{spotsLeft}</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-white/70">
-                    {catalogCopy.participantsLabel}
-                  </p>
-                  <p className="text-xl font-black tabular-nums">{participantCount}</p>
-                </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/20">
+                <div
+                  className="h-full max-w-full rounded-full bg-primary"
+                  style={{ width: `${dayPct}%` }}
+                />
               </div>
-            )}
+            </div>
+
+            <div className="grid min-w-0 grid-cols-2 gap-2 border-t border-white/10 pt-2">
+              <div className="min-w-0">
+                <p className="truncate text-[10px] leading-none text-white/70">
+                  {catalogCopy.spotsLeftLabel}
+                </p>
+                <p className="mt-1 text-base font-black tabular-nums leading-none">
+                  {spotsLeft}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-[10px] leading-none text-white/70">
+                  {catalogCopy.participantsLabel}
+                </p>
+                <p className="mt-1 text-base font-black tabular-nums leading-none">
+                  {participantCount}
+                </p>
+              </div>
+            </div>
           </div>
         </motion.article>
       </Link>
@@ -254,7 +248,7 @@ export function ChallengesCatalog({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 w-full max-w-full space-y-4 overflow-x-hidden">
       <ChallengeCategoryFilterBar
         category={category}
         counts={counts}
@@ -276,7 +270,7 @@ export function ChallengesCatalog({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid w-full min-w-0 auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visibleChallenges.map((challenge) => (
             <CatalogChallengeCard
               key={challenge.id}

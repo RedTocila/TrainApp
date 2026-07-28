@@ -65,11 +65,8 @@ import {
   isWarmupPlanKind,
   useDayWorkoutFlowContinue,
 } from "@/components/day-workout-flow";
-import { ExerciseDemoDialog } from "@/components/exercise-demo-dialog";
-import { ExerciseGifImage } from "@/components/exercise-gif-image";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
-import { resolveExerciseGifUrls, resolveProfileGender } from "@/lib/exercise-gif";
 import type { WorkoutSession } from "@/lib/types";
 import { cn, formatDateKey } from "@/lib/utils";
 
@@ -77,54 +74,51 @@ function phaseTheme(type: HiitPhaseType) {
   switch (type) {
     case "work":
       return {
-        panel: "bg-primary text-primary-foreground",
-        next: "bg-emerald-500 text-black",
-        accent: "text-primary-foreground/80",
-        ring: "border-primary-foreground/40",
-        ringTrack: "stroke-primary-foreground/25",
-        ringProgress: "stroke-primary-foreground",
-        control: "bg-black text-primary-foreground",
+        glow: "bg-gradient-to-b from-primary/20 to-transparent",
+        badge: "border-primary/35 bg-primary/15 text-primary",
+        timer: "text-primary",
+        ringTrack: "stroke-primary/20",
+        ringProgress: "stroke-primary",
       };
     case "rest":
       return {
-        panel: "bg-emerald-500 text-black",
-        next: "bg-primary text-primary-foreground",
-        accent: "text-black/70",
-        ring: "border-black/30",
-        ringTrack: "stroke-black/20",
-        ringProgress: "stroke-black",
-        control: "bg-black text-emerald-400",
+        glow: "bg-gradient-to-b from-emerald-500/15 to-transparent",
+        badge: "border-emerald-500/35 bg-emerald-500/15 text-emerald-400",
+        timer: "text-emerald-400",
+        ringTrack: "stroke-emerald-500/20",
+        ringProgress: "stroke-emerald-400",
       };
     case "round_rest":
+      return {
+        glow: "bg-gradient-to-b from-sky-500/15 to-transparent",
+        badge: "border-sky-500/35 bg-sky-500/15 text-sky-400",
+        timer: "text-sky-400",
+        ringTrack: "stroke-sky-500/20",
+        ringProgress: "stroke-sky-400",
+      };
     case "cycle_rest":
       return {
-        panel: "bg-sky-500 text-black",
-        next: "bg-primary text-primary-foreground",
-        accent: "text-black/70",
-        ring: "border-black/30",
-        ringTrack: "stroke-black/20",
-        ringProgress: "stroke-black",
-        control: "bg-black text-sky-300",
+        glow: "bg-gradient-to-b from-violet-500/15 to-transparent",
+        badge: "border-violet-500/35 bg-violet-500/15 text-violet-400",
+        timer: "text-violet-400",
+        ringTrack: "stroke-violet-500/20",
+        ringProgress: "stroke-violet-400",
       };
     case "prepare":
       return {
-        panel: "bg-amber-400 text-black",
-        next: "bg-primary text-primary-foreground",
-        accent: "text-black/70",
-        ring: "border-black/25",
-        ringTrack: "stroke-black/20",
-        ringProgress: "stroke-black",
-        control: "bg-black text-amber-300",
+        glow: "bg-gradient-to-b from-amber-400/15 to-transparent",
+        badge: "border-amber-400/35 bg-amber-400/15 text-amber-400",
+        timer: "text-amber-400",
+        ringTrack: "stroke-amber-400/25",
+        ringProgress: "stroke-amber-400",
       };
     default:
       return {
-        panel: "bg-background text-foreground",
-        next: "bg-secondary text-foreground",
-        accent: "text-muted-foreground",
-        ring: "border-border",
-        ringTrack: "stroke-muted-foreground/30",
+        glow: "bg-transparent",
+        badge: "border-border bg-secondary/60 text-muted-foreground",
+        timer: "text-foreground",
+        ringTrack: "stroke-muted-foreground/25",
         ringProgress: "stroke-foreground",
-        control: "bg-secondary text-foreground",
       };
   }
 }
@@ -141,14 +135,14 @@ function HiitCountdownRing({
   children: ReactNode;
 }) {
   const size = 220;
-  const stroke = 7;
+  const stroke = 8;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.min(1, Math.max(0, progress));
   const offset = circumference * (1 - clamped);
 
   return (
-    <div className="relative mx-auto aspect-square h-[min(38dvh,11.5rem)] w-[min(38dvh,11.5rem)] max-h-full shrink items-center justify-center">
+    <div className="relative mx-auto aspect-square h-[min(32dvh,12.5rem)] w-[min(32dvh,12.5rem)] shrink-0">
       <svg
         className="absolute inset-0 h-full w-full -rotate-90"
         viewBox={`0 0 ${size} ${size}`}
@@ -201,7 +195,6 @@ export function ActiveHiitClient({
   session,
   config,
   planKind = "hiit",
-  gender,
 }: {
   session: WorkoutSession;
   config: HiitConfig;
@@ -220,7 +213,6 @@ export function ActiveHiitClient({
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
-  const [demoOpen, setDemoOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const advancingRef = useRef(false);
   const lastTickSecondRef = useRef<number | null>(null);
@@ -458,6 +450,20 @@ export function ActiveHiitClient({
     );
   }
 
+  if (phases.length === 0) {
+    return (
+      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-3 bg-background px-6 text-center">
+        <p className="text-lg font-bold">No exercises in this workout</p>
+        <p className="text-sm text-muted-foreground">
+          Add exercises to the HIIT plan, then try again.
+        </p>
+        <Button type="button" variant="secondary" onClick={() => router.push("/dashboard")}>
+          Back
+        </Button>
+      </div>
+    );
+  }
+
   const countdown = formatHiitClock(Math.ceil(remainingMs / 1000));
   const totalElapsed = formatHiitClock(Math.floor(elapsedMs / 1000));
   const phaseDurationMs = Math.max(1, (phase?.durationSeconds ?? 1) * 1000);
@@ -479,6 +485,9 @@ export function ActiveHiitClient({
       : phase?.type === "work"
         ? "Work"
         : phase?.label;
+  const showHeadline =
+    Boolean(headline) &&
+    headline.trim().toLowerCase() !== (phaseEyebrow ?? "").trim().toLowerCase();
   const nextLabel =
     phase?.nextExerciseName ??
     nextPhase?.exerciseName ??
@@ -488,66 +497,26 @@ export function ActiveHiitClient({
         ? "Cycle rest"
         : nextPhase?.label);
 
-  // Always resolve a demo exercise: current work, prepare target, or first in list.
-  const demoFromPhaseName =
-    phase?.type === "work" || phase?.type === "prepare" || phase?.type === "rest"
-      ? phase.exerciseName ?? phase.nextExerciseName
-      : phase?.nextExerciseName ?? config.exercises[0]?.name ?? null;
-  const demoIndex =
-    config.exercises.length === 0
-      ? 0
-      : Math.max(
-          0,
-          Math.min(
-            config.exercises.length - 1,
-            phase?.exerciseIndex ?? 0
-          )
-        );
-  const demoExercise =
-    (demoFromPhaseName
-      ? config.exercises.find(
-          (exercise) =>
-            exercise.name.trim().toLowerCase() ===
-            demoFromPhaseName.trim().toLowerCase()
-        )
-      : null) ??
-    config.exercises[demoIndex] ??
-    (demoFromPhaseName
-      ? {
-          name: demoFromPhaseName,
-          video_url: null,
-          image_url: null,
-          work_seconds: 0,
-          rest_seconds: 0,
-        }
-      : null);
-  const demoGif = demoExercise?.name
-    ? resolveExerciseGifUrls({
-        name: demoExercise.name,
-        imageUrl: demoExercise.image_url,
-        gender: resolveProfileGender(gender) ?? "male",
-      })
-    : null;
-  const showDemo = Boolean(demoExercise?.name);
+  const playLabel = isDone ? "Done" : isIdle ? "Start" : isRunning ? "Pause" : "Resume";
 
   return (
-    <div className="fixed inset-0 z-[200] flex h-dvh max-h-dvh flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 flex-col gap-2 px-3 pb-2 pt-[max(0.5rem,var(--safe-area-top))]">
-        <div className="relative flex h-12 items-center justify-between gap-2">
+    <div className="fixed inset-0 z-[200] flex h-dvh max-h-dvh flex-col overflow-hidden bg-background text-foreground">
+      <header className="relative z-10 flex shrink-0 flex-col gap-2 border-b border-border/60 bg-background/95 px-3 pb-2.5 pt-[max(0.5rem,var(--safe-area-top))] backdrop-blur-md">
+        <div className="relative flex h-11 items-center justify-between gap-2">
           <Link
             href="/dashboard"
-            className="relative z-10 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/80 text-foreground"
+            className="relative z-10 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/60 bg-secondary/80 text-foreground transition hover:bg-secondary"
             aria-label="Back"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
 
           <div className="pointer-events-none absolute inset-x-12 top-1/2 z-0 -translate-y-1/2 text-center">
-            <p className="flex items-center justify-center gap-1.5 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-orange-400">
+            <p className="flex items-center justify-center gap-1.5 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-primary">
               <Zap className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{sessionLabel}</span>
             </p>
-            <p className="font-mono text-sm font-semibold tabular-nums text-foreground">
+            <p className="font-mono text-sm font-semibold tabular-nums text-muted-foreground">
               {totalElapsed}
             </p>
           </div>
@@ -557,7 +526,7 @@ export function ActiveHiitClient({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
               onClick={handleToggleMute}
               aria-label={muted ? "Unmute sounds" : "Mute sounds"}
             >
@@ -567,7 +536,7 @@ export function ActiveHiitClient({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
               onClick={handleReset}
               disabled={isIdle || isPending}
               aria-label="Reset"
@@ -578,7 +547,7 @@ export function ActiveHiitClient({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
               onClick={handleCancel}
               disabled={isPending}
               aria-label="Exit"
@@ -589,145 +558,132 @@ export function ActiveHiitClient({
         </div>
 
         {showDayFlow ? (
-          <DayFlowProgress currentKind={planKind} className="px-1" />
+          <DayFlowProgress currentKind={planKind} compact className="px-0.5" />
         ) : null}
       </header>
 
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-2 transition-colors",
-          theme.panel
-        )}
-      >
-        <p className={cn("text-center text-[0.65rem] font-bold uppercase tracking-[0.25em]", theme.accent)}>
-          {phaseEyebrow}
-        </p>
-        <h1 className="line-clamp-2 max-w-full text-center text-lg font-black uppercase leading-tight tracking-tight sm:text-xl">
-          {headline}
-        </h1>
-        {showDemo && demoExercise?.name ? (
-          <button
-            type="button"
-            onClick={() => setDemoOpen(true)}
-            className="group relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-md ring-offset-background transition hover:ring-2 hover:ring-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-40 sm:w-40"
-            aria-label={`Preview ${demoExercise.name}`}
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-x-0 top-0 h-40 transition-colors duration-300",
+            theme.glow
+          )}
+          aria-hidden
+        />
+
+        <div className="relative z-[1] flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-4 py-4">
+          <span
+            className={cn(
+              "inline-flex rounded-full border px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.2em]",
+              theme.badge
+            )}
           >
-            <ExerciseGifImage
-              gifUrl={demoGif?.url}
-              fallbackUrl={demoGif?.fallbackUrl}
-              alt={demoExercise.name}
-              className="h-full w-full"
-              imgClassName="absolute inset-0 object-contain"
-            />
-            <span className="absolute inset-0 flex items-center justify-center bg-black/15 transition group-hover:bg-black/30">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/40 shadow-sm transition group-hover:bg-black/55 group-hover:scale-105">
-                <Play className="h-5 w-5 fill-white text-white opacity-75 drop-shadow transition group-hover:opacity-100" />
-              </span>
-            </span>
-            <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-              {platform.workout.preview}
-            </span>
-          </button>
-        ) : null}
-        <HiitCountdownRing
-          progress={ringProgress}
-          trackClass={theme.ringTrack}
-          progressClass={theme.ringProgress}
-        >
-          <p className="font-mono text-[2.75rem] font-black leading-none tracking-tighter sm:text-5xl">
-            {isDone
-              ? "00:00"
-              : isIdle
-                ? formatHiitClock(Math.floor(idlePreviewMs / 1000))
-                : countdown}
-          </p>
-        </HiitCountdownRing>
+            {phaseEyebrow}
+          </span>
+
+          {showHeadline ? (
+            <h1 className="line-clamp-2 max-w-full text-center text-xl font-black uppercase leading-tight tracking-tight sm:text-2xl">
+              {headline}
+            </h1>
+          ) : null}
+
+          <HiitCountdownRing
+            progress={ringProgress}
+            trackClass={theme.ringTrack}
+            progressClass={theme.ringProgress}
+          >
+            <p
+              className={cn(
+                "font-mono text-[2.75rem] font-black leading-none tracking-tighter sm:text-5xl",
+                theme.timer
+              )}
+            >
+              {isDone
+                ? "00:00"
+                : isIdle
+                  ? formatHiitClock(Math.floor(idlePreviewMs / 1000))
+                  : countdown}
+            </p>
+          </HiitCountdownRing>
+        </div>
       </div>
 
       {!isDone && nextLabel ? (
-        <div className={cn("flex shrink-0 flex-col justify-center px-4 py-2.5", theme.next)}>
-          <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] opacity-70">Up next</p>
-          <div className="mt-0.5 flex items-baseline justify-between gap-3">
-            <p className="line-clamp-1 text-base font-black uppercase tracking-tight sm:text-lg">
-              {phase?.type === "work" && phase.nextExerciseName
-                ? `Rest → ${phase.nextExerciseName}`
-                : nextLabel}
-            </p>
+        <div className="mx-3 mb-2 shrink-0 rounded-2xl border border-border/60 bg-card/80 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                Up next
+              </p>
+              <p className="mt-0.5 line-clamp-1 text-sm font-black uppercase tracking-tight text-foreground sm:text-base">
+                {phase?.type === "work" && phase.nextExerciseName
+                  ? `Rest → ${phase.nextExerciseName}`
+                  : nextLabel}
+              </p>
+            </div>
             {nextPhase && nextPhase.type !== "done" ? (
-              <p className="shrink-0 font-mono text-sm font-bold opacity-80">
+              <p className="shrink-0 font-mono text-sm font-bold tabular-nums text-muted-foreground">
                 {formatHiitClock(nextPhase.durationSeconds)}
               </p>
             ) : null}
           </div>
         </div>
       ) : (
-        <div className="flex shrink-0 flex-col items-center justify-center bg-emerald-500 px-4 py-2.5 text-black">
-          <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em]">Finished</p>
-          <p className="text-xl font-black uppercase">Great work</p>
+        <div className="mx-3 mb-2 shrink-0 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-center">
+          <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-emerald-400">
+            Finished
+          </p>
+          <p className="text-lg font-black uppercase text-foreground">Great work</p>
         </div>
       )}
 
-      <div className="flex shrink-0 flex-col gap-2.5 bg-black px-4 pb-[max(0.75rem,var(--safe-area-bottom))] pt-3 text-white">
+      <div className="flex shrink-0 flex-col gap-3 border-t border-border/60 bg-card/60 px-4 pb-[max(0.75rem,var(--safe-area-bottom))] pt-3 backdrop-blur-md">
         <div className="grid grid-cols-3 items-center gap-2">
           <div>
-            <p className="font-mono text-2xl font-black text-sky-300">
+            <p className="font-mono text-2xl font-black tabular-nums text-sky-400">
               {Math.max(0, roundsRemaining)}
             </p>
-            <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-white/60">
+            <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               Rounds left
             </p>
           </div>
           <div className="flex flex-col items-center">
             {isDone ? (
               <div
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400"
+                className="flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/35 bg-emerald-500/15 text-emerald-400"
                 aria-hidden
               >
                 <Check className="h-7 w-7" strokeWidth={2.5} />
               </div>
-            ) : isIdle ? (
-              <button
-                type="button"
-                onClick={handleStart}
-                disabled={isPending}
-                className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-amber-400 bg-amber-400 text-black shadow-[0_0_0_4px_rgba(251,191,36,0.2)]"
-                aria-label="Start"
-              >
-                <Play className="h-6 w-6 fill-current" />
-              </button>
-            ) : isRunning ? (
-              <button
-                type="button"
-                onClick={handlePause}
-                className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-amber-400 bg-amber-400 text-black"
-                aria-label="Pause"
-              >
-                <Pause className="h-6 w-6 fill-current" />
-              </button>
             ) : (
               <button
                 type="button"
-                onClick={handleResume}
-                className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-amber-400 bg-amber-400 text-black"
-                aria-label="Resume"
+                onClick={isIdle ? handleStart : isRunning ? handlePause : handleResume}
+                disabled={isIdle && isPending}
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_0_4px_rgba(var(--primary-rgb),0.18)] transition hover:opacity-95 active:scale-[0.97]"
+                aria-label={playLabel}
               >
-                <Play className="h-6 w-6 fill-current" />
+                {isRunning ? (
+                  <Pause className="h-6 w-6 fill-current" />
+                ) : (
+                  <Play className="h-6 w-6 fill-current" />
+                )}
               </button>
             )}
             <p
               className={cn(
-                "mt-1 text-[0.65rem] font-bold uppercase tracking-[0.2em]",
-                isDone ? "text-emerald-400" : "text-amber-300"
+                "mt-1.5 text-[0.65rem] font-bold uppercase tracking-[0.2em]",
+                isDone ? "text-emerald-400" : "text-primary"
               )}
             >
-              {isDone ? "Done" : isIdle ? "Start" : isRunning ? "Pause" : "Resume"}
+              {playLabel}
             </p>
           </div>
           <div className="text-right">
-            <p className="font-mono text-2xl font-black text-amber-300">
+            <p className="font-mono text-2xl font-black tabular-nums text-violet-400">
               {Math.max(0, cyclesRemaining)}
             </p>
-            <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-white/60">
+            <p className="text-[0.6rem] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               Cycles left
             </p>
           </div>
@@ -738,14 +694,14 @@ export function ActiveHiitClient({
             type="button"
             variant="secondary"
             size="sm"
-            className="h-8 bg-white/10 text-white hover:bg-white/15"
+            className="h-8 rounded-full px-3"
             disabled={isIdle || isDone || isPending}
             onClick={handleSkip}
           >
             <SkipForward className="mr-1.5 h-3.5 w-3.5" />
             Skip
           </Button>
-          <p className="text-[0.65rem] text-white/50">
+          <p className="text-[0.65rem] font-medium text-muted-foreground">
             Round {phase?.round ?? 1}/{phase?.totalRounds ?? 1}
             {phase && phase.totalCycles > 1
               ? ` · Cycle ${phase.cycle}/${phase.totalCycles}`
@@ -757,7 +713,7 @@ export function ActiveHiitClient({
           <Button
             type="button"
             size="lg"
-            className="h-12 w-full shrink-0 gap-2 text-base font-black uppercase tracking-wide"
+            className="h-12 w-full shrink-0 gap-2 rounded-full text-base font-black uppercase tracking-wide"
             disabled={isPending || isContinuing}
             onClick={handleComplete}
           >
@@ -774,12 +730,12 @@ export function ActiveHiitClient({
             )}
           </Button>
         ) : null}
-        {(isWarmup || isStretch) ? (
+        {isWarmup || isStretch ? (
           <Button
             type="button"
             variant="secondary"
             size="lg"
-            className="h-11 w-full shrink-0 gap-2 bg-white/10 text-sm font-semibold text-white hover:bg-white/15"
+            className="h-11 w-full shrink-0 gap-2 rounded-full text-sm font-semibold"
             disabled={isPending}
             onClick={handleSkipToMain}
           >
@@ -791,19 +747,9 @@ export function ActiveHiitClient({
             {skipLabel}
           </Button>
         ) : null}
-        {error ? <p className="text-center text-sm text-red-400">{error}</p> : null}
+        {error ? <p className="text-center text-sm text-destructive">{error}</p> : null}
       </div>
       {StretchOfferDialog}
-      {demoExercise?.name ? (
-        <ExerciseDemoDialog
-          open={demoOpen}
-          onClose={() => setDemoOpen(false)}
-          name={demoExercise.name}
-          imageUrl={demoExercise.image_url}
-          videoUrl={demoExercise.video_url}
-          gender={resolveProfileGender(gender)}
-        />
-      ) : null}
     </div>
   );
 }

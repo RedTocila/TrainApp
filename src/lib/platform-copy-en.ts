@@ -223,6 +223,7 @@ export const platformCopyEn = {
   },
   nutrition: {
     mealsLogged: "Meals logged",
+    loggedCount: (n: number) => `logged: ${n}`,
     recentlyLogged: "Recently logged",
     recentlyUploaded: "Recently uploaded",
     caloriesLeft: "Calories left",

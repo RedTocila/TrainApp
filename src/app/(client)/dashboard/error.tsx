@@ -12,6 +12,7 @@ export default function DashboardError({
   reset: () => void;
 }) {
   useEffect(() => {
+    console.error("[DashboardError]", error.name, error.message, error.digest);
     Sentry.captureException(error);
   }, [error]);
 
@@ -25,7 +26,9 @@ export default function DashboardError({
       message={
         staleClient
           ? "The app was updated. Reload the page, then try logging your meal again."
-          : "Something went wrong while loading this page. You can try again or go back."
+          : process.env.NODE_ENV !== "production" && error.message
+            ? error.message
+            : "Something went wrong while loading this page. You can try again or go back."
       }
       onRetry={() => reset()}
       onBack={() => {
