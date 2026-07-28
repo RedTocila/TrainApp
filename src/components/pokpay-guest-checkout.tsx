@@ -26,7 +26,7 @@ function applyPokPaySubmitLabel(root: HTMLElement, label: string) {
   button.dataset.rutinaSubmitLabel = label;
 }
 
-function hidePokPayEmailField(root: HTMLElement, email?: string) {
+function syncPokPayEmailField(root: HTMLElement, email?: string, hide = false) {
   const hideElement = (el: Element | null) => {
     if (!el || !(el instanceof HTMLElement)) return;
     el.setAttribute("aria-hidden", "true");
@@ -55,6 +55,8 @@ function hidePokPayEmailField(root: HTMLElement, email?: string) {
       emailInput.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
+    if (!hide) return;
+
     emailInput.removeAttribute("required");
     hideElement(emailInput);
     hideElement(emailInput.parentElement);
@@ -66,6 +68,8 @@ function hidePokPayEmailField(root: HTMLElement, email?: string) {
       hideElement(label);
     }
   });
+
+  if (!hide) return;
 
   const labels = Array.from(root.querySelectorAll<HTMLElement>("label, .pok-payment-label"));
   labels.forEach((label) => {
@@ -101,11 +105,11 @@ export function PokPayGuestCheckout({
     if (!root) return;
 
     applyPokPaySubmitLabel(root, submitLabel);
-    if (hideEmailField) hidePokPayEmailField(root, email);
+    syncPokPayEmailField(root, email, hideEmailField);
 
     const observer = new MutationObserver(() => {
       applyPokPaySubmitLabel(root, submitLabel);
-      if (hideEmailField) hidePokPayEmailField(root, email);
+      syncPokPayEmailField(root, email, hideEmailField);
     });
 
     observer.observe(root, {
@@ -130,11 +134,6 @@ export function PokPayGuestCheckout({
           env: getPokPayClientEnv(),
           locale,
           countrySelect: "modal",
-          initialState: email
-            ? {
-                email,
-              }
-            : undefined,
         }}
       />
     </div>
