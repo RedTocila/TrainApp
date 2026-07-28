@@ -9,10 +9,13 @@ import {
   Beef,
   Wheat,
   Droplets,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Loader2,
   CreditCard,
   ArrowRight,
+  TicketPercent,
 } from "lucide-react";
 import {
   completeGuestCheckoutAndSignIn,
@@ -31,7 +34,7 @@ import {
   type MacroTargets,
 } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
-import { saveCheckoutReferralCode } from "@/lib/referral-storage";
+import { loadCheckoutReferralCode, saveCheckoutReferralCode } from "@/lib/referral-storage";
 import { formatUserError } from "@/lib/format-user-error";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/components/locale-provider";
@@ -44,6 +47,8 @@ const PACKAGE_OPTIONS: Array<{
   name: string;
   priceLabel: string;
   subtitle: string;
+  badge?: string;
+  includesFrom?: string;
   features: string[];
 }> = [
   {
@@ -51,6 +56,7 @@ const PACKAGE_OPTIONS: Array<{
     name: "RUTINA AI Pro",
     priceLabel: "€20",
     subtitle: "AI coaching and personalized fitness guidance.",
+    badge: "Popular",
     features: [
       "AI Fitness Coach",
       "AI Nutrition Coach",
@@ -63,6 +69,7 @@ const PACKAGE_OPTIONS: Array<{
     name: "RUTINA Elite",
     priceLabel: "€30",
     subtitle: "Everything in AI Pro plus elite coaching and community.",
+    includesFrom: "RUTINA AI Pro",
     features: [
       "Everything in AI Pro",
       "Live training classes",
@@ -82,11 +89,13 @@ export function RegisterForm() {
   const [isPending, setIsPending] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PackagePlan>("ai");
+  const [openPackageDetails, setOpenPackageDetails] = useState<PackagePlan | null>(null);
   const [signupDraft, setSignupDraft] = useState<SignupDraft | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [localOrderId, setLocalOrderId] = useState<string | null>(null);
   const [checkoutStarted, setCheckoutStarted] = useState(false);
   const [paymentPending, setPaymentPending] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
 
   useEffect(() => {
     const draft = loadIntakeDraft();
@@ -98,7 +107,14 @@ export function RegisterForm() {
 
   useEffect(() => {
     const ref = searchParams.get("ref");
-    if (ref?.trim()) saveCheckoutReferralCode(ref.trim());
+    if (ref?.trim()) {
+      const normalized = ref.trim();
+      saveCheckoutReferralCode(normalized);
+      setReferralCode(normalized);
+      return;
+    }
+    const stored = loadCheckoutReferralCode();
+    if (stored?.trim()) setReferralCode(stored.trim());
   }, [searchParams]);
 
   const finishSignup = (role?: string) => {
@@ -123,6 +139,8 @@ export function RegisterForm() {
       const email = (formData.get("email") as string).trim().toLowerCase();
       const phone = ((formData.get("phone") as string) || "").trim() || null;
       const password = formData.get("password") as string;
+      const normalizedReferralCode = referralCode.trim() || null;
+      if (normalizedReferralCode) saveCheckoutReferralCode(normalizedReferralCode);
 
       const nextDraft: SignupDraft = {
         fullName,
@@ -130,7 +148,7 @@ export function RegisterForm() {
         phone,
         password,
         intakeJson,
-        referralCode: null,
+        referralCode: normalizedReferralCode,
       };
       setSignupDraft(nextDraft);
     } catch (err) {
@@ -191,6 +209,8 @@ export function RegisterForm() {
             <PokPayGuestCheckout
               orderId={orderId}
               locale={locale}
+              email={signupDraft?.email}
+              hideEmailField
               onSuccess={() => {
                 setError(null);
                 setPaymentPending(true);
@@ -252,28 +272,87 @@ export function RegisterForm() {
           <div className="grid grid-cols-1 gap-2">
             {PACKAGE_OPTIONS.map((option) => {
               const selected = selectedPlan === option.id;
+              const detailsOpen = openPackageDetails === option.id;
               return (
-                <button
+                <div
                   key={option.id}
-                  type="button"
-                  onClick={() => setSelectedPlan(option.id)}
                   className={cn(
-                    "rounded-xl border px-3 py-3 text-left transition-colors",
+                    "relative overflow-visible rounded-2xl border-2 transition-all",
                     selected
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-secondary/20 hover:bg-secondary/30"
+                      ? "border-primary bg-primary/10 shadow-[0_0_20px_-8px] shadow-primary/40"
+                      : "border-border/70 bg-secondary/30"
                   )}
-                  aria-pressed={selected}
                 >
-                  <p className="text-sm font-semibold">{option.name}</p>
-                  <p className="text-xs text-muted-foreground">{option.priceLabel} / month</p>
-                  <p className="mt-2 text-xs text-muted-foreground">{option.subtitle}</p>
-                  <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    {option.features.map((feature) => (
-                      <li key={feature}>- {feature}</li>
-                    ))}
-                  </ul>
-                </button>
+                  {selected && (
+                    <span
+                      className="absolute -right-2 -top-2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl ring-2 ring-background"
+                      aria-hidden
+                    >
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlan(option.id)}
+                    className="w-full p-4 text-left"
+                    aria-pressed={selected}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="pr-6 text-lg font-black tracking-tight">{option.name}</p>
+                          {option.badge && (
+                            <span className="inline-flex rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black">
+                              {option.badge}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">{option.subtitle}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-2xl font-black tracking-tight">{option.priceLabel}</p>
+                        <p className="text-xs text-muted-foreground">/ month</p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenPackageDetails((current) => (current === option.id ? null : option.id))
+                    }
+                    className="flex w-full items-center justify-center gap-1.5 border-t border-border/50 px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                    aria-expanded={detailsOpen}
+                  >
+                    {detailsOpen ? "Hide details" : "See details"}
+                    <ChevronDown
+                      className={cn("h-3.5 w-3.5 transition-transform", detailsOpen && "rotate-180")}
+                      aria-hidden
+                    />
+                  </button>
+
+                  {detailsOpen && (
+                    <div className="space-y-3 border-t border-border/50 px-4 pb-4 pt-3">
+                      {option.includesFrom && (
+                        <p className="flex items-center gap-2 rounded-xl bg-secondary/50 px-3 py-2 text-xs font-semibold text-primary">
+                          <Check className="h-3.5 w-3.5 shrink-0" />
+                          Everything in {option.includesFrom}, plus:
+                        </p>
+                      )}
+                      <ul className="space-y-2">
+                        {option.features.map((feature) => (
+                          <li key={feature} className="flex items-start gap-2.5 text-sm">
+                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                              <Check className="h-3 w-3 text-primary" />
+                            </span>
+                            <span className="text-muted-foreground">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -467,6 +546,26 @@ export function RegisterForm() {
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <PasswordInput id="password" name="password" required minLength={6} />
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-secondary/25 p-3.5">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <TicketPercent className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Referral code</p>
+                <p className="text-xs text-muted-foreground">Optional discount or invite credit</p>
+              </div>
+            </div>
+            <Input
+              id="guest-referral-code"
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+              placeholder="Enter code (Optional)"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              className="h-11"
+            />
           </div>
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
             <input

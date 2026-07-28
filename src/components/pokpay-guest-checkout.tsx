@@ -26,14 +26,69 @@ function applyPokPaySubmitLabel(root: HTMLElement, label: string) {
   button.dataset.rutinaSubmitLabel = label;
 }
 
+function hidePokPayEmailField(root: HTMLElement, email?: string) {
+  const hideElement = (el: Element | null) => {
+    if (!el || !(el instanceof HTMLElement)) return;
+    el.setAttribute("aria-hidden", "true");
+    el.style.display = "none";
+  };
+
+  const maybeEmailInputs = Array.from(root.querySelectorAll<HTMLInputElement>("input")).filter(
+    (input) => {
+      const attrs = [
+        input.type,
+        input.name,
+        input.id,
+        input.placeholder,
+        input.getAttribute("autocomplete") ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return attrs.includes("email") || attrs.includes("@");
+    }
+  );
+
+  maybeEmailInputs.forEach((emailInput) => {
+    if (email && emailInput.value !== email) {
+      emailInput.value = email;
+      emailInput.dispatchEvent(new Event("input", { bubbles: true }));
+      emailInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    emailInput.removeAttribute("required");
+    hideElement(emailInput);
+    hideElement(emailInput.parentElement);
+    hideElement(emailInput.closest(".pok-payment-input-row"));
+
+    const inputId = emailInput.id;
+    if (inputId) {
+      const label = root.querySelector<HTMLLabelElement>(`label[for='${inputId}']`);
+      hideElement(label);
+    }
+  });
+
+  const labels = Array.from(root.querySelectorAll<HTMLElement>("label, .pok-payment-label"));
+  labels.forEach((label) => {
+    const text = label.textContent?.trim().toLowerCase() ?? "";
+    if (!text.includes("email") && !text.includes("e-mail")) return;
+    hideElement(label);
+    hideElement(label.closest(".pok-payment-field"));
+    hideElement(label.parentElement);
+  });
+}
+
 export function PokPayGuestCheckout({
   orderId,
   locale,
+  email,
+  hideEmailField = false,
   onSuccess,
   onError,
 }: {
   orderId: string;
   locale: CheckoutLocale;
+  email?: string;
+  hideEmailField?: boolean;
   onSuccess: () => void;
   onError: (paymentError: PaymentErrorResponse) => void;
 }) {
@@ -46,9 +101,11 @@ export function PokPayGuestCheckout({
     if (!root) return;
 
     applyPokPaySubmitLabel(root, submitLabel);
+    if (hideEmailField) hidePokPayEmailField(root, email);
 
     const observer = new MutationObserver(() => {
       applyPokPaySubmitLabel(root, submitLabel);
+      if (hideEmailField) hidePokPayEmailField(root, email);
     });
 
     observer.observe(root, {
@@ -58,7 +115,7 @@ export function PokPayGuestCheckout({
     });
 
     return () => observer.disconnect();
-  }, [orderId, submitLabel]);
+  }, [email, hideEmailField, orderId, submitLabel]);
 
   return (
     <div
@@ -73,6 +130,11 @@ export function PokPayGuestCheckout({
           env: getPokPayClientEnv(),
           locale,
           countrySelect: "modal",
+          initialState: email
+            ? {
+                email,
+              }
+            : undefined,
         }}
       />
     </div>

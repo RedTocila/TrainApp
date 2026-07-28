@@ -100,26 +100,53 @@ async function upsertPendingSignup(input: GuestSignupPayload): Promise<
   const passwordEncrypted = encryptPendingPassword(input.password);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-  // Replace any prior unfinished draft for this email.
-  await admin
-    .from("pending_signups")
-    .delete()
-    .eq("email", email)
-    .is("consumed_at", null);
+  const payload = {
+    email,
+    password_encrypted: passwordEncrypted,
+    full_name: input.fullName.trim(),
+    phone: input.phone?.trim() || null,
+    intake_json: input.intakeJson?.trim() || null,
+    referral_code: input.referralCode?.trim() || null,
+    expires_at: expiresAt,
+  };
 
   const { data, error } = await admin
     .from("pending_signups")
-    .insert({
-      email,
-      password_encrypted: passwordEncrypted,
-      full_name: input.fullName.trim(),
-      phone: input.phone?.trim() || null,
-      intake_json: input.intakeJson?.trim() || null,
-      referral_code: input.referralCode?.trim() || null,
-      expires_at: expiresAt,
-    })
+    .insert(payload)
     .select("id")
     .single();
+
+  // Race-safe path: another request inserted an active row first.
+  if (
+    error?.message?.includes("pending_signups_active_email_idx") ||
+    error?.code === "23505"
+  ) {
+    const { data: existing, error: existingError } = await admin
+      .from("pending_signups")
+      .select("id")
+      .eq("email", email)
+      .is("consumed_at", null)
+      .maybeSingle();
+
+    if (existingError || !existing?.id) {
+      return {
+        error: formatUserError(existingError?.message, "Could not save your signup details."),
+      };
+    }
+
+    const { error: updateError } = await admin
+      .from("pending_signups")
+      .update(payload)
+      .eq("id", existing.id);
+
+    if (updateError) {
+      return {
+        error: formatUserError(updateError.message, "Could not save your signup details."),
+      };
+    }
+
+    return { pendingSignupId: existing.id };
+  }
 
   if (error || !data) {
     return {

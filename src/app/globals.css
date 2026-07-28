@@ -354,9 +354,12 @@ html.light .pokpay-checkout #pok-payment-container {
   box-shadow: none;
   padding: 0;
   max-width: none;
+  text-align: left;
 }
 
 .pokpay-checkout .pok-payment-label {
+  display: block;
+  text-align: left;
   font-size: 12px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.7);
