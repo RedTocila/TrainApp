@@ -153,7 +153,7 @@ export function RegisterForm() {
                 void completeGuestCheckoutAndSignIn(localOrderId)
                   .then((result) => {
                     if ("error" in result) {
-                      setError(result.error);
+                      setError(result.error ?? "Could not complete signup after payment.");
                       return;
                     }
                     finishSignup("client");
