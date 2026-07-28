@@ -18,9 +18,43 @@ export type MacroOverageInsight = {
   culpritMealId: string | null;
   culpritMealName: string;
   amountFromMeal: number;
+  /** Kept for AI payload compat; not shown as a ban-list in the UI. */
   problemFoods: string[];
   explanation: string;
   avoidNextTime: string;
+};
+
+export type OverageTipCopy = {
+  noMealsLogged: string;
+  noMealsTip: string;
+  calories: string;
+  protein: string;
+  carbs: string;
+  fat: string;
+  sodium: string;
+  sugar: string;
+  noMealsName?: string;
+  nutrientShort?: Record<OverageNutrient, string>;
+  explain?: (params: {
+    meal: string;
+    amount: number;
+    unit: string;
+    nutrient: string;
+    share: number;
+    target: number;
+  }) => string;
+};
+
+const DEFAULT_OVERAGE_TIPS: OverageTipCopy = {
+  noMealsLogged:
+    "Nothing is logged yet — the overshoot is from missing data, not a meal.",
+  noMealsTip: "Log meals as you eat so you can catch portions earlier.",
+  calories: "Smaller sides and skip second helpings.",
+  protein: "Spread protein more evenly across meals.",
+  carbs: "Smaller starch and sweet portions next time.",
+  fat: "Lighter sauce, oil, and cheese next time.",
+  sodium: "Go easier on salty sauces and packaged add-ons.",
+  sugar: "Smaller sweet portions next time.",
 };
 
 export function mealMacroValue(
@@ -92,23 +126,29 @@ export function listOverTargetNutrients(
   return over;
 }
 
+function tipForNutrient(
+  nutrient: OverageNutrient,
+  tips: OverageTipCopy
+): string {
+  return tips[nutrient];
+}
+
 /** Pick the logged meal that contributes the most to the overshot nutrient. */
 export function fallbackMacroOverageInsight(
   meals: DailyMealLog[],
   nutrient: OverageNutrient,
-  targets: MealMacros
+  targets: MealMacros,
+  tips: OverageTipCopy = DEFAULT_OVERAGE_TIPS
 ): MacroOverageInsight {
   if (meals.length === 0) {
     return {
       nutrient,
       culpritMealId: null,
-      culpritMealName: "No meals logged",
+      culpritMealName: tips.noMealsName ?? "No meals logged",
       amountFromMeal: 0,
       problemFoods: [],
-      explanation:
-        "Nothing is logged yet, so the overshoot is coming from missing or incomplete logging — not a specific meal.",
-      avoidNextTime:
-        "Log meals as you eat them so you can spot portion and add-on problems earlier.",
+      explanation: tips.noMealsLogged,
+      avoidNextTime: tips.noMealsTip,
     };
   }
 
@@ -118,34 +158,37 @@ export function fallbackMacroOverageInsight(
   const top = ranked[0]!;
   const amount = Math.round(mealMacroValue(top, nutrient));
   const unit = nutrientUnit(nutrient);
-  const label = nutrientLabel(nutrient);
+  const label = tips.nutrientShort?.[nutrient] ?? nutrientLabel(nutrient);
   const target =
     nutrient === "sodium"
       ? DAILY_MICRO_TARGETS.sodium
       : nutrient === "sugar"
         ? DAILY_MICRO_TARGETS.sugar
         : targets[nutrient];
-  const foods = mealFoodNames(top);
+  const targetRounded = Math.round(target);
+  const share =
+    targetRounded > 0 ? Math.round((amount / targetRounded) * 100) : 0;
+  const explainParams = {
+    meal: top.name,
+    amount,
+    unit,
+    nutrient: label,
+    share,
+    target: targetRounded,
+  };
 
   return {
     nutrient,
     culpritMealId: top.id,
     culpritMealName: top.name,
     amountFromMeal: amount,
-    problemFoods: foods.slice(0, 5),
-    explanation: foods.length
-      ? `"${top.name}" is your biggest ${label} hit today (~${amount}${unit} of a ${Math.round(target)}${unit} target). Main foods: ${foods.slice(0, 4).join(", ")}.`
-      : `"${top.name}" is your biggest ${label} hit today (~${amount}${unit} vs a ${Math.round(target)}${unit} daily target).`,
-    avoidNextTime:
-      nutrient === "fat"
-        ? "Next time: smaller oil/sauce/cheese portions, leaner cooking methods, and watch creamy sides."
-        : nutrient === "sodium"
-          ? "Next time: skip salty sauces, processed meats, and packaged snacks — season after tasting."
-          : nutrient === "calories"
-            ? "Next time: tighten portions of calorie-dense sides, drinks, and second helpings."
-            : nutrient === "carbs" || nutrient === "sugar"
-              ? "Next time: smaller starch/sweet portions and pair carbs with protein + vegetables."
-              : "Next time: rebalance portions earlier in the day so one meal doesn't pile on late.",
+    problemFoods: [],
+    explanation: tips.explain
+      ? tips.explain(explainParams)
+      : share >= 40
+        ? `"${top.name}" — ~${amount}${unit} ${label} (~${share}% of today's ${targetRounded}${unit} target).`
+        : `"${top.name}" — biggest ${label} hit (~${amount}${unit}).`,
+    avoidNextTime: tipForNutrient(nutrient, tips),
   };
 }
 
@@ -154,13 +197,15 @@ export function buildLocalDayOverageInsights({
   current,
   targets,
   micros,
+  tips,
 }: {
   meals: DailyMealLog[];
   current: MealMacros;
   targets: MealMacros;
   micros?: { sodium?: number; sugar?: number } | null;
+  tips?: OverageTipCopy;
 }): MacroOverageInsight[] {
   return listOverTargetNutrients(current, targets, micros).map((nutrient) =>
-    fallbackMacroOverageInsight(meals, nutrient, targets)
+    fallbackMacroOverageInsight(meals, nutrient, targets, tips)
   );
 }

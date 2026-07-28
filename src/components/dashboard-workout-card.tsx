@@ -35,7 +35,8 @@ import {
   type WorkoutProgressionPoint,
 } from "@/lib/actions/workout-sessions";
 import { WorkoutMuscleMap, MuscleMapLegend } from "@/components/workout-muscle-map";
-import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
+import { StartTodaysWorkoutButton, useStartWorkout } from "@/components/start-todays-workout-button";
+import { useRegisterWorkoutPageChrome } from "@/components/workout-page-chrome-context";
 import { WorkoutProgressionChart, WorkoutProgressionSkeleton } from "@/components/workout-progression-chart";
 import { formatLocalized } from "@/lib/date-locale";
 import { formatDateKey, cn } from "@/lib/utils";
@@ -688,6 +689,40 @@ export function DashboardWorkoutCard({
     }
     return dates.size;
   }, [schedule?.scheduledWorkouts, selectedDate]);
+
+  const showChromeStart =
+    variant === "detail" &&
+    !readOnly &&
+    !showCompletedState &&
+    workoutsForDay.length > 0 &&
+    isDayLoaded;
+  const { start: startChromeWorkout, isStarting: isChromeStarting } =
+    useStartWorkout(selectedDate, null, !showChromeStart, { dayFlow: true });
+  const difficultyExercises = useMemo(
+    () => focusWorkout?.exercises.map((exercise) => ({ sets: exercise.sets })) ?? null,
+    [focusWorkout]
+  );
+  const workoutChromeActions = useMemo(() => {
+    if (variant !== "detail") return null;
+    return {
+      onStartWorkout: startChromeWorkout,
+      showStart: showChromeStart,
+      showCompleted: showCompletedState,
+      disabled: !showChromeStart,
+      isStarting: isChromeStarting,
+      difficultyExercises,
+      intakeProfile: intakeProfile ?? null,
+    };
+  }, [
+    variant,
+    startChromeWorkout,
+    showChromeStart,
+    showCompletedState,
+    isChromeStarting,
+    difficultyExercises,
+    intakeProfile,
+  ]);
+  useRegisterWorkoutPageChrome(workoutChromeActions);
 
   if (variant === "hero") {
     const mainWorkout =

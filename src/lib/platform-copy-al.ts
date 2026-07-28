@@ -234,6 +234,13 @@ export const platformCopyAl = {
     proteinLeft: "Proteinë",
     carbsLeft: "Karbohidrate",
     fatLeft: "Yndyrë",
+    proteinStatusLeft: "Proteinë mbetur",
+    proteinStatusOver: "Proteinë tepër",
+    carbsStatusLeft: "Karbo mbetur",
+    carbsStatusOver: "Karbo tepër",
+    fatStatusLeft: "Yndyrë mbetur",
+    fatStatusOver: "Yndyrë tepër",
+    caloriesStatusOver: "Kalori tepër",
     logFirstMealHint: "Prek + për të regjistruar vaktin e parë",
     waterGoalReached: "Objektivi i ujit u arrit",
     aiCoachPlan: "Plani i Coach AI",
@@ -257,14 +264,59 @@ export const platformCopyAl = {
     logMeal: "Regjistro vakt",
     viewDietPlan: "Plani ushqimor",
     seeWhatWentWrong: "Çfarë shkoi keq",
-    whatWentWrongTitle: "Çfarë të çoi tej",
-    whatWentWrongSubtitle: "Alex kontrolloi vaktet e sotme",
+    whatWentWrongTitle: "Çfarë shkoi keq",
+    whatWentWrongSubtitle: "Një vakt e prishi bilancin",
     analyzingMeals: "Duke kontrolluar vaktet e regjistruara…",
-    problemMeal: "Vakti problematik",
-    problemFoods: "Ushqimet për të kujdesur",
+    problemMeal: "Ku u teprua",
+    problemFoods: "Kujdes me pjesët",
     fromThisMeal: "nga ky vakt",
-    nextTimeLabel: "Herën tjetër",
-    extraNutrient: (nutrient: string) => `Tej mase ${nutrient}`,
+    nextTimeLabel: "Kujdes",
+    moreDetails: "Më shumë detaje",
+    howToFix: "Si ta rregulloj?",
+    nutrientShort: {
+      calories: "kalori",
+      protein: "proteinë",
+      carbs: "karbo",
+      fat: "yndyrë",
+      sodium: "natrium",
+      sugar: "sheqer",
+    },
+    overageTips: {
+      noMealsLogged:
+        "Ende s’ka vakte të regjistruara — tejkalimi vjen nga të dhënat, jo nga një vakt.",
+      noMealsTip: "Regjistro vaktet sapo i ha, që të kapësh pjesët më herët.",
+      calories: "Më pak anë kalorike dhe pa porcione të dyta.",
+      protein: "Shpërndaje proteinën më barabartë në vakte.",
+      carbs: "Pjesë më të vogla niseshteje dhe ëmbëlsirash.",
+      fat: "Më pak salcë, vaj dhe djathë herën tjetër.",
+      sodium: "Më pak salca të kripura dhe ushqime të paketuar.",
+      sugar: "Pjesë më të vogla ëmbëlsirash herën tjetër.",
+    },
+    extraNutrient: (nutrient: string) => `Tepër ${nutrient}`,
+    overageAskAlex: (params: {
+      nutrient: string;
+      meal: string;
+      amountLine?: string;
+    }) =>
+      `Sot mora tepër ${params.nutrient}, kryesisht nga "${params.meal}"${
+        params.amountLine ? ` (${params.amountLine})` : ""
+      }. Më thuaj shkurt çfarë shkoi keq dhe si ta rregulloj herën tjetër.`,
+    dayOverageAskAlex: (summary: string) =>
+      `Sot kalova makrot (${summary}). Më thuaj shkurt çfarë shkoi keq dhe çfarë të ndryshoj nesër.`,
+    overageExplanation: (params: {
+      meal: string;
+      amount: number;
+      unit: string;
+      nutrient: string;
+      share: number;
+      target: number;
+    }) =>
+      params.share >= 40
+        ? `"${params.meal}" — ~${params.amount}${params.unit} ${params.nutrient} (~${params.share}% e objektivit ${params.target}${params.unit} sot).`
+        : `"${params.meal}" — goditja më e madhe te ${params.nutrient} (~${params.amount}${params.unit}).`,
+    overageNoMealsLogged:
+      "Ende s’ka vakte të regjistruara — tejkalimi vjen nga të dhënat, jo nga një vakt.",
+    overageNoMealsName: "Nuk ka vakte të regjistruara",
     waterLogged: (logged: number, goal: number) =>
       `${logged.toLocaleString()} / ${goal.toLocaleString()} ml`,
     eatBetween: (window: string) => `Hani ndërmjet ${window}`,

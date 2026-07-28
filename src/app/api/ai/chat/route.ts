@@ -5,6 +5,7 @@ import {
   runCoachChatWithTools,
 } from "@/lib/ai/coach-chat-with-tools";
 import { TOOL_STATUS_LABELS } from "@/lib/ai/coach-chat-tools";
+import { maybeNaturalizeCoachReply } from "@/lib/ai/albanian-naturalize";
 import { streamChatCompletion, getConfiguredProviders } from "@/lib/ai/providers";
 import {
   checkAlexCommandAllowed,
@@ -23,6 +24,17 @@ function chunkText(text: string, size = 24): string[] {
     chunks.push(text.slice(i, i + size));
   }
   return chunks;
+}
+
+async function collectStreamedText(
+  messages: Parameters<typeof streamChatCompletion>[0],
+  options: { maxTokens?: number; signal?: AbortSignal }
+): Promise<string> {
+  let full = "";
+  for await (const chunk of streamChatCompletion(messages, options)) {
+    full += chunk;
+  }
+  return full;
 }
 
 export async function POST(request: Request) {
@@ -69,12 +81,13 @@ export async function POST(request: Request) {
     return Response.json({ error: validatedImage.error }, { status: 400 });
   }
   const image = validatedImage && "image" in validatedImage ? validatedImage.image : null;
+  const preferredLocale = (profile as Profile).preferred_locale;
 
   const prepared = await prepareFitnessCoachChatWithSearch(
     user.id,
     message,
     history,
-    (profile as Profile).preferred_locale,
+    preferredLocale,
     image
   );
   if ("error" in prepared) {
@@ -95,6 +108,8 @@ export async function POST(request: Request) {
       try {
         enqueue({ meta: { searchedWeb } });
 
+        let reply = "";
+
         if (useTools) {
           const fullProfile = profile as Profile;
           const { data: full } = await supabase
@@ -109,7 +124,9 @@ export async function POST(request: Request) {
             profileForTools,
             (event) => {
               if (event.type === "tool_start") {
-                const label = TOOL_STATUS_LABELS[event.name] ?? `Running ${event.name.replace(/_/g, " ")}…`;
+                const label =
+                  TOOL_STATUS_LABELS[event.name] ??
+                  `Running ${event.name.replace(/_/g, " ")}…`;
                 enqueue({ toolStatus: label });
               }
               if (event.type === "plan_preview") {
@@ -122,20 +139,25 @@ export async function POST(request: Request) {
             { maxTokens: 900, signal: request.signal }
           );
 
-          for (const chunk of chunkText(result.reply)) {
-            enqueue({ text: chunk });
-          }
+          reply = result.reply;
 
           if (result.planPreview) {
             enqueue({ planPreview: result.planPreview });
           }
         } else {
-          for await (const chunk of streamChatCompletion(chatMessages, {
+          reply = await collectStreamedText(chatMessages, {
             maxTokens: 900,
             signal: request.signal,
-          })) {
-            enqueue({ text: chunk });
-          }
+          });
+        }
+
+        if ((profile as Profile).preferred_locale === "al") {
+          enqueue({ toolStatus: "Duke përpunuar shqipën…" });
+        }
+        reply = await maybeNaturalizeCoachReply(reply, preferredLocale);
+
+        for (const chunk of chunkText(reply)) {
+          enqueue({ text: chunk });
         }
 
         if (sources.length > 0) {

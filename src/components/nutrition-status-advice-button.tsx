@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
-import { Loader2, X } from "lucide-react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { Loader2 } from "lucide-react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
-import { OpenAiCoachChatButton } from "@/components/open-ai-coach-chat-button";
+import {
+  DayMacroStatusStrip,
+  OverageInsightCards,
+} from "@/components/overage-insight-card";
+import { OverageInsightHeader } from "@/components/overage-insight-header";
 import { useCoachCopy, useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 import { analyzeDayMacroOverageAction } from "@/lib/actions/ai-macro-overage";
+import { buildOverageLocalCopy } from "@/lib/macro-overage-copy";
 import {
   buildLocalDayOverageInsights,
-  nutrientLabel,
   nutrientUnit,
   type MacroOverageInsight,
+  type OverageNutrient,
 } from "@/lib/macro-overage-local";
 import {
   getNutritionStatusAdvice,
@@ -21,7 +26,6 @@ import {
 } from "@/lib/nutrition-day-utils";
 import type { DailyMealLog } from "@/lib/types";
 import { formatUserError } from "@/lib/format-user-error";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<
@@ -31,69 +35,30 @@ const STATUS_STYLES: Record<
   good: {
     button: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20",
     title: "text-emerald-400",
-    dialog: "border-emerald-500/30 bg-emerald-500/5",
+    dialog: "border-emerald-500/30 bg-emerald-500/15",
   },
   bad: {
     button: "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20",
     title: "text-amber-400",
-    dialog: "border-amber-500/30 bg-amber-500/5",
+    dialog: "border-amber-500/30 bg-amber-500/15",
   },
   missed: {
     button: "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20",
     title: "text-red-400",
-    dialog: "border-red-500/30 bg-red-500/5",
+    dialog: "border-red-500/30 bg-red-500/15",
   },
   too_much: {
     button: "border-orange-500/40 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20",
     title: "text-orange-400",
-    dialog: "border-orange-500/30 bg-orange-500/5",
+    dialog: "border-orange-500/30 bg-orange-500/15",
   },
 };
 
-function OverageInsightCards({
-  insights,
-}: {
-  insights: MacroOverageInsight[];
-}) {
-  const platform = usePlatformCopy();
-  if (insights.length === 0) return null;
-
-  return (
-    <div className="space-y-3">
-      {insights.map((insight) => (
-        <div
-          key={insight.nutrient}
-          className="rounded-xl border border-orange-500/25 bg-orange-500/5 px-3 py-3"
-        >
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-300">
-            {platform.nutrition.extraNutrient(nutrientLabel(insight.nutrient))}
-          </p>
-          <p className="mt-1 text-sm font-black">{insight.culpritMealName}</p>
-          {insight.amountFromMeal > 0 ? (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              ~{insight.amountFromMeal}
-              {nutrientUnit(insight.nutrient)} {platform.nutrition.fromThisMeal}
-            </p>
-          ) : null}
-          {insight.problemFoods.length > 0 ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">
-                {platform.nutrition.problemFoods}:{" "}
-              </span>
-              {insight.problemFoods.join(", ")}
-            </p>
-          ) : null}
-          <p className="mt-2 text-sm leading-relaxed">{insight.explanation}</p>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            <span className="font-semibold text-foreground">
-              {platform.nutrition.nextTimeLabel}:{" "}
-            </span>
-            {insight.avoidNextTime}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
+function nutrientShortName(
+  platform: ReturnType<typeof usePlatformCopy>,
+  nutrient: OverageNutrient
+): string {
+  return platform.nutrition.nutrientShort[nutrient];
 }
 
 export function NutritionStatusAdviceButton({
@@ -124,6 +89,21 @@ export function NutritionStatusAdviceButton({
   const styles = STATUS_STYLES[status];
   const showOverageInsights = status === "too_much";
 
+  const dayChatPrompt = useMemo(() => {
+    if (!showOverageInsights || insights.length === 0) return undefined;
+    const summary = insights
+      .map((insight) => {
+        const nutrient = nutrientShortName(platform, insight.nutrient);
+        const amount =
+          insight.amountFromMeal > 0
+            ? ` ~${insight.amountFromMeal}${nutrientUnit(insight.nutrient)}`
+            : "";
+        return `${nutrient}: ${insight.culpritMealName}${amount}`;
+      })
+      .join("; ");
+    return platform.nutrition.dayOverageAskAlex(summary);
+  }, [insights, platform, showOverageInsights]);
+
   useEffect(() => {
     if (!open || !showOverageInsights) return;
 
@@ -132,6 +112,7 @@ export function NutritionStatusAdviceButton({
       current: context.current,
       targets: context.targets,
       micros,
+      tips: buildOverageLocalCopy(platform.nutrition),
     });
     setInsights(local);
     setError(null);
@@ -181,6 +162,7 @@ export function NutritionStatusAdviceButton({
     context.targets,
     context.dateKey,
     micros,
+    platform.nutrition,
   ]);
 
   return (
@@ -200,7 +182,7 @@ export function NutritionStatusAdviceButton({
                 "hover:brightness-110"
               )
             : cn(
-                "max-w-full shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase leading-snug tracking-wide transition-colors",
+                "max-w-full shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase leading-snug tracking-wide transition-colors",
                 styles.button
               ),
           className
@@ -226,76 +208,55 @@ export function NutritionStatusAdviceButton({
 
       <AppOverlay open={open} onClose={() => setOpen(false)}>
         <AppOverlayPanel maxWidth="max-w-md" className="max-h-[min(92%,36rem)]">
-                <div className="flex items-start justify-between border-b border-border px-5 py-4">
-                  <div className="flex items-center gap-3">
-                    <AiCoachAvatar size="sm" className="h-10 w-10 shrink-0" />
-                    <div>
-                      <h2 className={cn("text-lg font-black", styles.title)}>
-                        {advice.title}
-                      </h2>
-                      <p className="text-xs text-muted-foreground">
-                        {coachCopy.mealInsights.coachName}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setOpen(false)}
-                    aria-label={platform.aria.close}
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
-                </div>
+          <OverageInsightHeader
+            title={advice.title}
+            subtitle={coachCopy.mealInsights.coachName}
+            titleClassName={styles.title}
+            howToFixLabel={platform.nutrition.howToFix}
+            chatPrompt={dayChatPrompt}
+            showHowToFix={status !== "good"}
+            closeAriaLabel={platform.aria.close}
+            onClose={() => setOpen(false)}
+          />
 
-                <div
-                  data-scroll-lock-scrollable
-                  className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4"
-                >
-                  <div className={cn("rounded-xl border px-3 py-3", styles.dialog)}>
-                    <p className="text-sm leading-relaxed">{advice.message}</p>
-                    {advice.detail ? (
-                      <p className="mt-2 text-xs text-muted-foreground">{advice.detail}</p>
+          <div
+            data-scroll-lock-scrollable
+            className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4"
+          >
+            {showOverageInsights ? (
+              <>
+                <DayMacroStatusStrip
+                  current={context.current}
+                  targets={context.targets}
+                />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {platform.nutrition.problemMeal}
+                    </p>
+                    {refining ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-orange-300" />
                     ) : null}
                   </div>
-
-                  {showOverageInsights ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          {platform.nutrition.whatWentWrongTitle}
-                        </p>
-                        {refining ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-orange-300" />
-                        ) : null}
-                      </div>
-                      {error ? (
-                        <p className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-3 text-sm text-red-300">
-                          {error}
-                        </p>
-                      ) : (
-                        <OverageInsightCards insights={insights} />
-                      )}
-                    </div>
-                  ) : null}
+                  {error ? (
+                    <p className="rounded-xl border border-red-500/30 bg-red-500/5 px-3 py-3 text-sm text-red-300">
+                      {error}
+                    </p>
+                  ) : (
+                    <OverageInsightCards insights={insights} />
+                  )}
                 </div>
-
-                <div className="space-y-2 border-t border-border px-5 py-3">
-                  <OpenAiCoachChatButton
-                    className="w-full"
-                    onClick={() => setOpen(false)}
-                  >
-                    {platform.ai.askAlex}
-                  </OpenAiCoachChatButton>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setOpen(false)}
-                  >
-                    {coachLabels.illDoBetter}
-                  </Button>
-                </div>
-              </AppOverlayPanel>
+              </>
+            ) : (
+              <div className={cn("rounded-xl border px-3 py-3", styles.dialog)}>
+                <p className="text-sm leading-snug">{advice.message}</p>
+                {advice.detail ? (
+                  <p className="mt-2 text-xs text-muted-foreground">{advice.detail}</p>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </AppOverlayPanel>
       </AppOverlay>
     </>
   );

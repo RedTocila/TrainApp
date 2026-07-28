@@ -84,6 +84,24 @@ export function macroExceededDailyUpperLimit(
   return actual > max;
 }
 
+/**
+ * UI severity for overshoot badges:
+ * - ok: at or under target
+ * - warn: over target but still inside the ±20% / calorie band (yellow)
+ * - alert: past that tolerance (red)
+ */
+export type MacroOverageSeverity = "ok" | "warn" | "alert";
+
+export function macroOverageSeverity(
+  actual: number,
+  target: number,
+  key: keyof MealMacros
+): MacroOverageSeverity {
+  if (target <= 0 || actual <= target) return "ok";
+  const { max } = macroToleranceBand(target, key);
+  return actual > max ? "alert" : "warn";
+}
+
 /** True when any macro is above its upper tolerance / exceeded ceiling. */
 export function dailyMacrosExceededUpperLimit(
   current: MealMacros,

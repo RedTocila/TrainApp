@@ -7,13 +7,13 @@ import {
   getProgressPhotoSetsWithAnalysis,
   summarizeProgressPhotosForCoach,
 } from "@/lib/ai/progress-photo-context";
-import type { Profile } from "@/lib/types";
+import type { DailyMealLog, Profile } from "@/lib/types";
 import {
   dailyMacroSurplus,
   dailyMacrosExceededUpperLimit,
   macroToleranceBand,
 } from "@/lib/macro-targets";
-import type { MealMacros } from "@/lib/meal-utils";
+import { sumMealMacros, type MealMacros } from "@/lib/meal-utils";
 
 function buildMacroGap(consumed: MealMacros, targets: MacroGap["targets"]): MacroGap {
   const surplus = dailyMacroSurplus(consumed, targets);
@@ -38,16 +38,10 @@ function buildMacroGap(consumed: MealMacros, targets: MacroGap["targets"]): Macr
   };
 }
 
-export async function getMacroGapForDate(
+async function loadConsumedMacrosForDate(
   clientId: string,
-  dateKey: string,
-  targets: {
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-  }
-): Promise<MacroGap> {
+  dateKey: string
+): Promise<{ consumed: MealMacros; meals: DailyMealLog[] }> {
   const supabase = await createClient();
   const [meals, log] = await Promise.all([
     getDailyMealLogs(clientId, dateKey),
@@ -59,23 +53,33 @@ export async function getMacroGapForDate(
       .maybeSingle(),
   ]);
 
-  const fromMeals = meals.reduce(
-    (acc, m) => ({
-      calories: acc.calories + (m.calories ?? 0),
-      protein: acc.protein + (m.protein ?? 0),
-      carbs: acc.carbs + (m.carbs ?? 0),
-      fat: acc.fat + (m.fat ?? 0),
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
-  );
+  // Prefer meal-log sums (same source as the nutrition UI). daily_logs can be
+  // stale or zeroed after a water-only upsert before macros sync.
+  const fromMeals = sumMealMacros(meals);
+  const consumed =
+    meals.length > 0
+      ? fromMeals
+      : {
+          calories: log.data?.calories ?? 0,
+          protein: log.data?.protein ?? 0,
+          carbs: log.data?.carbs ?? 0,
+          fat: log.data?.fat ?? 0,
+        };
 
-  const consumed = {
-    calories: log.data?.calories ?? fromMeals.calories,
-    protein: log.data?.protein ?? fromMeals.protein,
-    carbs: log.data?.carbs ?? fromMeals.carbs,
-    fat: log.data?.fat ?? fromMeals.fat,
-  };
+  return { consumed, meals };
+}
 
+export async function getMacroGapForDate(
+  clientId: string,
+  dateKey: string,
+  targets: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }
+): Promise<MacroGap> {
+  const { consumed } = await loadConsumedMacrosForDate(clientId, dateKey);
   return buildMacroGap(consumed, targets);
 }
 
@@ -85,8 +89,16 @@ export async function getCoachContext(clientId: string, dateKey: string) {
   weekAgo.setDate(weekAgo.getDate() - 7);
   const weekStart = weekAgo.toISOString().split("T")[0];
 
-  const [profile, weightHistory, mealLogs, sessions, habits, progressPhotoSets, progressPhotoContextText] =
-    await Promise.all([
+  const [
+    profile,
+    weightHistory,
+    mealLogs,
+    sessions,
+    habits,
+    progressPhotoSets,
+    progressPhotoContextText,
+    dayMacros,
+  ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", clientId).single(),
     getBodyWeightHistory(clientId, 90),
     supabase
@@ -109,6 +121,7 @@ export async function getCoachContext(clientId: string, dateKey: string) {
       .lte("date", dateKey),
     getProgressPhotoSetsWithAnalysis(clientId, 12),
     buildProgressPhotoContextForAi(clientId),
+    loadConsumedMacrosForDate(clientId, dateKey),
   ]);
 
   const p = profile.data as Profile | null;
@@ -119,7 +132,7 @@ export async function getCoachContext(clientId: string, dateKey: string) {
     fat: p?.target_fat ?? 65,
   };
 
-  const macroGap = await getMacroGapForDate(clientId, dateKey, targets);
+  const macroGap = buildMacroGap(dayMacros.consumed, targets);
 
   const daysWithMeals = new Set((mealLogs.data ?? []).map((m) => m.date)).size;
   const avgProtein =
@@ -130,6 +143,7 @@ export async function getCoachContext(clientId: string, dateKey: string) {
     profile: p,
     targets,
     macroGap,
+    todaysMeals: dayMacros.meals,
     weightHistory,
     workoutsCompleted: sessions.data?.length ?? 0,
     habitCompletions: habits.data?.length ?? 0,

@@ -1,5 +1,6 @@
 import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
+import { NUTRITION_ACCURACY_RULES } from "@/lib/ai/nutrition-accuracy";
 import { formatExceededMacroSummary } from "@/lib/macro-targets";
 import type { MacroGap, MealSuggestion } from "@/lib/ai/types";
 
@@ -56,7 +57,7 @@ function fallbackSuggestions(gap: MacroGap): MealSuggestion[] {
   if (gap.calories > 200 && suggestions.length < 3) {
     suggestions.push({
       title: "Balanced snack",
-      description: "Rice with lean protein and vegetables, or oats with fruit and nuts.",
+      description: "Rice with lean protein and vegetables, or oats with fruit and Greek yogurt.",
       protein_g: Math.min(gap.protein, 25),
       calories: Math.min(gap.calories, 450),
       reason: `You have ~${Math.round(gap.calories)} calories left.`,
@@ -84,14 +85,16 @@ export async function generateMealSuggestions(gap: MacroGap): Promise<{
 
     const prompt = `You are a fitness nutrition coach. The client EXCEEDED their daily macro tolerance — do NOT suggest more food today.
 
+${NUTRITION_ACCURACY_RULES}
+
 Over the limit:
 - Calories: +${gap.surplus.calories} kcal above ceiling
 - Protein: +${gap.surplus.protein}g above ceiling
 - Carbs: +${gap.surplus.carbs}g above ceiling
 - Fat: +${gap.surplus.fat}g above ceiling
 
-Consumed: ${gap.consumed.calories} kcal, ${gap.consumed.protein}g protein.
-Targets: ${gap.targets.calories} kcal, ${gap.targets.protein}g protein.
+Consumed: ${gap.consumed.calories} kcal, ${gap.consumed.protein}g protein, ${gap.consumed.carbs}g carbs, ${gap.consumed.fat}g fat.
+Targets: ${gap.targets.calories} kcal, ${gap.targets.protein}g protein, ${gap.targets.carbs}g carbs, ${gap.targets.fat}g fat.
 
 Suggest 3 practical ways to correct course: review today's logs, lighter meals tomorrow, portion swaps. No "eat more" advice.
 
@@ -130,14 +133,17 @@ Respond with ONLY valid JSON:
 
   const prompt = `You are a fitness nutrition coach. Based on remaining macros, suggest 3 practical meals/snacks.
 
+${NUTRITION_ACCURACY_RULES}
+
 Remaining today (room left before upper tolerance):
 - Calories: ${Math.round(gap.calories)} kcal
 - Protein: ${Math.round(gap.protein)}g
 - Carbs: ${Math.round(gap.carbs)}g
 - Fat: ${Math.round(gap.fat)}g
 
-Targets: ${gap.targets.calories} kcal, ${gap.targets.protein}g protein.
-Prioritize protein if protein gap is largest.
+Consumed: ${gap.consumed.calories} kcal, P${gap.consumed.protein}g C${gap.consumed.carbs}g F${gap.consumed.fat}g
+Targets: ${gap.targets.calories} kcal, ${gap.targets.protein}g protein, ${gap.targets.carbs}g carbs, ${gap.targets.fat}g fat.
+Prioritize protein if protein gap is largest. Never suggest foods that push an already-over macro further over.
 
 Respond with ONLY valid JSON:
 {

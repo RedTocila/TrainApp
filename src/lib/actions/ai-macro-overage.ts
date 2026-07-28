@@ -3,9 +3,12 @@
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import { PLATFORM_AI_NAME } from "@/lib/brand";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { hasAiAccess } from "@/lib/subscription";
 import { isAiConfigured } from "@/lib/ai/providers";
 import { formatUserError } from "@/lib/format-user-error";
+import { getPlatformCopy } from "@/lib/platform-copy";
+import { buildOverageLocalCopy } from "@/lib/macro-overage-copy";
 import {
   buildLocalDayOverageInsights,
   fallbackMacroOverageInsight,
@@ -56,8 +59,10 @@ export async function analyzeMacroOverageAction({
   }
 
   try {
+    const locale = parseCheckoutLocale(profile.preferred_locale);
+    const tips = buildOverageLocalCopy(getPlatformCopy(locale).nutrition);
     const meals = await getDailyMealLogs(profile.id, dateKey);
-    const local = fallbackMacroOverageInsight(meals, nutrient, targets);
+    const local = fallbackMacroOverageInsight(meals, nutrient, targets, tips);
     const canUseAi = hasAiAccess(profile) && isAiConfigured();
 
     if (!canUseAi) return { insight: local };
@@ -68,6 +73,8 @@ export async function analyzeMacroOverageAction({
         nutrient,
         current,
         targets,
+        locale,
+        tips,
       }),
       AI_TIMEOUT_MS,
       local
@@ -98,6 +105,9 @@ export async function analyzeDayMacroOverageAction({
     return { error: "Invalid date" };
   }
 
+  const locale = parseCheckoutLocale(profile.preferred_locale);
+  const tips = buildOverageLocalCopy(getPlatformCopy(locale).nutrition);
+
   try {
     const meals = await getDailyMealLogs(profile.id, dateKey);
     const local = buildLocalDayOverageInsights({
@@ -105,6 +115,7 @@ export async function analyzeDayMacroOverageAction({
       current,
       targets,
       micros,
+      tips,
     });
     const canUseAi = hasAiAccess(profile) && isAiConfigured();
 
@@ -116,6 +127,8 @@ export async function analyzeDayMacroOverageAction({
         current,
         targets,
         micros,
+        locale,
+        tips,
       }),
       AI_TIMEOUT_MS,
       local
@@ -130,6 +143,7 @@ export async function analyzeDayMacroOverageAction({
           current,
           targets,
           micros,
+          tips,
         }),
       };
     } catch {

@@ -26,7 +26,7 @@ import {
   type NutritionDayContext,
 } from "@/lib/nutrition-day-utils";
 import type { OverageNutrient } from "@/lib/macro-overage-local";
-import { macroExceededDailyUpperLimit } from "@/lib/macro-targets";
+import { macroOverageSeverity } from "@/lib/macro-targets";
 import type { DailyMealLog } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -34,51 +34,60 @@ const OVER_RING = "text-red-500";
 const OVER_ICON = "text-red-400";
 
 type MacroKey = keyof MealMacros;
+type OverageTone = "ok" | "warn" | "alert";
 
 function MacroVerticalCard({
   value,
   target,
-  label,
+  labelLeft,
+  labelOver,
   unit = "g",
   icon,
   ringClass,
   iconClass,
-  over,
+  tone,
   insightAction,
 }: {
   value: number;
   target: number;
-  label: string;
+  labelLeft: string;
+  labelOver: string;
   unit?: string;
   icon: LucideIcon;
   ringClass: string;
   iconClass: string;
-  over: boolean;
+  tone: OverageTone;
   insightAction?: ReactNode;
 }) {
+  const over = tone !== "ok";
+  const alert = tone === "alert";
   const remaining = Math.max(0, target - value);
   const display = over ? value - target : remaining;
   const progress = target > 0 ? Math.min(value / target, 1) : 0;
 
   return (
     <div className={cn(dashboard.metricTile, "relative justify-start gap-2")}>
-      {over && insightAction ? (
+      {alert && insightAction ? (
         <div className="pointer-events-auto absolute right-2 top-2 z-[2]">
           {insightAction}
         </div>
       ) : null}
-      <div>
+      <div className="min-h-[2.75rem]">
         <p
           className={cn(
             "text-2xl font-black tabular-nums leading-none",
-            over ? "text-red-400" : "text-foreground"
+            alert
+              ? "text-red-400"
+              : tone === "warn"
+                ? "text-amber-400"
+                : "text-foreground"
           )}
         >
           {Math.round(display)}
           {unit}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {over ? `${label} over` : `${label} left`}
+        <p className="mt-1 truncate whitespace-nowrap text-xs leading-4 text-muted-foreground">
+          {over ? labelOver : labelLeft}
         </p>
       </div>
       <div className="flex flex-1 items-center justify-center">
@@ -87,8 +96,8 @@ function MacroVerticalCard({
           icon={icon}
           size={52}
           stroke={4}
-          ringClass={over ? OVER_RING : ringClass}
-          iconClass={over ? OVER_ICON : iconClass}
+          ringClass={alert ? OVER_RING : ringClass}
+          iconClass={alert ? OVER_ICON : iconClass}
         />
       </div>
     </div>
@@ -156,22 +165,25 @@ function CaloriesHeroCard({
   current,
   target,
   caloriesLeftLabel,
+  caloriesOverLabel,
   insightAction,
 }: {
   current: number;
   target: number;
   caloriesLeftLabel: string;
+  caloriesOverLabel: string;
   insightAction?: ReactNode;
 }) {
-  const over = target > 0 && current > target;
-  const unrecoverable = macroExceededDailyUpperLimit(current, target, "calories");
+  const tone = macroOverageSeverity(current, target, "calories");
+  const over = tone !== "ok";
+  const alert = tone === "alert";
   const caloriesLeft = Math.max(0, target - current);
   const display = over ? current - target : caloriesLeft;
   const progress = target > 0 ? Math.min(current / target, 1) : 0;
 
   return (
     <div className={cn(dashboard.heroTile, "relative")}>
-      {unrecoverable && insightAction ? (
+      {alert && insightAction ? (
         <div className="pointer-events-auto absolute left-2 top-2 z-[2] sm:left-3 sm:top-3">
           {insightAction}
         </div>
@@ -181,13 +193,17 @@ function CaloriesHeroCard({
           <p
             className={cn(
               "text-4xl font-black tabular-nums tracking-tight sm:text-5xl",
-              unrecoverable ? "text-red-400" : over && "text-amber-400"
+              alert
+                ? "text-red-400"
+                : tone === "warn"
+                  ? "text-amber-400"
+                  : "text-foreground"
             )}
           >
             {Math.round(display)}
           </p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {over ? "kcal over" : caloriesLeftLabel}
+          <p className="mt-0.5 truncate whitespace-nowrap text-sm text-muted-foreground">
+            {over ? caloriesOverLabel : caloriesLeftLabel}
           </p>
         </div>
       </div>
@@ -210,9 +226,7 @@ function CaloriesHeroCard({
             stroke="currentColor"
             strokeWidth="6"
             strokeLinecap="round"
-            className={cn(
-              unrecoverable ? "text-red-500" : over ? "text-amber-500" : "text-orange-500"
-            )}
+            className={alert ? "text-red-500" : "text-orange-500"}
             strokeDasharray={2 * Math.PI * 42}
             strokeDashoffset={2 * Math.PI * 42 * (1 - progress)}
           />
@@ -232,28 +246,32 @@ const SLIDE_ONE: {
   icon: LucideIcon;
   ringClass: string;
   iconClass: string;
-  labelKey: "proteinLeft" | "carbsLeft" | "fatLeft";
+  leftKey: "proteinStatusLeft" | "carbsStatusLeft" | "fatStatusLeft";
+  overKey: "proteinStatusOver" | "carbsStatusOver" | "fatStatusOver";
 }[] = [
   {
     key: "protein",
     icon: Beef,
     ringClass: "text-rose-500",
     iconClass: "text-rose-400",
-    labelKey: "proteinLeft",
+    leftKey: "proteinStatusLeft",
+    overKey: "proteinStatusOver",
   },
   {
     key: "carbs",
     icon: Wheat,
     ringClass: "text-amber-400",
     iconClass: "text-amber-300",
-    labelKey: "carbsLeft",
+    leftKey: "carbsStatusLeft",
+    overKey: "carbsStatusOver",
   },
   {
     key: "fat",
     icon: Egg,
     ringClass: "text-sky-500",
     iconClass: "text-sky-400",
-    labelKey: "fatLeft",
+    leftKey: "fatStatusLeft",
+    overKey: "fatStatusOver",
   },
 ];
 
@@ -278,7 +296,10 @@ export function NutritionDetailView({
   const [slide, setSlide] = useState(0);
   const health = scoreDailyNutrition({ ...context, micros });
 
-  const insightButton = (nutrient: OverageNutrient) =>
+  const insightButton = (
+    nutrient: OverageNutrient,
+    severity: "warn" | "alert"
+  ) =>
     meals.length > 0 ? (
       <MacroOverageInsightButton
         nutrient={nutrient}
@@ -286,8 +307,15 @@ export function NutritionDetailView({
         current={current}
         targets={targets}
         meals={meals}
+        severity={severity}
       />
     ) : null;
+
+  const calorieTone = macroOverageSeverity(
+    current.calories,
+    targets.calories,
+    "calories"
+  );
 
   const scrollToSlide = useCallback((index: number) => {
     const node = slideRefs.current[index];
@@ -377,27 +405,37 @@ export function NutritionDetailView({
               current={current.calories}
               target={targets.calories}
               caloriesLeftLabel={platform.nutrition.caloriesLeft}
-              insightAction={insightButton("calories")}
+              caloriesOverLabel={platform.nutrition.caloriesStatusOver}
+              insightAction={
+                calorieTone === "alert"
+                  ? insightButton("calories", "alert")
+                  : null
+              }
             />
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {SLIDE_ONE.map(({ key, icon, ringClass, iconClass, labelKey }) => {
+              {SLIDE_ONE.map(
+                ({ key, icon, ringClass, iconClass, leftKey, overKey }) => {
                 const target = targets[key];
                 const value = current[key];
-                const over = target > 0 && value > target;
+                const tone = macroOverageSeverity(value, target, key);
                 return (
                   <MacroVerticalCard
                     key={key}
                     value={value}
                     target={target}
-                    label={platform.nutrition[labelKey]}
+                    labelLeft={platform.nutrition[leftKey]}
+                    labelOver={platform.nutrition[overKey]}
                     icon={icon}
                     ringClass={ringClass}
                     iconClass={iconClass}
-                    over={over}
-                    insightAction={over ? insightButton(key) : null}
+                    tone={tone}
+                    insightAction={
+                      tone === "alert" ? insightButton(key, "alert") : null
+                    }
                   />
                 );
-              })}
+              }
+              )}
             </div>
           </div>
 
@@ -414,21 +452,23 @@ export function NutritionDetailView({
                 const over = overWhenHigh
                   ? microExceededHighLimit(key, value, target)
                   : false;
+                const tone: OverageTone = over ? "alert" : "ok";
 
                 return (
                   <MacroVerticalCard
                     key={key}
                     value={value}
                     target={target}
-                    label={label}
+                    labelLeft={`${label} left`}
+                    labelOver={`${label} over`}
                     unit={unit ?? "g"}
                     icon={icon}
                     ringClass={ringClass}
                     iconClass={iconClass}
-                    over={over}
+                    tone={tone}
                     insightAction={
                       over && (key === "sodium" || key === "sugar")
-                        ? insightButton(key)
+                        ? insightButton(key, "alert")
                         : null
                     }
                   />

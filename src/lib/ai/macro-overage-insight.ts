@@ -1,15 +1,17 @@
 import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
+import { buildCoachLanguageInstructions } from "@/lib/ai/language-instructions";
+import { NUTRITION_ACCURACY_RULES } from "@/lib/ai/nutrition-accuracy";
 import { DAILY_MICRO_TARGETS } from "@/lib/nutrition-day-utils";
 import {
   fallbackMacroOverageInsight,
   listOverTargetNutrients,
-  mealFoodNames,
   mealMacroValue,
   nutrientLabel,
   nutrientUnit,
   type MacroOverageInsight,
   type OverageNutrient,
+  type OverageTipCopy,
 } from "@/lib/macro-overage-local";
 import type { MealMacros } from "@/lib/meal-utils";
 import type { DailyMealLog } from "@/lib/types";
@@ -31,17 +33,21 @@ export async function generateDayMacroOverageInsights({
   current,
   targets,
   micros,
+  locale,
+  tips,
 }: {
   meals: DailyMealLog[];
   current: MealMacros;
   targets: MealMacros;
   micros?: { sodium?: number; sugar?: number } | null;
+  locale?: string | null;
+  tips?: OverageTipCopy;
 }): Promise<MacroOverageInsight[]> {
   const nutrients = listOverTargetNutrients(current, targets, micros);
   if (nutrients.length === 0) return [];
 
   const fallbacks = nutrients.map((nutrient) =>
-    fallbackMacroOverageInsight(meals, nutrient, targets)
+    fallbackMacroOverageInsight(meals, nutrient, targets, tips)
   );
   if (meals.length === 0) return fallbacks;
 
@@ -76,7 +82,16 @@ export async function generateDayMacroOverageInsights({
     .join("\n");
 
   const prompt = `You are a fitness nutrition coach. The client went over on one or more nutrients.
-For EACH overshot nutrient below, name the specific logged meal and the foods in that meal that caused most of the excess, so they know what to fix next time.
+For EACH overshot nutrient, pick the ONE logged meal that drove most of the excess and give a short rebalance tip.
+
+${NUTRITION_ACCURACY_RULES}
+
+Tone rules (critical):
+- Do NOT list ingredients as banned foods or "foods to avoid".
+- Never make them feel they cannot eat that meal again.
+- Focus on portions and balance for THIS day — what made the macros tip over.
+- Keep wording short and direct. No filler.
+- avoidNextTime must match the nutrient: e.g. for carbs/sugar talk portions of starch/sweets; for fat talk oils/sauces/cheese — never suggest nuts to "add protein".
 
 Over limits:
 ${overLines}
@@ -87,30 +102,34 @@ Targets: ${targets.calories} kcal / ${targets.protein}g P / ${targets.carbs}g C 
 Logged meals:
 ${mealLines}
 
+${buildCoachLanguageInstructions(locale)}
+Write explanation and avoidNextTime in the app language preference above.
+- culpritMealName must be the EXACT meal name string from Logged meals (character-for-character). Never translate or rewrite it.
+- explanation: max 1 short sentence (optional detail; UI may hide it)
+- avoidNextTime: max 8–12 words. Action tip only. No long explanations.
+
 Respond with ONLY valid JSON:
 {
   "insights": [
     {
       "nutrient": "fat|calories|protein|carbs|sodium|sugar",
       "culpritMealId": "exact meal id from the list, or null",
-      "culpritMealName": "meal name",
+      "culpritMealName": "exact meal name from Logged meals",
       "amountFromMeal": number,
-      "problemFoods": ["food 1", "food 2"],
-      "explanation": "2 short sentences naming the meal and foods that drove this overshoot",
-      "avoidNextTime": "1 concrete sentence about what to eat less of / swap next time"
+      "explanation": "ONE short sentence naming the meal impact.",
+      "avoidNextTime": "Very short tip (e.g. smaller dried fruit portion)."
     }
   ]
 }`;
 
   try {
-    const raw = await runTextPrompt(prompt, { maxTokens: 1200, json: true });
+    const raw = await runTextPrompt(prompt, { maxTokens: 900, json: true });
     const parsed = parseJsonObject<{
       insights?: Array<{
         nutrient?: string;
         culpritMealId?: string | null;
         culpritMealName?: string;
         amountFromMeal?: number;
-        problemFoods?: string[];
         explanation?: string;
         avoidNextTime?: string;
       }>;
@@ -136,10 +155,6 @@ Respond with ONLY valid JSON:
                 (row.culpritMealName ?? "").trim().toLowerCase()
             );
 
-      const foods =
-        row.problemFoods?.map((f) => f.trim()).filter(Boolean).slice(0, 5) ??
-        (matched ? mealFoodNames(matched).slice(0, 5) : fallback.problemFoods);
-
       return {
         nutrient,
         culpritMealId:
@@ -154,7 +169,7 @@ Respond with ONLY valid JSON:
             : matched
               ? Math.round(mealMacroValue(matched, nutrient))
               : fallback.amountFromMeal,
-        problemFoods: foods.length ? foods : fallback.problemFoods,
+        problemFoods: [],
         explanation: row.explanation?.trim() || fallback.explanation,
         avoidNextTime: row.avoidNextTime?.trim() || fallback.avoidNextTime,
       };
@@ -169,11 +184,15 @@ export async function generateMacroOverageInsight({
   nutrient,
   current,
   targets,
+  locale,
+  tips,
 }: {
   meals: DailyMealLog[];
   nutrient: OverageNutrient;
   current: MealMacros;
   targets: MealMacros;
+  locale?: string | null;
+  tips?: OverageTipCopy;
 }): Promise<MacroOverageInsight> {
   const micros =
     nutrient === "sodium"
@@ -197,7 +216,9 @@ export async function generateMacroOverageInsight({
     current,
     targets,
     micros,
+    locale,
+    tips,
   });
   const match = insights.find((insight) => insight.nutrient === nutrient);
-  return match ?? fallbackMacroOverageInsight(meals, nutrient, targets);
+  return match ?? fallbackMacroOverageInsight(meals, nutrient, targets, tips);
 }

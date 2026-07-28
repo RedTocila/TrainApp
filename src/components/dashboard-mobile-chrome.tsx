@@ -2,13 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Apple, Camera, ClipboardList, Dumbbell, Gift, ImageIcon, Play } from "lucide-react";
+import {
+  Apple,
+  ArrowLeft,
+  Camera,
+  ClipboardList,
+  Dumbbell,
+  Gift,
+  ImageIcon,
+  Play,
+} from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import {
   FullCalendarNavButton,
 } from "@/components/full-calendar-nav-button";
 import { SupportContactButton } from "@/components/support-contact-button";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
+import { InstantNavLink } from "@/components/instant-nav-link";
 import { useNutritionPageChromeActions } from "@/components/nutrition-page-chrome-context";
 import { useWorkoutPageChromeActions } from "@/components/workout-page-chrome-context";
 import { DashboardStatusCheck, DashboardStatusIcon } from "@/components/section-completed-badge";
@@ -38,7 +48,7 @@ const headerTextButton =
 
 function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
   const pathname = usePathname();
-  const { pendingHref } = useDashboardNavPending();
+  const { pendingHref, setPendingHref } = useDashboardNavPending();
   const chromePath = pendingHref ?? pathname;
   const platform = usePlatformCopy();
   const nutritionActions = useNutritionPageChromeActions();
@@ -54,31 +64,53 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
       )}
     >
       {isNutritionPage ? (
-        <Link href="/dashboard" className="flex min-w-0 flex-1 items-center gap-2">
-          <Apple className="h-6 w-6 shrink-0 text-emerald-400" />
-          <span className="truncate text-xl font-black tracking-tight">
-            {platform.dashboard.nutrition}
-          </span>
-          {nutritionActions?.status === "completed" ? (
-            <DashboardStatusCheck aria-label={platform.aria.completed} />
-          ) : nutritionActions?.status === "over" ? (
-            <DashboardStatusIcon status="missed" aria-label="Over limit" />
-          ) : null}
-        </Link>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <InstantNavLink
+            href="/dashboard"
+            exactMatch
+            onNavigateStart={setPendingHref}
+            aria-label={platform.common.back}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary/80"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden />
+          </InstantNavLink>
+          <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
+            <Apple className="h-6 w-6 shrink-0 text-emerald-400" />
+            <span className="truncate text-xl font-black tracking-tight">
+              {platform.dashboard.nutrition}
+            </span>
+            {nutritionActions?.status === "completed" ? (
+              <DashboardStatusCheck aria-label={platform.aria.completed} />
+            ) : nutritionActions?.status === "over" ? (
+              <DashboardStatusIcon status="missed" aria-label="Over limit" />
+            ) : null}
+          </Link>
+        </div>
       ) : isWorkoutPage ? (
-        <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
-          <Dumbbell className="h-6 w-6 shrink-0 text-primary" />
-          <span className="shrink-0 text-xl font-black tracking-tight">
-            {platform.trainTabs.workout}
-          </span>
-          {workoutActions?.difficultyExercises?.length ? (
-            <WorkoutDifficultyInsightButton
-              exercises={workoutActions.difficultyExercises}
-              intakeProfile={workoutActions.intakeProfile}
-              size="compact"
-            />
-          ) : null}
-        </Link>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <InstantNavLink
+            href="/dashboard"
+            exactMatch
+            onNavigateStart={setPendingHref}
+            aria-label={platform.common.back}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary/80"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden />
+          </InstantNavLink>
+          <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
+            <Dumbbell className="h-6 w-6 shrink-0 text-primary" />
+            <span className="truncate text-xl font-black tracking-tight">
+              {platform.trainTabs.workout}
+            </span>
+            {workoutActions?.difficultyExercises?.length ? (
+              <WorkoutDifficultyInsightButton
+                exercises={workoutActions.difficultyExercises}
+                intakeProfile={workoutActions.intakeProfile}
+                size="compact"
+              />
+            ) : null}
+          </Link>
+        </div>
       ) : isProgressPhotosPage ? (
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <ImageIcon className="h-6 w-6 shrink-0 text-primary" />
@@ -96,7 +128,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
       )}
       {!isProgressPhotosPage ? (
         isNutritionPage && nutritionActions ? (
-          <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
+          <div className={cn(headerSurface, "flex shrink-0 items-center gap-1.5 p-1.5")}>
             {nutritionActions.onLogMeal ? (
               <Button
                 type="button"
@@ -113,7 +145,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
                 type="button"
                 size="sm"
                 variant="outline"
-                className={headerTextButton}
+                className={cn(headerTextButton, "max-[380px]:hidden")}
                 onClick={nutritionActions.onDietPlan}
               >
                 <ClipboardList className="h-3.5 w-3.5" />
@@ -121,9 +153,9 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
               </Button>
             ) : null}
           </div>
-        ) : isWorkoutPage && workoutActions ? (
-          <div className={cn(headerSurface, "flex items-center gap-1.5 p-1.5")}>
-            {workoutActions.showStart ? (
+        ) : isWorkoutPage ? (
+          workoutActions?.showStart ? (
+            <div className={cn(headerSurface, "flex shrink-0 items-center gap-1.5 p-1.5")}>
               <StartWorkoutLoadingShell isLoading={workoutActions.isStarting}>
                 <Button
                   type="button"
@@ -137,8 +169,8 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
                   {platform.workout.startWorkout}
                 </Button>
               </StartWorkoutLoadingShell>
-            ) : null}
-          </div>
+            </div>
+          ) : null
         ) : (
           <div className={headerActionsGroup}>
             <Link

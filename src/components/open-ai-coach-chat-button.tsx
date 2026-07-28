@@ -9,11 +9,14 @@ export function OpenAiCoachChatButton({
   children,
   className,
   icon: Icon,
+  prompt,
   onClick,
 }: {
   children: React.ReactNode;
   className?: string;
   icon?: LucideIcon;
+  /** Opens chat and auto-sends this message when set. */
+  prompt?: string;
   onClick?: () => void;
 }) {
   const { openChat } = useAiCoachChat();
@@ -23,7 +26,7 @@ export function OpenAiCoachChatButton({
       type="button"
       onClick={() => {
         onClick?.();
-        openChat();
+        openChat(prompt);
       }}
       className={cn(buttonVariants({ className }))}
     >

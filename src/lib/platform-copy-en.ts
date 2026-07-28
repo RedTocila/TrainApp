@@ -231,6 +231,13 @@ export const platformCopyEn = {
     proteinLeft: "Protein",
     carbsLeft: "Carbs",
     fatLeft: "Fat",
+    proteinStatusLeft: "Protein left",
+    proteinStatusOver: "Protein over",
+    carbsStatusLeft: "Carbs left",
+    carbsStatusOver: "Carbs over",
+    fatStatusLeft: "Fat left",
+    fatStatusOver: "Fat over",
+    caloriesStatusOver: "Calories over",
     logFirstMealHint: "Tap + to log your first meal",
     waterGoalReached: "Water goal reached",
     aiCoachPlan: "AI Coach plan",
@@ -254,14 +261,59 @@ export const platformCopyEn = {
     logMeal: "Log meal",
     viewDietPlan: "Diet plan",
     seeWhatWentWrong: "What went wrong",
-    whatWentWrongTitle: "What pushed you over",
-    whatWentWrongSubtitle: "Alex checked today's logged meals",
+    whatWentWrongTitle: "What went wrong",
+    whatWentWrongSubtitle: "One meal threw the balance off",
     analyzingMeals: "Checking your logged meals…",
-    problemMeal: "Problem meal",
-    problemFoods: "Foods to watch",
+    problemMeal: "Biggest hit",
+    problemFoods: "Watch portions",
     fromThisMeal: "from this meal",
-    nextTimeLabel: "Next time",
+    nextTimeLabel: "Be careful",
+    moreDetails: "More details",
+    howToFix: "How to fix?",
+    nutrientShort: {
+      calories: "calories",
+      protein: "protein",
+      carbs: "carbs",
+      fat: "fat",
+      sodium: "sodium",
+      sugar: "sugar",
+    },
+    overageTips: {
+      noMealsLogged:
+        "Nothing is logged yet — the overshoot is from missing data, not a meal.",
+      noMealsTip: "Log meals as you eat so you can catch portions earlier.",
+      calories: "Smaller sides and skip second helpings.",
+      protein: "Spread protein more evenly across meals.",
+      carbs: "Smaller starch and sweet portions next time.",
+      fat: "Lighter sauce, oil, and cheese next time.",
+      sodium: "Go easier on salty sauces and packaged add-ons.",
+      sugar: "Smaller sweet portions next time.",
+    },
     extraNutrient: (nutrient: string) => `Too much ${nutrient}`,
+    overageAskAlex: (params: {
+      nutrient: string;
+      meal: string;
+      amountLine?: string;
+    }) =>
+      `I went over on ${params.nutrient} today, mainly from "${params.meal}"${
+        params.amountLine ? ` (${params.amountLine})` : ""
+      }. Tell me briefly what went wrong and how to fix it next time.`,
+    dayOverageAskAlex: (summary: string) =>
+      `Today I went over my macros (${summary}). Tell me briefly what went wrong and what I should change tomorrow.`,
+    overageExplanation: (params: {
+      meal: string;
+      amount: number;
+      unit: string;
+      nutrient: string;
+      share: number;
+      target: number;
+    }) =>
+      params.share >= 40
+        ? `"${params.meal}" — ~${params.amount}${params.unit} ${params.nutrient} (~${params.share}% of today's ${params.target}${params.unit} target).`
+        : `"${params.meal}" — biggest ${params.nutrient} hit (~${params.amount}${params.unit}).`,
+    overageNoMealsLogged:
+      "Nothing is logged yet — the overshoot is from missing data, not a meal.",
+    overageNoMealsName: "No meals logged",
     waterLogged: (logged: number, goal: number) =>
       `${logged.toLocaleString()} / ${goal.toLocaleString()} ml`,
     eatBetween: (window: string) => `Eat between ${window}`,

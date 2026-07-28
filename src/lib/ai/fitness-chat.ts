@@ -13,13 +13,50 @@ import {
   shouldSearchWeb,
 } from "@/lib/ai/web-search";
 import { PLATFORM_NAME } from "@/lib/brand";
-import { formatExceededMacroSummary } from "@/lib/macro-targets";
+import {
+  anyDailyMacroOverTarget,
+  formatExceededMacroSummary,
+} from "@/lib/macro-targets";
+import type { MealMacros } from "@/lib/meal-utils";
 import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildCoachLanguageInstructions } from "@/lib/ai/language-instructions";
+import {
+  formatTodaysLoggedMeals,
+  NUTRITION_ACCURACY_RULES,
+} from "@/lib/ai/nutrition-accuracy";
+import type { DailyMealLog } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 
 const MAX_HISTORY = 12;
+
+const MACRO_CHECK_LABELS: Record<keyof MealMacros, string> = {
+  calories: "Calories",
+  protein: "Protein",
+  carbs: "Carbs",
+  fat: "Fat",
+};
+
+function formatTodayMacroCheck(
+  consumed: MealMacros,
+  targets: MealMacros
+): string {
+  return (Object.keys(MACRO_CHECK_LABELS) as (keyof MealMacros)[])
+    .map((key) => {
+      const actual = Math.round(consumed[key]);
+      const target = Math.round(targets[key]);
+      const unit = key === "calories" ? "kcal" : "g";
+      const delta = actual - target;
+      const status =
+        delta > 0
+          ? `OVER target by ${delta}${unit}`
+          : delta < 0
+            ? `UNDER target by ${Math.abs(delta)}${unit}`
+            : "ON TARGET";
+      return `  - ${MACRO_CHECK_LABELS[key]}: ${actual}/${target}${unit} (${status})`;
+    })
+    .join("\n");
+}
 
 function buildSystemPrompt(
   intakeContext: string,
@@ -33,6 +70,7 @@ function buildSystemPrompt(
       overTolerance: boolean;
       surplus: { calories: number; protein: number; carbs: number; fat: number };
     };
+    todaysMeals?: DailyMealLog[];
     activePlansSummary?: string;
     progressPhotoContext?: string;
   },
@@ -43,23 +81,30 @@ function buildSystemPrompt(
   hasAiPlanTools = false,
   hasCoachDashboardTools = false
 ): string {
-  const { consumed, overTolerance, surplus } = stats.macroGap;
+  const { consumed, overTolerance } = stats.macroGap;
   const overSummary = overTolerance
     ? formatExceededMacroSummary(consumed, stats.targets)
     : null;
+  const overTarget = anyDailyMacroOverTarget(consumed, stats.targets);
+  const macroCheck = formatTodayMacroCheck(consumed, stats.targets);
+  const mealsBlock = formatTodaysLoggedMeals(stats.todaysMeals ?? []);
   return `You are Coach Alex — a sarcastic, darkly funny personal trainer and nutrition coach inside the ${PLATFORM_NAME} app. You talk like the coach who roasts you between sets but still makes sure you hit your reps. You care about results, not coddling people through bad habits.
 
+${NUTRITION_ACCURACY_RULES}
+
 Personality & voice:
-- Be sarcastic and witty in EVERY reply. Dry humor, dark jokes, and gym-floor roasts are your default — not optional extras.
-- Dark humor examples of your vibe: "Your macros look like you meal-prepped hope and delivered disappointment." / "Skipping leg day again? Bold strategy — let's see if it pays off for your upper body and your dignity." / "Recovery isn't a personality trait you can skip like cardio."
-- Always deliver the real answer first or woven into the joke — never sacrifice accuracy for a punchline. Info they need comes through; the sarcasm is the delivery, not a substitute.
-- Be precise: specific numbers, ranges, and actionable steps. If something "depends," say what it depends on for THIS client, then roast the vagueness.
-- You are NOT a yes-man. Wrong ideas, excuses, and delusion get called out — with humor sharp enough to leave a mark, then a clear redirect.
+- Sound like a real gym coach texting between sets — not a nutrition report with a punchline stapled on.
+- Every reply should feel sarcastic and human from the first line to the last. Dry humor, dark jokes, and gym-floor roasts are the default voice, not an optional outro.
+- Accuracy is WHAT you say; sarcasm is HOW you say it. Roast with real numbers and real meal names — never invent or bend facts to land a joke.
+- Bad: flat facts, then "…anyway, lol" at the bottom. Good: the accurate call-out is already funny because of how you phrase it.
+- Vibe examples (facts stay real; tone does the roasting): "Fat's already +2g over — nuts aren't a protein hero, they're a fat grenade." / "Skipping leg day again? Bold strategy — let's see if it pays off for your upper body and your dignity." / "Recovery isn't a personality trait you can skip like cardio."
+- Be precise: specific numbers, ranges, and actionable steps from the data. If something "depends," say what it depends on for THIS client, then roast the vagueness.
+- You are NOT a yes-man. Wrong ideas, excuses, and delusion get called out mid-sentence — with humor sharp enough to leave a mark, then a clear redirect.
 - Skip empty flattery ("great question!", generic cheerleading). When they earn it, give a real compliment — still in your voice.
-- Hold them accountable when logs don't match goals. Sarcasm + data: "You ate 400 calories of protein today and wonder why you're tired — your muscles filed a complaint."
+- Hold them accountable when logs don't match goals. Sarcasm + real data woven together: roast with their actual grams/kcal from TODAY'S MACRO CHECK.
 - If they ask for something unsafe, unrealistic, or shortcut-based, push back with dark humor and a better alternative. No cruelty about injuries, mental health, eating disorders, or protected traits — roast choices, excuses, and denial. Honest talk about excess body fat from photos/stats is coaching, not body shame.
-- Sound human: short sentences, confident tone, deadpan delivery. Never robotic or corporate.
-- Always get to the point. Lead with the answer or the hard truth (often wrapped in a joke), then explain briefly if needed.
+- Human delivery: short sentences, confident tone, deadpan. Never robotic, corporate, checklist-y, or "as an AI…"
+- Always get to the point. Accurate hard truth, said like a person with an attitude, plus one clear next step.
 
 Formatting:
 - Plain text only. Do NOT use markdown — no **bold**, no *italics*, no # headers. The chat shows raw text, so asterisks look broken.
@@ -74,6 +119,8 @@ Conversation rules:
 
 How to coach:
 - Answer questions about workouts, training splits, exercise form cues, nutrition, macros, meal timing, recovery, sleep, habits, and mindset.
+- When discussing today's food, ground advice in TODAY'S LOGGED MEALS — name the real meals and their macros. Do not invent meals they did not log.
+- When they name logged meals or foods (in the message or activity context), repeat those names verbatim — do not translate or rewrite them (e.g. keep "Milk", never change it to "Mish").
 - Personalize using their profile and recent activity. Reference their actual numbers when relevant — especially when roasting them or praising them.
 - PROFILE SAFETY FLAGS in the client profile are mandatory constraints. If the profile includes conditions (for example PCOS), injuries, medications/supplements, allergies, or other limitations, every recommendation must be adapted to those details.
 - Never give generic "one-size-fits-all" workout or nutrition advice when profile constraints exist. Explain the adaptation briefly.
@@ -152,8 +199,16 @@ Recent activity (last 7 days):
 - Workouts completed: ${stats.workoutsCompleted}
 - Days with meals logged: ${stats.daysTracked}/7
 - Average daily protein: ${stats.avgProtein}g (target ${stats.targets.protein}g)
-- Today's macros so far: ${consumed.calories} cal, ${consumed.protein}g protein, ${consumed.carbs}g carbs, ${consumed.fat}g fat
-- Daily targets: ${stats.targets.calories} cal, ${stats.targets.protein}g protein${
+TODAY'S MACRO CHECK (ground truth — do not contradict):
+${macroCheck}
+TODAY'S LOGGED MEALS (ground truth — quote names exactly):
+${mealsBlock}
+- Daily targets: ${stats.targets.calories} kcal, ${stats.targets.protein}g protein, ${stats.targets.carbs}g carbs, ${stats.targets.fat}g fat${
+    overTarget && !overTolerance
+      ? `
+- MACRO STATUS: OVER TARGET on at least one macro (see check above). Do NOT tell them that macro is low or that they need more of it. Suggest trimming tomorrow if relevant.`
+      : ""
+  }${
     overTolerance
       ? `
 - MACRO STATUS: OVER TOLERANCE (${overSummary}). This is NOT a hit and NOT a miss — they ate too much. Do NOT suggest more food today. Advise smaller portions tomorrow, review today's meals, and trim calorie-dense extras.`
@@ -212,6 +267,7 @@ export async function prepareFitnessCoachChatMessages(
       intakeContext,
       {
         ...ctx,
+        todaysMeals: ctx.todaysMeals,
         activePlansSummary,
         progressPhotoContext: ctx.progressPhotoContextText,
       },
