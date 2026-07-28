@@ -105,7 +105,7 @@ export function RegisterForm() {
 
       const result = await createGuestCheckoutOrder(signupPayload, selectedPlan, "monthly");
       if ("error" in result) {
-        setError(result.error);
+        setError(result.error ?? "Could not start checkout. Please try again.");
         return;
       }
 
