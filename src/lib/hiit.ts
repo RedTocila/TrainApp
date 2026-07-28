@@ -200,21 +200,33 @@ export function isIntervalPlan(
   return false;
 }
 
-export function estimateHiitDurationSeconds(config: HiitConfig): number {
-  const { prepare_seconds, rounds, round_rest_seconds, cycles, cycle_rest_seconds, exercises } =
+export function estimateHiitWorkRestSeconds(config: HiitConfig): {
+  workSec: number;
+  restSec: number;
+} {
+  const { rounds, round_rest_seconds, cycles, cycle_rest_seconds, exercises } =
     config;
-  if (exercises.length === 0) return prepare_seconds;
+  if (exercises.length === 0) return { workSec: 0, restSec: 0 };
 
-  let perRound = 0;
+  let workPerRound = 0;
+  let restPerRound = 0;
   exercises.forEach((ex, i) => {
-    perRound += ex.work_seconds;
-    if (i < exercises.length - 1) perRound += ex.rest_seconds;
+    workPerRound += ex.work_seconds;
+    if (i < exercises.length - 1) restPerRound += ex.rest_seconds;
   });
 
   const roundRestTotal = Math.max(0, rounds - 1) * round_rest_seconds;
-  const perCycle = rounds * perRound + roundRestTotal;
   const cycleRestTotal = Math.max(0, cycles - 1) * cycle_rest_seconds;
-  return prepare_seconds + cycles * perCycle + cycleRestTotal;
+  const workSec = cycles * rounds * workPerRound;
+  const restSec =
+    cycles * (rounds * restPerRound + roundRestTotal) + cycleRestTotal;
+  return { workSec, restSec };
+}
+
+export function estimateHiitDurationSeconds(config: HiitConfig): number {
+  const { prepare_seconds } = config;
+  const { workSec, restSec } = estimateHiitWorkRestSeconds(config);
+  return prepare_seconds + workSec + restSec;
 }
 
 export function formatHiitClock(totalSeconds: number): string {

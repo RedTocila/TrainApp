@@ -152,6 +152,7 @@ export const platformCopyAl = {
     toDoTomorrow: "Detyrat e nesërme",
     myProgress: "Progresi im",
     viewDetails: "Shiko detajet",
+    moreDetails: "Më shumë detaje",
   },
   common: {
     back: "Kthehu",
@@ -199,6 +200,10 @@ export const platformCopyAl = {
     expandMeals: "Shfaq vaktet e regjistruara",
     collapseWorkoutResults: "Mbyll rezultatet e stërvitjes",
     expandWorkoutResults: "Shfaq rezultatet e stërvitjes",
+    collapseWorkoutProgress: "Mbyll grafiqet e progresit",
+    expandWorkoutProgress: "Shfaq grafiqet e progresit",
+    collapseWorkoutSession: "Mbyll detajet e stërvitjes",
+    expandWorkoutSession: "Shfaq detajet e stërvitjes",
     viewMealPlan: "Shiko menunë",
     logMeal: "Regjistro vaktin",
     logWeight: "Regjistro peshën",
@@ -572,16 +577,16 @@ export const platformCopyAl = {
       "Përsëritjet totale për seancë — lart do të thotë më shumë punë.",
     progressionScoreTitle: "Rezultati i progresit",
     progressionScoreHint:
-      "Ngrihet kur ngre më shumë ose bën më shumë — qëndron kur mban të njëjtën — zbehet nëse ndalon 5+ ditë.",
+      "Ngrihet kur ngre më shumë, bën më shumë përsëritje, ose përfundon HIIT më të fortë — qëndron kur mban të njëjtën — zbehet nëse ndalon 5+ ditë.",
     progressionHeadlineNew: "Fillo stërvitjen për të parë progresin",
     progressionDetailNew:
       "Pas disa stërvitjeve do të shohësh sa konsistent ke qenë.",
     progressionHeadlineStronger: "Po forcohesh",
     progressionDetailStronger:
-      "Peshat ose ngarkesa e stërvitjes kanë shkuar lart. Vazhdo kështu.",
+      "Peshat, përpjekja HIIT ose ngarkesa e stërvitjes kanë shkuar lart. Vazhdo kështu.",
     progressionHeadlineSteady: "Po mban ritmin",
     progressionDetailSteady:
-      "Pesha të ngjashme dhe rutinë e qëndrueshme — konsistenca ka rëndësi.",
+      "Përpjekje e ngjashme dhe rutinë e qëndrueshme — konsistenca ka rëndësi.",
     progressionHeadlineMissed: "Disa stërvitje u anashkaluan",
     progressionDetailMissed: (n: number) =>
       `Anashkalove ${n} stërvitje të planifikuar së fundmi. Kthimi në ritëm ndihmon.`,
@@ -593,6 +598,25 @@ export const platformCopyAl = {
     progressionLatest: "E fundit",
     progressionSince: (date: string) => `që nga ${date}`,
     progressionChartAria: "Rezultati i progresit me kalimin e kohës",
+    progressionQualityTitle: "Cilësia e stërvitjes",
+    progressionQualityHint:
+      "Si vlerësohen seancat e fundit në pjesët e stërvitjes — HIIT shkëlqen te dendësia e pushimit dhe intensiteti edhe pa pesha.",
+    progressionQualityAria: "Diagrami radar i cilësisë së stërvitjes",
+    progressionQualityReps: "Përsëritje",
+    progressionQualityRepsHint:
+      "Përsëritjet totale të regjistruara — më shumë volum e ngre këtë.",
+    progressionQualityWeight: "Pesha",
+    progressionQualityWeightHint:
+      "Ngarkesa mesatare në ditët e forcës. Mbetet e ulët për bodyweight / HIIT — është normale.",
+    progressionQualityRest: "Pushimi",
+    progressionQualityRestHint:
+      "Dendësia punë–pushim. Pushime më të shkurtra dhe intervale HIIT të ngushta japin rezultat më të lartë.",
+    progressionQualityDuration: "Kohëzgjatja",
+    progressionQualityDurationHint:
+      "Sa gjatë qëndron në seancë — punë e qëndrueshme më e gjatë e ngre këtë.",
+    progressionQualityIntensity: "Intensiteti",
+    progressionQualityIntensityHint:
+      "Ritmi i përpjekjes nga intervalet HIIT ose dendësia e ngarkesës së forcës.",
     noResultsLogged: "Nuk u regjistruan seri për këtë stërvitje.",
     foldersMeta: (folders: number, programs: number) =>
       `${folders} dosje · ${programs} program${programs === 1 ? "" : "e"}`,

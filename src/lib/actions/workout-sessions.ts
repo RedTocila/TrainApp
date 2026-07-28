@@ -1067,12 +1067,44 @@ export interface WorkoutProgressionPoint {
   date: string;
   sessionId: string | null;
   kind: WorkoutProgressionDayKind;
-  /** Training-form score (weights up → rises, same weights → flat, skip → drops, rest → holds). */
+  /** Training-form score (load/effort up → rises, same → flat, skip → drops, rest → holds). */
   score: number;
   volumeKg: number;
   totalReps: number;
   /** Average working weight across logged sets that day (kg). */
   avgWeightKg: number | null;
+  /** Session length from started_at → completed_at (seconds). */
+  durationSec: number;
+  /** Active work seconds (HIIT intervals or estimated from strength sets). */
+  workSec: number;
+  /** Rest seconds from HIIT config (0 when unknown). */
+  restSec: number;
+  /** True for HIIT / interval timer sessions (no weight required). */
+  isInterval: boolean;
+}
+
+function applyPerformanceDelta(
+  score: number,
+  performance: number,
+  lastPerformance: number | null
+): { score: number; lastPerformance: number } {
+  if (lastPerformance != null && lastPerformance > 0) {
+    const ratio = performance / lastPerformance;
+    if (Math.abs(ratio - 1) < 0.05) {
+      return { score, lastPerformance: performance };
+    }
+    if (ratio > 1) {
+      return {
+        score: Math.min(100, score + Math.min(12, (ratio - 1) * 40)),
+        lastPerformance: performance,
+      };
+    }
+    return {
+      score: Math.max(0, score - Math.min(12, (1 - ratio) * 40)),
+      lastPerformance: performance,
+    };
+  }
+  return { score: Math.max(score, 55), lastPerformance: performance };
 }
 
 function addDaysToDateKey(dateKey: string, days: number): string {
@@ -1093,8 +1125,9 @@ function eachDateKeyInclusive(fromKey: string, toKey: string): string[] {
 }
 
 /**
- * Training-form series: weight/volume progress, flat on plateaus,
+ * Training-form series: weight/volume/reps for strength, work-seconds for HIIT,
  * holds through rest days, drops on skipped scheduled workouts.
+ * Strength and interval effort are tracked separately so HIIT without weights still counts.
  */
 export async function getClientWorkoutProgression(): Promise<
   WorkoutProgressionPoint[]
@@ -1107,7 +1140,7 @@ export async function getClientWorkoutProgression(): Promise<
     await Promise.all([
       supabase
         .from("workout_sessions")
-        .select("id, completed_at, scheduled_date")
+        .select("id, completed_at, scheduled_date, started_at, plan_id")
         .eq("client_id", userId)
         .eq("status", "completed")
         .order("completed_at", { ascending: true })
@@ -1131,10 +1164,58 @@ export async function getClientWorkoutProgression(): Promise<
   const rangeStart = accountFrom > fromKey ? accountFrom : fromKey;
 
   const sessionIds = (sessions ?? []).map((s) => s.id);
+  const planIds = [
+    ...new Set(
+      (sessions ?? [])
+        .map((s) => s.plan_id as string | null)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+
   const volumeBySession = new Map<
     string,
     { volumeKg: number; totalReps: number; weightSum: number; weightSets: number }
   >();
+
+  const planMeta = new Map<
+    string,
+    { isInterval: boolean; workSec: number; restSec: number; durationSec: number }
+  >();
+
+  if (planIds.length > 0) {
+    const { data: plans } = await supabase
+      .from("workout_plans")
+      .select("id, kind, hiit_config")
+      .in("id", planIds);
+
+    const {
+      isIntervalPlan,
+      parseHiitConfig,
+      estimateHiitWorkRestSeconds,
+      estimateHiitDurationSeconds,
+    } = await import("@/lib/hiit");
+
+    for (const plan of plans ?? []) {
+      const interval = isIntervalPlan(plan);
+      const config = interval ? parseHiitConfig(plan.hiit_config) : null;
+      if (config) {
+        const { workSec, restSec } = estimateHiitWorkRestSeconds(config);
+        planMeta.set(plan.id as string, {
+          isInterval: true,
+          workSec,
+          restSec,
+          durationSec: estimateHiitDurationSeconds(config),
+        });
+      } else {
+        planMeta.set(plan.id as string, {
+          isInterval: interval,
+          workSec: 0,
+          restSec: 0,
+          durationSec: 0,
+        });
+      }
+    }
+  }
 
   if (sessionIds.length > 0) {
     const { data: exerciseRows } = await supabase
@@ -1176,6 +1257,10 @@ export async function getClientWorkoutProgression(): Promise<
       volumeKg: number;
       totalReps: number;
       avgWeightKg: number | null;
+      durationSec: number;
+      workSec: number;
+      restSec: number;
+      isInterval: boolean;
     }
   >();
 
@@ -1195,11 +1280,49 @@ export async function getClientWorkoutProgression(): Promise<
     };
     const avgWeightKg =
       stats.weightSets > 0 ? stats.weightSum / stats.weightSets : null;
+
+    const meta = session.plan_id
+      ? planMeta.get(session.plan_id as string)
+      : undefined;
+    const isInterval = meta?.isInterval ?? false;
+
+    let durationSec = 0;
+    if (session.started_at && session.completed_at) {
+      const ms =
+        new Date(session.completed_at).getTime() -
+        new Date(session.started_at).getTime();
+      if (Number.isFinite(ms) && ms > 0) {
+        durationSec = Math.round(ms / 1000);
+      }
+    }
+    if (durationSec <= 0 && meta && meta.durationSec > 0) {
+      durationSec = meta.durationSec;
+    }
+
+    const workSec =
+      meta && meta.workSec > 0
+        ? meta.workSec
+        : stats.totalReps > 0
+          ? Math.round(stats.totalReps * 3)
+          : durationSec > 0
+            ? Math.round(durationSec * 0.55)
+            : 0;
+    const restSec =
+      meta && meta.restSec > 0
+        ? meta.restSec
+        : durationSec > workSec
+          ? durationSec - workSec
+          : 0;
+
     const existing = trainedByDate.get(dateKey);
     if (existing) {
       existing.volumeKg += Math.round(stats.volumeKg);
       existing.totalReps += Math.round(stats.totalReps);
       existing.sessionId = session.id;
+      existing.durationSec += durationSec;
+      existing.workSec += workSec;
+      existing.restSec += restSec;
+      existing.isInterval = existing.isInterval || isInterval;
       if (avgWeightKg != null) {
         existing.avgWeightKg =
           existing.avgWeightKg != null
@@ -1212,6 +1335,10 @@ export async function getClientWorkoutProgression(): Promise<
         volumeKg: Math.round(stats.volumeKg),
         totalReps: Math.round(stats.totalReps),
         avgWeightKg,
+        durationSec,
+        workSec,
+        restSec,
+        isInterval,
       });
     }
   }
@@ -1230,7 +1357,8 @@ export async function getClientWorkoutProgression(): Promise<
 
   const timelineStart = firstActivity > rangeStart ? firstActivity : rangeStart;
   let score = 50;
-  let lastPerformance: number | null = null;
+  let lastStrengthPerf: number | null = null;
+  let lastIntervalPerf: number | null = null;
   let daysSinceTrain = 0;
   const points: WorkoutProgressionPoint[] = [];
 
@@ -1238,29 +1366,59 @@ export async function getClientWorkoutProgression(): Promise<
     const trained = trainedByDate.get(dateKey);
     if (trained) {
       daysSinceTrain = 0;
-      const performance =
-        trained.avgWeightKg != null && trained.avgWeightKg > 0
-          ? trained.avgWeightKg
-          : trained.volumeKg > 0
-            ? trained.volumeKg
-            : trained.totalReps > 0
-              ? trained.totalReps
-              : null;
 
-      if (performance != null && lastPerformance != null && lastPerformance > 0) {
-        const ratio = performance / lastPerformance;
-        if (Math.abs(ratio - 1) < 0.05) {
-          // Same weights / load — hold the line
-        } else if (ratio > 1) {
-          score = Math.min(100, score + Math.min(12, (ratio - 1) * 40));
+      if (trained.isInterval) {
+        const intervalPerf =
+          trained.workSec > 0
+            ? trained.workSec
+            : trained.durationSec > 0
+              ? trained.durationSec
+              : 1;
+        const next = applyPerformanceDelta(
+          score,
+          intervalPerf,
+          lastIntervalPerf
+        );
+        score = next.score;
+        lastIntervalPerf = next.lastPerformance;
+      } else {
+        const strengthPerf =
+          trained.avgWeightKg != null && trained.avgWeightKg > 0
+            ? trained.avgWeightKg
+            : trained.volumeKg > 0
+              ? trained.volumeKg
+              : trained.totalReps > 0
+                ? trained.totalReps
+                : null;
+
+        if (strengthPerf != null) {
+          const next = applyPerformanceDelta(
+            score,
+            strengthPerf,
+            lastStrengthPerf
+          );
+          score = next.score;
+          lastStrengthPerf = next.lastPerformance;
+        } else if (trained.durationSec > 0 || trained.workSec > 0) {
+          // Bodyweight / completed session without logged load — still counts.
+          const effortPerf =
+            trained.workSec > 0 ? trained.workSec : trained.durationSec;
+          const next = applyPerformanceDelta(
+            score,
+            effortPerf,
+            lastIntervalPerf
+          );
+          score = next.score;
+          lastIntervalPerf = next.lastPerformance;
         } else {
-          score = Math.max(0, score - Math.min(12, (1 - ratio) * 40));
+          // Finished the workout with no metrics — credit showing up once.
+          if (lastStrengthPerf == null && lastIntervalPerf == null) {
+            score = Math.max(score, 55);
+          } else {
+            score = Math.min(100, score + 3);
+          }
         }
-      } else if (performance != null && lastPerformance == null) {
-        score = 55;
       }
-
-      if (performance != null) lastPerformance = performance;
 
       points.push({
         date: dateKey,
@@ -1270,6 +1428,10 @@ export async function getClientWorkoutProgression(): Promise<
         volumeKg: trained.volumeKg,
         totalReps: trained.totalReps,
         avgWeightKg: trained.avgWeightKg,
+        durationSec: trained.durationSec,
+        workSec: trained.workSec,
+        restSec: trained.restSec,
+        isInterval: trained.isInterval,
       });
       continue;
     }
@@ -1292,6 +1454,10 @@ export async function getClientWorkoutProgression(): Promise<
         volumeKg: 0,
         totalReps: 0,
         avgWeightKg: null,
+        durationSec: 0,
+        workSec: 0,
+        restSec: 0,
+        isInterval: false,
       });
       continue;
     }
@@ -1309,6 +1475,10 @@ export async function getClientWorkoutProgression(): Promise<
       volumeKg: 0,
       totalReps: 0,
       avgWeightKg: null,
+      durationSec: 0,
+      workSec: 0,
+      restSec: 0,
+      isInterval: false,
     });
   }
 

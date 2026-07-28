@@ -1099,17 +1099,17 @@ export function DashboardWorkoutCard({
           </div>
 
           {loadingProgression ? (
-            <div className={cn(dashboard.tile, "mt-4 p-4 sm:p-5")}>
+            <div className={cn(dashboard.tile, "mt-4 p-3 sm:p-3.5")}>
               <WorkoutProgressionSkeleton />
             </div>
           ) : progression && progression.length > 0 ? (
-            <div className={cn(dashboard.tile, "mt-4 p-4 sm:p-5")}>
+            <div className={cn(dashboard.tile, "mt-4 p-3 sm:p-3.5")}>
               <WorkoutProgressionChart points={progression} />
             </div>
           ) : null}
 
           {workoutsForDay.length > 0 ? (
-            <div className="mt-4 space-y-4">
+            <div className="mt-4 space-y-2.5">
               {workoutsForDay.map((workout) => {
                 const workoutKey = workoutNavKey(workout);
                 return (
