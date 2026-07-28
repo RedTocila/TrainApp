@@ -23,6 +23,7 @@ import {
   type GuestSignupPayload,
 } from "@/lib/actions/guest-signup";
 import { BrandWordmark } from "@/components/app-logo";
+import { AuthCardShell } from "@/components/auth-card-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/password-input";
@@ -181,9 +182,12 @@ export function RegisterForm() {
     }
   };
 
+  const backHref = intakeJson ? "/get-started" : "/";
+
   if (checkoutStarted && orderId && localOrderId) {
     return (
-      <Card className="w-full max-w-md">
+      <AuthCardShell backHref={backHref}>
+      <Card className="w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-black">Complete purchase</CardTitle>
           <CardDescription>
@@ -251,12 +255,14 @@ export function RegisterForm() {
           </Button>
         </CardContent>
       </Card>
+      </AuthCardShell>
     );
   }
 
   if (signupDraft) {
     return (
-      <Card className="w-full max-w-md">
+      <AuthCardShell backHref={backHref}>
+      <Card className="w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-black">Choose your package</CardTitle>
           <CardDescription>
@@ -389,11 +395,13 @@ export function RegisterForm() {
           </Button>
         </CardContent>
       </Card>
+      </AuthCardShell>
     );
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <AuthCardShell backHref={backHref}>
+    <Card className="w-full">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-black">
           JOIN <BrandWordmark />
@@ -539,9 +547,6 @@ export function RegisterForm() {
           <div className="space-y-2">
             <Label htmlFor="phone">Phone number</Label>
             <Input id="phone" name="phone" type="tel" placeholder="+355 11 222 333 (Optional)" />
-            <p className="text-xs text-muted-foreground">
-              Optional — your coach may reach out if you need support.
-            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -624,5 +629,6 @@ export function RegisterForm() {
         </p>
       </CardContent>
     </Card>
+    </AuthCardShell>
   );
 }

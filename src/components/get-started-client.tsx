@@ -9,6 +9,7 @@ import {
   IntakeQuestionnaireWizard,
 } from "@/components/intake-questionnaire-wizard";
 import { AppLogo } from "@/components/app-logo";
+import { AuthBackButton } from "@/components/auth-back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
@@ -50,9 +51,12 @@ export function GetStartedClient() {
 
       <div className="relative mx-auto flex max-w-2xl flex-col gap-6">
         <header className="flex items-center justify-between">
-          <Link href="/" className="inline-flex">
-            <AppLogo />
-          </Link>
+          <div className="flex items-center gap-2">
+            <AuthBackButton href="/" />
+            <Link href="/" className="inline-flex">
+              <AppLogo />
+            </Link>
+          </div>
         </header>
 
         {phase === "intro" && (

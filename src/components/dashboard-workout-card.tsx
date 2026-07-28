@@ -851,7 +851,7 @@ export function DashboardWorkoutCard({
 
                 <div className="mt-auto">
                   {mainDone ? (
-                    <div className="flex items-center justify-center rounded-full border border-emerald-500/35 bg-emerald-500/10 px-4 py-2.5">
+                    <div className="flex items-center justify-center rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-2.5">
                       <p className="truncate text-center text-sm font-semibold text-emerald-600 dark:text-emerald-300">
                         {workout.dayTitle || workout.planTitle}
                         <span className="mx-1.5 opacity-50">·</span>
@@ -861,7 +861,7 @@ export function DashboardWorkoutCard({
                   ) : (
                     <div
                       className={cn(
-                        "flex items-center gap-2 rounded-full border border-border/60 bg-background/55 px-3.5 py-2.5 backdrop-blur-sm",
+                        "flex items-center gap-2 rounded-2xl border border-border/60 bg-background/55 px-3.5 py-2.5 backdrop-blur-sm",
                         "shadow-sm"
                       )}
                     >
@@ -874,7 +874,7 @@ export function DashboardWorkoutCard({
                           {durationLabel ? ` · ${durationLabel}` : null}
                         </p>
                       </div>
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
                         <ChevronRight className="h-4 w-4" />
                       </span>
                     </div>

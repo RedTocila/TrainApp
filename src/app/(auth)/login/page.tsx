@@ -9,10 +9,8 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Suspense fallback={<div className="h-80 w-full max-w-md animate-pulse rounded-xl bg-muted/40" />}>
-        <LoginForm authError={error} />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div className="h-80 w-full animate-pulse rounded-xl bg-muted/40" />}>
+      <LoginForm authError={error} />
+    </Suspense>
   );
 }
