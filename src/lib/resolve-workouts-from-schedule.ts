@@ -29,6 +29,8 @@ function mapScheduledDayToWorkout(
       sets: ex.sets,
       reps: ex.reps,
       notes: ex.notes,
+      image_url: ex.image_url ?? null,
+      video_url: ex.video_url ?? null,
     })),
   };
 }
@@ -87,6 +89,8 @@ export function resolveWorkoutsFromSchedule(
         sets: ex.sets,
         reps: ex.reps,
         notes: ex.notes,
+        image_url: ex.image_url ?? null,
+        video_url: ex.video_url ?? null,
       })),
     },
   ];

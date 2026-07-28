@@ -221,7 +221,47 @@ export interface TodaysWorkoutInfo {
     sets: number;
     reps: string;
     notes: string | null;
+    image_url?: string | null;
+    video_url?: string | null;
   }[];
+}
+
+function mapExercisePreview(ex: Exercise) {
+  return {
+    id: ex.id,
+    name: ex.name,
+    sets: ex.sets,
+    reps: ex.reps,
+    notes: ex.notes,
+    image_url: ex.image_url ?? null,
+    video_url: ex.video_url ?? null,
+  };
+}
+
+async function enrichWorkoutExercisesWithYoutube(
+  workouts: TodaysWorkoutInfo[]
+): Promise<TodaysWorkoutInfo[]> {
+  const namesNeedingVideo = workouts.flatMap((workout) =>
+    workout.exercises
+      .filter((ex) => !ex.video_url?.trim())
+      .map((ex) => ex.name)
+  );
+  if (namesNeedingVideo.length === 0) return workouts;
+
+  const { resolveExerciseYoutubeUrlsByNames } = await import(
+    "@/lib/actions/exercise-videos"
+  );
+  const overrides = await resolveExerciseYoutubeUrlsByNames(namesNeedingVideo);
+  if (Object.keys(overrides).length === 0) return workouts;
+
+  return workouts.map((workout) => ({
+    ...workout,
+    exercises: workout.exercises.map((ex) => {
+      if (ex.video_url?.trim()) return ex;
+      const youtube = overrides[ex.name.trim()];
+      return youtube ? { ...ex, video_url: youtube } : ex;
+    }),
+  }));
 }
 
 function mapScheduledToWorkoutInfo(
@@ -242,13 +282,7 @@ function mapScheduledToWorkoutInfo(
     scheduledDate: dateKey,
     scheduledWorkoutId: scheduled.id,
     taskId: workoutTaskId(dateKey, scheduled.id),
-    exercises: exercises.map((ex: Exercise) => ({
-      id: ex.id,
-      name: ex.name,
-      sets: ex.sets,
-      reps: ex.reps,
-      notes: ex.notes,
-    })),
+    exercises: exercises.map((ex: Exercise) => mapExercisePreview(ex)),
   };
 }
 
@@ -424,13 +458,7 @@ export async function resolveWorkoutsForDate(
           scheduledDate: null,
           scheduledWorkoutId: null,
           taskId: workoutTaskId(dateKey, null),
-          exercises: exercises.map((ex: Exercise) => ({
-            id: ex.id,
-            name: ex.name,
-            sets: ex.sets,
-            reps: ex.reps,
-            notes: ex.notes,
-          })),
+          exercises: exercises.map((ex: Exercise) => mapExercisePreview(ex)),
         },
       ];
     }
@@ -442,7 +470,7 @@ export async function resolveWorkoutsForDate(
     workouts,
     timezoneOffsetMinutes
   );
-  return [...workouts, ...historical];
+  return enrichWorkoutExercisesWithYoutube([...workouts, ...historical]);
 }
 
 export async function resolveWorkoutForDate(
@@ -931,11 +959,14 @@ async function getSessionWithDetails(sessionId: string) {
   }
 
   if (hiitConfig) {
+    const { enrichHiitConfigWithYoutube } = await import(
+      "@/lib/actions/exercise-videos"
+    );
     return {
       session: session as WorkoutSession,
       exercises: [] as WorkoutSessionExercise[],
       planKind,
-      hiitConfig,
+      hiitConfig: await enrichHiitConfigWithYoutube(hiitConfig),
     };
   }
 

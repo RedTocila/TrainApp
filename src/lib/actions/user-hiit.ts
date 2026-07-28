@@ -32,8 +32,13 @@ export async function savePersonalHiitPlan(input: {
   const title = input.title.trim();
   if (!title) return { error: "Title is required" };
 
-  const config = normalizeHiitConfig(input.config);
-  if (!config) return { error: "Add at least one exercise with a name" };
+  const normalized = normalizeHiitConfig(input.config);
+  if (!normalized) return { error: "Add at least one exercise with a name" };
+
+  const { enrichHiitConfigWithYoutube } = await import(
+    "@/lib/actions/exercise-videos"
+  );
+  const config = await enrichHiitConfigWithYoutube(normalized);
 
   const planKind = input.kind ?? "hiit";
   const dayTitle =

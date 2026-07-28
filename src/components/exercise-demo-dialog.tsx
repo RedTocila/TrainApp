@@ -31,14 +31,17 @@ export function ExerciseDemoDialog({
       zIndex={120}
     >
       <div className="px-4 pb-5 sm:px-6">
-        <ExerciseDemoPlayer
-          name={name}
-          imageUrl={imageUrl}
-          fallbackImageUrl={fallbackImageUrl}
-          videoUrl={videoUrl}
-          gender={gender}
-          autoplay
-        />
+        {open ? (
+          <ExerciseDemoPlayer
+            name={name}
+            imageUrl={imageUrl}
+            fallbackImageUrl={fallbackImageUrl}
+            videoUrl={videoUrl}
+            gender={gender}
+            autoplay
+            resolveOverride
+          />
+        ) : null}
       </div>
     </AppDialog>
   );

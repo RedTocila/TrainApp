@@ -345,7 +345,7 @@ export function WorkoutBuilder({
                 </div>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
-                  {ex.video_url && isValidYoutubeUrl(ex.video_url) && (
+                  {ex.name.trim() ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -360,7 +360,7 @@ export function WorkoutBuilder({
                       <Play className="h-3.5 w-3.5" />
                       Watch demo
                     </button>
-                  )}
+                  ) : null}
                   {!isExerciseFieldOpen(dayIdx, exIdx, "video") && (
                     <button
                       type="button"

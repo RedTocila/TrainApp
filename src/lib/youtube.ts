@@ -25,8 +25,10 @@ export function getYoutubeEmbedUrl(url: string, options?: { autoplay?: boolean }
   if (start) params.set("start", start);
   if (options?.autoplay) {
     params.set("autoplay", "1");
-    params.set("mute", "0");
+    // Browsers block unmuted autoplay after async loads (e.g. fetching admin override).
+    params.set("mute", "1");
   }
+  params.set("playsinline", "1");
   params.set("rel", "0");
   params.set("modestbranding", "1");
 

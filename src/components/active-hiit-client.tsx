@@ -65,6 +65,7 @@ import {
   isWarmupPlanKind,
   useDayWorkoutFlowContinue,
 } from "@/components/day-workout-flow";
+import { ExerciseDemoDialog } from "@/components/exercise-demo-dialog";
 import { ExerciseGifImage } from "@/components/exercise-gif-image";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -219,6 +220,7 @@ export function ActiveHiitClient({
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const advancingRef = useRef(false);
   const lastTickSecondRef = useRef<number | null>(null);
@@ -603,16 +605,29 @@ export function ActiveHiitClient({
         <h1 className="line-clamp-2 max-w-full text-center text-lg font-black uppercase leading-tight tracking-tight sm:text-xl">
           {headline}
         </h1>
-        {showDemo ? (
-          <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-md sm:h-40 sm:w-40">
+        {showDemo && demoExercise?.name ? (
+          <button
+            type="button"
+            onClick={() => setDemoOpen(true)}
+            className="group relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-md ring-offset-background transition hover:ring-2 hover:ring-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-40 sm:w-40"
+            aria-label={`Preview ${demoExercise.name}`}
+          >
             <ExerciseGifImage
               gifUrl={demoGif?.url}
               fallbackUrl={demoGif?.fallbackUrl}
-              alt={demoExercise?.name ?? "Exercise"}
+              alt={demoExercise.name}
               className="h-full w-full"
               imgClassName="absolute inset-0 object-contain"
             />
-          </div>
+            <span className="absolute inset-0 flex items-center justify-center bg-black/15 transition group-hover:bg-black/30">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/40 shadow-sm transition group-hover:bg-black/55 group-hover:scale-105">
+                <Play className="h-5 w-5 fill-white text-white opacity-75 drop-shadow transition group-hover:opacity-100" />
+              </span>
+            </span>
+            <span className="absolute inset-x-0 bottom-0 bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+              {platform.workout.preview}
+            </span>
+          </button>
         ) : null}
         <HiitCountdownRing
           progress={ringProgress}
@@ -779,6 +794,16 @@ export function ActiveHiitClient({
         {error ? <p className="text-center text-sm text-red-400">{error}</p> : null}
       </div>
       {StretchOfferDialog}
+      {demoExercise?.name ? (
+        <ExerciseDemoDialog
+          open={demoOpen}
+          onClose={() => setDemoOpen(false)}
+          name={demoExercise.name}
+          imageUrl={demoExercise.image_url}
+          videoUrl={demoExercise.video_url}
+          gender={resolveProfileGender(gender)}
+        />
+      ) : null}
     </div>
   );
 }

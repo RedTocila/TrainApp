@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { cn } from "@/lib/utils";
 
 function emptyExercise(): HiitExerciseConfig {
@@ -271,6 +272,16 @@ export function HiitBuilder({
                 <span className="mt-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-500/15 text-xs font-black text-orange-300">
                   {index + 1}
                 </span>
+                {ex.name.trim() ? (
+                  <ExerciseGifThumbnail
+                    name={ex.name}
+                    imageUrl={ex.image_url}
+                    videoUrl={ex.video_url}
+                    size="md"
+                    expandable
+                    className="mt-1"
+                  />
+                ) : null}
                 <div className="min-w-0 flex-1 space-y-3">
                   <Input
                     value={ex.name}

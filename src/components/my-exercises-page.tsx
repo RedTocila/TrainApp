@@ -13,6 +13,7 @@ import {
 } from "@/lib/exercise-catalog";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
 import { ExerciseGifImage } from "@/components/exercise-gif-image";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { resolveExerciseGifUrls, resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +81,10 @@ function CatalogExerciseCard({
             name={exercise.name}
             imageUrl={gifUrl}
             fallbackImageUrl={fallbackUrl}
+            videoUrl={exercise.video_url}
             gender={gender}
+            autoplay
+            resolveOverride
           />
           {exercise.description && (
             <p className="text-sm text-muted-foreground">{exercise.description}</p>
@@ -144,39 +148,33 @@ function MyWorkoutExercises({
   return (
     <ul className="space-y-2">
       {filtered.map((item) => {
-        const { url: gifUrl, fallbackUrl } = resolveExerciseGifUrls({
-          name: item.name,
-          gender,
-        });
-
         return (
         <li key={`${item.planId}-${item.id}`}>
-          <Link href={`/dashboard/workout/${item.planId}/edit`}>
-            <Card className="transition-colors hover:border-primary/40">
-              <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex min-w-0 items-start gap-3">
-                  {gifUrl ? (
-                    <ExerciseGifImage
-                      gifUrl={gifUrl}
-                      fallbackUrl={fallbackUrl}
-                      alt={`${item.name} demonstration`}
-                      className="h-16 w-16 shrink-0 rounded-lg border border-border"
-                    />
-                  ) : null}
-                  <div className="min-w-0">
-                    <p className="font-semibold">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.planTitle} · {item.dayTitle}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {item.sets != null && <Badge variant="secondary">{item.sets} sets</Badge>}
-                  {item.reps != null && <Badge variant="outline">{item.reps} reps</Badge>}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+          <Card className="transition-colors hover:border-primary/40">
+            <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <ExerciseGifThumbnail
+                  name={item.name}
+                  gender={gender}
+                  size="md"
+                  expandable
+                />
+                <Link
+                  href={`/dashboard/workout/${item.planId}/edit`}
+                  className="min-w-0"
+                >
+                  <p className="font-semibold">{item.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {item.planTitle} · {item.dayTitle}
+                  </p>
+                </Link>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {item.sets != null && <Badge variant="secondary">{item.sets} sets</Badge>}
+                {item.reps != null && <Badge variant="outline">{item.reps} reps</Badge>}
+              </div>
+            </CardContent>
+          </Card>
         </li>
         );
       })}

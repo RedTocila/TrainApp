@@ -25,8 +25,8 @@ import type {
 } from "@/lib/types";
 import type { WorkoutPlanKind } from "@/lib/hiit";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
-import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
-import { resolveExerciseGifUrl, resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
+import { ExerciseGifThumbnail, exerciseCanShowDemo } from "@/components/exercise-gif-thumbnail";
+import { resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { DayFlowProgress } from "@/components/day-flow-progress";
@@ -250,11 +250,11 @@ function SessionExerciseCard({
     platform.workout.lastSets,
     units.unitSystem
   );
-  const hasDemo = !!resolveExerciseGifUrl({
-    name: exercise.name,
-    imageUrl: exercise.image_url,
-    gender,
-  }) || !!exercise.video_url;
+  const hasDemo = exerciseCanShowDemo(
+    exercise.name,
+    exercise.video_url,
+    exercise.image_url
+  );
   const sets = exercise.sets ?? [];
 
   const parseRepsField = (rawValue: string) =>
@@ -380,6 +380,7 @@ function SessionExerciseCard({
               imageUrl={exercise.image_url}
               videoUrl={exercise.video_url}
               gender={gender}
+              autoplay
             />
           </div>
         )}
