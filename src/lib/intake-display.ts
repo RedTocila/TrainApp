@@ -11,9 +11,9 @@ import {
 } from "@/lib/intake-questionnaire";
 
 export const GENDER_OPTIONS = [
-  { value: "", label: "Select gender" },
-  { value: "male", label: "Male" },
-  { value: "female", label: "Female" },
+  { value: "", label: "Select gender", emoji: undefined },
+  { value: "male", label: "Male", emoji: "♂️" },
+  { value: "female", label: "Female", emoji: "♀️" },
 ] as const;
 
 export const GOAL_LABELS: Record<string, string> = {
@@ -45,6 +45,8 @@ export function resolveProfileGoal(
 export interface IntakeSummaryItem {
   label: string;
   value: string;
+  /** Visual cue shown next to the label in profile summaries. */
+  emoji?: string;
 }
 
 export function buildIntakeSummary(
@@ -61,25 +63,41 @@ export function buildIntakeSummary(
 
   const items: IntakeSummaryItem[] = [];
 
-  const push = (label: string, value: string | number | null | undefined) => {
+  const push = (
+    label: string,
+    value: string | number | null | undefined,
+    emoji?: string
+  ) => {
     if (value === null || value === undefined || value === "") return;
-    items.push({ label, value: String(value) });
+    items.push({ label, value: String(value), emoji });
   };
 
-  push("Age", profile.age ? `${profile.age} years` : null);
-  push("Gender", formatGender(profile.gender));
-  push("Weight", profile.intake_weight_kg
-    ? formatWeightWithUnitFromKg(profile.intake_weight_kg, unitSystem)
-    : null);
-  push("Height", profile.height_cm
-    ? formatHeightWithUnitFromCm(profile.height_cm, unitSystem)
-    : null);
-  push("Goal", formatGoal(profile.goal));
-  push("Daily routine", profile.daily_routine);
-  push("Work schedule", profile.work_schedule);
-  push("Injuries", profile.injuries);
-  push("Medical conditions", profile.medical_conditions);
-  push("Vices", profile.vices);
+  push("Age", profile.age ? `${profile.age} years` : null, "🎂");
+  push(
+    "Gender",
+    formatGender(profile.gender),
+    GENDER_OPTIONS.find((o) => o.value === profile.gender)?.emoji
+  );
+  push(
+    "Weight",
+    profile.intake_weight_kg
+      ? formatWeightWithUnitFromKg(profile.intake_weight_kg, unitSystem)
+      : null,
+    "⚖️"
+  );
+  push(
+    "Height",
+    profile.height_cm
+      ? formatHeightWithUnitFromCm(profile.height_cm, unitSystem)
+      : null,
+    "📏"
+  );
+  push("Goal", formatGoal(profile.goal), "🎯");
+  push("Daily routine", profile.daily_routine, "🗓️");
+  push("Work schedule", profile.work_schedule, "💼");
+  push("Injuries", profile.injuries, "🩹");
+  push("Medical conditions", profile.medical_conditions, "🩺");
+  push("Vices", profile.vices, "✨");
 
   return items;
 }

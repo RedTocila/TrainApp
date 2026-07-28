@@ -317,11 +317,22 @@ function labelFor(options: IntakeOption[], value?: string): string | null {
   return options.find((o) => o.value === value)?.label ?? value;
 }
 
+function emojiFor(options: IntakeOption[], value?: string): string | undefined {
+  if (!value) return undefined;
+  return options.find((o) => o.value === value)?.emoji;
+}
+
 function labelsFor(options: IntakeOption[], values?: string[]): string | null {
   if (!values?.length) return null;
   const filtered = values.filter((v) => v !== "none");
   if (!filtered.length) return "None";
   return filtered.map((v) => labelFor(options, v) ?? v).join(", ");
+}
+
+function emojiForMulti(options: IntakeOption[], values?: string[]): string | undefined {
+  if (!values?.length) return undefined;
+  const first = values.find((v) => v !== "none") ?? values[0];
+  return emojiFor(options, first);
 }
 
 export function buildDailyRoutineText(responses: IntakeResponses): string {
@@ -537,56 +548,153 @@ export function getStepMissingFields(
 export function buildFullIntakeSummaryFromResponses(
   responses: IntakeResponses,
   unitSystem: UnitSystem = "metric"
-): { label: string; value: string }[] {
-  const items: { label: string; value: string }[] = [];
-  const push = (label: string, value: string | null | undefined) => {
-    if (value) items.push({ label, value });
+): { label: string; value: string; emoji?: string }[] {
+  const items: { label: string; value: string; emoji?: string }[] = [];
+  const push = (
+    label: string,
+    value: string | null | undefined,
+    emoji?: string
+  ) => {
+    if (value) items.push({ label, value, emoji });
   };
 
-  push("Age", responses.age ? `${responses.age} years` : null);
-  push(
-    "Gender",
-    GENDER_OPTIONS.find((o) => o.value === responses.gender)?.label ?? responses.gender
-  );
+  const genderOption = GENDER_OPTIONS.find((o) => o.value === responses.gender);
+
+  push("Age", responses.age ? `${responses.age} years` : null, "🎂");
+  push("Gender", genderOption?.label ?? responses.gender, genderOption?.emoji ?? "👤");
   push(
     "Weight",
     responses.intake_weight_kg
       ? formatWeightWithUnitFromKg(responses.intake_weight_kg, unitSystem)
-      : null
+      : null,
+    "⚖️"
   );
   push(
     "Height",
     responses.height_cm
       ? formatHeightWithUnitFromCm(responses.height_cm, unitSystem)
-      : null
+      : null,
+    "📏"
   );
-  push("Goal", GOAL_LABELS[responses.goal ?? ""] ?? responses.goal);
-  push("Timeline", labelFor(GOAL_TIMELINE_OPTIONS, responses.goal_timeline));
-  push("Training experience", labelFor(TRAINING_EXPERIENCE_OPTIONS, responses.training_experience));
-  push("Training days/week", labelFor(TRAINING_DAYS_OPTIONS, responses.training_days_per_week));
-  push("Workout time", labelFor(TRAINING_TIME_OPTIONS, responses.training_time_preference));
-  push("Equipment", labelsFor(EQUIPMENT_OPTIONS, responses.equipment_access));
-  push("Activities", labelsFor(ACTIVITY_OPTIONS, responses.current_activities));
-  push("Job type", labelFor(JOB_TYPE_OPTIONS, responses.job_type));
-  push("Work hours", labelFor(WORK_HOURS_OPTIONS, responses.work_hours));
-  push("Commute", labelFor(COMMUTE_OPTIONS, responses.commute));
-  push("Daily steps", labelFor(DAILY_STEPS_OPTIONS, responses.daily_steps));
-  push("Sleep", labelFor(SLEEP_HOURS_OPTIONS, responses.sleep_hours));
-  push("Wake time", responses.wake_time);
-  push("Bedtime", responses.bedtime);
-  push("Energy", labelFor(ENERGY_OPTIONS, responses.energy_level));
-  push("Diet", labelFor(DIET_TYPE_OPTIONS, responses.diet_type));
-  push("Meals/day", labelFor(MEALS_PER_DAY_OPTIONS, responses.meals_per_day));
-  push("Cooking", labelFor(COOKING_OPTIONS, responses.cooking_frequency));
-  push("Allergies", labelsFor(ALLERGY_OPTIONS, responses.food_allergies));
-  push("Food dislikes", responses.food_dislikes);
-  push("Injuries", buildInjuriesText(responses));
-  push("Health conditions", buildMedicalConditionsText(responses));
-  push("Medications", responses.medications);
-  push("Smoking", labelFor(SMOKING_OPTIONS, responses.smoking));
-  push("Alcohol", labelFor(ALCOHOL_OPTIONS, responses.alcohol));
-  push("Stress", labelFor(STRESS_OPTIONS, responses.stress_level));
-  push("Water habits", labelFor(WATER_HABITS_OPTIONS, responses.water_habits));
+  push(
+    "Goal",
+    GOAL_LABELS[responses.goal ?? ""] ?? responses.goal,
+    emojiFor(GOAL_OPTIONS, responses.goal) ?? "🎯"
+  );
+  push(
+    "Timeline",
+    labelFor(GOAL_TIMELINE_OPTIONS, responses.goal_timeline),
+    emojiFor(GOAL_TIMELINE_OPTIONS, responses.goal_timeline)
+  );
+  push(
+    "Training experience",
+    labelFor(TRAINING_EXPERIENCE_OPTIONS, responses.training_experience),
+    emojiFor(TRAINING_EXPERIENCE_OPTIONS, responses.training_experience)
+  );
+  push(
+    "Training days/week",
+    labelFor(TRAINING_DAYS_OPTIONS, responses.training_days_per_week),
+    emojiFor(TRAINING_DAYS_OPTIONS, responses.training_days_per_week)
+  );
+  push(
+    "Workout time",
+    labelFor(TRAINING_TIME_OPTIONS, responses.training_time_preference),
+    emojiFor(TRAINING_TIME_OPTIONS, responses.training_time_preference)
+  );
+  push(
+    "Equipment",
+    labelsFor(EQUIPMENT_OPTIONS, responses.equipment_access),
+    emojiForMulti(EQUIPMENT_OPTIONS, responses.equipment_access) ?? "🏋️"
+  );
+  push(
+    "Activities",
+    labelsFor(ACTIVITY_OPTIONS, responses.current_activities),
+    emojiForMulti(ACTIVITY_OPTIONS, responses.current_activities) ?? "🏃"
+  );
+  push(
+    "Job type",
+    labelFor(JOB_TYPE_OPTIONS, responses.job_type),
+    emojiFor(JOB_TYPE_OPTIONS, responses.job_type)
+  );
+  push(
+    "Work hours",
+    labelFor(WORK_HOURS_OPTIONS, responses.work_hours),
+    emojiFor(WORK_HOURS_OPTIONS, responses.work_hours)
+  );
+  push(
+    "Commute",
+    labelFor(COMMUTE_OPTIONS, responses.commute),
+    emojiFor(COMMUTE_OPTIONS, responses.commute)
+  );
+  push(
+    "Daily steps",
+    labelFor(DAILY_STEPS_OPTIONS, responses.daily_steps),
+    emojiFor(DAILY_STEPS_OPTIONS, responses.daily_steps)
+  );
+  push(
+    "Sleep",
+    labelFor(SLEEP_HOURS_OPTIONS, responses.sleep_hours),
+    emojiFor(SLEEP_HOURS_OPTIONS, responses.sleep_hours)
+  );
+  push("Wake time", responses.wake_time, "☀️");
+  push("Bedtime", responses.bedtime, "🌙");
+  push(
+    "Energy",
+    labelFor(ENERGY_OPTIONS, responses.energy_level),
+    emojiFor(ENERGY_OPTIONS, responses.energy_level)
+  );
+  push(
+    "Diet",
+    labelFor(DIET_TYPE_OPTIONS, responses.diet_type),
+    emojiFor(DIET_TYPE_OPTIONS, responses.diet_type)
+  );
+  push(
+    "Meals/day",
+    labelFor(MEALS_PER_DAY_OPTIONS, responses.meals_per_day),
+    emojiFor(MEALS_PER_DAY_OPTIONS, responses.meals_per_day)
+  );
+  push(
+    "Cooking",
+    labelFor(COOKING_OPTIONS, responses.cooking_frequency),
+    emojiFor(COOKING_OPTIONS, responses.cooking_frequency)
+  );
+  push(
+    "Allergies",
+    labelsFor(ALLERGY_OPTIONS, responses.food_allergies),
+    emojiForMulti(ALLERGY_OPTIONS, responses.food_allergies) ?? "✅"
+  );
+  push("Food dislikes", responses.food_dislikes, "🚫");
+  push(
+    "Injuries",
+    buildInjuriesText(responses),
+    emojiForMulti(INJURY_AREA_OPTIONS, responses.injury_areas) ?? "🩹"
+  );
+  push(
+    "Health conditions",
+    buildMedicalConditionsText(responses),
+    emojiForMulti(HEALTH_CONDITION_OPTIONS, responses.health_conditions) ?? "🩺"
+  );
+  push("Medications", responses.medications, "💊");
+  push(
+    "Smoking",
+    labelFor(SMOKING_OPTIONS, responses.smoking),
+    emojiFor(SMOKING_OPTIONS, responses.smoking)
+  );
+  push(
+    "Alcohol",
+    labelFor(ALCOHOL_OPTIONS, responses.alcohol),
+    emojiFor(ALCOHOL_OPTIONS, responses.alcohol)
+  );
+  push(
+    "Stress",
+    labelFor(STRESS_OPTIONS, responses.stress_level),
+    emojiFor(STRESS_OPTIONS, responses.stress_level)
+  );
+  push(
+    "Water habits",
+    labelFor(WATER_HABITS_OPTIONS, responses.water_habits),
+    emojiFor(WATER_HABITS_OPTIONS, responses.water_habits)
+  );
 
   return items;
 }
@@ -600,38 +708,79 @@ export function buildDetailedIntakeContextForAi(responses: IntakeResponses): str
 export function buildIntakeSummaryFromResponses(
   responses: IntakeResponses,
   unitSystem: UnitSystem = "metric"
-): { label: string; value: string }[] {
-  const push = (label: string, value: string | null | undefined) => {
+): { label: string; value: string; emoji?: string }[] {
+  const push = (
+    label: string,
+    value: string | null | undefined,
+    emoji?: string
+  ) => {
     if (!value) return [];
-    return [{ label, value }];
+    return [{ label, value, emoji }];
   };
 
+  const genderOption = GENDER_OPTIONS.find((o) => o.value === responses.gender);
+
   return [
-    ...push("Age", responses.age ? `${responses.age} years` : null),
+    ...push("Age", responses.age ? `${responses.age} years` : null, "🎂"),
     ...push(
       "Gender",
-      GENDER_OPTIONS.find((o) => o.value === responses.gender)?.label ?? responses.gender
+      genderOption?.label ?? responses.gender,
+      genderOption?.emoji ?? "👤"
     ),
     ...push(
       "Weight",
       responses.intake_weight_kg
         ? formatWeightWithUnitFromKg(responses.intake_weight_kg, unitSystem)
-        : null
+        : null,
+      "⚖️"
     ),
     ...push(
       "Height",
       responses.height_cm
         ? formatHeightWithUnitFromCm(responses.height_cm, unitSystem)
-        : null
+        : null,
+      "📏"
     ),
-    ...push("Goal", GOAL_LABELS[responses.goal ?? ""] ?? responses.goal),
-    ...push("Timeline", labelFor(GOAL_TIMELINE_OPTIONS, responses.goal_timeline)),
-    ...push("Training", labelFor(TRAINING_EXPERIENCE_OPTIONS, responses.training_experience)),
-    ...push("Work", labelFor(JOB_TYPE_OPTIONS, responses.job_type)),
-    ...push("Sleep", labelFor(SLEEP_HOURS_OPTIONS, responses.sleep_hours)),
-    ...push("Diet", labelFor(DIET_TYPE_OPTIONS, responses.diet_type)),
-    ...push("Injuries", buildInjuriesText(responses) || null),
-    ...push("Health", buildMedicalConditionsText(responses) || null),
+    ...push(
+      "Goal",
+      GOAL_LABELS[responses.goal ?? ""] ?? responses.goal,
+      emojiFor(GOAL_OPTIONS, responses.goal) ?? "🎯"
+    ),
+    ...push(
+      "Timeline",
+      labelFor(GOAL_TIMELINE_OPTIONS, responses.goal_timeline),
+      emojiFor(GOAL_TIMELINE_OPTIONS, responses.goal_timeline)
+    ),
+    ...push(
+      "Training",
+      labelFor(TRAINING_EXPERIENCE_OPTIONS, responses.training_experience),
+      emojiFor(TRAINING_EXPERIENCE_OPTIONS, responses.training_experience)
+    ),
+    ...push(
+      "Work",
+      labelFor(JOB_TYPE_OPTIONS, responses.job_type),
+      emojiFor(JOB_TYPE_OPTIONS, responses.job_type)
+    ),
+    ...push(
+      "Sleep",
+      labelFor(SLEEP_HOURS_OPTIONS, responses.sleep_hours),
+      emojiFor(SLEEP_HOURS_OPTIONS, responses.sleep_hours)
+    ),
+    ...push(
+      "Diet",
+      labelFor(DIET_TYPE_OPTIONS, responses.diet_type),
+      emojiFor(DIET_TYPE_OPTIONS, responses.diet_type)
+    ),
+    ...push(
+      "Injuries",
+      buildInjuriesText(responses) || null,
+      emojiForMulti(INJURY_AREA_OPTIONS, responses.injury_areas) ?? "🩹"
+    ),
+    ...push(
+      "Health",
+      buildMedicalConditionsText(responses) || null,
+      emojiForMulti(HEALTH_CONDITION_OPTIONS, responses.health_conditions) ?? "🩺"
+    ),
   ];
 }
 

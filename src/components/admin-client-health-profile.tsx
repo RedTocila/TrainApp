@@ -148,7 +148,12 @@ export function AdminClientHealthProfile({
                   key={item.label}
                   className="rounded-xl border border-border/50 bg-card/60 px-2.5 py-2"
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {item.emoji ? (
+                      <span className="text-sm leading-none" aria-hidden>
+                        {item.emoji}
+                      </span>
+                    ) : null}
                     {item.label}
                   </p>
                   <p className="mt-0.5 text-sm font-medium leading-snug whitespace-pre-wrap">

@@ -37,7 +37,12 @@ export function AiPlanProfileSummary({ profile }: { profile: Profile }) {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {items.map((item) => (
               <div key={item.label} className="rounded-lg bg-secondary/40 px-2.5 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {item.emoji ? (
+                    <span className="text-sm leading-none" aria-hidden>
+                      {item.emoji}
+                    </span>
+                  ) : null}
                   {item.label}
                 </p>
                 <p className="mt-0.5 truncate text-sm font-medium">{item.value}</p>

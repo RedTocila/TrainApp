@@ -126,9 +126,8 @@ export function MealLogPreviewDialog({
             )}
             <div className="ml-auto flex shrink-0 items-center gap-1.5">
               <Button
-                variant="ghost"
                 size="sm"
-                className="h-8 gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/15 px-2.5 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300"
+                className="h-8 gap-1.5 rounded-full px-3.5"
                 onClick={onClose}
                 disabled={isDeleting}
               >
@@ -139,7 +138,7 @@ export function MealLogPreviewDialog({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-lg border border-red-500/30 bg-red-500/15 text-red-400 hover:bg-red-500/25 hover:text-red-300"
+                  className="h-8 w-8 rounded-full border border-red-500/30 bg-red-500/15 text-red-400 hover:bg-red-500/25 hover:text-red-300"
                   onClick={onDelete}
                   disabled={isDeleting}
                   aria-label={platform.aria.deleteMeal}

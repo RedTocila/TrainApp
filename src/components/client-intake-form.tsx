@@ -116,14 +116,24 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
                 {platform.profile.healthLifestyleIncompleteHint(missingFields.length || 1, "…")}
               </p>
             ) : (
-              <ul className="space-y-1.5 rounded-2xl border border-rose-500/20 bg-background/50 p-2.5">
+              <ul className="divide-y divide-border/40 rounded-2xl border border-rose-500/20 bg-background/50 px-2.5">
                 {summary.map((item) => (
                   <li
                     key={`${item.label}-${item.value}`}
-                    className="flex items-start justify-between gap-2.5 border-b border-border/40 py-1.5 last:border-0 last:pb-0 first:pt-0"
+                    className="grid grid-cols-[1.5rem_minmax(0,0.9fr)_minmax(0,1.1fr)] items-center gap-x-2.5 py-2"
                   >
-                    <span className="text-xs font-medium text-muted-foreground">{item.label}</span>
-                    <span className="max-w-[60%] text-right text-sm font-semibold">{item.value}</span>
+                    <span
+                      className="flex h-6 w-6 items-center justify-center self-center rounded-lg bg-rose-500/10 text-sm leading-none"
+                      aria-hidden
+                    >
+                      {item.emoji ?? "•"}
+                    </span>
+                    <span className="self-center text-xs font-medium leading-none text-muted-foreground">
+                      {item.label}
+                    </span>
+                    <span className="self-center text-right text-sm font-semibold leading-snug break-words">
+                      {item.value}
+                    </span>
                   </li>
                 ))}
               </ul>

@@ -1,7 +1,7 @@
 "use client";
 import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
-import { ChevronRight, Clock, Dumbbell, Flame, Layers, List, TriangleAlert } from "lucide-react";
+import { ChevronRight, Clock, Dumbbell, Flame, Layers, List, Play, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addDays, startOfDay } from "date-fns";
@@ -743,7 +743,7 @@ export function DashboardWorkoutCard({
           <DashboardCardNavBody className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <span className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-white">
+                <span className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground dark:bg-white dark:text-black">
                   {dayLabel}
                 </span>
                 {workout && exerciseCount > 0 ? (
@@ -874,8 +874,8 @@ export function DashboardWorkoutCard({
                           {durationLabel ? ` · ${durationLabel}` : null}
                         </p>
                       </div>
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                        <ChevronRight className="h-4 w-4" />
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                        <Play className="h-4 w-4" />
                       </span>
                     </div>
                   )}

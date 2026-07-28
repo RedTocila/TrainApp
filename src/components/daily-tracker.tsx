@@ -426,17 +426,16 @@ export function DailyTracker({
                     />
                   ))}
                 </div>
-                <p className="mt-1 text-sm font-medium tabular-nums">
-                  {current.calories}/{targets.calories} kcal
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {platform.nutrition.mealsLogged}: {dailyMeals.length}
-                </p>
+                {readOnly ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {platform.nutrition.mealsLogged}: {dailyMeals.length}
+                  </p>
+                ) : null}
               </div>
             </div>
           </CardHeader>
           <CardContent className="flex flex-col p-4 pt-0">
-            <div className="mt-2 rounded-2xl border border-emerald-600/25 bg-emerald-500/15 p-3 shadow-inner dark:border-emerald-400/25 dark:bg-emerald-950/55">
+            <div className="mt-1 rounded-2xl bg-emerald-500/5 p-2.5">
               <TaskNutritionMacroPreview
                 current={current}
                 targets={targets}
@@ -458,6 +457,9 @@ export function DailyTracker({
                     <Camera className="h-3.5 w-3.5" />
                     {platform.nutrition.logMeal}
                   </Button>
+                  <span className="inline-flex items-center text-xs font-medium text-muted-foreground">
+                    {platform.nutrition.mealsLogged}: {dailyMeals.length}
+                  </span>
                   {showMealPlanButton && (
                     <Button
                       size="sm"

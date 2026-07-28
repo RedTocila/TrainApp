@@ -2,7 +2,7 @@
 
 import { usePlatformCopy } from "@/components/locale-provider";
 import { ScoreGauge } from "@/components/ai/score-gauge";
-import { NutritionMacroRings } from "@/components/nutrition-macro-rings";
+import { NutritionMacroProgressCard } from "@/components/nutrition-macro-progress-card";
 import type { MealMacros } from "@/lib/meal-utils";
 import {
   estimateDailyMicros,
@@ -67,12 +67,10 @@ export function TaskNutritionMacroPreview({
   }
 
   return (
-    <NutritionMacroRings
+    <NutritionMacroProgressCard
       current={current}
       targets={targets}
-      variant="compact"
-      spread
-      className={cn("pointer-events-none w-full", className)}
+      className={cn("w-full", className)}
     />
   );
 }

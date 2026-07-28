@@ -328,6 +328,7 @@ function StepFields({
                           : "border-border/70 bg-secondary/30 hover:border-primary/40"
                       )}
                     >
+                      {opt.emoji ? <span aria-hidden>{opt.emoji}</span> : null}
                       {opt.label}
                       {active && (
                         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-hidden>
