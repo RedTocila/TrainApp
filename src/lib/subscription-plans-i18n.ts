@@ -13,11 +13,17 @@ export function getLocalizedSubscriptionPlans(
   return SUBSCRIPTION_PLANS.map((plan) => {
     const localized = plan.id === "ai" ? plans.aiPro : plans.elite;
 
+    const localizedBadge =
+      "badge" in localized && typeof localized.badge === "string"
+        ? localized.badge
+        : undefined;
+
     return {
       ...plan,
       name: localized.name,
       tagline: localized.tagline,
-      badge: "badge" in localized ? localized.badge : plan.badge,
+      // Never keep stale trial badges once removed from copy/plan definitions.
+      badge: localizedBadge ?? plan.badge,
       includesFrom:
         "includesFrom" in localized ? localized.includesFrom : plan.includesFrom,
       features: [...localized.features],

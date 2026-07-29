@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Clock3, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Sparkles } from "lucide-react";
 import { SegmentedToggle } from "@/components/segmented-toggle";
+import { OfferBanner } from "@/components/offer-banner";
 import { Button } from "@/components/ui/button";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { getCompareAtLabel, getCurrencyPrice } from "@/lib/checkout-i18n";
@@ -11,7 +12,7 @@ import { getPublicActiveSubscriptionOffers } from "@/lib/actions/admin-offers";
 import { getPricingFeatureIcon } from "@/lib/pricing-feature-icons";
 import type { BillingInterval, SubscriptionPlan } from "@/lib/subscription-plans";
 import type { SubscriptionOffer } from "@/lib/subscription-offers";
-import { applyOfferDiscount, getOfferEndsLabel, pickBestOffer } from "@/lib/subscription-offers";
+import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import {
   formatAnnualSavingsLocalized,
   getLocalizedSubscriptionPlans,
@@ -53,46 +54,27 @@ function PlanRow({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const tier = interval === "monthly" ? plan.monthly : plan.annual;
   const discountedCents = applyOfferDiscount(tier.amountEurCents, offer);
-  const offerEndsLabel = getOfferEndsLabel(offer, locale);
   const price = getCurrencyPrice({ amountEurCents: discountedCents });
-  const compareAt = getCompareAtLabel({
-    amountEurCents: discountedCents,
-    compareAtEurCents: tier.amountEurCents,
-  });
+  const compareAt = offer
+    ? getCompareAtLabel({
+        amountEurCents: discountedCents,
+        compareAtEurCents: tier.amountEurCents,
+      })
+    : getCompareAtLabel(tier);
 
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border-2 transition-all",
+        "relative overflow-visible rounded-2xl border-2 transition-all",
         selected
           ? "border-primary bg-primary/10 shadow-[0_0_20px_-8px] shadow-primary/50"
           : "border-border/70 bg-secondary/30"
       )}
     >
-      {offer ? (
-        <div className="border-b border-primary/25 bg-gradient-to-r from-primary/25 via-primary/10 to-transparent px-3 py-4">
-          {offer.image_url ? (
-            <div
-              className="mb-3 h-20 w-full rounded-lg border border-primary/25 bg-cover bg-center"
-              style={{ backgroundImage: `url("${offer.image_url}")` }}
-              aria-hidden
-            />
-          ) : null}
-          <p className="text-xs font-black uppercase tracking-wide text-primary">Limited offer</p>
-          <p className="mt-0.5 text-sm font-semibold text-foreground">
-            {offer.badge_text ?? `${offer.percent_off}% OFF`} - {offer.name}
-          </p>
-          {offerEndsLabel ? (
-            <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock3 className="h-3.5 w-3.5" aria-hidden />
-              Ends {offerEndsLabel}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      {offer ? <OfferBanner offer={offer} locale={locale} className="rounded-t-[14px]" /> : null}
       {selected && (
         <span
-          className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md"
+          className="absolute -right-2.5 -top-2.5 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-background"
           aria-hidden
         >
           <Check className="h-3.5 w-3.5" strokeWidth={3} />
@@ -103,7 +85,7 @@ function PlanRow({
         type="button"
         onClick={onSelect}
         aria-pressed={selected}
-        className="w-full rounded-t-2xl p-4 text-left"
+        className={cn("w-full p-4 text-left", !offer && "rounded-t-2xl")}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -255,7 +237,7 @@ export function PricingPlans({
         />
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 overflow-visible px-1 pt-1">
         {plans.map((plan) => (
           <PlanRow
             key={plan.id}

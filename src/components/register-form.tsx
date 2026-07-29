@@ -12,7 +12,6 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
-  Clock3,
   Loader2,
   CreditCard,
   ArrowRight,
@@ -41,8 +40,9 @@ import { formatUserError } from "@/lib/format-user-error";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/components/locale-provider";
 import { getCurrencyPrice } from "@/lib/checkout-i18n";
+import { OfferBanner } from "@/components/offer-banner";
 import type { SubscriptionOffer } from "@/lib/subscription-offers";
-import { applyOfferDiscount, getOfferEndsLabel, pickBestOffer } from "@/lib/subscription-offers";
+import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import { getPlanPrice, type BillingInterval } from "@/lib/subscription-plans";
 
 type PackagePlan = "ai" | "elite";
@@ -274,14 +274,14 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
   if (signupDraft) {
     return (
       <AuthCardShell backHref={backHref}>
-      <Card className="w-full">
+      <Card className="w-full overflow-visible">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-black">Choose your package</CardTitle>
           <CardDescription>
             Review package details and continue to payment.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 overflow-visible">
           <div className="rounded-xl border border-border bg-secondary/20 p-3 text-sm">
             <p className="font-semibold text-foreground">{signupDraft.fullName}</p>
             <p className="text-muted-foreground">{signupDraft.email}</p>
@@ -316,12 +316,11 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-2">
+          <div className="grid grid-cols-1 gap-2 overflow-visible px-1 pt-1">
             {PACKAGE_OPTIONS.map((option) => {
               const selected = selectedPlan === option.id;
               const detailsOpen = openPackageDetails === option.id;
               const bestOffer = pickBestOffer(offers, option.id, billingInterval);
-              const offerEndsLabel = getOfferEndsLabel(bestOffer, locale);
               return (
                 <div
                   key={option.id}
@@ -333,29 +332,11 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
                   )}
                 >
                   {bestOffer ? (
-                    <div className="border-b border-primary/25 bg-gradient-to-r from-primary/25 via-primary/10 to-transparent px-3 py-4">
-                      {bestOffer.image_url ? (
-                        <div
-                          className="mb-3 h-20 w-full rounded-lg border border-primary/25 bg-cover bg-center"
-                          style={{ backgroundImage: `url("${bestOffer.image_url}")` }}
-                          aria-hidden
-                        />
-                      ) : null}
-                      <p className="text-xs font-black uppercase tracking-wide text-primary">Limited offer</p>
-                      <p className="mt-0.5 text-sm font-semibold text-foreground">
-                        {bestOffer.badge_text ?? `${bestOffer.percent_off}% OFF`} - {bestOffer.name}
-                      </p>
-                      {offerEndsLabel ? (
-                        <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock3 className="h-3.5 w-3.5" aria-hidden />
-                          Ends {offerEndsLabel}
-                        </p>
-                      ) : null}
-                    </div>
+                    <OfferBanner offer={bestOffer} locale={locale} className="rounded-t-[14px]" />
                   ) : null}
                   {selected && (
                     <span
-                      className="absolute -right-2 -top-2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl ring-2 ring-background"
+                      className="absolute -right-2.5 -top-2.5 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl ring-2 ring-background"
                       aria-hidden
                     >
                       <Check className="h-3.5 w-3.5" strokeWidth={3} />

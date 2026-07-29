@@ -129,6 +129,8 @@ export async function upsertSubscriptionOffer(input: {
   revalidatePath("/join/pricing");
   revalidatePath("/register");
   revalidatePath("/join/checkout");
+  revalidatePath("/pricing");
+  revalidatePath("/");
   return { success: true };
 }
 
@@ -181,6 +183,8 @@ export async function deleteSubscriptionOffer(id: string) {
   revalidatePath("/join/pricing");
   revalidatePath("/register");
   revalidatePath("/join/checkout");
+  revalidatePath("/pricing");
+  revalidatePath("/");
   return { success: true };
 }
 

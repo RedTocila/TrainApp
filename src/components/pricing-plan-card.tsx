@@ -8,8 +8,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { BillingInterval, SubscriptionPlan } from "@/lib/subscription-plans";
+import type { SubscriptionOffer } from "@/lib/subscription-offers";
+import { applyOfferDiscount } from "@/lib/subscription-offers";
 import { getCompareAtLabel, getCurrencyPrice } from "@/lib/checkout-i18n";
 import { getPricingFeatureIcon } from "@/lib/pricing-feature-icons";
+import { OfferBanner } from "@/components/offer-banner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -35,6 +38,8 @@ type PricingPlanCardProps = {
   checkoutHref?: string;
   showCta?: boolean;
   className?: string;
+  offer?: SubscriptionOffer | null;
+  locale?: string;
 };
 
 function FeatureRow({ feature, icon: Icon }: { feature: string; icon: LucideIcon }) {
@@ -59,10 +64,20 @@ export function PricingPlanCard({
   checkoutHref,
   showCta = true,
   className,
+  offer = null,
+  locale = "en",
 }: PricingPlanCardProps) {
   const tier = interval === "monthly" ? plan.monthly : plan.annual;
-  const price = getCurrencyPrice(tier);
-  const compareAtLabel = compareAt ?? getCompareAtLabel(tier);
+  const discountedCents = applyOfferDiscount(tier.amountEurCents, offer);
+  const price = getCurrencyPrice({ amountEurCents: discountedCents });
+  const compareAtLabel =
+    compareAt ??
+    (offer
+      ? getCompareAtLabel({
+          amountEurCents: discountedCents,
+          compareAtEurCents: tier.amountEurCents,
+        })
+      : getCompareAtLabel(tier));
   const isElite = plan.id === "elite";
 
   return (
@@ -83,11 +98,13 @@ export function PricingPlanCard({
           isElite && "border-amber-500/30 group-hover:border-amber-500/50"
         )}
       >
-        {plan.highlighted && (
+        {offer ? <OfferBanner offer={offer} locale={locale} /> : null}
+
+        {plan.highlighted && !offer && (
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
         )}
 
-        {plan.badge && (
+        {plan.badge && !offer && (
           <div className="absolute right-4 top-4 z-10">
             <span
               className={cn(
@@ -107,7 +124,7 @@ export function PricingPlanCard({
           </div>
         )}
 
-        <CardHeader className={cn("space-y-3 pb-4", plan.badge && "pt-10")}>
+        <CardHeader className={cn("space-y-3 pb-4", plan.badge && !offer && "pt-10")}>
           <div className="space-y-1">
             <CardTitle className="text-xl font-black tracking-tight">{plan.name}</CardTitle>
             <p className="text-sm leading-relaxed text-muted-foreground">{plan.tagline}</p>

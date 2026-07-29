@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import {
   GET_STARTED_CTA,
@@ -11,7 +11,10 @@ import {
   SUBSCRIPTION_PLANS,
   type BillingInterval,
 } from "@/lib/subscription-plans";
-import { formatAnnualSavings, getCompareAtLabel } from "@/lib/checkout-i18n";
+import { formatAnnualSavings } from "@/lib/checkout-i18n";
+import { getPublicActiveSubscriptionOffers } from "@/lib/actions/admin-offers";
+import type { SubscriptionOffer } from "@/lib/subscription-offers";
+import { pickBestOffer } from "@/lib/subscription-offers";
 import { PricingPlanCard } from "@/components/pricing-plan-card";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
@@ -27,6 +30,17 @@ const LANDING_LABELS = {
 
 export function LandingPricing() {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
+  const [offers, setOffers] = useState<SubscriptionOffer[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getPublicActiveSubscriptionOffers().then((rows) => {
+      if (!cancelled) setOffers(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <section id="pricing" className="landing-deferred-section scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20">
@@ -39,8 +53,8 @@ export function LandingPricing() {
             Plans that grow with your goals
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            Free for manual tracking. Upgrade for AI coaching (€19) or Elite community
-            (€29) — create an account first, subscribe when you&apos;re ready.
+            Free for manual tracking. Upgrade for AI coaching (€20) or Elite community
+            (€30) — create an account first, subscribe when you&apos;re ready.
           </p>
         </FadeIn>
 
@@ -50,7 +64,7 @@ export function LandingPricing() {
               value={interval}
               onChange={setInterval}
               aria-label="Billing interval"
-              className="w-auto"
+              className="w-full max-w-[280px] p-0.5"
               options={[
                 { value: "monthly", label: "Monthly" },
                 { value: "annual", label: "Annual" },
@@ -60,10 +74,13 @@ export function LandingPricing() {
 
           <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-3 md:grid-cols-2 md:items-end">
             {SUBSCRIPTION_PLANS.map((plan) => {
-              const tier = interval === "monthly" ? plan.monthly : plan.annual;
               const savings =
                 interval === "annual"
                   ? formatAnnualSavings(plan.monthly, plan.annual)
+                  : null;
+              const offer =
+                plan.id === "ai" || plan.id === "elite"
+                  ? pickBestOffer(offers, plan.id, interval)
                   : null;
 
               return (
@@ -73,8 +90,8 @@ export function LandingPricing() {
                   interval={interval}
                   labels={LANDING_LABELS}
                   savings={savings}
-                  compareAt={getCompareAtLabel(tier)}
                   showCta={false}
+                  offer={offer}
                 />
               );
             })}

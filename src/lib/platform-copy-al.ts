@@ -1259,9 +1259,7 @@ export const platformCopyAl = {
     },
     aiPro: {
       name: "RUTINA AI Pro",
-      tagline:
-        "Gjithçka në ndjekjen manuale falas, plus coach-i yt AI. Fillo falas për 3 ditë me kartë — anulo kur të duash.",
-      badge: "3 ditë provë falas",
+      tagline: "Gjithçka në ndjekjen manuale falas, plus coach-i yt AI.",
       includesFrom: "Falas",
       features: [
         "Coach Fitnesi AI",

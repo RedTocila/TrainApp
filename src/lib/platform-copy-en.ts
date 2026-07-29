@@ -1244,9 +1244,7 @@ export const platformCopyEn = {
     },
     aiPro: {
       name: "RUTINA AI Pro",
-      tagline:
-        "Everything in free manual tracking, plus your own AI fitness coach. Start free for 3 days with a card — cancel anytime.",
-      badge: "3-day free trial",
+      tagline: "Everything in free manual tracking, plus your own AI fitness coach.",
       includesFrom: "Free",
       features: [
         "AI Fitness Coach",
