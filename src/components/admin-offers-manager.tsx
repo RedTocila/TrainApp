@@ -250,7 +250,7 @@ export function AdminOffersManager({
                   imageUrl: form.imageUrl || null,
                   active: form.active,
                 });
-                if ("error" in res) setError(res.error);
+                if ("error" in res) setError(res.error ?? "Could not save offer.");
                 else resetForm();
               });
             }}
