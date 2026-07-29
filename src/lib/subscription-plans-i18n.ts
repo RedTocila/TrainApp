@@ -25,7 +25,9 @@ export function getLocalizedSubscriptionPlans(
       // Never keep stale trial badges once removed from copy/plan definitions.
       badge: localizedBadge ?? plan.badge,
       includesFrom:
-        "includesFrom" in localized ? localized.includesFrom : plan.includesFrom,
+        "includesFrom" in localized && typeof localized.includesFrom === "string"
+          ? localized.includesFrom
+          : plan.includesFrom,
       features: [...localized.features],
     };
   });

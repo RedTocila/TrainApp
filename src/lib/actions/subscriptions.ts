@@ -377,7 +377,7 @@ export async function cancelSubscription(): Promise<{ error: string } | { succes
     return { error: "No active subscription to cancel." };
   }
 
-  // Ending a free trial early returns the user to free preview and skips the later charge.
+  // Ending a free trial early returns the user to inactive access and skips the later charge.
   if (profile.subscription_status === "trialing") {
     const { error } = await admin
       .from("profiles")

@@ -53,8 +53,8 @@ export function LandingPricing() {
             Plans that grow with your goals
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            Free for manual tracking. Upgrade for AI coaching (€20) or Elite community
-            (€30) — create an account first, subscribe when you&apos;re ready.
+            AI Pro coaching from €20/month, or Elite community from €30/month —
+            create an account first, subscribe when you&apos;re ready.
           </p>
         </FadeIn>
 

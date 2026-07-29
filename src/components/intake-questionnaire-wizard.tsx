@@ -59,7 +59,7 @@ function StepProgress({
 }) {
   return (
     <div
-      className="flex w-full items-start pb-1"
+      className="flex w-full items-start"
       role="progressbar"
       aria-valuemin={1}
       aria-valuemax={INTAKE_STEPS.length}
@@ -70,35 +70,39 @@ function StepProgress({
         const done = index < step;
         const active = index === step;
         return (
-          <div key={s.id} className={cn("flex items-start", index < INTAKE_STEPS.length - 1 && "flex-1")}>
+          <div
+            key={s.id}
+            className={cn("flex min-w-0 items-start", index < INTAKE_STEPS.length - 1 && "flex-1")}
+          >
             <button
               type="button"
               onClick={() => onStepSelect(index)}
               disabled={!done}
               className={cn(
-                "flex shrink-0 flex-col items-center gap-1",
+                "flex w-8 shrink-0 flex-col items-center gap-1 sm:w-10",
                 done && "cursor-pointer"
               )}
               aria-label={done ? `Go back to ${s.title}` : s.title}
             >
               <span
                 className={cn(
-                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs transition-all sm:h-9 sm:w-9 sm:text-sm",
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm leading-none transition-colors sm:h-9 sm:w-9",
                   done && "bg-emerald-500 text-white",
-                  active &&
-                    "scale-110 bg-primary text-primary-foreground shadow-[0_0_14px_-2px] shadow-primary/60",
+                  active && "bg-primary text-primary-foreground shadow-[0_0_14px_-2px] shadow-primary/60",
                   !done && !active && "bg-secondary text-muted-foreground"
                 )}
               >
                 {done ? (
                   <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={3} />
                 ) : (
-                  <span aria-hidden>{s.emoji}</span>
+                  <span className="leading-none" aria-hidden>
+                    {s.emoji}
+                  </span>
                 )}
               </span>
               <span
                 className={cn(
-                  "whitespace-nowrap text-[8px] font-bold uppercase sm:text-[10px] sm:tracking-wide",
+                  "w-full truncate text-center text-[8px] font-bold uppercase sm:text-[10px] sm:tracking-wide",
                   active
                     ? "text-primary"
                     : done
@@ -113,7 +117,7 @@ function StepProgress({
               <span
                 aria-hidden
                 className={cn(
-                  "mx-0.5 mt-[0.8125rem] h-0.5 min-w-1 flex-1 rounded-full sm:mt-[1.0625rem]",
+                  "mx-0.5 mt-4 h-0.5 min-w-1 flex-1 self-start rounded-full sm:mt-[1.125rem]",
                   index < step ? "bg-emerald-500" : "bg-border"
                 )}
               />
@@ -312,7 +316,7 @@ function StepFields({
             </div>
             <div className="space-y-2">
               <Label>Gender</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 overflow-visible px-0.5 pt-0.5">
                 {GENDER_OPTIONS.filter((o) => o.value).map((opt) => {
                   const active = responses.gender === opt.value;
                   return (
@@ -322,16 +326,23 @@ function StepFields({
                       aria-pressed={active}
                       onClick={() => onChange({ gender: opt.value })}
                       className={cn(
-                        "flex items-center justify-center gap-2 rounded-2xl border-2 px-3 py-2.5 text-sm font-bold transition-all",
+                        "relative flex items-center justify-center gap-2 overflow-visible rounded-2xl border-2 px-3 py-2.5 text-sm font-bold transition-all",
                         active
                           ? "border-primary bg-primary/10 text-primary shadow-[0_0_16px_-6px] shadow-primary/40"
                           : "border-border/70 bg-secondary/30 hover:border-primary/40"
                       )}
                     >
-                      {opt.emoji ? <span aria-hidden>{opt.emoji}</span> : null}
-                      {opt.label}
+                      {opt.emoji ? (
+                        <span className="leading-none" aria-hidden>
+                          {opt.emoji}
+                        </span>
+                      ) : null}
+                      <span className="leading-none">{opt.label}</span>
                       {active && (
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-hidden>
+                        <span
+                          className="absolute -right-2 -top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-background"
+                          aria-hidden
+                        >
                           <Check className="h-3 w-3" strokeWidth={3} />
                         </span>
                       )}

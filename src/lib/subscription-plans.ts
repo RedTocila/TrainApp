@@ -36,17 +36,15 @@ export interface SubscriptionPlan {
   includesFrom?: string;
 }
 
-/** Sold plans only — free manual tracking is included with every account. */
+/** Sold plans only. */
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: "ai",
     name: PLATFORM_AI_PRO_NAME,
-    tagline:
-      "Everything in free manual tracking, plus your own AI fitness coach.",
+    tagline: "Your own AI fitness coach for workouts, nutrition, and progress.",
     monthly: { amountEurCents: 2000, compareAtEurCents: 4900 },
     annual: { amountEurCents: 20_000, compareAtEurCents: 49_000 },
     highlighted: true,
-    includesFrom: "Free",
     features: [
       "AI Fitness Coach",
       "AI Nutrition Coach",
@@ -91,8 +89,7 @@ const PLAN_BY_ID = new Map(SUBSCRIPTION_PLANS.map((plan) => [plan.id, plan]));
 const LEGACY_BASIC_PLAN: SubscriptionPlan = {
   id: "basic",
   name: PLATFORM_BASIC_NAME,
-  tagline:
-    "Structured workouts, nutrition plans, and progress tracking (legacy plan).",
+  tagline: "Structured workouts, nutrition plans, and progress tracking (legacy plan).",
   monthly: { amountEurCents: 500 },
   annual: { amountEurCents: 5000 },
   features: [

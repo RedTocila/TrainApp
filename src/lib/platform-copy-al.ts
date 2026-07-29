@@ -99,7 +99,7 @@ export const platformCopyAl = {
       "Je në një provë falas 3-ditore të AI Pro — stërvitje, ushqim dhe Coach AI i plotë. Klasat live dhe sfidat kërkojnë Elite. Karta ngarkohet kur mbaron prova nëse nuk e anulon.",
     trialCancelHint: "Anulo kur të duash nga këtu për të shmangur pagesën.",
     accessUntil: (date: string) =>
-      `Akses deri më ${date}, pastaj kthehet në modalitetin falas`,
+      `Akses deri më ${date}, pastaj aksesi mbaron`,
     renewsExpires: (date: string) => `Rinovohet / skadon ${date}`,
     trialEnds: (date: string) => `Prova mbaron më ${date}`,
   },
@@ -1118,10 +1118,8 @@ export const platformCopyAl = {
   pricing: {
     step: "Hapi 3 — Zgjidh paketën",
     choosePlan: "Zgjidh planin tënd",
-    onboardingBlurb:
-      "Platforma është falas për ndjekje manuale. Përmirësohu kur të duash për AI Pro ose Elite.",
-    upgradeBlurb:
-      "Falas për stërvitje dhe vakte manuale. Përmirësohu për coach AI (20€) ose komunitetin Elite (30€).",
+    onboardingBlurb: "Zgjidh AI Pro ose Elite për të hapur coaching dhe për të filluar.",
+    upgradeBlurb: "Coach AI Pro nga 20€/muaj, ose komuniteti Elite nga 30€/muaj.",
     skipForNow: "Anashkalo për tani",
     startFreeTrial: "Fillo provën falas 3-ditore",
     trialCardRequired: "Shto kartën për të filluar — €0 sot. Anulo kur të duash para ditës 3.",
@@ -1240,8 +1238,7 @@ export const platformCopyAl = {
   subscriptionPlans: {
     basic: {
       name: "RUTINA Basic",
-      tagline:
-        "Plan i vjetër — ndjekja manuale tani është falas me çdo llogari.",
+      tagline: "Plan i vjetër — nuk shitet më.",
       features: [
         "Plane stërvitjeje të personalizuara",
         "Plane ushqimi",
@@ -1259,8 +1256,7 @@ export const platformCopyAl = {
     },
     aiPro: {
       name: "RUTINA AI Pro",
-      tagline: "Gjithçka në ndjekjen manuale falas, plus coach-i yt AI.",
-      includesFrom: "Falas",
+      tagline: "Coach-i yt AI për stërvitje, ushqim dhe progres.",
       features: [
         "Coach Fitnesi AI",
         "Coach Ushqimi AI",

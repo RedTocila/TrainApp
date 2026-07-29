@@ -12,11 +12,11 @@ import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: `Pricing — ${PLATFORM_NAME}`,
-  description: "Free manual tracking. AI Pro from €19/month. Elite community from €29/month.",
+  description: "AI Pro from €20/month. Elite community from €30/month.",
   alternates: { canonical: `${SITE_URL}/pricing` },
   openGraph: {
     title: `Pricing — ${PLATFORM_NAME}`,
-    description: "Free for manual workouts and meals. Upgrade for AI coaching and Elite community.",
+    description: "Upgrade for AI coaching and Elite community.",
     url: `${SITE_URL}/pricing`,
   },
 };
@@ -41,13 +41,12 @@ export default async function PublicPricingPage() {
               Plans that grow with your goals
             </h1>
             <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
-              Free for manual workouts, meals, and tracking. Upgrade for AI coaching
-              (€19) or Elite community (€29).
+              AI Pro coaching from €20/month, or Elite community from €30/month.
             </p>
           </FadeIn>
           <PublicPricingClient />
           <p className="text-center text-sm text-muted-foreground">
-            Create a free account to start training manually, then upgrade anytime.{" "}
+            Create an account, then choose AI Pro or Elite.{" "}
             <Link href="/" className="text-primary hover:underline">
               Back to home
             </Link>

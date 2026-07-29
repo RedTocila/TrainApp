@@ -102,7 +102,7 @@ export const coachCopyEn = {
   cancelSubscription: {
     title: "Throwing in the towel?",
     message:
-      "Canceling your subscription? Cute. You keep access until the end of your paid period — then it's back to free preview mode. No saved perks, no full coach features. Coach Alex expected more fight in you. Sure you want to surrender?",
+      "Canceling your subscription? Cute. You keep access until the end of your paid period — then coaching locks again. No saved perks, no full coach features. Coach Alex expected more fight in you. Sure you want to surrender?",
     confirm: "Surrender — cancel plan",
     cancel: "I'll keep fighting",
   },
@@ -222,9 +222,9 @@ export const coachLabelsEn = {
   illDoBetter: "I'll do better tomorrow",
   noHabitsToday: 'No habits today. Coach Alex assumes you\'re "resting."',
   addHabitsHint: "Stack small wins before Coach Alex roasts your consistency",
-  unlockDashboard: "Train free. Unlock AI when you're ready.",
+  unlockDashboard: "Choose a plan to unlock coaching.",
   subscribeBlurb:
-    "Manual workouts, meals, and tracking are free. Upgrade for Coach Alex, AI plans, and Elite community.",
+    "Subscribe to AI Pro or Elite for Coach Alex, AI plans, and the Elite community.",
   trialUnlockTitle: "You're on the AI Pro free trial",
   trialUnlockBlurb: (days: number) =>
     days === 1
@@ -232,8 +232,7 @@ export const coachLabelsEn = {
       : `${days} days left of full AI Coach access. Live classes and challenges stay Elite-only — subscribe before the trial ends.`,
   viewPlans: "See AI & Elite plans",
   keepAiPro: "Keep AI Pro",
-  noSubscription:
-    "You're on free manual mode — full tracking without AI. Upgrade for Coach Alex.",
+  noSubscription: "No active plan yet. Choose AI Pro or Elite to unlock Coach Alex.",
   pickAPlan: "See plans",
   levelUp: "Upgrade",
   coachHasOpinions: "Coach Alex has opinions. Upgrade if you want to hear them.",

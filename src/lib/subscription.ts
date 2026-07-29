@@ -97,7 +97,7 @@ export function subscriptionLabel(
     }
     return `${PLATFORM_AI_PRO_NAME} · Free trial`;
   }
-  if (!plan) return "Free";
+  if (!plan) return "No plan";
   const planName =
     plan === "elite"
       ? PLATFORM_ELITE_NAME

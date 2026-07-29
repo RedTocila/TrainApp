@@ -96,7 +96,7 @@ export const platformCopyEn = {
     freeTrialBlurb:
       "You're on a 3-day free trial of AI Pro — workouts, nutrition, and full AI Coach. Live classes and challenges need Elite. Your card is charged when the trial ends unless you cancel.",
     trialCancelHint: "Cancel anytime from here to avoid being charged.",
-    accessUntil: (date: string) => `Access until ${date}, then back to free preview`,
+    accessUntil: (date: string) => `Access until ${date}, then access ends`,
     renewsExpires: (date: string) => `Renews / expires ${date}`,
     trialEnds: (date: string) => `Trial ends ${date}`,
   },
@@ -1103,10 +1103,9 @@ export const platformCopyEn = {
   pricing: {
     step: "Step 3 — Pick a package",
     choosePlan: "Choose your plan",
-    onboardingBlurb:
-      "The platform is free for manual tracking. Upgrade anytime for AI Pro or Elite.",
+    onboardingBlurb: "Choose AI Pro or Elite to unlock coaching and start training.",
     upgradeBlurb:
-      "Free for manual workouts and meals. Upgrade for AI coaching (€20) or Elite community (€30).",
+      "AI Pro coaching from €20/month, or Elite community from €30/month.",
     skipForNow: "Skip for now",
     startFreeTrial: "Start 3-day free trial",
     trialCardRequired: "Add a card to start — €0 today. Cancel anytime before day 3.",
@@ -1225,8 +1224,7 @@ export const platformCopyEn = {
   subscriptionPlans: {
     basic: {
       name: "RUTINA Basic",
-      tagline:
-        "Legacy plan — manual tracking is now free with every account.",
+      tagline: "Legacy plan — no longer sold.",
       features: [
         "Personalized workout plans",
         "Nutrition plans",
@@ -1244,8 +1242,7 @@ export const platformCopyEn = {
     },
     aiPro: {
       name: "RUTINA AI Pro",
-      tagline: "Everything in free manual tracking, plus your own AI fitness coach.",
-      includesFrom: "Free",
+      tagline: "Your own AI fitness coach for workouts, nutrition, and progress.",
       features: [
         "AI Fitness Coach",
         "AI Nutrition Coach",

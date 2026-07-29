@@ -102,7 +102,7 @@ export const coachCopyAl = {
   cancelSubscription: {
     title: "Po hedhni peshqirën?",
     message:
-      "Po anuloni abonimin? E bukur. Keni akses deri në fund të periudhës së paguar — pastaj ktheheni në modalitetin falas. Pa përfitime të ruajtura, pa funksione të plota. Coach Alex pritej më shumë luftë nga ju. Jeni të sigurt që doni të dorëzoheni?",
+      "Po anuloni abonimin? E bukur. Keni akses deri në fund të periudhës së paguar — pastaj coaching mbyllet përsëri. Pa përfitime të ruajtura, pa funksione të plota. Coach Alex pritej më shumë luftë nga ju. Jeni të sigurt që doni të dorëzoheni?",
     confirm: "Dorëzohem — anulo planin",
     cancel: "Do të vazhdoj të luftoj",
   },
@@ -222,9 +222,9 @@ export const coachLabelsAl = {
   illDoBetter: "Do të bëj më mirë nesër",
   noHabitsToday: 'Sot nuk ka zakone. Coach Alex supozon se jeni "në pushim."',
   addHabitsHint: "Grumbulloni fitore të vogla para se Coach Alex të kritikojë qëndrueshmërinë tuaj",
-  unlockDashboard: "Stërvitu falas. Hap AI kur të jesh gati.",
+  unlockDashboard: "Zgjidh një plan për të hapur coaching.",
   subscribeBlurb:
-    "Stërvitjet, vaktet dhe ndjekja manuale janë falas. Përmirësohu për Coach Alex, planet AI dhe komunitetin Elite.",
+    "Abonohu te AI Pro ose Elite për Coach Alex, planet AI dhe komunitetin Elite.",
   trialUnlockTitle: "Je në provën falas të AI Pro",
   trialUnlockBlurb: (days: number) =>
     days === 1
@@ -232,8 +232,7 @@ export const coachLabelsAl = {
       : `${days} ditë të mbetura me akses të plotë te Coach AI. Klasat live dhe sfidat mbeten vetëm Elite — abonohu para se të mbarojë prova.`,
   viewPlans: "Shiko planet AI & Elite",
   keepAiPro: "Mbaj AI Pro",
-  noSubscription:
-    "Je në modalitetin manual falas — ndjekje e plotë pa AI. Përmirësohu për Coach Alex.",
+  noSubscription: "Nuk ke plan aktiv ende. Zgjidh AI Pro ose Elite për të hapur Coach Alex.",
   pickAPlan: "Shiko planet",
   levelUp: "Përmirësohu",
   coachHasOpinions: "Coach Alex ka mendime. Përmirësohu nëse don t'i dëgjosh.",
