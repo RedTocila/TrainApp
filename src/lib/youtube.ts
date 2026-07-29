@@ -14,23 +14,41 @@ export function extractYoutubeId(url: string): string | null {
   return null;
 }
 
-export function getYoutubeEmbedUrl(url: string, options?: { autoplay?: boolean }): string | null {
+export function extractYoutubeStartSeconds(url: string): number | null {
+  const match = url.match(/[?&](?:t|start)=(\d+)/);
+  if (!match?.[1]) return null;
+  const seconds = Number(match[1]);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
+export function getYoutubeThumbnailUrl(url: string): string | null {
+  const id = extractYoutubeId(url);
+  return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
+}
+
+export function getYoutubeEmbedUrl(
+  url: string,
+  options?: { autoplay?: boolean; controls?: boolean }
+): string | null {
   const id = extractYoutubeId(url);
   if (!id) return null;
 
-  const startMatch = url.match(/[?&](?:t|start)=(\d+)/);
-  const start = startMatch ? startMatch[1] : null;
+  const start = extractYoutubeStartSeconds(url);
 
   const params = new URLSearchParams();
-  if (start) params.set("start", start);
+  if (start != null) params.set("start", String(start));
   if (options?.autoplay) {
     params.set("autoplay", "1");
     // Browsers block unmuted autoplay after async loads (e.g. fetching admin override).
     params.set("mute", "1");
   }
+  if (options?.controls === false) {
+    params.set("controls", "0");
+  }
   params.set("playsinline", "1");
   params.set("rel", "0");
   params.set("modestbranding", "1");
+  params.set("iv_load_policy", "3");
 
   const qs = params.toString();
   return `https://www.youtube.com/embed/${id}${qs ? `?${qs}` : ""}`;

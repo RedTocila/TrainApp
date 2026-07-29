@@ -1,6 +1,6 @@
 "use client";
 
-import { Droplet, Flame, Utensils, Wheat, type LucideIcon } from "lucide-react";
+import { Beef, Droplet, Flame, Wheat, type LucideIcon } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { MealMacros } from "@/lib/meal-utils";
 import { cn } from "@/lib/utils";
@@ -225,7 +225,7 @@ export function NutritionMacroProgressCard({
     },
     {
       key: "protein",
-      icon: Utensils,
+      icon: Beef,
       colorClass: "text-rose-400",
       barClass: "bg-rose-500",
       unit: "g",

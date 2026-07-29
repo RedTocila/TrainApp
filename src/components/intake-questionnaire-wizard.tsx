@@ -9,7 +9,7 @@ import {
   type ChangeEvent,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Mars, Sparkles, Venus } from "lucide-react";
 import {
   ACTIVITY_OPTIONS,
   ALCOHOL_OPTIONS,
@@ -319,6 +319,7 @@ function StepFields({
               <div className="grid grid-cols-2 gap-2 overflow-visible px-0.5 pt-0.5">
                 {GENDER_OPTIONS.filter((o) => o.value).map((opt) => {
                   const active = responses.gender === opt.value;
+                  const GenderIcon = opt.value === "female" ? Venus : Mars;
                   return (
                     <button
                       key={opt.value}
@@ -326,18 +327,14 @@ function StepFields({
                       aria-pressed={active}
                       onClick={() => onChange({ gender: opt.value })}
                       className={cn(
-                        "relative flex items-center justify-center gap-2 overflow-visible rounded-2xl border-2 px-3 py-2.5 text-sm font-bold transition-all",
+                        "relative flex h-11 items-center justify-center gap-2 overflow-visible rounded-2xl border-2 px-3 text-sm font-bold transition-all",
                         active
                           ? "border-primary bg-primary/10 text-primary shadow-[0_0_16px_-6px] shadow-primary/40"
                           : "border-border/70 bg-secondary/30 hover:border-primary/40"
                       )}
                     >
-                      {opt.emoji ? (
-                        <span className="leading-none" aria-hidden>
-                          {opt.emoji}
-                        </span>
-                      ) : null}
-                      <span className="leading-none">{opt.label}</span>
+                      <GenderIcon className="h-4 w-4 shrink-0" aria-hidden strokeWidth={2.25} />
+                      <span>{opt.label}</span>
                       {active && (
                         <span
                           className="absolute -right-2 -top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-background"

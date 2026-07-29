@@ -4,6 +4,7 @@ import {
   Activity,
   AlertTriangle,
   Apple,
+  Beef,
   Calendar,
   Dumbbell,
   Flame,
@@ -15,7 +16,6 @@ import {
   ThumbsUp,
   TrendingDown,
   TrendingUp,
-  Utensils,
   type LucideIcon,
 } from "lucide-react";
 import { ProgressPredictionStats } from "@/components/progress-prediction-stats";
@@ -41,7 +41,7 @@ const TIP_ICONS: Record<string, LucideIcon> = {
 const STAT_BAR_ICONS: Record<string, LucideIcon> = {
   workouts: Dumbbell,
   meals: Salad,
-  protein: Utensils,
+  protein: Beef,
 };
 
 function MacroRingsBlock({ block }: { block: Extract<CoachChatRichBlock, { type: "macro_rings" }> }) {
@@ -75,7 +75,7 @@ function MacroRingsBlock({ block }: { block: Extract<CoachChatRichBlock, { type:
         value={gap.consumed.protein}
         target={gap.targets.protein}
         label="Protein"
-        icon={Utensils}
+        icon={Beef}
         accentClass="text-blue-400"
         ringClass="text-blue-400"
         exceededTolerance={macroExceededDailyUpperLimit(

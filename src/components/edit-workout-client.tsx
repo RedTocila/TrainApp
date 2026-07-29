@@ -66,7 +66,6 @@ export function EditWorkoutClient({
       {tab === "build" ? (
         interval ? (
           <HiitBuilder
-            stayOnPage
             planId={plan.id}
             initialTitle={plan.title}
             initialDescription={plan.description ?? ""}
@@ -76,12 +75,10 @@ export function EditWorkoutClient({
                 ? plan.kind
                 : "hiit"
             }
-            onSaved={handleRefresh}
           />
         ) : (
           <WorkoutBuilder
             mode="client"
-            stayOnPage
             planId={plan.id}
             initialTitle={plan.title}
             initialDescription={plan.description ?? ""}
@@ -98,7 +95,6 @@ export function EditWorkoutClient({
                 image_url: e.image_url ?? undefined,
               })),
             }))}
-            onSaved={handleRefresh}
           />
         )
       ) : (
