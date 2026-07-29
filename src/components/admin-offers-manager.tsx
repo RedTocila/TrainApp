@@ -158,7 +158,7 @@ export function AdminOffersManager({
                   uploadForm.set("file", file);
                   const result = await uploadSubscriptionOfferImage(uploadForm);
                   if ("error" in result) {
-                    setError(result.error);
+                    setError(result.error ?? "Could not upload offer image.");
                     return;
                   }
                   setForm((f) => ({ ...f, imageUrl: result.url }));
