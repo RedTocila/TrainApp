@@ -1069,7 +1069,7 @@ export const platformCopyAl = {
   calendar: {
     fullCalendar: "Kalendari i plotë",
     fullCalendarTitle: "Kalendari i plotë",
-    tapDayHint: "Trokit një ditë për të parë përmbledhjen më poshtë",
+    tapDayHint: "Trokit një ditë për të parë detyrat më poshtë",
     closeCalendar: "Mbyll kalendarin",
     previousMonth: "Muaji i kaluar",
     nextMonth: "Muaji i ardhshëm",
@@ -1077,6 +1077,9 @@ export const platformCopyAl = {
     missed: "E humbur",
     upcomingActive: "E ardhshme / aktive",
     preAccount: "Para llogarisë",
+    completionLow: "Nën 60%",
+    completionMid: "60–80%",
+    completionHigh: "80–100%",
     noActivityYet: "Ende pa aktivitet (para krijimit të llogarisë)",
     daySummary: (active: number, completed: number, missed: number) =>
       missed > 0

@@ -17,7 +17,12 @@ import type { DailyTask, TaskCategory } from "@/lib/daily-tasks";
 import { localizeCardioTitle } from "@/lib/cardio-catalog";
 import { formatLocalized } from "@/lib/date-locale";
 import { getTaskCategoryLabels } from "@/lib/locale-labels";
+import { DayCompletionRing } from "@/components/day-completion-ring";
 import type { CalendarDayStatus } from "@/lib/dashboard-task-enrichment";
+import {
+  getCompletionTone,
+  getDayCompletionRatio,
+} from "@/lib/dashboard-task-enrichment";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_ICONS: Record<TaskCategory, LucideIcon> = {
@@ -337,7 +342,7 @@ export function CalendarDayDot({
   date,
   tasks,
   selected,
-  dayStatus = "default",
+  dayStatus: _dayStatus = "default",
   onSelect,
   size = "default",
 }: {
@@ -350,14 +355,30 @@ export function CalendarDayDot({
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
-  const categoryLabels = getTaskCategoryLabels(locale);
   const todayDay = isToday(date);
-  const categories = [...new Set(tasks.map((t) => t.category))];
-  const isComplete = dayStatus === "complete";
-  const isIncompletePast = dayStatus === "incomplete_past";
-  const isIncompleteActive = dayStatus === "incomplete_active";
   const doneCount = tasks.filter((t) => t.completed).length;
+  const ratio = getDayCompletionRatio(tasks);
+  const tone = ratio == null ? null : getCompletionTone(ratio);
   const large = size === "large";
+  const ringSize = large ? 22 : 16;
+  const ringStroke = large ? 2.75 : 2.25;
+
+  const toneBorder =
+    tone === "green"
+      ? selected
+        ? "border-green-500 bg-green-500/15"
+        : "border-green-500/45 bg-green-500/10 hover:bg-green-500/15"
+      : tone === "amber"
+        ? selected
+          ? "border-amber-500 bg-amber-500/15"
+          : "border-amber-500/45 bg-amber-500/10 hover:bg-amber-500/15"
+        : tone === "red"
+          ? selected
+            ? "border-red-500 bg-red-500/15"
+            : "border-red-500/45 bg-red-500/10 hover:bg-red-500/15"
+          : selected
+            ? "border-primary bg-primary/10"
+            : "border-border/60 bg-secondary/20 hover:bg-secondary/40";
 
   return (
     <button
@@ -367,84 +388,34 @@ export function CalendarDayDot({
         "flex w-full flex-col items-center justify-center rounded-xl border transition-colors",
         large
           ? "min-h-[4.25rem] gap-1.5 rounded-2xl px-1 py-2 sm:min-h-[4.75rem]"
-          : "aspect-square text-sm",
-        selected
-          ? isComplete
-            ? "border-green-500 bg-green-500/15"
-            : isIncompletePast
-              ? "border-red-500 bg-red-500/15"
-              : isIncompleteActive
-                ? "border-amber-500 bg-amber-500/15"
-                : "border-primary bg-primary text-primary-foreground"
-          : isComplete
-            ? "border-green-500/50 bg-green-500/10 hover:bg-green-500/15"
-            : isIncompletePast
-              ? "border-red-500/50 bg-red-500/10 hover:bg-red-500/15"
-              : isIncompleteActive
-                ? "border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/15"
-                : "border-border/60 bg-secondary/20 hover:bg-secondary/40",
-        todayDay &&
-          !selected &&
-          !isComplete &&
-          !isIncompletePast &&
-          !isIncompleteActive &&
-          "ring-2 ring-primary/40"
+          : "aspect-square gap-0.5 text-sm",
+        toneBorder,
+        todayDay && !selected && "ring-2 ring-primary/40"
       )}
+      aria-label={
+        ratio == null
+          ? formatLocalized(date, "MMMM d", locale)
+          : platform.calendar.tasksCompletedAria(doneCount, tasks.length)
+      }
     >
       <span className={cn("font-bold leading-none", large ? "text-base" : "text-xs")}>
         {formatLocalized(date, "d", locale)}
       </span>
-      {isComplete ? (
+      {ratio == null ? (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-green-500 text-white",
-            large ? "h-6 w-6" : "mt-0.5 h-4 w-4"
+            "rounded-full bg-muted-foreground/25",
+            large ? "mt-0.5 h-1.5 w-1.5" : "mt-1 h-1 w-1"
           )}
-          aria-label={platform.calendar.allTasksCompleted}
-        >
-          <Check className={large ? "h-3.5 w-3.5" : "h-2.5 w-2.5"} />
-        </span>
-      ) : isIncompletePast ? (
-        <span
-          className={cn(
-            "flex items-center justify-center rounded-full bg-red-500 text-white",
-            large ? "h-6 w-6" : "mt-0.5 h-4 w-4"
-          )}
-          aria-label={platform.calendar.tasksIncomplete}
-        >
-          <X className={large ? "h-3.5 w-3.5" : "h-2.5 w-2.5"} />
-        </span>
-      ) : isIncompleteActive ? (
-        <span
-          className={cn(
-            "rounded-full bg-amber-500 font-bold leading-none text-white",
-            large ? "px-2 py-1 text-[11px]" : "mt-0.5 px-1 text-[9px]"
-          )}
-          aria-label={platform.calendar.tasksCompletedAria(doneCount, tasks.length)}
-        >
-          {doneCount}/{tasks.length}
-        </span>
+          aria-hidden
+        />
       ) : (
-        categories.length > 0 && (
-          <div
-            className={cn(
-              "flex flex-wrap justify-center",
-              large ? "mt-0.5 gap-1 px-1" : "mt-1 gap-0.5 px-1"
-            )}
-          >
-            {categories.slice(0, 4).map((category) => (
-              <span
-                key={category}
-                className={cn(
-                  "rounded-full",
-                  large ? "h-1.5 w-1.5" : "h-1 w-1",
-                  selected ? "bg-primary-foreground/80" : "bg-primary/70"
-                )}
-                title={categoryLabels[category]}
-              />
-            ))}
-          </div>
-        )
+        <DayCompletionRing
+          progress={ratio}
+          tone={tone!}
+          size={ringSize}
+          stroke={ringStroke}
+        />
       )}
     </button>
   );

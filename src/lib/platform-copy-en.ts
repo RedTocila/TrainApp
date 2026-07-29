@@ -1054,7 +1054,7 @@ export const platformCopyEn = {
   calendar: {
     fullCalendar: "Full calendar",
     fullCalendarTitle: "Full calendar",
-    tapDayHint: "Tap a day to view its summary below",
+    tapDayHint: "Tap a day to see its tasks below",
     closeCalendar: "Close calendar",
     previousMonth: "Previous month",
     nextMonth: "Next month",
@@ -1062,6 +1062,9 @@ export const platformCopyEn = {
     missed: "Missed",
     upcomingActive: "Upcoming / active",
     preAccount: "Pre-account",
+    completionLow: "Under 60%",
+    completionMid: "60–80%",
+    completionHigh: "80–100%",
     noActivityYet: "No activity yet (before account creation)",
     daySummary: (active: number, completed: number, missed: number) =>
       missed > 0

@@ -125,6 +125,7 @@ export function TaskRow({
   waterGoalMl,
   dateKey,
   variant = "default",
+  onTaskClick,
 }: {
   task: DailyTask;
   macroTargets?: MealMacros;
@@ -133,6 +134,7 @@ export function TaskRow({
   waterGoalMl?: number;
   dateKey?: string;
   variant?: "default" | "dropdown";
+  onTaskClick?: () => void;
 }) {
   const navigate = useTaskNavigation();
   const locale = useLocale();
@@ -159,7 +161,10 @@ export function TaskRow({
     <li>
       <button
         type="button"
-        onClick={() => navigate(task)}
+        onClick={() => {
+          onTaskClick?.();
+          navigate(task);
+        }}
         className={cn(
           isDropdown
             ? dashboard.dropdownItem
@@ -258,6 +263,7 @@ function TaskGroupDropdown({
   waterMl,
   waterGoalMl,
   dateKey,
+  onTaskClick,
 }: {
   category: TaskCategory;
   tasks: DailyTask[];
@@ -266,6 +272,7 @@ function TaskGroupDropdown({
   waterMl?: number;
   waterGoalMl?: number;
   dateKey?: string;
+  onTaskClick?: () => void;
 }) {
   const locale = useLocale();
   const categoryLabels = getTaskCategoryLabels(locale);
@@ -340,6 +347,7 @@ function TaskGroupDropdown({
                 waterGoalMl={waterGoalMl}
                 dateKey={dateKey}
                 variant="dropdown"
+                onTaskClick={onTaskClick}
               />
             ))}
           </ul>
@@ -397,6 +405,7 @@ export function DayTasksList({
   waterMl,
   waterGoalMl,
   dateKey,
+  onTaskClick,
 }: {
   tasks: DailyTask[];
   macroTargets?: MealMacros;
@@ -404,6 +413,7 @@ export function DayTasksList({
   waterMl?: number;
   waterGoalMl?: number;
   dateKey?: string;
+  onTaskClick?: () => void;
 }) {
   const coachLabels = useCoachLabels();
 
@@ -430,6 +440,7 @@ export function DayTasksList({
             waterMl={waterMl}
             waterGoalMl={waterGoalMl}
             dateKey={dateKey}
+            onTaskClick={onTaskClick}
           />
         ) : (
           <TaskRow
@@ -440,6 +451,7 @@ export function DayTasksList({
             waterMl={waterMl}
             waterGoalMl={waterGoalMl}
             dateKey={dateKey}
+            onTaskClick={onTaskClick}
           />
         )
       )}

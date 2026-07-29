@@ -62,6 +62,22 @@ export type CalendarDayStatus =
   | "incomplete_active"
   | "default";
 
+export type CompletionTone = "red" | "amber" | "green";
+
+/** Completed-task ratio for a day, or null when there are no tasks. */
+export function getDayCompletionRatio(tasks: DailyTask[]): number | null {
+  if (tasks.length === 0) return null;
+  const done = tasks.filter((task) => task.completed).length;
+  return done / tasks.length;
+}
+
+/** <60% red · 60–80% amber · 80–100% green */
+export function getCompletionTone(ratio: number): CompletionTone {
+  if (ratio < 0.6) return "red";
+  if (ratio < 0.8) return "amber";
+  return "green";
+}
+
 export function getCalendarDayStatus(
   tasks: DailyTask[],
   date: Date,

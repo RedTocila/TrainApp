@@ -17,7 +17,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { CalendarDayDot } from "@/components/calendar-day-card";
-import { groupTasksByStatus } from "@/components/day-tasks-list";
+import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { formatLocalized } from "@/lib/date-locale";
@@ -85,24 +85,27 @@ export function FullCalendarDialog({
     return eachDayOfInterval({ start, end });
   }, [viewMonth]);
 
-  const selectedDayTasks = useMemo(
-    () => {
-      const raw = enrichTasksForDate(selectedDate, schedule, enrichment, now);
-      if (activeFrom && isBefore(selectedDate, activeFrom)) return [];
-      return raw;
-    },
-    [selectedDate, schedule, enrichment, now, activeFrom]
-  );
+  const selectedDayTasks = useMemo(() => {
+    const raw = enrichTasksForDate(selectedDate, schedule, enrichment, now);
+    if (activeFrom && isBefore(selectedDate, activeFrom)) return [];
+    return raw;
+  }, [selectedDate, schedule, enrichment, now, activeFrom]);
   const { active, completed, missed } = useMemo(
     () => groupTasksByStatus(selectedDayTasks),
     [selectedDayTasks]
   );
+  const beforeAccount =
+    activeFrom != null && isBefore(selectedDate, activeFrom);
 
   if (!open) return null;
 
   return (
     <AppOverlay open={open} onClose={onClose}>
-      <AppOverlayPanel maxWidth="max-w-4xl" aria-label={platform.calendar.fullCalendarTitle} className="max-h-[92%]">
+      <AppOverlayPanel
+        maxWidth="max-w-4xl"
+        aria-label={platform.calendar.fullCalendarTitle}
+        className="max-h-[92%]"
+      >
         <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6">
           <div>
             <h2 className="text-lg font-black">{platform.calendar.fullCalendarTitle}</h2>
@@ -110,7 +113,12 @@ export function FullCalendarDialog({
               {platform.calendar.tapDayHint}
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label={platform.common.close}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label={platform.common.close}
+          >
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -140,16 +148,20 @@ export function FullCalendarDialog({
 
           <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-green-500" /> {platform.calendar.complete}
+              <span className="h-2 w-2 rounded-full bg-red-500" />{" "}
+              {platform.calendar.completionLow}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-red-500" /> {platform.calendar.missed}
+              <span className="h-2 w-2 rounded-full bg-amber-500" />{" "}
+              {platform.calendar.completionMid}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-primary/70" /> {platform.calendar.upcomingActive}
+              <span className="h-2 w-2 rounded-full bg-green-500" />{" "}
+              {platform.calendar.completionHigh}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-muted-foreground/30" /> {platform.calendar.preAccount}
+              <span className="h-2 w-2 rounded-full bg-muted-foreground/30" />{" "}
+              {platform.calendar.preAccount}
             </span>
           </div>
 
@@ -193,18 +205,26 @@ export function FullCalendarDialog({
           </div>
 
           <div className="mt-6 rounded-xl border border-border bg-secondary/40 p-4">
-            <p className="text-sm font-bold">
-              {formatLocalized(selectedDate, "EEEE, MMMM d", locale)}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {activeFrom && isBefore(selectedDate, activeFrom)
-                ? platform.calendar.noActivityYet
-                : platform.calendar.daySummary(
-                    active.length,
-                    completed.length,
-                    missed.length
-                  )}
-            </p>
+            <div className="mb-3">
+              <p className="text-sm font-bold">
+                {formatLocalized(selectedDate, "EEEE, MMMM d", locale)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {beforeAccount
+                  ? platform.calendar.noActivityYet
+                  : platform.calendar.daySummary(
+                      active.length,
+                      completed.length,
+                      missed.length
+                    )}
+              </p>
+            </div>
+            {beforeAccount ? null : (
+              <DayTasksList
+                tasks={selectedDayTasks}
+                onTaskClick={onClose}
+              />
+            )}
           </div>
         </div>
       </AppOverlayPanel>

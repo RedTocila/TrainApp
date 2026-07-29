@@ -2,11 +2,15 @@
 
 import type { Ref } from "react";
 import { isAfter, isBefore, isToday, startOfDay } from "date-fns";
-import { Check, X } from "lucide-react";
+import { DayCompletionRing } from "@/components/day-completion-ring";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { formatLocalized } from "@/lib/date-locale";
 import type { DailyTask, TaskCategory } from "@/lib/daily-tasks";
 import type { CalendarDayStatus } from "@/lib/dashboard-task-enrichment";
+import {
+  getCompletionTone,
+  getDayCompletionRatio,
+} from "@/lib/dashboard-task-enrichment";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_DOT_COLORS: Record<TaskCategory, string> = {
@@ -33,7 +37,7 @@ export function CalendarStripDay({
   date,
   selected,
   tasks,
-  dayStatus,
+  dayStatus: _dayStatus,
   inactive = false,
   onSelect,
   buttonRef,
@@ -45,54 +49,14 @@ export function CalendarStripDay({
   const hasTasks = tasks.length > 0;
   const categories = [...new Set(tasks.map((task) => task.category))];
   const doneCount = tasks.filter((task) => task.completed).length;
-
-  const isComplete = dayStatus === "complete";
-  const isIncompletePast = dayStatus === "incomplete_past";
-  const isIncompleteActive = dayStatus === "incomplete_active";
+  const ratio = getDayCompletionRatio(tasks);
+  const tone = ratio == null ? null : getCompletionTone(ratio);
+  const ringTone = inactive || ratio == null ? "muted" : tone!;
+  const ringProgress = inactive || ratio == null ? 0 : ratio;
 
   const dayAbbreviation = isToday(date)
     ? platform.calendar.today
     : formatLocalized(date, "EEE", locale);
-
-  const circleBorder = cn(
-    "flex h-9 w-9 items-center justify-center rounded-full border transition-colors sm:h-10 sm:w-10",
-    inactive && "border-border/40",
-    !inactive &&
-      !selected &&
-      future &&
-      "border-border/50 border-solid",
-    !inactive &&
-      !selected &&
-      !future &&
-      isComplete &&
-      "border-green-500/70 border-solid",
-    !inactive &&
-      !selected &&
-      !future &&
-      isIncompletePast &&
-      "border-red-500/60 border-solid",
-    !inactive &&
-      !selected &&
-      !future &&
-      isIncompleteActive &&
-      "border-amber-500/70 border-solid",
-    !inactive &&
-      !selected &&
-      !future &&
-      !isComplete &&
-      !isIncompletePast &&
-      !isIncompleteActive &&
-      "border-dashed border-muted-foreground/35",
-    selected &&
-      !inactive &&
-      (isComplete
-        ? "border-green-500 border-solid"
-        : isIncompletePast
-          ? "border-red-500 border-solid"
-          : isIncompleteActive
-            ? "border-amber-500 border-solid"
-            : "border-foreground border-solid")
-  );
 
   return (
     <button
@@ -100,7 +64,11 @@ export function CalendarStripDay({
       type="button"
       onClick={onSelect}
       disabled={inactive}
-      aria-label={formatLocalized(date, "EEEE, MMMM d", locale)}
+      aria-label={
+        ratio == null
+          ? formatLocalized(date, "EEEE, MMMM d", locale)
+          : platform.calendar.tasksCompletedAria(doneCount, tasks.length)
+      }
       aria-pressed={selected}
       className={cn(
         "group relative flex flex-col items-center gap-1.5 px-1 py-2 transition-opacity sm:gap-2 sm:py-2.5",
@@ -131,7 +99,13 @@ export function CalendarStripDay({
         {dayAbbreviation}
       </span>
 
-      <span className={cn(circleBorder, "relative z-10")}>
+      <DayCompletionRing
+        progress={ringProgress}
+        tone={ringTone}
+        size={40}
+        stroke={2.5}
+        className="relative z-10"
+      >
         <span
           className={cn(
             "text-sm font-semibold leading-none tabular-nums sm:text-base",
@@ -142,46 +116,36 @@ export function CalendarStripDay({
         >
           {formatLocalized(date, "d", locale)}
         </span>
+      </DayCompletionRing>
 
-        {isComplete && (
-          <span
-            className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-green-500 text-white ring-2 ring-background"
-            aria-hidden
-          >
-            <Check className="h-2 w-2" strokeWidth={3} />
-          </span>
-        )}
-        {isIncompletePast && (
-          <span
-            className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-white ring-2 ring-background"
-            aria-hidden
-          >
-            <X className="h-2 w-2" strokeWidth={3} />
-          </span>
-        )}
-      </span>
-
-      {hasTasks && !inactive && !isComplete && !isIncompletePast && (
-        <span className="relative z-10 flex h-1.5 items-center justify-center gap-0.5">
-          {isIncompleteActive ? (
-            <span className="text-[9px] font-semibold tabular-nums text-amber-500">
-              {doneCount}/{tasks.length}
-            </span>
-          ) : (
-            categories.slice(0, 3).map((category) => (
-              <span
-                key={category}
-                className={cn(
-                  "h-1 w-1 rounded-full",
-                  CATEGORY_DOT_COLORS[category],
-                  future && "opacity-40"
-                )}
-              />
-            ))
+      {hasTasks && !inactive && ratio != null && ratio > 0 && ratio < 1 ? (
+        <span
+          className={cn(
+            "relative z-10 text-[9px] font-semibold tabular-nums",
+            tone === "green"
+              ? "text-green-500"
+              : tone === "amber"
+                ? "text-amber-500"
+                : "text-red-500"
           )}
+        >
+          {doneCount}/{tasks.length}
         </span>
+      ) : hasTasks && !inactive && (ratio == null || ratio === 0) && future ? (
+        <span className="relative z-10 flex h-1.5 items-center justify-center gap-0.5">
+          {categories.slice(0, 3).map((category) => (
+            <span
+              key={category}
+              className={cn(
+                "h-1 w-1 rounded-full opacity-40",
+                CATEGORY_DOT_COLORS[category]
+              )}
+            />
+          ))}
+        </span>
+      ) : (
+        <span className="relative z-10 h-1.5" aria-hidden />
       )}
-
     </button>
   );
 }

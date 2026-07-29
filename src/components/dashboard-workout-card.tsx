@@ -1,7 +1,7 @@
 "use client";
 import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
-import { ChevronRight, Clock, Dumbbell, Flame, Layers, List, Play, TriangleAlert } from "lucide-react";
+import { Check, ChevronRight, Clock, Dumbbell, Flame, Layers, List, Play, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addDays, startOfDay } from "date-fns";
@@ -776,9 +776,9 @@ export function DashboardWorkoutCard({
             />
           ) : null}
           <DashboardCardNavBody className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <span className="inline-flex rounded-full border border-primary/45 bg-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                <span className="inline-flex h-8 items-center rounded-full border border-primary/45 bg-primary/15 px-3 text-xs font-black uppercase tracking-[0.14em] text-primary">
                   {dayLabel}
                 </span>
                 {workout && exerciseCount > 0 ? (
@@ -886,12 +886,24 @@ export function DashboardWorkoutCard({
 
                 <div className="mt-auto">
                   {mainDone ? (
-                    <div className="flex items-center justify-center rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-2.5">
-                      <p className="truncate text-center text-sm font-semibold text-emerald-600 dark:text-emerald-300">
-                        {workout.dayTitle || workout.planTitle}
-                        <span className="mx-1.5 opacity-50">·</span>
-                        {platform.common.completed}
-                      </p>
+                    <div
+                      className={cn(
+                        "flex items-center gap-2 rounded-2xl border border-border/60 bg-background/55 px-3.5 py-2.5 backdrop-blur-sm",
+                        "shadow-sm"
+                      )}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold leading-tight text-foreground">
+                          {workout.dayTitle || workout.planTitle}
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                          {platform.common.completed}
+                          {durationLabel ? ` · ${durationLabel}` : null}
+                        </p>
+                      </div>
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 shadow-sm ring-1 ring-emerald-500/30">
+                        <Check className="h-5 w-5" strokeWidth={2.5} />
+                      </span>
                     </div>
                   ) : (
                     <div
