@@ -287,11 +287,11 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
             <p className="text-muted-foreground">{signupDraft.email}</p>
           </div>
 
-          <div className="mx-auto grid w-full max-w-[240px] grid-cols-2 gap-1 rounded-full border border-border/70 bg-secondary/25 p-0.5">
+          <div className="mx-auto grid w-full max-w-[280px] grid-cols-2 gap-1 rounded-full border border-border/70 bg-secondary/25 p-0.5">
             <button
               type="button"
               className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+                "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
                 billingInterval === "monthly"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -304,7 +304,7 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
             <button
               type="button"
               className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+                "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
                 billingInterval === "annual"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -333,10 +333,10 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
                   )}
                 >
                   {bestOffer ? (
-                    <div className="border-b border-primary/25 bg-gradient-to-r from-primary/25 via-primary/10 to-transparent p-3">
+                    <div className="border-b border-primary/25 bg-gradient-to-r from-primary/25 via-primary/10 to-transparent px-3 py-4">
                       {bestOffer.image_url ? (
                         <div
-                          className="mb-2 h-20 w-full rounded-lg border border-primary/25 bg-cover bg-center"
+                          className="mb-3 h-20 w-full rounded-lg border border-primary/25 bg-cover bg-center"
                           style={{ backgroundImage: `url("${bestOffer.image_url}")` }}
                           aria-hidden
                         />
@@ -387,11 +387,6 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
                                   {option.badge}
                                 </span>
                               )}
-                              {bestOffer ? (
-                                <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-300">
-                                  {bestOffer.badge_text ?? `${bestOffer.percent_off}% OFF`}
-                                </span>
-                              ) : null}
                             </div>
                             <p className="mt-1 text-xs text-muted-foreground">{option.subtitle}</p>
                           </div>

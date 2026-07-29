@@ -70,10 +70,10 @@ function PlanRow({
       )}
     >
       {offer ? (
-        <div className="border-b border-primary/25 bg-gradient-to-r from-primary/25 via-primary/10 to-transparent p-3">
+        <div className="border-b border-primary/25 bg-gradient-to-r from-primary/25 via-primary/10 to-transparent px-3 py-4">
           {offer.image_url ? (
             <div
-              className="mb-2 h-20 w-full rounded-lg border border-primary/25 bg-cover bg-center"
+              className="mb-3 h-20 w-full rounded-lg border border-primary/25 bg-cover bg-center"
               style={{ backgroundImage: `url("${offer.image_url}")` }}
               aria-hidden
             />
@@ -115,11 +115,6 @@ function PlanRow({
                   {plan.badge}
                 </span>
               )}
-              {offer ? (
-                <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-300">
-                  {offer.badge_text ?? `${offer.percent_off}% OFF`}
-                </span>
-              ) : null}
               {isCurrent && (
                 <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
                   {currentPlanLabel}
@@ -193,15 +188,12 @@ export function PricingPlans({
   checkoutBasePath = "/dashboard/checkout",
   currentPlan,
   subscribed,
-  trialEligible = false,
 }: {
   interval: BillingInterval;
   onIntervalChange: (interval: BillingInterval) => void;
   checkoutBasePath?: string;
   currentPlan?: string | null;
   subscribed?: boolean;
-  /** User can start the card-backed AI Pro free trial. */
-  trialEligible?: boolean;
 }) {
   const locale = useLocale();
   const platform = usePlatformCopy();
@@ -212,9 +204,6 @@ export function PricingPlans({
   const [selectedId, setSelectedId] = useState<string>(() => {
     if (subscribed && currentPlan && plans.some((p) => p.id === currentPlan)) {
       return currentPlan;
-    }
-    if (trialEligible) {
-      return plans.find((p) => p.id === "ai")?.id ?? plans.find((p) => p.highlighted)?.id ?? plans[0].id;
     }
     return plans.find((p) => p.highlighted)?.id ?? plans[0].id;
   });
@@ -244,19 +233,12 @@ export function PricingPlans({
     [plans, offers, interval]
   );
   const selectedIsCurrent = Boolean(subscribed && currentPlan === selectedPlan.id);
-  const startTrial = trialEligible && selectedPlan.id === "ai";
-  const checkoutHref = startTrial
-    ? checkoutBasePath === "/register"
-      ? `/register?plan=ai&interval=${interval}`
-      : `/dashboard/checkout/trial?interval=${interval}`
-    : `${checkoutBasePath}?plan=${selectedPlan.id}&interval=${interval}`;
+  const checkoutHref = `${checkoutBasePath}?plan=${selectedPlan.id}&interval=${interval}`;
   const ctaLabel = selectedIsCurrent
     ? cardLabels.currentPlan
-    : startTrial
-      ? pricing.startFreeTrial
-      : subscribed
-        ? cardLabels.switchPlan
-        : cardLabels.subscribe;
+    : subscribed
+      ? cardLabels.switchPlan
+      : cardLabels.subscribe;
 
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
@@ -265,7 +247,7 @@ export function PricingPlans({
           value={interval}
           onChange={onIntervalChange}
           aria-label="Billing interval"
-          className="w-auto"
+          className="w-full max-w-[280px] p-0.5"
           options={BILLING_INTERVALS.map((key) => ({
             value: key,
             label: key === "monthly" ? pricing.monthly : pricing.annual,

@@ -13,6 +13,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+function toIsoFromLocalDatetime(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
+function toLocalDatetimeInput(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${d}T${hh}:${mm}`;
+}
+
 export function AdminOffersManager({
   offers,
   warning,
@@ -33,7 +53,23 @@ export function AdminOffersManager({
     imageUrl: "",
     active: true,
   });
+  const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const resetForm = () => {
+    setForm({
+      name: "",
+      planId: "ai",
+      interval: "all",
+      percentOff: 50,
+      startsAt: "",
+      endsAt: "",
+      badgeText: "",
+      imageUrl: "",
+      active: true,
+    });
+    setEditingOfferId(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -44,7 +80,7 @@ export function AdminOffersManager({
       ) : null}
 
       <div className="rounded-2xl border border-border bg-card p-4">
-        <h2 className="text-lg font-bold">Create Offer</h2>
+        <h2 className="text-lg font-bold">{editingOfferId ? "Edit Offer" : "Create Offer"}</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Offer name</Label>
@@ -203,25 +239,35 @@ export function AdminOffersManager({
               setError(null);
               startTransition(async () => {
                 const res = await upsertSubscriptionOffer({
+                  id: editingOfferId ?? undefined,
                   name: form.name,
                   planId: form.planId,
                   interval: form.interval,
                   percentOff: form.percentOff,
-                  startsAt: form.startsAt || null,
-                  endsAt: form.endsAt || null,
+                  startsAt: toIsoFromLocalDatetime(form.startsAt),
+                  endsAt: toIsoFromLocalDatetime(form.endsAt),
                   badgeText: form.badgeText || null,
                   imageUrl: form.imageUrl || null,
                   active: form.active,
                 });
                 if ("error" in res) setError(res.error);
-                else {
-                  setForm((f) => ({ ...f, name: "", badgeText: "", imageUrl: "" }));
-                }
+                else resetForm();
               });
             }}
           >
-            {isPending ? "Saving..." : "Create offer"}
+            {isPending ? "Saving..." : editingOfferId ? "Update offer" : "Create offer"}
           </Button>
+          {editingOfferId ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="ml-2"
+              onClick={resetForm}
+              disabled={isPending || isUploadingImage}
+            >
+              Cancel
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -253,18 +299,43 @@ export function AdminOffersManager({
                     </div>
                   ) : null}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isPending}
-                  onClick={() =>
-                    startTransition(async () => {
-                      await deleteSubscriptionOffer(offer.id);
-                    })
-                  }
-                >
-                  Delete
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isPending || isUploadingImage}
+                    onClick={() => {
+                      setError(null);
+                      setEditingOfferId(offer.id);
+                      setForm({
+                        name: offer.name,
+                        planId: offer.plan_id,
+                        interval: offer.billing_interval,
+                        percentOff: offer.percent_off,
+                        startsAt: toLocalDatetimeInput(offer.starts_at),
+                        endsAt: toLocalDatetimeInput(offer.ends_at),
+                        badgeText: offer.badge_text ?? "",
+                        imageUrl: offer.image_url ?? "",
+                        active: offer.active,
+                      });
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isPending}
+                    onClick={() =>
+                      startTransition(async () => {
+                        await deleteSubscriptionOffer(offer.id);
+                        if (editingOfferId === offer.id) resetForm();
+                      })
+                    }
+                  >
+                    Delete
+                  </Button>
+                </div>
               </div>
             ))
           )}
