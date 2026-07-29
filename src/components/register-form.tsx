@@ -12,6 +12,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  Clock3,
   Loader2,
   CreditCard,
   ArrowRight,
@@ -39,6 +40,10 @@ import { loadCheckoutReferralCode, saveCheckoutReferralCode } from "@/lib/referr
 import { formatUserError } from "@/lib/format-user-error";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/components/locale-provider";
+import { getCurrencyPrice } from "@/lib/checkout-i18n";
+import type { SubscriptionOffer } from "@/lib/subscription-offers";
+import { applyOfferDiscount, getOfferEndsLabel, pickBestOffer } from "@/lib/subscription-offers";
+import { getPlanPrice, type BillingInterval } from "@/lib/subscription-plans";
 
 type PackagePlan = "ai" | "elite";
 type SignupDraft = GuestSignupPayload;
@@ -46,7 +51,6 @@ type SignupDraft = GuestSignupPayload;
 const PACKAGE_OPTIONS: Array<{
   id: PackagePlan;
   name: string;
-  priceLabel: string;
   subtitle: string;
   badge?: string;
   includesFrom?: string;
@@ -55,7 +59,6 @@ const PACKAGE_OPTIONS: Array<{
   {
     id: "ai",
     name: "RUTINA AI Pro",
-    priceLabel: "€20",
     subtitle: "AI coaching and personalized fitness guidance.",
     badge: "Popular",
     features: [
@@ -68,7 +71,6 @@ const PACKAGE_OPTIONS: Array<{
   {
     id: "elite",
     name: "RUTINA Elite",
-    priceLabel: "€30",
     subtitle: "Everything in AI Pro plus elite coaching and community.",
     includesFrom: "RUTINA AI Pro",
     features: [
@@ -80,7 +82,7 @@ const PACKAGE_OPTIONS: Array<{
   },
 ];
 
-export function RegisterForm() {
+export function RegisterForm({ initialOffers = [] }: { initialOffers?: SubscriptionOffer[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const locale = useLocale();
@@ -90,6 +92,7 @@ export function RegisterForm() {
   const [isPending, setIsPending] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PackagePlan>("ai");
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
   const [openPackageDetails, setOpenPackageDetails] = useState<PackagePlan | null>(null);
   const [signupDraft, setSignupDraft] = useState<SignupDraft | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -97,6 +100,7 @@ export function RegisterForm() {
   const [checkoutStarted, setCheckoutStarted] = useState(false);
   const [paymentPending, setPaymentPending] = useState(false);
   const [referralCode, setReferralCode] = useState("");
+  const [offers] = useState<SubscriptionOffer[]>(initialOffers);
 
   useEffect(() => {
     const draft = loadIntakeDraft();
@@ -166,7 +170,7 @@ export function RegisterForm() {
     setIsPending(true);
     setError(null);
     try {
-      const result = await createGuestCheckoutOrder(signupDraft, selectedPlan, "monthly");
+      const result = await createGuestCheckoutOrder(signupDraft, selectedPlan, billingInterval);
       if ("error" in result) {
         setError(result.error ?? "Could not start checkout. Please try again.");
         return;
@@ -197,10 +201,18 @@ export function RegisterForm() {
         <CardContent className="space-y-4 text-center text-sm text-muted-foreground">
           <div className="rounded-xl border border-border bg-secondary/30 p-3 text-left">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Selected package</p>
-            <p className="mt-1 text-base font-bold text-foreground">
-              {PACKAGE_OPTIONS.find((option) => option.id === selectedPlan)?.name} ·{" "}
-              {PACKAGE_OPTIONS.find((option) => option.id === selectedPlan)?.priceLabel}
-            </p>
+            {(() => {
+              const basePrice = getPlanPrice(selectedPlan, billingInterval);
+              const bestOffer = pickBestOffer(offers, selectedPlan, billingInterval);
+              const discountedAmountCents = applyOfferDiscount(basePrice.amountCents, bestOffer);
+              const displayPrice = getCurrencyPrice({ amountEurCents: discountedAmountCents });
+              return (
+                <p className="mt-1 text-base font-bold text-foreground">
+                  {PACKAGE_OPTIONS.find((option) => option.id === selectedPlan)?.name} ·{" "}
+                  {displayPrice.label}/{billingInterval === "monthly" ? "month" : "year"}
+                </p>
+              );
+            })()}
           </div>
           {paymentPending ? (
             <div className="rounded-xl border border-border bg-secondary/30 py-8">
@@ -275,10 +287,41 @@ export function RegisterForm() {
             <p className="text-muted-foreground">{signupDraft.email}</p>
           </div>
 
+          <div className="mx-auto grid w-full max-w-[240px] grid-cols-2 gap-1 rounded-full border border-border/70 bg-secondary/25 p-0.5">
+            <button
+              type="button"
+              className={cn(
+                "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+                billingInterval === "monthly"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setBillingInterval("monthly")}
+              aria-pressed={billingInterval === "monthly"}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+                billingInterval === "annual"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setBillingInterval("annual")}
+              aria-pressed={billingInterval === "annual"}
+            >
+              Yearly
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 gap-2">
             {PACKAGE_OPTIONS.map((option) => {
               const selected = selectedPlan === option.id;
               const detailsOpen = openPackageDetails === option.id;
+              const bestOffer = pickBestOffer(offers, option.id, billingInterval);
+              const offerEndsLabel = getOfferEndsLabel(bestOffer, locale);
               return (
                 <div
                   key={option.id}
@@ -289,6 +332,27 @@ export function RegisterForm() {
                       : "border-border/70 bg-secondary/30"
                   )}
                 >
+                  {bestOffer ? (
+                    <div className="border-b border-primary/25 bg-gradient-to-r from-primary/25 via-primary/10 to-transparent p-3">
+                      {bestOffer.image_url ? (
+                        <div
+                          className="mb-2 h-20 w-full rounded-lg border border-primary/25 bg-cover bg-center"
+                          style={{ backgroundImage: `url("${bestOffer.image_url}")` }}
+                          aria-hidden
+                        />
+                      ) : null}
+                      <p className="text-xs font-black uppercase tracking-wide text-primary">Limited offer</p>
+                      <p className="mt-0.5 text-sm font-semibold text-foreground">
+                        {bestOffer.badge_text ?? `${bestOffer.percent_off}% OFF`} - {bestOffer.name}
+                      </p>
+                      {offerEndsLabel ? (
+                        <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock3 className="h-3.5 w-3.5" aria-hidden />
+                          Ends {offerEndsLabel}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {selected && (
                     <span
                       className="absolute -right-2 -top-2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl ring-2 ring-background"
@@ -304,23 +368,49 @@ export function RegisterForm() {
                     className="w-full p-4 text-left"
                     aria-pressed={selected}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="pr-6 text-lg font-black tracking-tight">{option.name}</p>
-                          {option.badge && (
-                            <span className="inline-flex rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black">
-                              {option.badge}
-                            </span>
-                          )}
+                    {(() => {
+                      const basePrice = getPlanPrice(option.id, billingInterval);
+                      const baseAmountCents = basePrice.amountCents;
+                      const discountedAmountCents = applyOfferDiscount(baseAmountCents, bestOffer);
+                      const displayPrice = getCurrencyPrice({ amountEurCents: discountedAmountCents });
+                      const compareAtPrice =
+                        discountedAmountCents < baseAmountCents
+                          ? getCurrencyPrice({ amountEurCents: baseAmountCents })
+                          : null;
+                      return (
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="pr-6 text-lg font-black tracking-tight">{option.name}</p>
+                              {option.badge && (
+                                <span className="inline-flex rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black">
+                                  {option.badge}
+                                </span>
+                              )}
+                              {bestOffer ? (
+                                <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-300">
+                                  {bestOffer.badge_text ?? `${bestOffer.percent_off}% OFF`}
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">{option.subtitle}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <div className="flex items-baseline justify-end gap-1.5">
+                              {compareAtPrice ? (
+                                <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/70">
+                                  {compareAtPrice.label}
+                                </span>
+                              ) : null}
+                              <p className="text-2xl font-black tracking-tight">{displayPrice.label}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              / {billingInterval === "monthly" ? "month" : "year"}
+                            </p>
+                          </div>
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">{option.subtitle}</p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-2xl font-black tracking-tight">{option.priceLabel}</p>
-                        <p className="text-xs text-muted-foreground">/ month</p>
-                      </div>
-                    </div>
+                      );
+                    })()}
                   </button>
 
                   <button

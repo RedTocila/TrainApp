@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, ClipboardList, Package, Sparkles, UserPlus } from "lucide-react";
 import {
@@ -18,7 +19,7 @@ import {
   type IntakeResponses,
 } from "@/lib/intake-questionnaire";
 import { GET_STARTED_CTA } from "@/lib/landing-content";
-import { saveIntakeDraft, loadIntakeDraft } from "@/lib/intake-storage";
+import { saveIntakeDraft, loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 
 const perks = [
   { icon: ClipboardList, text: "Macros tuned to your body" },
@@ -29,6 +30,7 @@ const perks = [
 type Phase = "intro" | "wizard" | "complete";
 
 export function GetStartedClient() {
+  const router = useRouter();
   const [phase, setPhase] = useState<Phase>("intro");
   const [responses, setResponses] = useState<IntakeResponses>(
     () => loadIntakeDraft() ?? EMPTY_INTAKE_RESPONSES
@@ -41,6 +43,10 @@ export function GetStartedClient() {
   };
 
   const previewMacros = calculateMacrosFromIntakeResponses(responses);
+  const handleSkipQuestionnaire = () => {
+    clearIntakeDraft();
+    router.push("/register");
+  };
 
   return (
     <div className="relative min-h-dvh px-4 py-6 sm:px-6">
@@ -96,14 +102,24 @@ export function GetStartedClient() {
             </div>
 
             <div className="flex justify-center">
-              <Button
-                size="lg"
-                className="gap-2 px-8"
-                onClick={() => setPhase("wizard")}
-              >
-                Start questionnaire
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  size="lg"
+                  className="gap-2 px-8"
+                  onClick={() => setPhase("wizard")}
+                >
+                  Start questionnaire
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="px-8"
+                  onClick={handleSkipQuestionnaire}
+                >
+                  Skip for now
+                </Button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -115,6 +131,14 @@ export function GetStartedClient() {
                 initialResponses={responses}
                 onComplete={handleComplete}
               />
+              <Button
+                type="button"
+                variant="ghost"
+                className="mt-4 w-full"
+                onClick={handleSkipQuestionnaire}
+              >
+                Skip questionnaire for now
+              </Button>
             </CardContent>
           </Card>
         )}

@@ -10,6 +10,7 @@ import {
   Trophy,
   Mail,
   Dumbbell,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
@@ -23,11 +24,9 @@ const navItems = [
   { href: "/admin/challenges", label: "Challenges", shortLabel: "Challenges", icon: Trophy },
   { href: "/admin/clients", label: "Clients", shortLabel: "Clients", icon: Users },
   { href: "/admin/exercises", label: "Exercises", shortLabel: "Exercises", icon: Dumbbell },
+  { href: "/admin/offers", label: "Offers", shortLabel: "Offers", icon: Tag },
   { href: "/admin/mail", label: "Mail", shortLabel: "Mail", icon: Mail },
 ];
-
-const mobileNavLinkClass =
-  "flex h-full min-w-0 items-center justify-center touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 active:opacity-90";
 
 function isActive(pathname: string, href: string, exact?: boolean) {
   if (exact) return pathname === href;
@@ -88,28 +87,6 @@ export function AdminNav({
           </button>
         </form>
       </aside>
-
-      <nav className="dashboard-instant-nav pointer-events-auto fixed bottom-0 left-0 right-0 z-[100] border-t border-border bg-card/95 backdrop-blur lg:hidden">
-        <div className="grid h-11 grid-cols-6">
-          {navItems.map((item) => {
-            const active = isActive(pathname, item.href, item.exact);
-            return (
-              <InstantNavLink
-                key={item.href}
-                href={item.href}
-                exactMatch={item.exact}
-                aria-label={item.label}
-                className={cn(
-                  mobileNavLinkClass,
-                  active ? "text-primary" : "text-muted-foreground"
-                )}
-              >
-                <item.icon className="h-6 w-6" />
-              </InstantNavLink>
-            );
-          })}
-        </div>
-      </nav>
     </>
   );
 }

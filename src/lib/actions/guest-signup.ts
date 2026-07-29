@@ -16,6 +16,7 @@ import {
   type BillingInterval,
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
+import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import { buildFreeTrialGrant } from "@/lib/subscription";
 import {
   createSdkOrder,
@@ -341,11 +342,26 @@ export async function createGuestCheckoutOrder(
 
   const price = getPlanPrice(planId, interval);
   if (!price) return { error: "Invalid plan" };
+  const admin = createAdminClient();
+  let offerDiscountCents = 0;
+  let offerBadge: string | null = null;
+  try {
+    const { data: offers } = await admin
+      .from("subscription_offers")
+      .select("*")
+      .eq("active", true);
+    const bestOffer = pickBestOffer((offers as any[]) ?? [], planId, interval);
+    const discounted = applyOfferDiscount(price.amountCents, bestOffer);
+    offerDiscountCents = Math.max(0, price.amountCents - discounted);
+    offerBadge = bestOffer?.badge_text ?? null;
+  } catch {
+    // Offers table may not exist yet; proceed with list price.
+  }
+  const finalAmountCents = Math.max(0, price.amountCents - offerDiscountCents);
 
   const pending = await upsertPendingSignup(signup);
   if ("error" in pending) return pending;
 
-  const admin = createAdminClient();
   const baseUrl = getAppBaseUrl();
   const isProd = process.env.VERCEL_ENV === "production";
   if (isProd && baseUrl.includes("localhost")) {
@@ -362,7 +378,7 @@ export async function createGuestCheckoutOrder(
       pending_signup_id: pending.pendingSignupId,
       plan: planId,
       billing_interval: interval,
-      amount_cents: price.amountCents,
+      amount_cents: finalAmountCents,
       currency_code: CHECKOUT_CURRENCY,
       status: "pending",
       order_kind: "subscription",
@@ -384,11 +400,11 @@ export async function createGuestCheckoutOrder(
       {
         name: `${plan.name} · ${interval === "monthly" ? "Monthly" : "Annual"}`,
         quantity: 1,
-        price: price.amountCents,
+        price: finalAmountCents,
       },
     ];
     const sdkOrder = await createSdkOrder({
-      amountCents: price.amountCents,
+      amountCents: finalAmountCents,
       currencyCode: CHECKOUT_CURRENCY,
       redirectUrl,
       failRedirectUrl,
@@ -408,10 +424,13 @@ export async function createGuestCheckoutOrder(
       orderId: sdkOrder.id,
       pendingSignupId: pending.pendingSignupId,
       amountCents: price.amountCents,
+      finalAmountCents,
       planId,
       interval,
       planName: plan.name,
       priceLabel: price.label,
+      offerDiscountCents,
+      offerBadge,
     };
   } catch (err) {
     await admin

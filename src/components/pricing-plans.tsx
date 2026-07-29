@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Clock3, Sparkles } from "lucide-react";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import { Button } from "@/components/ui/button";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { getCompareAtLabel, getCurrencyPrice } from "@/lib/checkout-i18n";
+import { getPublicActiveSubscriptionOffers } from "@/lib/actions/admin-offers";
 import { getPricingFeatureIcon } from "@/lib/pricing-feature-icons";
 import type { BillingInterval, SubscriptionPlan } from "@/lib/subscription-plans";
+import type { SubscriptionOffer } from "@/lib/subscription-offers";
+import { applyOfferDiscount, getOfferEndsLabel, pickBestOffer } from "@/lib/subscription-offers";
 import {
   formatAnnualSavingsLocalized,
   getLocalizedSubscriptionPlans,
@@ -21,6 +24,7 @@ const BILLING_INTERVALS = ["monthly", "annual"] as const;
 function PlanRow({
   plan,
   interval,
+  locale,
   selected,
   isCurrent,
   savings,
@@ -30,9 +34,11 @@ function PlanRow({
   hideDetailsLabel,
   includesFromLabel,
   onSelect,
+  offer,
 }: {
   plan: SubscriptionPlan;
   interval: BillingInterval;
+  locale: string;
   selected: boolean;
   isCurrent: boolean;
   savings: string | null;
@@ -42,21 +48,48 @@ function PlanRow({
   hideDetailsLabel: string;
   includesFromLabel: (planName: string) => string;
   onSelect: () => void;
+  offer: SubscriptionOffer | null;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const tier = interval === "monthly" ? plan.monthly : plan.annual;
-  const price = getCurrencyPrice(tier);
-  const compareAt = getCompareAtLabel(tier);
+  const discountedCents = applyOfferDiscount(tier.amountEurCents, offer);
+  const offerEndsLabel = getOfferEndsLabel(offer, locale);
+  const price = getCurrencyPrice({ amountEurCents: discountedCents });
+  const compareAt = getCompareAtLabel({
+    amountEurCents: discountedCents,
+    compareAtEurCents: tier.amountEurCents,
+  });
 
   return (
     <div
       className={cn(
-        "relative rounded-2xl border-2 transition-all",
+        "relative overflow-hidden rounded-2xl border-2 transition-all",
         selected
           ? "border-primary bg-primary/10 shadow-[0_0_20px_-8px] shadow-primary/50"
           : "border-border/70 bg-secondary/30"
       )}
     >
+      {offer ? (
+        <div className="border-b border-primary/25 bg-gradient-to-r from-primary/25 via-primary/10 to-transparent p-3">
+          {offer.image_url ? (
+            <div
+              className="mb-2 h-20 w-full rounded-lg border border-primary/25 bg-cover bg-center"
+              style={{ backgroundImage: `url("${offer.image_url}")` }}
+              aria-hidden
+            />
+          ) : null}
+          <p className="text-xs font-black uppercase tracking-wide text-primary">Limited offer</p>
+          <p className="mt-0.5 text-sm font-semibold text-foreground">
+            {offer.badge_text ?? `${offer.percent_off}% OFF`} - {offer.name}
+          </p>
+          {offerEndsLabel ? (
+            <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock3 className="h-3.5 w-3.5" aria-hidden />
+              Ends {offerEndsLabel}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {selected && (
         <span
           className="absolute -right-1.5 -top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md"
@@ -82,6 +115,11 @@ function PlanRow({
                   {plan.badge}
                 </span>
               )}
+              {offer ? (
+                <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-300">
+                  {offer.badge_text ?? `${offer.percent_off}% OFF`}
+                </span>
+              ) : null}
               {isCurrent && (
                 <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
                   {currentPlanLabel}
@@ -180,8 +218,31 @@ export function PricingPlans({
     }
     return plans.find((p) => p.highlighted)?.id ?? plans[0].id;
   });
+  const [offers, setOffers] = useState<SubscriptionOffer[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getPublicActiveSubscriptionOffers().then((rows) => {
+      if (!cancelled) setOffers(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectedPlan = plans.find((p) => p.id === selectedId) ?? plans[0];
+  const offerByPlan = useMemo(
+    () =>
+      Object.fromEntries(
+        plans.map((plan) => [
+          plan.id,
+          plan.id === "ai" || plan.id === "elite"
+            ? pickBestOffer(offers, plan.id, interval)
+            : null,
+        ])
+      ),
+    [plans, offers, interval]
+  );
   const selectedIsCurrent = Boolean(subscribed && currentPlan === selectedPlan.id);
   const startTrial = trialEligible && selectedPlan.id === "ai";
   const checkoutHref = startTrial
@@ -218,6 +279,7 @@ export function PricingPlans({
             key={plan.id}
             plan={plan}
             interval={interval}
+            locale={locale}
             selected={selectedId === plan.id}
             isCurrent={Boolean(subscribed && currentPlan === plan.id)}
             savings={
@@ -231,6 +293,7 @@ export function PricingPlans({
             hideDetailsLabel={pricing.hideDetails}
             includesFromLabel={cardLabels.includesFrom}
             onSelect={() => setSelectedId(plan.id)}
+            offer={offerByPlan[plan.id] ?? null}
           />
         ))}
       </div>

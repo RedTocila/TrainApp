@@ -15,6 +15,7 @@ import {
   type BillingInterval,
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
+import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import { addBillingPeriod, hasPaidAccess } from "@/lib/subscription";
 import {
   createSdkOrder,
@@ -122,6 +123,25 @@ export async function createCheckoutOrder(
   if (!plan) return { error: "Invalid plan" };
 
   const price = getPlanPrice(planId, interval);
+  let offerDiscountCents = 0;
+  let offerBadge: string | null = null;
+  try {
+    const { data: offers } = await admin
+      .from("subscription_offers")
+      .select("*")
+      .eq("active", true);
+    const bestOffer = pickBestOffer(
+      (offers as any[]) ?? [],
+      planId,
+      interval
+    );
+    const discounted = applyOfferDiscount(price.amountCents, bestOffer);
+    offerDiscountCents = Math.max(0, price.amountCents - discounted);
+    offerBadge = bestOffer?.badge_text ?? null;
+  } catch {
+    // Offers table may not exist yet; proceed with list price.
+  }
+  const basePriceCents = Math.max(0, price.amountCents - offerDiscountCents);
   const baseUrl = getAppBaseUrl();
   const isProd = process.env.VERCEL_ENV === "production";
   if (isProd && baseUrl.includes("localhost")) {
@@ -151,12 +171,12 @@ export async function createCheckoutOrder(
   const creditsToApply = options?.useCredits
     ? Math.min(
         referralState.creditBalanceCents,
-        Math.max(0, price.amountCents - inviteeDiscountCents)
+        Math.max(0, basePriceCents - inviteeDiscountCents)
       )
     : 0;
   const chargeCents = Math.max(
     0,
-    price.amountCents - inviteeDiscountCents - creditsToApply
+    basePriceCents - inviteeDiscountCents - creditsToApply
   );
 
   const { data: orderRow, error: insertError } = await admin
@@ -209,6 +229,8 @@ export async function createCheckoutOrder(
       paidWithCredits: true as const,
       inviteeDiscountCents,
       referralCreditsAppliedCents: creditsToApply,
+      offerDiscountCents,
+      offerBadge,
     };
   }
 
@@ -249,6 +271,8 @@ export async function createCheckoutOrder(
       priceLabel: price.label,
       inviteeDiscountCents,
       referralCreditsAppliedCents: creditsToApply,
+      offerDiscountCents,
+      offerBadge,
     };
   } catch (err) {
     await admin
