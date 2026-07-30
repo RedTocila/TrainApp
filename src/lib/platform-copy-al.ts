@@ -1215,7 +1215,7 @@ export const platformCopyAl = {
       "Ngarkimi dështoi — fotoja mund të jetë shumë e madhe. Provoni përsëri ose përdorni një më të vogël.",
     mealPreview: "Parapamje e vaktit",
     takePhoto: "Bëj foto",
-    fromGallery: "Galeria",
+    fromGallery: "Nga galeria",
     scanBarcode: "Barkod",
     scanBarcodeHint: "Vendos barkodin brenda kornizës",
     startingCamera: "Kamera po hapet…",

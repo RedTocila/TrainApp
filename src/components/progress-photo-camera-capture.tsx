@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, ImageIcon, Loader2 } from "lucide-react";
-import { AppDialog } from "@/components/app-dialog";
+import { createPortal } from "react-dom";
+import { Camera, ImageIcon, Loader2, X } from "lucide-react";
+import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { pickGalleryImage } from "@/lib/pick-gallery-image";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type ProgressPhotoCameraCaptureProps = {
   onCapture: (file: File) => void;
   disabled?: boolean;
+  className?: string;
 };
 
 function stopStream(stream: MediaStream | null) {
@@ -18,15 +22,16 @@ function stopStream(stream: MediaStream | null) {
 export function ProgressPhotoCameraCapture({
   onCapture,
   disabled = false,
+  className,
 }: ProgressPhotoCameraCaptureProps) {
   const platform = usePlatformCopy();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraState, setCameraState] = useState<"starting" | "ready" | "error">(
     "starting"
   );
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [pickingGallery, setPickingGallery] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,78 +103,84 @@ export function ProgressPhotoCameraCapture({
     );
   };
 
-  const handleGalleryChange = (file: File | undefined) => {
-    if (file) onCapture(file);
-    if (galleryRef.current) galleryRef.current.value = "";
+  const handleGallery = async () => {
+    if (disabled || pickingGallery) return;
+    setPickingGallery(true);
+    try {
+      const file = await pickGalleryImage();
+      if (file) onCapture(file);
+    } finally {
+      setPickingGallery(false);
+    }
   };
 
   return (
-    <div className="space-y-3">
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-black">
-        <video
-          ref={videoRef}
-          className={cn(
-            "aspect-[3/4] w-full scale-x-[-1] object-cover",
-            cameraState !== "ready" && "opacity-0"
-          )}
-          playsInline
-          muted
-          autoPlay
-        />
-
-        {cameraState === "starting" ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-secondary/40 text-sm text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            {platform.photos.startingCamera}
-          </div>
-        ) : null}
-
-        {cameraState === "error" ? (
-          <div className="flex aspect-[3/4] flex-col items-center justify-center gap-3 bg-secondary/30 px-6 text-center">
-            <Camera className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {cameraError ?? platform.photos.cameraUnavailable}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {platform.photos.useGalleryInstead}
-            </p>
-          </div>
-        ) : null}
-      </div>
-
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        disabled={disabled}
-        onChange={(e) => handleGalleryChange(e.target.files?.[0])}
+    <div className={cn("relative h-full min-h-0 w-full bg-black", className)}>
+      <video
+        ref={videoRef}
+        className={cn(
+          "absolute inset-0 h-full w-full scale-x-[-1] object-cover",
+          cameraState !== "ready" && "opacity-0"
+        )}
+        playsInline
+        muted
+        autoPlay
       />
 
-      <div className="grid grid-cols-2 items-end gap-3">
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => galleryRef.current?.click()}
-          className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-secondary/40 px-3 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
-        >
-          <span className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-background">
-            <ImageIcon className="h-5 w-5" strokeWidth={1.75} />
-          </span>
-          {platform.photos.fromGallery}
-        </button>
+      {cameraState === "starting" ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black text-sm text-white/70">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          {platform.photos.startingCamera}
+        </div>
+      ) : null}
 
-        <button
-          type="button"
-          disabled={disabled || cameraState !== "ready"}
-          onClick={handleShutter}
-          className="flex flex-col items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-3 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-primary/15 disabled:opacity-40"
-        >
-          <span className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-foreground/80 bg-white shadow-lg">
-            <span className="h-10 w-10 rounded-full bg-white ring-2 ring-black/10" />
-          </span>
-          {platform.photos.snapshot}
-        </button>
+      {cameraState === "error" ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black px-6 text-center">
+          <Camera className="h-8 w-8 text-white/50" />
+          <p className="text-sm text-white/70">
+            {cameraError ?? platform.photos.cameraUnavailable}
+          </p>
+          <p className="text-xs text-white/50">
+            {platform.photos.useGalleryInstead}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-16">
+        <div className="pointer-events-auto mx-auto grid max-w-md grid-cols-3 items-end gap-2 px-6">
+          <button
+            type="button"
+            disabled={disabled || pickingGallery}
+            onClick={() => void handleGallery()}
+            className="flex flex-col items-center gap-1.5 rounded-2xl px-2 py-2 text-xs font-semibold text-white/90 transition-colors hover:bg-white/10 disabled:opacity-50"
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-black/40 backdrop-blur-md">
+              {pickingGallery ? (
+                <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.75} />
+              ) : (
+                <ImageIcon className="h-5 w-5" strokeWidth={1.75} />
+              )}
+            </span>
+            {platform.photos.fromGallery}
+          </button>
+
+          <button
+            type="button"
+            disabled={disabled || cameraState !== "ready"}
+            onClick={handleShutter}
+            className="mx-auto flex flex-col items-center gap-1.5"
+          >
+            <span className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full border-[3px] border-white bg-white/15 shadow-lg backdrop-blur-sm disabled:opacity-40">
+              <span className="h-14 w-14 rounded-full bg-white shadow-inner" />
+            </span>
+            <span className="text-xs font-semibold text-white/90">
+              {platform.photos.snapshot}
+            </span>
+          </button>
+
+          {/* Spacer to keep shutter centered (matches meal barcode column). */}
+          <div aria-hidden className="h-12" />
+        </div>
       </div>
     </div>
   );
@@ -189,27 +200,63 @@ export function ProgressPhotoCaptureDialog({
   disabled?: boolean;
 }) {
   const platform = usePlatformCopy();
+  const [mounted, setMounted] = useState(false);
 
-  return (
-    <AppDialog
-      open={open}
-      onClose={onClose}
-      title={platform.photos.takePosePhoto(poseLabel)}
-      description={platform.photos.captureHint}
-      maxWidth="max-w-md"
-      className="max-h-[min(94%,40rem)]"
+  useLockBodyScroll(open);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  if (!open || !mounted) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[130] flex h-dvh flex-col bg-black"
+      role="dialog"
+      aria-modal="true"
+      aria-label={platform.photos.takePosePhoto(poseLabel)}
     >
-      <div className="px-5 pb-5">
-        {open ? (
-          <ProgressPhotoCameraCapture
-            disabled={disabled}
-            onCapture={(file) => {
-              onCapture(file);
-              onClose();
-            }}
-          />
-        ) : null}
+      <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent px-4 pb-8 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/55">
+            {platform.photos.title}
+          </p>
+          <h2 className="truncate text-lg font-black text-white">
+            {platform.photos.takePosePhoto(poseLabel)}
+          </h2>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          aria-label={platform.common.close}
+          className="shrink-0 text-white hover:bg-white/15 hover:text-white"
+        >
+          <X className="h-5 w-5" />
+        </Button>
+      </header>
+
+      <div className="relative min-h-0 flex-1">
+        <ProgressPhotoCameraCapture
+          disabled={disabled}
+          onCapture={(file) => {
+            onCapture(file);
+            onClose();
+          }}
+        />
       </div>
-    </AppDialog>
+    </div>,
+    document.body
   );
 }

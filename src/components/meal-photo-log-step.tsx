@@ -265,43 +265,57 @@ export function MealPhotoLogStep({
     phase === "analyzing" ||
     phase === "lookingUpBarcode";
 
-  return (
-    <div className="space-y-4">
-      {isBusy ? (
-        <div className="space-y-3">
-          {previewUrl ? (
-            <div className="overflow-hidden rounded-xl border border-border bg-secondary/30">
-              <img
-                src={previewUrl}
-                alt={platform.mealLog.mealPreview}
-                className="mx-auto h-auto max-h-[min(50vh,22rem)] w-full object-contain opacity-80"
-              />
-            </div>
-          ) : null}
-          <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 py-8 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
+  if (isBusy) {
+    return (
+      <div className="absolute inset-0 flex flex-col bg-black">
+        {previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewUrl}
+            alt={platform.mealLog.mealPreview}
+            className="absolute inset-0 h-full w-full object-cover opacity-40"
+          />
+        ) : null}
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-white">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <p className="text-sm font-medium">
             {phase === "compressing"
               ? platform.mealLog.preparingPhoto
               : phase === "lookingUpBarcode"
                 ? platform.mealLog.lookingUpBarcode
                 : platform.mealLog.analyzingMeal}
-          </div>
+          </p>
         </div>
-      ) : (
+        <ProgressPhotoAlexDialog
+          open={Boolean(alexRoast)}
+          onClose={() => setAlexRoast(null)}
+          title={platform.mealLog.alexNotFoodTitle}
+          message={alexRoast ?? ""}
+          primaryLabel={platform.mealLog.retakePhoto}
+        />
+      </div>
+    );
+  }
+
+  if (phase === "capture") {
+    return (
+      <>
         <MealCameraCapture
           onCapture={(file) => void handleFile(file)}
           onBarcode={handleBarcode}
           disabled={isPending || isSaving}
+          className="absolute inset-0"
         />
-      )}
+        <ProgressPhotoAlexDialog
+          open={Boolean(alexRoast)}
+          onClose={() => setAlexRoast(null)}
+          title={platform.mealLog.alexNotFoodTitle}
+          message={alexRoast ?? ""}
+          primaryLabel={platform.mealLog.retakePhoto}
+        />
+      </>
+    );
+  }
 
-      <ProgressPhotoAlexDialog
-        open={Boolean(alexRoast)}
-        onClose={() => setAlexRoast(null)}
-        title={platform.mealLog.alexNotFoodTitle}
-        message={alexRoast ?? ""}
-        primaryLabel={platform.mealLog.retakePhoto}
-      />
-    </div>
-  );
+  return null;
 }

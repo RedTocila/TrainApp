@@ -321,20 +321,28 @@ export function LogMealDialog({
   const logButtonLabel = platform.mealLog.logMeal;
 
   const isPhotoReviewFullscreen = mode === "photo" && hasAiAccess && photoReady;
+  const isPhotoCaptureFullscreen =
+    mode === "photo" && hasAiAccess && !photoReady;
+  const isPhotoFullscreen = isPhotoReviewFullscreen || isPhotoCaptureFullscreen;
 
   const header = (
     <div
       className={cn(
         "flex shrink-0 items-center gap-1.5 border-b border-border px-4 py-2.5 sm:py-3",
         isPhotoReviewFullscreen &&
-          "bg-background/95 pt-[max(0.75rem,env(safe-area-inset-top,0px))] backdrop-blur-md"
+          "bg-background/95 pt-[max(0.75rem,env(safe-area-inset-top,0px))] backdrop-blur-md",
+        isPhotoCaptureFullscreen &&
+          "absolute inset-x-0 top-0 z-20 border-0 bg-gradient-to-b from-black/75 to-transparent pb-8 pt-[max(0.75rem,env(safe-area-inset-top,0px))] text-white"
       )}
     >
       {showBack ? (
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0"
+          className={cn(
+            "h-8 w-8 shrink-0",
+            isPhotoCaptureFullscreen && "text-white hover:bg-white/15 hover:text-white"
+          )}
           onClick={handleBack}
           disabled={isSaving}
           aria-label={platform.mealLog.goBack}
@@ -347,12 +355,13 @@ export function LogMealDialog({
       <h2
         className={cn(
           "min-w-0 flex-1 truncate text-base font-black sm:text-lg",
-          isPhotoReviewFullscreen && "text-center"
+          isPhotoReviewFullscreen && "text-center",
+          isPhotoCaptureFullscreen && "text-white"
         )}
       >
         {title}
       </h2>
-      {canLogCustom && !isPhotoReviewFullscreen ? (
+      {canLogCustom && !isPhotoFullscreen ? (
         <Button
           variant="ghost"
           size="sm"
@@ -371,7 +380,10 @@ export function LogMealDialog({
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 shrink-0"
+        className={cn(
+          "h-8 w-8 shrink-0",
+          isPhotoCaptureFullscreen && "text-white hover:bg-white/15 hover:text-white"
+        )}
         onClick={onClose}
         aria-label={platform.aria.close}
         disabled={isSaving}
@@ -682,33 +694,46 @@ export function LogMealDialog({
       onClose={() => {
         if (!savingRef.current) onClose();
       }}
-      fullscreen={isPhotoReviewFullscreen}
-      closeOnBackdrop={!isSaving}
+      fullscreen={isPhotoFullscreen}
+      closeOnBackdrop={!isSaving && !isPhotoCaptureFullscreen}
     >
       <AppOverlayPanel
-        fullscreen={isPhotoReviewFullscreen}
-        showHandle={!isPhotoReviewFullscreen}
+        fullscreen={isPhotoFullscreen}
+        showHandle={!isPhotoFullscreen}
         maxWidth="max-w-lg"
         aria-label={
-          isPhotoReviewFullscreen ? platform.mealLog.photoLog : platform.mealLog.logAMeal
+          isPhotoFullscreen ? platform.mealLog.photoLog : platform.mealLog.logAMeal
         }
         className={cn(
-          !isPhotoReviewFullscreen && "max-h-[min(92%,48rem)]"
+          !isPhotoFullscreen && "max-h-[min(92%,48rem)]",
+          isPhotoCaptureFullscreen && "bg-black"
         )}
       >
         {header}
         <div
           className={cn(
-            "min-h-0 flex-1 overflow-y-auto overscroll-contain",
-            isPhotoReviewFullscreen
-              ? "px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]"
-              : "px-5 py-4"
+            "min-h-0 flex-1",
+            isPhotoCaptureFullscreen
+              ? "relative overflow-hidden p-0"
+              : cn(
+                  "overflow-y-auto overscroll-contain",
+                  isPhotoReviewFullscreen
+                    ? "px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]"
+                    : "px-5 py-4"
+                )
           )}
-          data-scroll-lock-scrollable
+          data-scroll-lock-scrollable={
+            isPhotoCaptureFullscreen ? undefined : ""
+          }
         >
-          <div className={cn(isPhotoReviewFullscreen && "mx-auto w-full max-w-lg")}>
+          <div
+            className={cn(
+              isPhotoCaptureFullscreen && "absolute inset-0",
+              isPhotoReviewFullscreen && "mx-auto w-full max-w-lg"
+            )}
+          >
             {body}
-            {footerActions}
+            {!isPhotoCaptureFullscreen ? footerActions : null}
           </div>
         </div>
       </AppOverlayPanel>

@@ -1201,7 +1201,7 @@ export const platformCopyEn = {
       "Upload failed — the photo may be too large. Try again or use a smaller image.",
     mealPreview: "Meal preview",
     takePhoto: "Take photo",
-    fromGallery: "Gallery",
+    fromGallery: "From gallery",
     scanBarcode: "Barcode",
     scanBarcodeHint: "Line up the barcode inside the frame",
     startingCamera: "Starting camera…",

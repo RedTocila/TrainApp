@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImageIcon, Loader2, ScanBarcode } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { pickGalleryImage } from "@/lib/pick-gallery-image";
 import { cn } from "@/lib/utils";
 
 type CaptureMode = "photo" | "barcode";
@@ -11,6 +12,7 @@ type MealCameraCaptureProps = {
   onCapture: (file: File) => void;
   onBarcode: (code: string) => void;
   disabled?: boolean;
+  className?: string;
 };
 
 function stopStream(stream: MediaStream | null) {
@@ -21,10 +23,10 @@ export function MealCameraCapture({
   onCapture,
   onBarcode,
   disabled = false,
+  className,
 }: MealCameraCaptureProps) {
   const platform = usePlatformCopy();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scannerStopRef = useRef<(() => void) | null>(null);
   const lastBarcodeRef = useRef<string | null>(null);
@@ -34,6 +36,7 @@ export function MealCameraCapture({
     "starting"
   );
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [pickingGallery, setPickingGallery] = useState(false);
 
   onBarcodeRef.current = onBarcode;
 
@@ -182,114 +185,115 @@ export function MealCameraCapture({
     );
   };
 
-  const handleGalleryChange = (file: File | undefined) => {
-    if (file) onCapture(file);
-    if (galleryRef.current) galleryRef.current.value = "";
+  const handleGallery = async () => {
+    if (disabled || pickingGallery) return;
+    setPickingGallery(true);
+    try {
+      const file = await pickGalleryImage();
+      if (file) onCapture(file);
+    } finally {
+      setPickingGallery(false);
+    }
   };
 
   return (
-    <div className="space-y-3">
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-black">
-        <video
-          ref={videoRef}
-          className={cn(
-            "aspect-[3/4] w-full object-cover",
-            cameraState !== "ready" && "opacity-0"
-          )}
-          playsInline
-          muted
-          autoPlay
-        />
-
-        {cameraState === "starting" ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-secondary/40 text-sm text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            {platform.mealLog.startingCamera}
-          </div>
-        ) : null}
-
-        {cameraState === "error" ? (
-          <div className="flex aspect-[3/4] flex-col items-center justify-center gap-3 bg-secondary/30 px-6 text-center">
-            <Camera className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {cameraError ?? platform.mealLog.cameraUnavailable}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {platform.mealLog.useGalleryInstead}
-            </p>
-          </div>
-        ) : null}
-
-        {mode === "barcode" && cameraState === "ready" ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-28 w-[78%] rounded-xl border-2 border-primary/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
-          </div>
-        ) : null}
-
-        {mode === "barcode" && cameraState === "ready" ? (
-          <p className="absolute inset-x-0 bottom-3 text-center text-xs font-medium text-white drop-shadow">
-            {platform.mealLog.scanBarcodeHint}
-          </p>
-        ) : null}
-      </div>
-
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        disabled={disabled}
-        onChange={(e) => handleGalleryChange(e.target.files?.[0])}
+    <div className={cn("relative h-full min-h-0 w-full bg-black", className)}>
+      <video
+        ref={videoRef}
+        className={cn(
+          "absolute inset-0 h-full w-full object-cover",
+          cameraState !== "ready" && "opacity-0"
+        )}
+        playsInline
+        muted
+        autoPlay
       />
 
-      <div className="grid grid-cols-3 items-center gap-2">
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => galleryRef.current?.click()}
-          className="flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground disabled:opacity-50"
-        >
-          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-secondary/40">
-            <ImageIcon className="h-5 w-5" strokeWidth={1.75} />
-          </span>
-          {platform.mealLog.fromGallery}
-        </button>
+      {cameraState === "starting" ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black text-sm text-white/70">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          {platform.mealLog.startingCamera}
+        </div>
+      ) : null}
 
-        <button
-          type="button"
-          disabled={disabled || cameraState !== "ready" || mode === "barcode"}
-          onClick={handleShutter}
-          aria-label={platform.mealLog.takePhoto}
-          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-4 border-foreground/80 bg-white shadow-lg disabled:opacity-40"
-        >
-          <span className="h-12 w-12 rounded-full bg-white ring-2 ring-black/10" />
-        </button>
+      {cameraState === "error" ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black px-6 text-center">
+          <Camera className="h-8 w-8 text-white/50" />
+          <p className="text-sm text-white/70">
+            {cameraError ?? platform.mealLog.cameraUnavailable}
+          </p>
+          <p className="text-xs text-white/50">
+            {platform.mealLog.useGalleryInstead}
+          </p>
+        </div>
+      ) : null}
 
-        <button
-          type="button"
-          disabled={disabled || cameraState === "starting"}
-          onClick={() =>
-            setMode((current) => (current === "barcode" ? "photo" : "barcode"))
-          }
-          className={cn(
-            "flex flex-col items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors disabled:opacity-50",
-            mode === "barcode"
-              ? "bg-primary/15 text-primary"
-              : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-          )}
-        >
-          <span
+      {mode === "barcode" && cameraState === "ready" ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="h-28 w-[78%] max-w-sm rounded-xl border-2 border-primary/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]" />
+        </div>
+      ) : null}
+
+      {mode === "barcode" && cameraState === "ready" ? (
+        <p className="pointer-events-none absolute inset-x-0 bottom-36 text-center text-xs font-medium text-white drop-shadow">
+          {platform.mealLog.scanBarcodeHint}
+        </p>
+      ) : null}
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-16">
+        <div className="pointer-events-auto mx-auto grid max-w-md grid-cols-3 items-end gap-2 px-6">
+          <button
+            type="button"
+            disabled={disabled || pickingGallery}
+            onClick={() => void handleGallery()}
+            className="flex flex-col items-center gap-1.5 rounded-2xl px-2 py-2 text-xs font-semibold text-white/90 transition-colors hover:bg-white/10 disabled:opacity-50"
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-black/40 backdrop-blur-md">
+              {pickingGallery ? (
+                <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.75} />
+              ) : (
+                <ImageIcon className="h-5 w-5" strokeWidth={1.75} />
+              )}
+            </span>
+            {platform.mealLog.fromGallery}
+          </button>
+
+          <button
+            type="button"
+            disabled={disabled || cameraState !== "ready" || mode === "barcode"}
+            onClick={handleShutter}
+            aria-label={platform.mealLog.takePhoto}
+            className="mx-auto flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full border-[3px] border-white bg-white/15 shadow-lg backdrop-blur-sm disabled:opacity-40"
+          >
+            <span className="h-14 w-14 rounded-full bg-white shadow-inner" />
+          </button>
+
+          <button
+            type="button"
+            disabled={disabled || cameraState === "starting"}
+            onClick={() =>
+              setMode((current) => (current === "barcode" ? "photo" : "barcode"))
+            }
             className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-full border",
+              "flex flex-col items-center gap-1.5 rounded-2xl px-2 py-2 text-xs font-semibold transition-colors disabled:opacity-50",
               mode === "barcode"
-                ? "border-primary/40 bg-primary/20"
-                : "border-border bg-secondary/40"
+                ? "text-primary"
+                : "text-white/90 hover:bg-white/10"
             )}
           >
-            <ScanBarcode className="h-5 w-5" strokeWidth={1.75} />
-          </span>
-          {platform.mealLog.scanBarcode}
-        </button>
+            <span
+              className={cn(
+                "flex h-12 w-12 items-center justify-center rounded-full border backdrop-blur-md",
+                mode === "barcode"
+                  ? "border-primary/50 bg-primary/25"
+                  : "border-white/25 bg-black/40"
+              )}
+            >
+              <ScanBarcode className="h-5 w-5" strokeWidth={1.75} />
+            </span>
+            {platform.mealLog.scanBarcode}
+          </button>
+        </div>
       </div>
     </div>
   );
