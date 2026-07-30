@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { CalendarClock, ChevronRight, ImageIcon } from "lucide-react";
+import { CalendarClock, Camera, ChevronRight, ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { uploadProgressPhotoWithAiReview } from "@/lib/progress-photo-upload-flow";
 import {
@@ -31,7 +31,7 @@ import { getProgressPhotoPoses } from "@/lib/locale-labels";
 import { createClient } from "@/lib/supabase/client";
 import type { ProgressPhotoPose } from "@/lib/supabase/storage";
 import type { ProgressPhotoSet } from "@/lib/types";
-import { ImageSourceButtons } from "@/components/image-source-buttons";
+import { ProgressPhotoCaptureDialog } from "@/components/progress-photo-camera-capture";
 import { ProgressPhotoAlexDialog } from "@/components/progress-photo-alex-dialog";
 import { ProgressPhotoReadMeButton } from "@/components/progress-photo-read-me-button";
 import {
@@ -75,7 +75,7 @@ function PhotoSlot({
   canUploadPhotos,
   canUpload = true,
   onRequireReadMe,
-  onPick,
+  onOpenCapture,
   onRemove,
   onPreview,
 }: {
@@ -85,18 +85,18 @@ function PhotoSlot({
   canUploadPhotos: boolean;
   canUpload?: boolean;
   onRequireReadMe: () => void;
-  onPick: (file: File) => void;
+  onOpenCapture: () => void;
   onRemove: () => void;
   onPreview: () => void;
 }) {
   const platform = usePlatformCopy();
 
-  const handlePick = (file: File) => {
+  const openCapture = () => {
     if (!canUploadPhotos) {
       onRequireReadMe();
       return;
     }
-    onPick(file);
+    onOpenCapture();
   };
 
   return (
@@ -139,16 +139,18 @@ function PhotoSlot({
                 </span>
               </button>
             ) : (
-              <>
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={openCapture}
+                aria-label={platform.photos.takePosePhoto(label)}
+                className="flex h-full w-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <Camera className="h-5 w-5" strokeWidth={1.75} />
+                </span>
                 <span className="text-[11px] font-medium">{platform.photos.addPhoto}</span>
-                <ImageSourceButtons
-                  layout="icon"
-                  cameraOnly
-                  disabled={uploading}
-                  onSelect={handlePick}
-                  cameraLabel={platform.photos.takePosePhoto(label)}
-                />
-              </>
+              </button>
             )}
           </div>
         ) : (
@@ -160,7 +162,7 @@ function PhotoSlot({
           <ProgressPhotoEditMenu
             label={label}
             disabled={uploading}
-            onPick={handlePick}
+            onRetake={openCapture}
             onRemove={onRemove}
           />
         ) : null}
@@ -222,6 +224,10 @@ function ProgressPhotosCardInner({
   );
   const [uploadingPose, setUploadingPose] = useState<ProgressPhotoPose | null>(null);
   const [preview, setPreview] = useState<PhotoPreview | null>(null);
+  const [captureTarget, setCaptureTarget] = useState<{
+    pose: ProgressPhotoPose;
+    label: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [alexDialog, setAlexDialog] = useState<{
     title: string;
@@ -473,7 +479,7 @@ function ProgressPhotosCardInner({
                     uploading={uploadingPose === pose || isPending}
                     canUploadPhotos={canUploadPhotos}
                     onRequireReadMe={ensureCanUpload}
-                    onPick={(file) => void handleUpload(pose, file)}
+                    onOpenCapture={() => setCaptureTarget({ pose, label })}
                     onRemove={() => {
                       confirmGiveUp({
                         ...coachCopy.removeProgressPhoto(label),
@@ -500,6 +506,17 @@ function ProgressPhotosCardInner({
       </DashboardThemedShell>
 
       {giveUpDialog}
+      <ProgressPhotoCaptureDialog
+        open={captureTarget !== null}
+        onClose={() => setCaptureTarget(null)}
+        poseLabel={captureTarget?.label ?? ""}
+        disabled={isPending || uploadingPose !== null}
+        onCapture={(file) => {
+          const target = captureTarget;
+          if (!target) return;
+          void handleUpload(target.pose, file);
+        }}
+      />
       <ProgressPhotoAlexDialog
         open={alexDialog !== null}
         onClose={() => setAlexDialog(null)}

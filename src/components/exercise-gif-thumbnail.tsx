@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Play } from "lucide-react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { Dumbbell, Play } from "lucide-react";
 import { ExerciseGifImage } from "@/components/exercise-gif-image";
 import { ExerciseDemoDialog } from "@/components/exercise-demo-dialog";
+import { resolveExerciseYoutubeUrl } from "@/lib/actions/exercise-videos";
 import { findCatalogExercise } from "@/lib/exercise-catalog";
 import {
   resolveExerciseGifUrls,
   resolveProfileGender,
   type ExerciseGender,
 } from "@/lib/exercise-gif";
-import { extractYoutubeId } from "@/lib/youtube";
+import { extractYoutubeId, isValidYoutubeUrl } from "@/lib/youtube";
 import { cn } from "@/lib/utils";
 
 const SIZE_CLASS = {
@@ -59,40 +60,118 @@ export function ExerciseGifThumbnail({
     () => resolveExerciseGifUrls({ name, imageUrl, gender: resolvedGender }),
     [name, imageUrl, resolvedGender]
   );
-  const youtubeThumb = useMemo(() => youtubeThumbnailUrl(videoUrl), [videoUrl]);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const hasGif = Boolean(url || fallbackUrl);
+
+  const explicitVideo =
+    videoUrl && isValidYoutubeUrl(videoUrl) ? videoUrl.trim() : null;
+  const [overrideVideo, setOverrideVideo] = useState<string | null>(null);
+  const [gifFailed, setGifFailed] = useState(false);
   const [youtubeFailed, setYoutubeFailed] = useState(false);
-  const hasDemo = exerciseCanShowDemo(name, videoUrl, imageUrl) || !!url;
-  const sizeClass = SIZE_CLASS[size];
-  const showYoutube = Boolean(youtubeThumb) && !youtubeFailed;
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const onGifFailed = useEffectEvent(() => {
+    setGifFailed(true);
+  });
+
+  useEffect(() => {
+    setGifFailed(false);
+  }, [url, fallbackUrl, name]);
 
   useEffect(() => {
     setYoutubeFailed(false);
-  }, [youtubeThumb]);
+  }, [explicitVideo, overrideVideo]);
 
-  const media = showYoutube ? (
-    <div className={cn("overflow-hidden bg-secondary/40", sizeClass, !expandable && className)}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={youtubeThumb!}
-        alt={`${name} demonstration`}
-        className="h-full w-full object-cover"
-        loading="lazy"
-        decoding="async"
-        onError={() => setYoutubeFailed(true)}
+  useEffect(() => {
+    if (explicitVideo || !name.trim()) {
+      setOverrideVideo(null);
+      return;
+    }
+
+    // Only fetch an admin YouTube override when we may need it as a thumbnail fallback.
+    if (hasGif && !gifFailed) {
+      setOverrideVideo(null);
+      return;
+    }
+
+    let cancelled = false;
+    void resolveExerciseYoutubeUrl(name).then((resolved) => {
+      if (cancelled) return;
+      setOverrideVideo(
+        resolved && isValidYoutubeUrl(resolved) ? resolved.trim() : null
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [name, explicitVideo, hasGif, gifFailed]);
+
+  const effectiveVideo = explicitVideo ?? overrideVideo;
+  const youtubeThumb = useMemo(
+    () => youtubeThumbnailUrl(effectiveVideo),
+    [effectiveVideo]
+  );
+  const showGif = hasGif && !gifFailed;
+  const showYoutube = Boolean(youtubeThumb) && !youtubeFailed && !showGif;
+  const hasDemo =
+    exerciseCanShowDemo(name, effectiveVideo ?? videoUrl, imageUrl) || hasGif;
+  const sizeClass = SIZE_CLASS[size];
+
+  const emptyPlaceholder = (
+    <div
+      className={cn(
+        "flex items-center justify-center bg-muted text-muted-foreground",
+        sizeClass,
+        !expandable && className
+      )}
+    >
+      <Dumbbell
+        className={cn("opacity-40", size === "sm" ? "h-4 w-4" : "h-5 w-5")}
+        aria-hidden
       />
+      <span className="sr-only">{name} demonstration</span>
     </div>
-  ) : (
+  );
+
+  const youtubeMedia = youtubeThumb ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={youtubeThumb}
+      alt={`${name} demonstration`}
+      className="h-full w-full object-cover"
+      loading="lazy"
+      decoding="async"
+      onError={() => setYoutubeFailed(true)}
+    />
+  ) : null;
+
+  const gifMedia = showGif ? (
     <ExerciseGifImage
       gifUrl={url}
       fallbackUrl={fallbackUrl}
       alt={`${name} demonstration`}
-      className={cn(sizeClass, !expandable && className)}
+      className={cn(sizeClass, !expandable && !showYoutube && className)}
+      onFailed={onGifFailed}
+      hideOnFailed
     />
-  );
+  ) : null;
 
   if (!expandable || !hasDemo) {
-    return media;
+    if (showGif && gifMedia) return gifMedia;
+    if (showYoutube && youtubeThumb) {
+      return (
+        <div
+          className={cn(
+            "overflow-hidden bg-secondary/40",
+            sizeClass,
+            className
+          )}
+        >
+          {youtubeMedia}
+        </div>
+      );
+    }
+    return emptyPlaceholder;
   }
 
   return (
@@ -107,25 +186,21 @@ export function ExerciseGifThumbnail({
         )}
         aria-label={`Preview ${name}`}
       >
-        {showYoutube ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={youtubeThumb!}
-            alt={`${name} demonstration`}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-            onError={() => setYoutubeFailed(true)}
-          />
-        ) : url || fallbackUrl ? (
+        {showGif ? (
           <ExerciseGifImage
             gifUrl={url}
             fallbackUrl={fallbackUrl}
             alt={`${name} demonstration`}
             className={sizeClass}
+            onFailed={onGifFailed}
+            hideOnFailed
           />
+        ) : showYoutube ? (
+          youtubeMedia
         ) : (
-          <span className="flex h-full w-full items-center justify-center bg-secondary/60" />
+          <span className="flex h-full w-full items-center justify-center bg-secondary/60">
+            <Dumbbell className="h-5 w-5 opacity-40 text-muted-foreground" aria-hidden />
+          </span>
         )}
         <span className="absolute inset-0 flex items-center justify-center bg-black/20 transition group-hover:bg-black/35">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/45 shadow-sm transition group-hover:bg-black/60 group-hover:scale-105">
@@ -144,7 +219,7 @@ export function ExerciseGifThumbnail({
         name={name}
         imageUrl={url}
         fallbackImageUrl={fallbackUrl}
-        videoUrl={videoUrl}
+        videoUrl={effectiveVideo ?? videoUrl}
         gender={resolvedGender}
       />
     </>

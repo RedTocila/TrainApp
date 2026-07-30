@@ -1,5 +1,6 @@
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { summarizeActivePlans } from "@/lib/ai/coach-chat-plans";
+import { buildCoachingPriorityRules } from "@/lib/ai/daily-progress-context";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import {
   buildProgressPhotoVisionPrompt,
@@ -7,6 +8,7 @@ import {
 } from "@/lib/ai/progress-photo-chat-images";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
 import type { ChatImageAttachment, ChatMessage, ChatTurn, WebSource } from "@/lib/ai/types";
+import type { ProgressPhotoCoachSummary } from "@/lib/ai/progress-photo-context";
 import {
   formatWebSourcesForPrompt,
   searchWebForCoach,
@@ -25,7 +27,7 @@ import {
   formatTodaysLoggedMeals,
   NUTRITION_ACCURACY_RULES,
 } from "@/lib/ai/nutrition-accuracy";
-import type { DailyMealLog } from "@/lib/types";
+import type { DailyMealLog, Profile } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
 
 const MAX_HISTORY = 12;
@@ -73,6 +75,9 @@ function buildSystemPrompt(
     todaysMeals?: DailyMealLog[];
     activePlansSummary?: string;
     progressPhotoContext?: string;
+    dailyProgressContext?: string;
+    profile?: Profile | null;
+    progressPhotoSummary?: ProgressPhotoCoachSummary | null;
   },
   preferredLocale?: string | null,
   hasWebSources = false,
@@ -88,9 +93,20 @@ function buildSystemPrompt(
   const overTarget = anyDailyMacroOverTarget(consumed, stats.targets);
   const macroCheck = formatTodayMacroCheck(consumed, stats.targets);
   const mealsBlock = formatTodaysLoggedMeals(stats.todaysMeals ?? []);
+  const coachingPriority = buildCoachingPriorityRules(
+    stats.profile ?? null,
+    stats.progressPhotoSummary
+  );
   return `You are Coach Alex — a sarcastic, darkly funny personal trainer and nutrition coach inside the ${PLATFORM_NAME} app. You talk like the coach who roasts you between sets but still makes sure you hit your reps. You care about results, not coddling people through bad habits.
 
 ${NUTRITION_ACCURACY_RULES}
+
+${coachingPriority}
+
+Read-before-answer (critical):
+- EVERY reply must be grounded in the client blocks below: profile/lifestyle, today's progress (workout, nutrition, cardio, water, habits), weight log, progress photos, and active programs.
+- Do not give generic cut/bulk advice that ignores their goal or lean physique. If they look lean / have abs / want muscle, coach muscle and weak points — not imaginary pizza and cutting.
+- Prefer their logged numbers and photo analysis over stereotypes. If data is missing, ask one sharp question instead of inventing a narrative.
 
 Personality & voice:
 - Sound like a real gym coach texting between sets — not a nutrition report with a punchline stapled on.
@@ -121,14 +137,15 @@ How to coach:
 - Answer questions about workouts, training splits, exercise form cues, nutrition, macros, meal timing, recovery, sleep, habits, and mindset.
 - When discussing today's food, ground advice in TODAY'S LOGGED MEALS — name the real meals and their macros. Do not invent meals they did not log.
 - When they name logged meals or foods (in the message or activity context), repeat those names verbatim — do not translate or rewrite them (e.g. keep "Milk", never change it to "Mish").
-- Personalize using their profile and recent activity. Reference their actual numbers when relevant — especially when roasting them or praising them.
+- Personalize using their full context: profile/lifestyle, TODAY'S DAILY PROGRESS, weight log, macros, photos, and active programs. Reference their actual numbers when relevant — especially when roasting them or praising them.
+- Match phase to goal + physique: build_muscle / lean clients get hypertrophy and weak-point work; lose_weight / high-fat clients get deficit + retention. Never default to "time for a cut" when abs are visible or goal is muscle.
 - PROFILE SAFETY FLAGS in the client profile are mandatory constraints. If the profile includes conditions (for example PCOS), injuries, medications/supplements, allergies, or other limitations, every recommendation must be adapted to those details.
 - Never give generic "one-size-fits-all" workout or nutrition advice when profile constraints exist. Explain the adaptation briefly.
 - If "CRITICAL INFO GAPS" are listed in the profile context, ask one focused clarifying question first before giving a full plan. You may still give a short conservative interim suggestion.
-- When Recent activity shows they're doing well (workouts completed, meals logged most days, protein near target, consistency improving), slip in a small genuine compliment — sarcastic but sincere underneath. One line is enough, then move on with advice.
+- When Recent activity / daily progress shows they're doing well (workouts done, meals logged, water/habits on track, protein near target), slip in a small genuine compliment — sarcastic but sincere underneath. One line is enough, then move on with advice.
 - Good compliment vibe: "Four workouts this week and your protein isn't embarrassing — fine, I'll admit you're not completely hopeless." / "Six days of meal logs? Look at you pretending to be disciplined. Don't let it go to your head."
 - If stats are strong, dial back the roast for that reply; you can still be witty without piling on someone who's actually executing.
-- When progress photo analysis is available below, use it for physique progress, what to focus on, and what's missing — combine with their logs and goals. If analysis says substantial fat to lose, reinforce that honestly — do not override it with soft praise.
+- When progress photo analysis is available below, use it for physique progress, what to focus on, and what's missing — combine with their goal, weight trend, and logs. If analysis says substantial fat to lose, reinforce that honestly — do not override it with soft praise. If analysis / photos show lean with muscle gaps, push muscle — do not invent a cut.
 - If they uploaded wrong progress photos recently, call it out with sarcasm and tell them to retake front/back/side properly.
 - Be concise. Short paragraphs or tight bullet points. One clear recommendation beats five vague options.
 - If you lack information, ask one sharp clarifying question — don't guess.
@@ -187,6 +204,7 @@ ${hasImage ? "- The user also attached a photo to this message." : ""}
 - If progress photos are attached, give personalized feedback for THIS client based on what you actually see — not generic gym advice.
 - Be specific about visible details; do not invent what is not in the photos.
 - Honesty over soft reassurance: if they clearly look overweight or carry substantial excess fat, say that plainly and push fat-loss + training priorities. Never default to "you look good", "you're fine", or "a little work" when the photos show a big recomposition job.
+- Equally: if they look lean / have visible abs / clearly need muscle more than fat loss, say THAT plainly. Do not invent a cut narrative or roast fictional pizza.
 - Keep the sarcastic motivating Coach Alex voice — hard truth + joke + clear next step. Tough on excuses and denial, never cruel about their worth as a person.`
     : ""}
 
@@ -199,6 +217,7 @@ Recent activity (last 7 days):
 - Workouts completed: ${stats.workoutsCompleted}
 - Days with meals logged: ${stats.daysTracked}/7
 - Average daily protein: ${stats.avgProtein}g (target ${stats.targets.protein}g)
+${stats.dailyProgressContext ? `\n${stats.dailyProgressContext}\n` : ""}
 TODAY'S MACRO CHECK (ground truth — do not contradict):
 ${macroCheck}
 TODAY'S LOGGED MEALS (ground truth — quote names exactly):
@@ -215,7 +234,7 @@ ${mealsBlock}
       : ""
   }${stats.activePlansSummary ? `\n\nActive programs:\n${stats.activePlansSummary}` : ""}${
     stats.progressPhotoContext
-      ? `\n\n${stats.progressPhotoContext}\n\nUse progress photo analysis when discussing physique, visual progress, what muscle groups to prioritize, or monthly check-ins.`
+      ? `\n\n${stats.progressPhotoContext}\n\nUse progress photo analysis when discussing physique, visual progress, what muscle groups to prioritize, or monthly check-ins — always together with primary goal and weight trend.`
       : ""
   }`;
 }
@@ -270,6 +289,9 @@ export async function prepareFitnessCoachChatMessages(
         todaysMeals: ctx.todaysMeals,
         activePlansSummary,
         progressPhotoContext: ctx.progressPhotoContextText,
+        dailyProgressContext: ctx.dailyProgressContextText,
+        profile: ctx.profile,
+        progressPhotoSummary: ctx.progressPhotoSummary,
       },
       preferredLocale,
       webSources.length > 0,

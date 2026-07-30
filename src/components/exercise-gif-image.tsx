@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { Dumbbell } from "lucide-react";
 import { toExerciseGifProxyUrl } from "@/lib/exercise-gif-proxy";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,10 @@ interface ExerciseGifImageProps {
   alt: string;
   className?: string;
   imgClassName?: string;
+  /** Called once when every GIF source fails (or none were provided). */
+  onFailed?: () => void;
+  /** When true, render nothing on failure so a parent can show another fallback. */
+  hideOnFailed?: boolean;
 }
 
 export function ExerciseGifImage({
@@ -19,18 +23,27 @@ export function ExerciseGifImage({
   alt,
   className,
   imgClassName,
+  onFailed,
+  hideOnFailed = false,
 }: ExerciseGifImageProps) {
   const [src, setSrc] = useState<string | null>(
     toExerciseGifProxyUrl(gifUrl) ?? gifUrl?.trim() ?? null
   );
   const [failed, setFailed] = useState(false);
 
+  const notifyFailed = useEffectEvent(() => {
+    onFailed?.();
+  });
+
   useEffect(() => {
-    setSrc(toExerciseGifProxyUrl(gifUrl) ?? gifUrl?.trim() ?? null);
+    const next = toExerciseGifProxyUrl(gifUrl) ?? gifUrl?.trim() ?? null;
+    setSrc(next);
     setFailed(false);
+    if (!next) notifyFailed();
   }, [gifUrl, fallbackUrl]);
 
   if (!src || failed) {
+    if (hideOnFailed) return null;
     return (
       <div
         className={cn(
@@ -60,6 +73,7 @@ export function ExerciseGifImage({
             return;
           }
           setFailed(true);
+          notifyFailed();
         }}
       />
     </div>

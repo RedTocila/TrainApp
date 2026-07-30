@@ -1,4 +1,4 @@
-const KEY_PREFIX = "progress-photo-read-me-ack-v1";
+const KEY_PREFIX = "progress-photo-read-me-ack-v2";
 
 function storageKey(clientId: string): string {
   return `${KEY_PREFIX}:${clientId}`;

@@ -86,14 +86,14 @@ export default async function ClientDetailPage({
           />
         </div>
 
+        <AdminClientProgressPhotos months={progressPhotos} />
+
         {calendarData && (
           <AdminClientCalendar
             schedule={calendarData.schedule}
             enrichment={calendarData.enrichment}
           />
         )}
-
-        <AdminClientProgressPhotos months={progressPhotos} />
 
         <AdminClientHealthProfile intake={intake} />
       </div>

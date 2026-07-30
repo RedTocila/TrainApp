@@ -4,16 +4,22 @@ import { useRef, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { analyzeMealPhotoAction, refineMealPhotoAction } from "@/lib/actions/ai-meal";
+import { lookupBarcodeProductAction } from "@/lib/actions/barcode-product";
 import { isActionError, runServerAction } from "@/lib/run-server-action";
 import { compressImageFile, fileToDataUrl } from "@/lib/image-compress";
 import { type MealFormData } from "@/lib/meal-utils";
 import type { MealAnalysisResult } from "@/lib/ai/types";
 import { MealAnalysisSummary } from "@/components/meal-analysis-summary";
-import { ImageSourceButtons } from "@/components/image-source-buttons";
+import { MealCameraCapture } from "@/components/meal-camera-capture";
 import { ProgressPhotoAlexDialog } from "@/components/progress-photo-alex-dialog";
 import { Button } from "@/components/ui/button";
 
-type PhotoPhase = "capture" | "compressing" | "analyzing" | "review";
+type PhotoPhase =
+  | "capture"
+  | "compressing"
+  | "analyzing"
+  | "lookingUpBarcode"
+  | "review";
 
 function isMealPhotoRejected(
   result: unknown
@@ -135,6 +141,44 @@ export function MealPhotoLogStep({
     }
   };
 
+  const handleBarcode = (code: string) => {
+    onError(null);
+    setAlexRoast(null);
+    analyzeGenRef.current += 1;
+    const gen = analyzeGenRef.current;
+    setPreviewUrl(null);
+    onPhotoDataUrlChange?.(null);
+    setLastAnalysis(null);
+    setPhaseWithReady("lookingUpBarcode");
+
+    startTransition(async () => {
+      try {
+        const response = await runServerAction(() =>
+          lookupBarcodeProductAction(code)
+        );
+        if (gen !== analyzeGenRef.current) return;
+        if (isActionError(response)) {
+          onError(response.error);
+          resetToCapture();
+          return;
+        }
+        if (!response.found) {
+          onError(response.error ?? platform.mealLog.barcodeNotFound);
+          resetToCapture();
+          return;
+        }
+        onFormChange(response.form);
+        onConfidenceChange(response.confidence);
+        setPreviewUrl(response.imageUrl);
+        setPhaseWithReady("review");
+      } catch {
+        if (gen !== analyzeGenRef.current) return;
+        onError(platform.mealLog.barcodeLookupFailed);
+        resetToCapture();
+      }
+    });
+  };
+
   const handleRetake = () => {
     analyzeGenRef.current += 1;
     setAlexRoast(null);
@@ -143,7 +187,7 @@ export function MealPhotoLogStep({
   };
 
   const handleRefineWithSpecification = (specification: string) => {
-    if (!previewUrl) {
+    if (!previewUrl || !previewUrl.startsWith("data:")) {
       onError(platform.mealLog.takePhotoFirst);
       return;
     }
@@ -185,6 +229,8 @@ export function MealPhotoLogStep({
     });
   };
 
+  const canRefineWithAi = Boolean(previewUrl?.startsWith("data:"));
+
   if (phase === "review") {
     return (
       <div className="space-y-4">
@@ -192,7 +238,9 @@ export function MealPhotoLogStep({
           form={form}
           confidence={confidence}
           imageUrl={previewUrl}
-          onRefineWithSpecification={handleRefineWithSpecification}
+          onRefineWithSpecification={
+            canRefineWithAi ? handleRefineWithSpecification : undefined
+          }
           isRefining={isPending}
           onSave={onSave}
           isSaving={isSaving}
@@ -212,9 +260,14 @@ export function MealPhotoLogStep({
     );
   }
 
+  const isBusy =
+    phase === "compressing" ||
+    phase === "analyzing" ||
+    phase === "lookingUpBarcode";
+
   return (
     <div className="space-y-4">
-      {phase === "compressing" || phase === "analyzing" ? (
+      {isBusy ? (
         <div className="space-y-3">
           {previewUrl ? (
             <div className="overflow-hidden rounded-xl border border-border bg-secondary/30">
@@ -228,22 +281,18 @@ export function MealPhotoLogStep({
           <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 py-8 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             {phase === "compressing"
-              ? "Preparing photo…"
-              : "Analyzing meal…"}
+              ? platform.mealLog.preparingPhoto
+              : phase === "lookingUpBarcode"
+                ? platform.mealLog.lookingUpBarcode
+                : platform.mealLog.analyzingMeal}
           </div>
         </div>
       ) : (
-        <>
-          <p className="text-sm text-muted-foreground">
-            Choose how to add your meal photo — AI analyzes it right away.
-          </p>
-          <ImageSourceButtons
-            layout="tiles"
-            onSelect={(file) => void handleFile(file)}
-            cameraLabel={platform.mealLog.takePhoto}
-            galleryLabel={platform.mealLog.fromGallery}
-          />
-        </>
+        <MealCameraCapture
+          onCapture={(file) => void handleFile(file)}
+          onBarcode={handleBarcode}
+          disabled={isPending || isSaving}
+        />
       )}
 
       <ProgressPhotoAlexDialog

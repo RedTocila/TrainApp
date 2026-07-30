@@ -26,7 +26,12 @@ type DropdownPosition = {
   top: number;
   left: number;
   width: number;
+  maxHeight: number;
 };
+
+const DROPDOWN_GAP = 6;
+const DROPDOWN_MAX_HEIGHT = 320;
+const DROPDOWN_MIN_HEIGHT = 120;
 
 export function ExerciseNameInput({
   value,
@@ -37,6 +42,7 @@ export function ExerciseNameInput({
   placeholder = "Search exercises…",
 }: ExerciseNameInputProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const [focused, setFocused] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [position, setPosition] = useState<DropdownPosition | null>(null);
@@ -63,20 +69,57 @@ export function ExerciseNameInput({
     const updatePosition = () => {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      setPosition({
-        top: rect.bottom + 6,
+
+      const spaceBelow = window.innerHeight - rect.bottom - DROPDOWN_GAP - 8;
+      const spaceAbove = rect.top - DROPDOWN_GAP - 8;
+      const openUpward =
+        spaceBelow < DROPDOWN_MIN_HEIGHT && spaceAbove > spaceBelow;
+      const available = openUpward ? spaceAbove : spaceBelow;
+      const maxHeight = Math.max(
+        DROPDOWN_MIN_HEIGHT,
+        Math.min(DROPDOWN_MAX_HEIGHT, available)
+      );
+
+      const next: DropdownPosition = {
+        top: openUpward
+          ? Math.max(8, rect.top - DROPDOWN_GAP - maxHeight)
+          : rect.bottom + DROPDOWN_GAP,
         left: rect.left,
         width: rect.width,
-      });
+        maxHeight,
+      };
+
+      setPosition((prev) =>
+        prev &&
+        prev.top === next.top &&
+        prev.left === next.left &&
+        prev.width === next.width &&
+        prev.maxHeight === next.maxHeight
+          ? prev
+          : next
+      );
+    };
+
+    const onScroll = (event: Event) => {
+      // Ignore scrolls inside the suggestions list so touch scrolling isn't
+      // interrupted by position recalculation / re-renders.
+      if (
+        listRef.current &&
+        event.target instanceof Node &&
+        listRef.current.contains(event.target)
+      ) {
+        return;
+      }
+      updatePosition();
     };
 
     updatePosition();
     window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("scroll", onScroll, true);
 
     return () => {
       window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("scroll", onScroll, true);
     };
   }, [showSuggestions, value]);
 
@@ -89,11 +132,14 @@ export function ExerciseNameInput({
   const dropdown =
     showSuggestions && position && mounted ? (
       <ul
-        className="fixed z-[200] max-h-80 overflow-auto rounded-xl border border-border bg-card shadow-2xl ring-1 ring-black/10"
+        ref={listRef}
+        data-scroll-lock-scrollable
+        className="fixed z-[200] overflow-y-auto overscroll-contain rounded-xl border border-border bg-card shadow-2xl ring-1 ring-black/10 [-webkit-overflow-scrolling:touch]"
         style={{
           top: position.top,
           left: position.left,
           width: position.width,
+          maxHeight: position.maxHeight,
         }}
       >
         {suggestions.map((exercise) => {

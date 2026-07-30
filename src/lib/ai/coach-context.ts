@@ -3,6 +3,11 @@ import { getBodyWeightHistory } from "@/lib/actions/weight-logs";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import type { MacroGap } from "@/lib/ai/types";
 import {
+  buildDailyProgressContextForAi,
+  loadDailyProgressSnapshot,
+  type DailyProgressSnapshot,
+} from "@/lib/ai/daily-progress-context";
+import {
   buildProgressPhotoContextForAi,
   getProgressPhotoSetsWithAnalysis,
   summarizeProgressPhotosForCoach,
@@ -139,6 +144,23 @@ export async function getCoachContext(clientId: string, dateKey: string) {
     (mealLogs.data ?? []).reduce((s, m) => s + (m.protein ?? 0), 0) /
     Math.max(1, daysWithMeals);
 
+  const habitCompletions = habits.data?.length ?? 0;
+  const progressPhotoSummary = summarizeProgressPhotosForCoach(progressPhotoSets);
+
+  let dailyProgress: DailyProgressSnapshot | null = null;
+  let dailyProgressContextText = "";
+  try {
+    dailyProgress = await loadDailyProgressSnapshot(clientId, dateKey, {
+      weightHistory,
+      profile: p,
+      habitCompletionsLast7: habitCompletions,
+    });
+    dailyProgressContextText = buildDailyProgressContextForAi(dailyProgress);
+  } catch {
+    // Chat should still work if a secondary daily fetch fails.
+    dailyProgressContextText = "";
+  }
+
   return {
     profile: p,
     targets,
@@ -146,11 +168,13 @@ export async function getCoachContext(clientId: string, dateKey: string) {
     todaysMeals: dayMacros.meals,
     weightHistory,
     workoutsCompleted: sessions.data?.length ?? 0,
-    habitCompletions: habits.data?.length ?? 0,
+    habitCompletions,
     daysTracked: daysWithMeals,
     avgProtein: Math.round(avgProtein),
     progressPhotoSets,
     progressPhotoContextText,
-    progressPhotoSummary: summarizeProgressPhotosForCoach(progressPhotoSets),
+    progressPhotoSummary,
+    dailyProgress,
+    dailyProgressContextText,
   };
 }

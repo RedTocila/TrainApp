@@ -1,6 +1,15 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, BadgeCheck, CreditCard, Gift, Settings2, UserRound } from "lucide-react";
+import {
+  AlertTriangle,
+  BadgeCheck,
+  CreditCard,
+  ExternalLink,
+  Gift,
+  Scale,
+  Settings2,
+  UserRound,
+} from "lucide-react";
 import { getProfileWithEmail } from "@/lib/actions/profile";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ProfileSettings } from "@/components/profile-settings";
@@ -128,6 +137,48 @@ export default async function ProfilePage() {
             >
               {platform.referral.open}
             </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <Scale className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-black">{platform.profile.legal}</p>
+                <p className="text-xs text-muted-foreground">
+                  {platform.profile.legalHint}
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Link
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "justify-between rounded-xl"
+                )}
+              >
+                {platform.profile.privacyPolicy}
+                <ExternalLink className="h-3.5 w-3.5 opacity-60" />
+              </Link>
+              <Link
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "justify-between rounded-xl"
+                )}
+              >
+                {platform.profile.termsOfService}
+                <ExternalLink className="h-3.5 w-3.5 opacity-60" />
+              </Link>
+            </div>
           </CardContent>
         </Card>
 

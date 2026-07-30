@@ -17,6 +17,60 @@ import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
 
+/** Smooth typewriter reveal — buffers network bursts into gradual UI updates. */
+function createSmoothReveal(onUpdate: (text: string) => void) {
+  let received = "";
+  let shown = "";
+  let raf: number | null = null;
+
+  const tick = () => {
+    if (shown.length >= received.length) {
+      raf = null;
+      return;
+    }
+    const lag = received.length - shown.length;
+    // Catch up on big bursts; stay soft when nearly caught up.
+    const step = lag > 48 ? Math.ceil(lag / 6) : lag > 16 ? 4 : lag > 4 ? 2 : 1;
+    shown = received.slice(0, shown.length + step);
+    onUpdate(shown);
+    raf = requestAnimationFrame(tick);
+  };
+
+  const schedule = () => {
+    if (raf == null) raf = requestAnimationFrame(tick);
+  };
+
+  return {
+    push(chunk: string) {
+      received += chunk;
+      schedule();
+    },
+    replace(text: string) {
+      received = text;
+      shown = text;
+      if (raf != null) {
+        cancelAnimationFrame(raf);
+        raf = null;
+      }
+      onUpdate(text);
+    },
+    flush() {
+      shown = received;
+      if (raf != null) {
+        cancelAnimationFrame(raf);
+        raf = null;
+      }
+      onUpdate(shown);
+    },
+    stop() {
+      if (raf != null) {
+        cancelAnimationFrame(raf);
+        raf = null;
+      }
+    },
+  };
+}
+
 function stripMarkdownAsterisks(content: string) {
   return content.replace(/\*\*/g, "");
 }
@@ -112,10 +166,12 @@ const ChatBubble = memo(function ChatBubble({
   message,
   sourcesLabel,
   webSourcesAria,
+  isStreaming = false,
 }: {
   message: ChatMessage;
   sourcesLabel: (n: number) => string;
   webSourcesAria: (n: number) => string;
+  isStreaming?: boolean;
 }) {
   if (
     message.role === "assistant" &&
@@ -146,16 +202,30 @@ const ChatBubble = memo(function ChatBubble({
           "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
           message.role === "user"
             ? "bg-primary text-primary-foreground"
-            : "bg-secondary/60 text-foreground"
+            : "bg-secondary/60 text-foreground",
+          isStreaming && message.role === "assistant" && "transition-[opacity] duration-150"
         )}
       >
         <p className="whitespace-pre-wrap">
           {message.role === "assistant"
             ? renderLinkedText(message.content)
             : message.content}
+          {isStreaming && message.role === "assistant" && message.content.trim() ? (
+            <span
+              className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.1em] animate-pulse rounded-sm bg-primary align-text-bottom"
+              aria-hidden
+            />
+          ) : null}
         </p>
-        {message.role === "assistant" && message.toolStatus && !message.content.trim() && (
-          <p className="text-xs text-muted-foreground">{message.toolStatus}</p>
+        {message.role === "assistant" && message.toolStatus && (
+          <p
+            className={cn(
+              "text-xs text-muted-foreground",
+              message.content.trim() ? "mt-2" : ""
+            )}
+          >
+            {message.toolStatus}
+          </p>
         )}
         {message.role === "assistant" && message.planPreview && (
           <ChatPlanPreviewCard preview={message.planPreview} />
@@ -392,105 +462,123 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
 
       setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
+      const setAssistantContent = (content: string) => {
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last?.role === "assistant") {
+            next[next.length - 1] = {
+              ...last,
+              content,
+              toolStatus: undefined,
+            };
+          }
+          return next;
+        });
+      };
+
+      const reveal = createSmoothReveal((text) => setAssistantContent(text));
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const payload = line.slice(6).trim();
-          if (payload === "[DONE]") continue;
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const payload = line.slice(6).trim();
+            if (payload === "[DONE]") continue;
 
-          const parsed = JSON.parse(payload) as {
-            text?: string;
-            error?: string;
-            sources?: WebSource[];
-            meta?: { searchedWeb?: boolean };
-            planPreview?: ChatPlanPreview;
-            toolStatus?: string;
-            richBlocks?: CoachChatRichBlock[];
-          };
-          if (parsed.error) throw new Error(parsed.error);
-          if (parsed.meta?.searchedWeb !== undefined) {
-            setPendingWebSearch(parsed.meta.searchedWeb);
-            continue;
-          }
-          if (parsed.toolStatus) {
-            setMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              if (last?.role === "assistant") {
-                next[next.length - 1] = { ...last, toolStatus: parsed.toolStatus };
-              }
-              return next;
-            });
-            continue;
-          }
-          if (parsed.planPreview) {
-            setMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              if (last?.role === "assistant") {
-                next[next.length - 1] = {
-                  ...last,
-                  planPreview: parsed.planPreview,
-                  toolStatus: undefined,
-                };
-              }
-              return next;
-            });
-            continue;
-          }
-          if (parsed.richBlocks?.length) {
-            setMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              if (last?.role === "assistant") {
-                const existing = last.richBlocks ?? [];
-                next[next.length - 1] = {
-                  ...last,
-                  richBlocks: [...existing, ...parsed.richBlocks!],
-                  toolStatus: undefined,
-                };
-              }
-              return next;
-            });
-            continue;
-          }
-          if (parsed.sources?.length) {
-            setMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              if (last?.role === "assistant") {
-                next[next.length - 1] = { ...last, sources: parsed.sources };
-              }
-              return next;
-            });
-            continue;
-          }
-          if (!parsed.text) continue;
-
-          setMessages((prev) => {
-            const next = [...prev];
-            const last = next[next.length - 1];
-            if (last?.role === "assistant") {
-              next[next.length - 1] = {
-                ...last,
-                content: last.content + parsed.text!,
-                toolStatus: undefined,
-              };
+            const parsed = JSON.parse(payload) as {
+              text?: string;
+              replace?: string;
+              error?: string;
+              sources?: WebSource[];
+              meta?: { searchedWeb?: boolean };
+              planPreview?: ChatPlanPreview;
+              toolStatus?: string | null;
+              richBlocks?: CoachChatRichBlock[];
+            };
+            if (parsed.error) throw new Error(parsed.error);
+            if (parsed.meta?.searchedWeb !== undefined) {
+              setPendingWebSearch(parsed.meta.searchedWeb);
+              continue;
             }
-            return next;
-          });
+            if (parsed.toolStatus !== undefined) {
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.role === "assistant") {
+                  next[next.length - 1] = {
+                    ...last,
+                    toolStatus: parsed.toolStatus || undefined,
+                  };
+                }
+                return next;
+              });
+              continue;
+            }
+            if (parsed.planPreview) {
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.role === "assistant") {
+                  next[next.length - 1] = {
+                    ...last,
+                    planPreview: parsed.planPreview,
+                    toolStatus: undefined,
+                  };
+                }
+                return next;
+              });
+              continue;
+            }
+            if (parsed.richBlocks?.length) {
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.role === "assistant") {
+                  const existing = last.richBlocks ?? [];
+                  next[next.length - 1] = {
+                    ...last,
+                    richBlocks: [...existing, ...parsed.richBlocks!],
+                    toolStatus: undefined,
+                  };
+                }
+                return next;
+              });
+              continue;
+            }
+            if (parsed.sources?.length) {
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.role === "assistant") {
+                  next[next.length - 1] = { ...last, sources: parsed.sources };
+                }
+                return next;
+              });
+              continue;
+            }
+            if (typeof parsed.replace === "string") {
+              reveal.replace(parsed.replace);
+              continue;
+            }
+            if (!parsed.text) continue;
+            reveal.push(parsed.text);
+          }
         }
+        reveal.flush();
+      } finally {
+        reveal.stop();
       }
     } catch (err) {
       if (controller.signal.aborted) {
@@ -616,6 +704,11 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                 message={message}
                 sourcesLabel={ai.sources}
                 webSourcesAria={platform.aria.webSources}
+                isStreaming={
+                  isStreaming &&
+                  index === messages.length - 1 &&
+                  message.role === "assistant"
+                }
               />
             ))}
 
@@ -694,6 +787,11 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                 message={message}
                 sourcesLabel={ai.sources}
                 webSourcesAria={platform.aria.webSources}
+                isStreaming={
+                  isStreaming &&
+                  index === messages.length - 1 &&
+                  message.role === "assistant"
+                }
               />
             ))}
 

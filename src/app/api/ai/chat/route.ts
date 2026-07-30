@@ -18,23 +18,26 @@ import type { Profile } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-function chunkText(text: string, size = 24): string[] {
-  const chunks: string[] = [];
-  for (let i = 0; i < text.length; i += size) {
-    chunks.push(text.slice(i, i + size));
+/** Soft pacing so large token bursts still feel gradual on the client. */
+async function enqueueTextSmooth(
+  enqueue: (payload: unknown) => void,
+  text: string,
+  signal?: AbortSignal
+) {
+  if (!text) return;
+  // Prefer word-ish chunks for a premium typewriter feel.
+  const parts = text.match(/\s+\S+|\S+|\s+/g) ?? [text];
+  let buffer = "";
+  for (const part of parts) {
+    if (signal?.aborted) return;
+    buffer += part;
+    if (buffer.length >= 12 || part.includes("\n")) {
+      enqueue({ text: buffer });
+      buffer = "";
+      await new Promise((r) => setTimeout(r, 12));
+    }
   }
-  return chunks;
-}
-
-async function collectStreamedText(
-  messages: Parameters<typeof streamChatCompletion>[0],
-  options: { maxTokens?: number; signal?: AbortSignal }
-): Promise<string> {
-  let full = "";
-  for await (const chunk of streamChatCompletion(messages, options)) {
-    full += chunk;
-  }
-  return full;
+  if (buffer) enqueue({ text: buffer });
 }
 
 export async function POST(request: Request) {
@@ -82,6 +85,7 @@ export async function POST(request: Request) {
   }
   const image = validatedImage && "image" in validatedImage ? validatedImage.image : null;
   const preferredLocale = (profile as Profile).preferred_locale;
+  const isAlbanian = preferredLocale === "al";
 
   const prepared = await prepareFitnessCoachChatWithSearch(
     user.id,
@@ -109,9 +113,15 @@ export async function POST(request: Request) {
         enqueue({ meta: { searchedWeb } });
 
         let reply = "";
+        let streamedLive = false;
+
+        const onToken = (text: string) => {
+          if (!text) return;
+          streamedLive = true;
+          enqueue({ text });
+        };
 
         if (useTools) {
-          const fullProfile = profile as Profile;
           const { data: full } = await supabase
             .from("profiles")
             .select("*")
@@ -136,7 +146,7 @@ export async function POST(request: Request) {
                 enqueue({ richBlocks: event.blocks });
               }
             },
-            { maxTokens: 900, signal: request.signal }
+            { maxTokens: 900, signal: request.signal, onToken }
           );
 
           reply = result.reply;
@@ -145,19 +155,30 @@ export async function POST(request: Request) {
             enqueue({ planPreview: result.planPreview });
           }
         } else {
-          reply = await collectStreamedText(chatMessages, {
+          for await (const chunk of streamChatCompletion(chatMessages, {
             maxTokens: 900,
             signal: request.signal,
-          });
+          })) {
+            reply += chunk;
+            onToken(chunk);
+          }
         }
 
-        if ((profile as Profile).preferred_locale === "al") {
+        // If nothing was streamed (fallback path), pace the full reply out.
+        if (!streamedLive && reply) {
+          await enqueueTextSmooth(enqueue, reply, request.signal);
+        }
+
+        // Albanian polish: soft-replace after live draft so TTFT stays fast.
+        if (isAlbanian && reply.trim()) {
           enqueue({ toolStatus: "Duke përpunuar shqipën…" });
-        }
-        reply = await maybeNaturalizeCoachReply(reply, preferredLocale);
-
-        for (const chunk of chunkText(reply)) {
-          enqueue({ text: chunk });
+          const polished = await maybeNaturalizeCoachReply(reply, preferredLocale);
+          if (polished.trim() && polished !== reply) {
+            enqueue({ replace: polished });
+            reply = polished;
+          } else {
+            enqueue({ toolStatus: null });
+          }
         }
 
         if (sources.length > 0) {
@@ -179,6 +200,7 @@ export async function POST(request: Request) {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }

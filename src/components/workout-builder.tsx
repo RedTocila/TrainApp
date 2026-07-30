@@ -13,7 +13,6 @@ import {
   saveWorkoutDay,
 } from "@/lib/actions/plans";
 import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan } from "@/lib/actions/user-workouts";
-import { isValidYoutubeUrl } from "@/lib/youtube";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,7 +77,6 @@ export function WorkoutBuilder({
     const open = new Set<string>();
     initialDays.forEach((day, dayIdx) => {
       (day.exercises ?? []).forEach((ex, exIdx) => {
-        if (ex.video_url?.trim()) open.add(`${dayIdx}-${exIdx}-video`);
         if (ex.notes?.trim()) open.add(`${dayIdx}-${exIdx}-notes`);
       });
     });
@@ -139,25 +137,24 @@ export function WorkoutBuilder({
     setOpenExerciseFields((current) => {
       const next = new Set<string>();
       for (const key of current) {
-        const match = key.match(/^(\d+)-(\d+)-(video|notes)$/);
+        const match = key.match(/^(\d+)-(\d+)-notes$/);
         if (!match) continue;
         const dIdx = Number(match[1]);
         const eIdx = Number(match[2]);
-        const field = match[3];
         if (dIdx !== dayIdx) {
           next.add(key);
         } else if (eIdx < exIdx) {
           next.add(key);
         } else if (eIdx > exIdx) {
-          next.add(`${dIdx}-${eIdx - 1}-${field}`);
+          next.add(`${dIdx}-${eIdx - 1}-notes`);
         }
       }
       return next;
     });
   };
 
-  const toggleExerciseField = (dayIdx: number, exIdx: number, field: "video" | "notes") => {
-    const key = `${dayIdx}-${exIdx}-${field}`;
+  const toggleNotesField = (dayIdx: number, exIdx: number) => {
+    const key = `${dayIdx}-${exIdx}-notes`;
     setOpenExerciseFields((current) => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key);
@@ -166,8 +163,8 @@ export function WorkoutBuilder({
     });
   };
 
-  const isExerciseFieldOpen = (dayIdx: number, exIdx: number, field: "video" | "notes") =>
-    openExerciseFields.has(`${dayIdx}-${exIdx}-${field}`);
+  const isNotesFieldOpen = (dayIdx: number, exIdx: number) =>
+    openExerciseFields.has(`${dayIdx}-${exIdx}-notes`);
 
   const handleSave = () => {
     startTransition(async () => {
@@ -258,7 +255,7 @@ export function WorkoutBuilder({
         const DayIcon = dayStyle.icon;
 
         return (
-        <Card key={dayIdx} className={cn("border-2", dayStyle.cardBorder)}>
+        <Card key={dayIdx} className={cn("overflow-hidden border-2", dayStyle.cardBorder)}>
           <div className={cn("h-1.5 w-full", dayStyle.stripe)} aria-hidden />
           <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-3">
             <span
@@ -361,39 +358,17 @@ export function WorkoutBuilder({
                       Watch demo
                     </button>
                   ) : null}
-                  {!isExerciseFieldOpen(dayIdx, exIdx, "video") && (
+                  {!isNotesFieldOpen(dayIdx, exIdx) && (
                     <button
                       type="button"
-                      onClick={() => toggleExerciseField(dayIdx, exIdx, "video")}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      {ex.video_url?.trim() ? "Edit video link" : "Add video link"}
-                    </button>
-                  )}
-                  {!isExerciseFieldOpen(dayIdx, exIdx, "notes") && (
-                    <button
-                      type="button"
-                      onClick={() => toggleExerciseField(dayIdx, exIdx, "notes")}
+                      onClick={() => toggleNotesField(dayIdx, exIdx)}
                       className="text-sm text-primary hover:underline"
                     >
                       Add notes
                     </button>
                   )}
                 </div>
-                {isExerciseFieldOpen(dayIdx, exIdx, "video") && (
-                  <Input
-                    placeholder="YouTube URL — paste a demo video link"
-                    value={ex.video_url ?? ""}
-                    onChange={(e) => updateExercise(dayIdx, exIdx, "video_url", e.target.value)}
-                    className={
-                      ex.video_url && !isValidYoutubeUrl(ex.video_url)
-                        ? "border-red-500"
-                        : undefined
-                    }
-                    autoFocus={!ex.video_url?.trim()}
-                  />
-                )}
-                {isExerciseFieldOpen(dayIdx, exIdx, "notes") && (
+                {isNotesFieldOpen(dayIdx, exIdx) && (
                   <Input
                     placeholder="Notes"
                     value={ex.notes ?? ""}

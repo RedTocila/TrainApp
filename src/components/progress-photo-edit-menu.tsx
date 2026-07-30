@@ -9,13 +9,13 @@ import { cn } from "@/lib/utils";
 export function ProgressPhotoEditMenu({
   label,
   disabled = false,
-  onPick,
+  onRetake,
   onRemove,
   className,
 }: {
   label: string;
   disabled?: boolean;
-  onPick: (file: File) => void;
+  onRetake: () => void;
   onRemove: () => void;
   className?: string;
 }) {
@@ -27,7 +27,6 @@ export function ProgressPhotoEditMenu({
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   useLayoutEffect(() => {
     if (!open || !buttonRef.current) {
@@ -85,24 +84,14 @@ export function ProgressPhotoEditMenu({
             className="fixed z-[80] min-w-[9rem] overflow-hidden rounded-xl border border-border bg-card shadow-lg"
             onClick={(event) => event.stopPropagation()}
           >
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) onPick(file);
-                if (fileRef.current) fileRef.current.value = "";
-                setOpen(false);
-              }}
-            />
             <button
               type="button"
               role="menuitem"
               className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium hover:bg-secondary/80"
-              onClick={() => fileRef.current?.click()}
+              onClick={() => {
+                setOpen(false);
+                onRetake();
+              }}
             >
               <Camera className="h-3.5 w-3.5 shrink-0" />
               {platform.photos.retake}

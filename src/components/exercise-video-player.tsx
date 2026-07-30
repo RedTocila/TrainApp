@@ -227,6 +227,7 @@ export function ExerciseVideoPlayer({
       playerRef.current = null;
       setReady(false);
       setPlaying(false);
+      setControlsVisible(false);
     };
   }, [videoId, autoplay, startSeconds, clearHideTimer]);
 
@@ -310,14 +311,13 @@ export function ExerciseVideoPlayer({
   return (
     <div
       className="overflow-hidden rounded-lg border border-border bg-muted"
-      onMouseEnter={() => {
-        if (canHoverFinePointer()) showControls();
-      }}
       onMouseLeave={() => {
         if (canHoverFinePointer()) hideControls();
       }}
       onMouseMove={() => {
-        if (canHoverFinePointer() && controlsVisible) showControls();
+        // Reveal on move only — not mouseenter — so opening under a still
+        // cursor (after tapping a thumbnail) keeps chrome hidden.
+        if (canHoverFinePointer()) showControls();
       }}
     >
       <div

@@ -4,7 +4,7 @@ import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ImageIcon, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Camera, ImageIcon, X } from "lucide-react";
 import Image from "next/image";
 import { uploadProgressPhotoWithAiReview } from "@/lib/progress-photo-upload-flow";
 import {
@@ -34,7 +34,7 @@ import {
   type PoseUrls,
 } from "@/lib/dashboard-route-cache";
 import { DashboardDayDetailShell } from "@/components/dashboard-day-detail-shell";
-import { ImageSourceButtons } from "@/components/image-source-buttons";
+import { ProgressPhotoCaptureDialog } from "@/components/progress-photo-camera-capture";
 import { ProgressPhotoEditMenu } from "@/components/progress-photo-edit-menu";
 import { ProgressPhotoAlexDialog } from "@/components/progress-photo-alex-dialog";
 import { ProgressPhotoReadMeButton } from "@/components/progress-photo-read-me-button";
@@ -97,7 +97,7 @@ function PhotoSlot({
   canModify,
   canUploadPhotos,
   onRequireReadMe,
-  onPick,
+  onOpenCapture,
   onRemove,
   onPreview,
 }: {
@@ -108,18 +108,18 @@ function PhotoSlot({
   canModify: boolean;
   canUploadPhotos: boolean;
   onRequireReadMe: () => void;
-  onPick: (file: File) => void;
+  onOpenCapture: () => void;
   onRemove: () => void;
   onPreview: () => void;
 }) {
   const platform = usePlatformCopy();
 
-  const handlePick = (file: File) => {
+  const openCapture = () => {
     if (!canUploadPhotos) {
       onRequireReadMe();
       return;
     }
-    onPick(file);
+    onOpenCapture();
   };
 
   return (
@@ -163,16 +163,18 @@ function PhotoSlot({
                 </span>
               </button>
             ) : (
-              <>
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={openCapture}
+                aria-label={platform.photos.takePosePhoto(label)}
+                className="flex h-full w-full flex-col items-center justify-center gap-2 px-2 py-3 text-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <Camera className="h-5 w-5" strokeWidth={1.75} />
+                </span>
                 <span className="text-[11px] font-medium">{platform.photos.addPhoto}</span>
-                <ImageSourceButtons
-                  layout="icon"
-                  cameraOnly
-                  disabled={uploading}
-                  onSelect={handlePick}
-                  cameraLabel={platform.photos.takePosePhoto(label)}
-                />
-              </>
+              </button>
             )}
           </div>
         ) : (
@@ -184,7 +186,7 @@ function PhotoSlot({
           <ProgressPhotoEditMenu
             label={label}
             disabled={uploading}
-            onPick={handlePick}
+            onRetake={openCapture}
             onRemove={onRemove}
           />
         ) : null}
@@ -300,7 +302,7 @@ function TimelineRow({
   uploadingPose,
   canUploadPhotos,
   onRequireReadMe,
-  onUpload,
+  onOpenCapture,
   onRemove,
   onOpenPose,
 }: {
@@ -309,7 +311,7 @@ function TimelineRow({
   uploadingPose: ProgressPhotoPose | null;
   canUploadPhotos: boolean;
   onRequireReadMe: () => void;
-  onUpload: (pose: ProgressPhotoPose, file: File) => void;
+  onOpenCapture: (pose: ProgressPhotoPose, label: string) => void;
   onRemove: (pose: ProgressPhotoPose) => void;
   onOpenPose: (pose: ProgressPhotoPose, monthKey: string) => void;
 }) {
@@ -358,7 +360,7 @@ function TimelineRow({
             canModify={row.canModify && !row.isUpcoming}
             canUploadPhotos={canUploadPhotos}
             onRequireReadMe={onRequireReadMe}
-            onPick={(file) => onUpload(pose, file)}
+            onOpenCapture={() => onOpenCapture(pose, label)}
             onRemove={() => onRemove(pose)}
             onPreview={() => onOpenPose(pose, row.monthKey)}
           />
@@ -406,11 +408,16 @@ function ProgressPhotosHistoryPageInner({
     message: string;
     primaryLabel?: string;
   } | null>(null);
+  const [captureTarget, setCaptureTarget] = useState<{
+    monthKey: string;
+    pose: ProgressPhotoPose;
+    label: string;
+  } | null>(null);
   const [slider, setSlider] = useState<{
     pose: ProgressPhotoPose;
     index: number;
   } | null>(null);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
   const locale = useLocale();
   const photoPoses = getProgressPhotoPoses(locale);
@@ -640,7 +647,9 @@ function ProgressPhotosHistoryPageInner({
                 }
                 canUploadPhotos={canUploadPhotos}
                 onRequireReadMe={ensureCanUpload}
-                onUpload={(pose, file) => void handleUpload(row.monthKey, pose, file)}
+                onOpenCapture={(pose, label) =>
+                  setCaptureTarget({ monthKey: row.monthKey, pose, label })
+                }
                 onRemove={(pose) => {
                   const poseLabel =
                     photoPoses.find((p) => p.pose === pose)?.label ?? pose;
@@ -664,7 +673,9 @@ function ProgressPhotosHistoryPageInner({
                 }
                 canUploadPhotos={canUploadPhotos}
                 onRequireReadMe={ensureCanUpload}
-                onUpload={(pose, file) => void handleUpload(row.monthKey, pose, file)}
+                onOpenCapture={(pose, label) =>
+                  setCaptureTarget({ monthKey: row.monthKey, pose, label })
+                }
                 onRemove={(pose) => {
                   const poseLabel =
                     photoPoses.find((p) => p.pose === pose)?.label ?? pose;
@@ -681,6 +692,17 @@ function ProgressPhotosHistoryPageInner({
       </DashboardDayDetailShell>
 
       {giveUpDialog}
+      <ProgressPhotoCaptureDialog
+        open={captureTarget !== null}
+        onClose={() => setCaptureTarget(null)}
+        poseLabel={captureTarget?.label ?? ""}
+        disabled={isPending || uploadingPose !== null}
+        onCapture={(file) => {
+          const target = captureTarget;
+          if (!target) return;
+          void handleUpload(target.monthKey, target.pose, file);
+        }}
+      />
       <ProgressPhotoAlexDialog
         open={alexDialog !== null}
         onClose={() => setAlexDialog(null)}

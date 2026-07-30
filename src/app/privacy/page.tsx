@@ -14,7 +14,7 @@ export default function PrivacyPage() {
   return (
     <LegalPageShell
       title="Privacy Policy"
-      description="Last updated: July 14, 2026"
+      description="Last updated: July 31, 2026"
     >
       <section className="space-y-4">
         <h2>1. Overview</h2>
@@ -29,8 +29,9 @@ export default function PrivacyPage() {
         </p>
         <p>
           By using the Service, you acknowledge this policy. Where consent is
-          required (for example, optional health details or certain AI features),
-          we will ask for it or obtain it through your use of those features.
+          required (for example, optional health details, camera access, or certain
+          AI features), we will ask for it or obtain it through your use of those
+          features.
         </p>
       </section>
 
@@ -65,11 +66,27 @@ export default function PrivacyPage() {
         </ul>
         <h3>Fitness &amp; usage content</h3>
         <ul>
-          <li>Workouts, sessions, cardio, habits, and calendar entries</li>
+          <li>Workouts, sessions, cardio, HIIT, habits, and calendar entries</li>
           <li>Meal logs, macros, grocery lists, and related nutrition data</li>
           <li>Weight and body measurement logs</li>
-          <li>Progress photos and meal photos you upload</li>
+          <li>
+            Progress photos (live Snapshot or From gallery) and meal photos you
+            capture or upload
+          </li>
+          <li>
+            Progress photo identity baseline and AI analysis results used to verify
+            that later photos match you and the expected pose
+          </li>
+          <li>
+            Barcode values you scan for meal logging and product/nutrition
+            suggestions returned from public databases
+          </li>
           <li>AI chat messages, plan requests, and coaching interactions</li>
+        </ul>
+        <h3>Referrals</h3>
+        <ul>
+          <li>Your referral code and successful invite relationships</li>
+          <li>Referral credit balances, discounts applied, and related checkout metadata</li>
         </ul>
         <h3>Payments &amp; subscriptions</h3>
         <ul>
@@ -79,6 +96,18 @@ export default function PrivacyPage() {
           </li>
           <li>Challenge entry payments and related order metadata when applicable</li>
           <li>We do not store full payment card numbers on our servers</li>
+        </ul>
+        <h3>Device permissions &amp; media</h3>
+        <ul>
+          <li>
+            When you use photo or barcode features, your browser may request camera
+            and/or photo library access. Media stays on your device until you
+            capture or select an image to upload.
+          </li>
+          <li>
+            We process the images and barcodes you choose to submit for the
+            features you use (logging, AI review, coaching).
+          </li>
         </ul>
         <h3>Technical &amp; diagnostic data</h3>
         <ul>
@@ -91,6 +120,11 @@ export default function PrivacyPage() {
           <li>Authentication session cookies needed to keep you signed in</li>
           <li>Theme, accent, and similar UI preferences in local storage</li>
           <li>Draft intake answers stored locally on your device before signup</li>
+          <li>
+            Acknowledgments such as progress photo or AI Coach &quot;Read me&quot;
+            agreements stored locally so we know you have accepted in-app rules
+          </li>
+          <li>Temporary referral codes from share links until checkout</li>
         </ul>
       </section>
 
@@ -99,10 +133,14 @@ export default function PrivacyPage() {
         <ul>
           <li>Create and manage your account</li>
           <li>Deliver personalized workouts, nutrition tools, and coaching</li>
-          <li>Process subscriptions, challenge fees, and related billing</li>
+          <li>Process subscriptions, challenge fees, referrals, and related billing</li>
           <li>
-            Power AI features you use (meal analysis, chat, plans, predictions,
-            recommendations, and reports)
+            Power AI features you use (meal analysis, barcode-assisted logging,
+            chat, plans, predictions, progress photo review, recommendations, and reports)
+          </li>
+          <li>
+            Verify progress photo authenticity and identity consistency across
+            check-ins
           </li>
           <li>Run live classes, challenges, rankings, and progress features</li>
           <li>Send service notices (for example plan delivery, billing, or security alerts)</li>
@@ -121,11 +159,13 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Legitimate interests:</strong> security, fraud prevention,
-            product improvement, and aggregated analytics — balanced against your rights
+            product improvement, abuse prevention for challenges/referrals, and
+            aggregated analytics — balanced against your rights
           </li>
           <li>
-            <strong>Consent:</strong> optional health/intake details and certain
-            voluntary features; you may withdraw consent where processing is consent-based
+            <strong>Consent:</strong> optional health/intake details, camera/gallery
+            access in your browser, and certain voluntary features; you may withdraw
+            consent where processing is consent-based
           </li>
           <li>
             <strong>Legal obligation:</strong> when we must keep records for tax,
@@ -152,6 +192,12 @@ export default function PrivacyPage() {
           <li>
             <strong>AI providers</strong> (for example OpenAI and/or Anthropic) when
             you use AI features — limited to the content needed for that request
+            (which may include meal or progress images and related context)
+          </li>
+          <li>
+            <strong>Public product databases</strong> such as Open Food Facts when
+            you scan a barcode — we send the barcode to look up product and nutrition
+            information
           </li>
           <li>
             <strong>Optional search/tools</strong> used by AI coaching for
@@ -163,7 +209,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Coaches / platform operators</strong> who need access to
-            deliver your training, review progress, or provide support
+            deliver your training, review progress photos, or provide support
           </li>
           <li>
             <strong>Authorities</strong> when required by law or to protect rights,
@@ -173,7 +219,8 @@ export default function PrivacyPage() {
         <p>
           Challenge leaderboards or community features may display your display
           name, progress metrics, or other information you choose to share in that
-          context.
+          context. Referral relationships link inviter and invitee accounts only as
+          needed to apply discounts and credits.
         </p>
       </section>
 
@@ -191,12 +238,16 @@ export default function PrivacyPage() {
         <h2>8. Retention</h2>
         <ul>
           <li>
-            Account, profile, and fitness data are generally kept while your
-            account is active
+            Account, profile, fitness logs, progress photos, and referral records
+            are generally kept while your account is active
           </li>
           <li>
             Meal photos are typically retained for a limited period (about 30
             days) and then removed according to our photo expiration process
+          </li>
+          <li>
+            Progress photo identity baselines and AI analysis metadata are kept
+            with your account so later check-ins can be verified consistently
           </li>
           <li>
             Billing and transaction records may be kept longer as required for
@@ -240,6 +291,9 @@ export default function PrivacyPage() {
           </a>
           . We may need to verify your identity before fulfilling a request.
         </p>
+        <p>
+          You can also review this policy anytime from your Profile tab in the app.
+        </p>
       </section>
 
       <section className="space-y-4">
@@ -247,8 +301,9 @@ export default function PrivacyPage() {
         <p>
           We use essential cookies and similar technologies for authentication
           and session management so the Service works securely. We also store
-          preferences (such as theme and accent) and temporary intake drafts in
-          your browser&apos;s local storage. These are not used for advertising
+          preferences (such as theme and accent), temporary intake drafts,
+          referral codes from share links, and Read me acknowledgments in your
+          browser&apos;s local storage. These are not used for advertising
           networks.
         </p>
       </section>

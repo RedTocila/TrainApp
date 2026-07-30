@@ -51,16 +51,25 @@ function unlockScroll() {
   }
 }
 
+function canScrollElement(el: HTMLElement): boolean {
+  return el.scrollHeight > el.clientHeight + 1;
+}
+
 function isInsideScrollableDialog(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
+
+  // Portaled overlays (autocomplete, menus) sit outside [role=dialog] but still
+  // need touch/wheel scrolling while the page scroll lock is active.
+  if (target.closest("[data-scroll-lock-scrollable]")) {
+    return true;
+  }
+
   const dialog = target.closest('[role="dialog"]');
   if (!dialog) return false;
 
-  const scrollable = target.closest(
-    "[data-scroll-lock-scrollable], .overflow-y-auto, .overflow-auto"
-  );
+  const scrollable = target.closest(".overflow-y-auto, .overflow-auto");
   if (!(scrollable instanceof HTMLElement)) return false;
-  return scrollable.scrollHeight > scrollable.clientHeight + 1;
+  return canScrollElement(scrollable);
 }
 
 /**
