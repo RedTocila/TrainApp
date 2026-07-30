@@ -382,13 +382,20 @@ export function LogMealDialog({
         size="icon"
         className={cn(
           "h-8 w-8 shrink-0",
-          isPhotoCaptureFullscreen && "text-white hover:bg-white/15 hover:text-white"
+          isPhotoCaptureFullscreen &&
+            "h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/35 hover:text-white"
         )}
         onClick={onClose}
         aria-label={platform.aria.close}
         disabled={isSaving}
       >
-        <X className="h-4 w-4" />
+        <X
+          className={cn(
+            "h-4 w-4",
+            isPhotoCaptureFullscreen && "h-6 w-6"
+          )}
+          strokeWidth={isPhotoCaptureFullscreen ? 2.25 : undefined}
+        />
       </Button>
     </div>
   );

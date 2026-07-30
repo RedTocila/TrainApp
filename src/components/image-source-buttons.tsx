@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { Camera, ImageIcon, ImagePlus } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { GALLERY_IMAGE_ACCEPT } from "@/lib/pick-gallery-image";
 import { cn } from "@/lib/utils";
 
 type ImageSourceButtonsProps = {
@@ -52,7 +53,7 @@ export function ImageSourceButtons({
       type="file"
       accept="image/*"
       capture="environment"
-      className="hidden"
+      className="pointer-events-none absolute h-px w-px opacity-0"
       disabled={disabled}
       onChange={(e) => handleChange(e.target.files?.[0])}
     />
@@ -62,8 +63,8 @@ export function ImageSourceButtons({
     <input
       ref={galleryRef}
       type="file"
-      accept="image/*"
-      className="hidden"
+      accept={GALLERY_IMAGE_ACCEPT}
+      className="pointer-events-none absolute h-px w-px opacity-0"
       disabled={disabled}
       onChange={(e) => handleChange(e.target.files?.[0])}
     />

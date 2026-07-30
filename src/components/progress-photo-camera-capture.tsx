@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Camera, ImageIcon, Loader2, X } from "lucide-react";
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { pickGalleryImage } from "@/lib/pick-gallery-image";
+import { GALLERY_IMAGE_ACCEPT } from "@/lib/pick-gallery-image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +32,7 @@ export function ProgressPhotoCameraCapture({
   );
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [pickingGallery, setPickingGallery] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,15 +104,11 @@ export function ProgressPhotoCameraCapture({
     );
   };
 
-  const handleGallery = async () => {
-    if (disabled || pickingGallery) return;
-    setPickingGallery(true);
-    try {
-      const file = await pickGalleryImage();
-      if (file) onCapture(file);
-    } finally {
-      setPickingGallery(false);
-    }
+  const handleGalleryChange = (fileList: FileList | null) => {
+    const file = fileList?.[0];
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
+    setPickingGallery(false);
+    if (file) onCapture(file);
   };
 
   return (
@@ -148,12 +145,28 @@ export function ProgressPhotoCameraCapture({
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-16">
         <div className="pointer-events-auto mx-auto grid max-w-md grid-cols-3 items-end gap-2 px-6">
-          <button
-            type="button"
-            disabled={disabled || pickingGallery}
-            onClick={() => void handleGallery()}
-            className="flex flex-col items-center gap-1.5 rounded-2xl px-2 py-2 text-xs font-semibold text-white/90 transition-colors hover:bg-white/10 disabled:opacity-50"
+          <label
+            className={cn(
+              "relative flex cursor-pointer flex-col items-center gap-1.5 rounded-2xl px-2 py-2 text-xs font-semibold text-white/90 transition-colors hover:bg-white/10",
+              disabled && "pointer-events-none opacity-50"
+            )}
           >
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept={GALLERY_IMAGE_ACCEPT}
+              className="pointer-events-none absolute h-px w-px opacity-0"
+              disabled={disabled}
+              onClick={() => setPickingGallery(true)}
+              onChange={(e) => handleGalleryChange(e.target.files)}
+              onBlur={() => {
+                window.setTimeout(() => {
+                  if (!galleryInputRef.current?.files?.length) {
+                    setPickingGallery(false);
+                  }
+                }, 900);
+              }}
+            />
             <span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-black/40 backdrop-blur-md">
               {pickingGallery ? (
                 <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.75} />
@@ -162,7 +175,7 @@ export function ProgressPhotoCameraCapture({
               )}
             </span>
             {platform.photos.fromGallery}
-          </button>
+          </label>
 
           <button
             type="button"
@@ -241,9 +254,9 @@ export function ProgressPhotoCaptureDialog({
           size="icon"
           onClick={onClose}
           aria-label={platform.common.close}
-          className="shrink-0 text-white hover:bg-white/15 hover:text-white"
+          className="h-10 w-10 shrink-0 rounded-full bg-white/20 text-white hover:bg-white/35 hover:text-white"
         >
-          <X className="h-5 w-5" />
+          <X className="h-6 w-6" strokeWidth={2.25} />
         </Button>
       </header>
 
