@@ -41,7 +41,6 @@ export function MealPhotoLogStep({
   onPhotoDataUrlChange,
   confidence,
   onConfidenceChange,
-  onSave,
   isSaving = false,
 }: {
   form: MealFormData;
@@ -51,7 +50,6 @@ export function MealPhotoLogStep({
   onPhotoDataUrlChange?: (dataUrl: string | null) => void;
   confidence: number | null;
   onConfidenceChange: (value: number | null) => void;
-  onSave?: () => void;
   isSaving?: boolean;
 }) {
   const platform = usePlatformCopy();
@@ -130,7 +128,11 @@ export function MealPhotoLogStep({
     analyzeGenRef.current += 1;
     setPhaseWithReady("compressing");
     try {
-      const compressed = await compressImageFile(file);
+      const compressed = await compressImageFile(file, {
+        maxWidth: 1920,
+        maxHeight: 1920,
+        quality: 0.88,
+      });
       const dataUrl = await fileToDataUrl(compressed);
       setPreviewUrl(dataUrl);
       onPhotoDataUrlChange?.(dataUrl);
@@ -242,9 +244,7 @@ export function MealPhotoLogStep({
             canRefineWithAi ? handleRefineWithSpecification : undefined
           }
           isRefining={isPending}
-          onSave={onSave}
           isSaving={isSaving}
-          saveLabel={platform.mealLog.logMeal}
         />
         <Button
           type="button"

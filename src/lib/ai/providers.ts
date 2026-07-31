@@ -253,12 +253,16 @@ export async function* streamChatCompletion(
 export async function runVisionPrompt(
   prompt: string,
   imageBase64: string,
-  mimeType: string
+  mimeType: string,
+  options?: { maxTokens?: number; imageDetail?: "low" | "high" | "auto" }
 ): Promise<string> {
   const providers = getConfiguredProviders();
   if (providers.length === 0) {
     throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
   }
+
+  const maxTokens = options?.maxTokens ?? 900;
+  const imageDetail = options?.imageDetail ?? "auto";
 
   let lastError: Error | null = null;
   for (const provider of providers) {
@@ -274,12 +278,15 @@ export async function runVisionPrompt(
                 { type: "text", text: prompt },
                 {
                   type: "image_url",
-                  image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+                  image_url: {
+                    url: `data:${mimeType};base64,${imageBase64}`,
+                    detail: imageDetail,
+                  },
                 },
               ],
             },
           ],
-          max_tokens: 900,
+          max_tokens: maxTokens,
         });
         const content = response.choices[0]?.message?.content;
         if (!content) throw new Error("OpenAI returned an empty response");
@@ -290,7 +297,7 @@ export async function runVisionPrompt(
       const mediaType = mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
       const response = await client.messages.create({
         model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-6",
-        max_tokens: 900,
+        max_tokens: maxTokens,
         messages: [
           {
             role: "user",

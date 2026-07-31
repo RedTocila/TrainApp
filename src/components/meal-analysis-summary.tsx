@@ -342,18 +342,7 @@ export function MealAnalysisSummary({
             </>
           )}
         </Button>
-      ) : (
-        <p className="text-center text-xs text-muted-foreground">
-          {isEditingWithAi ? (
-            <>
-              Add details above, then tap{" "}
-              <span className="font-medium text-foreground">{platform.mealLog.refineWithAi}</span>.
-            </>
-          ) : (
-            <>Review the analysis, then log when it looks right.</>
-          )}
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }

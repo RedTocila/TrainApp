@@ -316,7 +316,8 @@ export function LogMealDialog({
     mode === "custom" ||
     (mode === "text" && hasAiAccess && textReady) ||
     (mode === "picker" && hasAiAccess && textReady);
-  // Photo review logs from MealAnalysisSummary's single primary button.
+  // Photo review uses a sticky Log footer (Safari chrome covers in-scroll buttons).
+  const canLogPhoto = mode === "photo" && hasAiAccess && photoReady;
 
   const logButtonLabel = platform.mealLog.logMeal;
 
@@ -383,18 +384,17 @@ export function LogMealDialog({
         className={cn(
           "h-8 w-8 shrink-0",
           isPhotoCaptureFullscreen &&
-            "h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/35 hover:text-white"
+            "h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/35 hover:text-white",
+          isPhotoReviewFullscreen &&
+            "h-10 w-10 rounded-full bg-muted text-foreground hover:bg-muted/80"
         )}
         onClick={onClose}
         aria-label={platform.aria.close}
         disabled={isSaving}
       >
         <X
-          className={cn(
-            "h-4 w-4",
-            isPhotoCaptureFullscreen && "h-6 w-6"
-          )}
-          strokeWidth={isPhotoCaptureFullscreen ? 2.25 : undefined}
+          className={cn("h-4 w-4", isPhotoFullscreen && "h-6 w-6")}
+          strokeWidth={isPhotoFullscreen ? 2.25 : undefined}
         />
       </Button>
     </div>
@@ -614,7 +614,6 @@ export function LogMealDialog({
                 onPhotoDataUrlChange={setMealPhotoDataUrl}
                 confidence={aiConfidence}
                 onConfidenceChange={setAiConfidence}
-                onSave={handleLogCustom}
                 isSaving={isSaving}
               />
             ) : (
@@ -672,21 +671,35 @@ export function LogMealDialog({
     </>
   );
 
+  const logPrimaryButton = (
+    <Button className="w-full" disabled={isSaving} onClick={handleLogCustom}>
+      {isSaving ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          {platform.common.saving}
+        </>
+      ) : (
+        <>
+          <Check className="mr-2 h-4 w-4" />
+          {logButtonLabel}
+        </>
+      )}
+    </Button>
+  );
+
   const footerActions =
-    canLogCustom || mode !== "picker" || error ? (
-      <div className="mt-4 space-y-2 border-t border-border pt-4 pb-1">
+    canLogCustom || canLogPhoto || mode !== "picker" || error ? (
+      <div
+        className={cn(
+          "space-y-2 border-t border-border",
+          isPhotoReviewFullscreen
+            ? "shrink-0 bg-background/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur-md"
+            : "mt-4 pt-4 pb-1"
+        )}
+      >
         {error && <p className="text-sm text-red-400">{error}</p>}
-        {canLogCustom ? (
-          <Button className="w-full" disabled={isSaving} onClick={handleLogCustom}>
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {platform.common.saving}
-              </>
-            ) : (
-              logButtonLabel
-            )}
-          </Button>
+        {canLogCustom || canLogPhoto ? (
+          logPrimaryButton
         ) : mode !== "picker" ? (
           <Button variant="outline" className="w-full" onClick={onClose} disabled={isSaving}>
             {platform.common.close}
@@ -724,9 +737,7 @@ export function LogMealDialog({
               ? "relative overflow-hidden p-0"
               : cn(
                   "overflow-y-auto overscroll-contain",
-                  isPhotoReviewFullscreen
-                    ? "px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]"
-                    : "px-5 py-4"
+                  isPhotoReviewFullscreen ? "px-4 py-4" : "px-5 py-4"
                 )
           )}
           data-scroll-lock-scrollable={
@@ -740,9 +751,12 @@ export function LogMealDialog({
             )}
           >
             {body}
-            {!isPhotoCaptureFullscreen ? footerActions : null}
+            {!isPhotoCaptureFullscreen && !isPhotoReviewFullscreen
+              ? footerActions
+              : null}
           </div>
         </div>
+        {isPhotoReviewFullscreen ? footerActions : null}
       </AppOverlayPanel>
     </AppOverlay>
   );
