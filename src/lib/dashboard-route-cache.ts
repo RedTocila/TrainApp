@@ -8,7 +8,7 @@ import {
   isDashboardDayCacheFresh,
   setDashboardDayCache,
 } from "@/lib/dashboard-day-cache";
-import type { Meal, MealSlot, ProgressPhotoSet } from "@/lib/types";
+import type { Meal, MealSlot, ProgressPhotoSet, DailyLog, DailyMealLog } from "@/lib/types";
 import type { ProgressPhotoPose } from "@/lib/supabase/storage";
 
 export type WorkoutDayCache = {
@@ -32,10 +32,77 @@ export type NutritionExtrasCache = {
   } | null;
 };
 
+/** Shared shape for the client `overview` day cache (dashboard + nutrition). */
+export type OverviewDayCache = {
+  log: DailyLog | null;
+  dailyMeals: DailyMealLog[];
+  nutritionPlan: {
+    title: string;
+    meals: Meal[];
+    scheduled?: boolean;
+    activeSlots?: MealSlot[];
+    kind?: MealPlanViewKind;
+    planId?: string;
+  } | null;
+};
+
 export type PoseUrls = Record<ProgressPhotoPose, string | null>;
 
 export function workoutDayCacheKey(clientId: string, dateKey: string) {
   return dashboardDayCacheKey(clientId, "workout-day", dateKey);
+}
+
+export function overviewDayCacheKey(clientId: string, dateKey: string) {
+  return dashboardDayCacheKey(clientId, "overview", dateKey);
+}
+
+export function getOverviewDayCache(
+  clientId: string,
+  dateKey: string
+): OverviewDayCache | undefined {
+  return getDashboardDayCache<OverviewDayCache>(
+    overviewDayCacheKey(clientId, dateKey)
+  );
+}
+
+/** Keep the shared overview cache in sync after meal/water mutations. */
+export function patchOverviewDayCache(
+  clientId: string,
+  dateKey: string,
+  patch: {
+    dailyMeals?: DailyMealLog[];
+    waterMl?: number;
+    log?: DailyLog | null;
+    nutritionPlan?: OverviewDayCache["nutritionPlan"];
+  }
+) {
+  const key = overviewDayCacheKey(clientId, dateKey);
+  const current = getDashboardDayCache<OverviewDayCache>(key);
+  let log = patch.log !== undefined ? patch.log : (current?.log ?? null);
+
+  if (patch.waterMl !== undefined) {
+    log = log
+      ? { ...log, water_ml: patch.waterMl }
+      : {
+          id: "",
+          client_id: clientId,
+          date: dateKey,
+          water_ml: patch.waterMl,
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+        };
+  }
+
+  setDashboardDayCache(key, {
+    log,
+    dailyMeals: patch.dailyMeals ?? current?.dailyMeals ?? [],
+    nutritionPlan:
+      patch.nutritionPlan !== undefined
+        ? patch.nutritionPlan
+        : (current?.nutritionPlan ?? null),
+  } satisfies OverviewDayCache);
 }
 
 export function getWorkoutDayCache(

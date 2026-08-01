@@ -7,6 +7,7 @@ import {
   useOptionalDashboardEnrichment,
 } from "@/components/dashboard-enrichment-provider";
 import { DailyTracker } from "@/components/daily-tracker";
+import { useDashboardSync } from "@/components/dashboard-sync";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import {
   setNutritionExtrasCache,
@@ -202,8 +203,14 @@ export function DashboardOverview({
   });
 
   const display = overview ?? seedOverview;
+  const { patches } = useDashboardSync();
+  const patchedMeals = patches.meals[dateKey];
+  // Prefer live patches/enrichment over the module-level overview cache so
+  // meal logs from nutrition show on the dashboard without a hard refresh.
   const dailyMeals =
-    localMeals ?? display?.dailyMeals ?? enrichmentMeals ?? [];
+    localMeals ?? patchedMeals ?? enrichmentMeals ?? display?.dailyMeals ?? [];
+  const waterMl =
+    enrichmentWater ?? display?.log?.water_ml ?? 0;
 
   useEffect(() => {
     setNutritionExtrasCache(clientId, {
@@ -223,7 +230,7 @@ export function DashboardOverview({
     <DailyTracker
       clientId={clientId}
       date={selectedDate}
-      waterMl={display?.log?.water_ml ?? enrichmentWater ?? 0}
+      waterMl={waterMl}
       dailyMeals={dailyMeals}
       onDailyMealsChange={(meals) => {
         setLocalMeals(meals);

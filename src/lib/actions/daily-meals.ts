@@ -253,6 +253,11 @@ export async function logMealFromLibrary(
   if (error) return { error: formatDbError(error.message) };
 
   await syncDailyMacros(clientId, date);
+  after(() => {
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/day/nutrition");
+    revalidatePath("/dashboard/meal-photos");
+  });
   return { success: true };
 }
 
@@ -335,6 +340,10 @@ export async function deleteDailyMealLog(clientId: string, date: string, logId: 
   await removeMealPhotoStorage(mutation.admin, existing.data?.photo_path);
 
   await syncDailyMacros(clientId, date);
-  revalidatePath("/dashboard/meal-photos");
+  after(() => {
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/day/nutrition");
+    revalidatePath("/dashboard/meal-photos");
+  });
   return { success: true };
 }

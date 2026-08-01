@@ -51,6 +51,7 @@ import {
 } from "@/components/section-completed-badge";
 import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { getPlannedMealSlots, isDayEnded } from "@/lib/meal-times";
+import { patchOverviewDayCache } from "@/lib/dashboard-route-cache";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import type { DailyMealLog, Meal, MealSlot } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -114,7 +115,7 @@ export function DailyTracker({
   const [previewVariant, setPreviewVariant] = useState<"new" | "view">("new");
   const [isDeletingMeal, setIsDeletingMeal] = useState(false);
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
-  const { patchDashboard } = useDashboardSync();
+  const { patchDashboard, notifySync } = useDashboardSync();
   const dateKey = formatDateKey(date);
   const mealsWithPhotos = useMealsWithPhotoUrls(dailyMeals);
 
@@ -126,9 +127,12 @@ export function DailyTracker({
     setLocalWaterMl(waterMl);
   }, [waterMl]);
 
-  useEffect(() => {
-    patchDashboard({ dateKey, dailyMeals });
-  }, [dateKey, dailyMeals, patchDashboard]);
+  const applyMealsUpdate = (meals: DailyMealLog[]) => {
+    onDailyMealsChange(meals);
+    patchDashboard({ dateKey, dailyMeals: meals });
+    patchOverviewDayCache(clientId, dateKey, { dailyMeals: meals });
+    notifySync();
+  };
 
   const current = useMemo(() => sumMealMacros(dailyMeals), [dailyMeals]);
 
@@ -194,12 +198,14 @@ export function DailyTracker({
     setLocalWaterMl((prev) => {
       const next = prev + amount;
       patchDashboard({ dateKey, waterMl: next });
+      patchOverviewDayCache(clientId, dateKey, { waterMl: next });
       return next;
     });
     void addWater(clientId, dateKey, amount).catch(() => {
       setLocalWaterMl((prev) => {
         const reverted = prev - amount;
         patchDashboard({ dateKey, waterMl: reverted });
+        patchOverviewDayCache(clientId, dateKey, { waterMl: reverted });
         return reverted;
       });
     });
@@ -217,11 +223,11 @@ export function DailyTracker({
 
   const handleDeleteMeal = (logId: string) => {
     const previous = dailyMeals;
-    onDailyMealsChange(dailyMeals.filter((meal) => meal.id !== logId));
+    applyMealsUpdate(dailyMeals.filter((meal) => meal.id !== logId));
     return runServerAction(() => deleteDailyMealLog(clientId, dateKey, logId)).then(
       (result) => {
         if (isActionError(result) || ("error" in result && result.error)) {
-          onDailyMealsChange(previous);
+          applyMealsUpdate(previous);
           return false;
         }
         return true;
@@ -249,7 +255,7 @@ export function DailyTracker({
       )
     ).then((result) => {
       if (isActionError(result)) return;
-      if (Array.isArray(result)) onDailyMealsChange(result);
+      if (Array.isArray(result)) applyMealsUpdate(result);
     });
   };
 

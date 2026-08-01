@@ -14,6 +14,7 @@ import { MiniProgressRing } from "@/components/nutrition-macro-rings";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import { addWater, getDailyLog, updateWaterGoal } from "@/lib/actions/logs";
+import { patchOverviewDayCache } from "@/lib/dashboard-route-cache";
 import {
   waterMetDailyMinimum,
   waterRemainingToMinimum,
@@ -44,7 +45,7 @@ export function DashboardWaterCard({
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
   const readOnly = useIsPastSelectedDay();
-  const { patchDashboard } = useDashboardSync();
+  const { patchDashboard, notifySync } = useDashboardSync();
   const enrichmentCtx = useOptionalDashboardEnrichment();
   const enrichment = enrichmentCtx?.enrichment;
   const isInEnrichmentRange =
@@ -115,8 +116,12 @@ export function DashboardWaterCard({
   const handleAddWater = (amount: number) => {
     const next = waterMl + amount;
     patchDashboard({ dateKey, waterMl: next });
+    patchOverviewDayCache(clientId, dateKey, { waterMl: next });
+    notifySync();
     void addWater(clientId, dateKey, amount).catch(() => {
       patchDashboard({ dateKey, waterMl: waterMl });
+      patchOverviewDayCache(clientId, dateKey, { waterMl });
+      notifySync();
     });
   };
 

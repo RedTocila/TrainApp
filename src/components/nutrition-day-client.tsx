@@ -7,6 +7,7 @@ import {
   useOptionalDashboardEnrichment,
 } from "@/components/dashboard-enrichment-provider";
 import { DailyTracker } from "@/components/daily-tracker";
+import { useDashboardSync } from "@/components/dashboard-sync";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import { getClientNutritionAssignment } from "@/lib/actions/plans";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
@@ -14,16 +15,14 @@ import { getDailyLog } from "@/lib/actions/logs";
 import { getPersonalMealsLibrary } from "@/lib/actions/user-nutrition";
 import { getNutritionPlanForDate } from "@/lib/actions/user-nutrition-schedule";
 import {
-  dashboardDayCacheKey,
-  getDashboardDayCache,
-  isDashboardDayCacheFresh,
-} from "@/lib/dashboard-day-cache";
-import {
+  getOverviewDayCache,
   getNutritionExtrasCache,
   isNutritionExtrasCacheFresh,
+  overviewDayCacheKey,
   setNutritionExtrasCache,
   type NutritionExtrasCache,
 } from "@/lib/dashboard-route-cache";
+import { isDashboardDayCacheFresh } from "@/lib/dashboard-day-cache";
 import type { DailyLog, DailyMealLog, Meal, MealSlot } from "@/lib/types";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
 import { formatDateKey } from "@/lib/utils";
@@ -88,10 +87,11 @@ export function NutritionDayClient({
 
   const enrichmentMeals = enrichment?.mealsByDate[dateKey];
   const enrichmentWater = enrichment?.waterByDate[dateKey];
-  const overviewCacheKey = dashboardDayCacheKey(clientId, "overview", dateKey);
+  const overviewCacheKey = overviewDayCacheKey(clientId, dateKey);
+  const { patches } = useDashboardSync();
 
   const seedOverview = useMemo((): OverviewDayData | undefined => {
-    const cachedOverview = getDashboardDayCache<OverviewDayData>(overviewCacheKey);
+    const cachedOverview = getOverviewDayCache(clientId, dateKey);
     if (cachedOverview) return cachedOverview;
 
     const hasEnrichment =
@@ -226,8 +226,11 @@ export function NutritionDayClient({
   }, [clientId, dateKey]);
 
   const display = overview ?? seedOverview;
+  const patchedMeals = patches.meals[dateKey];
   const dailyMeals =
-    localMeals ?? display?.dailyMeals ?? enrichmentMeals ?? [];
+    localMeals ?? patchedMeals ?? enrichmentMeals ?? display?.dailyMeals ?? [];
+  const waterMl =
+    enrichmentWater ?? display?.log?.water_ml ?? 0;
 
   // First paint / date change with no cached seed — show meal + macro skeleton.
   if (!display && (isRevalidating || overview === null)) {
@@ -238,7 +241,7 @@ export function NutritionDayClient({
     <DailyTracker
       clientId={clientId}
       date={selectedDate}
-      waterMl={display?.log?.water_ml ?? enrichmentWater ?? 0}
+      waterMl={waterMl}
       dailyMeals={dailyMeals}
       onDailyMealsChange={(meals) => {
         setLocalMeals(meals);
