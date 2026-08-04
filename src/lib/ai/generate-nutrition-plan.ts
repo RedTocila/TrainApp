@@ -1,7 +1,8 @@
 import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
-import { buildIntakeContextForAi, getCriticalIntakeGaps } from "@/lib/ai/intake-context";
+import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { buildPlanTextLanguageRule } from "@/lib/ai/language-instructions";
+import { withPlanMedicalDisclaimer } from "@/lib/ai/plan-medical-disclaimer";
 import type { AiGeneratedNutritionPlan, AiNutritionMeal } from "@/lib/ai/plan-builder-types";
 import type { Profile } from "@/lib/types";
 import type { MealSlot } from "@/lib/meal-slots";
@@ -20,7 +21,10 @@ function roundMacro(n: unknown): number {
   return Number.isFinite(v) ? Math.max(0, Math.round(v)) : 0;
 }
 
-function normalizeNutritionPlan(raw: AiGeneratedNutritionPlan): AiGeneratedNutritionPlan {
+function normalizeNutritionPlan(
+  raw: AiGeneratedNutritionPlan,
+  locale?: string | null
+): AiGeneratedNutritionPlan {
   const meals = (raw.meals ?? [])
     .filter((m) => m.name?.trim() && VALID_SLOTS.has(m.slot))
     .map((meal) => ({
@@ -51,7 +55,7 @@ function normalizeNutritionPlan(raw: AiGeneratedNutritionPlan): AiGeneratedNutri
     description: raw.description?.trim() || "",
     daily_targets: targets,
     meals: meals.length > 0 ? meals : defaultMeals(targets),
-    coach_notes: (raw.coach_notes ?? []).filter((n) => n?.trim()).map((n) => n.trim()),
+    coach_notes: withPlanMedicalDisclaimer(raw.coach_notes, locale),
     grocery_list: normalizeGroceryList(raw.grocery_list).map((item) => ({
       name: item.name,
       amount: item.amount,
@@ -79,12 +83,6 @@ export async function generateNutritionPlanFromProfile(
   profile: Profile,
   preferences?: string
 ): Promise<AiGeneratedNutritionPlan> {
-  const criticalGaps = getCriticalIntakeGaps(profile);
-  if (criticalGaps.length > 0) {
-    throw new Error(
-      `Before I build your nutrition plan, clarify: ${criticalGaps.join(" ")}`
-    );
-  }
   const intake = buildIntakeContextForAi(profile, preferences);
 
   const prompt = `You are an expert sports nutritionist. Create a full-day meal plan with macro targets for this client.
@@ -93,6 +91,7 @@ CLIENT PROFILE:
 ${intake}
 
 Rules:
+- ALWAYS return a complete plan. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - Calculate realistic daily calories and macros from age, gender, weight, height, goal, and activity (use work schedule & daily routine as activity hints).
 - Provide exactly one primary meal per slot: breakfast, snack_1, lunch, snack_2, dinner.
 - Meal macros should sum close to daily_targets (within ~10%).
@@ -102,6 +101,7 @@ Rules:
 - Include 2-5 ingredients per meal when helpful.
 - Add a weekly grocery_list with realistic total amounts for 7 days (merge duplicates, group by category).
 - Description and coach_notes must clearly explain how the plan is personalized to this client's profile constraints and goal.
+- End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
 
 ${buildPlanTextLanguageRule(profile.preferred_locale)}
 
@@ -130,10 +130,10 @@ Respond with ONLY valid JSON:
   "grocery_list": [
     { "name": "ingredient", "amount": "weekly amount e.g. 1.2 kg", "category": "Protein" | "Produce" | "Dairy" | "Pantry" | "Other" }
   ],
-  "coach_notes": ["2-4 practical nutrition tips"]
+  "coach_notes": ["2-4 practical nutrition tips", "not-a-doctor disclaimer"]
 }`;
 
   const raw = await runTextPrompt(prompt, { maxTokens: 2800, json: true });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedNutritionPlan;
-  return normalizeNutritionPlan(parsed);
+  return normalizeNutritionPlan(parsed, profile.preferred_locale);
 }

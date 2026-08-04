@@ -58,6 +58,7 @@ export function MealPhotoLogStep({
   const [lastAnalysis, setLastAnalysis] = useState<MealAnalysisResult | null>(null);
   const [alexRoast, setAlexRoast] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isRefining, setIsRefining] = useState(false);
   const analyzeGenRef = useRef(0);
 
   const setPhaseWithReady = (next: PhotoPhase) => {
@@ -202,8 +203,9 @@ export function MealPhotoLogStep({
 
     const [, mimeType, imageBase64] = match;
     onError(null);
+    setIsRefining(true);
 
-    startTransition(async () => {
+    void (async () => {
       try {
         const response = await runServerAction(() =>
           refineMealPhotoAction(
@@ -227,8 +229,10 @@ export function MealPhotoLogStep({
         setLastAnalysis(response.result);
       } catch {
         onError(platform.mealLog.uploadTooLarge);
+      } finally {
+        setIsRefining(false);
       }
-    });
+    })();
   };
 
   const canRefineWithAi = Boolean(previewUrl?.startsWith("data:"));
@@ -238,12 +242,13 @@ export function MealPhotoLogStep({
       <div className="space-y-4">
         <MealAnalysisSummary
           form={form}
+          onFormChange={onFormChange}
           confidence={confidence}
           imageUrl={previewUrl}
           onRefineWithSpecification={
             canRefineWithAi ? handleRefineWithSpecification : undefined
           }
-          isRefining={isPending}
+          isRefining={isRefining}
           isSaving={isSaving}
         />
         <Button
@@ -252,7 +257,7 @@ export function MealPhotoLogStep({
           size="sm"
           className="w-full"
           onClick={handleRetake}
-          disabled={isSaving || isPending}
+          disabled={isSaving || isPending || isRefining}
         >
           {platform.mealLog.retakePhoto}
         </Button>

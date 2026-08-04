@@ -18,6 +18,11 @@ function hasText(value?: string | null): boolean {
   return Boolean(value && value.trim().length > 0);
 }
 
+/**
+ * Soft profile gaps for the AI prompt only — never block plan generation.
+ * Named conditions (e.g. PCOS), injuries, and meds should still produce a plan
+ * with conservative adaptations + a medical disclaimer.
+ */
 export function getCriticalIntakeGaps(profile: Profile): string[] {
   const responses = profileToResponses(profile);
   const gaps: string[] = [];
@@ -28,23 +33,33 @@ export function getCriticalIntakeGaps(profile: Profile): string[] {
   const hasOtherCondition = responses.health_conditions?.includes("other") ?? false;
 
   if (hasInjuries && !hasText(responses.injury_details)) {
-    gaps.push("Please describe injury limits (pain triggers, movement restrictions, and what to avoid).");
+    gaps.push(
+      "Injury areas are flagged without details — use conservative, low-irritation alternatives and note modifications."
+    );
   }
 
   if (hasConditions && !hasText(responses.health_condition_details)) {
-    gaps.push("Please add condition details (current status, symptoms, and coach-relevant limits).");
+    gaps.push(
+      "Health conditions are named without extra notes — apply condition-aware, conservative defaults from the named conditions."
+    );
   }
 
   if (hasOtherCondition && !hasText(responses.health_condition_details)) {
-    gaps.push("You selected 'Other' health condition — please name it and add key details.");
+    gaps.push(
+      "'Other' health condition has no description — stay general and conservative; do not invent a diagnosis."
+    );
   }
 
   if (hasPcos && !hasText(responses.health_condition_details)) {
-    gaps.push("Please add PCOS context (doctor guidance or known symptom triggers relevant to training/nutrition).");
+    gaps.push(
+      "PCOS is flagged without extra notes — prefer insulin-friendly nutrition and sustainable training volume; avoid medical treatment claims."
+    );
   }
 
   if (hasConditions && !hasText(responses.medications)) {
-    gaps.push("Please list current medications or supplements, or explicitly write 'none'.");
+    gaps.push(
+      "Medications/supplements were not listed — do not assume prescriptions; keep advice general."
+    );
   }
 
   return gaps;
@@ -98,13 +113,16 @@ export function buildIntakeContextForAi(profile: Profile, extraNotes?: string): 
     ...(detailed ? detailed.split("\n") : structured.map((item) => `${item.label}: ${item.value}`)),
   ];
 
-  const criticalGaps = getCriticalIntakeGaps(profile);
+  const softGaps = getCriticalIntakeGaps(profile);
   lines.push(
     "",
-    "CRITICAL INFO GAPS (ASK BEFORE FINAL PLAN IF ANY):",
-    ...(criticalGaps.length > 0
-      ? criticalGaps.map((gap, idx) => `${idx + 1}. ${gap}`)
-      : ["None. Safety-critical profile details look sufficient."])
+    "SAFETY / DETAIL NOTES (do NOT refuse or delay the plan — adapt conservatively and still return full JSON):",
+    ...(softGaps.length > 0
+      ? softGaps.map((gap, idx) => `${idx + 1}. ${gap}`)
+      : ["None. Safety-critical profile details look sufficient."]),
+    "",
+    "MEDICAL BOUNDARY (mandatory in coach_notes):",
+    "You are not a doctor. End coach_notes with a clear disclaimer that this is a general suggestion, not medical advice, and the client should confirm with a qualified professional — especially with injuries, medications, or health conditions."
   );
 
   if (extraNotes?.trim()) {

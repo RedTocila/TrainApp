@@ -145,9 +145,9 @@ function humanizeAiMessage(message: string): string {
     return "Something went wrong with AI. Please try again.";
   }
 
-  // Keep short, readable app messages; truncate runaway provider text.
-  if (message.length > 180) {
-    return "Something went wrong. Please try again.";
+  // Keep short, readable app messages; truncate runaway provider text (don't hide it).
+  if (message.length > 220) {
+    return `${message.slice(0, 217).trimEnd()}…`;
   }
 
   return message;

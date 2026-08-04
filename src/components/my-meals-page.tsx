@@ -83,13 +83,16 @@ function EditMealDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,36rem)]">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <h2 className="text-lg font-black">{platform.meals.editMeal}</h2>
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-lg font-black">{platform.meals.editMeal}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+          data-scroll-lock-scrollable
+        >
           <MealDetailsFields
             mealType={form.meal_type}
             onMealTypeChange={(meal_type) => setForm({ ...form, meal_type })}
@@ -106,7 +109,7 @@ function EditMealDialog({
           />
           {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
         </div>
-        <div className="flex gap-2 border-t border-border px-5 py-4">
+        <div className="flex shrink-0 gap-2 border-t border-border px-5 py-4">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             {platform.common.cancel}
           </Button>
@@ -208,19 +211,22 @@ function AddMealToFolderDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-md" className="max-h-[min(92%,32rem)]">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                {platform.meals.addToFolder}
-              </p>
-              <h2 className="text-lg font-black">{item.meal.name}</h2>
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              {platform.meals.addToFolder}
+            </p>
+            <h2 className="text-lg font-black">{item.meal.name}</h2>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+          data-scroll-lock-scrollable
+        >
           {step === "folder" ? (
             <>
               <p className="mb-3 text-sm text-muted-foreground">
@@ -389,25 +395,28 @@ function CreateMealDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,36rem)]">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                {step === "details"
-                  ? platform.meals.newMeal
-                  : step === "folder"
-                    ? platform.meals.chooseFolder
-                    : platform.meals.choosePlan}
-              </p>
-              <h2 className="text-lg font-black">
-                {step === "details" ? platform.meals.addMeal : form.name}
-              </h2>
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              {step === "details"
+                ? platform.meals.newMeal
+                : step === "folder"
+                  ? platform.meals.chooseFolder
+                  : platform.meals.choosePlan}
+            </p>
+            <h2 className="text-lg font-black">
+              {step === "details" ? platform.meals.addMeal : form.name}
+            </h2>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <div
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4"
+          data-scroll-lock-scrollable
+        >
           {step === "details" && (
             <MealDetailsFields
               mealType={form.meal_type}
@@ -497,7 +506,7 @@ function CreateMealDialog({
         </div>
 
         {step === "details" && (
-          <div className="flex gap-2 border-t border-border px-5 py-4">
+          <div className="flex shrink-0 gap-2 border-t border-border px-5 py-4">
             <Button variant="outline" className="flex-1" onClick={onClose}>
               {platform.common.cancel}
             </Button>

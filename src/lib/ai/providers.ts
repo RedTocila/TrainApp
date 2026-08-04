@@ -263,6 +263,9 @@ export async function runVisionPrompt(
 
   const maxTokens = options?.maxTokens ?? 900;
   const imageDetail = options?.imageDetail ?? "auto";
+  // Vision needs a stronger model than text — mini often mislabels chicken as fish.
+  // Do not fall back to OPENAI_MEAL_MODEL (often mini); override only via OPENAI_VISION_MODEL.
+  const openaiVisionModel = process.env.OPENAI_VISION_MODEL ?? "gpt-4o";
 
   let lastError: Error | null = null;
   for (const provider of providers) {
@@ -270,7 +273,8 @@ export async function runVisionPrompt(
       if (provider === "openai") {
         const client = getOpenAIClient();
         const response = await client.chat.completions.create({
-          model: process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini",
+          model: openaiVisionModel,
+          temperature: 0.2,
           messages: [
             {
               role: "user",
@@ -298,6 +302,7 @@ export async function runVisionPrompt(
       const response = await client.messages.create({
         model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-6",
         max_tokens: maxTokens,
+        temperature: 0.2,
         messages: [
           {
             role: "user",

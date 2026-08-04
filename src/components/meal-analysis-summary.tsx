@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { ConfidenceBadge } from "@/components/confidence-badge";
+import { MealDetailsFields } from "@/components/meal-details-fields";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { getMealTypeOptions } from "@/lib/locale-labels";
@@ -166,6 +167,7 @@ function MacroBars({
 
 export function MealAnalysisSummary({
   form,
+  onFormChange,
   confidence,
   imageUrl,
   onRefineWithSpecification,
@@ -175,6 +177,7 @@ export function MealAnalysisSummary({
   saveLabel,
 }: {
   form: MealFormData;
+  onFormChange?: (form: MealFormData) => void;
   confidence: number | null;
   imageUrl?: string | null;
   onRefineWithSpecification?: (specification: string) => void;
@@ -185,8 +188,9 @@ export function MealAnalysisSummary({
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
-  const [isEditingWithAi, setIsEditingWithAi] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [specification, setSpecification] = useState("");
+  const canEdit = Boolean(onFormChange || onRefineWithSpecification);
   const mealTypeLabels = Object.fromEntries(
     getMealTypeOptions(locale)
       .filter((option) => option.value !== "all")
@@ -243,55 +247,80 @@ export function MealAnalysisSummary({
               </span>
             </div>
 
-            {onRefineWithSpecification && (
+            {canEdit && (
               <Button
                 type="button"
-                variant={isEditingWithAi ? "default" : "outline"}
+                variant={isEditing ? "default" : "outline"}
                 size="icon"
                 className="h-9 w-9 rounded-xl"
-                onClick={() => setIsEditingWithAi((value) => !value)}
+                onClick={() => setIsEditing((value) => !value)}
                 disabled={isRefining || isSaving}
                 aria-label={platform.common.edit}
-                aria-pressed={isEditingWithAi}
+                aria-pressed={isEditing}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
             )}
           </div>
 
-          {form.description && (
+          {form.description && !isEditing && (
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{form.description}</p>
           )}
         </div>
 
-        <div className="flex items-center gap-4 p-4">
-          <MacroDonut macros={form.macros} />
-          <MacroBars macros={form.macros} rows={rows} />
-        </div>
-
-        {ingredients.length > 0 && (
-          <div className="border-t border-border/70 px-4 py-3">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Ingredients
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {ingredients.map((ingredient, index) => (
-                <span
-                  key={`${ingredient.name}-${index}`}
-                  className="rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-xs text-foreground"
-                >
-                  {ingredient.name}
-                  {ingredient.amount ? (
-                    <span className="text-muted-foreground"> · {ingredient.amount}</span>
-                  ) : null}
-                </span>
-              ))}
+        {!isEditing ? (
+          <>
+            <div className="flex items-center gap-4 p-4">
+              <MacroDonut macros={form.macros} />
+              <MacroBars macros={form.macros} rows={rows} />
             </div>
-          </div>
-        )}
+
+            {ingredients.length > 0 && (
+              <div className="border-t border-border/70 px-4 py-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Ingredients
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {ingredients.map((ingredient, index) => (
+                    <span
+                      key={`${ingredient.name}-${index}`}
+                      className="rounded-full border border-border bg-secondary/50 px-2.5 py-1 text-xs text-foreground"
+                    >
+                      {ingredient.name}
+                      {ingredient.amount ? (
+                        <span className="text-muted-foreground"> · {ingredient.amount}</span>
+                      ) : null}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        ) : null}
       </div>
 
-      {isEditingWithAi && onRefineWithSpecification && (
+      {isEditing && onFormChange ? (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <MealDetailsFields
+            mealType={form.meal_type}
+            onMealTypeChange={(meal_type) => onFormChange({ ...form, meal_type })}
+            name={form.name}
+            onNameChange={(name) => onFormChange({ ...form, name })}
+            description={form.description}
+            onDescriptionChange={(description) =>
+              onFormChange({ ...form, description })
+            }
+            macros={form.macros}
+            onMacrosChange={(macros) => onFormChange({ ...form, macros })}
+            ingredients={form.ingredients}
+            onIngredientsChange={(ingredients) =>
+              onFormChange({ ...form, ingredients })
+            }
+          />
+        </div>
+      ) : null}
+
+      {isEditing && onRefineWithSpecification && (
         <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
           <p className="text-sm text-muted-foreground">{platform.mealLog.specifyHint}</p>
           <Textarea

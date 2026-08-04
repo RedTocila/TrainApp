@@ -23,7 +23,7 @@ const ALBANIAN_FLUENCY_RULES = `Albanian (shqip) quality — mandatory when writ
 
 const MULTILINGUAL_ACCURACY_RULES = `Multilingual accuracy (all languages):
 - Coaching facts, numbers, profile constraints, and safety rules must stay equally accurate in every language — language must never weaken personalization or safety.
-- PROFILE SAFETY FLAGS and CRITICAL INFO GAPS apply with the same force in every language.
+- PROFILE SAFETY FLAGS and SAFETY / DETAIL NOTES apply with the same force in every language. Never refuse a plan because details are incomplete — adapt conservatively.
 - Reply in the same language the user writes in. If unclear, use the app language preference below.
 - Sound like a native coach in that language — natural idiom and word choice, not translationese or English sentence structure pasted into another language.
 - Never refuse a language. Never say you only speak English.

@@ -1,7 +1,8 @@
 import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
-import { buildIntakeContextForAi, getCriticalIntakeGaps } from "@/lib/ai/intake-context";
+import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { buildPlanTextLanguageRule } from "@/lib/ai/language-instructions";
+import { withPlanMedicalDisclaimer } from "@/lib/ai/plan-medical-disclaimer";
 import { enrichExercisesWithDemoVideos } from "@/lib/ai/exercise-video-search";
 import type {
   AiGeneratedHiitPlan,
@@ -25,7 +26,10 @@ function clampRest(n: unknown): number {
   return Number.isFinite(v) ? Math.min(300, Math.max(30, v)) : 60;
 }
 
-function normalizeWorkoutPlan(raw: AiGeneratedWorkoutPlan): AiGeneratedWorkoutPlan {
+function normalizeWorkoutPlan(
+  raw: AiGeneratedWorkoutPlan,
+  locale?: string | null
+): AiGeneratedWorkoutPlan {
   const days = (raw.days ?? [])
     .filter((d) => d.title?.trim())
     .slice(0, 6)
@@ -51,7 +55,7 @@ function normalizeWorkoutPlan(raw: AiGeneratedWorkoutPlan): AiGeneratedWorkoutPl
     description: raw.description?.trim() || "",
     days_per_week: Math.min(6, Math.max(1, days.length)),
     days,
-    coach_notes: (raw.coach_notes ?? []).filter((n) => n?.trim()).map((n) => n.trim()),
+    coach_notes: withPlanMedicalDisclaimer(raw.coach_notes, locale),
   };
 }
 
@@ -73,12 +77,6 @@ async function generateStrengthWorkoutPlanFromProfile(
   profile: Profile,
   preferences?: string
 ): Promise<AiGeneratedWorkoutPlan> {
-  const criticalGaps = getCriticalIntakeGaps(profile);
-  if (criticalGaps.length > 0) {
-    throw new Error(
-      `Before I build your workout plan, clarify: ${criticalGaps.join(" ")}`
-    );
-  }
   const intake = buildIntakeContextForAi(profile, preferences);
 
   const prompt = `You are an expert personal trainer. Create a safe, practical weekly TRADITIONAL strength/fitness workout plan (sets, reps, rest) tailored to this client.
@@ -87,6 +85,7 @@ CLIENT PROFILE:
 ${intake}
 
 Rules:
+- ALWAYS return a complete plan. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - This is NOT a HIIT / interval timer workout. Use classic sets × reps with rest between sets.
 - Respect injuries and medical conditions — avoid aggravating movements and suggest alternatives in notes.
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
@@ -96,6 +95,7 @@ Rules:
 - 4–8 exercises per session.
 - Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.
 - Description and coach_notes must explicitly mention why this plan is safe and appropriate for this specific profile.
+- End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
 
 ${buildPlanTextLanguageRule(profile.preferred_locale)}
 
@@ -118,12 +118,15 @@ Respond with ONLY valid JSON:
       ]
     }
   ],
-  "coach_notes": ["2-4 short coaching tips for this client"]
+  "coach_notes": ["2-4 short coaching tips for this client", "not-a-doctor disclaimer"]
 }`;
 
   const raw = await runTextPrompt(prompt, { maxTokens: 2500, json: true });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutPlan;
-  const plan = await attachDemoVideosToPlan(normalizeWorkoutPlan(parsed), profile.gender);
+  const plan = await attachDemoVideosToPlan(
+    normalizeWorkoutPlan(parsed, profile.preferred_locale),
+    profile.gender
+  );
 
   if (plan.days.length === 0) {
     throw new Error("AI did not return a valid workout plan. Try again.");
@@ -161,18 +164,21 @@ async function attachDemoVideosToHiit(
   };
 }
 
-function normalizeAiHiitPlan(raw: {
-  title?: string;
-  description?: string;
-  coach_notes?: string[];
-  config?: unknown;
-  prepare_seconds?: unknown;
-  rounds?: unknown;
-  round_rest_seconds?: unknown;
-  cycles?: unknown;
-  cycle_rest_seconds?: unknown;
-  exercises?: unknown;
-}): AiGeneratedHiitPlan | null {
+function normalizeAiHiitPlan(
+  raw: {
+    title?: string;
+    description?: string;
+    coach_notes?: string[];
+    config?: unknown;
+    prepare_seconds?: unknown;
+    rounds?: unknown;
+    round_rest_seconds?: unknown;
+    cycles?: unknown;
+    cycle_rest_seconds?: unknown;
+    exercises?: unknown;
+  },
+  locale?: string | null
+): AiGeneratedHiitPlan | null {
   const configRaw =
     raw.config && typeof raw.config === "object"
       ? raw.config
@@ -193,7 +199,7 @@ function normalizeAiHiitPlan(raw: {
     title: raw.title?.trim() || "AI HIIT Workout",
     description: raw.description?.trim() || "",
     config,
-    coach_notes: (raw.coach_notes ?? []).filter((n) => n?.trim()).map((n) => n.trim()),
+    coach_notes: withPlanMedicalDisclaimer(raw.coach_notes, locale),
   };
 }
 
@@ -201,12 +207,6 @@ export async function generateHiitPlanFromProfile(
   profile: Profile,
   preferences?: string
 ): Promise<AiGeneratedHiitPlan> {
-  const criticalGaps = getCriticalIntakeGaps(profile);
-  if (criticalGaps.length > 0) {
-    throw new Error(
-      `Before I build your HIIT plan, clarify: ${criticalGaps.join(" ")}`
-    );
-  }
   const intake = buildIntakeContextForAi(profile, preferences);
   const sessionRequest =
     preferences?.trim() ||
@@ -221,6 +221,7 @@ SESSION REQUEST:
 ${sessionRequest}
 
 Rules:
+- ALWAYS return a complete session. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - This is a HIIT interval workout — NOT traditional sets × reps strength training.
 - Return a single session config the app timer can run (prepare → work/rest per move → rounds → optional cycles).
 - Respect injuries — swap high-impact moves for low-impact alternatives when needed and note modifications.
@@ -231,6 +232,7 @@ Rules:
 - rounds usually 2–5; cycles usually 1–2.
 - prepare_seconds 5–15; round_rest_seconds 45–120; cycle_rest_seconds 60–180 when cycles > 1.
 - Description and coach_notes must explicitly mention how the session is adapted to this specific profile.
+- End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
 
 ${buildPlanTextLanguageRule(profile.preferred_locale)}
 
@@ -253,12 +255,12 @@ Respond with ONLY valid JSON:
       }
     ]
   },
-  "coach_notes": ["2-4 short coaching tips for this HIIT session"]
+  "coach_notes": ["2-4 short coaching tips for this HIIT session", "not-a-doctor disclaimer"]
 }`;
 
   const raw = await runTextPrompt(prompt, { maxTokens: 2000, json: true });
   const parsed = parseJsonObject(raw) as Parameters<typeof normalizeAiHiitPlan>[0];
-  const normalized = normalizeAiHiitPlan(parsed);
+  const normalized = normalizeAiHiitPlan(parsed, profile.preferred_locale);
   if (!normalized) {
     throw new Error("AI did not return a valid HIIT workout. Try again.");
   }
@@ -281,7 +283,10 @@ export async function generateWorkoutPlanFromProfile(
   return generateStrengthWorkoutPlanFromProfile(profile, preferences);
 }
 
-function normalizeWorkoutDay(raw: AiGeneratedWorkoutDay): AiGeneratedWorkoutDay {
+function normalizeWorkoutDay(
+  raw: AiGeneratedWorkoutDay,
+  locale?: string | null
+): AiGeneratedWorkoutDay {
   const exercises = (raw.exercises ?? [])
     .filter((ex) => ex.name?.trim())
     .slice(0, 12)
@@ -298,7 +303,7 @@ function normalizeWorkoutDay(raw: AiGeneratedWorkoutDay): AiGeneratedWorkoutDay 
     title: raw.title?.trim() || "AI Workout",
     description: raw.description?.trim() || "",
     exercises,
-    coach_notes: (raw.coach_notes ?? []).filter((n) => n?.trim()).map((n) => n.trim()),
+    coach_notes: withPlanMedicalDisclaimer(raw.coach_notes, locale),
   };
 }
 
@@ -348,12 +353,6 @@ export async function generateFullTrainingDayFromProfile(
   profile: Profile,
   prompt: string
 ): Promise<AiDayProgramResult> {
-  const criticalGaps = getCriticalIntakeGaps(profile);
-  if (criticalGaps.length > 0) {
-    throw new Error(
-      `Before I build your full training day, clarify: ${criticalGaps.join(" ")}`
-    );
-  }
   const intake = buildIntakeContextForAi(profile, prompt);
   const mainKind = inferAiMainWorkoutKind(prompt);
   const sessionRequest =
@@ -395,6 +394,7 @@ DAY REQUEST:
 ${sessionRequest}
 
 Rules:
+- ALWAYS return a complete day with all three parts. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - Always return all three parts: warmup, main, stretch.
 - Warm-up and stretching use interval timers (work_seconds / rest_seconds) — NOT sets × reps.
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
@@ -408,6 +408,7 @@ Rules:
 - Main: 4–8 exercises. Respect injuries. Match the day request (push/pull/legs/full body/etc.).
 - Titles should be clear (e.g. "Upper warm-up", "Upper Push", "Upper stretch").
 - coach_notes must mention at least one concrete personalization tied to profile constraints or health/lifestyle data.
+- End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
 
 ${buildPlanTextLanguageRule(profile.preferred_locale)}
 
@@ -442,7 +443,7 @@ Respond with ONLY valid JSON:
       ]
     }
   },
-  "coach_notes": ["1-2 short tips for the whole day"]
+  "coach_notes": ["1-2 short tips for the whole day", "not-a-doctor disclaimer"]
 }`;
 
   const raw = await runTextPrompt(aiPrompt, { maxTokens: 3200, json: true });
@@ -450,22 +451,34 @@ Respond with ONLY valid JSON:
     warmup?: Parameters<typeof normalizeAiHiitPlan>[0];
     stretch?: Parameters<typeof normalizeAiHiitPlan>[0];
     main?: Record<string, unknown>;
+    coach_notes?: string[];
   };
 
-  const warmupNorm = normalizeAiHiitPlan({
-    ...parsed.warmup,
-    title:
-      typeof parsed.warmup?.title === "string" && parsed.warmup.title.trim()
-        ? parsed.warmup.title
-        : "Warm-up",
-  });
-  const stretchNorm = normalizeAiHiitPlan({
-    ...parsed.stretch,
-    title:
-      typeof parsed.stretch?.title === "string" && parsed.stretch.title.trim()
-        ? parsed.stretch.title
-        : "Stretching",
-  });
+  const locale = profile.preferred_locale;
+  const dayNotes = withPlanMedicalDisclaimer(parsed.coach_notes, locale);
+
+  const warmupNorm = normalizeAiHiitPlan(
+    {
+      ...parsed.warmup,
+      title:
+        typeof parsed.warmup?.title === "string" && parsed.warmup.title.trim()
+          ? parsed.warmup.title
+          : "Warm-up",
+      coach_notes: parsed.warmup?.coach_notes ?? dayNotes,
+    },
+    locale
+  );
+  const stretchNorm = normalizeAiHiitPlan(
+    {
+      ...parsed.stretch,
+      title:
+        typeof parsed.stretch?.title === "string" && parsed.stretch.title.trim()
+          ? parsed.stretch.title
+          : "Stretching",
+      coach_notes: parsed.stretch?.coach_notes ?? dayNotes,
+    },
+    locale
+  );
 
   if (!warmupNorm?.config.exercises.length) {
     throw new Error("AI did not return a valid warm-up. Try again.");
@@ -478,14 +491,19 @@ Respond with ONLY valid JSON:
   let main: AiDayProgramResult["main"];
 
   if (mainKind === "hiit") {
-    const hiit = normalizeAiHiitPlan({
-      ...mainRaw,
-      title:
-        typeof mainRaw.title === "string" && mainRaw.title.trim()
-          ? (mainRaw.title as string)
-          : "HIIT",
-      config: mainRaw.config ?? mainRaw,
-    });
+    const hiit = normalizeAiHiitPlan(
+      {
+        ...mainRaw,
+        title:
+          typeof mainRaw.title === "string" && mainRaw.title.trim()
+            ? (mainRaw.title as string)
+            : "HIIT",
+        config: mainRaw.config ?? mainRaw,
+        coach_notes:
+          (mainRaw.coach_notes as string[] | undefined) ?? dayNotes,
+      },
+      locale
+    );
     if (!hiit?.config.exercises.length) {
       throw new Error("AI did not return a valid main HIIT workout. Try again.");
     }
@@ -497,7 +515,14 @@ Respond with ONLY valid JSON:
       },
     };
   } else {
-    const workout = normalizeWorkoutDay(mainRaw as unknown as AiGeneratedWorkoutDay);
+    const workout = normalizeWorkoutDay(
+      {
+        ...(mainRaw as unknown as AiGeneratedWorkoutDay),
+        coach_notes:
+          (mainRaw.coach_notes as string[] | undefined) ?? dayNotes,
+      },
+      locale
+    );
     if (!workout.exercises.length) {
       throw new Error("AI did not return a valid main workout. Try again.");
     }
@@ -530,12 +555,6 @@ async function generateStrengthWorkoutDayFromProfile(
   profile: Profile,
   prompt: string
 ): Promise<AiGeneratedWorkoutDay> {
-  const criticalGaps = getCriticalIntakeGaps(profile);
-  if (criticalGaps.length > 0) {
-    throw new Error(
-      `Before I build this workout, clarify: ${criticalGaps.join(" ")}`
-    );
-  }
   const intake = buildIntakeContextForAi(profile, prompt);
   const sessionRequest =
     prompt.trim() ||
@@ -550,6 +569,7 @@ SESSION REQUEST:
 ${sessionRequest}
 
 Rules:
+- ALWAYS return a complete session. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - Return exactly ONE session — not a weekly plan or split.
 - This is a traditional sets × reps fitness session (not a HIIT interval timer).
 - Respect injuries and medical conditions — avoid aggravating movements and suggest alternatives in notes.
@@ -559,6 +579,7 @@ Rules:
 - 4–8 exercises per session.
 - Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.
 - coach_notes must include at least one line about how this session is adjusted for the client's profile.
+- End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
 
 ${buildPlanTextLanguageRule(profile.preferred_locale)}
 
@@ -575,12 +596,12 @@ Respond with ONLY valid JSON:
       "notes": "optional form or modification tip"
     }
   ],
-  "coach_notes": ["1-3 short coaching tips for this session"]
+  "coach_notes": ["1-3 short coaching tips for this session", "not-a-doctor disclaimer"]
 }`;
 
   const raw = await runTextPrompt(aiPrompt, { maxTokens: 1800, json: true });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutDay;
-  const normalized = normalizeWorkoutDay(parsed);
+  const normalized = normalizeWorkoutDay(parsed, profile.preferred_locale);
   const workout = {
     ...normalized,
     exercises: await enrichExercisesWithDemoVideos(normalized.exercises, profile.gender),
@@ -598,12 +619,6 @@ async function generateExtraIntervalSessionFromProfile(
   prompt: string,
   kind: "warmup" | "stretch"
 ): Promise<AiGeneratedHiitPlan> {
-  const criticalGaps = getCriticalIntakeGaps(profile);
-  if (criticalGaps.length > 0) {
-    throw new Error(
-      `Before I build this ${kind} session, clarify: ${criticalGaps.join(" ")}`
-    );
-  }
   const intake = buildIntakeContextForAi(profile, prompt);
   const isWarmup = kind === "warmup";
   const sessionRequest =
@@ -623,6 +638,7 @@ SESSION REQUEST:
 ${sessionRequest}
 
 Rules:
+- ALWAYS return a complete session. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - This runs on an interval timer (work seconds / rest seconds) — NOT sets × reps strength training.
 - This is an EXTRA next to a main workout (keep it short: typically ~5–12 minutes).
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
@@ -641,6 +657,7 @@ Rules:
 - rounds usually 1–2; cycles usually 1.
 - prepare_seconds 5–10; round_rest_seconds 20–45 when rounds > 1.
 - coach_notes must mention safety or adaptation choices from the profile when such constraints exist.
+- End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
 
 ${buildPlanTextLanguageRule(profile.preferred_locale)}
 
@@ -663,20 +680,23 @@ Respond with ONLY valid JSON:
       }
     ]
   },
-  "coach_notes": ["1-2 short tips"]
+  "coach_notes": ["1-2 short tips", "not-a-doctor disclaimer"]
 }`;
 
   const raw = await runTextPrompt(aiPrompt, { maxTokens: 1600, json: true });
   const parsed = parseJsonObject(raw) as Parameters<typeof normalizeAiHiitPlan>[0];
-  const normalized = normalizeAiHiitPlan({
-    ...parsed,
-    title:
-      typeof parsed.title === "string" && parsed.title.trim()
-        ? parsed.title
-        : isWarmup
-          ? "Warm-up"
-          : "Stretching",
-  });
+  const normalized = normalizeAiHiitPlan(
+    {
+      ...parsed,
+      title:
+        typeof parsed.title === "string" && parsed.title.trim()
+          ? parsed.title
+          : isWarmup
+            ? "Warm-up"
+            : "Stretching",
+    },
+    profile.preferred_locale
+  );
   if (!normalized) {
     throw new Error(
       isWarmup
