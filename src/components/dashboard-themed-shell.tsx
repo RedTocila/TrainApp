@@ -23,65 +23,65 @@ const THEME: Record<
   }
 > = {
   workout: {
-    from: "from-primary/38 dark:from-primary/35",
-    radial: "rgba(var(--primary-rgb),0.34)",
-    blur: "bg-primary/25 dark:bg-primary/15",
+    from: "from-primary/42 dark:from-primary/58",
+    radial: "rgba(var(--primary-rgb),0.50)",
+    blur: "bg-primary/30 dark:bg-primary/28",
     accent: "text-primary",
     border: "border-primary/35 dark:border-primary/25",
   },
   nutrition: {
-    from: "from-emerald-500/34 dark:from-emerald-500/30",
-    radial: "rgba(16,185,129,0.34)",
-    blur: "bg-emerald-400/25 dark:bg-emerald-400/15",
+    from: "from-emerald-500/38 dark:from-emerald-500/54",
+    radial: "rgba(16,185,129,0.50)",
+    blur: "bg-emerald-400/30 dark:bg-emerald-400/28",
     accent: "text-emerald-700 dark:text-emerald-300",
     border: "border-emerald-500/40 dark:border-emerald-500/30",
   },
   water: {
-    from: "from-sky-400/36 dark:from-sky-400/35",
-    radial: "rgba(56,189,248,0.36)",
-    blur: "bg-sky-300/30 dark:bg-sky-300/20",
+    from: "from-sky-400/40 dark:from-sky-400/56",
+    radial: "rgba(56,189,248,0.52)",
+    blur: "bg-sky-300/35 dark:bg-sky-300/30",
     accent: "text-sky-700 dark:text-sky-300",
     border: "border-sky-500/40 dark:border-sky-500/30",
   },
   cardio: {
-    from: "from-orange-500/34 dark:from-orange-500/30",
-    radial: "rgba(249,115,22,0.36)",
-    blur: "bg-orange-400/25 dark:bg-orange-400/15",
+    from: "from-orange-500/38 dark:from-orange-500/54",
+    radial: "rgba(249,115,22,0.50)",
+    blur: "bg-orange-400/30 dark:bg-orange-400/28",
     accent: "text-orange-700 dark:text-orange-300",
     border: "border-orange-500/40 dark:border-orange-500/30",
   },
   bmi: {
-    from: "from-yellow-400/36 dark:from-yellow-400/30",
-    radial: "rgba(250,204,21,0.34)",
-    blur: "bg-yellow-300/28 dark:bg-yellow-300/15",
+    from: "from-yellow-400/40 dark:from-yellow-400/52",
+    radial: "rgba(250,204,21,0.50)",
+    blur: "bg-yellow-300/32 dark:bg-yellow-300/28",
     accent: "text-yellow-800 dark:text-yellow-300",
     border: "border-yellow-500/40 dark:border-yellow-500/30",
   },
   weight: {
-    from: "from-teal-500/34 dark:from-teal-500/30",
-    radial: "rgba(20,184,166,0.34)",
-    blur: "bg-teal-400/25 dark:bg-teal-400/15",
+    from: "from-teal-500/38 dark:from-teal-500/54",
+    radial: "rgba(20,184,166,0.50)",
+    blur: "bg-teal-400/30 dark:bg-teal-400/28",
     accent: "text-teal-800 dark:text-teal-300",
     border: "border-teal-500/40 dark:border-teal-500/30",
   },
   habits: {
-    from: "from-violet-500/34 dark:from-violet-500/30",
-    radial: "rgba(139,92,246,0.34)",
-    blur: "bg-violet-400/25 dark:bg-violet-400/15",
+    from: "from-violet-500/38 dark:from-violet-500/54",
+    radial: "rgba(139,92,246,0.50)",
+    blur: "bg-violet-400/30 dark:bg-violet-400/28",
     accent: "text-violet-700 dark:text-violet-300",
     border: "border-violet-500/40 dark:border-violet-500/30",
   },
   lifestyle: {
-    from: "from-rose-500/34 dark:from-rose-500/28",
-    radial: "rgba(244,63,94,0.34)",
-    blur: "bg-rose-400/25 dark:bg-rose-400/15",
+    from: "from-rose-500/38 dark:from-rose-500/52",
+    radial: "rgba(244,63,94,0.50)",
+    blur: "bg-rose-400/30 dark:bg-rose-400/28",
     accent: "text-rose-700 dark:text-rose-300",
     border: "border-rose-500/40 dark:border-rose-500/30",
   },
   photos: {
-    from: "from-fuchsia-500/34 dark:from-fuchsia-500/28",
-    radial: "rgba(217,70,239,0.34)",
-    blur: "bg-fuchsia-400/25 dark:bg-fuchsia-400/15",
+    from: "from-fuchsia-500/38 dark:from-fuchsia-500/52",
+    radial: "rgba(217,70,239,0.50)",
+    blur: "bg-fuchsia-400/30 dark:bg-fuchsia-400/28",
     accent: "text-fuchsia-700 dark:text-fuchsia-300",
     border: "border-fuchsia-500/40 dark:border-fuchsia-500/30",
   },
@@ -118,9 +118,9 @@ export function DashboardThemedShell({
     >
       <div
         className={cn(
-          // Light: keep tint on card surface (avoid washing out to page white).
-          // Dark: allow a soft fade into the page background.
-          "absolute inset-0 bg-gradient-to-br via-card/55 to-card dark:via-card dark:to-background",
+          // Keep the tint on a visible card surface instead of fading to the
+          // near-black page background in dark mode.
+          "absolute inset-0 bg-gradient-to-br via-card/70 to-card",
           t.from
         )}
         aria-hidden
