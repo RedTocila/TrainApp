@@ -42,7 +42,7 @@ After changing templates in this folder, paste them again into the Supabase Dash
 | Flow | How to trigger |
 |------|----------------|
 | Confirm signup | Register on https://rutina.al |
-| Reset password | Use “Forgot password” on login |
+| Reset password | Use “Forgot password” on login → email link → `/reset-password` |
 | Magic link | Only if magic-link sign-in is enabled in Supabase |
 | Change email | Update email in profile settings |
 | Invite user | Invite a user from Supabase Dashboard |

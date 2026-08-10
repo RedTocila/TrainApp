@@ -46,7 +46,9 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  const isAuthPage = path === "/login" || path === "/register";
+  const isAuthPage =
+    path === "/login" || path === "/register" || path === "/forgot-password";
+  const isResetPasswordPage = path === "/reset-password";
   const isAdminRoute = path.startsWith("/admin");
   const isDashboardRoute = path.startsWith("/dashboard");
 
@@ -54,11 +56,20 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse;
   }
 
+  if (!user && isResetPasswordPage) {
+    return NextResponse.redirect(new URL("/forgot-password", request.url));
+  }
+
   if (!user && (isAdminRoute || isDashboardRoute)) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   if (user) {
+    // Recovery session lands here to set a new password — do not bounce to dashboard.
+    if (isResetPasswordPage) {
+      return supabaseResponse;
+    }
+
     if (isAuthPage) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }

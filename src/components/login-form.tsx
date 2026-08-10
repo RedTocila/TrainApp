@@ -57,7 +57,15 @@ export function LoginForm({ authError }: { authError?: string }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <PasswordInput id="password" name="password" required />
             </div>
             {error && <p className="text-sm text-red-400">{error}</p>}

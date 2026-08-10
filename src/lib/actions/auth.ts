@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/cached-profile";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAuthEmailRedirectUrl } from "@/lib/app-url";
 import { formatUserError, isEmailNotConfirmedError } from "@/lib/format-user-error";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -267,6 +268,66 @@ export async function signOut() {
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
   redirect("/login");
+}
+
+/** Send a password-reset email. Always returns success to avoid email enumeration. */
+export async function requestPasswordReset(formData: FormData) {
+  const email = (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
+  if (!email) {
+    return { error: "Enter the email for your account." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: getAuthEmailRedirectUrl("/auth/callback", "/reset-password"),
+  });
+
+  if (error) {
+    console.error("[requestPasswordReset] failed", error.message);
+    // Still show a generic message — do not reveal whether the email exists.
+  }
+
+  return { success: true as const };
+}
+
+/** Set a new password after the user opens a recovery link (authenticated session). */
+export async function resetPassword(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "This reset link is invalid or expired. Request a new one." };
+  }
+
+  const newPassword = formData.get("new_password") as string | null;
+  const confirmPassword = formData.get("confirm_password") as string | null;
+
+  if (!newPassword || newPassword.length < 6) {
+    return { error: "Password must be at least 6 characters" };
+  }
+
+  if (newPassword !== confirmPassword) {
+    return { error: "Passwords do not match" };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) {
+    return { error: formatUserError(error, "Could not update your password. Try again.") };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  revalidatePath("/", "layout");
+  if (profile?.role === "admin") {
+    redirect("/admin");
+  }
+  redirect("/dashboard");
 }
 
 export async function getProfile() {
