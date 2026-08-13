@@ -195,7 +195,8 @@ body:has(.dashboard-shell) {
 }
 
 .dashboard-main {
-  overscroll-behavior-y: contain;
+  /* none: stop iOS rubber-band bounce at top/bottom (contain still allowed a little). */
+  overscroll-behavior-y: none;
   -webkit-overflow-scrolling: touch;
   overflow-anchor: none;
   background: var(--background);

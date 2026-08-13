@@ -5,10 +5,10 @@ import { createPortal } from "react-dom";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
 
-/** Finger travel (px) required before refresh arms — intentionally long. */
-const PULL_THRESHOLD_PX = 240;
-const PULL_RESISTANCE = 0.32;
-const MAX_PULL_PX = 200;
+/** Finger travel (px) required before refresh arms. */
+const PULL_THRESHOLD_PX = 72;
+const PULL_RESISTANCE = 0.45;
+const MAX_PULL_PX = 72;
 const INDICATOR_SIZE = 40;
 const STROKE = 3;
 
@@ -77,6 +77,7 @@ export function DashboardPullToRefresh() {
 
   const refreshingRef = useRef(false);
   const startYRef = useRef(0);
+  const trackingRef = useRef(false);
   const pullingRef = useRef(false);
   const passedThresholdRef = useRef(false);
 
@@ -95,6 +96,7 @@ export function DashboardPullToRefresh() {
     };
 
     const resetPull = () => {
+      trackingRef.current = false;
       pullingRef.current = false;
       passedThresholdRef.current = false;
       startYRef.current = 0;
@@ -106,31 +108,40 @@ export function DashboardPullToRefresh() {
     const onTouchStart = (event: TouchEvent) => {
       if (!isAtTop() || refreshingRef.current) return;
       startYRef.current = event.touches[0]?.clientY ?? 0;
-      pullingRef.current = true;
+      trackingRef.current = true;
+      pullingRef.current = false;
       passedThresholdRef.current = false;
       setPullDistance(0);
     };
 
     const onTouchMove = (event: TouchEvent) => {
-      if (!pullingRef.current || refreshingRef.current) return;
+      if (!trackingRef.current || refreshingRef.current) return;
 
       const currentY = event.touches[0]?.clientY ?? 0;
       const delta = currentY - startYRef.current;
 
+      // Scrolling content (finger up) — release tracking so overscroll never engages.
       if (delta <= 0 || !isAtTop()) {
-        setPullDistance(0);
+        if (pullingRef.current) {
+          setPullDistance(0);
+        }
+        pullingRef.current = false;
         passedThresholdRef.current = false;
+        if (delta < -8 || !isAtTop()) {
+          trackingRef.current = false;
+        }
         return;
       }
 
+      // Kill iOS rubber-band as soon as the finger pulls down at the top.
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+
+      pullingRef.current = true;
       const distance = Math.min(delta * PULL_RESISTANCE, MAX_PULL_PX);
       setPullDistance(distance);
       passedThresholdRef.current = delta >= PULL_THRESHOLD_PX;
-
-      // Keep the rubber-band feel from fighting the browser once past a light pull.
-      if (distance > 12 && event.cancelable) {
-        event.preventDefault();
-      }
     };
 
     const onTouchEnd = () => {
@@ -142,7 +153,7 @@ export function DashboardPullToRefresh() {
       ) {
         refreshingRef.current = true;
         setRefreshing(true);
-        setPullDistance(Math.min(PULL_THRESHOLD_PX * PULL_RESISTANCE, MAX_PULL_PX));
+        setPullDistance(MAX_PULL_PX);
         window.setTimeout(() => {
           window.location.reload();
         }, 280);
@@ -167,9 +178,8 @@ export function DashboardPullToRefresh() {
 
   if (!mounted) return null;
 
-  const armedDistance = PULL_THRESHOLD_PX * PULL_RESISTANCE;
   const visible = pullDistance > 4 || refreshing;
-  const progress = Math.min(1, pullDistance / armedDistance);
+  const progress = Math.min(1, pullDistance / MAX_PULL_PX);
   const translateY = refreshing
     ? Math.max(pullDistance, 56)
     : Math.max(0, pullDistance);
