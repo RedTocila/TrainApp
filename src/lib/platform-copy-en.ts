@@ -109,6 +109,14 @@ export const platformCopyEn = {
     email: "Email",
     phone: "Phone number",
     fitnessGoal: "Fitness goal",
+    dailyCalories: "Daily calories",
+    dailyMacros: "Daily macros",
+    editCalories: "Edit macros",
+    editCaloriesDesc:
+      "Set calories, then split protein / carbs / fat as percents (e.g. 30/30/40). Grams update automatically.",
+    caloriesRangeError: "Enter a target between 500 and 10000 kcal",
+    macroSplit: "Split",
+    macroSplitHint: "P / C / F",
     language: "Language",
     units: "Units",
     metric: "EU / Metric (kg, cm)",
@@ -133,6 +141,7 @@ export const platformCopyEn = {
   goals: {
     none: "No goal set",
     lose_weight: "Lose weight",
+    gain_weight: "Gain weight",
     build_muscle: "Build muscle",
     stay_fit: "Stay fit",
     improve_endurance: "Improve endurance",
@@ -951,6 +960,10 @@ export const platformCopyEn = {
       {
         question: "How many calories should I eat to lose fat?",
         prompt: "How many calories should I eat to lose fat based on my profile and recent logs?",
+      },
+      {
+        question: "How many calories should I eat to gain weight?",
+        prompt: "How many calories should I eat to gain weight based on my profile and recent logs? Give me a surplus plan and calorie-dense meal ideas.",
       },
       {
         question: "How can I build muscle faster?",

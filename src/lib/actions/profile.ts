@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/cached-profile";
 import { parseCheckoutLocale, type CheckoutLocale } from "@/lib/checkout-i18n";
+import { PROFILE_GOAL_KEYS } from "@/lib/goal-coaching";
+import { targetsFromCaloriesAndSplit } from "@/lib/macro-calculator";
 
 export async function getProfileWithEmail() {
   const supabase = await createClient();
@@ -41,13 +43,7 @@ export async function updateProfile(formData: FormData) {
     return { error: "Invalid unit system" };
   }
 
-  const allowedGoals = new Set([
-    "lose_weight",
-    "build_muscle",
-    "stay_fit",
-    "improve_endurance",
-    "general_health",
-  ]);
+  const allowedGoals = new Set<string>(PROFILE_GOAL_KEYS);
   const normalizedGoal =
     goal && allowedGoals.has(goal) ? goal : null;
 
@@ -100,6 +96,46 @@ export async function updateProfile(formData: FormData) {
   revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/profile");
   return { success: true };
+}
+
+export async function updateCalorieTarget(input: {
+  calories: number;
+  proteinPct: number;
+  carbsPct: number;
+  fatPct: number;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const nextCalories = Math.round(input.calories);
+  if (!Number.isFinite(nextCalories) || nextCalories < 500 || nextCalories > 10000) {
+    return { error: "Calories must be between 500 and 10000" };
+  }
+
+  const targets = targetsFromCaloriesAndSplit(nextCalories, {
+    protein: input.proteinPct,
+    carbs: input.carbsPct,
+    fat: input.fatPct,
+  });
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      target_calories: targets.calories,
+      target_protein: targets.protein,
+      target_carbs: targets.carbs,
+      target_fat: targets.fat,
+    })
+    .eq("id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard", "layout");
+  revalidatePath("/dashboard/profile");
+  return { success: true, targets };
 }
 
 export async function updatePassword(formData: FormData) {

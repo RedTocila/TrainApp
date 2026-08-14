@@ -160,6 +160,11 @@ export const coachCopyAl = {
       "{calories} kal në një vakt ({name})? E guximshme. Balanconi pjesën tjetër të ditës.",
       "{name} mbushi {calories} kal — shumë buxhet në një regjistrim. Planifikoni vaktet e ardhshme.",
     ],
+    lowCaloriesGainWeight: [
+      "{name} me {calories} kal është shumë i lehtë nëse doni të shtoni peshë. Hani më shumë — oriz, tërshërë, gjalpë arrash, snacke shtesë.",
+      "Shtim peshe me {calories} kal nga {name}? Kjo është snack që pretendohet vakt. Shtoni kalori.",
+      "{name} nuk lëviz peshoren me {calories} kal. Surplus do të thotë pjata më të mëdha, jo 'e pastër dhe e vogël.'",
+    ],
     lowCarbsEndurance: [
       "{name} ka vetëm {carbs}g karbohidrate — pak karburant për qëndrueshmëri. Këmbët do ta vërejë para meje.",
       "{carbs}g karbo në {name} nuk mbajnë një seancë të rëndë. Shtoni karburant nëse stërviteni sot.",

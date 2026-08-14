@@ -4,6 +4,17 @@ function Pulse({ className }: { className?: string }) {
   return <div className={cn("animate-pulse rounded-xl bg-secondary/80", className)} />;
 }
 
+export function DashboardHomeBelowFoldSkeleton() {
+  return (
+    <div className="flex w-full flex-col gap-3 sm:gap-4 md:gap-5" role="status" aria-busy="true">
+      <Pulse className="h-40 w-full rounded-2xl" />
+      <Pulse className="h-40 w-full rounded-2xl" />
+      <Pulse className="h-36 w-full rounded-2xl" />
+      <Pulse className="h-36 w-full rounded-2xl" />
+    </div>
+  );
+}
+
 function HomeSkeleton() {
   return (
     <div className="space-y-4 sm:space-y-6" role="status" aria-busy="true" aria-live="polite">

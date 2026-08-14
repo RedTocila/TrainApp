@@ -98,6 +98,12 @@ export default async function ProfilePage() {
                 goal={resolveProfileGoal(profile)}
                 preferredLocale={profile.preferred_locale ?? "al"}
                 unitSystem={profile.unit_system ?? "metric"}
+                macros={{
+                  calories: profile.target_calories ?? 2000,
+                  protein: profile.target_protein ?? 150,
+                  carbs: profile.target_carbs ?? 200,
+                  fat: profile.target_fat ?? 65,
+                }}
                 showHeader={false}
               />
             </CardContent>

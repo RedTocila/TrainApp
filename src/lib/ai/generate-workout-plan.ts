@@ -12,6 +12,7 @@ import type {
 } from "@/lib/ai/plan-builder-types";
 import { normalizeHiitConfig, type HiitConfig, type WorkoutPlanKind } from "@/lib/hiit";
 import { inferAiWorkoutKind, inferAiMainWorkoutKind } from "@/lib/ai/infer-workout-kind";
+import { trainingGoalRulesForAi } from "@/lib/goal-coaching";
 import type { Profile } from "@/lib/types";
 
 export { inferAiWorkoutKind } from "@/lib/ai/infer-workout-kind";
@@ -90,6 +91,7 @@ Rules:
 - Respect injuries and medical conditions — avoid aggravating movements and suggest alternatives in notes.
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match volume and split to goal, age, schedule, and recovery capacity.
+${trainingGoalRulesForAi(profile.goal)}
 - Use clear exercise names (no equipment codes).
 - 3–5 training days per week unless schedule clearly allows fewer.
 - 4–8 exercises per session.
@@ -227,6 +229,7 @@ Rules:
 - Respect injuries — swap high-impact moves for low-impact alternatives when needed and note modifications.
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match intensity and duration to fitness level and schedule (typically ~15–35 minutes total).
+${trainingGoalRulesForAi(profile.goal)}
 - 4–8 exercises with clear names.
 - work_seconds usually 20–45; rest_seconds between moves usually 10–30.
 - rounds usually 2–5; cycles usually 1–2.
@@ -406,6 +409,7 @@ Rules:
 - Warm-up: 4–6 dynamic activation / mobility moves, ~5–10 min. work_seconds 20–40, rest 10–20, rounds 1–2.
 - Stretching: 4–6 gentle stretches matched to muscles used in main, ~5–10 min. work_seconds 20–40, rest 5–15, rounds 1.
 - Main: 4–8 exercises. Respect injuries. Match the day request (push/pull/legs/full body/etc.).
+${trainingGoalRulesForAi(profile.goal)}
 - Titles should be clear (e.g. "Upper warm-up", "Upper Push", "Upper stretch").
 - coach_notes must mention at least one concrete personalization tied to profile constraints or health/lifestyle data.
 - End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
@@ -575,6 +579,7 @@ Rules:
 - Respect injuries and medical conditions — avoid aggravating movements and suggest alternatives in notes.
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match volume to goal, age, schedule, and recovery capacity.
+${trainingGoalRulesForAi(profile.goal)}
 - Use clear exercise names (no equipment codes).
 - 4–8 exercises per session.
 - Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.

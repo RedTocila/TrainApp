@@ -106,55 +106,83 @@ export function MealTextLogStep({
     );
   }
 
+  const analyzing = isPending || phase === "analyzing";
+  const canAnalyze = Boolean(input.trim()) && !analyzing;
+
+  const analyzeButton = compact ? (
+    <Button
+      type="button"
+      size="icon"
+      className="absolute bottom-2 right-2 h-8 w-8 shadow-md shadow-primary/25"
+      disabled={!canAnalyze}
+      onClick={handleAnalyze}
+      aria-label="Analyze with AI"
+    >
+      {analyzing ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Sparkles className="h-4 w-4" />
+      )}
+    </Button>
+  ) : (
+    <Button
+      className="w-full"
+      disabled={!canAnalyze}
+      onClick={handleAnalyze}
+    >
+      {analyzing ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Parsing meal…
+        </>
+      ) : (
+        <>
+          <Sparkles className="mr-2 h-4 w-4" />
+          Analyze with AI
+        </>
+      )}
+    </Button>
+  );
+
   return (
-    <div className={compact ? "space-y-3" : "space-y-4"}>
+    <div className={compact ? "space-y-0" : "space-y-4"}>
       {!compact && (
         <p className="text-sm text-muted-foreground">
           Type what you ate in plain language — AI will extract foods and estimate macros.
         </p>
       )}
-      <Textarea
-        placeholder={
-          compact ? 'e.g. "chicken + rice"' : 'e.g. "2 eggs and a banana" or "Chicken breast with rice and salad"'
-        }
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        rows={4}
-        disabled={isPending || phase === "analyzing"}
-      />
+      <div className="relative">
+        <Textarea
+          placeholder={
+            compact ? 'e.g. "chicken + rice"' : 'e.g. "2 eggs and a banana" or "Chicken breast with rice and salad"'
+          }
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          rows={compact ? 3 : 4}
+          disabled={analyzing}
+          className={compact ? "min-h-[5.5rem] resize-none pb-11 pr-12" : undefined}
+        />
+        {compact ? analyzeButton : null}
+      </div>
       {!compact && (
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          {["2 eggs and toast", "Protein shake and apple", "Salmon with potatoes"].map(
-            (ex) => (
-              <button
-                key={ex}
-                type="button"
-                className="rounded-full border border-border px-2.5 py-1 hover:bg-secondary"
-                onClick={() => setInput(ex)}
-              >
-                {ex}
-              </button>
-            )
-          )}
-        </div>
+        <>
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            {["2 eggs and toast", "Protein shake and apple", "Salmon with potatoes"].map(
+              (ex) => (
+                <button
+                  key={ex}
+                  type="button"
+                  className="rounded-full border border-border px-2.5 py-1 hover:bg-secondary"
+                  onClick={() => setInput(ex)}
+                >
+                  {ex}
+                </button>
+              )
+            )}
+          </div>
+          {analyzeButton}
+        </>
       )}
-      <Button
-        className="w-full"
-        disabled={!input.trim() || isPending || phase === "analyzing"}
-        onClick={handleAnalyze}
-      >
-        {isPending || phase === "analyzing" ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Parsing meal…
-          </>
-        ) : (
-          <>
-            <Sparkles className="mr-2 h-4 w-4" />
-            Analyze with AI
-          </>
-        )}
-      </Button>
     </div>
   );
 }

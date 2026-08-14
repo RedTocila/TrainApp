@@ -160,6 +160,11 @@ export const coachCopyEn = {
       "{calories} cal in one sitting ({name})? Bold. Make sure the rest of the day balances it.",
       "{name} packed {calories} cal — that's a lot of budget in one log. Plan the next meals accordingly.",
     ],
+    lowCaloriesGainWeight: [
+      "{name} at {calories} cal is too light if you want to gain weight. Eat more — rice, oats, nut butter, extra snacks.",
+      "Gaining weight on {calories} cal from {name}? That's a snack pretending to be a meal. Add calories.",
+      "{name} won't move the scale at {calories} cal. Surplus means bigger plates, not 'clean and tiny.'",
+    ],
     lowCarbsEndurance: [
       "{name} only has {carbs}g carbs — low fuel for endurance. Your legs will notice before I do.",
       "{carbs}g carbs in {name} won't carry a hard session. Add fuel if you're training today.",

@@ -78,7 +78,7 @@ export function AddNutritionWizard({
         <div className="space-y-1">
           <Label>Name</Label>
           <Input
-            placeholder="e.g. Weight loss day"
+            placeholder="e.g. Weight loss or weight gain day"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}

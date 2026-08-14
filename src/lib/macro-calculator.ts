@@ -124,6 +124,20 @@ function goalCalorieMultiplier(goal: string, timeline?: string): number {
         return 0.82;
     }
   }
+  if (goal === "gain_weight") {
+    switch (timeline) {
+      case "1_3_months":
+        return 1.2;
+      case "3_6_months":
+        return 1.15;
+      case "6_plus_months":
+        return 1.12;
+      case "no_rush":
+        return 1.1;
+      default:
+        return 1.15;
+    }
+  }
   switch (goal) {
     case "build_muscle":
       return 1.06;
@@ -142,7 +156,7 @@ function distributeMacros(
   goal: string
 ): Omit<MacroTargets, "calories"> {
   const proteinPerKg =
-    goal === "build_muscle" || goal === "lose_weight"
+    goal === "build_muscle" || goal === "lose_weight" || goal === "gain_weight"
       ? 2
       : goal === "improve_endurance"
         ? 1.6
@@ -153,7 +167,11 @@ function distributeMacros(
   );
 
   const fatPct =
-    goal === "lose_weight" ? 0.3 : goal === "improve_endurance" ? 0.25 : 0.28;
+    goal === "gain_weight" || goal === "lose_weight"
+      ? 0.3
+      : goal === "improve_endurance"
+        ? 0.25
+        : 0.28;
   const fat = Math.round((calories * fatPct) / 9);
 
   const carbs = Math.round((calories - protein * 4 - fat * 9) / 4);
@@ -172,6 +190,78 @@ export function clampTargets(targets: MacroTargets): MacroTargets {
     carbs: Math.min(2000, Math.max(0, Math.round(targets.carbs))),
     fat: Math.min(500, Math.max(0, Math.round(targets.fat))),
   };
+}
+
+export type MacroSplitPct = {
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
+export function normalizeSplitPercents(split: MacroSplitPct): MacroSplitPct {
+  const protein = Math.max(0, Math.round(split.protein));
+  const carbs = Math.max(0, Math.round(split.carbs));
+  const fat = Math.max(0, Math.round(split.fat));
+  const sum = protein + carbs + fat;
+  if (sum === 100) return { protein, carbs, fat };
+  if (sum <= 0) return { protein: 30, carbs: 40, fat: 30 };
+  const nextProtein = Math.round((protein / sum) * 100);
+  const nextCarbs = Math.round((carbs / sum) * 100);
+  return {
+    protein: nextProtein,
+    carbs: nextCarbs,
+    fat: 100 - nextProtein - nextCarbs,
+  };
+}
+
+export function macroSplitPercents(targets: MacroTargets): MacroSplitPct {
+  const proteinCal = Math.max(0, targets.protein) * 4;
+  const carbsCal = Math.max(0, targets.carbs) * 4;
+  const fatCal = Math.max(0, targets.fat) * 9;
+  return normalizeSplitPercents({
+    protein: proteinCal,
+    carbs: carbsCal,
+    fat: fatCal,
+  });
+}
+
+export function formatMacroSplit(split: MacroSplitPct): string {
+  const normalized = normalizeSplitPercents(split);
+  return `${normalized.protein}/${normalized.carbs}/${normalized.fat}`;
+}
+
+export function targetsFromCaloriesAndSplit(
+  calories: number,
+  split: MacroSplitPct
+): MacroTargets {
+  const normalized = normalizeSplitPercents(split);
+  return clampTargets({
+    calories,
+    protein: (calories * (normalized.protein / 100)) / 4,
+    carbs: (calories * (normalized.carbs / 100)) / 4,
+    fat: (calories * (normalized.fat / 100)) / 9,
+  });
+}
+
+/** Change one macro % and keep the other two in the same ratio of the remainder. */
+export function adjustMacroSplit(
+  current: MacroSplitPct,
+  key: keyof MacroSplitPct,
+  next: number
+): MacroSplitPct {
+  const clamped = Math.min(100, Math.max(0, Math.round(Number.isFinite(next) ? next : 0)));
+  const others = (["protein", "carbs", "fat"] as const).filter((item) => item !== key);
+  const remaining = 100 - clamped;
+  const nextSplit: MacroSplitPct = { ...current, [key]: clamped };
+  const otherSum = current[others[0]] + current[others[1]];
+  if (otherSum <= 0) {
+    nextSplit[others[0]] = Math.floor(remaining / 2);
+    nextSplit[others[1]] = remaining - nextSplit[others[0]];
+    return nextSplit;
+  }
+  nextSplit[others[0]] = Math.round((current[others[0]] / otherSum) * remaining);
+  nextSplit[others[1]] = remaining - nextSplit[others[0]];
+  return nextSplit;
 }
 
 export function canCalculateMacrosFromProfile(

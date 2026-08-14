@@ -1,6 +1,5 @@
 "use client";
 
-import { addDays, format, startOfDay } from "date-fns";
 import {
   createContext,
   useCallback,
@@ -18,12 +17,13 @@ import {
   fetchDashboardEnrichmentForDate,
 } from "@/lib/actions/dashboard-enrichment";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
-import { formatDateKey } from "@/lib/utils";
+import { dashboardEnrichmentRange } from "@/lib/dashboard-window";
 
 type DashboardEnrichmentContextValue = {
   enrichment: DashboardEnrichmentData;
   clientId: string;
   isInEnrichmentRange: (dateKey: string) => boolean;
+  hydrate: (data: DashboardEnrichmentData) => void;
 };
 
 const DashboardEnrichmentContext =
@@ -35,14 +35,7 @@ export function neverInEnrichmentRange(_dateKey: string) {
 }
 
 function enrichmentRange(accountCreatedAt?: string | null) {
-  const today = new Date();
-  const from = accountCreatedAt
-    ? format(startOfDay(new Date(accountCreatedAt)), "yyyy-MM-dd")
-    : format(addDays(today, -30), "yyyy-MM-dd");
-  return {
-    from,
-    to: format(addDays(today, 28), "yyyy-MM-dd"),
-  };
+  return dashboardEnrichmentRange(new Date(), accountCreatedAt);
 }
 
 function mergeEnrichmentDays(
@@ -79,6 +72,9 @@ export function DashboardEnrichmentProvider({
     useState<DashboardEnrichmentData>(initialEnrichment);
   const inflightRef = useRef<Promise<void> | null>(null);
   const previousTodayKey = useRef(todayKey);
+  const hydrate = useCallback((data: DashboardEnrichmentData) => {
+    setEnrichment(data);
+  }, []);
   const range = useMemo(
     () => enrichmentRange(enrichment.accountCreatedAt),
     [todayKey, enrichment.accountCreatedAt]
@@ -163,8 +159,9 @@ export function DashboardEnrichmentProvider({
       enrichment: mergedEnrichment,
       clientId,
       isInEnrichmentRange,
+      hydrate,
     }),
-    [mergedEnrichment, clientId, isInEnrichmentRange]
+    [mergedEnrichment, clientId, isInEnrichmentRange, hydrate]
   );
 
   return (
@@ -186,4 +183,9 @@ export function useDashboardEnrichment() {
 
 export function useOptionalDashboardEnrichment() {
   return useContext(DashboardEnrichmentContext);
+}
+
+export function useDashboardEnrichmentHydrate() {
+  const ctx = useContext(DashboardEnrichmentContext);
+  return ctx?.hydrate ?? ((_data: DashboardEnrichmentData) => {});
 }

@@ -54,7 +54,16 @@ function fallbackSuggestions(gap: MacroGap): MealSuggestion[] {
       reason: `You need about ${Math.round(gap.protein)}g more protein today.`,
     });
   }
-  if (gap.calories > 200 && suggestions.length < 3) {
+  if (gap.calories > 400 && suggestions.length < 3) {
+    suggestions.push({
+      title: "Calorie-dense meal",
+      description:
+        "Rice or pasta with protein and olive oil, oats with nut butter and milk, or a smoothie with banana, yogurt, and peanut butter.",
+      protein_g: Math.min(gap.protein, 35),
+      calories: Math.min(gap.calories, 650),
+      reason: `You still have ~${Math.round(gap.calories)} calories to fill.`,
+    });
+  } else if (gap.calories > 200 && suggestions.length < 3) {
     suggestions.push({
       title: "Balanced snack",
       description: "Rice with lean protein and vegetables, or oats with fruit and Greek yogurt.",
@@ -144,6 +153,7 @@ Remaining today (room left before upper tolerance):
 Consumed: ${gap.consumed.calories} kcal, P${gap.consumed.protein}g C${gap.consumed.carbs}g F${gap.consumed.fat}g
 Targets: ${gap.targets.calories} kcal, ${gap.targets.protein}g protein, ${gap.targets.carbs}g carbs, ${gap.targets.fat}g fat.
 Prioritize protein if protein gap is largest. Never suggest foods that push an already-over macro further over.
+If remaining calories are high (300+), suggest calorie-dense meals that are easy to eat — rice, pasta, oats, nut butters, olive oil, dairy, smoothies — not tiny salads.
 
 Respond with ONLY valid JSON:
 {

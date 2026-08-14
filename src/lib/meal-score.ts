@@ -42,13 +42,15 @@ export function scoreMeal({
   };
 
   const bias =
-    goal === "build_muscle"
-      ? { protein: 0.45, calories: 0.25, carbs: 0.2, fat: 0.1 }
-      : goal === "lose_weight"
-        ? { protein: 0.4, calories: 0.35, carbs: 0.15, fat: 0.1 }
-        : goal === "improve_endurance"
-          ? { protein: 0.25, calories: 0.25, carbs: 0.4, fat: 0.1 }
-          : { protein: 0.3, calories: 0.3, carbs: 0.25, fat: 0.15 };
+    goal === "gain_weight"
+      ? { protein: 0.35, calories: 0.4, carbs: 0.15, fat: 0.1 }
+      : goal === "build_muscle"
+        ? { protein: 0.45, calories: 0.25, carbs: 0.2, fat: 0.1 }
+        : goal === "lose_weight"
+          ? { protein: 0.4, calories: 0.35, carbs: 0.15, fat: 0.1 }
+          : goal === "improve_endurance"
+            ? { protein: 0.25, calories: 0.25, carbs: 0.4, fat: 0.1 }
+            : { protein: 0.3, calories: 0.3, carbs: 0.25, fat: 0.15 };
 
   const diffs = {
     calories: pctDiff(meal.macros.calories, baseTargets.calories),
@@ -70,8 +72,17 @@ export function scoreMeal({
   if (meal.macros.protein >= baseTargets.protein * 0.9) reasons.push("Strong protein for your goal");
   else reasons.push("Protein is low for your goal");
 
-  if (meal.macros.calories <= baseTargets.calories * 1.2) reasons.push("Calories are in a reasonable range");
-  else reasons.push("Calories are high for a single meal");
+  if (goal === "gain_weight") {
+    if (meal.macros.calories >= baseTargets.calories * 0.85) {
+      reasons.push("Calories support weight gain");
+    } else {
+      reasons.push("Calories are low for a weight-gain meal");
+    }
+  } else if (meal.macros.calories <= baseTargets.calories * 1.2) {
+    reasons.push("Calories are in a reasonable range");
+  } else {
+    reasons.push("Calories are high for a single meal");
+  }
 
   if (goal === "improve_endurance") {
     if (meal.macros.carbs >= baseTargets.carbs * 0.8) reasons.push("Good carbs for training fuel");

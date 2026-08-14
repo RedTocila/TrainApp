@@ -2,25 +2,35 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Beef, Droplet, Flame, Pencil, Wheat } from "lucide-react";
 import { CHECKOUT_LOCALES } from "@/lib/checkout-i18n";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
-import { updateProfile, updatePassword } from "@/lib/actions/profile";
+import { updateCalorieTarget, updateProfile, updatePassword } from "@/lib/actions/profile";
 import {
   useLocalePreview,
   usePlatformCopy,
 } from "@/components/locale-provider";
 import { AccentColorPicker } from "@/components/accent-color-picker";
+import { CalorieTargetEditDialog } from "@/components/calorie-target-edit-dialog";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  formatMacroSplit,
+  macroSplitPercents,
+  type MacroTargets,
+} from "@/lib/macro-calculator";
+import { ACCENT_COLORS } from "@/lib/theme-colors";
 
 const GOAL_KEYS = [
   "none",
   "lose_weight",
+  "gain_weight",
   "build_muscle",
   "stay_fit",
   "improve_endurance",
@@ -31,6 +41,15 @@ function goalToFormValue(goal: string | null | undefined): string {
   return goal && goal.length > 0 ? goal : "";
 }
 
+function normalizeTargets(targets?: MacroTargets | null): MacroTargets {
+  return {
+    calories: Math.round(targets?.calories ?? 2000),
+    protein: Math.round(targets?.protein ?? 150),
+    carbs: Math.round(targets?.carbs ?? 200),
+    fat: Math.round(targets?.fat ?? 65),
+  };
+}
+
 export function ProfileSettings({
   fullName,
   email,
@@ -38,6 +57,12 @@ export function ProfileSettings({
   goal,
   preferredLocale = "al",
   unitSystem = "metric",
+  macros: initialMacros = {
+    calories: 2000,
+    protein: 150,
+    carbs: 200,
+    fat: 65,
+  },
   showHeader = true,
 }: {
   fullName: string;
@@ -46,17 +71,24 @@ export function ProfileSettings({
   goal: string | null;
   preferredLocale?: CheckoutLocale;
   unitSystem?: "metric" | "imperial";
+  macros?: MacroTargets;
   showHeader?: boolean;
 }) {
   const platform = usePlatformCopy();
   const setLocalePreview = useLocalePreview();
   const router = useRouter();
+  const { accentColor } = useTheme();
+  const accentSwatch =
+    ACCENT_COLORS.find((color) => color.id === accentColor)?.swatch ??
+    ACCENT_COLORS[0].swatch;
 
   const [name, setName] = useState(fullName);
   const [phoneValue, setPhoneValue] = useState(phone ?? "");
   const [goalValue, setGoalValue] = useState(() => goalToFormValue(goal));
   const [locale, setLocale] = useState<CheckoutLocale>(preferredLocale);
   const [units, setUnits] = useState<"metric" | "imperial">(unitSystem);
+  const [macros, setMacros] = useState(() => normalizeTargets(initialMacros));
+  const [calorieEditOpen, setCalorieEditOpen] = useState(false);
 
   const serverSnapshot = useRef({
     fullName,
@@ -64,19 +96,25 @@ export function ProfileSettings({
     goal: goalToFormValue(goal),
     preferredLocale,
     unitSystem,
+    macros: normalizeTargets(initialMacros),
   });
 
   useEffect(() => {
     const prev = serverSnapshot.current;
     const nextPhone = phone ?? "";
     const nextGoal = goalToFormValue(goal);
+    const nextMacros = normalizeTargets(initialMacros);
 
     if (
       prev.fullName !== fullName ||
       prev.phone !== nextPhone ||
       prev.goal !== nextGoal ||
       prev.preferredLocale !== preferredLocale ||
-      prev.unitSystem !== unitSystem
+      prev.unitSystem !== unitSystem ||
+      prev.macros.calories !== nextMacros.calories ||
+      prev.macros.protein !== nextMacros.protein ||
+      prev.macros.carbs !== nextMacros.carbs ||
+      prev.macros.fat !== nextMacros.fat
     ) {
       serverSnapshot.current = {
         fullName,
@@ -84,14 +122,16 @@ export function ProfileSettings({
         goal: nextGoal,
         preferredLocale,
         unitSystem,
+        macros: nextMacros,
       };
       setName(fullName);
       setPhoneValue(nextPhone);
       setGoalValue(nextGoal);
       setLocale(preferredLocale);
       setUnits(unitSystem);
+      setMacros(nextMacros);
     }
-  }, [fullName, phone, goal, preferredLocale, unitSystem]);
+  }, [fullName, phone, goal, preferredLocale, unitSystem, initialMacros]);
 
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -128,6 +168,7 @@ export function ProfileSettings({
           goal: goalValue,
           preferredLocale: locale,
           unitSystem: units,
+          macros,
         };
         setProfileSuccess(true);
         router.refresh();
@@ -147,6 +188,27 @@ export function ProfileSettings({
       }
     });
   };
+
+  const handleMacroSave = async (input: {
+    calories: number;
+    proteinPct: number;
+    carbsPct: number;
+    fatPct: number;
+  }) => {
+    const result = await updateCalorieTarget(input);
+    if (result?.error) return result;
+    if (result && "targets" in result && result.targets) {
+      const nextMacros = normalizeTargets(result.targets);
+      setMacros(nextMacros);
+      serverSnapshot.current = {
+        ...serverSnapshot.current,
+        macros: nextMacros,
+      };
+    }
+    router.refresh();
+  };
+
+  const splitLabel = formatMacroSplit(macroSplitPercents(macros));
 
   return (
     <>
@@ -204,6 +266,55 @@ export function ProfileSettings({
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="daily_macros">{platform.settings.dailyMacros}</Label>
+              <div
+                id="daily_macros"
+                className="relative w-full rounded-lg border border-border bg-secondary px-3 py-2.5"
+              >
+                <button
+                  type="button"
+                  onClick={() => setCalorieEditOpen(true)}
+                  aria-label={platform.settings.editCalories}
+                  className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: accentSwatch }}
+                >
+                  <Pencil className="h-3.5 w-3.5 text-white" />
+                </button>
+                <div className="pr-9">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <Flame className="h-3.5 w-3.5 text-orange-400" />
+                    <span className="text-sm font-semibold">{macros.calories} kcal</span>
+                    <span className="text-xs text-muted-foreground">
+                      {platform.settings.macroSplitHint} {splitLabel}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <p className="flex items-center gap-1 text-rose-400">
+                        <Beef className="h-3 w-3" />
+                        {platform.ai.protein}
+                      </p>
+                      <p className="font-semibold">{macros.protein}g</p>
+                    </div>
+                    <div>
+                      <p className="flex items-center gap-1 text-amber-400">
+                        <Wheat className="h-3 w-3" />
+                        {platform.ai.carbs}
+                      </p>
+                      <p className="font-semibold">{macros.carbs}g</p>
+                    </div>
+                    <div>
+                      <p className="flex items-center gap-1 text-sky-400">
+                        <Droplet className="h-3 w-3" />
+                        {platform.ai.fat}
+                      </p>
+                      <p className="font-semibold">{macros.fat}g</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>{platform.settings.language}</Label>
@@ -296,6 +407,13 @@ export function ProfileSettings({
           </form>
         </CardContent>
       </Card>
+
+      <CalorieTargetEditDialog
+        open={calorieEditOpen}
+        onClose={() => setCalorieEditOpen(false)}
+        macros={macros}
+        onSave={handleMacroSave}
+      />
     </>
   );
 }

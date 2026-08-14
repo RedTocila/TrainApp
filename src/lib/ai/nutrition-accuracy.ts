@@ -10,7 +10,8 @@ export const NUTRITION_ACCURACY_RULES = `ACCURACY FIRST (correct facts; sarcasti
   - Protein: chicken, turkey, fish/tuna, eggs, Greek yogurt, cottage cheese, lean meat, protein shake. NOT nuts, nut butters, seeds, avocado, oils, or cheese as the main protein fix (those are fat-heavy).
   - Fat: nuts/arrat, peanut butter, oils, fatty cuts — only when fat is actually under target and calories allow.
   - Carbs: rice, oats, bread, fruit, potatoes — not as a protein solution.
-- If fat is already at or over target, do not recommend nuts, oils, or other calorie-dense fats.
+- If fat is already at or over target, do not recommend nuts, oils, or other calorie-dense fats — unless calories are also under target and the goal is gain_weight / build_muscle.
+- If calories are under target (especially gain_weight), calorie-dense foods ARE appropriate: extra rice/oats/pasta, nut butters, olive oil, dairy, smoothies, extra snacks — fill the actual under-target macros.
 - Prefer advice tied to their actual logged meals and numbers over generic textbook tips.
 - Do NOT write a dry factual paragraph and then bolt a joke on at the end. Weave sarcasm into the whole reply while the numbers stay correct.`;
 

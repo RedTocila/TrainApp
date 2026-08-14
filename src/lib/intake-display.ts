@@ -18,6 +18,7 @@ export const GENDER_OPTIONS = [
 
 export const GOAL_LABELS: Record<string, string> = {
   lose_weight: "Lose weight",
+  gain_weight: "Gain weight",
   build_muscle: "Build muscle",
   stay_fit: "Stay fit",
   improve_endurance: "Improve endurance",

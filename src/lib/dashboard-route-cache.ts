@@ -65,6 +65,14 @@ export function getOverviewDayCache(
   );
 }
 
+export function setOverviewDayCache(
+  clientId: string,
+  dateKey: string,
+  data: OverviewDayCache
+) {
+  setDashboardDayCache(overviewDayCacheKey(clientId, dateKey), data);
+}
+
 /** Keep the shared overview cache in sync after meal/water mutations. */
 export function patchOverviewDayCache(
   clientId: string,

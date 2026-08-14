@@ -3,6 +3,7 @@ import { parseJsonObject } from "@/lib/ai/parse-json";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { buildPlanTextLanguageRule } from "@/lib/ai/language-instructions";
 import { withPlanMedicalDisclaimer } from "@/lib/ai/plan-medical-disclaimer";
+import { nutritionGoalRulesForAi } from "@/lib/goal-coaching";
 import type { AiGeneratedNutritionPlan, AiNutritionMeal } from "@/lib/ai/plan-builder-types";
 import type { Profile } from "@/lib/types";
 import type { MealSlot } from "@/lib/meal-slots";
@@ -93,6 +94,8 @@ ${intake}
 Rules:
 - ALWAYS return a complete plan. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - Calculate realistic daily calories and macros from age, gender, weight, height, goal, and activity (use work schedule & daily routine as activity hints).
+- If Current calories / protein / carbs / fat targets are already set on the profile, use those as daily_targets instead of inventing a different calorie budget.
+${nutritionGoalRulesForAi(profile.goal)}
 - Provide exactly one primary meal per slot: breakfast, snack_1, lunch, snack_2, dinner.
 - Meal macros should sum close to daily_targets (within ~10%).
 - Use simple, whole-food meals with realistic portions.

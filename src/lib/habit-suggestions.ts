@@ -51,6 +51,34 @@ function baseSuggestions(profile: Profile): HabitSuggestion[] {
         }
       );
       break;
+    case "gain_weight":
+      suggestions.push(
+        {
+          id: "eat-surplus",
+          title: "Finish every meal — then add a snack",
+          reason: "Weight gain needs a consistent calorie surplus, not skipping food",
+        },
+        {
+          id: "calorie-dense-snack",
+          title: "Add a calorie-dense snack",
+          reason: "Rice, oats, nut butter, dairy, or a smoothie make surplus easier",
+          timeStart: "16:00",
+          timeEnd: "18:00",
+        },
+        {
+          id: "protein-target",
+          title: "Hit daily protein target",
+          reason: "Extra calories should support muscle, not only fat",
+        },
+        {
+          id: "sleep-7h",
+          title: "Sleep 7+ hours",
+          reason: "Recovery is essential while you add weight and train",
+          timeStart: "22:00",
+          timeEnd: "23:30",
+        }
+      );
+      break;
     case "build_muscle":
       suggestions.push(
         {

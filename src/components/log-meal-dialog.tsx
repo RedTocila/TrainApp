@@ -403,8 +403,8 @@ export function LogMealDialog({
   const body = (
     <>
       {mode === "picker" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2.5">
             {pickerTopOptions.map((option) => {
               const Icon = option.icon;
               const locked = option.ai && !hasAiAccess;
@@ -414,30 +414,32 @@ export function LogMealDialog({
                   type="button"
                   onClick={() => goToMode(option.mode)}
                   className={cn(
-                    "relative flex aspect-square flex-col items-center justify-center gap-3 rounded-xl border border-border bg-secondary/30 px-3 pb-4 pt-5 text-center transition-colors hover:bg-secondary/60",
+                    "relative flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-3.5 text-center transition-colors hover:bg-secondary/60",
                     locked && "opacity-90"
                   )}
                 >
                   {option.ai && (
-                    <Badge className="absolute right-2.5 top-2.5 gap-1 bg-primary/15 text-primary">
-                      <Sparkles className="h-3 w-3" />
+                    <Badge className="absolute right-2 top-2 h-5 gap-0.5 px-1.5 text-[10px] bg-primary/15 text-primary">
+                      <Sparkles className="h-2.5 w-2.5" />
                       AI
                     </Badge>
                   )}
                   <div
                     className={cn(
-                      "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl",
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
                       option.ai ? "bg-primary/15 text-primary" : "bg-muted text-foreground"
                     )}
                   >
-                    <Icon className="h-7 w-7" />
+                    <Icon className="h-5 w-5" />
                   </div>
-                  <div className="w-full space-y-1.5">
-                    <span className="block text-sm font-semibold leading-snug">
+                  <div className="w-full">
+                    <span className="block text-sm font-semibold leading-tight">
                       {option.label}
                     </span>
                     {locked ? (
-                      <Badge variant="secondary">{platform.ai.upgrade}</Badge>
+                      <Badge variant="secondary" className="mt-1">
+                        {platform.ai.upgrade}
+                      </Badge>
                     ) : null}
                   </div>
                 </button>
@@ -445,11 +447,11 @@ export function LogMealDialog({
             })}
           </div>
 
-          <div className="rounded-xl border border-border bg-secondary/20 p-4">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="font-semibold">{platform.mealLog.typeIt}</span>
-              <Badge className="gap-1 bg-primary/15 text-primary">
-                <Sparkles className="h-3 w-3" />
+          <div className="rounded-xl border border-border bg-secondary/20 p-3">
+            <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+              <span className="text-sm font-semibold">{platform.mealLog.typeIt}</span>
+              <Badge className="h-5 gap-0.5 px-1.5 text-[10px] bg-primary/15 text-primary">
+                <Sparkles className="h-2.5 w-2.5" />
                 AI
               </Badge>
             </div>
@@ -737,7 +739,11 @@ export function LogMealDialog({
               ? "relative overflow-hidden p-0"
               : cn(
                   "overflow-y-auto overscroll-contain",
-                  isPhotoReviewFullscreen ? "px-4 py-4" : "px-5 py-4"
+                  isPhotoReviewFullscreen
+                    ? "px-4 py-4"
+                    : mode === "picker"
+                      ? "px-4 py-3"
+                      : "px-5 py-4"
                 )
           )}
           data-scroll-lock-scrollable={

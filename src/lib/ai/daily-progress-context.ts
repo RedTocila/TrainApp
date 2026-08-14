@@ -276,6 +276,7 @@ export function buildCoachingPriorityRules(
     `- Primary goal on file: ${goalLabel}${goal ? ` (${goal})` : ""}`,
     "- Before recommending cut / bulk / recomp / maintain, combine: primary goal + progress photos + weight trend + today's logs.",
     "- Never invent pizza, junk food, or laziness. Only roast what their actual logs/photos show.",
+    "- If primary goal is gain_weight: calorie SURPLUS is mandatory. Prioritize eating enough (calorie-dense meals, extra snacks, 4–6 eating occasions), protein, and hypertrophy. NEVER push a cut, deficit, or 'eat less'. Roast skipped meals and tiny portions, not big plates.",
     "- If primary goal is build_muscle: prioritize progressive overload, protein, surplus or mild surplus / recomp as needed. Do NOT push a fat-loss cut unless photos/logs clearly show meaningful excess fat AND the client asks to get leaner.",
     "- If primary goal is lose_weight: prioritize sustainable deficit, protein, and muscle retention. Do not force a bulk.",
     "- If primary goal is stay_fit / general_health / improve_endurance: maintain performance and habits; only push a cut if they ask or photos show clear excess fat.",

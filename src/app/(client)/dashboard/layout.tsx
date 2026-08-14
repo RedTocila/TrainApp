@@ -1,5 +1,4 @@
 import { requireClient } from "@/lib/actions/auth";
-import { getPublishedChallenges } from "@/lib/actions/challenges";
 import { ClientNav } from "@/components/client-nav";
 import { DashboardAiCoachProvider } from "@/components/dashboard-ai-coach-provider";
 import { DashboardMainArea } from "@/components/dashboard-main-area";
@@ -14,7 +13,6 @@ import { DashboardPullToRefresh } from "@/components/dashboard-pull-to-refresh";
 import { DashboardDateLoadingProvider } from "@/components/dashboard-date-loading";
 import { DashboardNavPendingProvider } from "@/components/dashboard-nav-pending";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
-import { hasLiveChallenge } from "@/lib/challenge-utils";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 
 export default async function DashboardLayout({
@@ -25,8 +23,6 @@ export default async function DashboardLayout({
   const profile = await requireClient();
   const locale = parseCheckoutLocale(profile.preferred_locale);
   const intakeComplete = isClientIntakeComplete(profile);
-  const challenges = await getPublishedChallenges(profile.gender);
-  const liveChallengeActive = hasLiveChallenge(challenges);
 
   return (
     <LocaleProvider locale={locale} unitSystem={profile.unit_system ?? "metric"}>
@@ -40,7 +36,7 @@ export default async function DashboardLayout({
         <DashboardNavPendingProvider>
         <DashboardAiCoachProvider>
         <div className="dashboard-shell flex min-h-0 overflow-hidden bg-background">
-          <ClientNav fullName={profile.full_name} liveChallengeActive={liveChallengeActive} />
+          <ClientNav fullName={profile.full_name} />
           <FullCalendarProvider>
             <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
               <main

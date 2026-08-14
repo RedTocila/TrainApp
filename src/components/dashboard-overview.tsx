@@ -213,6 +213,7 @@ export function DashboardOverview({
     enrichmentWater ?? display?.log?.water_ml ?? 0;
 
   useEffect(() => {
+    if (mealLibrary.length === 0) return;
     setNutritionExtrasCache(clientId, {
       mealLibrary,
       personalPlanId: personalPlanId ?? null,

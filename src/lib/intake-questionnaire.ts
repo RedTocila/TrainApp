@@ -118,6 +118,7 @@ export const INTAKE_STEPS: IntakeStep[] = [
 
 export const GOAL_OPTIONS: IntakeOption[] = [
   { value: "lose_weight", label: "Lose weight", emoji: "🔥", description: "Fat loss with muscle retention" },
+  { value: "gain_weight", label: "Gain weight", emoji: "📈", description: "Healthy surplus for slim / hardgainers" },
   { value: "build_muscle", label: "Build muscle", emoji: "🏋️", description: "Strength & size" },
   { value: "stay_fit", label: "Stay fit", emoji: "⚡", description: "Maintain where you are" },
   { value: "improve_endurance", label: "Improve endurance", emoji: "🏃", description: "Cardio & stamina" },

@@ -194,8 +194,17 @@ export function getCoachMealAdvice({
     "carbs may be low",
     "karbohidratet"
   );
+  const hasLowGainCalories = reasonIncludes(
+    reasons,
+    "calories are low for a weight-gain",
+    "kaloritë janë të ulëta për shtim"
+  );
 
-  if (hasHighCalories) {
+  if (hasLowGainCalories) {
+    return pickAdvice(insights.lowCaloriesGainWeight, `${seed}|low-cal-gain`, vars);
+  }
+
+  if (hasHighCalories && goal !== "gain_weight") {
     return pickAdvice(insights.highCalories, `${seed}|high-cal`, vars);
   }
 
@@ -211,7 +220,7 @@ export function getCoachMealAdvice({
         vars
       );
     }
-    if (goal === "build_muscle") {
+    if (goal === "build_muscle" || goal === "gain_weight") {
       return pickAdvice(
         insights.lowProteinBuildMuscle,
         `${seed}|low-protein-muscle`,

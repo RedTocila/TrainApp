@@ -330,7 +330,7 @@ export function DayMenuEditor({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              placeholder="e.g. Weight loss day, high protein"
+              placeholder="e.g. Weight loss or weight gain day, high protein"
             />
           </div>
           <div className="flex flex-wrap gap-2">

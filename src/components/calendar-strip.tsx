@@ -19,18 +19,21 @@ import {
 } from "@/lib/dashboard-task-enrichment";
 import { formatDateKey } from "@/lib/utils";
 import { scrollElementIntoHorizontalView } from "@/lib/scroll-horizontal";
+import {
+  DASHBOARD_LOOKAHEAD_DAYS,
+  DASHBOARD_LOOKBACK_DAYS,
+} from "@/lib/dashboard-window";
 
 interface CalendarStripProps {
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
   schedule: ClientSchedule;
   enrichment: DashboardEnrichmentData;
-  /** Extra days shown after today (default 28). */
+  /** Extra days shown after today. */
   futureDays?: number;
 }
 
 const VISIBLE_DAYS = 7;
-const DEFAULT_FUTURE_DAYS = 28;
 const FALLBACK_PAST_DAYS = 3;
 
 export function CalendarStrip({
@@ -38,7 +41,7 @@ export function CalendarStrip({
   onSelectDate,
   schedule,
   enrichment,
-  futureDays = DEFAULT_FUTURE_DAYS,
+  futureDays = DASHBOARD_LOOKAHEAD_DAYS,
 }: CalendarStripProps) {
   const [now, setNow] = useState(() => new Date());
   const selectedRef = useRef<HTMLButtonElement>(null);
@@ -57,8 +60,13 @@ export function CalendarStrip({
 
   const dayItems = useMemo(() => {
     const today = startOfDay(now);
-    // Scroll back to account start (or a short fallback), and forward for planning.
-    const rangeStart = activeFrom ?? addDays(today, -FALLBACK_PAST_DAYS);
+    const lookbackStart = addDays(today, -DASHBOARD_LOOKBACK_DAYS);
+    const rangeStart =
+      activeFrom && activeFrom > lookbackStart
+        ? activeFrom
+        : activeFrom
+          ? lookbackStart
+          : addDays(today, -FALLBACK_PAST_DAYS);
     const rangeEnd = addDays(today, futureDays);
     const totalDays = Math.max(1, differenceInCalendarDays(rangeEnd, rangeStart) + 1);
 

@@ -94,6 +94,7 @@ export async function generateWeeklyCoachReportAction(): Promise<
 - Habit completions: ${ctx.habitCompletions}
 - Weight entries: ${ctx.weightHistory.length}
 - User goal: ${ctx.profile?.goal ?? "general fitness"}
+- If goal is gain_weight: surplus eating and hypertrophy progress matter more than fat loss. Do not recommend a cut.
 
 Progress photos (Coach Alex vision analysis):
 ${ctx.progressPhotoContextText}

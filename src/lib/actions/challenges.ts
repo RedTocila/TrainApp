@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCoverImageFromForm } from "@/lib/cover-image-upload";
-import { suggestChallengeZoomDates } from "@/lib/challenge-utils";
+import { hasLiveChallenge, suggestChallengeZoomDates } from "@/lib/challenge-utils";
 import {
   ensureFlashChallengesInDb,
   getFlashChallengeBySlug,
@@ -171,6 +171,31 @@ export async function getPublishedChallenges(
   }
   const merged = mergeCatalogChallenges((data ?? []).map(rowToChallenge), profileGender);
   return attachParticipantCounts(filterChallengesForProfile(merged, profileGender));
+}
+
+/** Nav badge only — skips catalog backfill so the dashboard shell can paint. */
+export async function getHasLivePublishedChallenge(): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("challenges")
+    .select(
+      "scheduled_at, duration_minutes, duration_months, duration_days, current_phase"
+    )
+    .eq("published", true)
+    .gt("current_phase", 0);
+
+  if (!data?.length) return false;
+  return data.some((row) =>
+    hasLiveChallenge([
+      {
+        scheduled_at: row.scheduled_at,
+        duration_minutes: row.duration_minutes,
+        duration_months: row.duration_months,
+        duration_days: row.duration_days,
+        current_phase: row.current_phase,
+      } as Challenge,
+    ])
+  );
 }
 
 export async function getAllChallenges(): Promise<Challenge[]> {

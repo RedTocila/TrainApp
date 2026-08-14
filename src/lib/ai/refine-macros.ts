@@ -4,6 +4,7 @@ import type { MacroTargets } from "@/lib/macro-calculator";
 import { clampTargets } from "@/lib/macro-calculator";
 import { buildDetailedIntakeContextForAi } from "@/lib/intake-questionnaire";
 import { buildRationaleLanguageRule } from "@/lib/ai/language-instructions";
+import { nutritionGoalRulesForAi } from "@/lib/goal-coaching";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
 export interface RefinedMacroResult {
@@ -29,6 +30,9 @@ function boundsForAi(
   const cal = baseline.calories;
   if (goal === "lose_weight") {
     return { minCal: Math.max(1200, Math.round(cal * 0.72)), maxCal: Math.round(cal * 0.98) };
+  }
+  if (goal === "gain_weight") {
+    return { minCal: Math.round(cal * 0.98), maxCal: Math.round(cal * 1.22) };
   }
   if (goal === "build_muscle") {
     return { minCal: Math.round(cal * 0.95), maxCal: Math.round(cal * 1.12) };
@@ -80,24 +84,28 @@ export async function refineMacrosWithAi(
   const context = buildDetailedIntakeContextForAi(responses);
   const goal = responses.goal ?? "stay_fit";
 
-  const prompt = `You are an expert sports nutritionist. A generic formula estimated daily macros for this client, but it is often TOO HIGH — especially for desk workers and moderate trainers.
+  const prompt = `You are an expert sports nutritionist. A generic formula estimated daily macros for this client.
 
 CLIENT HEALTH PROFILE:
 ${context}
 
-FORMULA BASELINE (treat as an upper guide, often 10–25% too high):
+FORMULA BASELINE:
 - Calories: ${baseline.calories}
 - Protein: ${baseline.protein}g
 - Carbs: ${baseline.carbs}g
 - Fat: ${baseline.fat}g
 
+${nutritionGoalRulesForAi(goal)}
+
 Instructions:
 - Estimate realistic maintenance calories from age, sex, weight, height, job type, daily steps, and training frequency — do NOT double-count gym days as both high activity AND a large training bump.
-- Apply a goal-appropriate adjustment: moderate deficit for fat loss, small surplus only for muscle gain with adequate training.
+- Then apply a goal-appropriate adjustment. Match the stated goal — never default to a cut.
+- For lose_weight: usually BELOW the formula baseline (deficit).
+- For gain_weight: ABOVE the formula baseline (surplus). Slim / hardgainer clients need extra calories they can actually eat. Do not lower calories "to be conservative."
+- For build_muscle: small surplus only when training is adequate.
+- For stay_fit / general_health / improve_endurance: near maintenance.
 - Respect injuries, medical conditions, sleep, stress, diet style, and timeline.
-- Protein: typically 1.6–2.2 g/kg for muscle or fat loss; lower for general health.
-- Prefer conservative calories the client can sustain.
-- For lose_weight, usually BELOW the formula baseline.
+- Protein: typically 1.6–2.2 g/kg for muscle, fat loss, or weight gain; lower for general health.
 - Macros must approximately match calories (protein×4 + carbs×4 + fat×9).
 
 ${buildRationaleLanguageRule(preferredLocale)}

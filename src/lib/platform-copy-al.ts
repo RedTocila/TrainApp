@@ -112,6 +112,14 @@ export const platformCopyAl = {
     email: "Email",
     phone: "Numri i telefonit",
     fitnessGoal: "Qëllimi i fitnesit",
+    dailyCalories: "Kaloritë ditore",
+    dailyMacros: "Makrot ditore",
+    editCalories: "Ndrysho makrot",
+    editCaloriesDesc:
+      "Vendos kaloritë, pastaj ndaj proteinën / karbohidratet / yndyrën në përqindje (p.sh. 30/30/40). Gramët përditësohen automatikisht.",
+    caloriesRangeError: "Vendos një objektiv mes 500 dhe 10000 kcal",
+    macroSplit: "Ndarja",
+    macroSplitHint: "P / C / F",
     language: "Gjuha",
     units: "Njësitë",
     metric: "EU / Metrik (kg, cm)",
@@ -136,6 +144,7 @@ export const platformCopyAl = {
   goals: {
     none: "Pa qëllim të caktuar",
     lose_weight: "Humb peshe",
+    gain_weight: "Shto peshë",
     build_muscle: "Ndërto muskuj",
     stay_fit: "Qëndro në formë",
     improve_endurance: "Përmirëso qëndrueshmërinë",
@@ -966,6 +975,10 @@ export const platformCopyAl = {
       {
         question: "Sa kalori duhet të ha për të humbur yndyrë?",
         prompt: "Sa kalori duhet të ha për të humbur yndyrë bazuar në profilin dhe regjistrimet e mia?",
+      },
+      {
+        question: "Sa kalori duhet të ha për të shtuar peshë?",
+        prompt: "Sa kalori duhet të ha për të shtuar peshë bazuar në profilin dhe regjistrimet e mia? Më jep një plan surplus dhe ide vaktesh me shumë kalori.",
       },
       {
         question: "Si mund të ndërtoj muskuj më shpejt?",

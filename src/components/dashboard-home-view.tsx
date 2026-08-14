@@ -1,14 +1,14 @@
 "use client";
 
+import { useCallback, useState, type ReactNode } from "react";
 import { DashboardHomeShell } from "@/components/dashboard-home-shell";
 import { DashboardWorkoutCard } from "@/components/dashboard-workout-card";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { DashboardWaterCard } from "@/components/dashboard-water-card";
 import { DashboardCardioCard } from "@/components/dashboard-cardio-card";
-import { BodyMetricsSection } from "@/components/body-metrics-section";
-import { ProgressPhotosCard } from "@/components/progress-photos-card";
-import { HabitsTracker } from "@/components/habits-tracker";
 import { ClientIntakeForm } from "@/components/client-intake-form";
+import { DashboardScheduleProvider } from "@/components/dashboard-schedule-context";
+import { DashboardTodayCacheSeed } from "@/components/dashboard-today-cache-seed";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import type { Profile } from "@/lib/types";
 import type { ComponentProps } from "react";
@@ -17,19 +17,15 @@ type WorkoutProps = ComponentProps<typeof DashboardWorkoutCard>;
 type OverviewProps = ComponentProps<typeof DashboardOverview>;
 type WaterProps = ComponentProps<typeof DashboardWaterCard>;
 type CardioProps = ComponentProps<typeof DashboardCardioCard>;
-type BodyProps = ComponentProps<typeof BodyMetricsSection>;
-type PhotosProps = ComponentProps<typeof ProgressPhotosCard>;
-type HabitsProps = ComponentProps<typeof HabitsTracker>;
 
 /**
- * Client boundary for the home dashboard — one day tree only
- * (calendar selects the day; no swipe carousel).
+ * Client boundary for the home dashboard — today's cards paint first;
+ * below-fold content streams in via `children`.
  */
 export function DashboardHomeView({
   clientId,
   seedDateKey,
-  schedule,
-  accountCreatedAt,
+  schedule: initialSchedule,
   gender,
   initialWorkout,
   initialWorkouts,
@@ -37,7 +33,6 @@ export function DashboardHomeView({
   initialWorkoutResults,
   initialLog,
   initialDailyMeals,
-  mealLibrary,
   hasAiAccess,
   targets,
   personalPlanId,
@@ -47,20 +42,12 @@ export function DashboardHomeView({
   initialWaterMl,
   initialCardios,
   initialCardioCompletions,
-  heightCm,
-  intakeWeightKg,
-  weightHistory,
-  weightLog,
-  progressPhotoSets,
-  initialCurrentUrls,
-  habits,
-  suggestedHabits,
   profile,
+  children,
 }: {
   clientId: string;
   seedDateKey: string;
   schedule: ClientSchedule;
-  accountCreatedAt?: string | null;
   gender?: WorkoutProps["gender"];
   initialWorkout: WorkoutProps["initialWorkout"];
   initialWorkouts: WorkoutProps["initialWorkouts"];
@@ -68,7 +55,6 @@ export function DashboardHomeView({
   initialWorkoutResults: WorkoutProps["initialWorkoutResults"];
   initialLog: OverviewProps["initialLog"];
   initialDailyMeals: OverviewProps["initialDailyMeals"];
-  mealLibrary: OverviewProps["mealLibrary"];
   hasAiAccess: boolean;
   targets: OverviewProps["targets"];
   personalPlanId?: OverviewProps["personalPlanId"];
@@ -78,92 +64,94 @@ export function DashboardHomeView({
   initialWaterMl: WaterProps["initialWaterMl"];
   initialCardios: CardioProps["initialScheduled"];
   initialCardioCompletions: CardioProps["initialCompletions"];
-  heightCm?: BodyProps["heightCm"];
-  intakeWeightKg?: BodyProps["intakeWeightKg"];
-  weightHistory: BodyProps["initialHistory"];
-  weightLog: BodyProps["initialLog"];
-  progressPhotoSets: PhotosProps["initialSets"];
-  initialCurrentUrls: PhotosProps["initialCurrentUrls"];
-  habits: HabitsProps["initialHabits"];
-  suggestedHabits: HabitsProps["suggestedHabits"];
   profile: Profile;
+  children?: ReactNode;
 }) {
+  const [schedule, setSchedule] = useState(initialSchedule);
+  const mergeSchedule = useCallback((patch: Partial<ClientSchedule>) => {
+    setSchedule((current) => ({ ...current, ...patch }));
+  }, []);
+
   return (
-    <DashboardHomeShell clientId={clientId} schedule={schedule}>
-      <DashboardWorkoutCard
+    <DashboardScheduleProvider mergeSchedule={mergeSchedule}>
+      <DashboardTodayCacheSeed
         clientId={clientId}
-        seedDateKey={seedDateKey}
-        gender={gender}
-        initialWorkout={initialWorkout}
-        initialWorkouts={initialWorkouts}
-        initialWorkoutCompleted={initialWorkoutCompleted}
-        initialWorkoutResults={initialWorkoutResults}
-        variant="hero"
-        schedule={schedule}
+        dateKey={seedDateKey}
+        workout={{
+          workouts: initialWorkouts ?? [],
+          completedByTaskId: Object.fromEntries(
+            (initialWorkouts ?? []).map((workout) => [
+              workout.taskId,
+              initialWorkoutCompleted ?? false,
+            ])
+          ),
+          skippedByTaskId: {},
+          sessionIdByTaskId: {},
+          allCompleted: initialWorkoutCompleted ?? false,
+          results: initialWorkoutResults ?? null,
+        }}
+        overview={{
+          log: initialLog,
+          dailyMeals: initialDailyMeals,
+          nutritionPlan: nutritionPlan ?? null,
+        }}
       />
+      <DashboardHomeShell clientId={clientId} schedule={schedule}>
+        <DashboardWorkoutCard
+          clientId={clientId}
+          seedDateKey={seedDateKey}
+          gender={gender}
+          initialWorkout={initialWorkout}
+          initialWorkouts={initialWorkouts}
+          initialWorkoutCompleted={initialWorkoutCompleted}
+          initialWorkoutResults={initialWorkoutResults}
+          variant="hero"
+          schedule={schedule}
+        />
 
-      <DashboardOverview
-        clientId={clientId}
-        seedDateKey={seedDateKey}
-        initialLog={initialLog}
-        initialDailyMeals={initialDailyMeals}
-        mealLibrary={mealLibrary}
-        hasAiAccess={hasAiAccess}
-        targets={targets}
-        personalPlanId={personalPlanId}
-        initialWaterGoalMl={waterGoalMl}
-        nutritionPlan={nutritionPlan}
-        goal={goal}
-        variant="compact"
-        schedule={schedule}
-      />
+        <DashboardOverview
+          clientId={clientId}
+          seedDateKey={seedDateKey}
+          initialLog={initialLog}
+          initialDailyMeals={initialDailyMeals}
+          mealLibrary={[]}
+          hasAiAccess={hasAiAccess}
+          targets={targets}
+          personalPlanId={personalPlanId}
+          initialWaterGoalMl={waterGoalMl}
+          nutritionPlan={nutritionPlan}
+          goal={goal}
+          variant="compact"
+          schedule={schedule}
+        />
 
-      {/* Flex (not grid+h-full): iPad Safari collapses percentage grid rows and BMI overlaps the pair. */}
-      <div className="flex w-full shrink-0 flex-col gap-3 sm:gap-4 md:gap-5">
-        <div className="flex w-full items-stretch gap-3 sm:gap-3.5 md:gap-4">
-          <div className="w-1/2 min-w-0">
-            <DashboardWaterCard
-              clientId={clientId}
-              initialWaterMl={initialWaterMl}
-              waterGoalMl={waterGoalMl}
-              variant="compact"
-            />
+        <div className="flex w-full shrink-0 flex-col gap-3 sm:gap-4 md:gap-5">
+          <div className="flex w-full items-stretch gap-3 sm:gap-3.5 md:gap-4">
+            <div className="w-1/2 min-w-0">
+              <DashboardWaterCard
+                clientId={clientId}
+                initialWaterMl={initialWaterMl}
+                waterGoalMl={waterGoalMl}
+                variant="compact"
+              />
+            </div>
+            <div className="w-1/2 min-w-0">
+              <DashboardCardioCard
+                clientId={clientId}
+                seedDateKey={seedDateKey}
+                initialScheduled={initialCardios}
+                initialCompletions={initialCardioCompletions}
+                variant="compact"
+                schedule={schedule}
+              />
+            </div>
           </div>
-          <div className="w-1/2 min-w-0">
-            <DashboardCardioCard
-              clientId={clientId}
-              seedDateKey={seedDateKey}
-              initialScheduled={initialCardios}
-              initialCompletions={initialCardioCompletions}
-              variant="compact"
-              schedule={schedule}
-            />
-          </div>
+
+          {children}
         </div>
 
-        <BodyMetricsSection
-          clientId={clientId}
-          heightCm={heightCm}
-          intakeWeightKg={intakeWeightKg}
-          accountCreatedAt={accountCreatedAt}
-          initialHistory={weightHistory}
-          initialLog={weightLog}
-        />
-      </div>
-
-      <ProgressPhotosCard
-        clientId={clientId}
-        initialSets={progressPhotoSets}
-        initialCurrentUrls={initialCurrentUrls}
-      />
-
-      <HabitsTracker
-        clientId={clientId}
-        initialHabits={habits}
-        suggestedHabits={suggestedHabits}
-      />
-
-      <ClientIntakeForm profile={profile} />
-    </DashboardHomeShell>
+        <ClientIntakeForm profile={profile} />
+      </DashboardHomeShell>
+    </DashboardScheduleProvider>
   );
 }

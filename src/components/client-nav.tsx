@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
@@ -19,6 +19,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { getHasLivePublishedChallenge } from "@/lib/actions/challenges";
 import {
   isActiveWorkoutSessionPath,
   isHomeNavActive,
@@ -52,10 +53,8 @@ function NavIconWithDot({
 
 export function ClientNav({
   fullName,
-  liveChallengeActive = false,
 }: {
   fullName: string;
-  liveChallengeActive?: boolean;
 }) {
   const pathname = usePathname();
   const { pendingHref, setPendingHref } = useDashboardNavPending();
@@ -67,6 +66,17 @@ export function ClientNav({
   const hideMobileChrome = hideNav || alexChatOpen;
   const programsActive = isProgramsNavActive(activePath);
   const homeActive = isHomeNavActive(activePath);
+  const [liveChallengeActive, setLiveChallengeActive] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getHasLivePublishedChallenge().then((live) => {
+      if (!cancelled) setLiveChallengeActive(live);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const prefetchRoutes = useMemo(
     () => [
