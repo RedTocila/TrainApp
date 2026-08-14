@@ -195,8 +195,9 @@ body:has(.dashboard-shell) {
 }
 
 .dashboard-main {
-  /* none: stop iOS rubber-band bounce at top/bottom (contain still allowed a little). */
-  overscroll-behavior-y: none;
+  /* contain: allow pull gesture at top without chaining to the body. */
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   overflow-anchor: none;
   background: var(--background);

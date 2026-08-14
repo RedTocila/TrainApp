@@ -2,9 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { DASHBOARD_PULL_REFRESH_EVENT } from "@/components/dashboard-sync";
 import { cn } from "@/lib/utils";
 
 /** Finger travel (px) required before refresh arms. */
@@ -74,7 +72,6 @@ function PullRefreshSpinner({
 
 export function DashboardPullToRefresh() {
   const platform = usePlatformCopy();
-  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -103,17 +100,6 @@ export function DashboardPullToRefresh() {
       if (!refreshingRef.current) {
         setPullDistance(0);
       }
-    };
-
-    const finishRefresh = () => {
-      router.refresh();
-      window.dispatchEvent(new CustomEvent(DASHBOARD_PULL_REFRESH_EVENT));
-      window.setTimeout(() => {
-        refreshingRef.current = false;
-        setRefreshing(false);
-        setPullDistance(0);
-        resetPull();
-      }, 450);
     };
 
     const onTouchStart = (event: TouchEvent) => {
@@ -163,7 +149,9 @@ export function DashboardPullToRefresh() {
         refreshingRef.current = true;
         setRefreshing(true);
         setPullDistance(MAX_PULL_PX);
-        finishRefresh();
+        window.setTimeout(() => {
+          window.location.reload();
+        }, 280);
         return;
       }
 
@@ -181,7 +169,7 @@ export function DashboardPullToRefresh() {
       main.removeEventListener("touchend", onTouchEnd);
       main.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [router]);
+  }, []);
 
   if (!mounted) return null;
 
