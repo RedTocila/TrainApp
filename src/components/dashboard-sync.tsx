@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -30,6 +31,8 @@ const DashboardSyncContext = createContext<DashboardSyncContextValue | null>(nul
 
 const SYNC_DEBOUNCE_MS = 600;
 
+export const DASHBOARD_PULL_REFRESH_EVENT = "dashboard:pull-refresh";
+
 export function DashboardSyncProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
   const [patches, setPatches] = useState<DashboardPatchState>(emptyPatchState);
@@ -44,6 +47,15 @@ export function DashboardSyncProvider({ children }: { children: ReactNode }) {
     syncTimer.current = setTimeout(() => {
       setVersion((v) => v + 1);
     }, SYNC_DEBOUNCE_MS);
+  }, []);
+
+  useEffect(() => {
+    const onPullRefresh = () => {
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+      setVersion((v) => v + 1);
+    };
+    window.addEventListener(DASHBOARD_PULL_REFRESH_EVENT, onPullRefresh);
+    return () => window.removeEventListener(DASHBOARD_PULL_REFRESH_EVENT, onPullRefresh);
   }, []);
 
   const mergeEnrichment = useCallback(

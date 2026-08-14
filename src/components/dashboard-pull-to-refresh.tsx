@@ -2,15 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { DASHBOARD_PULL_REFRESH_EVENT } from "@/components/dashboard-sync";
 import { cn } from "@/lib/utils";
 
 /** Finger travel (px) required before refresh arms. */
-const PULL_THRESHOLD_PX = 72;
-const PULL_RESISTANCE = 0.45;
-const MAX_PULL_PX = 72;
+const PULL_THRESHOLD_PX = 56;
+const PULL_RESISTANCE = 0.5;
+const MAX_PULL_PX = 64;
 const INDICATOR_SIZE = 40;
 const STROKE = 3;
+const SCROLL_TOP_TOLERANCE_PX = 4;
 
 function PullRefreshSpinner({
   progress,
@@ -71,6 +74,7 @@ function PullRefreshSpinner({
 
 export function DashboardPullToRefresh() {
   const platform = usePlatformCopy();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -89,11 +93,7 @@ export function DashboardPullToRefresh() {
     const main = document.querySelector<HTMLElement>(".dashboard-main");
     if (!main) return;
 
-    const isAtTop = () => {
-      if (window.scrollY > 0) return false;
-      if (main.scrollTop > 0) return false;
-      return true;
-    };
+    const isAtTop = () => main.scrollTop <= SCROLL_TOP_TOLERANCE_PX;
 
     const resetPull = () => {
       trackingRef.current = false;
@@ -103,6 +103,17 @@ export function DashboardPullToRefresh() {
       if (!refreshingRef.current) {
         setPullDistance(0);
       }
+    };
+
+    const finishRefresh = () => {
+      router.refresh();
+      window.dispatchEvent(new CustomEvent(DASHBOARD_PULL_REFRESH_EVENT));
+      window.setTimeout(() => {
+        refreshingRef.current = false;
+        setRefreshing(false);
+        setPullDistance(0);
+        resetPull();
+      }, 450);
     };
 
     const onTouchStart = (event: TouchEvent) => {
@@ -120,7 +131,6 @@ export function DashboardPullToRefresh() {
       const currentY = event.touches[0]?.clientY ?? 0;
       const delta = currentY - startYRef.current;
 
-      // Scrolling content (finger up) — release tracking so overscroll never engages.
       if (delta <= 0 || !isAtTop()) {
         if (pullingRef.current) {
           setPullDistance(0);
@@ -133,7 +143,6 @@ export function DashboardPullToRefresh() {
         return;
       }
 
-      // Kill iOS rubber-band as soon as the finger pulls down at the top.
       if (event.cancelable) {
         event.preventDefault();
       }
@@ -154,9 +163,7 @@ export function DashboardPullToRefresh() {
         refreshingRef.current = true;
         setRefreshing(true);
         setPullDistance(MAX_PULL_PX);
-        window.setTimeout(() => {
-          window.location.reload();
-        }, 280);
+        finishRefresh();
         return;
       }
 
@@ -174,7 +181,7 @@ export function DashboardPullToRefresh() {
       main.removeEventListener("touchend", onTouchEnd);
       main.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, []);
+  }, [router]);
 
   if (!mounted) return null;
 
@@ -191,7 +198,7 @@ export function DashboardPullToRefresh() {
         visible ? "opacity-100" : "opacity-0"
       )}
       style={{
-        top: "max(0.75rem, var(--safe-area-top))",
+        top: "calc(var(--dashboard-mobile-header-height, 3.5rem) + 0.25rem)",
         transform: `translateY(${translateY}px)`,
       }}
       aria-hidden={!visible}

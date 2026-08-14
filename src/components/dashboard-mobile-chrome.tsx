@@ -202,7 +202,7 @@ export function DashboardMobileChrome() {
   if (isSession) return null;
 
   return (
-    <div className="mobile-top-safe z-50 shrink-0 bg-background lg:hidden">
+    <div className="mobile-top-safe sticky top-0 z-50 shrink-0 border-b border-border/40 bg-background lg:hidden">
       <DashboardMobileHeaderBar showCalendar={showCalendar} />
       {showTrainTabs ? (
         <div className="px-3 pb-2 sm:px-4">
