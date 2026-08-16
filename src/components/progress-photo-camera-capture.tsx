@@ -47,7 +47,7 @@ export function ProgressPhotoCameraCapture({
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
-            facingMode: { ideal: "user" },
+            facingMode: { ideal: "environment" },
             width: { ideal: 1280 },
             height: { ideal: 720 },
           },
@@ -116,7 +116,7 @@ export function ProgressPhotoCameraCapture({
       <video
         ref={videoRef}
         className={cn(
-          "absolute inset-0 h-full w-full scale-x-[-1] object-cover",
+          "absolute inset-0 h-full w-full object-cover",
           cameraState !== "ready" && "opacity-0"
         )}
         playsInline
