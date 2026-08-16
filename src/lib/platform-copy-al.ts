@@ -831,7 +831,6 @@ export const platformCopyAl = {
     readMeGotIt: "E kuptova",
     readMeAgreeLabel: "E kam lexuar dhe pajtohem",
     readMeRequiredHint: "Lexo dhe prano para se të bësh foto",
-    readMeSupportHint: "Person i gabuar në foton e parë? Kontaktoni suportin.",
     uploading: "Duke ngarkuar…",
     addPhoto: "Bëj foto",
     addPosePhoto: (pose: string) => `Shto foto ${pose}`,

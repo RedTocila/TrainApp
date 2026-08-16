@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import { CoachReadMeDialog } from "@/components/coach-read-me-dialog";
-import { SupportContactButton } from "@/components/support-contact-button";
 import { usePlatformCopy } from "@/components/locale-provider";
 import {
   hasProgressPhotoReadMeAcknowledged,
@@ -95,12 +94,6 @@ export function ProgressPhotoReadMeProvider({
         gotItLabel={platform.photos.readMeGotIt}
         agreeLabel={platform.photos.readMeAgreeLabel}
         required={!hasAcknowledged}
-        footer={
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-2.5 text-xs text-muted-foreground">
-            <span>{platform.photos.readMeSupportHint}</span>
-            <SupportContactButton className="inline-flex" buttonClassName="h-7 w-7" />
-          </div>
-        }
       />
     </ProgressPhotoReadMeContext.Provider>
   );

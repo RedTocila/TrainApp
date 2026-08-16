@@ -817,7 +817,6 @@ export const platformCopyEn = {
     readMeGotIt: "Got it",
     readMeAgreeLabel: "I have read this and agree",
     readMeRequiredHint: "Read and agree before taking photos",
-    readMeSupportHint: "Wrong person on your first photo? Contact support.",
     uploading: "Uploading…",
     addPhoto: "Take photo",
     addPosePhoto: (pose: string) => `Add ${pose} photo`,

@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
@@ -15,7 +14,6 @@ export function CoachReadMeDialog({
   gotItLabel,
   agreeLabel,
   required = false,
-  footer,
 }: {
   open: boolean;
   onClose: () => void;
@@ -25,7 +23,6 @@ export function CoachReadMeDialog({
   gotItLabel: string;
   agreeLabel: string;
   required?: boolean;
-  footer?: ReactNode;
 }) {
   const [agreed, setAgreed] = useState(false);
 
@@ -42,10 +39,10 @@ export function CoachReadMeDialog({
       <AppOverlayPanel
         maxWidth="max-w-md"
         aria-labelledby="coach-read-me-title"
-        className="max-h-[min(92%,36rem)]"
+        className="max-h-[92%]"
       >
-        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-2 sm:pt-4">
-          <h2 id="coach-read-me-title" className="text-lg font-bold">
+        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-1 sm:pt-4">
+          <h2 id="coach-read-me-title" className="text-base font-bold sm:text-lg">
             {title}
           </h2>
           <button
@@ -59,10 +56,10 @@ export function CoachReadMeDialog({
         </div>
 
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-3"
           data-scroll-lock-scrollable
         >
-          <ul className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+          <ul className="space-y-2 text-sm leading-snug text-muted-foreground">
             {points.map((point) => (
               <li key={point} className="flex gap-2">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
@@ -70,9 +67,11 @@ export function CoachReadMeDialog({
               </li>
             ))}
           </ul>
-          {footer ? <div className="mt-4">{footer}</div> : null}
+        </div>
+
+        <div className="shrink-0 border-t border-border/60 bg-card px-5 pb-3 pt-3">
           {required && (
-            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-secondary/30 px-3 py-3">
+            <label className="mb-3 flex cursor-pointer items-start gap-2.5">
               <input
                 type="checkbox"
                 checked={agreed}
@@ -82,9 +81,6 @@ export function CoachReadMeDialog({
               <span className="text-sm leading-snug text-foreground">{agreeLabel}</span>
             </label>
           )}
-        </div>
-
-        <div className="shrink-0 border-t border-border/60 bg-card px-5 py-4">
           <Button
             type="button"
             className="w-full"
