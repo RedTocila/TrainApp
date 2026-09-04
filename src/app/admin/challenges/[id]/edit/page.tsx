@@ -217,16 +217,32 @@ export default async function EditChallengePage({
                   defaultValue={challenge.description}
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="published"
-                  name="published"
-                  className="rounded"
-                  defaultChecked={challenge.published}
-                />
-                <Label htmlFor="published">Published</Label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="published"
+                    name="published"
+                    className="rounded"
+                    defaultChecked={challenge.published}
+                  />
+                  <Label htmlFor="published">Published</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    name="is_active"
+                    className="rounded"
+                    defaultChecked={challenge.is_active !== false}
+                  />
+                  <Label htmlFor="is_active">Active (users can join)</Label>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                When Active is off, the challenge stays in the catalog but appears greyed out and
+                users cannot join yet.
+              </p>
               <div className="flex gap-2">
                 <Button type="submit">Save changes</Button>
                 <Link href="/admin/challenges">

@@ -2,6 +2,9 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { scrollDashboardMainToTop } from "@/lib/dashboard-scroll";
+
+export { scrollDashboardMainToTop } from "@/lib/dashboard-scroll";
 
 function clearDashboardMainInlineStyles() {
   const main = document.querySelector<HTMLElement>(".dashboard-main");
@@ -16,12 +19,6 @@ function clearDashboardMainInlineStyles() {
   main.style.overflow = "";
   main.style.pointerEvents = "";
   main.style.touchAction = "";
-}
-
-export function scrollDashboardMainToTop() {
-  const main = document.querySelector<HTMLElement>(".dashboard-main");
-  if (!main) return;
-  main.scrollTop = 0;
 }
 
 export function DashboardMainReset() {

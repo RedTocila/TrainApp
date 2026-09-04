@@ -147,10 +147,20 @@ export default async function NewChallengePage() {
                   placeholder="Rules, prizes, dates — monthly Zoom eliminations; winners from platform reports + live peer voting."
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="published" name="published" className="rounded" />
-                <Label htmlFor="published">Publish immediately</Label>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="published" name="published" className="rounded" />
+                  <Label htmlFor="published">Publish immediately</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="is_active" name="is_active" className="rounded" />
+                  <Label htmlFor="is_active">Active (users can join)</Label>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Published challenges appear in the list. Leave Active off to show them greyed out
+                until you are ready for sign-ups.
+              </p>
               <Button type="submit">Create challenge</Button>
             </form>
           </CardContent>

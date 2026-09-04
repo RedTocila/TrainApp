@@ -167,18 +167,52 @@ body {
 
 html:has(.dashboard-shell),
 body:has(.dashboard-shell) {
-  overflow: hidden;
-  height: 100%;
   width: 100%;
-  overscroll-behavior: none;
   background: var(--background);
 }
 
-.dashboard-shell {
-  box-sizing: border-box;
-  height: 100svh;
-  height: 100dvh;
-  background: var(--background);
+/* Mobile: document scrolls so the browser’s native pull-to-refresh works. */
+@media (max-width: 1023px) {
+  html:has(.dashboard-shell),
+  body:has(.dashboard-shell) {
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: auto;
+    min-height: 100%;
+    overscroll-behavior-y: auto;
+  }
+
+  .dashboard-shell {
+    box-sizing: border-box;
+    height: auto;
+    min-height: 100svh;
+    min-height: 100dvh;
+    overflow: visible;
+    background: var(--background);
+  }
+
+  .dashboard-main {
+    overflow-y: visible;
+    overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: auto;
+  }
+}
+
+/* Desktop: keep nested .dashboard-main scroll (sidebar layout). */
+@media (min-width: 1024px) {
+  html:has(.dashboard-shell),
+  body:has(.dashboard-shell) {
+    overflow: hidden;
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  .dashboard-shell {
+    box-sizing: border-box;
+    height: 100svh;
+    height: 100dvh;
+    background: var(--background);
+  }
 }
 
 .mobile-top-safe {
@@ -195,12 +229,16 @@ body:has(.dashboard-shell) {
 }
 
 .dashboard-main {
-  /* contain: allow pull gesture at top without chaining to the body. */
-  overscroll-behavior-y: contain;
   scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
   overflow-anchor: none;
   background: var(--background);
+}
+
+@media (min-width: 1024px) {
+  .dashboard-main {
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .app-shell {
@@ -571,6 +609,10 @@ html.light .overlay-backdrop {
 
 /* While a popup is open: block scroll/clicks behind it.
    Dialogs portal to document.body, so they stay interactive outside .dashboard-main. */
+html.body-scroll-locked {
+  overscroll-behavior: none;
+}
+
 html.body-scroll-locked .dashboard-main {
   pointer-events: none;
 }

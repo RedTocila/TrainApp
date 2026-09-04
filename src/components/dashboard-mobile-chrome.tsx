@@ -10,7 +10,6 @@ import {
   Dumbbell,
   Gift,
   ImageIcon,
-  Play,
 } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import {
@@ -20,9 +19,7 @@ import { SupportContactButton } from "@/components/support-contact-button";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { useNutritionPageChromeActions } from "@/components/nutrition-page-chrome-context";
-import { useWorkoutPageChromeActions } from "@/components/workout-page-chrome-context";
 import { DashboardStatusCheck, DashboardStatusIcon } from "@/components/section-completed-badge";
-import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { TrainSectionTabs } from "@/components/train-section-tabs";
 import { Button } from "@/components/ui/button";
@@ -51,7 +48,6 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
   const chromePath = pendingHref ?? pathname;
   const platform = usePlatformCopy();
   const nutritionActions = useNutritionPageChromeActions();
-  const workoutActions = useWorkoutPageChromeActions();
   const isNutritionPage = chromePath === DASHBOARD_DAY_NUTRITION_PATH;
   const isWorkoutPage = chromePath === DASHBOARD_DAY_WORKOUT_PATH;
   const isProgressPhotosPage = chromePath === DASHBOARD_PROGRESS_PHOTOS_PATH;
@@ -118,7 +114,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
           className="text-2xl leading-none text-foreground sm:text-3xl dark:text-white"
         />
       )}
-      {!isProgressPhotosPage ? (
+      {!isProgressPhotosPage && !isWorkoutPage ? (
         isNutritionPage && nutritionActions ? (
           <div className={cn(headerSurface, "flex shrink-0 items-center gap-1.5 p-1.5")}>
             {nutritionActions.onLogMeal ? (
@@ -145,24 +141,6 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
               </Button>
             ) : null}
           </div>
-        ) : isWorkoutPage ? (
-          workoutActions?.showStart ? (
-            <div className={cn(headerSurface, "flex shrink-0 items-center gap-1.5 p-1.5")}>
-              <StartWorkoutLoadingShell isLoading={workoutActions.isStarting}>
-                <Button
-                  type="button"
-                  size="sm"
-                  className={headerTextButton}
-                  disabled={workoutActions.disabled || workoutActions.isStarting}
-                  onClick={workoutActions.onStartWorkout}
-                  aria-busy={workoutActions.isStarting}
-                >
-                  <Play className="h-3.5 w-3.5" />
-                  {platform.workout.startWorkout}
-                </Button>
-              </StartWorkoutLoadingShell>
-            </div>
-          ) : null
         ) : (
           <div className={headerActionsGroup}>
             <Link

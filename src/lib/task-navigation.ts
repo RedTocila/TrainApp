@@ -3,6 +3,7 @@ import {
   DASHBOARD_DAY_NUTRITION_PATH,
   DASHBOARD_DAY_WORKOUT_PATH,
 } from "@/lib/dashboard-day-routes";
+import { scrollDashboardElementIntoView } from "@/lib/dashboard-scroll";
 
 export interface TaskDestination {
   href: string;
@@ -66,18 +67,7 @@ export function scrollToSection(sectionId: string): boolean {
   const el = document.getElementById(sectionId);
   if (!el) return false;
 
-  const main = document.querySelector<HTMLElement>(".dashboard-main");
-  if (main) {
-    const header = main.querySelector<HTMLElement>("header");
-    const headerHeight = header?.offsetHeight ?? 0;
-    const mainRect = main.getBoundingClientRect();
-    const elRect = el.getBoundingClientRect();
-    const targetTop = main.scrollTop + (elRect.top - mainRect.top) - headerHeight - 8;
-
-    main.scrollTo({ top: Math.max(0, targetTop) });
-  } else {
-    el.scrollIntoView({ block: "start" });
-  }
+  scrollDashboardElementIntoView(el, "auto");
 
   el.classList.add("section-highlight");
   window.setTimeout(() => el.classList.remove("section-highlight"), 2000);

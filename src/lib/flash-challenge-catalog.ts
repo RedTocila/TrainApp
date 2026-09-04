@@ -83,6 +83,7 @@ export function buildFlashChallenge(template: FlashTemplate): Challenge {
     prize_paid_at: null,
     current_phase: 0,
     published: true,
+    is_active: true,
     created_at: scheduled_at,
   };
 }

@@ -113,6 +113,7 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
     registration_closes_at: (row.registration_closes_at as string | null) ?? null,
     cover_image: typeof row.cover_image === "string" ? row.cover_image : null,
     current_phase: (row.current_phase as Challenge["current_phase"]) ?? 0,
+    is_active: row.is_active !== false,
   };
 }
 
@@ -262,6 +263,7 @@ export async function createChallenge(formData: FormData) {
     formData.get("prize_pool_euros_per_participant")
   );
   const published = formData.get("published") === "on";
+  const is_active = formData.get("is_active") === "on";
   const suggested = suggestChallengeZoomDates(scheduled_at, duration_months);
   const round_1_zoom_at =
     parseOptionalScheduledAt(formData.get("round_1_zoom_at")) ?? suggested.round_1_zoom_at;
@@ -294,6 +296,7 @@ export async function createChallenge(formData: FormData) {
     round_3_zoom_at,
     cover_image,
     published,
+    is_active,
   });
 
   if (error) throw new Error(error.message);
@@ -320,6 +323,7 @@ export async function updateChallenge(id: string, formData: FormData) {
     formData.get("prize_pool_euros_per_participant")
   );
   const published = formData.get("published") === "on";
+  const is_active = formData.get("is_active") === "on";
   const round_1_zoom_at = parseOptionalScheduledAt(formData.get("round_1_zoom_at"));
   const round_2_zoom_at = parseOptionalScheduledAt(formData.get("round_2_zoom_at"));
   const round_3_zoom_at = parseOptionalScheduledAt(formData.get("round_3_zoom_at"));
@@ -350,6 +354,7 @@ export async function updateChallenge(id: string, formData: FormData) {
       round_3_zoom_at,
       cover_image,
       published,
+      is_active,
     })
     .eq("id", id);
 

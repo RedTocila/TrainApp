@@ -72,8 +72,17 @@ export function isRegistrationOpen(challenge: Challenge, now = new Date()): bool
   return now < closes;
 }
 
+/** Admin toggle — inactive challenges stay visible but cannot be joined. */
+export function isChallengeActive(
+  challenge: Pick<Challenge, "is_active">
+): boolean {
+  return challenge.is_active !== false;
+}
+
 /** Join allowed during the pre-start window or while the challenge is live. */
 export function canRegisterForChallenge(challenge: Challenge, now = new Date()): boolean {
+  if (!isChallengeActive(challenge)) return false;
+
   const status = getChallengeStatus(challenge, now);
   if (status === "ended") return false;
 

@@ -87,6 +87,7 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
     registration_opens_at: (row.registration_opens_at as string | null) ?? null,
     registration_closes_at: (row.registration_closes_at as string | null) ?? null,
     current_phase: (row.current_phase as Challenge["current_phase"]) ?? 0,
+    is_active: row.is_active !== false,
   };
 }
 
@@ -211,6 +212,10 @@ export async function registerForChallenge(challengeId: string) {
   }
 
   const challenge = rowToChallenge(challengeRow);
+
+  if (challenge.is_active === false) {
+    return { error: "This challenge is not open yet." };
+  }
 
   if (!canRegisterForChallenge(challenge)) {
     const opens = challenge.registration_opens_at

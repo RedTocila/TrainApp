@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { DashboardMobileChrome } from "@/components/dashboard-mobile-chrome";
 import { DashboardPageSkeleton } from "@/components/dashboard-page-skeleton";
 import { NutritionPageChromeProvider } from "@/components/nutrition-page-chrome-context";
-import { WorkoutPageChromeProvider } from "@/components/workout-page-chrome-context";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { TrainSectionShell } from "@/components/train-section-shell";
 import { scrollDashboardMainToTop } from "@/components/dashboard-main-reset";
@@ -28,22 +27,20 @@ export function DashboardMainArea({
 
   return (
     <NutritionPageChromeProvider>
-      <WorkoutPageChromeProvider>
-        <DashboardMobileChrome />
-        <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
-          <TrainSectionShell>
-            {showPendingSkeleton ? (
-              <div className="page-enter" key={`skeleton-${pendingHref}`}>
-                <DashboardPageSkeleton href={pendingHref} />
-              </div>
-            ) : (
-              <div className="page-enter" key={pathname}>
-                {children}
-              </div>
-            )}
-          </TrainSectionShell>
-        </div>
-      </WorkoutPageChromeProvider>
+      <DashboardMobileChrome />
+      <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
+        <TrainSectionShell>
+          {showPendingSkeleton ? (
+            <div className="page-enter" key={`skeleton-${pendingHref}`}>
+              <DashboardPageSkeleton href={pendingHref} />
+            </div>
+          ) : (
+            <div className="page-enter" key={pathname}>
+              {children}
+            </div>
+          )}
+        </TrainSectionShell>
+      </div>
     </NutritionPageChromeProvider>
   );
 }

@@ -504,6 +504,11 @@ export interface Challenge {
   prize_paid_at: string | null;
   current_phase: ChallengePhase;
   published: boolean;
+  /**
+   * When false, challenge stays visible (if published) but is greyed out
+   * and users cannot join yet. Defaults to true for existing challenges.
+   */
+  is_active?: boolean;
   created_at: string;
 }
 

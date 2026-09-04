@@ -21,6 +21,7 @@ import {
   getPrizePoolCentsPerParticipant,
   getRegistrationClosesAt,
   getRegistrationOpensAt,
+  isChallengeActive,
   MIN_PARTICIPANTS_TO_START,
 } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
@@ -148,6 +149,11 @@ export function AdminChallengesList({ challenges }: { challenges: Challenge[] })
                         </Link>
                         <Badge variant={challenge.published ? "success" : "secondary"}>
                           {challenge.published ? "Published" : "Draft"}
+                        </Badge>
+                        <Badge
+                          variant={isChallengeActive(challenge) ? "success" : "secondary"}
+                        >
+                          {isChallengeActive(challenge) ? "Active" : "Inactive"}
                         </Badge>
                         <DeleteChallengeButton challengeId={challenge.id} />
                       </div>

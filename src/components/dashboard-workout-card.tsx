@@ -29,15 +29,10 @@ import {
   getWorkoutCompletionStatusForDate,
   getCompletedWorkoutResultsForDate,
   getCompletedWorkoutResultsForSession,
-  getClientWorkoutProgression,
   type TodaysWorkoutInfo,
   type CompletedWorkoutResults,
-  type WorkoutProgressionPoint,
 } from "@/lib/actions/workout-sessions";
 import { WorkoutMuscleMap, MuscleMapLegend } from "@/components/workout-muscle-map";
-import { StartTodaysWorkoutButton, useStartWorkout } from "@/components/start-todays-workout-button";
-import { useRegisterWorkoutPageChrome } from "@/components/workout-page-chrome-context";
-import { WorkoutProgressionChart, WorkoutProgressionSkeleton } from "@/components/workout-progression-chart";
 import { formatLocalized } from "@/lib/date-locale";
 import { formatDateKey, cn } from "@/lib/utils";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
@@ -164,12 +159,6 @@ export function DashboardWorkoutCard({
   const confirmedEmptyRef = useRef<Set<string>>(new Set());
   const [addWorkoutOpen, setAddWorkoutOpen] = useState(false);
   const [removeWorkoutOpen, setRemoveWorkoutOpen] = useState(false);
-  const [progression, setProgression] = useState<WorkoutProgressionPoint[] | null>(
-    null
-  );
-  const [loadingProgression, setLoadingProgression] = useState(
-    variant === "detail"
-  );
   const workoutCacheRef = useRef<Map<string, WorkoutDayCache>>(new Map());
   const selectedDateRef = useRef(selectedDate);
   selectedDateRef.current = selectedDate;
@@ -204,27 +193,6 @@ export function DashboardWorkoutCard({
   useEffect(() => {
     router.prefetch(DASHBOARD_DAY_WORKOUT_PATH);
   }, [router]);
-
-  useEffect(() => {
-    if (variant !== "detail") return;
-    let cancelled = false;
-    setLoadingProgression(true);
-    void getClientWorkoutProgression()
-      .then((data) => {
-        if (cancelled) return;
-        setProgression(data);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setProgression([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingProgression(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [variant, version]);
 
   useEffect(() => {
     if (seedWorkouts.length === 0) return;
@@ -690,40 +658,6 @@ export function DashboardWorkoutCard({
     return dates.size;
   }, [schedule?.scheduledWorkouts, selectedDate]);
 
-  const showChromeStart =
-    variant === "detail" &&
-    !readOnly &&
-    !showCompletedState &&
-    workoutsForDay.length > 0 &&
-    isDayLoaded;
-  const { start: startChromeWorkout, isStarting: isChromeStarting } =
-    useStartWorkout(selectedDate, null, !showChromeStart, { dayFlow: true });
-  const difficultyExercises = useMemo(
-    () => focusWorkout?.exercises.map((exercise) => ({ sets: exercise.sets })) ?? null,
-    [focusWorkout]
-  );
-  const workoutChromeActions = useMemo(() => {
-    if (variant !== "detail") return null;
-    return {
-      onStartWorkout: startChromeWorkout,
-      showStart: showChromeStart,
-      showCompleted: showCompletedState,
-      disabled: !showChromeStart,
-      isStarting: isChromeStarting,
-      difficultyExercises,
-      intakeProfile: intakeProfile ?? null,
-    };
-  }, [
-    variant,
-    startChromeWorkout,
-    showChromeStart,
-    showCompletedState,
-    isChromeStarting,
-    difficultyExercises,
-    intakeProfile,
-  ]);
-  useRegisterWorkoutPageChrome(workoutChromeActions);
-
   if (variant === "hero") {
     const mainWorkout =
       workoutsForDay.find(
@@ -1129,16 +1063,6 @@ export function DashboardWorkoutCard({
               ) : null}
             </div>
           </div>
-
-          {loadingProgression ? (
-            <div className={cn(dashboard.tile, "mt-4 p-3 sm:p-3.5")}>
-              <WorkoutProgressionSkeleton />
-            </div>
-          ) : progression && progression.length > 0 ? (
-            <div className={cn(dashboard.tile, "mt-4 p-3 sm:p-3.5")}>
-              <WorkoutProgressionChart points={progression} />
-            </div>
-          ) : null}
 
           {workoutsForDay.length > 0 ? (
             <div className="mt-4 space-y-2.5">

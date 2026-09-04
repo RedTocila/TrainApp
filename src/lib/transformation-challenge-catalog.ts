@@ -132,6 +132,7 @@ export function buildTransformationChallenge(template: TransformationTemplate): 
     prize_paid_at: null,
     current_phase: 0,
     published: true,
+    is_active: true,
     created_at: scheduled_at,
   };
 }

@@ -28,6 +28,7 @@ import {
   canRegisterForChallenge,
   getChallengePhase,
   getChallengeStatus,
+  isChallengeActive,
   isChallengeAtCapacity,
 } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
@@ -68,7 +69,8 @@ export function ChallengeJoinActions({
   const entryFeeLabel = formatEurosFromCents(getChallengeEntryFeeCents(challenge));
   const maxParticipants = getChallengeMaxParticipants(challenge);
   const isFull = isChallengeAtCapacity(challenge, participantCount);
-  const canRegister = canRegisterForChallenge(challenge);
+  const active = isChallengeActive(challenge);
+  const canRegister = active && canRegisterForChallenge(challenge);
   const canLeave = canLeaveChallenge(challenge);
   const challengeStatus = getChallengeStatus(challenge);
   const isRegisteredHere =
@@ -250,8 +252,9 @@ export function ChallengeJoinActions({
       ? format(new Date(challenge.registration_opens_at), "MMM d, yyyy · h:mm a")
       : null;
     const startsAt = format(new Date(challenge.scheduled_at), "MMM d, yyyy · h:mm a");
-    const message =
-      opensAt && new Date(challenge.registration_opens_at!) > new Date()
+    const message = !active
+      ? copy.inactiveNotOpen
+      : opensAt && new Date(challenge.registration_opens_at!) > new Date()
         ? copy.registrationOpensAt.replace("{date}", opensAt)
         : challengeStatus === "upcoming"
           ? copy.registrationJoinWhenLive.replace("{date}", startsAt)
@@ -411,6 +414,14 @@ export function ChallengeRegisterButton({
   }
 
   if (!canRegister) {
+    if (!isChallengeActive(challenge)) {
+      return (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4 shrink-0" />
+          {copy.inactiveNotOpen}
+        </p>
+      );
+    }
     return null;
   }
 

@@ -38,6 +38,7 @@ function rowToChallenge(row: Record<string, unknown>): Challenge {
     entry_fee_cents: typeof row.entry_fee_cents === "number" ? row.entry_fee_cents : 0,
     registration_opens_at: (row.registration_opens_at as string | null) ?? null,
     registration_closes_at: (row.registration_closes_at as string | null) ?? null,
+    is_active: row.is_active !== false,
   };
 }
 
@@ -72,6 +73,10 @@ export async function createFlashChallengeEntryCheckout(
   const challenge = rowToChallenge(challengeRow);
   if (!isFlashChallenge(challenge)) {
     return { error: "This checkout is only for flash challenges." };
+  }
+
+  if (challenge.is_active === false) {
+    return { error: "This challenge is not open yet." };
   }
 
   if (!canRegisterForChallenge(challenge)) {

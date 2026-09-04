@@ -11,6 +11,7 @@ import { WorkoutMuscleMap } from "@/components/workout-muscle-map";
 import { WorkoutResultsDropdown } from "@/components/workout-results-dropdown";
 import { dashboard } from "@/components/dashboard-ui";
 import { Badge } from "@/components/ui/badge";
+import { scrollDashboardElementIntoView } from "@/lib/dashboard-scroll";
 import { isExtraWorkoutKind, isMainWorkoutKind } from "@/lib/hiit";
 import type { Profile } from "@/lib/types";
 import {
@@ -162,19 +163,9 @@ export function DashboardWorkoutDetailSection({
   useEffect(() => {
     if (!highlighted) return;
     if (isExtra) setOpen(true);
-    const main = document.querySelector<HTMLElement>(".dashboard-main");
     const el = sectionRef.current;
-    if (!el || !main) {
-      el?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-    const header = main.querySelector<HTMLElement>("header");
-    const headerHeight = header?.offsetHeight ?? 0;
-    const mainRect = main.getBoundingClientRect();
-    const elRect = el.getBoundingClientRect();
-    const targetTop =
-      main.scrollTop + (elRect.top - mainRect.top) - headerHeight - 8;
-    main.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+    if (!el) return;
+    scrollDashboardElementIntoView(el, "smooth");
   }, [highlighted, isExtra]);
 
   useEffect(() => {

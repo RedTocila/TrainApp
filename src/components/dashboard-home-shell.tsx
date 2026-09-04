@@ -7,7 +7,7 @@ import type { ClientSchedule } from "@/lib/daily-tasks";
 /**
  * Calendar strip + single day content for the home dashboard.
  * Day changes only via calendar taps (no horizontal swipe).
- * Vertical scroll lives on `.dashboard-main`.
+ * Vertical scroll: document on mobile (native pull-to-refresh), `.dashboard-main` on desktop.
  */
 export function DashboardHomeShell({
   clientId,

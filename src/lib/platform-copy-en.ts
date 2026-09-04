@@ -197,8 +197,6 @@ export const platformCopyEn = {
       `${done}/${total} done for ${date}`,
     today: "today",
     surrendering: "Surrendering…",
-    refreshing: "Refreshing",
-    pullToRefresh: "Pull to refresh",
     loadingDay: "Loading day",
   },
   aria: {
@@ -615,60 +613,6 @@ export const platformCopyEn = {
     addToDay: "Add to day",
     generateWorkout: "Generate workout",
     regenerateWorkout: "Regenerate workout",
-    progressionTitle: "Progression",
-    progressionVolume: "Volume",
-    progressionReps: "Total reps",
-    progressionWorkouts: "Workouts completed",
-    progressionForm: "Training form",
-    progressionTrained: "Trained",
-    progressionRest: "Rest",
-    progressionSkipped: "Missed",
-    progressionAvgWeight: "Latest avg weight",
-    progressionLastDays: "Last 2 weeks",
-    progressionLoadTitle: "Workout load",
-    progressionLoadVolumeHint: "Total weight × reps each session — up means harder work.",
-    progressionLoadRepsHint: "Total reps each session — up means more work done.",
-    progressionScoreTitle: "Progress score",
-    progressionScoreHint:
-      "Up when you lift heavier, do more reps, or finish harder HIIT — flat when you stay the same — fades if you stop for 5+ days.",
-    progressionHeadlineNew: "Start training to see your progress",
-    progressionDetailNew:
-      "After a few workouts, you'll see how consistent you've been.",
-    progressionHeadlineStronger: "You're getting stronger",
-    progressionDetailStronger:
-      "Your weights, HIIT effort, or training load have been going up. Keep it up.",
-    progressionHeadlineSteady: "You're holding steady",
-    progressionDetailSteady:
-      "Similar effort and a solid routine — consistency counts.",
-    progressionHeadlineMissed: "A few workouts were missed",
-    progressionDetailMissed: (n: number) =>
-      `You missed ${n} scheduled workout${n === 1 ? "" : "s"} recently. Getting back on track helps.`,
-    progressionHeadlineOff: "Training dipped a bit",
-    progressionDetailOff:
-      "Load or consistency dropped recently. A couple solid sessions will help.",
-    progressionEmpty:
-      "Complete workouts to see how your training has been going.",
-    progressionLatest: "Latest",
-    progressionSince: (date: string) => `since ${date}`,
-    progressionChartAria: "Progress score over time",
-    progressionQualityTitle: "Workout quality",
-    progressionQualityHint:
-      "How your recent sessions score across the parts of a workout — HIIT shines on rest density and intensity even without weights.",
-    progressionQualityAria: "Workout quality radar chart",
-    progressionQualityReps: "Reps",
-    progressionQualityRepsHint: "Total reps logged — more work volume pushes this up.",
-    progressionQualityWeight: "Weight",
-    progressionQualityWeightHint:
-      "Average load on strength days. Stays low for bodyweight / HIIT — that's expected.",
-    progressionQualityRest: "Rest",
-    progressionQualityRestHint:
-      "Work-to-rest density. Shorter rests and tight HIIT intervals score higher.",
-    progressionQualityDuration: "Duration",
-    progressionQualityDurationHint:
-      "How long you stay in the session — longer solid work raises this.",
-    progressionQualityIntensity: "Intensity",
-    progressionQualityIntensityHint:
-      "Effort pace from HIIT work intervals or strength load density.",
     noResultsLogged: "No sets were logged for this workout.",
     foldersMeta: (folders: number, programs: number) =>
       `${folders} folder${folders === 1 ? "" : "s"} · ${programs} program${programs === 1 ? "" : "s"}`,
@@ -1661,6 +1605,7 @@ export const platformCopyEn = {
       yourPosition: "Your position",
       daysProgress: "Days progress",
       registeredBadge: "Joined",
+      inactiveBadge: "Coming soon",
     },
     join: {
       registerFree: "Register (Elite · free)",
@@ -1705,6 +1650,7 @@ export const platformCopyEn = {
       leaveLockedTournamentStarted:
         "The tournament has started — you can no longer leave this challenge.",
       successLeft: "You have left the challenge.",
+      inactiveNotOpen: "This challenge is not open yet. Check back soon.",
     },
   },
   platformScore: {

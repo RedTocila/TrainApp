@@ -66,8 +66,9 @@ export async function getAdminSubscriptionOffers(): Promise<{
 }
 
 export async function getPublicActiveSubscriptionOffers(): Promise<SubscriptionOffer[]> {
-  const admin = createAdminClient();
-  const { data, error } = await admin
+  // Public RLS allows select where active = true — no service-role key needed.
+  const supabase = await createClient();
+  const { data, error } = await supabase
     .from("subscription_offers")
     .select("*")
     .eq("active", true)
