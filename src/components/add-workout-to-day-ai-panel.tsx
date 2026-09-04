@@ -42,12 +42,10 @@ import { hiitSummaryLabel } from "@/lib/hiit";
 
 export function AddWorkoutToDayAiPanel({
   dateKey,
-  dayLabel,
   onAdded,
   onFooterChange,
 }: {
   dateKey: string;
-  dayLabel: string;
   onAdded: () => void;
   onFooterChange?: (footer: ReactNode | null) => void;
 }) {
@@ -219,17 +217,20 @@ export function AddWorkoutToDayAiPanel({
     <div className="space-y-4">
       {showEditor ? (
         <>
-          <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10">
-                <Sparkles className="h-5 w-5 text-violet-400" />
+          <div className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-card p-4 shadow-sm">
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-gradient-to-br from-violet-500/18 via-card to-card"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-violet-400/25 blur-2xl"
+            />
+            <div className="relative z-10 flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-400">
+                <Sparkles className="h-5 w-5" />
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-bold">{platform.workout.aiFullDayTitle}</p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {platform.workout.aiDayWorkoutHint(dayLabel)}
-                </p>
-              </div>
+              <p className="font-bold">{platform.workout.aiFullDayTitle}</p>
             </div>
           </div>
 
@@ -266,14 +267,11 @@ export function AddWorkoutToDayAiPanel({
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">
-              {platform.workout.aiFullDayHint}
-            </p>
           </div>
 
           <Button
             type="button"
-            className="w-full gap-1.5"
+            className="h-11 w-full gap-1.5 rounded-full shadow-[0_0_14px_rgba(var(--primary-rgb),0.3)]"
             onClick={handleGenerate}
             disabled={busy}
           >

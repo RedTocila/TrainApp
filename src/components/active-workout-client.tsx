@@ -2,9 +2,8 @@
 import { useCoachCopy, useCoachLabels, usePlatformCopy, useBodyUnits } from "@/components/locale-provider";
 import { formatWeightWithUnitFromKg, type UnitSystem } from "@/lib/body-units";
 
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowLeft, Check, Clock, Loader2, Play, Plus, Square } from "lucide-react";
 import {
   addSessionExercise,
@@ -14,7 +13,6 @@ import {
   completeWorkoutSession,
   ensureWorkoutSessionExercises,
   getExerciseHistories,
-  resetWorkoutSessionTimer,
   updateSessionSet,
 } from "@/lib/actions/workout-sessions";
 import type {
@@ -37,18 +35,12 @@ import {
   estimateWorkoutDurationSeconds,
   formatElapsedClock,
   formatWorkoutDurationShort,
-  getWorkoutSetStats,
 } from "@/lib/workout-duration";
-import {
-  clearWorkoutTimerAnchor,
-  getWorkoutTimerAnchor,
-  setWorkoutTimerAnchor,
-} from "@/lib/workout-timer-storage";
+import { clearWorkoutTimerState } from "@/lib/workout-timer-storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
 function formatHistory(
@@ -71,72 +63,45 @@ function formatHistory(
   return lastLabel(parts.join(", "));
 }
 
-function useElapsedSeconds(
-  anchorMs: number | null,
-  options?: { frozenSeconds?: number | null }
-) {
-  const frozenSeconds = options?.frozenSeconds;
+function useElapsedSeconds(anchorMs: number | null) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (frozenSeconds != null || anchorMs == null) return;
+    if (anchorMs == null) return;
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
-  }, [anchorMs, frozenSeconds]);
+  }, [anchorMs]);
 
-  if (frozenSeconds != null) return frozenSeconds;
   if (anchorMs == null) return 0;
-
   return Math.max(0, Math.floor((now - anchorMs) / 1000));
 }
 
-function useWorkoutTimerAnchor(sessionId: string, dbStartedAt: string | null) {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+/** In-memory clock — resets when the workout screen remounts. */
+function useWorkoutTimer(isStarted: boolean) {
   const [anchorMs, setAnchorMs] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!dbStartedAt) {
+    if (!isStarted) {
       setAnchorMs(null);
       return;
     }
+    setAnchorMs(Date.now());
+  }, [isStarted]);
 
-    const fresh = searchParams.get("fresh") === "1";
-    let anchor: number;
+  const resetTimer = () => setAnchorMs(Date.now());
 
-    if (fresh) {
-      anchor = Date.now();
-      setWorkoutTimerAnchor(sessionId, anchor);
-      router.replace(`/dashboard/workout/session/${sessionId}`, { scroll: false });
-    } else {
-      anchor =
-        getWorkoutTimerAnchor(sessionId) ?? new Date(dbStartedAt).getTime();
-      setWorkoutTimerAnchor(sessionId, anchor);
-    }
-
-    setAnchorMs(anchor);
-  }, [dbStartedAt, router, searchParams, sessionId]);
-
-  const resetAnchor = (startedAtIso: string) => {
-    const anchor = new Date(startedAtIso).getTime();
-    setWorkoutTimerAnchor(sessionId, anchor);
-    setAnchorMs(anchor);
-  };
-
-  return { anchorMs, resetAnchor };
+  return { anchorMs, resetTimer };
 }
 
 function WorkoutTimerCard({
   anchorMs,
-  frozenSeconds,
   exercises,
 }: {
   anchorMs: number | null;
-  frozenSeconds?: number | null;
   exercises: WorkoutSessionExercise[];
 }) {
   const platform = usePlatformCopy();
-  const elapsedSeconds = useElapsedSeconds(anchorMs, { frozenSeconds });
+  const elapsedSeconds = useElapsedSeconds(anchorMs);
   const estimatedSeconds = useMemo(
     () => estimateWorkoutDurationSeconds(exercises),
     [exercises]
@@ -169,59 +134,6 @@ function WorkoutTimerCard({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function WorkoutFinishSummary({
-  elapsedSeconds,
-  exercises,
-  session,
-}: {
-  elapsedSeconds: number;
-  exercises: WorkoutSessionExercise[];
-  session: WorkoutSession;
-}) {
-  const platform = usePlatformCopy();
-  const estimatedSeconds = estimateWorkoutDurationSeconds(exercises);
-  const { exerciseCount, totalSets, loggedSets } = getWorkoutSetStats(exercises);
-
-  return (
-    <div className="rounded-lg border border-border/60 bg-background/60 p-4">
-      <p className="text-sm font-semibold">{platform.workout.finishSummaryTitle}</p>
-      <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-muted-foreground">{platform.workout.elapsed}</dt>
-          <dd className="font-medium tabular-nums">
-            {formatElapsedClock(elapsedSeconds)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">{platform.workout.estimatedTime}</dt>
-          <dd className="font-medium">
-            {formatWorkoutDurationShort(estimatedSeconds)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">{platform.workout.exercisesTile}</dt>
-          <dd className="font-medium">{platform.common.exercises(exerciseCount)}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">{platform.workout.set}</dt>
-          <dd className="font-medium">
-            {platform.workout.setsLogged(loggedSets, totalSets)}
-          </dd>
-        </div>
-        {session.plan_title && (
-          <div className="sm:col-span-2">
-            <dt className="text-muted-foreground">{platform.workout.flowProgram}</dt>
-            <dd className="font-medium">
-              {session.plan_title}
-              {session.day_title ? ` · ${session.day_title}` : ""}
-            </dd>
-          </div>
-        )}
-      </dl>
-    </div>
   );
 }
 
@@ -485,8 +397,6 @@ export function ActiveWorkoutClient({
   } = useDayWorkoutFlowContinue();
   const [newExerciseName, setNewExerciseName] = useState("");
   const [showAddExercise, setShowAddExercise] = useState(false);
-  const [showCompleteStep, setShowCompleteStep] = useState(false);
-  const [sessionNote, setSessionNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [exercises, setExercises] = useState(initialExercises);
@@ -499,17 +409,9 @@ export function ActiveWorkoutClient({
   const { confirm: confirmGiveUp, dialog: giveUpDialog, isPending: isGivingUp } =
     useSarcasticConfirm();
   const isStarted = session.started_at != null;
-  const { anchorMs: timerAnchorMs, resetAnchor } = useWorkoutTimerAnchor(
-    session.id,
-    session.started_at
-  );
-  const [frozenElapsedSeconds, setFrozenElapsedSeconds] = useState<number | null>(
-    null
-  );
-  const liveElapsedSeconds = useElapsedSeconds(timerAnchorMs, {
-    frozenSeconds: frozenElapsedSeconds,
-  });
+  const { anchorMs: timerAnchorMs, resetTimer } = useWorkoutTimer(isStarted);
   const exerciseGender = resolveProfileGender(gender);
+  const leaveHandledRef = useRef(false);
 
   useEffect(() => {
     setExercises(initialExercises);
@@ -575,6 +477,36 @@ export function ActiveWorkoutClient({
 
   const refresh = () => router.refresh();
 
+  const leaveWorkout = async (options?: { confirm?: boolean }) => {
+    if (leaveHandledRef.current) return;
+    const run = async () => {
+      leaveHandledRef.current = true;
+      setError(null);
+      const result = await cancelWorkoutSession(session.id);
+      if (result.error) {
+        leaveHandledRef.current = false;
+        setError(result.error);
+        return;
+      }
+      clearWorkoutTimerState(session.id);
+      router.push("/dashboard");
+      router.refresh();
+    };
+
+    if (options?.confirm === false) {
+      await run();
+      return;
+    }
+
+    confirmGiveUp({
+      title: coachCopy.discardWorkout.title,
+      message: coachCopy.discardWorkout.message,
+      confirmLabel: coachCopy.discardWorkout.confirm,
+      cancelLabel: coachCopy.discardWorkout.cancel,
+      onConfirm: run,
+    });
+  };
+
   const handleBeginWorkout = () => {
     setError(null);
     startTransition(async () => {
@@ -583,49 +515,10 @@ export function ActiveWorkoutClient({
         setError(result.error);
         return;
       }
-      router.push(`/dashboard/workout/session/${session.id}?fresh=1`);
+      leaveHandledRef.current = false;
+      clearWorkoutTimerState(session.id);
+      resetTimer();
       router.refresh();
-    });
-  };
-
-  const handleStopWorkout = () => {
-    confirmGiveUp({
-      title: coachCopy.resetWorkoutTimer.title,
-      message: coachCopy.resetWorkoutTimer.message,
-      confirmLabel: coachCopy.resetWorkoutTimer.confirm,
-      cancelLabel: coachCopy.resetWorkoutTimer.cancel,
-      onConfirm: async () => {
-        setError(null);
-        const result = await resetWorkoutSessionTimer(session.id);
-        if (result.error || !result.startedAt) {
-          setError(result.error ?? "Failed to reset timer");
-          return;
-        }
-        setFrozenElapsedSeconds(null);
-        resetAnchor(result.startedAt);
-        router.refresh();
-      },
-    });
-  };
-
-  const handleDiscardWorkout = () => {
-    confirmGiveUp({
-      title: coachCopy.discardWorkout.title,
-      message: coachCopy.discardWorkout.message,
-      confirmLabel: coachCopy.discardWorkout.confirm,
-      cancelLabel: coachCopy.discardWorkout.cancel,
-      onConfirm: async () => {
-        setError(null);
-        const result = await cancelWorkoutSession(session.id);
-        if (result.error) {
-          setError(result.error);
-          return;
-        }
-        clearWorkoutTimerAnchor(session.id);
-        setFrozenElapsedSeconds(null);
-        router.push("/dashboard");
-        router.refresh();
-      },
     });
   };
 
@@ -644,23 +537,25 @@ export function ActiveWorkoutClient({
     });
   };
 
-  const openFinishStep = () => {
-    setFrozenElapsedSeconds(liveElapsedSeconds);
-    setShowCompleteStep(true);
+  const handleStopWorkout = () => {
+    void leaveWorkout({ confirm: false });
   };
 
-  const handleFinishWorkout = (withNote: boolean) => {
+  const handleDiscardWorkout = () => {
+    void leaveWorkout();
+  };
+
+  const handleFinishWorkout = () => {
     setError(null);
     startTransition(async () => {
-      const result = await completeWorkoutSession(
-        session.id,
-        withNote ? sessionNote : null
-      );
+      leaveHandledRef.current = true;
+      const result = await completeWorkoutSession(session.id, null);
       if (result.error) {
+        leaveHandledRef.current = false;
         setError(result.error);
         return;
       }
-      clearWorkoutTimerAnchor(session.id);
+      clearWorkoutTimerState(session.id);
       const dateKey =
         result.scheduledDate ??
         session.scheduled_date ??
@@ -686,13 +581,18 @@ export function ActiveWorkoutClient({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-8">
-      <div className="flex flex-col gap-3">
-        <Link href="/dashboard">
-          <Button variant="ghost" size="sm" className="-ml-2 w-fit">
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            {platform.common.back}
-          </Button>
-        </Link>
+        <div className="flex flex-col gap-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="-ml-2 w-fit"
+          disabled={isPending || isGivingUp}
+          onClick={() => void leaveWorkout({ confirm: false })}
+        >
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          {platform.common.back}
+        </Button>
         <DayFlowProgress currentKind={planKind} className="justify-start px-0" />
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -726,7 +626,6 @@ export function ActiveWorkoutClient({
       {isStarted && (
         <WorkoutTimerCard
           anchorMs={timerAnchorMs}
-          frozenSeconds={frozenElapsedSeconds}
           exercises={exercises}
         />
       )}
@@ -830,76 +729,20 @@ export function ActiveWorkoutClient({
               {isPending ? platform.workout.starting : platform.workout.startWorkout}
             </Button>
           </StartWorkoutLoadingShell>
-        ) : showCompleteStep ? (
-          <Card className="border-primary/30 bg-primary/5">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">{coachLabels.actuallyFinish}</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {platform.workout.finishNote}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <WorkoutFinishSummary
-                elapsedSeconds={liveElapsedSeconds}
-                exercises={exercises}
-                session={session}
-              />
-              <div className="space-y-1">
-                <Label htmlFor="session-note">{platform.workout.noteOptional}</Label>
-                <Textarea
-                  id="session-note"
-                  placeholder={platform.workout.notePlaceholder}
-                  value={sessionNote}
-                  onChange={(e) => setSessionNote(e.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  className="flex-1"
-                  disabled={isPending || isContinuing}
-                  onClick={() => handleFinishWorkout(!!sessionNote.trim())}
-                >
-                  <Check className="mr-1 h-4 w-4" />
-                  {isPending
-                    ? platform.common.saving
-                    : sessionNote.trim()
-                      ? platform.workout.saveWithNote
-                      : platform.workout.finishWorkout}
-                </Button>
-                {sessionNote.trim() && (
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    disabled={isPending}
-                    onClick={() => handleFinishWorkout(false)}
-                  >
-                    {platform.workout.finishWithoutNote}
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  disabled={isPending}
-                  onClick={() => {
-                    setShowCompleteStep(false);
-                    setFrozenElapsedSeconds(null);
-                  }}
-                >
-                  {platform.common.back}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         ) : (
           <div className="space-y-2">
             <Button
               size="lg"
               className="w-full"
-              disabled={isPending}
-              onClick={openFinishStep}
+              disabled={isPending || isContinuing}
+              onClick={handleFinishWorkout}
             >
-              <Check className="mr-2 h-4 w-4" />
-              {coachLabels.actuallyFinish}
+              {isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              {isPending ? platform.common.saving : coachLabels.actuallyFinish}
             </Button>
             <Button
               type="button"

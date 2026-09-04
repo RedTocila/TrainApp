@@ -117,19 +117,27 @@ export function LogMealDialog({
 
   if (!open) return null;
 
-  const pickerTopOptions = [
+  const pickerOptions = [
     {
       mode: "photo" as const,
       label: platform.mealLog.photoLog,
-      description: platform.mealLog.photoDesc,
       icon: Camera,
+      accent: "primary" as const,
       ai: true,
     },
     {
       mode: "library" as const,
       label: platform.mealLog.fromLibrary,
-      description: platform.mealLog.fromLibraryDesc,
       icon: BookOpen,
+      accent: "emerald" as const,
+      ai: false,
+    },
+    {
+      mode: "text" as const,
+      label: platform.mealLog.typeIt,
+      icon: Sparkles,
+      accent: "violet" as const,
+      ai: true,
     },
   ];
 
@@ -313,9 +321,7 @@ export function LogMealDialog({
 
   const showBack = mode !== "picker";
   const canLogCustom =
-    mode === "custom" ||
-    (mode === "text" && hasAiAccess && textReady) ||
-    (mode === "picker" && hasAiAccess && textReady);
+    mode === "custom" || (mode === "text" && hasAiAccess && textReady);
   // Photo review uses a sticky Log footer (Safari chrome covers in-scroll buttons).
   const canLogPhoto = mode === "photo" && hasAiAccess && photoReady;
 
@@ -403,80 +409,82 @@ export function LogMealDialog({
   const body = (
     <>
       {mode === "picker" && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2.5">
-            {pickerTopOptions.map((option) => {
-              const Icon = option.icon;
-              const locked = option.ai && !hasAiAccess;
-              return (
-                <button
-                  key={option.mode}
-                  type="button"
-                  onClick={() => goToMode(option.mode)}
-                  className={cn(
-                    "relative flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-3.5 text-center transition-colors hover:bg-secondary/60",
-                    locked && "opacity-90"
-                  )}
-                >
-                  {option.ai && (
-                    <Badge className="absolute right-2 top-2 h-5 gap-0.5 px-1.5 text-[10px] bg-primary/15 text-primary">
-                      <Sparkles className="h-2.5 w-2.5" />
-                      AI
-                    </Badge>
-                  )}
-                  <div
-                    className={cn(
-                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-                      option.ai ? "bg-primary/15 text-primary" : "bg-muted text-foreground"
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="w-full">
-                    <span className="block text-sm font-semibold leading-tight">
-                      {option.label}
-                    </span>
-                    {locked ? (
-                      <Badge variant="secondary" className="mt-1">
-                        {platform.ai.upgrade}
-                      </Badge>
-                    ) : null}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+        <div className="grid grid-cols-3 gap-2.5">
+          {pickerOptions.map((option) => {
+            const Icon = option.icon;
+            const locked = option.ai && !hasAiAccess;
+            const accents = {
+              primary: {
+                border: "border-primary/30 hover:border-primary/55",
+                wash: "from-primary/18",
+                glow: "bg-primary/25",
+                well: "bg-primary/15 text-primary",
+              },
+              emerald: {
+                border: "border-emerald-500/30 hover:border-emerald-400/55",
+                wash: "from-emerald-500/18",
+                glow: "bg-emerald-400/25",
+                well: "bg-emerald-500/15 text-emerald-400",
+              },
+              violet: {
+                border: "border-violet-500/30 hover:border-violet-400/55",
+                wash: "from-violet-500/18",
+                glow: "bg-violet-400/25",
+                well: "bg-violet-500/15 text-violet-400",
+              },
+            }[option.accent];
 
-          <div className="rounded-xl border border-border bg-secondary/20 p-3">
-            <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
-              <span className="text-sm font-semibold">{platform.mealLog.typeIt}</span>
-              <Badge className="h-5 gap-0.5 px-1.5 text-[10px] bg-primary/15 text-primary">
-                <Sparkles className="h-2.5 w-2.5" />
-                AI
-              </Badge>
-            </div>
-            {hasAiAccess ? (
-              <MealTextLogStep
-                form={form}
-                onFormChange={setForm}
-                onError={setError}
-                onReadyChange={setTextReady}
-                confidence={aiConfidence}
-                onConfidenceChange={setAiConfidence}
-                compact
-              />
-            ) : (
-              <div className="space-y-3 text-center">
-                <Link
-                  href={buildPricingHref(pathname)}
-                  className={buttonVariants({ className: "w-full" })}
-                  onClick={onClose}
+            return (
+              <button
+                key={option.mode}
+                type="button"
+                onClick={() => goToMode(option.mode)}
+                className={cn(
+                  "group relative flex aspect-square flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border bg-card p-2.5 shadow-sm",
+                  "transition-[transform,border-color] duration-200 active:scale-[0.98]",
+                  accents.border,
+                  locked && "opacity-90"
+                )}
+              >
+                <div
+                  aria-hidden
+                  className={cn(
+                    "absolute inset-0 bg-gradient-to-br via-card to-card",
+                    accents.wash
+                  )}
+                />
+                <div
+                  aria-hidden
+                  className={cn(
+                    "pointer-events-none absolute -right-4 -top-5 h-16 w-16 rounded-full blur-2xl",
+                    accents.glow
+                  )}
+                />
+                {option.ai ? (
+                  <span className="absolute right-1.5 top-1.5 z-10 inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    AI
+                  </span>
+                ) : null}
+                <span
+                  className={cn(
+                    "relative z-10 flex h-11 w-11 items-center justify-center rounded-full",
+                    accents.well
+                  )}
                 >
-                  View AI plan
-                </Link>
-              </div>
-            )}
-          </div>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="relative z-10 text-center text-[11px] font-bold leading-tight">
+                  {option.label}
+                </span>
+                {locked ? (
+                  <Badge variant="secondary" className="relative z-10 mt-0.5 h-5 px-1.5 text-[9px]">
+                    {platform.ai.upgrade}
+                  </Badge>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -722,6 +730,7 @@ export function LogMealDialog({
       <AppOverlayPanel
         fullscreen={isPhotoFullscreen}
         showHandle={!isPhotoFullscreen}
+        dismissible={!isSaving && !isPhotoCaptureFullscreen}
         maxWidth="max-w-lg"
         aria-label={
           isPhotoFullscreen ? platform.mealLog.photoLog : platform.mealLog.logAMeal

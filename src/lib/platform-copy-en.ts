@@ -383,7 +383,7 @@ export const platformCopyEn = {
     readyToStart: "Ready to start",
     startWorkout: "Start workout",
     starting: "Starting…",
-    stopWorkout: "Reset timer",
+    stopWorkout: "Stop workout",
     stop: "Stop",
     discardWorkout: "Discard workout",
     hideVideo: "Hide video",
@@ -546,11 +546,9 @@ export const platformCopyEn = {
     sessionTypeHint:
       "You can add a warm-up, one main workout, and stretching on the same day.",
     aiFullDayTitle: "Full training day",
-    aiFullDayPromptLabel: "What should today’s training focus on?",
+    aiFullDayPromptLabel: "Focus",
     aiFullDayPlaceholder:
       "e.g. upper body push… or HIIT 20 min bodyweight…",
-    aiFullDayHint:
-      "AI builds warm-up + main workout + stretching together for this day.",
     generateFullDay: "Generate full day",
     buildingFullDay: "Building warm-up, main & stretch…",
     addFullDay: "Add full day",

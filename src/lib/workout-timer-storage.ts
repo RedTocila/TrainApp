@@ -1,17 +1,11 @@
-const STORAGE_PREFIX = "workout-timer-anchor-";
+/** Legacy cleanup only — active timer is in-memory and resets when you leave. */
 
-export function getWorkoutTimerAnchor(sessionId: string): number | null {
-  if (typeof window === "undefined") return null;
-  const raw = sessionStorage.getItem(`${STORAGE_PREFIX}${sessionId}`);
-  if (!raw) return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-export function setWorkoutTimerAnchor(sessionId: string, anchorMs: number) {
-  sessionStorage.setItem(`${STORAGE_PREFIX}${sessionId}`, String(anchorMs));
-}
-
-export function clearWorkoutTimerAnchor(sessionId: string) {
-  sessionStorage.removeItem(`${STORAGE_PREFIX}${sessionId}`);
+export function clearWorkoutTimerState(sessionId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(`workout-timer-v2-${sessionId}`);
+    sessionStorage.removeItem(`workout-timer-anchor-${sessionId}`);
+  } catch {
+    /* ignore */
+  }
 }

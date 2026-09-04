@@ -1129,11 +1129,13 @@ export async function startWorkout({
       };
     }
 
-    return {
-      sessionId: existing.id,
-      resumed: true,
-      started: existing.started_at != null,
-    };
+    // Leaving the session abandons it — starting again creates a fresh session.
+    await admin
+      .from("workout_sessions")
+      .update({ status: "cancelled" })
+      .eq("id", existing.id)
+      .eq("client_id", userId)
+      .eq("status", "in_progress");
   }
 
   const { data: day } = await admin

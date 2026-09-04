@@ -10,7 +10,10 @@ import { redirect } from "next/navigation";
 import { ScoreGauge } from "@/components/ai/score-gauge";
 import { ProgressPredictionStats } from "@/components/progress-prediction-stats";
 import { WeightChart } from "@/components/weight-chart";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  PremiumSurface,
+  PremiumSurfaceHeader,
+} from "@/components/premium-surface";
 import { LineChart } from "lucide-react";
 
 export default async function AiPredictionsPage() {
@@ -41,49 +44,41 @@ export default async function AiPredictionsPage() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="space-y-4 p-4">
-          <div className="flex items-center gap-2">
-            <LineChart className="h-5 w-5 text-primary" />
-            <p className="font-bold">Your projection</p>
-          </div>
+      <PremiumSurface accent="amber" rounded="3xl" className="p-4 sm:p-5">
+        <PremiumSurfaceHeader icon={LineChart} title="Your projection" accent="amber" />
 
-          <div className="flex flex-wrap items-center justify-center gap-6">
-            {prediction.goal_progress_pct != null && (
-              <ScoreGauge
-                score={prediction.goal_progress_pct}
-                label={copy.goalProgress}
-                colorClass="text-primary"
-                size="lg"
-              />
-            )}
-          </div>
-
-          <ProgressPredictionStats prediction={prediction} />
-
-          {prediction.summary && (
-            <p className="rounded-lg bg-secondary/40 px-3 py-2 text-center text-sm text-muted-foreground">
-              {prediction.summary}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {weightHistory.length > 1 && (
-        <Card>
-          <CardContent className="space-y-3 p-4">
-            <div className="flex items-center gap-2">
-              <LineChart className="h-5 w-5 text-primary" />
-              <p className="font-bold">Weight trend</p>
-            </div>
-            <WeightChart
-              entries={weightHistory}
-              startWeightKg={profile.intake_weight_kg}
-              startDate={profile.created_at?.slice(0, 10) ?? null}
+        <div className="flex flex-wrap items-center justify-center gap-6">
+          {prediction.goal_progress_pct != null && (
+            <ScoreGauge
+              score={prediction.goal_progress_pct}
+              label={copy.goalProgress}
+              colorClass="text-amber-400"
+              size="lg"
             />
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </div>
+
+        <div className="mt-4">
+          <ProgressPredictionStats prediction={prediction} />
+        </div>
+
+        {prediction.summary ? (
+          <p className="mt-4 rounded-2xl border border-border/50 bg-background/40 px-3 py-2.5 text-center text-sm text-muted-foreground backdrop-blur-sm">
+            {prediction.summary}
+          </p>
+        ) : null}
+      </PremiumSurface>
+
+      {weightHistory.length > 1 ? (
+        <PremiumSurface accent="primary" className="p-4 sm:p-5">
+          <PremiumSurfaceHeader icon={LineChart} title="Weight trend" accent="primary" />
+          <WeightChart
+            entries={weightHistory}
+            startWeightKg={profile.intake_weight_kg}
+            startDate={profile.created_at?.slice(0, 10) ?? null}
+          />
+        </PremiumSurface>
+      ) : null}
     </div>
   );
 }

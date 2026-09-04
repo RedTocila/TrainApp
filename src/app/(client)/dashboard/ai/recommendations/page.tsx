@@ -7,7 +7,10 @@ import { buildPricingHref } from "@/lib/pricing-nav";
 import { redirect } from "next/navigation";
 import { StatBar } from "@/components/ai/stat-bar";
 import { TipCard } from "@/components/ai/tip-card";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  PremiumSurface,
+  PremiumSurfaceHeader,
+} from "@/components/premium-surface";
 import {
   Activity,
   Apple,
@@ -98,25 +101,22 @@ export default async function AiRecommendationsPage() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="space-y-3 p-4">
-          <div className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            <p className="font-bold">Last 7 days</p>
-          </div>
+      <PremiumSurface accent="violet" rounded="3xl" className="p-4 sm:p-5">
+        <PremiumSurfaceHeader icon={Target} title="Last 7 days" accent="violet" />
+        <div className="space-y-3">
           <StatBar
             label={copy.workouts}
             value={ctx.workoutsCompleted}
             max={4}
             icon={Dumbbell}
-            accentClass="bg-blue-500"
+            accentClass="bg-violet-500"
           />
           <StatBar
             label={copy.mealsTracked}
             value={ctx.daysTracked}
             max={7}
             icon={CalendarCheck}
-            accentClass="bg-green-500"
+            accentClass="bg-emerald-500"
           />
           <StatBar
             label={copy.avgProtein}
@@ -126,10 +126,10 @@ export default async function AiRecommendationsPage() {
             icon={Apple}
             accentClass="bg-amber-500"
           />
-        </CardContent>
-      </Card>
+        </div>
+      </PremiumSurface>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {platform.ai.tips}
         </p>

@@ -32,7 +32,7 @@ import {
   type TodaysWorkoutInfo,
   type CompletedWorkoutResults,
 } from "@/lib/actions/workout-sessions";
-import { WorkoutMuscleMap, MuscleMapLegend } from "@/components/workout-muscle-map";
+import { WorkoutMuscleMap } from "@/components/workout-muscle-map";
 import { formatLocalized } from "@/lib/date-locale";
 import { formatDateKey, cn } from "@/lib/utils";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
@@ -758,48 +758,43 @@ export function DashboardWorkoutCard({
             {hasWorkout && workout ? (
               <>
                 {exerciseCount > 0 ? (
-                  <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] items-center gap-3">
-                    <div className="flex min-w-0 flex-col gap-3">
-                      <div className="space-y-2 px-0.5 py-0.5">
-                        {durationLabel ? (
-                          <p className="flex items-center gap-1.5 text-xs font-medium text-foreground/85">
-                            <Clock
-                              className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-300"
-                              aria-hidden
-                            />
-                            <span className="tabular-nums">{durationLabel}</span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {platform.workout.estimatedTimeCompact}
-                            </span>
-                          </p>
-                        ) : null}
-                        <p className="flex items-center gap-1.5 text-xs font-medium text-foreground/85">
-                          <List
-                            className="h-3.5 w-3.5 shrink-0 text-primary"
+                  <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-center gap-2 sm:gap-3">
+                    <div className="flex min-w-0 flex-col justify-center gap-3.5 py-1">
+                      {durationLabel ? (
+                        <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground/90 sm:text-base">
+                          <Clock
+                            className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-300"
                             aria-hidden
                           />
-                          <span>{platform.common.exercises(exerciseCount)}</span>
+                          <span className="tabular-nums">{durationLabel}</span>
+                          <span className="text-xs font-medium text-muted-foreground sm:text-sm">
+                            {platform.workout.estimatedTimeCompact}
+                          </span>
                         </p>
-                        <p className="flex items-center gap-1.5 text-xs font-medium text-foreground/85">
-                          <Layers
-                            className="h-3.5 w-3.5 shrink-0 text-primary"
+                      ) : null}
+                      <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground/90 sm:text-base">
+                        <List
+                          className="h-5 w-5 shrink-0 text-primary"
+                          aria-hidden
+                        />
+                        <span>{platform.common.exercises(exerciseCount)}</span>
+                      </p>
+                      <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground/90 sm:text-base">
+                        <Layers
+                          className="h-5 w-5 shrink-0 text-primary"
+                          aria-hidden
+                        />
+                        <span>{platform.workout.setsCount(totalSets)}</span>
+                      </p>
+                      {kcalLabel ? (
+                        <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground/90 sm:text-base">
+                          <Flame
+                            className="h-5 w-5 shrink-0 text-orange-500"
                             aria-hidden
                           />
-                          <span>{platform.workout.setsCount(totalSets)}</span>
+                          <span className="tabular-nums">{kcalLabel}</span>
                         </p>
-                        {kcalLabel ? (
-                          <p className="flex items-center gap-1.5 text-xs font-medium text-foreground/85">
-                            <Flame
-                              className="h-3.5 w-3.5 shrink-0 text-orange-500"
-                              aria-hidden
-                            />
-                            <span className="tabular-nums">{kcalLabel}</span>
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="border-t border-border/40 pt-3">
-                        <MuscleMapLegend layout="column" />
-                      </div>
+                      ) : null}
                     </div>
                     <div className="relative min-w-0">
                       <WorkoutMuscleMap
@@ -825,7 +820,7 @@ export function DashboardWorkoutCard({
                           {durationLabel ? ` · ${durationLabel}` : null}
                         </p>
                       </div>
-                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500">
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
                         <Check className="h-5 w-5" strokeWidth={2.5} />
                       </span>
                     </div>
@@ -840,7 +835,7 @@ export function DashboardWorkoutCard({
                           {durationLabel ? ` · ${durationLabel}` : null}
                         </p>
                       </div>
-                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                         <Play className="h-4 w-4" />
                       </span>
                     </div>

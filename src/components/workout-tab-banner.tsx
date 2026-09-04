@@ -1,9 +1,8 @@
 "use client";
-import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
+import { usePlatformCopy } from "@/components/locale-provider";
 
-import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import { Check, Dumbbell } from "lucide-react";
+import { Check } from "lucide-react";
 import {
   getWorkoutCategoryStyle,
   inferWorkoutCategoryFromText,
@@ -18,86 +17,43 @@ import {
   sectionCompletedCardClass,
 } from "@/components/section-completed-badge";
 import {
-  getInProgressSession,
   isWorkoutCompletedOnDate,
   resolveWorkoutForDate,
   type TodaysWorkoutInfo,
 } from "@/lib/actions/workout-sessions";
 import { formatDateKey } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function WorkoutTabBanner({
   clientId,
   initialWorkout,
-  initialInProgressSessionId,
   initialWorkoutCompleted = false,
 }: {
   clientId: string;
   initialWorkout: TodaysWorkoutInfo | null;
-  initialInProgressSessionId: string | null;
+  /** @deprecated Leaving abandons via Start — no resume banner. */
+  initialInProgressSessionId?: string | null;
   initialWorkoutCompleted?: boolean;
 }) {
-  const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const { selectedDate, todayKey } = useSelectedDate();
   const { version, patches } = useDashboardSync();
   const [workout, setWorkout] = useState(initialWorkout);
   const [workoutCompleted, setWorkoutCompleted] = useState(initialWorkoutCompleted);
-  const [inProgressSessionId, setInProgressSessionId] = useState(
-    initialInProgressSessionId
-  );
-  const [inProgressStarted, setInProgressStarted] = useState(false);
   const [, startTransition] = useTransition();
 
   useEffect(() => {
     const dateKey = formatDateKey(selectedDate);
     startTransition(async () => {
-      const [resolved, inProgress, completed] = await Promise.all([
+      const [resolved, completed] = await Promise.all([
         resolveWorkoutForDate(clientId, dateKey),
-        getInProgressSession(),
         isWorkoutCompletedOnDate(clientId, dateKey),
       ]);
       setWorkout(resolved);
-      setInProgressSessionId(inProgress?.id ?? null);
-      setInProgressStarted(inProgress?.started_at != null);
       setWorkoutCompleted(completed);
     });
   }, [selectedDate, todayKey, clientId, version]);
-
-  if (inProgressSessionId) {
-    return (
-      <Card id="dashboard-workout" className="border-primary/40 bg-primary/5">
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2.5">
-              <Dumbbell className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold">
-                {inProgressStarted
-                  ? coachLabels.workoutInProgress
-                  : platform.workout.readyToStart}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {inProgressStarted
-                  ? coachLabels.pickUpWorkout
-                  : platform.workout.startWorkout}
-              </p>
-            </div>
-          </div>
-          <Link href={`/dashboard/workout/session/${inProgressSessionId}`}>
-            <Button size="sm">
-              {inProgressStarted
-                ? coachLabels.getBackInThere
-                : platform.workout.startWorkout}
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-    );
-  }
 
   if (!workout) return null;
 

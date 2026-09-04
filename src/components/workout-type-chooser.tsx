@@ -18,47 +18,59 @@ export function WorkoutTypeChooser({
   const platform = usePlatformCopy();
 
   return (
-    <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
+    <div className={cn("grid grid-cols-2 gap-2.5", className)}>
       <button
         type="button"
         onClick={() => onChange("strength")}
         className={cn(
-          "rounded-2xl border p-5 text-left transition-colors",
+          "group relative flex aspect-square flex-col items-center justify-center gap-2.5 overflow-hidden rounded-2xl border bg-card p-3 shadow-sm",
+          "transition-[transform,border-color] duration-200 active:scale-[0.98]",
           value === "strength"
-            ? "border-primary bg-primary/10"
-            : "border-border/60 bg-card/80 hover:border-border hover:bg-secondary/40"
+            ? "border-primary/55"
+            : "border-primary/30 hover:border-primary/55"
         )}
       >
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15">
-          <Dumbbell className="h-5 w-5 text-primary" />
-        </div>
-        <p className="mt-4 text-lg font-black tracking-tight">
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-br from-primary/18 via-card to-card"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-4 -top-5 h-16 w-16 rounded-full bg-primary/25 blur-2xl"
+        />
+        <span className="relative z-10 flex h-11 w-11 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <Dumbbell className="h-5 w-5" />
+        </span>
+        <span className="relative z-10 text-center text-[12px] font-bold leading-tight">
           {platform.workout.fitnessWorkout}
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {platform.workout.fitnessWorkoutDesc}
-        </p>
+        </span>
       </button>
 
       <button
         type="button"
         onClick={() => onChange("hiit")}
         className={cn(
-          "rounded-2xl border p-5 text-left transition-colors",
+          "group relative flex aspect-square flex-col items-center justify-center gap-2.5 overflow-hidden rounded-2xl border bg-card p-3 shadow-sm",
+          "transition-[transform,border-color] duration-200 active:scale-[0.98]",
           value === "hiit"
-            ? "border-fuchsia-500/70 bg-fuchsia-500/10"
-            : "border-border/60 bg-card/80 hover:border-border hover:bg-secondary/40"
+            ? "border-fuchsia-500/70"
+            : "border-fuchsia-500/30 hover:border-fuchsia-400/55"
         )}
       >
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-fuchsia-500/15">
-          <Zap className="h-5 w-5 text-fuchsia-400" />
-        </div>
-        <p className="mt-4 text-lg font-black tracking-tight">
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/18 via-card to-card"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-4 -top-5 h-16 w-16 rounded-full bg-fuchsia-400/25 blur-2xl"
+        />
+        <span className="relative z-10 flex h-11 w-11 items-center justify-center rounded-full bg-fuchsia-500/15 text-fuchsia-400">
+          <Zap className="h-5 w-5" />
+        </span>
+        <span className="relative z-10 text-center text-[12px] font-bold leading-tight">
           {platform.workout.hiitWorkout}
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {platform.workout.hiitWorkoutDesc}
-        </p>
+        </span>
       </button>
     </div>
   );

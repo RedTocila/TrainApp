@@ -332,12 +332,16 @@ export function DashboardWorkoutDetailSection({
       ref={sectionRef}
       id={`workout-${workoutKey}`}
       className={cn(
-        "relative scroll-mt-24 space-y-4 rounded-2xl border p-4 sm:p-5",
+        "relative scroll-mt-24 space-y-4 overflow-hidden rounded-2xl border p-4 shadow-sm sm:p-5",
         containerTone,
         highlighted && "ring-1 ring-primary/30"
       )}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-primary/20 blur-2xl"
+      />
+      <div className="relative z-10 flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2
@@ -382,7 +386,7 @@ export function DashboardWorkoutDetailSection({
             />
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="relative z-10 flex shrink-0 items-center gap-2">
           {canStart ? (
             <StartTodaysWorkoutButton
               date={selectedDate}
@@ -396,7 +400,7 @@ export function DashboardWorkoutDetailSection({
       </div>
 
       {showBody ? (
-        <>
+        <div className="relative z-10 space-y-4">
           {showMuscleMap && mapExercises.length > 0 ? (
             <div className={cn(dashboard.tile, "p-4 sm:p-5")}>
               <WorkoutMuscleMap
@@ -424,7 +428,7 @@ export function DashboardWorkoutDetailSection({
               />
             ) : null
           ) : null}
-        </>
+        </div>
       ) : null}
     </section>
   );

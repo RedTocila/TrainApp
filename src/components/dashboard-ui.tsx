@@ -1,17 +1,17 @@
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Shared dashboard surface tokens — quiet cards, accent via content not chrome. */
+/** Shared dashboard surface tokens — AI Coach chrome: accent borders, soft depth. */
 export const dashboard = {
-  tile: "rounded-2xl border border-border/50 bg-card transition-[border-color,background-color,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+  tile: "rounded-2xl border border-border/60 bg-card shadow-sm transition-[border-color,background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   tileInteractive:
-    "pressable rounded-2xl border border-border/50 bg-card transition-[border-color,background-color,transform,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-border hover:bg-card active:scale-[0.99]",
+    "pressable rounded-2xl border border-border/60 bg-card shadow-sm transition-[border-color,background-color,transform,opacity,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-primary/35 hover:shadow-md active:scale-[0.99]",
   metricTile:
-    "flex min-h-[9.5rem] flex-col justify-between rounded-2xl border border-border/50 bg-card p-3 transition-[border-color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+    "relative flex min-h-[9.5rem] flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-card p-3 shadow-sm transition-[border-color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   heroTile:
-    "flex items-center justify-between gap-4 rounded-2xl border border-border/50 bg-card p-4 transition-[border-color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-5",
+    "relative flex items-center justify-between gap-4 overflow-hidden rounded-3xl border border-border/60 bg-card p-4 shadow-sm transition-[border-color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-5",
   listRow:
-    "flex items-center gap-3 rounded-xl bg-secondary/35 p-3 transition-[background-color,transform,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+    "flex items-center gap-3 rounded-2xl border border-border/50 bg-secondary/35 p-3 transition-[background-color,transform,opacity,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   empty:
     "rounded-2xl border border-dashed border-border/60 bg-secondary/20 px-4 py-6 text-center text-sm text-muted-foreground",
   section: "space-y-4",
@@ -21,11 +21,11 @@ export const dashboard = {
   heroValue: "text-4xl font-black tabular-nums tracking-tight sm:text-5xl",
   metricValue: "text-2xl font-black tabular-nums leading-none",
   label: "text-xs text-muted-foreground",
-  completedTile: "border-green-500/25 bg-green-500/5",
-  missedTile: "border-red-500/25 bg-red-500/5",
-  warningTile: "border-orange-500/30 bg-orange-500/5",
+  completedTile: "border-green-500/35 bg-green-500/5",
+  missedTile: "border-red-500/35 bg-red-500/5",
+  warningTile: "border-orange-500/40 bg-orange-500/5",
   chipButton:
-    "pressable inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur-sm transition-[transform,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] active:scale-[0.97] active:opacity-90 hover:border-primary/30 hover:bg-background/80 dark:bg-background/40",
+    "pressable inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur-sm transition-[transform,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] active:scale-[0.97] active:opacity-90 hover:border-primary/50 hover:bg-primary/10 dark:bg-background/40",
   /**
    * Side-by-side water/cardio tiles — matching min-height (never height:100%).
    * iPad Safari + % heights collapses the row so BMI paints over the pair.
@@ -41,7 +41,7 @@ export const dashboard = {
   dropdownPanelBelowEnd: "absolute right-0 top-full z-30 mt-1",
   /** Cursor-style stack: main bar + attached tail sharing one outer border. */
   attachedDropdown:
-    "overflow-hidden rounded-2xl border border-border/50 bg-card transition-[border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+    "overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-[border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   attachedDropdownMain:
     "flex items-start gap-3 px-3 py-2.5",
   attachedDropdownTail:
@@ -52,7 +52,7 @@ export const dashboard = {
     "flex w-full touch-manipulation select-none items-start gap-3 px-3 py-2.5 text-left text-sm transition-[background-color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-secondary/80 active:bg-secondary/60",
   /** Detached menu surface (floats outside the trigger border box). */
   dropdownPanel:
-    "overflow-hidden rounded-xl border border-border bg-card shadow-xl ring-1 ring-border/30",
+    "overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl ring-1 ring-border/30",
 } as const;
 
 export function DashboardTile({
@@ -154,7 +154,22 @@ export function DashboardSectionHeader({
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <div className={cn(dashboard.cardTitle, "flex-wrap")}>
-          <Icon className={cn("h-5 w-5 shrink-0", iconClassName)} />
+          <span
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15",
+              iconClassName.includes("emerald") && "bg-emerald-500/15",
+              iconClassName.includes("sky") && "bg-sky-500/15",
+              iconClassName.includes("orange") && "bg-orange-500/15",
+              iconClassName.includes("violet") && "bg-violet-500/15",
+              iconClassName.includes("amber") && "bg-amber-500/15",
+              iconClassName.includes("yellow") && "bg-amber-500/15",
+              iconClassName.includes("teal") && "bg-teal-500/15",
+              iconClassName.includes("rose") && "bg-rose-500/15",
+              iconClassName.includes("fuchsia") && "bg-fuchsia-500/15"
+            )}
+          >
+            <Icon className={cn("h-4 w-4 shrink-0", iconClassName)} />
+          </span>
           <span className="min-w-0">{title}</span>
           {badge}
         </div>

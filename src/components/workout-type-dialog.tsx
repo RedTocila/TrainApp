@@ -23,7 +23,6 @@ export function WorkoutTypeDialog({
       open={open}
       onClose={onClose}
       title={platform.workout.chooseWorkoutType}
-      description={platform.workout.chooseWorkoutTypeDesc}
       ariaLabel={platform.workout.chooseWorkoutType}
       maxWidth="max-w-lg"
     >

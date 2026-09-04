@@ -386,7 +386,7 @@ export const platformCopyAl = {
     readyToStart: "Gati për të filluar",
     startWorkout: "Fillo stërvitjen",
     starting: "Duke filluar…",
-    stopWorkout: "Rivendos kohëmatësin",
+    stopWorkout: "Ndalo stërvitjen",
     stop: "Ndalo",
     discardWorkout: "Hidh stërvitjen",
     hideVideo: "Fshih videon",
@@ -556,11 +556,9 @@ export const platformCopyAl = {
     sessionTypeHint:
       "Mund të shtosh ngrohje, një stërvitje kryesore dhe shtrirje në të njëjtën ditë.",
     aiFullDayTitle: "Ditë e plotë stërvitjeje",
-    aiFullDayPromptLabel: "Ku duhet të fokusohet stërvitja e sotme?",
+    aiFullDayPromptLabel: "Fokus",
     aiFullDayPlaceholder:
       "p.sh. upper body push… ose HIIT 20 min me peshën e trupit…",
-    aiFullDayHint:
-      "AI ndërton ngrohje + stërvitjen kryesore + shtrirje së bashku për këtë ditë.",
     generateFullDay: "Gjenero ditën e plotë",
     buildingFullDay: "Duke ndërtuar ngrohje, kryesore & shtrirje…",
     addFullDay: "Shto ditën e plotë",
