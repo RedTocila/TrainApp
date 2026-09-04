@@ -29,7 +29,7 @@ export default async function NewClassPage() {
             <CardTitle>Class details</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={createClass} encType="multipart/form-data" className="space-y-4">
+            <form action={createClass} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input id="title" name="title" required placeholder="Full-body strength live" />

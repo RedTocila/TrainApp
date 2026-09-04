@@ -27,7 +27,7 @@ export default async function NewChallengePage() {
             <CardTitle>Challenge details</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={createChallenge} encType="multipart/form-data" className="space-y-4">
+            <form action={createChallenge} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input id="title" name="title" required placeholder="100-person fitness challenge" />

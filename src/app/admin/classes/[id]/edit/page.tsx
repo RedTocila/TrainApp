@@ -45,7 +45,7 @@ export default async function EditClassPage({
             <CardTitle>{fitnessClass.title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form action={updateWithId} encType="multipart/form-data" className="space-y-4">
+            <form action={updateWithId} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input id="title" name="title" required defaultValue={fitnessClass.title} />

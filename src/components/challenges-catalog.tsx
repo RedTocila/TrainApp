@@ -273,48 +273,26 @@ function CatalogChallengeCard({
 
 export function ChallengesCatalog({
   challenges,
-  profileGender,
   memberships = {},
   requiresUpgrade = false,
 }: {
   challenges: Challenge[];
-  profileGender?: string | null;
   memberships?: Record<string, ChallengeCardMembership>;
   requiresUpgrade?: boolean;
 }) {
   const platform = usePlatformCopy();
   const catalog = platform.challenges.catalog as {
-    longSubtitle: string;
-    longSubtitleMen?: string;
-    longSubtitleWomen?: string;
-    flashSubtitle: string;
-    flashSubtitleAlex?: string;
     allTag: string;
-    allSubtitle: string;
     flashTag: string;
     menTag: string;
     womenTag: string;
   };
-  const longSubtitle =
-    profileGender === "female" && catalog.longSubtitleWomen
-      ? catalog.longSubtitleWomen
-      : catalog.longSubtitleMen ?? catalog.longSubtitle;
-  const flashSubtitle = catalog.flashSubtitleAlex ?? catalog.flashSubtitle;
   const counts = useMemo(() => countChallengesByCategory(challenges), [challenges]);
   const [category, setCategory] = useState<ChallengeListCategory>("all");
   const visibleChallenges = useMemo(
     () => filterChallengesByCategory(challenges, category),
     [challenges, category]
   );
-
-  const categorySubtitle =
-    category === "flash"
-      ? flashSubtitle
-      : category === "men"
-        ? catalog.longSubtitleMen ?? longSubtitle
-        : category === "women"
-          ? catalog.longSubtitleWomen ?? longSubtitle
-          : catalog.allSubtitle;
 
   if (challenges.length === 0) {
     return (
@@ -339,8 +317,6 @@ export function ChallengesCatalog({
           women: catalog.womenTag,
         }}
       />
-
-      <p className="text-sm text-muted-foreground">{categorySubtitle}</p>
 
       {visibleChallenges.length === 0 ? (
         <Card className="border-dashed">

@@ -25,7 +25,6 @@ export default async function ClassesPage() {
       <LiveHubPage
         classes={classes}
         challenges={challenges}
-        profileGender={profile.gender}
         memberships={memberships}
         requiresUpgrade={requiresUpgrade}
       />

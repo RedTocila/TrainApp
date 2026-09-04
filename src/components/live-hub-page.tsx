@@ -13,13 +13,11 @@ type LiveTab = "classes" | "challenges";
 export function LiveHubPage({
   classes,
   challenges,
-  profileGender,
   memberships = {},
   requiresUpgrade = false,
 }: {
   classes: FitnessClass[];
   challenges: Challenge[];
-  profileGender?: string | null;
   memberships?: Record<string, import("@/lib/actions/challenges").ChallengeCardMembership>;
   requiresUpgrade?: boolean;
 }) {
@@ -88,7 +86,6 @@ export function LiveHubPage({
             )}
             <ChallengesCatalog
               challenges={challenges}
-              profileGender={profileGender}
               memberships={memberships}
               requiresUpgrade={requiresUpgrade}
             />
