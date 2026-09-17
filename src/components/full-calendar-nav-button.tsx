@@ -19,7 +19,7 @@ export function FullCalendarNavButton({ className }: { className?: string }) {
       type="button"
       variant="outline"
       size="icon"
-      className={cn("h-8 w-8 shrink-0 rounded-full sm:h-9 sm:w-9", className)}
+      className={cn("h-[var(--control-height)] w-[var(--control-height)] shrink-0 rounded-full sm:h-[var(--control-height)] sm:w-[var(--control-height)]", className)}
       onClick={openCalendar}
       aria-label={platform.calendar.fullCalendar}
     >

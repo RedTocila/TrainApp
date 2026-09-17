@@ -1041,29 +1041,48 @@ export async function getExerciseHistory(
 
   if (!sessions?.length) return null;
 
-  for (const session of sessions) {
-    let exerciseQuery = supabase
-      .from("workout_session_exercises")
-      .select("id, exercise_id, name")
-      .eq("session_id", session.id);
-
-    if (exerciseId) {
-      exerciseQuery = exerciseQuery.eq("exercise_id", exerciseId);
-    } else {
-      exerciseQuery = exerciseQuery.ilike("name", exerciseName);
-    }
-
-    const { data: recentExercise } = await exerciseQuery.maybeSingle();
-    if (!recentExercise) continue;
-
+  const loadSetsForExercise = async (sessionExerciseId: string) => {
     const { data: sets } = await supabase
       .from("workout_session_sets")
       .select("reps, weight_kg")
-      .eq("session_exercise_id", recentExercise.id)
+      .eq("session_exercise_id", sessionExerciseId)
       .eq("completed", true)
       .order("set_number");
+    return sets ?? [];
+  };
 
-    if (!sets?.length) continue;
+  for (const session of sessions) {
+    let recentExercise: {
+      id: string;
+      exercise_id: string | null;
+      name: string;
+    } | null = null;
+
+    if (exerciseId) {
+      const { data } = await supabase
+        .from("workout_session_exercises")
+        .select("id, exercise_id, name")
+        .eq("session_id", session.id)
+        .eq("exercise_id", exerciseId)
+        .maybeSingle();
+      recentExercise = data;
+    }
+
+    // Fall back to name — plan re-seeds can change exercise_id between sessions.
+    if (!recentExercise && exerciseName.trim()) {
+      const { data } = await supabase
+        .from("workout_session_exercises")
+        .select("id, exercise_id, name")
+        .eq("session_id", session.id)
+        .ilike("name", exerciseName.trim())
+        .maybeSingle();
+      recentExercise = data;
+    }
+
+    if (!recentExercise) continue;
+
+    const sets = await loadSetsForExercise(recentExercise.id);
+    if (!sets.length) continue;
 
     return {
       exercise_id: recentExercise.exercise_id,

@@ -2,13 +2,15 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
+/** Compact tags/chips — intentionally smaller than `--control-height` buttons. */
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors",
+  "inline-flex h-auto min-h-0 shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold leading-none transition-colors",
   {
     variants: {
       variant: {
         default: "border-transparent bg-primary text-primary-foreground",
-        secondary: "border-border/80 bg-background/60 text-foreground backdrop-blur-sm dark:bg-background/40",
+        secondary:
+          "border-border/80 bg-background/60 text-foreground backdrop-blur-sm dark:bg-background/40",
         outline: "border-border text-foreground",
         success: "border-transparent bg-emerald-900/50 text-emerald-400",
         warning: "border-transparent bg-amber-900/50 text-amber-400",

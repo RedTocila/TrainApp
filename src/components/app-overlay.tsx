@@ -164,8 +164,10 @@ export function AppOverlayPanel({
 
     const onTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const fromHandle = Boolean(target?.closest("[data-drawer-handle]"));
       const scrollable = getScrollableAncestor(event.target, panel);
-      if (scrollable && scrollable.scrollTop > 2) {
+      if (!fromHandle && scrollable && scrollable.scrollTop > 2) {
         draggingRef.current = false;
         return;
       }
@@ -248,8 +250,12 @@ export function AppOverlayPanel({
       )}
     >
       {!fullscreen && showHandle ? (
-        <div className="flex shrink-0 justify-center pt-2.5 sm:hidden" aria-hidden>
-          <div className="h-1 w-10 rounded-full bg-muted-foreground/35" />
+        <div
+          data-drawer-handle
+          className="flex shrink-0 cursor-grab justify-center py-3 active:cursor-grabbing sm:hidden"
+          aria-hidden
+        >
+          <div className="h-1.5 w-12 rounded-full bg-muted-foreground/40" />
         </div>
       ) : null}
       {children}

@@ -21,6 +21,7 @@ import {
 } from "@/lib/water-targets";
 import { formatDateKey } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { markReminderDone } from "@/lib/reminder-events";
 import { WaterGoalEditDialog } from "@/components/water-goal-edit-dialog";
 import {
   DashboardCardNavBody,
@@ -118,6 +119,9 @@ export function DashboardWaterCard({
     patchDashboard({ dateKey, waterMl: next });
     patchOverviewDayCache(clientId, dateKey, { waterMl: next });
     notifySync();
+    if (waterMetDailyMinimum(next, waterGoalMl)) {
+      markReminderDone("water");
+    }
     void addWater(clientId, dateKey, amount).catch(() => {
       patchDashboard({ dateKey, waterMl: waterMl });
       patchOverviewDayCache(clientId, dateKey, { waterMl });

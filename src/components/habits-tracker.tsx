@@ -27,6 +27,7 @@ import { useDashboardSync } from "@/components/dashboard-sync";
 import type { ClientHabit } from "@/lib/types";
 import type { HabitSuggestion } from "@/lib/habit-suggestions";
 import { formatDateKey } from "@/lib/utils";
+import { markReminderDone } from "@/lib/reminder-events";
 import { DASHBOARD_HABITS_NEW_PATH } from "@/lib/dashboard-day-routes";
 import { isDayEnded } from "@/lib/meal-times";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,7 @@ export function HabitsTracker({
       .then((result) => {
         if (result.completed) {
           setError(null);
+          markReminderDone("habits");
           notifySync();
           return;
         }

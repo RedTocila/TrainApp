@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Flame, PersonStanding } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { DashboardWorkoutCompactStats } from "@/components/dashboard-workout-compact-meta";
-import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import { WorkoutDifficultyInsightButton } from "@/components/workout-difficulty-insight-button";
 import { WorkoutExerciseList } from "@/components/workout-exercise-list";
 import { WorkoutMuscleMap } from "@/components/workout-muscle-map";
@@ -139,9 +138,7 @@ export function DashboardWorkoutDetailSection({
   const [loadingResults, setLoadingResults] = useState(false);
   const isExtra = isExtraWorkoutKind(workout.planKind);
   const [open, setOpen] = useState(() => !isExtra || highlighted);
-  const isHistory = !!workout.historySessionId;
   const handled = done || skipped;
-  const canStart = !handled && !readOnly && !isHistory;
   const resultsSessionId = done
     ? sessionId ?? workout.historySessionId ?? null
     : null;
@@ -263,17 +260,6 @@ export function DashboardWorkoutDetailSection({
                 .join(" · ")}
             </p>
           </div>
-
-          {canStart ? (
-            <div className="shrink-0">
-              <StartTodaysWorkoutButton
-                date={selectedDate}
-                workout={workout}
-                disabled={!isDayLoaded}
-                display="text"
-              />
-            </div>
-          ) : null}
         </div>
 
         {open ? (
@@ -383,17 +369,6 @@ export function DashboardWorkoutDetailSection({
             <DashboardWorkoutCompactStats
               exercises={mapExercises}
               className="mt-2"
-            />
-          ) : null}
-        </div>
-        <div className="relative z-10 flex shrink-0 items-center gap-2">
-          {canStart ? (
-            <StartTodaysWorkoutButton
-              date={selectedDate}
-              workout={undefined}
-              dayFlow
-              disabled={!isDayLoaded}
-              display="text"
             />
           ) : null}
         </div>

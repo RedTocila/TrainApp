@@ -35,13 +35,13 @@ export function CompactSegment({
       onClick={handleClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-3 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
+        "flex h-full flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
         active
           ? cn("shadow-sm", activeClass)
           : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"
       )}
     >
-      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <Icon className="h-4 w-4 shrink-0" aria-hidden />
       <span>{label}</span>
     </Link>
   );
@@ -81,14 +81,16 @@ export function CompactSubLink({
       aria-label={iconOnly ? label : undefined}
       title={iconOnly ? label : undefined}
       className={cn(
-        "inline-flex items-center justify-center gap-1 rounded-full text-[11px] font-semibold transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
-        iconOnly ? "h-8 w-8" : "px-3 py-1.5",
+        "inline-flex items-center justify-center gap-1 rounded-full text-sm font-semibold transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
+        iconOnly
+          ? "h-[var(--control-height)] w-[var(--control-height)]"
+          : "h-[var(--control-height)] px-3.5",
         active
           ? activeClass
           : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"
       )}
     >
-      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      <Icon className="h-4 w-4 shrink-0" aria-hidden />
       {!iconOnly && <span>{label}</span>}
     </Link>
   );

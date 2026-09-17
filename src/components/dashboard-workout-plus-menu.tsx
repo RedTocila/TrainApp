@@ -27,7 +27,7 @@ export function DashboardWorkoutPlusMenu({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+          className="h-[var(--control-height)] w-[var(--control-height)] rounded-full text-muted-foreground hover:text-foreground"
           onClick={(event) => {
             event.stopPropagation();
             event.preventDefault();
@@ -43,7 +43,7 @@ export function DashboardWorkoutPlusMenu({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-full border border-primary/30 bg-primary/10 text-primary shadow-sm shadow-primary/5 hover:border-primary/40 hover:bg-primary/15"
+          className="h-[var(--control-height)] w-[var(--control-height)] rounded-full border border-primary/30 bg-primary/10 text-primary shadow-sm shadow-primary/5 hover:border-primary/40 hover:bg-primary/15"
           onClick={(event) => {
             event.stopPropagation();
             event.preventDefault();

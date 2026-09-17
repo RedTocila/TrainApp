@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
 
@@ -41,22 +41,10 @@ export function CoachReadMeDialog({
         aria-labelledby="coach-read-me-title"
         className="max-h-[92%]"
       >
-        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-1 sm:pt-4">
-          <h2 id="coach-read-me-title" className="text-base font-bold sm:text-lg">
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        <AppDrawerHeader title={title} titleId="coach-read-me-title" />
 
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-3"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-3"
           data-scroll-lock-scrollable
         >
           <ul className="space-y-2 text-sm leading-snug text-muted-foreground">
@@ -69,7 +57,7 @@ export function CoachReadMeDialog({
           </ul>
         </div>
 
-        <div className="shrink-0 border-t border-border/60 bg-card px-5 pb-3 pt-3">
+        <div className="shrink-0 bg-card px-5 pb-3 pt-3">
           {required && (
             <label className="mb-3 flex cursor-pointer items-start gap-2.5">
               <input

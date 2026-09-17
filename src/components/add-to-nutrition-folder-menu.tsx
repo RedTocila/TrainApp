@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Apple, FolderPlus, Plus, Sparkles, X } from "lucide-react";
+import { Apple, FolderPlus, Plus, Sparkles } from "lucide-react";
 import type { NutritionPickItem } from "@/lib/actions/user-nutrition";
 import { moveNutritionPlanToFolder } from "@/lib/actions/user-nutrition";
 import { AddNutritionWizard } from "@/components/add-nutrition-wizard";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,18 +52,17 @@ export function AddToNutritionFolderMenu({
 
       <AppOverlay open={menuOpen} onClose={() => setMenuOpen(false)}>
         <AppOverlayPanel maxWidth="max-w-md">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                Add to {folderName}
-              </p>
-              <h2 className="text-lg font-black">Add meal plan</h2>
-            </div>
-            <Button type="button" variant="ghost" size="icon" onClick={() => setMenuOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="space-y-2 p-4 sm:p-6">
+          <AppDrawerHeader
+            title={
+              <>
+                <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-primary">
+                  Add to {folderName}
+                </span>
+                Add meal plan
+              </>
+            }
+          />
+          <div className="space-y-2 px-5 pt-5 pb-4">
             <button
               type="button"
               onClick={() => {
@@ -108,23 +108,17 @@ export function AddToNutritionFolderMenu({
 
       <AppOverlay open={existingOpen} onClose={() => setExistingOpen(false)}>
         <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,40rem)]">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                Add to {folderName}
-              </p>
-              <h2 className="text-lg font-black">Existing meal plans</h2>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setExistingOpen(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6" data-scroll-lock-scrollable>
+          <AppDrawerHeader
+            title={
+              <>
+                <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-primary">
+                  Add to {folderName}
+                </span>
+                Existing meal plans
+              </>
+            }
+          />
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-5 pb-4" data-scroll-lock-scrollable>
             <div className="space-y-2">
               {availablePlans.map((plan) => (
                 <button

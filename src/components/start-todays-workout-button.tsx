@@ -81,7 +81,7 @@ export function StartWorkoutButton({
   date: Date;
   workout?: TodaysWorkoutInfo | null;
   disabled?: boolean;
-  display?: "icon" | "text" | "hero";
+  display?: "icon" | "text" | "hero" | "label" | "nav";
   className?: string;
   dayFlow?: boolean;
 }) {
@@ -153,29 +153,47 @@ export function StartWorkoutButton({
         {display === "text" ? (
           <Button
             size="sm"
-            className="h-8 w-full shrink-0 rounded-full px-3 text-xs font-semibold shadow-sm"
+            className="w-full shrink-0 rounded-full px-3 font-semibold shadow-sm"
             disabled={disabled || isStarting}
             onClick={handleStart}
             aria-busy={isStarting}
           >
             {isStarting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Play className="h-3.5 w-3.5" />
+              <Play className="h-4 w-4" />
             )}
             {isStarting ? platform.workout.starting : platform.workout.startWorkout}
+          </Button>
+        ) : display === "label" || display === "nav" ? (
+          <Button
+            size="sm"
+            className={cn(
+              "shrink-0 rounded-full font-bold shadow-sm",
+              display === "nav" ? "px-4 text-sm" : "px-3 text-sm"
+            )}
+            disabled={disabled || isStarting}
+            onClick={handleStart}
+            aria-busy={isStarting}
+          >
+            {isStarting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4 fill-current" />
+            )}
+            {isStarting ? platform.workout.starting : platform.workout.start}
           </Button>
         ) : (
           <Button
             size="icon"
-            className="h-9 w-9 rounded-full"
+            className="rounded-full"
             disabled={disabled || isStarting}
             onClick={handleStart}
             aria-busy={isStarting}
-            aria-label={isStarting ? platform.workout.starting : "Open workout"}
+            aria-label={isStarting ? platform.workout.starting : platform.workout.start}
           >
             {isStarting ? (
-              <Loader2 className="h-4 w-4" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Play className="h-4 w-4" />
             )}
@@ -198,7 +216,7 @@ export function StartTodaysWorkoutButton({
   date: Date;
   workout?: TodaysWorkoutInfo | null;
   disabled?: boolean;
-  display?: "icon" | "text" | "hero";
+  display?: "icon" | "text" | "hero" | "label" | "nav";
   className?: string;
   dayFlow?: boolean;
 }) {

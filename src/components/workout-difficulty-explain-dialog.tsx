@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Minus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { dashboard } from "@/components/dashboard-ui";
@@ -12,7 +12,6 @@ import type {
   WorkoutDifficultyReason,
 } from "@/lib/workout-difficulty";
 import type { WorkoutDifficultyBehaviorContext } from "@/lib/workout-difficulty-behavior";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const DIFFICULTY_LABEL_CLASS: Record<PersonalWorkoutDifficultyId, string> = {
@@ -150,32 +149,17 @@ export function WorkoutDifficultyExplainDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-md" aria-label={platform.workout.difficultyExplainTitle} className="max-h-[min(92%,32rem)]">
-        <div className="flex items-start gap-3 border-b border-border px-4 py-4 sm:px-5">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {platform.workout.difficultyForYou}
-            </p>
-            <h2
-              className={cn("mt-1 text-lg font-black", DIFFICULTY_LABEL_CLASS[difficultyId])}
-            >
-              {difficulty.label}
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              {difficulty.summary}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            onClick={onClose}
-            aria-label={platform.aria.close}
-          >
-            <X className="h-5 w-5" />
-          </Button>
+        <div className="flex shrink-0 flex-col gap-1 px-5 pb-3.5 pt-1 sm:pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {platform.workout.difficultyForYou}
+          </p>
+          <h2 className={cn("text-lg font-black leading-tight", DIFFICULTY_LABEL_CLASS[difficultyId])}>
+            {difficulty.label}
+          </h2>
+          <p className="text-sm leading-snug text-muted-foreground">{difficulty.summary}</p>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 pt-5 pb-4">
           <div className="grid grid-cols-2 gap-2">
             <div className={cn(dashboard.tile, "p-3 text-center")}>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">

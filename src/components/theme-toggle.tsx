@@ -24,7 +24,7 @@ export function ThemeToggle({
           type="button"
           onClick={() => setTheme("dark")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors",
+            "flex h-[var(--control-height)] flex-1 items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
             theme === "dark"
               ? "border-primary bg-primary/10 text-primary"
               : "border-border text-muted-foreground hover:bg-secondary"
@@ -37,7 +37,7 @@ export function ThemeToggle({
           type="button"
           onClick={() => setTheme("light")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors",
+            "flex h-[var(--control-height)] flex-1 items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
             theme === "light"
               ? "border-primary bg-primary/10 text-primary"
               : "border-border text-muted-foreground hover:bg-secondary"
@@ -57,7 +57,7 @@ export function ThemeToggle({
         onClick={() => setTheme(isLight ? "dark" : "light")}
         aria-label={isLight ? platform.settings.switchToDark : platform.settings.switchToLight}
         className={cn(
-          "inline-flex items-center justify-center rounded-lg border border-border p-2 text-muted-foreground transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 hover:bg-secondary hover:text-foreground",
+          "inline-flex h-[var(--control-height)] w-[var(--control-height)] items-center justify-center rounded-full border border-border text-muted-foreground transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent] active:scale-95 hover:bg-secondary hover:text-foreground",
           className
         )}
       >
@@ -83,7 +83,7 @@ export function ThemeToggle({
         aria-label={isLight ? platform.settings.switchToDark : platform.settings.switchToLight}
         onClick={() => setTheme(isLight ? "dark" : "light")}
         className={cn(
-          "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors",
+          "relative inline-flex h-[var(--control-height)] w-[4.75rem] shrink-0 items-center rounded-full border transition-colors",
           isLight
             ? "border-primary/40 bg-primary/15"
             : "border-border bg-secondary"
@@ -91,8 +91,8 @@ export function ThemeToggle({
       >
         <span
           className={cn(
-            "pointer-events-none inline-block h-5 w-5 rounded-full bg-foreground shadow-sm transition-transform",
-            isLight ? "translate-x-6" : "translate-x-1"
+            "pointer-events-none inline-block h-8 w-8 rounded-full bg-foreground shadow-sm transition-transform",
+            isLight ? "translate-x-[2.35rem]" : "translate-x-1.5"
           )}
         />
       </button>

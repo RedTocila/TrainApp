@@ -44,11 +44,9 @@ export function StartWorkoutDayButton({
           onClick={handleStart}
           aria-busy={isPending}
           aria-label="Start workout"
-          className={cn(
-            iconOnly ? "h-8 w-8 shrink-0" : "min-w-[5.75rem] justify-center"
-          )}
+          className={cn(iconOnly ? "shrink-0" : "min-w-[5.75rem] justify-center")}
         >
-          <Play className={cn("h-3.5 w-3.5", !iconOnly && "mr-1", isPending && "opacity-50")} />
+          <Play className={cn("h-4 w-4", !iconOnly && "mr-1", isPending && "opacity-50")} />
           {iconOnly ? null : isPending ? "Opening…" : "Start"}
         </Button>
       </StartWorkoutLoadingShell>

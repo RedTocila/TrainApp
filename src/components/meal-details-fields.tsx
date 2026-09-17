@@ -57,7 +57,7 @@ export function MealDetailsFields({
           <select
             value={mealType}
             onChange={(e) => onMealTypeChange(e.target.value as MealType)}
-            className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+            className="h-[var(--control-height)] w-full rounded-full border border-border bg-secondary px-3 text-sm"
           >
             <option value="breakfast">Breakfast</option>
             <option value="lunch">Lunch</option>

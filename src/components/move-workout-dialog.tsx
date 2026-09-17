@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Folder, FolderInput, X } from "lucide-react";
+import { Folder, FolderInput } from "lucide-react";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { moveWorkoutToFolder } from "@/lib/actions/user-workouts";
 import { resolveWorkoutFolderId } from "@/lib/workout-folders";
@@ -53,19 +54,18 @@ export function MoveWorkoutDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-md" className="max-h-[92%]">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Move workout
-            </p>
-            <h2 className="text-lg font-black">{planTitle}</h2>
-          </div>
-          <Button type="button" variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+        <AppDrawerHeader
+          title={
+            <>
+              <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-primary">
+                Move workout
+              </span>
+              {planTitle}
+            </>
+          }
+        />
 
-        <div className="overflow-y-auto px-4 py-4 sm:px-6">
+        <div className="overflow-y-auto px-5 pt-5 pb-4">
           <p className="mb-4 text-sm text-muted-foreground">
             Choose a folder to move this workout into.
           </p>

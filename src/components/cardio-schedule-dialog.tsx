@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Calendar, X } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { scheduleCardioSeries } from "@/lib/actions/user-cardio";
 import { localizeCardioTitle } from "@/lib/cardio-catalog";
 import type { ClientCardio } from "@/lib/types";
@@ -12,6 +12,7 @@ import {
   type ScheduleStartMode,
 } from "@/lib/schedule-utils";
 import { cn } from "@/lib/utils";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { getWeekdayOptions } from "@/lib/locale-labels";
@@ -105,19 +106,12 @@ export function CardioScheduleDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,40rem)]">
-        <div className="flex items-start justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-lg font-black">{platform.cardio.schedule} {platform.cardio.title}</h2>
-            <p className="text-sm text-muted-foreground">
-              {localizeCardioTitle(cardio.title, platform.cardio.types)}
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label={platform.common.close}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+        <AppDrawerHeader
+          title={`${platform.cardio.schedule} ${platform.cardio.title}`}
+          description={localizeCardioTitle(cardio.title, platform.cardio.types)}
+        />
 
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
+        <div className="flex-1 space-y-5 overflow-y-auto px-5 pt-5 pb-4">
           <div className="space-y-2">
             <Label>{platform.workout.whenToStart}</Label>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -156,7 +150,7 @@ export function CardioScheduleDialog({
                   type="button"
                   onClick={() => toggleWeekday(value)}
                   className={cn(
-                    "min-w-[2.75rem] rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                    "h-[var(--control-height)] min-w-[var(--control-height)] rounded-full border px-3 text-sm font-medium transition-colors",
                     weekdays.includes(value)
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-secondary text-muted-foreground"
@@ -174,7 +168,7 @@ export function CardioScheduleDialog({
               id="cardio-schedule-weeks"
               value={weeks}
               onChange={(e) => setWeeks(parseInt(e.target.value, 10))}
-              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+              className="h-[var(--control-height)] w-full rounded-full border border-border bg-secondary px-3 text-sm"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
                 <option key={n} value={n}>
@@ -192,7 +186,7 @@ export function CardioScheduleDialog({
           {success && <p className="text-sm text-green-400">{success}</p>}
         </div>
 
-        <div className="flex gap-2 border-t border-border px-5 py-4">
+        <div className="flex gap-2 px-5 py-4">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             {success ? platform.common.done : platform.common.cancel}
           </Button>

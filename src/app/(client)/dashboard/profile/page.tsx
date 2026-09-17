@@ -7,12 +7,12 @@ import {
   ExternalLink,
   Gift,
   Scale,
-  Settings2,
   UserRound,
 } from "lucide-react";
 import { getProfileWithEmail } from "@/lib/actions/profile";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ProfileSettings } from "@/components/profile-settings";
+import { ReminderSettingsCard } from "@/components/reminder-settings-card";
 import { ProfileSubscriptionSection } from "@/components/profile-subscription-section";
 import { ClientIntakeForm } from "@/components/client-intake-form";
 import { PageTransition } from "@/components/page-transition";
@@ -85,29 +85,24 @@ export default async function ProfilePage() {
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <Card className="overflow-hidden">
-            <CardContent className="space-y-4 p-4">
-              <div className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-black">{platform.profile.account}</p>
-              </div>
-              <ProfileSettings
-                fullName={profile.full_name}
-                email={profile.email}
-                phone={profile.phone}
-                goal={resolveProfileGoal(profile)}
-                preferredLocale={profile.preferred_locale ?? "al"}
-                unitSystem={profile.unit_system ?? "metric"}
-                macros={{
-                  calories: profile.target_calories ?? 2000,
-                  protein: profile.target_protein ?? 150,
-                  carbs: profile.target_carbs ?? 200,
-                  fat: profile.target_fat ?? 65,
-                }}
-                showHeader={false}
-              />
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            <ProfileSettings
+              fullName={profile.full_name}
+              email={profile.email}
+              phone={profile.phone}
+              goal={resolveProfileGoal(profile)}
+              preferredLocale={profile.preferred_locale ?? "al"}
+              unitSystem={profile.unit_system ?? "metric"}
+              macros={{
+                calories: profile.target_calories ?? 2000,
+                protein: profile.target_protein ?? 150,
+                carbs: profile.target_carbs ?? 200,
+                fat: profile.target_fat ?? 65,
+              }}
+              showHeader={false}
+            />
+            <ReminderSettingsCard initialSettings={profile.reminder_settings} />
+          </div>
 
           <Card>
             <CardContent className="space-y-3 p-4">

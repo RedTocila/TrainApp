@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { X } from "lucide-react";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import type { ClientIntakeInfo } from "@/lib/actions/client-intake";
 import { formatGender } from "@/lib/intake-display";
@@ -46,20 +46,11 @@ export function ClientInformationDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" aria-label="Client information" className="max-h-[min(92%,36rem)]">
-        <div className="flex items-start justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-lg font-black">Client information</h2>
-            <p className="text-sm text-muted-foreground">{profile.full_name}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <AppDrawerHeader
+          title="Client information"
+          description={profile.full_name}
+        />
+        <div className="flex-1 space-y-4 overflow-y-auto px-5 pt-5 pb-4">
           <Field label="Age" value={profile.age ? `${profile.age} years` : null} />
           <Field label="Gender" value={formatGender(profile.gender)} />
           <Field label="Goal" value={goalLabel} />

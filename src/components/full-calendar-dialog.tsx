@@ -13,8 +13,9 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { CalendarDayDot } from "@/components/calendar-day-card";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
@@ -106,24 +107,12 @@ export function FullCalendarDialog({
         aria-label={platform.calendar.fullCalendarTitle}
         className="max-h-[92%]"
       >
-        <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6">
-          <div>
-            <h2 className="text-lg font-black">{platform.calendar.fullCalendarTitle}</h2>
-            <p className="text-sm text-muted-foreground">
-              {platform.calendar.tapDayHint}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            aria-label={platform.common.close}
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+        <AppDrawerHeader
+          title={platform.calendar.fullCalendarTitle}
+          description={platform.calendar.tapDayHint}
+        />
 
-        <div className="overflow-y-auto px-4 py-4 sm:px-6">
+        <div className="overflow-y-auto px-5 pt-5 pb-4">
           <div className="mb-4 flex items-center justify-between gap-3">
             <Button
               variant="outline"

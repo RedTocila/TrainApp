@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { X } from "lucide-react";
 import {
   createClientCardio,
   updateClientCardio,
@@ -11,6 +10,7 @@ import { isValidYoutubeUrl } from "@/lib/youtube";
 import type { CardioType } from "@/lib/cardio-catalog";
 import { localizeCardioTitle } from "@/lib/cardio-catalog";
 import type { ClientCardio } from "@/lib/types";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -113,19 +113,12 @@ export function CardioFormDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg">
-        <div className="flex items-start justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-lg font-black">{cardio ? "Edit cardio" : "Add cardio"}</h2>
-            <p className="text-sm text-muted-foreground">
-              Save a cardio session with an optional YouTube follow-along link.
-            </p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+        <AppDrawerHeader
+          title={cardio ? "Edit cardio" : "Add cardio"}
+          description="Save a cardio session with an optional YouTube follow-along link."
+        />
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4" data-scroll-lock-scrollable>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 pt-5 pb-4" data-scroll-lock-scrollable>
           <div className="space-y-1">
             <Label htmlFor="cardio-title">Title</Label>
             <Input
@@ -170,7 +163,7 @@ export function CardioFormDialog({
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
 
-        <div className="flex gap-2 border-t border-border px-5 py-4">
+        <div className="flex gap-2 px-5 py-4">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             Cancel
           </Button>

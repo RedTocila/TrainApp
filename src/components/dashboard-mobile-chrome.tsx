@@ -19,6 +19,8 @@ import { SupportContactButton } from "@/components/support-contact-button";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { useNutritionPageChromeActions } from "@/components/nutrition-page-chrome-context";
+import { useWorkoutPageChromeActions } from "@/components/workout-page-chrome-context";
+import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import { DashboardStatusCheck, DashboardStatusIcon } from "@/components/section-completed-badge";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { TrainSectionTabs } from "@/components/train-section-tabs";
@@ -35,12 +37,12 @@ const headerSurface =
   "rounded-full border border-border/70 bg-card/90 shadow-sm backdrop-blur-md dark:border-border/50 dark:bg-card/75";
 
 const headerIconButton =
-  "h-9 w-9 shrink-0 rounded-full border border-border/60 bg-background/60 p-0 shadow-sm transition-colors hover:bg-secondary/80 hover:text-foreground";
+  "h-[var(--control-height)] w-[var(--control-height)] shrink-0 rounded-full border border-border/60 bg-background/60 p-0 shadow-sm transition-colors hover:bg-secondary/80 hover:text-foreground";
 
 const headerActionsGroup = "flex items-center gap-1.5";
 
 const headerTextButton =
-  "h-8 shrink-0 rounded-full px-3 text-xs font-semibold shadow-sm";
+  "h-[var(--control-height)] shrink-0 rounded-full px-4 text-sm font-semibold shadow-sm";
 
 function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
   const pathname = usePathname();
@@ -48,6 +50,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
   const chromePath = pendingHref ?? pathname;
   const platform = usePlatformCopy();
   const nutritionActions = useNutritionPageChromeActions();
+  const workoutActions = useWorkoutPageChromeActions();
   const isNutritionPage = chromePath === DASHBOARD_DAY_NUTRITION_PATH;
   const isWorkoutPage = chromePath === DASHBOARD_DAY_WORKOUT_PATH;
   const isProgressPhotosPage = chromePath === DASHBOARD_PROGRESS_PHOTOS_PATH;
@@ -55,7 +58,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
   return (
     <div
       className={cn(
-        "flex min-h-[2.75rem] items-center justify-between gap-2 px-3 py-1.5 sm:px-4 sm:py-2"
+        "flex min-h-[var(--control-height)] items-center justify-between gap-2 px-3 py-1.5 sm:px-4 sm:py-2"
       )}
     >
       {isNutritionPage ? (
@@ -65,7 +68,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
             exactMatch
             onNavigateStart={setPendingHref}
             aria-label={platform.common.back}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary/80"
+            className="inline-flex h-[var(--control-height)] w-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary/80"
           >
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </InstantNavLink>
@@ -88,7 +91,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
             exactMatch
             onNavigateStart={setPendingHref}
             aria-label={platform.common.back}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary/80"
+            className="inline-flex h-[var(--control-height)] w-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary/80"
           >
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </InstantNavLink>
@@ -114,7 +117,14 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
           className="text-2xl leading-none text-foreground sm:text-3xl dark:text-white"
         />
       )}
-      {!isProgressPhotosPage && !isWorkoutPage ? (
+      {isWorkoutPage && workoutActions?.showStart ? (
+        <StartTodaysWorkoutButton
+          date={workoutActions.date}
+          dayFlow
+          disabled={workoutActions.disabled}
+          display="nav"
+        />
+      ) : !isProgressPhotosPage && !isWorkoutPage ? (
         isNutritionPage && nutritionActions ? (
           <div className={cn(headerSurface, "flex shrink-0 items-center gap-1.5 p-1.5")}>
             {nutritionActions.onLogMeal ? (

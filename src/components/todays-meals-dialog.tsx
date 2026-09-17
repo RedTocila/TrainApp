@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { Clock, X } from "lucide-react";
+import { Clock } from "lucide-react";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { DailyMealLog, Meal } from "@/lib/types";
@@ -63,19 +64,12 @@ export function TodaysMealsDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" aria-label={platform.mealLog.whatToEatToday} className="max-h-[min(92%,36rem)]">
-        <div className="flex items-start justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-lg font-black">{platform.mealLog.whatToEatToday}</h2>
-            {planTitle && (
-              <p className="text-sm text-muted-foreground">{planTitle}</p>
-            )}
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label={platform.aria.close}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+        <AppDrawerHeader
+          title={platform.mealLog.whatToEatToday}
+          description={planTitle}
+        />
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-5 pt-5 pb-4">
           {dateKey && meals.length > 0 && (
             <div className="mb-5">
               <ScheduledMealsList
@@ -158,7 +152,7 @@ export function TodaysMealsDialog({
           )}
         </div>
 
-        <div className="border-t border-border px-5 py-3">
+        <div className="px-5 py-3">
           <Button variant="outline" className="w-full" onClick={onClose}>
             {platform.common.close}
           </Button>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { X } from "lucide-react";
 import type { Meal } from "@/lib/types";
 import { formatMealMacrosSummary, normalizeMealMacros } from "@/lib/meal-utils";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -44,20 +44,11 @@ export function MealOptionPickerDialog({
         aria-label={`Choose ${slotLabel}`}
         className="max-h-[min(92%,32rem)]"
       >
-        <div className="flex items-start justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-lg font-black">{slotLabel}</h2>
-            <p className="text-sm text-muted-foreground">Which option did you eat?</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <ul className="flex-1 space-y-2 overflow-y-auto px-5 py-4">
+        <AppDrawerHeader
+          title={slotLabel}
+          description="Which option did you eat?"
+        />
+        <ul className="flex-1 space-y-2 overflow-y-auto px-5 pt-5 pb-4">
           {options.map((meal, idx) => {
             const macros = formatMealMacrosSummary(normalizeMealMacros(meal));
             return (
@@ -84,7 +75,7 @@ export function MealOptionPickerDialog({
             );
           })}
         </ul>
-        <div className="border-t border-border px-5 py-3">
+        <div className="px-5 py-3">
           <Button variant="outline" className="w-full" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>

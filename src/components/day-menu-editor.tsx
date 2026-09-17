@@ -19,6 +19,7 @@ import {
   type PersonalMealLibraryItem,
 } from "@/lib/actions/user-nutrition";
 import { MealDetailsFields } from "@/components/meal-details-fields";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,11 +84,9 @@ function MealEditDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,36rem)]">
-        <div className="shrink-0 border-b border-border px-5 py-4">
-          <h2 className="text-lg font-black">Edit meal</h2>
-        </div>
+        <AppDrawerHeader title="Edit meal" />
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-4"
           data-scroll-lock-scrollable
         >
           <MealDetailsFields
@@ -106,7 +105,7 @@ function MealEditDialog({
           />
           {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
         </div>
-        <div className="flex shrink-0 gap-2 border-t border-border px-5 py-4">
+        <div className="flex shrink-0 gap-2 px-5 py-4">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             Cancel
           </Button>
@@ -145,13 +144,17 @@ function AddMealDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,32rem)]">
-        <div className="shrink-0 border-b border-border px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-            Add to {slotMeta.label}
-          </p>
-          <h2 className="text-lg font-black">Add meal</h2>
-        </div>
-        <div className="flex shrink-0 gap-2 border-b border-border px-5 py-2">
+        <AppDrawerHeader
+          title={
+            <>
+              <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-primary">
+                Add to {slotMeta.label}
+              </span>
+              Add meal
+            </>
+          }
+        />
+        <div className="flex shrink-0 gap-2 px-5 py-2">
           <Button
             size="sm"
             variant={mode === "pick" ? "default" : "outline"}
@@ -168,7 +171,7 @@ function AddMealDialog({
           </Button>
         </div>
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-4"
           data-scroll-lock-scrollable
         >
           {mode === "pick" ? (
@@ -212,7 +215,7 @@ function AddMealDialog({
           )}
         </div>
         {mode === "new" && (
-          <div className="flex shrink-0 gap-2 border-t border-border px-5 py-4">
+          <div className="flex shrink-0 gap-2 px-5 py-4">
             <Button variant="outline" className="flex-1" onClick={onClose}>
               Cancel
             </Button>

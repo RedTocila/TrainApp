@@ -16,6 +16,8 @@ interface ExerciseDemoPlayerProps {
   autoplay?: boolean;
   /** When false, skip fetching admin YouTube overrides (e.g. closed dialog). */
   resolveOverride?: boolean;
+  /** Force video pause (e.g. workout session paused). */
+  paused?: boolean;
 }
 
 export function ExerciseDemoPlayer({
@@ -26,6 +28,7 @@ export function ExerciseDemoPlayer({
   gender,
   autoplay = false,
   resolveOverride = true,
+  paused = false,
 }: ExerciseDemoPlayerProps) {
   const resolved = resolveExerciseGifUrls({ name, imageUrl, gender });
   const gifUrl = resolved.url;
@@ -66,6 +69,7 @@ export function ExerciseDemoPlayer({
         videoUrl={effectiveVideo}
         title={name}
         autoplay={autoplay}
+        paused={paused}
       />
     );
   }
@@ -93,5 +97,9 @@ export function ExerciseDemoPlayer({
     );
   }
 
-  return null;
+  return (
+    <div className="flex aspect-video w-full items-center justify-center rounded-xl bg-secondary/60 px-6 text-center">
+      <p className="text-sm font-medium text-muted-foreground">{name}</p>
+    </div>
+  );
 }

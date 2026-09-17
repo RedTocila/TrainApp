@@ -57,6 +57,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { DashboardWorkoutPlusMenu } from "@/components/dashboard-workout-plus-menu";
+import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
+import { useRegisterWorkoutPageChrome } from "@/components/workout-page-chrome-context";
 import { AddWorkoutToDayDialog } from "@/components/add-workout-to-day-dialog";
 import { RemoveWorkoutFromDayDialog } from "@/components/remove-workout-from-day-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
@@ -586,6 +588,29 @@ export function DashboardWorkoutCard({
       .find((id): id is string => Boolean(id)) ??
     null;
 
+  const workoutChromeActions = useMemo(
+    () =>
+      variant === "detail" &&
+      !readOnly &&
+      workoutsForDay.length > 0 &&
+      !showCompletedState
+        ? {
+            date: selectedDate,
+            disabled: !isDayLoaded,
+            showStart: true as const,
+          }
+        : null,
+    [
+      variant,
+      readOnly,
+      workoutsForDay.length,
+      showCompletedState,
+      selectedDate,
+      isDayLoaded,
+    ]
+  );
+  useRegisterWorkoutPageChrome(workoutChromeActions);
+
   useEffect(() => {
     if (!patchedSessionId || workoutResults) return;
     let cancelled = false;
@@ -1055,6 +1080,19 @@ export function DashboardWorkoutCard({
                   onAddWorkout={() => setAddWorkoutOpen(true)}
                   onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
                 />
+              ) : null}
+              {/* Desktop: Start lives in the top nav on mobile; keep it here for lg+. */}
+              {!readOnly &&
+              workoutsForDay.length > 0 &&
+              !showCompletedState ? (
+                <div className="hidden lg:block">
+                  <StartTodaysWorkoutButton
+                    date={selectedDate}
+                    dayFlow
+                    disabled={!isDayLoaded}
+                    display="nav"
+                  />
+                </div>
               ) : null}
             </div>
           </div>

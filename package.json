@@ -12,10 +12,23 @@
     "db:profile-unit-system": "node scripts/apply-profile-unit-system.mjs",
     "supabase:setup": "node scripts/supabase-setup.mjs",
     "sync:exercises": "node scripts/sync-exercise-catalog.mjs",
-    "sync:recipes": "node scripts/sync-recipe-catalog.mjs"
+    "sync:recipes": "node scripts/sync-recipe-catalog.mjs",
+    "cap:sync": "npx cap sync",
+    "cap:ios": "npx cap open ios",
+    "cap:android": "npx cap open android"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/camera": "^8.2.4",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/filesystem": "^8.1.3",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@hookform/resolvers": "^5.4.0",
     "@mjcdev/react-body-highlighter": "^0.0.4",
     "@nebula-ltd/pok-payments-js": "^2.0.1",
@@ -42,6 +55,9 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

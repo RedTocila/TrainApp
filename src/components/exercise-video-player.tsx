@@ -13,6 +13,8 @@ interface ExerciseVideoPlayerProps {
   videoUrl?: string | null;
   title: string;
   autoplay?: boolean;
+  /** When true, force the YouTube player to pause. */
+  paused?: boolean;
 }
 
 type YtPlayer = {
@@ -45,6 +47,7 @@ declare global {
           videoId: string;
           width?: string | number;
           height?: string | number;
+          host?: string;
           playerVars?: Record<string, string | number>;
           events?: {
             onReady?: (event: { target: YtPlayer }) => void;
@@ -94,14 +97,6 @@ function loadYoutubeApi(): Promise<void> {
   return youtubeApiPromise;
 }
 
-function formatTime(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
-  const total = Math.floor(seconds);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
 function canHoverFinePointer(): boolean {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -111,6 +106,7 @@ export function ExerciseVideoPlayer({
   videoUrl,
   title,
   autoplay = false,
+  paused = false,
 }: ExerciseVideoPlayerProps) {
   const videoId = videoUrl ? extractYoutubeId(videoUrl) : null;
   const startSeconds = videoUrl ? extractYoutubeStartSeconds(videoUrl) : null;
@@ -119,13 +115,14 @@ export function ExerciseVideoPlayer({
   const mountRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const hideTimerRef = useRef<number | null>(null);
-  const pollRef = useRef<number | null>(null);
+  const pausedRef = useRef(paused);
+  const userPausedRef = useRef(false);
 
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [controlsVisible, setControlsVisible] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [showPlayButton, setShowPlayButton] = useState(!autoplay);
+
+  pausedRef.current = paused;
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current != null) {
@@ -138,18 +135,8 @@ export function ExerciseVideoPlayer({
     clearHideTimer();
     if (canHoverFinePointer()) return;
     hideTimerRef.current = window.setTimeout(() => {
-      setControlsVisible(false);
-    }, 2500);
-  }, [clearHideTimer]);
-
-  const showControls = useCallback(() => {
-    setControlsVisible(true);
-    scheduleMobileHide();
-  }, [scheduleMobileHide]);
-
-  const hideControls = useCallback(() => {
-    clearHideTimer();
-    setControlsVisible(false);
+      setShowPlayButton(false);
+    }, 1800);
   }, [clearHideTimer]);
 
   useEffect(() => {
@@ -161,6 +148,10 @@ export function ExerciseVideoPlayer({
     const target = document.createElement("div");
     target.className = "absolute inset-0 h-full w-full";
     host.replaceChildren(target);
+    userPausedRef.current = false;
+    setShowPlayButton(!autoplay);
+    setPlaying(false);
+    setReady(false);
 
     void loadYoutubeApi().then(() => {
       if (cancelled || !window.YT?.Player) return;
@@ -169,9 +160,11 @@ export function ExerciseVideoPlayer({
         videoId,
         width: "100%",
         height: "100%",
+        host: "https://www.youtube-nocookie.com",
         playerVars: {
           autoplay: autoplay ? 1 : 0,
-          mute: autoplay ? 1 : 0,
+          // Always start muted — browsers also require mute for autoplay.
+          mute: 1,
           controls: 0,
           disablekb: 1,
           fs: 0,
@@ -180,6 +173,7 @@ export function ExerciseVideoPlayer({
           playsinline: 1,
           iv_load_policy: 3,
           cc_load_policy: 0,
+          showinfo: 0,
           ...(startSeconds != null ? { start: startSeconds } : {}),
         },
         events: {
@@ -187,24 +181,37 @@ export function ExerciseVideoPlayer({
             if (cancelled) return;
             playerRef.current = event.target;
             setReady(true);
-            const d = event.target.getDuration();
-            if (Number.isFinite(d) && d > 0) setDuration(d);
+            event.target.mute();
+            if (pausedRef.current) {
+              event.target.pauseVideo();
+              setShowPlayButton(true);
+              return;
+            }
             if (autoplay) {
-              event.target.mute();
               event.target.playVideo();
             }
           },
           onStateChange: (event) => {
             if (cancelled || !window.YT?.PlayerState) return;
             const { PLAYING, PAUSED, ENDED, BUFFERING } = window.YT.PlayerState;
-            const isPlaying =
-              event.data === PLAYING || event.data === BUFFERING;
-            setPlaying(isPlaying);
+            if (event.data === PLAYING) {
+              // Honor external workout pause even if YT tries to play.
+              if (pausedRef.current) {
+                event.target.pauseVideo();
+                return;
+              }
+              setPlaying(true);
+              setShowPlayButton(false);
+              return;
+            }
+            if (event.data === BUFFERING) {
+              setPlaying(true);
+              return;
+            }
             if (event.data === PAUSED || event.data === ENDED) {
               setPlaying(false);
+              setShowPlayButton(true);
             }
-            const d = event.target.getDuration();
-            if (Number.isFinite(d) && d > 0) setDuration(d);
           },
         },
       });
@@ -215,10 +222,6 @@ export function ExerciseVideoPlayer({
     return () => {
       cancelled = true;
       clearHideTimer();
-      if (pollRef.current != null) {
-        window.clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
       try {
         playerRef.current?.destroy();
       } catch {
@@ -227,108 +230,84 @@ export function ExerciseVideoPlayer({
       playerRef.current = null;
       setReady(false);
       setPlaying(false);
-      setControlsVisible(false);
     };
   }, [videoId, autoplay, startSeconds, clearHideTimer]);
 
   useEffect(() => {
-    if (!ready) return;
-    pollRef.current = window.setInterval(() => {
-      const player = playerRef.current;
-      if (!player) return;
-      try {
-        const t = player.getCurrentTime();
-        if (Number.isFinite(t)) setCurrentTime(t);
-        const d = player.getDuration();
-        if (Number.isFinite(d) && d > 0) setDuration(d);
-      } catch {
-        // Ignore transient API errors during teardown.
+    const player = playerRef.current;
+    if (!ready || !player) return;
+    try {
+      if (paused) {
+        player.pauseVideo();
+        setPlaying(false);
+        setShowPlayButton(true);
+      } else if (autoplay && !userPausedRef.current) {
+        player.mute();
+        player.playVideo();
       }
-    }, 250);
-    return () => {
-      if (pollRef.current != null) {
-        window.clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
-    };
-  }, [ready]);
+    } catch {
+      // Ignore transient API errors during teardown.
+    }
+  }, [paused, ready, autoplay]);
 
   if (!videoId) return null;
 
-  const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0;
-  const showPoster = !playing && !controlsVisible;
-
-  const togglePlay = (event: MouseEvent) => {
-    event.stopPropagation();
+  const togglePlay = (event?: MouseEvent) => {
+    event?.stopPropagation();
     const player = playerRef.current;
-    if (!player || !ready) return;
-    if (playing) player.pauseVideo();
-    else {
-      player.unMute();
+    if (!player || !ready || paused) return;
+    if (playing) {
+      userPausedRef.current = true;
+      player.pauseVideo();
+      setShowPlayButton(true);
+    } else {
+      userPausedRef.current = false;
       player.playVideo();
+      setShowPlayButton(false);
     }
-    showControls();
-  };
-
-  const onSeek = (event: MouseEvent<HTMLDivElement>) => {
-    event.stopPropagation();
-    const player = playerRef.current;
-    if (!player || !ready || duration <= 0) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-    player.seekTo(ratio * duration, true);
-    setCurrentTime(ratio * duration);
-    showControls();
   };
 
   const onShellClick = () => {
-    if (canHoverFinePointer()) {
-      // Desktop: click toggles playback; hover already reveals chrome.
-      const player = playerRef.current;
-      if (!player || !ready) return;
-      if (playing) player.pauseVideo();
-      else {
-        player.unMute();
-        player.playVideo();
+    if (paused) return;
+    if (playing) {
+      // Tap while playing reveals our pause control briefly (mobile) or toggles (desktop).
+      if (canHoverFinePointer()) {
+        togglePlay();
+        return;
       }
+      if (!showPlayButton) {
+        setShowPlayButton(true);
+        scheduleMobileHide();
+        return;
+      }
+      togglePlay();
       return;
     }
-    // Mobile: first tap reveals controls; tap again while visible toggles play.
-    if (!controlsVisible) {
-      showControls();
-      return;
-    }
-    const player = playerRef.current;
-    if (!player || !ready) return;
-    if (playing) player.pauseVideo();
-    else {
-      player.unMute();
-      player.playVideo();
-    }
-    scheduleMobileHide();
+    togglePlay();
   };
 
+  const showPoster = !playing;
+
   return (
-    <div
-      className="overflow-hidden rounded-lg border border-border bg-muted"
-      onMouseLeave={() => {
-        if (canHoverFinePointer()) hideControls();
-      }}
-      onMouseMove={() => {
-        // Reveal on move only — not mouseenter — so opening under a still
-        // cursor (after tapping a thumbnail) keeps chrome hidden.
-        if (canHoverFinePointer()) showControls();
-      }}
-    >
+    <div className="overflow-hidden rounded-lg border border-border bg-muted">
       <div
         className="relative aspect-video w-full cursor-pointer"
         onClick={onShellClick}
         role="group"
         aria-label={`${title} demo video`}
       >
+        {/*
+          Oversized iframe + overflow clip hides YouTube title, share, and
+          residual chrome that controls=0 does not fully remove.
+        */}
         <div
           ref={mountRef}
-          className="absolute inset-0 h-full w-full overflow-hidden [&_iframe]:pointer-events-none [&_iframe]:h-full [&_iframe]:w-full"
+          className={cn(
+            "absolute inset-0 h-full w-full overflow-hidden",
+            "[&_iframe]:pointer-events-none [&_iframe]:absolute [&_iframe]:left-1/2 [&_iframe]:top-1/2",
+            "[&_iframe]:h-[200%] [&_iframe]:w-[200%] [&_iframe]:max-w-none",
+            "[&_iframe]:-translate-x-1/2 [&_iframe]:-translate-y-1/2"
+          )}
         />
 
         {showPoster && thumbnailUrl ? (
@@ -346,55 +325,25 @@ export function ExerciseVideoPlayer({
 
         <div
           className={cn(
-            "pointer-events-none absolute inset-0 z-[3] bg-gradient-to-t from-black/70 via-transparent to-black/25 transition-opacity duration-200",
-            controlsVisible ? "opacity-100" : "opacity-0"
-          )}
-        />
-
-        <div
-          className={cn(
-            "absolute inset-0 z-[4] flex flex-col justify-end p-3 transition-opacity duration-200",
-            controlsVisible
+            "absolute inset-0 z-[4] flex items-center justify-center transition-opacity duration-150",
+            showPlayButton
               ? "pointer-events-auto opacity-100"
               : "pointer-events-none opacity-0"
           )}
         >
-          <div className="mb-auto flex flex-1 items-center justify-center">
-            <button
-              type="button"
-              onClick={togglePlay}
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/70"
-              aria-label={playing ? "Pause video" : "Play video"}
-            >
-              {playing ? (
-                <Pause className="h-6 w-6 fill-current" />
-              ) : (
-                <Play className="h-6 w-6 fill-current pl-0.5" />
-              )}
-            </button>
-          </div>
-
-          <div className="space-y-1.5">
-            <div
-              className="h-1.5 w-full cursor-pointer rounded-full bg-white/25"
-              onClick={onSeek}
-              role="slider"
-              aria-valuemin={0}
-              aria-valuemax={Math.floor(duration)}
-              aria-valuenow={Math.floor(currentTime)}
-              aria-label="Seek"
-              tabIndex={0}
-            >
-              <div
-                className="h-full rounded-full bg-primary"
-                style={{ width: `${progress * 100}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[10px] font-medium text-white/90">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={togglePlay}
+            disabled={paused}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/70 disabled:opacity-50"
+            aria-label={playing ? "Pause video" : "Play video"}
+          >
+            {playing ? (
+              <Pause className="h-6 w-6 fill-current" />
+            ) : (
+              <Play className="h-6 w-6 fill-current pl-0.5" />
+            )}
+          </button>
         </div>
       </div>
     </div>

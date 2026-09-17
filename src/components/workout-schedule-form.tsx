@@ -188,7 +188,7 @@ export function WorkoutScheduleForm({
         <select
           value={dayId}
           onChange={(e) => setDayId(e.target.value)}
-          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+          className="h-[var(--control-height)] w-full rounded-full border border-border bg-secondary px-3 text-sm"
         >
           {days.map((day) => (
             <option key={day.id} value={day.id}>
@@ -207,7 +207,7 @@ export function WorkoutScheduleForm({
               type="button"
               onClick={() => toggleWeekday(value)}
               className={cn(
-                "min-w-[2.75rem] rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                "h-[var(--control-height)] min-w-[var(--control-height)] rounded-full border px-3 text-sm font-medium transition-colors",
                 weekdays.includes(value)
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-secondary text-muted-foreground"
@@ -225,7 +225,7 @@ export function WorkoutScheduleForm({
           id="schedule-weeks"
           value={weeks}
           onChange={(e) => setWeeks(parseInt(e.target.value, 10))}
-          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm"
+          className="h-[var(--control-height)] w-full rounded-full border border-border bg-secondary px-3 text-sm"
         >
           {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
             <option key={n} value={n}>

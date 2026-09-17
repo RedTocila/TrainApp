@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.al.rutina.app",
+        "paths": ["*"]
+      }
+    ]
+  }
+}

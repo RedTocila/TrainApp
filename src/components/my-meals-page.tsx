@@ -2,7 +2,7 @@
 import { useCoachCopy, useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import {
   copyMealToNewPlanInFolder,
   copyMealToPlan,
@@ -22,6 +22,7 @@ import {
 import type { MealType } from "@/lib/types";
 import { getMealTypeOptions } from "@/lib/locale-labels";
 import { MealDetailsFields } from "@/components/meal-details-fields";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
@@ -83,14 +84,9 @@ function EditMealDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,36rem)]">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-lg font-black">{platform.meals.editMeal}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+        <AppDrawerHeader title={platform.meals.editMeal} />
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-4"
           data-scroll-lock-scrollable
         >
           <MealDetailsFields
@@ -109,7 +105,7 @@ function EditMealDialog({
           />
           {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
         </div>
-        <div className="flex shrink-0 gap-2 border-t border-border px-5 py-4">
+        <div className="flex shrink-0 gap-2 px-5 py-4">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             {platform.common.cancel}
           </Button>
@@ -211,20 +207,19 @@ function AddMealToFolderDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-md" className="max-h-[min(92%,32rem)]">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              {platform.meals.addToFolder}
-            </p>
-            <h2 className="text-lg font-black">{item.meal.name}</h2>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+        <AppDrawerHeader
+          title={
+            <>
+              <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-primary">
+                {platform.meals.addToFolder}
+              </span>
+              {item.meal.name}
+            </>
+          }
+        />
 
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-4"
           data-scroll-lock-scrollable
         >
           {step === "folder" ? (
@@ -395,26 +390,23 @@ function CreateMealDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,36rem)]">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              {step === "details"
-                ? platform.meals.newMeal
-                : step === "folder"
-                  ? platform.meals.chooseFolder
-                  : platform.meals.choosePlan}
-            </p>
-            <h2 className="text-lg font-black">
+        <AppDrawerHeader
+          title={
+            <>
+              <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-primary">
+                {step === "details"
+                  ? platform.meals.newMeal
+                  : step === "folder"
+                    ? platform.meals.chooseFolder
+                    : platform.meals.choosePlan}
+              </span>
               {step === "details" ? platform.meals.addMeal : form.name}
-            </h2>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+            </>
+          }
+        />
 
         <div
-          className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4"
+          className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 pt-5 pb-4"
           data-scroll-lock-scrollable
         >
           {step === "details" && (
@@ -506,7 +498,7 @@ function CreateMealDialog({
         </div>
 
         {step === "details" && (
-          <div className="flex shrink-0 gap-2 border-t border-border px-5 py-4">
+          <div className="flex shrink-0 gap-2 px-5 py-4">
             <Button variant="outline" className="flex-1" onClick={onClose}>
               {platform.common.cancel}
             </Button>

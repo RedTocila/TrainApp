@@ -216,7 +216,7 @@ export function NutritionScheduleForm({
                 type="button"
                 onClick={() => toggleWeekday(value)}
                 className={cn(
-                  "rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                  "h-[var(--control-height)] min-w-[var(--control-height)] rounded-full border px-3 text-sm font-medium transition-colors",
                   weekdays.includes(value)
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-secondary/60 hover:border-primary/40"

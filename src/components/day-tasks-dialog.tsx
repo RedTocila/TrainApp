@@ -1,7 +1,6 @@
 "use client";
 
 import { isToday, isTomorrow } from "date-fns";
-import { X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { getTaskCompletionsForDate } from "@/lib/actions/task-completions";
@@ -13,6 +12,7 @@ import {
 } from "@/lib/daily-tasks";
 import { formatLocalized } from "@/lib/date-locale";
 import { formatDateKey } from "@/lib/utils";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { Button } from "@/components/ui/button";
@@ -77,37 +77,27 @@ export function DayTasksDialog({
       <AppOverlayPanel maxWidth="max-w-md" aria-label={platform.calendar.tasksFor(
             formatLocalized(date, "MMMM d", locale)
           )} className="max-h-[min(92%,32rem)]">
-        <div className="flex items-start justify-between border-b border-border px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              {dayHeading}
-            </p>
-            <h2 className="text-lg font-black">
+        <AppDrawerHeader
+          title={
+            <>
+              <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-primary">
+                {dayHeading}
+              </span>
               {formatLocalized(date, "MMMM d, yyyy", locale)}
-            </h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {platform.calendar.daySummary(
-                active.length,
-                completed.length,
-                missed.length
-              )}
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            aria-label={platform.common.close}
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+            </>
+          }
+          description={platform.calendar.daySummary(
+            active.length,
+            completed.length,
+            missed.length
+          )}
+        />
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-5 pt-5 pb-4">
           <DayTasksList tasks={tasks} />
         </div>
 
-        <div className="border-t border-border px-5 py-3">
+        <div className="px-5 py-3">
           <Button variant="outline" className="w-full" onClick={onClose}>
             {platform.common.close}
           </Button>

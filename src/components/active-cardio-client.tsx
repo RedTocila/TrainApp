@@ -43,6 +43,7 @@ import {
   setDashboardDayCache,
 } from "@/lib/dashboard-day-cache";
 import { formatUserError } from "@/lib/format-user-error";
+import { markReminderDone } from "@/lib/reminder-events";
 import { formatElapsedClock } from "@/lib/workout-duration";
 import type { ScheduledCardio } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -144,6 +145,8 @@ export function ActiveCardioClient({
         setError(formatUserError(result.error));
         return;
       }
+
+      markReminderDone("cardio");
 
       const cacheKey = dashboardDayCacheKey(clientId, "cardio", dateKey);
       const cached = getDashboardDayCache<{

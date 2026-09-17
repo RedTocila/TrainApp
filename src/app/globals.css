@@ -5,13 +5,14 @@
 
 :root {
   --radius: 0.75rem;
+  --control-height: 2.75rem;
   --safe-area-top-inset: constant(safe-area-inset-top, 0px);
   --safe-area-top-inset: env(safe-area-inset-top, 0px);
   --safe-area-bottom-inset: constant(safe-area-inset-bottom, 0px);
   --safe-area-bottom-inset: env(safe-area-inset-bottom, 0px);
   --safe-area-top: max(0.625rem, var(--safe-area-top-inset));
   --safe-area-bottom: max(0.5rem, var(--safe-area-bottom-inset));
-  --dashboard-mobile-header-height: calc(2.75rem + var(--safe-area-top));
+  --dashboard-mobile-header-height: calc(var(--control-height) + var(--safe-area-top));
   --dashboard-mobile-nav-height: calc(4.75rem + var(--safe-area-bottom));
   /* Motion — GPU-friendly, short, premium ease */
   --ease-out-premium: cubic-bezier(0.22, 1, 0.36, 1);
@@ -78,6 +79,7 @@ html.light {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --radius-lg: var(--radius);
+  --spacing-control: var(--control-height);
 }
 
 * {

@@ -37,6 +37,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { markReminderDone } from "@/lib/reminder-events";
+
 
 type LogMode = "picker" | "custom" | "library" | "photo" | "text";
 
@@ -143,6 +145,7 @@ export function LogMealDialog({
 
   const finishMealLog = (preview?: Parameters<typeof onLogged>[0]) => {
     try {
+      markReminderDone("meals");
       onLogged(preview);
       onClose();
     } catch {
@@ -335,7 +338,7 @@ export function LogMealDialog({
   const header = (
     <div
       className={cn(
-        "flex shrink-0 items-center gap-1.5 border-b border-border px-4 py-2.5 sm:py-3",
+        "flex shrink-0 items-center gap-1.5 px-4 py-2.5 sm:py-3",
         isPhotoReviewFullscreen &&
           "bg-background/95 pt-[max(0.75rem,env(safe-area-inset-top,0px))] backdrop-blur-md",
         isPhotoCaptureFullscreen &&
@@ -384,25 +387,27 @@ export function LogMealDialog({
           {platform.common.save}
         </Button>
       ) : null}
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          "h-8 w-8 shrink-0",
-          isPhotoCaptureFullscreen &&
-            "h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/35 hover:text-white",
-          isPhotoReviewFullscreen &&
-            "h-10 w-10 rounded-full bg-muted text-foreground hover:bg-muted/80"
-        )}
-        onClick={onClose}
-        aria-label={platform.aria.close}
-        disabled={isSaving}
-      >
-        <X
-          className={cn("h-4 w-4", isPhotoFullscreen && "h-6 w-6")}
-          strokeWidth={isPhotoFullscreen ? 2.25 : undefined}
-        />
-      </Button>
+      {isPhotoFullscreen ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-8 w-8 shrink-0",
+            isPhotoCaptureFullscreen &&
+              "h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/35 hover:text-white",
+            isPhotoReviewFullscreen &&
+              "h-10 w-10 rounded-full bg-muted text-foreground hover:bg-muted/80"
+          )}
+          onClick={onClose}
+          aria-label={platform.aria.close}
+          disabled={isSaving}
+        >
+          <X
+            className={cn("h-4 w-4", isPhotoFullscreen && "h-6 w-6")}
+            strokeWidth={isPhotoFullscreen ? 2.25 : undefined}
+          />
+        </Button>
+      ) : null}
     </div>
   );
 

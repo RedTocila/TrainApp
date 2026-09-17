@@ -2,7 +2,7 @@
 import { useCoachLabels, usePlatformCopy } from "@/components/locale-provider";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -77,7 +77,6 @@ export function MissedItemsDialog({
   onClose: () => void;
 }) {
   const coachLabels = useCoachLabels();
-  const platform = usePlatformCopy();
 
   useEffect(() => {
     if (!open) return;
@@ -95,24 +94,16 @@ export function MissedItemsDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-md" aria-label={title} className="max-h-[min(92%,28rem)]">
-        <div className="flex items-start justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2
-              className={cn(
-                "text-lg font-black",
-                tone === "warning" ? "text-orange-400" : "text-red-400"
-              )}
-            >
+        <AppDrawerHeader
+          title={
+            <span className={tone === "warning" ? "text-orange-400" : "text-red-400"}>
               {title}
-            </h2>
-            {hint && <p className="mt-1 text-sm text-muted-foreground">{hint}</p>}
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label={platform.aria.close}>
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+            </span>
+          }
+          description={hint}
+        />
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-5 pt-5 pb-4">
           {items.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               {coachLabels.nothingMissed}
@@ -146,7 +137,7 @@ export function MissedItemsDialog({
           )}
         </div>
 
-        <div className="border-t border-border px-5 py-3">
+        <div className="px-5 py-3">
           <Button variant="outline" className="w-full" onClick={onClose}>
             {coachLabels.illDoBetter}
           </Button>

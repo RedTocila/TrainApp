@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { Camera, ImageIcon, ImagePlus } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { pickNativeImage } from "@/lib/native-camera";
 import { GALLERY_IMAGE_ACCEPT } from "@/lib/pick-gallery-image";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +46,32 @@ export function ImageSourceButtons({
     if (file) onSelect(file);
     resetInput(cameraRef.current);
     resetInput(galleryRef.current);
+  };
+
+  const openCamera = async () => {
+    try {
+      const native = await pickNativeImage({ source: "camera" });
+      if (native) {
+        onSelect(native);
+        return;
+      }
+    } catch {
+      // Fall back to file input if the user cancels or the plugin fails.
+    }
+    cameraRef.current?.click();
+  };
+
+  const openGallery = async () => {
+    try {
+      const native = await pickNativeImage({ source: "gallery" });
+      if (native) {
+        onSelect(native);
+        return;
+      }
+    } catch {
+      // Fall back to file input if the user cancels or the plugin fails.
+    }
+    galleryRef.current?.click();
   };
 
   const cameraInput = (
@@ -90,7 +117,7 @@ export function ImageSourceButtons({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => cameraRef.current?.click()}
+          onClick={() => void openCamera()}
           className={tileClass}
         >
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/15 text-primary">
@@ -104,7 +131,7 @@ export function ImageSourceButtons({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => galleryRef.current?.click()}
+            onClick={() => void openGallery()}
             className={tileClass}
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted text-foreground">
@@ -127,9 +154,7 @@ export function ImageSourceButtons({
         <button
           type="button"
           disabled={disabled}
-          onClick={() =>
-            cameraOnly ? cameraRef.current?.click() : galleryRef.current?.click()
-          }
+          onClick={() => void (cameraOnly ? openCamera() : openGallery())}
           aria-label={resolvedZoneLabel}
           className={cn(
             "flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 px-4 py-10 transition-colors",
@@ -159,9 +184,7 @@ export function ImageSourceButtons({
           variant="outline"
           size="sm"
           disabled={disabled}
-          onClick={() =>
-            cameraOnly ? cameraRef.current?.click() : galleryRef.current?.click()
-          }
+          onClick={() => void (cameraOnly ? openCamera() : openGallery())}
           className={className}
         >
           {cameraOnly ? (
@@ -186,7 +209,7 @@ export function ImageSourceButtons({
           size="icon"
           className="h-8 w-8"
           disabled={disabled}
-          onClick={() => cameraRef.current?.click()}
+          onClick={() => void openCamera()}
           aria-label={resolvedCameraLabel}
         >
           <Camera className="h-3.5 w-3.5" />
@@ -198,7 +221,7 @@ export function ImageSourceButtons({
             size="icon"
             className="h-8 w-8"
             disabled={disabled}
-            onClick={() => galleryRef.current?.click()}
+            onClick={() => void openGallery()}
             aria-label={resolvedGalleryLabel}
           >
             <ImageIcon className="h-3.5 w-3.5" />
@@ -219,9 +242,7 @@ export function ImageSourceButtons({
           size="icon"
           className={cn("h-9 w-9", className)}
           disabled={disabled}
-          onClick={() =>
-            cameraOnly ? cameraRef.current?.click() : galleryRef.current?.click()
-          }
+          onClick={() => void (cameraOnly ? openCamera() : openGallery())}
           aria-label={cameraOnly ? resolvedCameraLabel : resolvedGalleryLabel}
         >
           {cameraOnly ? (
@@ -244,7 +265,7 @@ export function ImageSourceButtons({
         size="sm"
         className="flex-1"
         disabled={disabled}
-        onClick={() => cameraRef.current?.click()}
+        onClick={() => void openCamera()}
       >
         <Camera className="mr-1.5 h-4 w-4" />
         {resolvedCameraLabel}
@@ -256,7 +277,7 @@ export function ImageSourceButtons({
           size="sm"
           className="flex-1"
           disabled={disabled}
-          onClick={() => galleryRef.current?.click()}
+          onClick={() => void openGallery()}
         >
           <ImageIcon className="mr-1.5 h-4 w-4" />
           {resolvedGalleryLabel}

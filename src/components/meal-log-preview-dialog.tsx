@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Check, CheckCircle2, Target, Trash2, X } from "lucide-react";
+import { Check, CheckCircle2, Target, Trash2 } from "lucide-react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useCoachCopy, usePlatformCopy } from "@/components/locale-provider";
@@ -93,30 +93,18 @@ export function MealLogPreviewDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" aria-label="Meal logged preview" className="max-h-[min(92%,42rem)]">
-        <div className="shrink-0 space-y-2 border-b border-border px-5 py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <p className="flex items-center gap-2 text-sm font-semibold text-primary">
-                <CheckCircle2 className="h-4 w-4" />
-                {variant === "new" ? "Meal logged" : "Meal insights"}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg font-black">{meal.name}</h2>
-                <Badge variant="secondary" className="capitalize">
-                  {meal.meal_type}
-                </Badge>
-              </div>
+        <div className="shrink-0 space-y-2 px-5 pb-3.5 pt-1 sm:pt-4">
+          <div className="min-w-0 space-y-1">
+            <p className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <CheckCircle2 className="h-4 w-4" />
+              {variant === "new" ? "Meal logged" : "Meal insights"}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-black leading-tight">{meal.name}</h2>
+              <Badge variant="secondary" className="capitalize">
+                {meal.meal_type}
+              </Badge>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0"
-              onClick={onClose}
-              disabled={isDeleting}
-              aria-label={platform.aria.close}
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
           <div className="flex items-center gap-2">
             {summary ? (
@@ -150,7 +138,7 @@ export function MealLogPreviewDialog({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4" data-scroll-lock-scrollable>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-4" data-scroll-lock-scrollable>
           {photoUrl ? (
             <div className="mb-4 overflow-hidden rounded-xl border border-border bg-secondary/30">
               <Image

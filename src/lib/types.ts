@@ -57,6 +57,8 @@ export interface Profile {
   goal: string | null;
   unit_system?: "metric" | "imperial";
   preferred_locale?: "al" | "en";
+  /** Local notification reminder preferences (JSON). */
+  reminder_settings?: unknown;
   age?: number | null;
   gender?: string | null;
   height_cm?: number | null;

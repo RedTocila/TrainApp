@@ -25,6 +25,7 @@ import {
   formatExceededMacroSummary,
 } from "@/lib/macro-targets";
 import { waterMetDailyMinimum } from "@/lib/water-targets";
+import { markReminderDone } from "@/lib/reminder-events";
 import type { MacroTargets } from "@/lib/meal-score";
 import { NutritionStatsPanel } from "@/components/nutrition-stats-panel";
 import { NutritionStatusAdviceButton } from "@/components/nutrition-status-advice-button";
@@ -199,6 +200,9 @@ export function DailyTracker({
       const next = prev + amount;
       patchDashboard({ dateKey, waterMl: next });
       patchOverviewDayCache(clientId, dateKey, { waterMl: next });
+      if (waterMetDailyMinimum(next, waterGoalMl)) {
+        markReminderDone("water");
+      }
       return next;
     });
     void addWater(clientId, dateKey, amount).catch(() => {

@@ -37,6 +37,17 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Capacitor / native
+/ios/App/Pods
+/ios/App/Podfile.lock
+/ios/DerivedData
+/android/.gradle
+/android/app/build
+/android/build
+/android/captures
+*.keystore
+!debug.keystore
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

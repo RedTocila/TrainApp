@@ -114,7 +114,7 @@ export function ChangeWorkoutDialog({
         ariaLabel={platform.workout.changeWorkoutAria}
         maxWidth="max-w-md"
       >
-        <div className="grid grid-cols-2 gap-2.5 px-5 py-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2.5 px-5 pb-5 sm:grid-cols-3">
           <OptionSquare
             href="/dashboard/workout/workouts"
             icon={List}

@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Dumbbell, FolderPlus, Plus, Sparkles, X } from "lucide-react";
+import { Dumbbell, FolderPlus, Plus, Sparkles } from "lucide-react";
 import type { WorkoutPickItem } from "@/lib/actions/user-workouts";
 import { moveWorkoutToFolder } from "@/lib/actions/user-workouts";
 import { AddWorkoutWizard } from "@/components/add-workout-wizard";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,18 +62,17 @@ export function AddToFolderMenu({
 
       <AppOverlay open={menuOpen} onClose={() => setMenuOpen(false)}>
         <AppOverlayPanel maxWidth="max-w-md">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                Add to {folderName}
-              </p>
-              <h2 className="text-lg font-black">Add workout</h2>
-            </div>
-            <Button type="button" variant="ghost" size="icon" onClick={() => setMenuOpen(false)}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="space-y-2 p-4 sm:p-6">
+          <AppDrawerHeader
+            title={
+              <>
+                <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-primary">
+                  Add to {folderName}
+                </span>
+                Add workout
+              </>
+            }
+          />
+          <div className="space-y-2 px-5 pt-5 pb-4">
             <button
               type="button"
               onClick={openCreate}
@@ -112,23 +112,17 @@ export function AddToFolderMenu({
 
       <AppOverlay open={existingOpen} onClose={() => setExistingOpen(false)}>
         <AppOverlayPanel maxWidth="max-w-lg" className="max-h-[min(92%,40rem)]">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                Add to {folderName}
-              </p>
-              <h2 className="text-lg font-black">Existing workouts</h2>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setExistingOpen(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6" data-scroll-lock-scrollable>
+          <AppDrawerHeader
+            title={
+              <>
+                <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wider text-primary">
+                  Add to {folderName}
+                </span>
+                Existing workouts
+              </>
+            }
+          />
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-5 pb-4" data-scroll-lock-scrollable>
             <p className="mb-4 text-sm text-muted-foreground">
               Tap a workout to add it to this folder.
             </p>

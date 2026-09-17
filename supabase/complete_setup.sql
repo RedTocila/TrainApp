@@ -547,6 +547,9 @@ alter table public.profiles
   add constraint profiles_preferred_locale_values
   check (preferred_locale in ('al', 'en'));
 
+alter table public.profiles
+  add column if not exists reminder_settings jsonb not null default '{}'::jsonb;
+
 -- =============================================================================
 -- DONE
 -- =============================================================================

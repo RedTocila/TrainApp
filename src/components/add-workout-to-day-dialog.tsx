@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
-import { ArrowLeft, Library, Plus, Sparkles, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Check, Library, Loader2, Plus, Sparkles, type LucideIcon } from "lucide-react";
 import { AppDialog } from "@/components/app-dialog";
 import { AddWorkoutToDayAiPanel } from "@/components/add-workout-to-day-ai-panel";
 import { AddWorkoutToDayWizard } from "@/components/add-workout-to-day-wizard";
@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import {
   addWorkoutToDay,
   getPersonalWorkoutsWithSchedules,
+  getScheduledDayEntriesForDate,
+  unscheduleWorkoutDay,
   type PersonalWorkoutListItem,
 } from "@/lib/actions/user-workouts";
 import { inferDayCategory } from "@/lib/workout-visual-categories";
@@ -106,6 +108,8 @@ export function AddWorkoutToDayDialog({
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardType, setWizardType] = useState<CreateWorkoutType | null>(null);
   const [workouts, setWorkouts] = useState<PersonalWorkoutListItem[]>([]);
+  const [addedDayIds, setAddedDayIds] = useState<Set<string>>(() => new Set());
+  const [pendingDayId, setPendingDayId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -118,17 +122,23 @@ export function AddWorkoutToDayDialog({
       setWizardType(null);
       setError(null);
       setAiFooter(null);
+      setAddedDayIds(new Set());
+      setPendingDayId(null);
     }
   }, [open]);
 
   useEffect(() => {
     if (!open || mode !== "library") return;
     setLoading(true);
-    void getPersonalWorkoutsWithSchedules().then((loaded) => {
+    void Promise.all([
+      getPersonalWorkoutsWithSchedules(),
+      getScheduledDayEntriesForDate(dateKey),
+    ]).then(([loaded, scheduledEntries]) => {
       setWorkouts(loaded);
+      setAddedDayIds(new Set(scheduledEntries.map((entry) => entry.dayId)));
       setLoading(false);
     });
-  }, [open, mode]);
+  }, [open, mode, dateKey]);
 
   useEffect(() => {
     if (mode !== "ai") setAiFooter(null);
@@ -157,13 +167,38 @@ export function AddWorkoutToDayDialog({
   );
 
   const handlePickFromLibrary = (planId: string, dayId: string) => {
+    if (isPending) return;
     setError(null);
+    setPendingDayId(dayId);
+    const removing = addedDayIds.has(dayId);
     startTransition(async () => {
+      if (removing) {
+        const result = await unscheduleWorkoutDay(dateKey, dayId);
+        setPendingDayId(null);
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        setAddedDayIds((prev) => {
+          const next = new Set(prev);
+          next.delete(dayId);
+          return next;
+        });
+        onAdded?.();
+        return;
+      }
+
       const result = await addWorkoutToDay(dateKey, planId, dayId);
+      setPendingDayId(null);
       if (result.error) {
         setError(result.error);
         return;
       }
+      setAddedDayIds((prev) => {
+        const next = new Set(prev);
+        next.add(dayId);
+        return next;
+      });
       onAdded?.();
     });
   };
@@ -192,7 +227,7 @@ export function AddWorkoutToDayDialog({
         maxWidth="max-w-md"
         footer={mode === "ai" ? aiFooter : undefined}
       >
-        <div className="px-5 py-4">
+        <div className="px-5 pb-5">
           {mode === null ? (
             <div className="grid grid-cols-3 gap-2.5">
               <ModeSquare
@@ -251,30 +286,53 @@ export function AddWorkoutToDayDialog({
                   </div>
                 ) : (
                   <ul className="space-y-2">
-                    {libraryEntries.map((entry) => (
-                      <li key={`${entry.planId}-${entry.dayId}`}>
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={() => handlePickFromLibrary(entry.planId, entry.dayId)}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/80 px-3 py-2.5 text-left shadow-sm transition-colors",
-                            "hover:border-primary/40 hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60"
-                          )}
-                        >
-                          <WorkoutCategoryIcon category={entry.category} size="sm" />
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">{entry.dayTitle}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {entry.planTitle}
-                              {entry.exerciseCount > 0
-                                ? ` · ${platform.common.exercises(entry.exerciseCount)}`
-                                : ""}
-                            </p>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
+                    {libraryEntries.map((entry) => {
+                      const isAdded = addedDayIds.has(entry.dayId);
+                      const isAdding = pendingDayId === entry.dayId;
+                      return (
+                        <li key={`${entry.planId}-${entry.dayId}`}>
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            aria-pressed={isAdded}
+                            onClick={() =>
+                              handlePickFromLibrary(entry.planId, entry.dayId)
+                            }
+                            className={cn(
+                              "flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left shadow-sm transition-colors",
+                              isAdded
+                                ? "border-emerald-500/45 bg-emerald-500/10"
+                                : "border-border/60 bg-card/80 hover:border-primary/40 hover:bg-primary/10",
+                              "disabled:cursor-not-allowed disabled:opacity-60"
+                            )}
+                          >
+                            <WorkoutCategoryIcon
+                              category={entry.category}
+                              size="sm"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold">
+                                {entry.dayTitle}
+                              </p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {entry.planTitle}
+                                {entry.exerciseCount > 0
+                                  ? ` · ${platform.common.exercises(entry.exerciseCount)}`
+                                  : ""}
+                              </p>
+                            </div>
+                            {isAdding ? (
+                              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+                            ) : isAdded ? (
+                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-400">
+                                <Check className="h-3 w-3" strokeWidth={2.5} />
+                                {platform.workout.workoutAddedToDay}
+                              </span>
+                            ) : null}
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )
               ) : mode === "create" ? (

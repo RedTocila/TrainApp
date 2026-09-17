@@ -4,6 +4,9 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { StartupSplash } from "@/components/startup-splash";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LocaleProvider } from "@/components/locale-provider";
+import { NativeAppBootstrap } from "@/components/native-app-bootstrap";
+import { ReminderBootstrap } from "@/components/reminder-bootstrap";
+import { PwaRegister } from "@/components/pwa-register";
 import { getRequestLocale } from "@/lib/guest-locale-server";
 import { getHtmlLang } from "@/lib/platform-copy";
 import { SITE_URL } from "@/lib/landing-content";
@@ -51,13 +54,22 @@ export const metadata: Metadata = {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
     shortcut: "/favicon.ico",
-    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,
+    title: PLATFORM_NAME,
     statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 
@@ -96,6 +108,9 @@ export default async function RootLayout({
         <ThemeProvider>
           <LocaleProvider locale={locale} syncGuestStorage>
             {children}
+            <NativeAppBootstrap />
+            <ReminderBootstrap />
+            <PwaRegister />
           </LocaleProvider>
         </ThemeProvider>
         <SpeedInsights />

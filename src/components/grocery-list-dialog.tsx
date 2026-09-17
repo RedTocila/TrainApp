@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ShoppingCart, X } from "lucide-react";
+import { Check, ShoppingCart } from "lucide-react";
 import {
   getGroceryChecks,
   getWeeklyGroceryList,
@@ -9,10 +9,10 @@ import {
 } from "@/lib/actions/grocery-list";
 import { groupGroceryByCategory } from "@/lib/grocery-list-utils";
 import { isActionError, runServerAction } from "@/lib/run-server-action";
+import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { GroceryListItem } from "@/lib/types";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function GroceryListDialog({
@@ -113,24 +113,17 @@ export function GroceryListDialog({
   return (
     <AppOverlay open={open} onClose={onClose}>
       <AppOverlayPanel maxWidth="max-w-lg" aria-labelledby="grocery-list-title" className="max-h-[92%]">
-        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div className="min-w-0">
-            <h2 id="grocery-list-title" className="text-base font-bold">
-              {platform.groceryList.title}
-            </h2>
-            <p className="text-xs text-muted-foreground">{platform.groceryList.subtitle}</p>
-            {items.length > 0 && (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {platform.groceryList.progress(boughtCount, items.length)}
-              </p>
-            )}
-          </div>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+        <AppDrawerHeader
+          titleId="grocery-list-title"
+          title={platform.groceryList.title}
+          description={
+            items.length > 0
+              ? `${platform.groceryList.subtitle} · ${platform.groceryList.progress(boughtCount, items.length)}`
+              : platform.groceryList.subtitle
+          }
+        />
 
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="flex-1 overflow-y-auto px-5 pt-5 pb-4">
           {loading ? (
             <p className="text-sm text-muted-foreground">{platform.common.loading}</p>
           ) : error ? (

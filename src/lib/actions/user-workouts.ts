@@ -486,6 +486,50 @@ export async function addWorkoutToDay(
   return { data, alreadyScheduled: false as const };
 }
 
+/** Scheduled day entries for the current user on a date (library picker). */
+export async function getScheduledDayEntriesForDate(scheduledDate: string) {
+  const { supabase, userId } = await requireUserId();
+  const { data } = await supabase
+    .from("scheduled_workouts")
+    .select("id, day_id")
+    .eq("client_id", userId)
+    .eq("scheduled_date", scheduledDate);
+
+  return (data ?? [])
+    .map((row) => ({
+      scheduledWorkoutId: row.id as string,
+      dayId: row.day_id as string | null,
+    }))
+    .filter(
+      (row): row is { scheduledWorkoutId: string; dayId: string } =>
+        Boolean(row.scheduledWorkoutId && row.dayId)
+    );
+}
+
+/** @deprecated Prefer getScheduledDayEntriesForDate */
+export async function getScheduledDayIdsForDate(scheduledDate: string) {
+  const entries = await getScheduledDayEntriesForDate(scheduledDate);
+  return entries.map((entry) => entry.dayId);
+}
+
+export async function unscheduleWorkoutDay(
+  scheduledDate: string,
+  dayId: string
+) {
+  const { supabase, userId } = await requireUserId();
+  const { error } = await supabase
+    .from("scheduled_workouts")
+    .delete()
+    .eq("client_id", userId)
+    .eq("scheduled_date", scheduledDate)
+    .eq("day_id", dayId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/workout");
+  return { success: true };
+}
+
 export async function getScheduledWorkoutsInRange(from: string, to: string) {
   const { supabase, userId } = await requireUserId();
 
