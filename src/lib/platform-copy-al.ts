@@ -1648,6 +1648,7 @@ export const platformCopyAl = {
       daysProgress: "Progresi i ditëve",
       registeredBadge: "I regjistruar",
       inactiveBadge: "Së shpejti",
+      inactiveSubtext: "Sfida nuk është aktive ende",
     },
     join: {
       registerFree: "Regjistrohu (Elite · falas)",

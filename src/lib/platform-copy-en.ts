@@ -1674,6 +1674,7 @@ export const platformCopyEn = {
       daysProgress: "Days progress",
       registeredBadge: "Joined",
       inactiveBadge: "Coming soon",
+      inactiveSubtext: "Challenge is not active yet",
     },
     join: {
       registerFree: "Register (Elite · free)",

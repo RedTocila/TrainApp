@@ -6,7 +6,7 @@ import { ChallengeRulesInstructionsClient } from "@/components/challenge-rules-i
 import { FlashChallengeRulesClient } from "@/components/flash-challenge-rules-client";
 import { PageTransition } from "@/components/page-transition";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
-import { getChallengeDurationMonths } from "@/lib/challenge-utils";
+import { getChallengeDurationMonths, isChallengeActive } from "@/lib/challenge-utils";
 import { isFlashChallenge } from "@/lib/challenge-series";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import { resolveChallengePlatformCopy } from "@/lib/challenge-platform-copy";
@@ -39,6 +39,9 @@ export default async function ChallengeRulesPage({
   const platform = getPlatformCopy(parseCheckoutLocale(profile.preferred_locale));
   const challenge = await getChallengeBySlug(slug, profile.gender);
   if (!challenge) notFound();
+  if (!isChallengeActive(challenge)) {
+    redirect("/dashboard/classes");
+  }
 
   const challengeCopy = resolveChallengePlatformCopy(platform.challenges, challenge);
 

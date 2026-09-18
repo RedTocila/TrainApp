@@ -23,7 +23,7 @@ import { ChallengeZoomPanel } from "@/components/challenge-zoom-panel";
 import { FlashChallengeActionBlock } from "@/components/flash-challenge-action-block";
 import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent } from "@/components/ui/card";
-import { getChallengeStatus } from "@/lib/challenge-utils";
+import { getChallengeStatus, isChallengeActive } from "@/lib/challenge-utils";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import { resolveChallengePlatformCopy } from "@/lib/challenge-platform-copy";
@@ -57,6 +57,9 @@ export default async function ChallengeDetailPage({
   const platform = getPlatformCopy(parseCheckoutLocale(profile.preferred_locale));
   const challenge = await getChallengeBySlug(slug, profile.gender);
   if (!challenge) notFound();
+  if (!isChallengeActive(challenge)) {
+    redirect("/dashboard/classes");
+  }
 
   const copy = resolveChallengePlatformCopy(platform.challenges, challenge);
 

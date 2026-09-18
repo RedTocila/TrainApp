@@ -63,6 +63,7 @@ function CatalogChallengeCard({
     daysProgress: string;
     registeredBadge: string;
     inactiveBadge: string;
+    inactiveSubtext: string;
   };
   const leagueTag = getChallengeLeagueTag(platform.challenges, challenge);
   const visual = getChallengeCardVisual(challenge);
@@ -84,189 +85,212 @@ function CatalogChallengeCard({
   const detailPath = `/dashboard/challenges/${challenge.slug}`;
   const href = requiresUpgrade ? buildPricingHref(detailPath) : detailPath;
 
-  return (
-    <div className="relative h-full min-w-0 w-full max-w-full">
-      <ChallengeShareButton
-        slug={challenge.slug}
-        title={challenge.title}
-        variant="card"
-        className="absolute right-2.5 top-2.5 z-20 h-7 w-7"
+  const card = (
+    <motion.article
+      className={cn(
+        "relative flex h-full w-full max-w-full min-w-0 flex-col overflow-hidden rounded-2xl border p-3",
+        active ? "transition-shadow hover:shadow-lg" : "cursor-not-allowed opacity-90",
+        active ? visual.border : "border-zinc-500/25",
+        active ? visual.shadow : "shadow-none"
+      )}
+      whileHover={active ? { y: -2 } : undefined}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      aria-disabled={!active}
+    >
+      <div
+        aria-hidden
+        className={cn(
+          "absolute inset-0 bg-gradient-to-br",
+          active ? visual.gradient : "from-zinc-700 via-zinc-600 to-zinc-800"
+        )}
       />
-      <Link href={href} className="group block h-full min-w-0 w-full max-w-full">
-        <motion.article
+      {visual.coverImage ? (
+        <div
+          aria-hidden
           className={cn(
-            "relative flex h-full w-full max-w-full min-w-0 flex-col overflow-hidden rounded-2xl border p-3",
-            active ? "transition-shadow hover:shadow-lg" : "opacity-80",
-            active ? visual.border : "border-zinc-500/25",
-            active ? visual.shadow : "shadow-none"
+            "absolute inset-0 bg-cover bg-[center_right] sm:bg-center",
+            !active && "grayscale"
           )}
-          whileHover={active ? { y: -2 } : undefined}
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
-        >
-          <div
-            aria-hidden
-            className={cn(
-              "absolute inset-0 bg-gradient-to-br",
-              active ? visual.gradient : "from-zinc-700 via-zinc-600 to-zinc-800"
-            )}
-          />
-          {visual.coverImage ? (
-            <div
-              aria-hidden
-              className={cn(
-                "absolute inset-0 bg-cover bg-[center_right] sm:bg-center",
-                !active && "grayscale"
-              )}
-              style={{ backgroundImage: `url(${visual.coverImage})` }}
-            />
-          ) : null}
-          <div
-            aria-hidden
-            className={cn(
-              "absolute inset-0 bg-gradient-to-r from-black/80 from-0% via-black/50 via-[38%] to-transparent to-[68%]",
-              !active && "from-black/90 via-black/70"
-            )}
-          />
-          {!active ? (
-            <div aria-hidden className="absolute inset-0 bg-zinc-900/35 backdrop-grayscale" />
-          ) : null}
+          style={{ backgroundImage: `url(${visual.coverImage})` }}
+        />
+      ) : null}
+      <div
+        aria-hidden
+        className={cn(
+          "absolute inset-0 bg-gradient-to-r from-black/80 from-0% via-black/50 via-[38%] to-transparent to-[68%]",
+          !active && "from-black/90 via-black/70"
+        )}
+      />
+      {!active ? (
+        <div aria-hidden className="absolute inset-0 bg-zinc-900/35 backdrop-grayscale" />
+      ) : null}
 
-          <div
+      <div
+        className={cn(
+          "relative z-10 flex w-full min-w-0 max-w-[66%] flex-col gap-1.5",
+          active ? "text-white" : "text-zinc-200"
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span
             className={cn(
-              "relative z-10 flex w-full min-w-0 max-w-[66%] flex-col gap-1.5",
-              active ? "text-white" : "text-zinc-200"
+              "flex h-5 w-5 shrink-0 items-center justify-center rounded-md backdrop-blur-sm",
+              active ? "bg-amber-400/20" : "bg-zinc-400/15"
             )}
           >
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span
-                className={cn(
-                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-md backdrop-blur-sm",
-                  active ? "bg-amber-400/20" : "bg-zinc-400/15"
-                )}
-              >
-                <Trophy
-                  className={cn("h-3 w-3", active ? "text-amber-300" : "text-zinc-400")}
-                />
-              </span>
-              <p
-                className={cn(
-                  "min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide",
-                  active ? "text-white/75" : "text-zinc-400"
-                )}
-              >
-                {catalogCopy.cardEyebrow}
-                {meta ? ` · ${meta}` : null}
-              </p>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
-                  !active
-                    ? "bg-zinc-500/40 text-zinc-100"
-                    : joined
-                      ? "bg-primary text-primary-foreground"
-                      : "invisible pointer-events-none bg-primary text-primary-foreground"
-                )}
-                aria-hidden={active && !joined}
-              >
-                {active ? catalogCopy.registeredBadge : catalogCopy.inactiveBadge}
-              </span>
-            </div>
+            <Trophy
+              className={cn("h-3 w-3", active ? "text-amber-300" : "text-zinc-400")}
+            />
+          </span>
+          <p
+            className={cn(
+              "min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide",
+              active ? "text-white/75" : "text-zinc-400"
+            )}
+          >
+            {catalogCopy.cardEyebrow}
+            {meta ? ` · ${meta}` : null}
+          </p>
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+              !active
+                ? "bg-zinc-500/40 text-zinc-100"
+                : joined
+                  ? "bg-primary text-primary-foreground"
+                  : "invisible pointer-events-none bg-primary text-primary-foreground"
+            )}
+            aria-hidden={active && !joined}
+          >
+            {active ? catalogCopy.registeredBadge : catalogCopy.inactiveBadge}
+          </span>
+        </div>
 
-            <h3 className="line-clamp-2 min-h-[2.4rem] text-[15px] font-black leading-tight tracking-tight drop-shadow-sm sm:text-base">
-              {challenge.title}
-            </h3>
+        <h3
+          className={cn(
+            "line-clamp-2 text-[15px] font-black leading-tight tracking-tight drop-shadow-sm sm:text-base",
+            active && "min-h-[2.4rem]"
+          )}
+        >
+          {challenge.title}
+        </h3>
+        {!active ? (
+          <p className="relative z-10 text-xs font-bold leading-snug text-yellow-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+            {catalogCopy.inactiveSubtext}
+          </p>
+        ) : null}
 
-            <div className="min-w-0">
-              <p
-                className={cn(
-                  "truncate text-xs font-semibold",
-                  active ? "text-amber-200" : "text-zinc-400"
-                )}
-              >
-                {catalogCopy.prizePoolLabel}:{" "}
-                <span className={cn("font-black", active ? "text-white" : "text-zinc-200")}>
-                  {currentPrizeLabel}
-                </span>
-              </p>
-              <p
-                className={cn(
-                  "truncate text-[10px] leading-tight",
-                  active ? "text-white/65" : "text-zinc-500"
-                )}
-              >
-                {catalogCopy.prizePoolUpTo(maxPrizeLabel)}
-              </p>
-            </div>
+        <div className="min-w-0">
+          <p
+            className={cn(
+              "truncate text-xs font-semibold",
+              active ? "text-amber-200" : "text-zinc-400"
+            )}
+          >
+            {catalogCopy.prizePoolLabel}:{" "}
+            <span className={cn("font-black", active ? "text-white" : "text-zinc-200")}>
+              {currentPrizeLabel}
+            </span>
+          </p>
+          <p
+            className={cn(
+              "truncate text-[10px] leading-tight",
+              active ? "text-white/65" : "text-zinc-500"
+            )}
+          >
+            {catalogCopy.prizePoolUpTo(maxPrizeLabel)}
+          </p>
+        </div>
 
-            <div className="min-w-0 space-y-1">
-              <div
-                className={cn(
-                  "flex min-w-0 items-center justify-between gap-2 text-[10px]",
-                  active ? "text-white/75" : "text-zinc-500"
-                )}
-              >
-                <span className="truncate">{catalogCopy.daysProgress}</span>
-                <span
-                  className={cn(
-                    "shrink-0 font-bold tabular-nums",
-                    active ? "text-white" : "text-zinc-300"
-                  )}
-                >
-                  {dayPct}%
-                </span>
-              </div>
-              <div
-                className={cn(
-                  "h-1.5 w-full overflow-hidden rounded-full",
-                  active ? "bg-white/20" : "bg-zinc-500/30"
-                )}
-              >
-                <div
-                  className={cn(
-                    "h-full max-w-full rounded-full",
-                    active ? "bg-primary" : "bg-zinc-400"
-                  )}
-                  style={{ width: `${dayPct}%` }}
-                />
-              </div>
-            </div>
-
-            <div
+        <div className="min-w-0 space-y-1">
+          <div
+            className={cn(
+              "flex min-w-0 items-center justify-between gap-2 text-[10px]",
+              active ? "text-white/75" : "text-zinc-500"
+            )}
+          >
+            <span className="truncate">{catalogCopy.daysProgress}</span>
+            <span
               className={cn(
-                "grid min-w-0 grid-cols-2 gap-2 border-t pt-2",
-                active ? "border-white/10" : "border-zinc-500/20"
+                "shrink-0 font-bold tabular-nums",
+                active ? "text-white" : "text-zinc-300"
               )}
             >
-              <div className="min-w-0">
-                <p
-                  className={cn(
-                    "truncate text-[10px] leading-none",
-                    active ? "text-white/70" : "text-zinc-500"
-                  )}
-                >
-                  {catalogCopy.spotsLeftLabel}
-                </p>
-                <p className="mt-1 text-base font-black tabular-nums leading-none">
-                  {spotsLeft}
-                </p>
-              </div>
-              <div className="min-w-0">
-                <p
-                  className={cn(
-                    "truncate text-[10px] leading-none",
-                    active ? "text-white/70" : "text-zinc-500"
-                  )}
-                >
-                  {catalogCopy.participantsLabel}
-                </p>
-                <p className="mt-1 text-base font-black tabular-nums leading-none">
-                  {participantCount}
-                </p>
-              </div>
-            </div>
+              {dayPct}%
+            </span>
           </div>
-        </motion.article>
-      </Link>
+          <div
+            className={cn(
+              "h-1.5 w-full overflow-hidden rounded-full",
+              active ? "bg-white/20" : "bg-zinc-500/30"
+            )}
+          >
+            <div
+              className={cn(
+                "h-full max-w-full rounded-full",
+                active ? "bg-primary" : "bg-zinc-400"
+              )}
+              style={{ width: `${dayPct}%` }}
+            />
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            "grid min-w-0 grid-cols-2 gap-2 border-t pt-2",
+            active ? "border-white/10" : "border-zinc-500/20"
+          )}
+        >
+          <div className="min-w-0">
+            <p
+              className={cn(
+                "truncate text-[10px] leading-none",
+                active ? "text-white/70" : "text-zinc-500"
+              )}
+            >
+              {catalogCopy.spotsLeftLabel}
+            </p>
+            <p className="mt-1 text-base font-black tabular-nums leading-none">
+              {spotsLeft}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p
+              className={cn(
+                "truncate text-[10px] leading-none",
+                active ? "text-white/70" : "text-zinc-500"
+              )}
+            >
+              {catalogCopy.participantsLabel}
+            </p>
+            <p className="mt-1 text-base font-black tabular-nums leading-none">
+              {participantCount}
+            </p>
+          </div>
+        </div>
+      </div>
+    </motion.article>
+  );
+
+  return (
+    <div className="relative h-full min-w-0 w-full max-w-full">
+      {active ? (
+        <ChallengeShareButton
+          slug={challenge.slug}
+          title={challenge.title}
+          variant="card"
+          className="absolute right-2.5 top-2.5 z-20 h-7 w-7"
+        />
+      ) : null}
+      {active ? (
+        <Link href={href} className="group block h-full min-w-0 w-full max-w-full">
+          {card}
+        </Link>
+      ) : (
+        <div className="block h-full min-w-0 w-full max-w-full" role="group">
+          {card}
+        </div>
+      )}
     </div>
   );
 }
