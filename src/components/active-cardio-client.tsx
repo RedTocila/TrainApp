@@ -6,7 +6,6 @@ import { useEffect, useState, useTransition } from "react";
 import {
   ArrowLeft,
   Check,
-  Clock,
   HeartPulse,
   Loader2,
   Pause,
@@ -19,10 +18,9 @@ import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getCardioTypeDisplay, localizeCardioTitle } from "@/lib/cardio-catalog";
 import {
-  formatCardioElapsedMinutes,
   isCardioDurationComplete,
   minCardioSecondsForComplete,
 } from "@/lib/cardio-completion";
@@ -203,26 +201,15 @@ export function ActiveCardioClient({
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 pb-8">
-      <div className="flex flex-col gap-3">
-        <Link href="/dashboard">
-          <Button variant="ghost" size="sm" className="-ml-2 w-fit">
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            {platform.common.back}
-          </Button>
-        </Link>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-orange-400">
-              {isStarted ? platform.cardio.stillGoing : platform.cardio.readyToStart}
-            </p>
-            <h1 className="text-2xl font-black">
-              {cardioDisplayTitle ?? platform.cardio.title}
-            </h1>
-            {cardio?.description ? (
-              <p className="mt-1 text-sm text-muted-foreground">{cardio.description}</p>
-            ) : null}
-          </div>
+    <div className="mx-auto flex h-[calc(100dvh-2rem)] max-w-2xl flex-col gap-3 overflow-hidden pb-[max(0.5rem,var(--safe-area-bottom))]">
+      <div className="flex shrink-0 flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/dashboard">
+            <Button variant="ghost" size="sm" className="-ml-2 h-9 w-fit px-2">
+              <ArrowLeft className="mr-1 h-4 w-4" />
+              {platform.common.back}
+            </Button>
+          </Link>
           {isStarted ? (
             <Button
               type="button"
@@ -238,34 +225,84 @@ export function ActiveCardioClient({
             </Button>
           ) : null}
         </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div
-          className={cn(
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl",
-            iconBg
-          )}
-        >
-          <Icon className={cn("h-7 w-7", iconAccent)} />
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+              iconBg
+            )}
+          >
+            <Icon className={cn("h-5 w-5", iconAccent)} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-400">
+              {isStarted ? platform.cardio.stillGoing : platform.cardio.readyToStart}
+            </p>
+            <h1 className="truncate text-xl font-black leading-tight">
+              {cardioDisplayTitle ?? platform.cardio.title}
+            </h1>
+          </div>
+          {plannedMinutes != null ? (
+            <Badge variant="secondary" className="shrink-0">
+              {platform.common.min(plannedMinutes)}
+            </Badge>
+          ) : null}
         </div>
-        {plannedMinutes != null ? (
-          <Badge variant="secondary">{platform.common.min(plannedMinutes)}</Badge>
-        ) : null}
       </div>
 
       {hydrated ? (
-        <Card className="border-orange-500/20 bg-orange-500/5">
-          <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-orange-500/10 p-2">
-                <Clock className="h-4 w-4 text-orange-400" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold tabular-nums tracking-tight">
+        <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-orange-500/25 bg-gradient-to-b from-orange-500/15 via-orange-500/[0.06] to-transparent">
+          <CardContent className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 py-4">
+            <div
+              className={cn(
+                "relative flex aspect-square w-[min(100%,13.5rem)] max-h-[min(42vh,15rem)] items-center justify-center rounded-full border-2 sm:w-[min(100%,15rem)]",
+                isRunning
+                  ? "border-orange-400/50 shadow-[0_0_40px_-8px_rgba(251,146,60,0.45)]"
+                  : "border-orange-500/30"
+              )}
+            >
+              {plannedSeconds != null ? (
+                <svg
+                  className="absolute inset-0 -rotate-90"
+                  viewBox="0 0 100 100"
+                  aria-hidden
+                >
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="46"
+                    fill="none"
+                    className="stroke-orange-500/15"
+                    strokeWidth="3.5"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="46"
+                    fill="none"
+                    className="stroke-orange-400 transition-[stroke-dashoffset] duration-300"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 46}`}
+                    strokeDashoffset={`${
+                      2 *
+                      Math.PI *
+                      46 *
+                      (1 - Math.min(1, elapsedSeconds / plannedSeconds))
+                    }`}
+                  />
+                </svg>
+              ) : (
+                <div
+                  aria-hidden
+                  className="absolute inset-2 rounded-full border border-dashed border-orange-500/20"
+                />
+              )}
+              <div className="relative z-10 flex flex-col items-center gap-1 px-3 text-center">
+                <p className="font-mono text-4xl font-black tabular-nums tracking-tighter sm:text-5xl">
                   {formatElapsedClock(elapsedSeconds)}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   {isRunning
                     ? platform.cardio.elapsed
                     : timer?.status === "paused"
@@ -274,38 +311,55 @@ export function ActiveCardioClient({
                 </p>
               </div>
             </div>
+
             {plannedSeconds != null ? (
-              <div className="text-right">
-                <p className="text-sm font-medium">
-                  {platform.cardio.planned}: {platform.common.min(plannedMinutes!)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {elapsedSeconds >= plannedSeconds
-                    ? `+${formatElapsedClock(elapsedSeconds - plannedSeconds)}`
-                    : formatElapsedClock(plannedSeconds - elapsedSeconds)}
-                </p>
+              <div className="grid w-full max-w-sm shrink-0 grid-cols-2 gap-2 text-center">
+                <div className="rounded-xl border border-border/60 bg-background/50 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {platform.cardio.planned}
+                  </p>
+                  <p className="mt-0.5 text-sm font-bold tabular-nums">
+                    {formatElapsedClock(plannedSeconds)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-background/50 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {elapsedSeconds >= plannedSeconds
+                      ? platform.cardio.overtime
+                      : platform.cardio.remaining}
+                  </p>
+                  <p className="mt-0.5 text-sm font-bold tabular-nums text-orange-300">
+                    {elapsedSeconds >= plannedSeconds
+                      ? `+${formatElapsedClock(elapsedSeconds - plannedSeconds)}`
+                      : formatElapsedClock(plannedSeconds - elapsedSeconds)}
+                  </p>
+                </div>
               </div>
             ) : null}
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-dashed">
-          <CardContent className="flex items-center justify-center p-8">
+        <Card className="flex min-h-0 flex-1 border-dashed">
+          <CardContent className="flex flex-1 items-center justify-center p-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </CardContent>
         </Card>
       )}
 
       {cardio?.youtube_url ? (
-        <ExerciseVideoPlayer
-          videoUrl={cardio.youtube_url}
-          title={cardioDisplayTitle ?? cardio.title}
-        />
+        <div className="max-h-36 shrink-0 overflow-hidden">
+          <ExerciseVideoPlayer
+            videoUrl={cardio.youtube_url}
+            title={cardioDisplayTitle ?? cardio.title}
+          />
+        </div>
       ) : null}
 
-      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {error ? (
+        <p className="shrink-0 text-sm text-red-400">{error}</p>
+      ) : null}
 
-      <div className="space-y-3 border-t border-border pt-6">
+      <div className="shrink-0 space-y-2">
         {!isStarted ? (
           <StartWorkoutLoadingShell isLoading={false} className="w-full">
             <Button size="lg" className="w-full" onClick={handleStart}>
@@ -360,35 +414,27 @@ export function ActiveCardioClient({
                   formatElapsedClock(Math.max(0, minSeconds - elapsedSeconds))
                 )}
               </p>
-            ) : null}
-
-            <Card className="border-border/60 bg-background/60">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">
-                  {platform.cardio.finishSummaryTitle}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-                <div>
-                  <p className="text-muted-foreground">{platform.cardio.youDid}</p>
-                  <p className="font-medium tabular-nums">
-                    {formatElapsedClock(elapsedSeconds)}
-                    <span className="ml-1 text-muted-foreground">
-                      ({platform.common.min(formatCardioElapsedMinutes(elapsedSeconds))})
-                    </span>
-                  </p>
-                </div>
+            ) : (
+              <p className="text-center text-xs text-muted-foreground">
+                {platform.cardio.youDid}{" "}
+                <span className="font-semibold tabular-nums text-foreground">
+                  {formatElapsedClock(elapsedSeconds)}
+                </span>
                 {plannedMinutes != null ? (
-                  <div>
-                    <p className="text-muted-foreground">{platform.cardio.planned}</p>
-                    <p className="font-medium">{platform.common.min(plannedMinutes)}</p>
-                  </div>
+                  <>
+                    {" · "}
+                    {platform.cardio.planned}{" "}
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {platform.common.min(plannedMinutes)}
+                    </span>
+                  </>
                 ) : null}
-              </CardContent>
-            </Card>
+              </p>
+            )}
 
             <Button
               variant="ghost"
+              size="sm"
               className="w-full text-muted-foreground"
               disabled={isPending}
               onClick={handleDiscard}

@@ -15,9 +15,10 @@ import { extractYoutubeId, isValidYoutubeUrl } from "@/lib/youtube";
 import { cn } from "@/lib/utils";
 
 const SIZE_CLASS = {
-  sm: "h-10 w-10 rounded-lg border border-border",
-  md: "h-12 w-12 rounded-lg border border-border",
-  lg: "h-16 w-16 rounded-lg border border-border",
+  sm: "h-10 w-10 rounded-xl border border-border",
+  md: "h-14 w-14 rounded-xl border border-border",
+  lg: "h-16 w-16 rounded-xl border border-border",
+  xl: "h-20 w-20 rounded-2xl border border-border sm:h-24 sm:w-24",
 } as const;
 
 /** True when this exercise name can open a demo (GIF, stored YouTube, or admin override). */
@@ -87,12 +88,6 @@ export function ExerciseGifThumbnail({
       return;
     }
 
-    // Only fetch an admin YouTube override when we may need it as a thumbnail fallback.
-    if (hasGif && !gifFailed) {
-      setOverrideVideo(null);
-      return;
-    }
-
     let cancelled = false;
     void resolveExerciseYoutubeUrl(name).then((resolved) => {
       if (cancelled) return;
@@ -104,18 +99,28 @@ export function ExerciseGifThumbnail({
     return () => {
       cancelled = true;
     };
-  }, [name, explicitVideo, hasGif, gifFailed]);
+  }, [name, explicitVideo]);
 
   const effectiveVideo = explicitVideo ?? overrideVideo;
   const youtubeThumb = useMemo(
     () => youtubeThumbnailUrl(effectiveVideo),
     [effectiveVideo]
   );
-  const showGif = hasGif && !gifFailed;
-  const showYoutube = Boolean(youtubeThumb) && !youtubeFailed && !showGif;
+  const showYoutube = Boolean(youtubeThumb) && !youtubeFailed;
+  const showGif = hasGif && !gifFailed && !showYoutube;
   const hasDemo =
     exerciseCanShowDemo(name, effectiveVideo ?? videoUrl, imageUrl) || hasGif;
   const sizeClass = SIZE_CLASS[size];
+  const playIconClass =
+    size === "sm"
+      ? "h-2.5 w-2.5"
+      : size === "xl"
+        ? "h-4 w-4"
+        : "h-3 w-3";
+  const playBadgeClass =
+    size === "sm" ? "h-5 w-5" : size === "xl" ? "h-8 w-8" : "h-6 w-6";
+  const dumbbellClass =
+    size === "sm" ? "h-4 w-4" : size === "xl" ? "h-7 w-7" : "h-5 w-5";
 
   const emptyPlaceholder = (
     <div
@@ -125,10 +130,7 @@ export function ExerciseGifThumbnail({
         !expandable && className
       )}
     >
-      <Dumbbell
-        className={cn("opacity-40", size === "sm" ? "h-4 w-4" : "h-5 w-5")}
-        aria-hidden
-      />
+      <Dumbbell className={cn("opacity-40", dumbbellClass)} aria-hidden />
       <span className="sr-only">{name} demonstration</span>
     </div>
   );
@@ -150,14 +152,13 @@ export function ExerciseGifThumbnail({
       gifUrl={url}
       fallbackUrl={fallbackUrl}
       alt={`${name} demonstration`}
-      className={cn(sizeClass, !expandable && !showYoutube && className)}
+      className={cn(sizeClass, !expandable && className)}
       onFailed={onGifFailed}
       hideOnFailed
     />
   ) : null;
 
   if (!expandable || !hasDemo) {
-    if (showGif && gifMedia) return gifMedia;
     if (showYoutube && youtubeThumb) {
       return (
         <div
@@ -171,6 +172,7 @@ export function ExerciseGifThumbnail({
         </div>
       );
     }
+    if (showGif && gifMedia) return gifMedia;
     return emptyPlaceholder;
   }
 
@@ -186,7 +188,9 @@ export function ExerciseGifThumbnail({
         )}
         aria-label={`Preview ${name}`}
       >
-        {showGif ? (
+        {showYoutube ? (
+          youtubeMedia
+        ) : showGif ? (
           <ExerciseGifImage
             gifUrl={url}
             fallbackUrl={fallbackUrl}
@@ -195,19 +199,25 @@ export function ExerciseGifThumbnail({
             onFailed={onGifFailed}
             hideOnFailed
           />
-        ) : showYoutube ? (
-          youtubeMedia
         ) : (
           <span className="flex h-full w-full items-center justify-center bg-secondary/60">
-            <Dumbbell className="h-5 w-5 opacity-40 text-muted-foreground" aria-hidden />
+            <Dumbbell
+              className={cn("opacity-40 text-muted-foreground", dumbbellClass)}
+              aria-hidden
+            />
           </span>
         )}
         <span className="absolute inset-0 flex items-center justify-center bg-black/20 transition group-hover:bg-black/35">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/45 shadow-sm transition group-hover:bg-black/60 group-hover:scale-105">
+          <span
+            className={cn(
+              "flex items-center justify-center rounded-full bg-black/45 shadow-sm transition group-hover:scale-105 group-hover:bg-black/60",
+              playBadgeClass
+            )}
+          >
             <Play
               className={cn(
                 "fill-white text-white opacity-70 drop-shadow transition group-hover:opacity-100",
-                size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3"
+                playIconClass
               )}
             />
           </span>

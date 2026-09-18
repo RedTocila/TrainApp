@@ -751,6 +751,8 @@ export const platformCopyAl = {
     readyToStart: "Gati për të filluar",
     planned: "Planifikuar",
     elapsed: "Koha",
+    remaining: "Mbetur",
+    overtime: "Mbi",
     youDid: "Bëre",
     finishing: "Duke përfunduar…",
     finishSummaryTitle: "Përmbledhje seance",

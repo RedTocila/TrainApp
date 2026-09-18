@@ -6,12 +6,10 @@ import { usePlatformCopy } from "@/components/locale-provider";
 import { DashboardWorkoutCompactStats } from "@/components/dashboard-workout-compact-meta";
 import { WorkoutDifficultyInsightButton } from "@/components/workout-difficulty-insight-button";
 import { WorkoutExerciseList } from "@/components/workout-exercise-list";
-import { WorkoutMuscleMap } from "@/components/workout-muscle-map";
 import { WorkoutResultsDropdown } from "@/components/workout-results-dropdown";
-import { dashboard } from "@/components/dashboard-ui";
 import { Badge } from "@/components/ui/badge";
 import { scrollDashboardElementIntoView } from "@/lib/dashboard-scroll";
-import { isExtraWorkoutKind, isMainWorkoutKind } from "@/lib/hiit";
+import { isExtraWorkoutKind } from "@/lib/hiit";
 import type { Profile } from "@/lib/types";
 import {
   getCompletedWorkoutResultsForSession,
@@ -43,7 +41,7 @@ function WorkoutResultsSkeleton() {
 export function DashboardWorkoutDetailSkeleton() {
   return (
     <div
-      className="space-y-4 rounded-2xl border border-border/60 bg-card/40 p-4 sm:p-5"
+      className="space-y-4 rounded-3xl border border-border/60 bg-card/40 p-4 sm:p-5"
       role="status"
       aria-busy="true"
       aria-live="polite"
@@ -142,7 +140,6 @@ export function DashboardWorkoutDetailSection({
   const resultsSessionId = done
     ? sessionId ?? workout.historySessionId ?? null
     : null;
-  const showMuscleMap = isMainWorkoutKind(workout.planKind);
   const showBody = !isExtra || open;
 
   const mapExercises = useMemo(() => {
@@ -211,7 +208,7 @@ export function DashboardWorkoutDetailSection({
         ref={sectionRef}
         id={`workout-${workoutKey}`}
         className={cn(
-          "relative scroll-mt-24 overflow-hidden rounded-xl border",
+          "relative scroll-mt-24 overflow-hidden rounded-3xl border",
           containerTone,
           highlighted && "ring-1 ring-primary/30"
         )}
@@ -318,7 +315,7 @@ export function DashboardWorkoutDetailSection({
       ref={sectionRef}
       id={`workout-${workoutKey}`}
       className={cn(
-        "relative scroll-mt-24 space-y-4 overflow-hidden rounded-2xl border p-4 shadow-sm sm:p-5",
+        "relative scroll-mt-24 space-y-4 overflow-hidden rounded-3xl border p-4 shadow-sm sm:p-5",
         containerTone,
         highlighted && "ring-1 ring-primary/30"
       )}
@@ -376,16 +373,6 @@ export function DashboardWorkoutDetailSection({
 
       {showBody ? (
         <div className="relative z-10 space-y-4">
-          {showMuscleMap && mapExercises.length > 0 ? (
-            <div className={cn(dashboard.tile, "p-4 sm:p-5")}>
-              <WorkoutMuscleMap
-                exercises={mapExercises}
-                dayTitle={results?.dayTitle ?? workout.dayTitle}
-                gender={gender}
-              />
-            </div>
-          ) : null}
-
           {mapExercises.length > 0 ? (
             <div className={cn(skipped && "opacity-70")}>
               <WorkoutExerciseList exercises={mapExercises} gender={gender} />

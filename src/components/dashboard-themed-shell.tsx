@@ -98,7 +98,7 @@ const PHOTO_OBJECT_POSITION: Partial<Record<DashboardCardTheme, string>> = {
   water: "object-[65%_center]",
   cardio: "object-[75%_center]",
   nutrition: "object-center",
-  workout: "object-[70%_center]",
+  workout: "object-[68%_42%] scale-[1.22] origin-[68%_42%]",
   photos: "object-[40%_center]",
   weight: "object-[30%_center]",
   bmi: "object-center",
@@ -111,6 +111,7 @@ const PHOTO_OVERLAY: Partial<Record<DashboardCardTheme, string>> = {
   water: "from-black/60 via-black/38 to-black/22",
   cardio: "from-black/60 via-black/38 to-black/22",
   nutrition: "from-black/60 via-black/38 to-black/22",
+  workout: "from-black/55 via-black/28 to-black/12",
 };
 
 const DEFAULT_PHOTO_OVERLAY = "from-black/40 via-black/22 to-black/10";
@@ -148,17 +149,19 @@ export function DashboardThemedShell({
     >
       {hasPhoto ? (
         <>
-          <Image
-            src={backgroundSrc!}
-            alt={backgroundAlt}
-            fill
-            sizes="(min-width: 768px) 480px, 100vw"
-            className={cn(
-              "pointer-events-none object-cover",
-              PHOTO_OBJECT_POSITION[theme] ?? "object-center"
-            )}
-            priority={backgroundPriority}
-          />
+          <div className="pointer-events-none absolute inset-0">
+            <Image
+              src={backgroundSrc!}
+              alt={backgroundAlt}
+              fill
+              sizes="(min-width: 768px) 480px, 100vw"
+              className={cn(
+                "object-cover",
+                PHOTO_OBJECT_POSITION[theme] ?? "object-center"
+              )}
+              priority={backgroundPriority}
+            />
+          </div>
           <div
             aria-hidden
             className={cn(

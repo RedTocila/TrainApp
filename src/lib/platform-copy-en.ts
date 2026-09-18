@@ -739,6 +739,8 @@ export const platformCopyEn = {
     readyToStart: "Ready to start",
     planned: "Planned",
     elapsed: "Elapsed",
+    remaining: "Remaining",
+    overtime: "Over",
     youDid: "You did",
     finishing: "Finishing…",
     finishSummaryTitle: "Session summary",

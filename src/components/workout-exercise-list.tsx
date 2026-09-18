@@ -78,13 +78,13 @@ export function WorkoutExerciseList({
       </div>
       <ul className="space-y-2">
         {exercises.map((exercise, index) => (
-          <li key={exercise.id} className={cn(dashboard.listRow, "items-start py-3")}>
+          <li key={exercise.id} className={cn(dashboard.listRow, "items-start rounded-3xl py-3")}>
             <ExerciseGifThumbnail
               name={exercise.name}
               imageUrl={exercise.image_url}
               videoUrl={exercise.video_url}
               gender={gender}
-              size="md"
+              size="xl"
               expandable
             />
             <div className="min-w-0 flex-1">
