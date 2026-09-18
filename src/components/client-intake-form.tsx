@@ -16,7 +16,7 @@ import { useBodyUnits, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DashboardSectionHeader } from "@/components/dashboard-ui";
-import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
@@ -77,10 +77,16 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
       );
 
   return (
-    <DashboardThemedShell id="dashboard-health-lifestyle" theme="lifestyle" className="p-3.5">
+    <DashboardThemedShell
+      id="dashboard-health-lifestyle"
+      theme="lifestyle"
+      backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.lifestyle}
+      backgroundAlt={platform.profile.healthLifestyleTitle}
+      className="p-3.5"
+    >
       <DashboardSectionHeader
         icon={HeartPulse}
-        iconClassName="text-rose-600 dark:text-rose-300"
+        iconClassName="text-rose-300"
         title={platform.profile.healthLifestyleTitle}
         badge={
           complete ? (
@@ -97,7 +103,7 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
             type="button"
             size="sm"
             variant={mode === "update" ? "default" : "outline"}
-            className="h-7.5 rounded-full px-2.5 text-[11px]"
+            className="!h-8 rounded-full px-3 text-xs"
             onClick={() => setMode((current) => (current === "update" ? "closed" : "update"))}
           >
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
@@ -116,7 +122,7 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
                 {platform.profile.healthLifestyleIncompleteHint(missingFields.length || 1, "…")}
               </p>
             ) : (
-              <ul className="divide-y divide-border/40 rounded-2xl border border-rose-500/20 bg-background/50 px-2.5">
+              <ul className="divide-y divide-white/10 rounded-2xl border border-white/15 bg-black/25 px-2.5">
                 {summary.map((item) => (
                   <li
                     key={`${item.label}-${item.value}`}
@@ -174,7 +180,7 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
           type="button"
           size="sm"
           variant={mode === "view" ? "default" : "outline"}
-          className="h-7.5 shrink-0 rounded-full px-2.5 text-[11px]"
+          className="!h-8 shrink-0 rounded-full px-3 text-xs"
           onClick={() => setMode((current) => (current === "view" ? "closed" : "view"))}
           disabled={!complete && summary.length === 0}
           aria-expanded={mode === "view"}

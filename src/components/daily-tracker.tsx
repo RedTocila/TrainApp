@@ -50,7 +50,7 @@ import {
   DashboardStatusIcon,
   dashboardCompletionStatus,
 } from "@/components/section-completed-badge";
-import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
 import { getPlannedMealSlots, isDayEnded } from "@/lib/meal-times";
 import { patchOverviewDayCache } from "@/lib/dashboard-route-cache";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
@@ -395,6 +395,8 @@ export function DailyTracker({
       <DashboardThemedShell
         id="dashboard-nutrition"
         theme="nutrition"
+        backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.nutrition}
+        backgroundAlt={nutritionTitle}
         className="relative w-full cursor-pointer transition-opacity hover:opacity-95 active:opacity-90"
       >
         <DashboardCardNavLink
@@ -419,9 +421,9 @@ export function DailyTracker({
               <div className="min-w-0 flex-1 pr-8">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <CardTitle className="flex items-center gap-2 text-lg font-black">
-                    <Apple className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+                    <Apple className="h-5 w-5 text-emerald-300" />
                     <span
-                      className={cn(nutritionChecked && "text-muted-foreground line-through")}
+                      className={cn(nutritionChecked && "text-white/55 line-through")}
                     >
                       {nutritionTitle}
                     </span>
@@ -445,7 +447,7 @@ export function DailyTracker({
             </div>
           </CardHeader>
           <CardContent className="flex flex-col p-4 pt-0">
-            <div className="mt-1 rounded-2xl bg-emerald-500/5 p-2.5">
+            <div className="mt-1 rounded-2xl bg-black/25 p-2.5 backdrop-blur-[2px]">
               <TaskNutritionMacroPreview
                 current={current}
                 targets={targets}

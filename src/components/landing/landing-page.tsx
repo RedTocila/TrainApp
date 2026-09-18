@@ -4,12 +4,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { LandingHero } from "@/components/landing/landing-hero";
-import { useTheme } from "@/components/theme-provider";
-import {
-  LANDING_BACKGROUND_IMAGE,
-  LANDING_BACKGROUND_IMAGE_LIGHT,
-} from "@/lib/landing-content";
-import { cn } from "@/lib/utils";
+import { LANDING_BACKGROUND_IMAGE } from "@/lib/landing-content";
 
 const LandingHowItWorks = dynamic(
   () =>
@@ -96,28 +91,18 @@ function LandingSectionSkeleton() {
 }
 
 export function LandingPageClient() {
-  const { theme } = useTheme();
-  const backgroundImage =
-    theme === "light" ? LANDING_BACKGROUND_IMAGE_LIGHT : LANDING_BACKGROUND_IMAGE;
-
   return (
     <div className="landing-page relative flex min-h-dvh flex-col">
       <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
         <Image
-          key={backgroundImage}
-          src={backgroundImage}
+          src={LANDING_BACKGROUND_IMAGE}
           alt=""
           fill
           priority
           sizes="100vw"
           className="object-cover object-center"
         />
-        <div
-          className={cn(
-            "absolute inset-0 bg-gradient-to-b from-transparent to-background/65",
-            theme === "light" ? "via-background/15" : "via-background/35"
-          )}
-        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/35 to-background/65" />
       </div>
 
       <div className="relative">

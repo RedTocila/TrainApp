@@ -1,59 +1,44 @@
 "use client";
 
-import { Minus, Plus } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
 
-/** Add/remove sessions for a day — warm-up, main, and stretching can share a day. */
+/** Edit day’s sessions — add or remove warm-up, main, and stretching in one place. */
 export function DashboardWorkoutPlusMenu({
-  onAddWorkout,
-  onRemoveWorkout,
-  canRemove,
-  canAdd = true,
+  onEdit,
   className,
+  light = false,
 }: {
-  onAddWorkout: () => void;
-  onRemoveWorkout: () => void;
-  canRemove: boolean;
-  canAdd?: boolean;
+  onEdit: () => void;
   className?: string;
+  /** Lighter styling for photo backgrounds. */
+  light?: boolean;
 }) {
-  if (!canAdd && !canRemove) return null;
+  const platform = usePlatformCopy();
 
   return (
-    <div className={cn("flex items-center gap-0.5", className)}>
-      {canRemove ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-[var(--control-height)] w-[var(--control-height)] rounded-full text-muted-foreground hover:text-foreground"
-          onClick={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            onRemoveWorkout();
-          }}
-          aria-label="Remove workout"
-        >
-          <Minus className="h-3.5 w-3.5" />
-        </Button>
-      ) : null}
-      {canAdd ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-[var(--control-height)] w-[var(--control-height)] rounded-full border border-primary/30 bg-primary/10 text-primary shadow-sm shadow-primary/5 hover:border-primary/40 hover:bg-primary/15"
-          onClick={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-            onAddWorkout();
-          }}
-          aria-label="Add workout"
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </Button>
-      ) : null}
+    <div className={cn("flex items-center", className)}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className={cn(
+          "!h-8 !w-8 rounded-full shadow-sm",
+          light
+            ? "border border-white/35 bg-black/25 text-white hover:bg-black/40 hover:text-white"
+            : "border border-primary/30 bg-primary/10 text-primary shadow-primary/5 hover:border-primary/40 hover:bg-primary/15"
+        )}
+        onClick={(event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          onEdit();
+        }}
+        aria-label={platform.workout.editDayWorkoutsAria}
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </Button>
     </div>
   );
 }

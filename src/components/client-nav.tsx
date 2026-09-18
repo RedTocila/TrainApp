@@ -196,7 +196,7 @@ export function ClientNav({
             <nav
               className={cn(
                 "dashboard-instant-nav pointer-events-auto isolate relative flex h-14 w-full max-w-[min(28rem,calc(100%-3.75rem))] items-center justify-around p-1.5",
-                "rounded-full border border-border/50 bg-background/45 shadow-[0_8px_28px_rgba(0,0,0,0.08)] backdrop-blur-2xl",
+                "rounded-full border border-zinc-300/90 bg-white/90 shadow-[0_8px_28px_rgba(0,0,0,0.12)] backdrop-blur-2xl",
                 "dark:border-white/15 dark:bg-background/35 dark:shadow-[0_8px_28px_rgba(0,0,0,0.22)]"
               )}
               aria-label="Primary"
@@ -212,7 +212,9 @@ export function ClientNav({
                   aria-current={item.active ? "page" : undefined}
                   className={cn(
                     mobileNavLinkClass,
-                    item.active ? "text-primary" : "text-muted-foreground"
+                    item.active
+                      ? "text-primary"
+                      : "text-zinc-700 dark:text-muted-foreground"
                   )}
                 >
                   {item.active ? (

@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 import { DialogPortal } from "@/components/dialog-portal";
@@ -19,13 +20,20 @@ export const APP_DIALOG_Z_INDEX = 120;
 
 const DISMISS_THRESHOLD_PX = 88;
 const DISMISS_VELOCITY = 0.55;
+/** Keep in sync with `--duration-drawer` in globals.css */
+const DRAWER_MS = 320;
 
-type OverlayDismissContextValue = {
-  onDismiss: (() => void) | null;
+type OverlayMotionContextValue = {
+  /** True after open paint so CSS transitions can run closed → open. */
+  entered: boolean;
 };
 
-const OverlayDismissContext = createContext<OverlayDismissContextValue>({
-  onDismiss: null,
+const OverlayDismissContext = createContext<{
+  onDismiss: (() => void) | null;
+}>({ onDismiss: null });
+
+const OverlayMotionContext = createContext<OverlayMotionContextValue>({
+  entered: false,
 });
 
 export function AppOverlay({
@@ -37,6 +45,11 @@ export function AppOverlay({
   fullscreen = false,
   /** Disable backdrop dismiss (e.g. while saving). */
   closeOnBackdrop = true,
+  /**
+   * `sheet` — bottom drawer on mobile, centered card on sm+.
+   * `center` — content centered over blur (picker tiles, no panel chrome).
+   */
+  presentation = "sheet",
   className,
 }: {
   open: boolean;
@@ -45,51 +58,119 @@ export function AppOverlay({
   zIndex?: number;
   fullscreen?: boolean;
   closeOnBackdrop?: boolean;
+  presentation?: "sheet" | "center";
   className?: string;
 }) {
-  useLockBodyScroll(open);
-  const frame = useVisualViewportFrame(open);
+  const [present, setPresent] = useState(open);
+  const [entered, setEntered] = useState(false);
+  const openRef = useRef(open);
+  const centered = presentation === "center";
 
   useEffect(() => {
-    if (!open) return;
+    openRef.current = open;
+  }, [open]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let raf1 = 0;
+    let raf2 = 0;
+    let timeoutId = 0;
+
+    if (open) {
+      raf1 = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        setPresent(true);
+        setEntered(false);
+        raf2 = window.requestAnimationFrame(() => {
+          if (cancelled || !openRef.current) return;
+          setEntered(true);
+        });
+      });
+    } else {
+      raf1 = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        setEntered(false);
+      });
+      timeoutId = window.setTimeout(() => {
+        if (cancelled || openRef.current) return;
+        setPresent(false);
+      }, DRAWER_MS);
+    }
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      window.clearTimeout(timeoutId);
+    };
+  }, [open]);
+
+  useLockBodyScroll(present);
+  const frame = useVisualViewportFrame(present);
+
+  useEffect(() => {
+    if (!present || !open) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && closeOnBackdrop) onClose();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose, closeOnBackdrop]);
+  }, [present, open, onClose, closeOnBackdrop]);
 
   const dismissValue = useMemo(
-    () => ({ onDismiss: closeOnBackdrop ? onClose : null }),
-    [closeOnBackdrop, onClose]
+    () => ({
+      onDismiss: closeOnBackdrop && open ? onClose : null,
+    }),
+    [closeOnBackdrop, onClose, open]
   );
 
+  const motionValue = useMemo(() => ({ entered }), [entered]);
+
   return (
-    <DialogPortal open={open}>
+    <DialogPortal open={present}>
       <OverlayDismissContext.Provider value={dismissValue}>
-        <div
-          className={cn(
-            "fixed inset-x-0 flex justify-center",
-            fullscreen ? "flex-col" : "items-end sm:items-center sm:p-4",
-            className
-          )}
-          style={{
-            zIndex,
-            top: fullscreen ? 0 : frame.offsetTop,
-            height: fullscreen ? "100dvh" : frame.height,
-          }}
-        >
-          {!fullscreen ? (
-            <button
-              type="button"
-              aria-label="Close"
-              className="overlay-backdrop absolute inset-0 backdrop-blur-sm"
-              onClick={closeOnBackdrop ? onClose : undefined}
-              disabled={!closeOnBackdrop}
-            />
-          ) : null}
-          {children}
-        </div>
+        <OverlayMotionContext.Provider value={motionValue}>
+          <div
+            className={cn(
+              "fixed inset-x-0 flex justify-center",
+              fullscreen
+                ? "flex-col"
+                : centered
+                  ? "items-center p-5"
+                  : "items-end sm:items-center sm:p-4",
+              className
+            )}
+            style={{
+              zIndex,
+              top: fullscreen ? 0 : frame.offsetTop,
+              height: fullscreen ? "100dvh" : frame.height,
+            }}
+          >
+            {!fullscreen ? (
+              <button
+                type="button"
+                aria-label="Close"
+                data-open={entered ? "true" : "false"}
+                className={cn(
+                  "overlay-backdrop absolute inset-0",
+                  centered ? "backdrop-blur-md" : "backdrop-blur-sm"
+                )}
+                onClick={closeOnBackdrop && open ? onClose : undefined}
+                disabled={!closeOnBackdrop || !open}
+              />
+            ) : null}
+            {centered ? (
+              <div
+                data-open={entered ? "true" : "false"}
+                className="overlay-center relative z-10 w-full"
+              >
+                {children}
+              </div>
+            ) : (
+              children
+            )}
+          </div>
+        </OverlayMotionContext.Provider>
       </OverlayDismissContext.Provider>
     </DialogPortal>
   );
@@ -139,6 +220,7 @@ export function AppOverlayPanel({
   "aria-labelledby"?: string;
 }) {
   const { onDismiss } = useContext(OverlayDismissContext);
+  const { entered } = useContext(OverlayMotionContext);
   const panelRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
   const dragYRef = useRef(0);
@@ -208,7 +290,8 @@ export function AppOverlayPanel({
       const dy = dragYRef.current;
       const fast = velocityRef.current > DISMISS_VELOCITY;
       if ((dy >= DISMISS_THRESHOLD_PX || fast) && onDismiss) {
-        panel.style.transition = "transform 180ms ease-in";
+        panel.dataset.dragDismissed = "true";
+        panel.style.transition = "transform 200ms ease-in";
         panel.style.transform = `translate3d(0, 110%, 0)`;
         onDismiss();
         return;
@@ -229,6 +312,15 @@ export function AppOverlayPanel({
     };
   }, [canDismiss, onDismiss, resetTransform]);
 
+  useEffect(() => {
+    if (!entered) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    delete panel.dataset.dragDismissed;
+    panel.style.transform = "";
+    panel.style.transition = "";
+  }, [entered]);
+
   return (
     <div
       ref={panelRef}
@@ -236,12 +328,13 @@ export function AppOverlayPanel({
       aria-modal="true"
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
+      data-open={entered ? "true" : "false"}
       className={cn(
         "relative z-10 flex min-h-0 w-full flex-col overflow-hidden bg-card shadow-2xl will-change-transform",
         fullscreen
-          ? "h-full max-h-none rounded-none border-0 bg-background"
+          ? "overlay-fullscreen h-full max-h-none rounded-none border-0 bg-background"
           : cn(
-              "max-h-[min(92%,40rem)] border border-border/80",
+              "overlay-sheet max-h-[min(92%,40rem)] border border-border/80",
               "rounded-t-[1.35rem] sm:rounded-2xl",
               "pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:pb-0",
               maxWidth
@@ -252,7 +345,7 @@ export function AppOverlayPanel({
       {!fullscreen && showHandle ? (
         <div
           data-drawer-handle
-          className="flex shrink-0 cursor-grab justify-center py-3 active:cursor-grabbing sm:hidden"
+          className="flex shrink-0 cursor-grab justify-center py-2 active:cursor-grabbing sm:hidden"
           aria-hidden
         >
           <div className="h-1.5 w-12 rounded-full bg-muted-foreground/40" />

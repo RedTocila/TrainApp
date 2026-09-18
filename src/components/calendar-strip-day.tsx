@@ -73,7 +73,7 @@ export function CalendarStripDay({
       className={cn(
         "group relative flex flex-col items-center gap-1.5 px-1 py-2 transition-opacity sm:gap-2 sm:py-2.5",
         layout === "scroll"
-          ? "w-[3.25rem] shrink-0 sm:w-[3.75rem] md:w-16"
+          ? "w-14 shrink-0 sm:w-[3.75rem] md:w-16"
           : "min-w-0 w-full",
         inactive && "cursor-default opacity-35",
         !inactive && "active:scale-[0.97]"
@@ -102,7 +102,7 @@ export function CalendarStripDay({
       <DayCompletionRing
         progress={ringProgress}
         tone={ringTone}
-        size={40}
+        size={44}
         stroke={2.5}
         className="relative z-10"
       >

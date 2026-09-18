@@ -13,7 +13,6 @@ import {
 import { AccentColorPicker } from "@/components/accent-color-picker";
 import { CalorieTargetEditDialog } from "@/components/calorie-target-edit-dialog";
 import { SegmentedToggle } from "@/components/segmented-toggle";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -360,10 +359,6 @@ export function ProfileSettings({
           <CardTitle className="text-base">{platform.profile.appearance}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div>
-            <p className="mb-3 text-sm text-muted-foreground">{platform.settings.theme}</p>
-            <ThemeToggle />
-          </div>
           <div>
             <p className="mb-3 text-sm text-muted-foreground">{platform.settings.accentColor}</p>
             <AccentColorPicker />

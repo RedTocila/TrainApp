@@ -32,8 +32,8 @@ export const dashboard = {
    */
   pairTile:
     "relative box-border flex w-full flex-col overflow-hidden p-2.5 sm:p-3 min-h-[15rem] sm:min-h-[15.5rem]",
-  /** Footer row shared by pair tiles — fixed height when actions change. */
-  pairFooter: "mt-auto flex h-8 shrink-0 items-end gap-1.5 pt-1.5",
+  /** Footer row shared by pair tiles — room for compact h-8 actions. */
+  pairFooter: "mt-auto flex h-10 shrink-0 items-center gap-1.5 pt-1.5",
   /** One reserved caption line under the pair visual (remaining / empty). */
   pairCaption:
     "mt-0.5 min-h-[0.875rem] truncate px-1 text-center text-[10px] leading-tight text-muted-foreground",

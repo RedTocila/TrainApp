@@ -23,7 +23,7 @@ import {
 import type { BodyWeightLog } from "@/lib/types";
 import { CardContent } from "@/components/ui/card";
 import { dashboard, DashboardSectionHeader } from "@/components/dashboard-ui";
-import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
 import { cn } from "@/lib/utils";
 
 function bmiCategoryLabel(
@@ -170,17 +170,22 @@ export function BmiCard({
     );
 
   return (
-    <DashboardThemedShell theme="bmi" className="relative z-0 overflow-hidden p-0">
+    <DashboardThemedShell
+      theme="bmi"
+      backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.bmi}
+      backgroundAlt={platform.bmi.title}
+      className="relative z-0 overflow-hidden p-0"
+    >
       <CardContent className="relative z-10 space-y-4 bg-transparent p-4 shadow-none sm:space-y-5 sm:p-5">
         <DashboardSectionHeader
           icon={Activity}
-          iconClassName="text-yellow-600 dark:text-yellow-300"
+          iconClassName="text-amber-300"
           title={platform.bmi.title}
           action={
             <button
               ref={buttonRef}
               type="button"
-              className="rounded-full p-1 text-muted-foreground hover:bg-yellow-500/15 hover:text-foreground"
+              className="rounded-full p-1 text-white/70 hover:bg-amber-500/20 hover:text-white"
               onClick={() => setHelpOpen((value) => !value)}
               aria-label={platform.bmi.whatIsBmi}
               aria-expanded={helpOpen}

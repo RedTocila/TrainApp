@@ -612,6 +612,12 @@ export const platformCopyAl = {
     addWorkoutToDayDesc: (day: string) =>
       `Shto ngrohje, stërvitje kryesore dhe/ose shtrirje për ${day} — nuk ndryshon orarin tënd të përsëritur.`,
     addWorkoutToDayAria: "Shto stërvitje në ditë",
+    editDayWorkouts: "Ndrysho ditën",
+    editDayWorkoutsDesc:
+      "Hiq seancat nga kjo ditë, ose shto ngrohje, stërvitje kryesore dhe shtrirje.",
+    editDayWorkoutsAria: "Ndrysho stërvitjet e kësaj dite",
+    noWorkoutsOnDay: "Nuk ka stërvitje në këtë ditë ende.",
+    alreadyOnDay: "Në ditë",
     sessionTypeMain: "Stërvitja kryesore",
     sessionTypeWarmup: "Ngrohje",
     sessionTypeStretch: "Shtrirje",

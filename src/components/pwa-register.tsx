@@ -53,10 +53,24 @@ export function PwaRegister() {
     if (Capacitor.isNativePlatform()) return;
     // Dev + Turbopack: a controlling SW commonly surfaces as TypeError "Failed to fetch".
     if (process.env.NODE_ENV !== "production") {
-      void navigator.serviceWorker
-        .getRegistrations()
-        .then((regs) => Promise.all(regs.map((reg) => reg.unregister())))
-        .catch(() => undefined);
+      void (async () => {
+        try {
+          const hadController = Boolean(navigator.serviceWorker.controller);
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((reg) => reg.unregister()));
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((key) => caches.delete(key)));
+          }
+          // Unregister alone does not drop an active controller until reload.
+          if (hadController && sessionStorage.getItem("rutina_sw_dev_cleared") !== "1") {
+            sessionStorage.setItem("rutina_sw_dev_cleared", "1");
+            window.location.reload();
+          }
+        } catch {
+          // ignore
+        }
+      })();
       return;
     }
 

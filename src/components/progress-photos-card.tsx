@@ -44,7 +44,7 @@ import { FullScreenFlow } from "@/components/programs/full-screen-flow";
 import {
   DashboardSectionHeader,
 } from "@/components/dashboard-ui";
-import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
 import { DashboardStatusIcon } from "@/components/section-completed-badge";
 import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
@@ -426,6 +426,8 @@ function ProgressPhotosCardInner({
       <DashboardThemedShell
         id="dashboard-progress-photos"
         theme="photos"
+        backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.photos}
+        backgroundAlt={platform.photos.title}
         className="relative cursor-pointer p-4 transition-opacity hover:opacity-95 active:opacity-90"
       >
         <DashboardCardNavLink
@@ -435,7 +437,7 @@ function ProgressPhotosCardInner({
         <DashboardCardNavBody>
         <DashboardSectionHeader
           icon={ImageIcon}
-          iconClassName="text-fuchsia-600 dark:text-fuchsia-300"
+          iconClassName="text-fuchsia-300"
           title={platform.photos.title}
           action={
             <div className={cn("flex items-center gap-2", dashboardInteractive)}>

@@ -3,7 +3,7 @@ import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-
 
 import { isToday } from "date-fns";
 import { formatLocalized } from "@/lib/date-locale";
-import { ListChecks, Pencil, Plus, Sparkles, X } from "lucide-react";
+import { Check, ListChecks, Pencil, Plus, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
@@ -22,16 +22,15 @@ import { getHabitDayStatus, canCompleteHabit } from "@/lib/habit-utils";
 import { MissedButton } from "@/components/missed-items-dialog";
 import { dashboard, DashboardEmptyState, DashboardSectionHeader } from "@/components/dashboard-ui";
 import { DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
-import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import type { ClientHabit } from "@/lib/types";
 import type { HabitSuggestion } from "@/lib/habit-suggestions";
-import { formatDateKey } from "@/lib/utils";
+import { formatDateKey, cn } from "@/lib/utils";
 import { markReminderDone } from "@/lib/reminder-events";
 import { DASHBOARD_HABITS_NEW_PATH } from "@/lib/dashboard-day-routes";
 import { isDayEnded } from "@/lib/meal-times";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export function HabitsTracker({
   clientId,
@@ -54,6 +53,7 @@ export function HabitsTracker({
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [suggestionsPending, setSuggestionsPending] = useState(false);
+  const [managing, setManaging] = useState(false);
   const [tick, setTick] = useState(0);
   const { patchDashboard, notifySync } = useDashboardSync();
   const { todayKey } = useSelectedDate();
@@ -200,10 +200,16 @@ export function HabitsTracker({
 
   return (
     <>
-      <DashboardThemedShell id="dashboard-habits" theme="habits" className="p-4">
+      <DashboardThemedShell
+        id="dashboard-habits"
+        theme="habits"
+        backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.habits}
+        backgroundAlt={platform.habits.title}
+        className="p-4"
+      >
         <DashboardSectionHeader
           icon={ListChecks}
-          iconClassName="text-violet-600 dark:text-violet-300"
+          iconClassName="text-violet-300"
           title={platform.habits.title}
           badge={
             <MissedButton
@@ -214,7 +220,39 @@ export function HabitsTracker({
             />
           }
           action={
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              {!readOnly && displayHabitsRaw.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "!h-8 !w-8 rounded-full text-white/80 hover:bg-white/10 hover:text-white",
+                    managing && displayHabitsRaw.length > 1 && "bg-white/15 text-white"
+                  )}
+                  onClick={() => {
+                    if (displayHabitsRaw.length === 1) {
+                      openEdit(displayHabitsRaw[0]!);
+                      return;
+                    }
+                    setManaging((value) => !value);
+                  }}
+                  aria-label={platform.aria.editHabit}
+                  aria-pressed={displayHabitsRaw.length > 1 ? managing : undefined}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              ) : null}
+              {readOnly ? null : (
+                <Button
+                  size="sm"
+                  className="!h-8 rounded-full px-3 text-xs"
+                  onClick={openAdd}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {platform.common.add}
+                </Button>
+              )}
               {displayHabitsRaw.length > 0 ? (
                 <DashboardStatusIcon
                   status={dashboardCompletionStatus(
@@ -228,16 +266,6 @@ export function HabitsTracker({
                   }
                 />
               ) : null}
-              {readOnly ? null : (
-                <Button
-                  size="sm"
-                  className="h-8 rounded-full px-3 text-xs"
-                  onClick={openAdd}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {platform.common.add}
-                </Button>
-              )}
             </div>
           }
           subtitle={
@@ -298,6 +326,17 @@ export function HabitsTracker({
             <ul className="space-y-2">
               {displayHabits.map((habit) => {
                 const canComplete = canCompleteHabit(habit, dateKey, habit.completed);
+                const rowStatus = habit.completed
+                  ? ("completed" as const)
+                  : habit.status === "missed"
+                    ? ("missed" as const)
+                    : dashboardCompletionStatus(false, isDayEnded(dateKey));
+                const canTapComplete =
+                  !readOnly &&
+                  !habit.completed &&
+                  habit.status !== "missed" &&
+                  canComplete &&
+                  rowStatus === "pending";
 
                 return (
                   <li
@@ -309,23 +348,15 @@ export function HabitsTracker({
                       className={cn(
                         "min-w-0 flex-1 text-sm font-medium leading-snug",
                         habit.completed && "text-muted-foreground line-through",
-                        habit.status === "missed" && !habit.completed && "text-muted-foreground line-through"
+                        habit.status === "missed" &&
+                          !habit.completed &&
+                          "text-muted-foreground line-through"
                       )}
                     >
                       {habit.title}
                     </p>
                     <div className="flex shrink-0 items-center gap-1">
-                      {!habit.completed && habit.status !== "missed" && canComplete && !readOnly ? (
-                        <Button
-                          size="sm"
-                          className="h-8 shrink-0 rounded-full px-3 text-xs"
-                          disabled={togglingId === habit.id}
-                          onClick={() => handleComplete(habit.id)}
-                        >
-                          {platform.habits.done}
-                        </Button>
-                      ) : null}
-                      {!readOnly ? (
+                      {!readOnly && displayHabitsRaw.length > 1 && managing ? (
                         <Button
                           type="button"
                           variant="ghost"
@@ -337,12 +368,30 @@ export function HabitsTracker({
                           <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                         </Button>
                       ) : null}
-                      {habit.completed ? (
-                        <DashboardStatusIcon status="completed" aria-label={platform.aria.completed} />
+                      {canTapComplete ? (
+                        <button
+                          type="button"
+                          disabled={togglingId === habit.id}
+                          onClick={() => handleComplete(habit.id)}
+                          aria-label={platform.habits.done}
+                          className={cn(
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+                            "bg-primary text-primary-foreground shadow-sm",
+                            "transition-[transform,opacity] duration-200",
+                            "hover:opacity-90 active:scale-95",
+                            "disabled:opacity-60"
+                          )}
+                        >
+                          <Check className="h-4 w-4" strokeWidth={2.75} />
+                        </button>
                       ) : (
                         <DashboardStatusIcon
-                          status={dashboardCompletionStatus(false, isDayEnded(dateKey))}
-                          aria-label={platform.common.incomplete}
+                          status={rowStatus}
+                          aria-label={
+                            rowStatus === "completed"
+                              ? platform.aria.completed
+                              : platform.common.incomplete
+                          }
                         />
                       )}
                     </div>

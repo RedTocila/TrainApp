@@ -69,11 +69,10 @@ export function RemoveWorkoutFromDayDialog({
       open={open}
       onClose={onClose}
       title={platform.workout.removeWorkoutFromDay}
-      description={platform.workout.removeWorkoutFromDayDesc}
       ariaLabel={platform.workout.removeWorkoutFromDayAria}
       maxWidth="max-w-md"
     >
-      <div className="space-y-4 px-5 py-4">
+      <div className="space-y-3 px-5 pb-4">
         {removable.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {platform.workout.nothingScheduledToRemove}

@@ -27,7 +27,7 @@ export function AppDrawerHeader({
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-col gap-1 px-5 pb-1 pt-1 sm:pt-4",
+        "flex shrink-0 flex-col gap-0.5 px-5 pb-0 pt-1 sm:pt-3",
         className
       )}
     >
@@ -92,7 +92,7 @@ export function AppDialog({
         <div
           className={cn(
             "min-h-0 flex-1 overflow-y-auto overscroll-contain",
-            title || description ? "pt-5" : "pt-4"
+            title || description ? "pt-3" : "pt-2"
           )}
           data-scroll-lock-scrollable
         >

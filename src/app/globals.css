@@ -21,6 +21,7 @@
   --duration-fast: 180ms;
   --duration-normal: 240ms;
   --duration-page: 280ms;
+  --duration-drawer: 320ms;
 }
 
 html.dark {
@@ -245,6 +246,26 @@ body:has(.dashboard-shell) {
 
 .app-shell {
   box-sizing: border-box;
+}
+
+/*
+ * Photo-backed dashboard cards keep dark-theme contrast in light mode
+ * so text stays readable on dark imagery.
+ */
+.dashboard-photo-card {
+  color-scheme: dark;
+  --foreground: #fafafa;
+  --card: rgba(26, 26, 29, 0.55);
+  --card-foreground: #fafafa;
+  --secondary: rgba(255, 255, 255, 0.14);
+  --secondary-foreground: #fafafa;
+  --muted: rgba(255, 255, 255, 0.1);
+  --muted-foreground: rgba(255, 255, 255, 0.72);
+  --accent: #ef4444;
+  --accent-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.16);
+  --background: rgba(0, 0, 0, 0.35);
+  color: var(--foreground);
 }
 
 .dashboard-mobile-nav {
@@ -587,21 +608,78 @@ html.light .red-glow {
   background: rgba(0, 0, 0, 0.7);
   touch-action: none;
   overscroll-behavior: none;
-  animation: rutina-backdrop-in var(--duration-fast) var(--ease-out-premium) both;
+  opacity: 0;
+  transition: opacity var(--duration-drawer) var(--ease-out-premium);
 }
 
-@keyframes rutina-backdrop-in {
-  from {
-    opacity: 0;
+.overlay-backdrop[data-open="true"] {
+  opacity: 1;
+}
+
+/* Bottom sheet on mobile; stronger rise + fade on sm+ */
+.overlay-sheet {
+  opacity: 0;
+  transform: translate3d(0, 100%, 0);
+  transition:
+    transform var(--duration-drawer) var(--ease-out-premium),
+    opacity var(--duration-drawer) var(--ease-out-premium);
+}
+
+.overlay-sheet[data-open="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.overlay-sheet[data-drag-dismissed="true"] {
+  transition: transform 200ms ease-in, opacity 200ms ease-in;
+}
+
+@media (min-width: 640px) {
+  .overlay-sheet {
+    transform: translate3d(0, 28px, 0) scale(0.94);
   }
-  to {
-    opacity: 1;
+
+  .overlay-sheet[data-open="true"] {
+    transform: translate3d(0, 0, 0) scale(1);
   }
+}
+
+.overlay-center {
+  opacity: 0;
+  transform: scale(0.88) translate3d(0, 16px, 0);
+  transition:
+    transform var(--duration-drawer) var(--ease-out-premium),
+    opacity var(--duration-drawer) var(--ease-out-premium);
+}
+
+.overlay-center[data-open="true"] {
+  opacity: 1;
+  transform: scale(1) translate3d(0, 0, 0);
+}
+
+.overlay-fullscreen {
+  opacity: 0;
+  transition: opacity var(--duration-drawer) var(--ease-out-premium);
+}
+
+.overlay-fullscreen[data-open="true"] {
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .overlay-backdrop {
-    animation: none;
+  .overlay-backdrop,
+  .overlay-sheet,
+  .overlay-center,
+  .overlay-fullscreen {
+    transition: none;
+  }
+
+  .overlay-backdrop,
+  .overlay-sheet,
+  .overlay-center,
+  .overlay-fullscreen {
+    opacity: 1;
+    transform: none;
   }
 }
 

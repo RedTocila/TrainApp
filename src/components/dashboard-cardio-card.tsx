@@ -16,7 +16,7 @@ import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichmen
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import { DashboardStatusCheck, DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
-import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
 import {
   dashboard,
   DashboardEmptyState,
@@ -261,6 +261,8 @@ export function DashboardCardioCard({
       <DashboardThemedShell
         id="dashboard-cardio"
         theme="cardio"
+        backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.cardio}
+        backgroundAlt={platform.cardio.title}
         className={cn(dashboard.pairTile, "relative isolate")}
       >
         <DashboardCardNavLink
@@ -270,7 +272,7 @@ export function DashboardCardioCard({
         <DashboardCardNavBody className="flex flex-1 flex-col gap-1">
           <div className="flex h-7 shrink-0 items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
-              <HeartPulse className="h-5 w-5 shrink-0 text-orange-600 dark:text-orange-300" />
+              <HeartPulse className="h-5 w-5 shrink-0 text-orange-300" />
               <p className="truncate text-sm font-black">{platform.cardio.title}</p>
             </div>
             <div className="flex h-7 w-7 shrink-0 items-center justify-center">
@@ -292,8 +294,8 @@ export function DashboardCardioCard({
 
           {activeCardio ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/15 dark:bg-orange-500/20">
-                <Icon className="h-6 w-6 text-orange-600 dark:text-orange-300" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/30 backdrop-blur-[2px]">
+                <Icon className="h-6 w-6 text-orange-300" />
               </div>
               <p
                 className={cn(
@@ -310,7 +312,7 @@ export function DashboardCardioCard({
                 )}
               >
                 {sessionActive ? (
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-300">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-300">
                     {sessionClock.paused
                       ? platform.cardio.pause
                       : platform.cardio.ongoing}
@@ -345,8 +347,8 @@ export function DashboardCardioCard({
             </div>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/15 dark:bg-orange-500/20">
-                <HeartPulse className="h-6 w-6 text-orange-600 dark:text-orange-300" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/30 backdrop-blur-[2px]">
+                <HeartPulse className="h-6 w-6 text-orange-300" />
               </div>
               <p className="min-h-[2rem] px-1 text-xs leading-snug text-muted-foreground">
                 {coachLabels.noCardioToday}
@@ -363,7 +365,7 @@ export function DashboardCardioCard({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-2 text-[11px] hover:bg-orange-500/15"
+                className="!h-8 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-3 text-xs hover:bg-orange-500/15"
               >
                 {platform.cardio.myCardio}
               </Button>
@@ -372,7 +374,7 @@ export function DashboardCardioCard({
               <Link href={sessionHref} className="min-w-0 flex-1">
                 <Button
                   size="sm"
-                  className="h-7 w-full rounded-full px-2 text-[11px]"
+                  className="!h-8 w-full rounded-full px-3 text-xs"
                 >
                   {startLabel}
                 </Button>

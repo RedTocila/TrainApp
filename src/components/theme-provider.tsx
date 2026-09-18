@@ -15,7 +15,7 @@ import {
 } from "@/lib/theme-colors";
 import { createClient } from "@/lib/supabase/client";
 
-type Theme = "dark" | "light";
+type Theme = "dark";
 const DEFAULT_THEME: Theme = "dark";
 const DEFAULT_ACCENT: AccentColor = "red";
 const THEME_KEY = "theme";
@@ -23,20 +23,21 @@ const ACCENT_KEY = "accent-color";
 
 interface ThemeContextValue {
   theme: Theme;
-  setTheme: (theme: Theme) => void;
+  /** App is dark-only; kept for API compatibility. */
+  setTheme: (theme: "dark" | "light") => void;
   accentColor: AccentColor;
   setAccentColor: (color: AccentColor) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function applyTheme(theme: Theme) {
-  document.documentElement.classList.toggle("light", theme === "light");
-  document.documentElement.classList.toggle("dark", theme === "dark");
+function applyDarkTheme() {
+  document.documentElement.classList.add("dark");
+  document.documentElement.classList.remove("light");
 }
 
-function applyAccentColor(color: AccentColor, theme: Theme = readInitialTheme()) {
-  const palette = resolveAccentPalette(color, theme);
+function applyAccentColor(color: AccentColor) {
+  const palette = resolveAccentPalette(color, "dark");
   const root = document.documentElement;
   root.dataset.accent = color;
   root.style.setProperty("--primary", palette.primary);
@@ -54,19 +55,6 @@ function getScopedKey(key: string, userId: string) {
   return `${key}:${userId}`;
 }
 
-function readStoredTheme(userId?: string | null): Theme {
-  if (typeof window === "undefined") return DEFAULT_THEME;
-  const stored = userId
-    ? localStorage.getItem(getScopedKey(THEME_KEY, userId))
-    : localStorage.getItem(THEME_KEY);
-  if (stored === "light" || stored === "dark") return stored;
-  return document.documentElement.classList.contains("light") ? "light" : "dark";
-}
-
-function readInitialTheme(): Theme {
-  return readStoredTheme();
-}
-
 function readStoredAccent(userId?: string | null): AccentColor {
   if (typeof window === "undefined") return DEFAULT_ACCENT;
   const stored = userId
@@ -82,10 +70,10 @@ function readStoredAccent(userId?: string | null): AccentColor {
   return normalized;
 }
 
-function persistTheme(theme: Theme, userId?: string | null) {
-  localStorage.setItem(THEME_KEY, theme);
+function persistDarkTheme(userId?: string | null) {
+  localStorage.setItem(THEME_KEY, DEFAULT_THEME);
   if (userId) {
-    localStorage.setItem(getScopedKey(THEME_KEY, userId), theme);
+    localStorage.setItem(getScopedKey(THEME_KEY, userId), DEFAULT_THEME);
   }
 }
 
@@ -97,16 +85,14 @@ function persistAccent(accentColor: AccentColor, userId?: string | null) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
   const [accentColor, setAccentColorState] = useState<AccentColor>(DEFAULT_ACCENT);
   const [userId, setUserId] = useState<string | null>(null);
 
   useLayoutEffect(() => {
-    const storedTheme = readStoredTheme();
+    applyDarkTheme();
+    persistDarkTheme();
     const storedAccent = readStoredAccent();
-    applyTheme(storedTheme);
-    applyAccentColor(storedAccent, storedTheme);
-    setThemeState(storedTheme);
+    applyAccentColor(storedAccent);
     setAccentColorState(storedAccent);
   }, []);
 
@@ -118,23 +104,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (!active) return;
       setUserId(nextUserId);
 
+      applyDarkTheme();
+      persistDarkTheme(nextUserId);
+
       if (!nextUserId) {
-        applyTheme(DEFAULT_THEME);
-        applyAccentColor(DEFAULT_ACCENT, DEFAULT_THEME);
-        setThemeState(DEFAULT_THEME);
+        applyAccentColor(DEFAULT_ACCENT);
         setAccentColorState(DEFAULT_ACCENT);
-        persistTheme(DEFAULT_THEME);
         persistAccent(DEFAULT_ACCENT);
         return;
       }
 
-      const nextTheme = readStoredTheme(nextUserId);
       const nextAccent = readStoredAccent(nextUserId);
-      applyTheme(nextTheme);
-      applyAccentColor(nextAccent, nextTheme);
-      setThemeState(nextTheme);
+      applyAccentColor(nextAccent);
       setAccentColorState(nextAccent);
-      persistTheme(nextTheme, nextUserId);
       persistAccent(nextAccent, nextUserId);
     };
 
@@ -152,28 +134,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const setTheme = useCallback(
-    (next: Theme) => {
-      setThemeState(next);
-      persistTheme(next, userId);
-      applyTheme(next);
-      applyAccentColor(accentColor, next);
-    },
-    [accentColor, userId]
-  );
+  const setTheme = useCallback((_next: "dark" | "light") => {
+    applyDarkTheme();
+    persistDarkTheme(userId);
+    applyAccentColor(accentColor);
+  }, [accentColor, userId]);
 
   const setAccentColor = useCallback(
     (next: AccentColor) => {
       setAccentColorState(next);
       persistAccent(next, userId);
-      applyAccentColor(next, theme);
+      applyAccentColor(next);
     },
-    [theme, userId]
+    [userId]
   );
 
   return (
     <ThemeContext.Provider
-      value={{ theme, setTheme, accentColor, setAccentColor }}
+      value={{
+        theme: DEFAULT_THEME,
+        setTheme,
+        accentColor,
+        setAccentColor,
+      }}
     >
       {children}
     </ThemeContext.Provider>

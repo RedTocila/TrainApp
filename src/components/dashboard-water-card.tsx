@@ -30,7 +30,7 @@ import {
 } from "@/components/dashboard-card-nav-link";
 import { DASHBOARD_DAY_NUTRITION_PATH } from "@/lib/dashboard-day-routes";
 import { isDayEnded } from "@/lib/meal-times";
-import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
 
 export function DashboardWaterCard({
   clientId,
@@ -154,8 +154,8 @@ export function DashboardWaterCard({
           className={cn(
             dashboard.chipButton,
             compact
-              ? "h-7 px-2 py-0 text-[11px] hover:border-cyan-500/40 hover:bg-cyan-500/10"
-              : "hover:border-cyan-500/40 hover:bg-cyan-500/10"
+              ? "!h-8 px-2 py-0 text-xs hover:border-cyan-500/40 hover:bg-cyan-500/10"
+              : "!h-8 py-0 text-xs hover:border-cyan-500/40 hover:bg-cyan-500/10"
           )}
         >
           {!compact && <GlassWater className="h-4 w-4 shrink-0 text-cyan-400" />}
@@ -172,7 +172,12 @@ export function DashboardWaterCard({
         <button
           type="button"
           onClick={() => setEditOpen(true)}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-sky-500/15 hover:text-foreground"
+          className={cn(
+            "inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors",
+            compact
+              ? "text-white/75 hover:bg-sky-500/20 hover:text-white"
+              : "text-muted-foreground hover:bg-sky-500/15 hover:text-foreground"
+          )}
           aria-label="Edit water goal"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -192,7 +197,12 @@ export function DashboardWaterCard({
   const titleRow = (titleClassName: string) => (
     <div className="flex items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-2">
-        <GlassWater className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-300" />
+        <GlassWater
+          className={cn(
+            "h-5 w-5 shrink-0",
+            compact ? "text-sky-300" : "text-sky-600 dark:text-sky-300"
+          )}
+        />
         <p className={cn("truncate font-black", titleClassName)}>
           {platform.nutrition.water}
         </p>
@@ -216,6 +226,8 @@ export function DashboardWaterCard({
         <DashboardThemedShell
           id="dashboard-water"
           theme="water"
+          backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.water}
+          backgroundAlt={platform.nutrition.water}
           className={cn(dashboard.pairTile, "relative isolate")}
         >
           <DashboardCardNavLink

@@ -361,6 +361,71 @@ export function getWorkoutCategoryStyle(category: WorkoutCategory): WorkoutCateg
   return CATEGORY_STYLES[category];
 }
 
+/** Dashboard workout card hero backgrounds by category + gender. */
+const DASHBOARD_WORKOUT_BACKGROUNDS_MALE: Record<WorkoutCategory, string> = {
+  full: "/workouts/full-body.jpg",
+  hiit: "/workouts/hiit.jpg",
+  core: "/workouts/core.jpg",
+  pull: "/workouts/back.jpg",
+  push: "/workouts/chest.jpg",
+  legs: "/workouts/legs.jpg",
+  upper: "/workouts/upper-body.jpg",
+  cardio: "/workouts/hiit.jpg",
+  warmup: "/workouts/warmup.jpg",
+  stretch: "/workouts/stretch.jpg",
+  general: "/workouts/full-body.jpg",
+};
+
+const DASHBOARD_WORKOUT_BACKGROUNDS_FEMALE: Record<WorkoutCategory, string> = {
+  full: "/workouts/woman/full-body.jpg",
+  hiit: "/workouts/woman/hiit.jpg",
+  core: "/workouts/woman/core.jpg",
+  pull: "/workouts/woman/back.jpg",
+  push: "/workouts/woman/chest.jpg",
+  legs: "/workouts/woman/legs.jpg",
+  upper: "/workouts/woman/upper-body.jpg",
+  cardio: "/workouts/woman/hiit.jpg",
+  warmup: "/workouts/woman/warmup.jpg",
+  stretch: "/workouts/woman/stretch.jpg",
+  general: "/workouts/woman/full-body.jpg",
+};
+
+export function getDashboardWorkoutBackgroundSrc(
+  category: WorkoutCategory,
+  gender: "male" | "female" = "male"
+): string {
+  const map =
+    gender === "female"
+      ? DASHBOARD_WORKOUT_BACKGROUNDS_FEMALE
+      : DASHBOARD_WORKOUT_BACKGROUNDS_MALE;
+  return map[category];
+}
+
+/** Gender-matched workout card photos; unknown gender keeps the themed shell. */
+export function resolveDashboardWorkoutBackground(
+  workout: {
+    planTitle: string;
+    dayTitle: string;
+    planKind?: string | null;
+    exercises?: { name: string }[] | null;
+  },
+  gender?: string | null
+): string | null {
+  if (gender !== "male" && gender !== "female") return null;
+
+  const category = inferProgramCategory(
+    workout.planTitle,
+    [
+      {
+        title: workout.dayTitle,
+        exercises: workout.exercises ?? [],
+      },
+    ],
+    workout.planKind
+  );
+  return getDashboardWorkoutBackgroundSrc(category, gender);
+}
+
 export function inferDayCategory(day: {
   title: string;
   exercises?: { name: string }[] | null;

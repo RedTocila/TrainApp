@@ -69,7 +69,6 @@ export function LogMealDialog({
   hasAiAccess,
   onClose,
   onLogged,
-  goal,
 }: {
   open: boolean;
   clientId: string;
@@ -105,19 +104,20 @@ export function LogMealDialog({
 
   useEffect(() => {
     if (!open) return;
-    setMode("picker");
-    setCustomFromLibrary(false);
-    setForm(emptyMealForm());
-    setPhotoReady(false);
-    setTextReady(false);
-    setAiConfidence(null);
-    setMealPhotoDataUrl(null);
-    setError(null);
-    setIsSaving(false);
-    savingRef.current = false;
+    const frame = window.requestAnimationFrame(() => {
+      setMode("picker");
+      setCustomFromLibrary(false);
+      setForm(emptyMealForm());
+      setPhotoReady(false);
+      setTextReady(false);
+      setAiConfidence(null);
+      setMealPhotoDataUrl(null);
+      setError(null);
+      setIsSaving(false);
+      savingRef.current = false;
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [open]);
-
-  if (!open) return null;
 
   const pickerOptions = [
     {
@@ -413,87 +413,7 @@ export function LogMealDialog({
 
   const body = (
     <>
-      {mode === "picker" && (
-        <div className="grid grid-cols-3 gap-2.5">
-          {pickerOptions.map((option) => {
-            const Icon = option.icon;
-            const locked = option.ai && !hasAiAccess;
-            const accents = {
-              primary: {
-                border: "border-primary/30 hover:border-primary/55",
-                wash: "from-primary/18",
-                glow: "bg-primary/25",
-                well: "bg-primary/15 text-primary",
-              },
-              emerald: {
-                border: "border-emerald-500/30 hover:border-emerald-400/55",
-                wash: "from-emerald-500/18",
-                glow: "bg-emerald-400/25",
-                well: "bg-emerald-500/15 text-emerald-400",
-              },
-              violet: {
-                border: "border-violet-500/30 hover:border-violet-400/55",
-                wash: "from-violet-500/18",
-                glow: "bg-violet-400/25",
-                well: "bg-violet-500/15 text-violet-400",
-              },
-            }[option.accent];
-
-            return (
-              <button
-                key={option.mode}
-                type="button"
-                onClick={() => goToMode(option.mode)}
-                className={cn(
-                  "group relative flex aspect-square flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border bg-card p-2.5 shadow-sm",
-                  "transition-[transform,border-color] duration-200 active:scale-[0.98]",
-                  accents.border,
-                  locked && "opacity-90"
-                )}
-              >
-                <div
-                  aria-hidden
-                  className={cn(
-                    "absolute inset-0 bg-gradient-to-br via-card to-card",
-                    accents.wash
-                  )}
-                />
-                <div
-                  aria-hidden
-                  className={cn(
-                    "pointer-events-none absolute -right-4 -top-5 h-16 w-16 rounded-full blur-2xl",
-                    accents.glow
-                  )}
-                />
-                {option.ai ? (
-                  <span className="absolute right-1.5 top-1.5 z-10 inline-flex items-center gap-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
-                    <Sparkles className="h-2.5 w-2.5" />
-                    AI
-                  </span>
-                ) : null}
-                <span
-                  className={cn(
-                    "relative z-10 flex h-11 w-11 items-center justify-center rounded-full",
-                    accents.well
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                </span>
-                <span className="relative z-10 text-center text-[11px] font-bold leading-tight">
-                  {option.label}
-                </span>
-                {locked ? (
-                  <Badge variant="secondary" className="relative z-10 mt-0.5 h-5 px-1.5 text-[9px]">
-                    {platform.ai.upgrade}
-                  </Badge>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-          {mode === "library" && (
+      {mode === "library" && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="relative min-w-0 flex-1">
@@ -717,12 +637,69 @@ export function LogMealDialog({
       </div>
     ) : null;
 
+  const handleOverlayClose = () => {
+    if (!savingRef.current) onClose();
+  };
+
+  const pickerGrid = (
+    <div className="grid grid-cols-3 gap-4">
+      {pickerOptions.map((option) => {
+        const Icon = option.icon;
+        const locked = option.ai && !hasAiAccess;
+        const iconColor = {
+          primary: "text-primary",
+          emerald: "text-emerald-400",
+          violet: "text-violet-400",
+        }[option.accent];
+
+        return (
+          <button
+            key={option.mode}
+            type="button"
+            onClick={() => goToMode(option.mode)}
+            className={cn(
+              "flex flex-col items-center gap-3 transition-transform duration-200 active:scale-95",
+              locked && "opacity-90"
+            )}
+          >
+            <Icon className={cn("h-12 w-12", iconColor)} strokeWidth={1.75} />
+            <span className="text-center text-sm font-bold leading-tight text-foreground">
+              {option.label}
+            </span>
+            {locked ? (
+              <span className="text-[10px] font-medium text-muted-foreground">
+                {platform.ai.upgrade}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  if (mode === "picker") {
+    return (
+      <AppOverlay
+        open={open}
+        onClose={handleOverlayClose}
+        presentation="center"
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={platform.mealLog.logAMeal}
+          className="relative z-10 w-full max-w-sm"
+        >
+          {pickerGrid}
+        </div>
+      </AppOverlay>
+    );
+  }
+
   return (
     <AppOverlay
       open={open}
-      onClose={() => {
-        if (!savingRef.current) onClose();
-      }}
+      onClose={handleOverlayClose}
       fullscreen={isPhotoFullscreen}
       closeOnBackdrop={!isSaving && !isPhotoCaptureFullscreen}
     >
@@ -747,11 +724,7 @@ export function LogMealDialog({
               ? "relative overflow-hidden p-0"
               : cn(
                   "overflow-y-auto overscroll-contain",
-                  isPhotoReviewFullscreen
-                    ? "px-4 py-4"
-                    : mode === "picker"
-                      ? "px-4 py-3"
-                      : "px-5 py-4"
+                  isPhotoReviewFullscreen ? "px-4 py-4" : "px-5 py-4"
                 )
           )}
           data-scroll-lock-scrollable={

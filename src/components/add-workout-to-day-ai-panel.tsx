@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   useEffect,
-  useRef,
+  useEffectEvent,
   useState,
   useTransition,
   type ReactNode,
@@ -63,11 +63,15 @@ export function AddWorkoutToDayAiPanel({
   const exerciseGender = resolveProfileGender(profile?.gender);
 
   useEffect(() => {
-    setProfileLoading(true);
+    let cancelled = false;
     void getAiPlanBuilderProfile().then((result) => {
+      if (cancelled) return;
       if ("profile" in result) setProfile(result.profile);
       setProfileLoading(false);
     });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const aiAccess = profile ? hasAiAccess(profile) : false;
@@ -95,13 +99,13 @@ export function AddWorkoutToDayAiPanel({
     });
   };
 
-  const handleEditPrompt = () => {
+  const handleEditPrompt = useEffectEvent(() => {
     setError(null);
     setShowEditor(true);
     onFooterChange?.(null);
-  };
+  });
 
-  const handleApply = () => {
+  const handleApply = useEffectEvent(() => {
     if (!program || isApplying || applied) return;
     setError(null);
     setIsApplying(true);
@@ -123,12 +127,7 @@ export function AddWorkoutToDayAiPanel({
         setIsApplying(false);
       }
     })();
-  };
-
-  const handleEditPromptRef = useRef(handleEditPrompt);
-  const handleApplyRef = useRef(handleApply);
-  handleEditPromptRef.current = handleEditPrompt;
-  handleApplyRef.current = handleApply;
+  });
 
   useEffect(() => {
     if (!onFooterChange) return;
@@ -143,7 +142,7 @@ export function AddWorkoutToDayAiPanel({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => handleEditPromptRef.current()}
+          onClick={() => handleEditPrompt()}
           disabled={busy || applied}
         >
           <PenLine className="mr-1.5 h-3.5 w-3.5" />
@@ -152,7 +151,7 @@ export function AddWorkoutToDayAiPanel({
         <Button
           type="button"
           size="sm"
-          onClick={() => handleApplyRef.current()}
+          onClick={() => handleApply()}
           disabled={busy || applied}
         >
           {applied ? (

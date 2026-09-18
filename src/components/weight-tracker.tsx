@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DashboardSectionHeader } from "@/components/dashboard-ui";
-import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
 import { DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
 import { isDayEnded } from "@/lib/meal-times";
 
@@ -142,10 +142,15 @@ export function WeightTracker({
   };
 
   return (
-    <DashboardThemedShell theme="weight" className="p-4">
+    <DashboardThemedShell
+      theme="weight"
+      backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.weight}
+      backgroundAlt={platform.weight.title}
+      className="p-4"
+    >
       <DashboardSectionHeader
         icon={ElectronicScale}
-        iconClassName="text-teal-600 dark:text-teal-300"
+        iconClassName="text-teal-300"
         title={platform.weight.title}
         subtitle={
           todayLogForDay
@@ -171,7 +176,7 @@ export function WeightTracker({
             {!readOnly && !formOpen ? (
               <Button
                 size="sm"
-                className="h-8 rounded-full px-3 text-xs"
+                className="!h-8 rounded-full px-3 text-xs"
                 onClick={openForm}
               >
                 <Plus className="h-3.5 w-3.5" />

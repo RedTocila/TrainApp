@@ -32,9 +32,9 @@ import {
   type TodaysWorkoutInfo,
   type CompletedWorkoutResults,
 } from "@/lib/actions/workout-sessions";
-import { WorkoutMuscleMap } from "@/components/workout-muscle-map";
 import { formatLocalized } from "@/lib/date-locale";
 import { formatDateKey, cn } from "@/lib/utils";
+import { resolveDashboardWorkoutBackground } from "@/lib/workout-visual-categories";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import {
   DashboardCardNavBody,
@@ -44,7 +44,6 @@ import {
 import {
   setWorkoutDayCache,
   getWorkoutDayCache,
-  clearWorkoutDayCache,
   workoutDayCacheKey,
 } from "@/lib/dashboard-route-cache";
 import { isDashboardDayCacheFresh } from "@/lib/dashboard-day-cache";
@@ -60,7 +59,7 @@ import { DashboardWorkoutPlusMenu } from "@/components/dashboard-workout-plus-me
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import { useRegisterWorkoutPageChrome } from "@/components/workout-page-chrome-context";
 import { AddWorkoutToDayDialog } from "@/components/add-workout-to-day-dialog";
-import { RemoveWorkoutFromDayDialog } from "@/components/remove-workout-from-day-dialog";
+import { EditDayWorkoutsDialog } from "@/components/edit-day-workouts-dialog";
 import { MissedButton } from "@/components/missed-items-dialog";
 import {
   dayRelation,
@@ -159,8 +158,8 @@ export function DashboardWorkoutCard({
     seedWorkouts.length > 0 ? dateKey : ""
   );
   const confirmedEmptyRef = useRef<Set<string>>(new Set());
+  const [editWorkoutOpen, setEditWorkoutOpen] = useState(false);
   const [addWorkoutOpen, setAddWorkoutOpen] = useState(false);
-  const [removeWorkoutOpen, setRemoveWorkoutOpen] = useState(false);
   const workoutCacheRef = useRef<Map<string, WorkoutDayCache>>(new Map());
   const selectedDateRef = useRef(selectedDate);
   selectedDateRef.current = selectedDate;
@@ -440,65 +439,6 @@ export function DashboardWorkoutCard({
     }
   }, [clientId, dateKey, selectedDate, todayKey]);
 
-  const handleWorkoutRemoved = useCallback(
-    (scheduledWorkoutIds: string[]) => {
-      const removed = new Set(scheduledWorkoutIds);
-      const key = dateKey;
-      setWorkouts((prev) => {
-        const next = prev.filter(
-          (workout) =>
-            !workout.scheduledWorkoutId ||
-            !removed.has(workout.scheduledWorkoutId)
-        );
-        if (next.length === 0) {
-          confirmedEmptyRef.current.add(key);
-          workoutCacheRef.current.set(key, {
-            workouts: [],
-            completedByTaskId: {},
-            skippedByTaskId: {},
-            sessionIdByTaskId: {},
-            allCompleted: false,
-            results: null,
-          });
-          clearWorkoutDayCache(clientId, key);
-          setCompletedByTaskId({});
-          setSkippedByTaskId({});
-          setSessionIdByTaskId({});
-          setWorkoutResults(null);
-          setLoadedDateKey(key);
-        } else {
-          const snapshot: WorkoutDayCache = {
-            workouts: next,
-            completedByTaskId,
-            skippedByTaskId,
-            sessionIdByTaskId,
-            allCompleted: areMainWorkoutsComplete(
-              next,
-              (taskId) => completedByTaskId[taskId] === true
-            ),
-            results: null,
-          };
-          workoutCacheRef.current.set(key, snapshot);
-          setWorkoutDayCache(clientId, key, snapshot);
-        }
-        return next;
-      });
-      notifySync();
-      router.refresh();
-      void refreshWorkout();
-    },
-    [
-      clientId,
-      completedByTaskId,
-      skippedByTaskId,
-      dateKey,
-      notifySync,
-      refreshWorkout,
-      router,
-      sessionIdByTaskId,
-    ]
-  );
-
   const handleWorkoutAdded = useCallback(() => {
     confirmedEmptyRef.current.delete(dateKey);
     notifySync();
@@ -717,13 +657,31 @@ export function DashboardWorkoutCard({
     const mainDone = mainWorkout
       ? isTaskCompleted(mainWorkout.taskId)
       : showCompletedState;
+    const backgroundSrc =
+      hasWorkout && workout
+        ? resolveDashboardWorkoutBackground(workout, gender)
+        : null;
+    const onPhoto = Boolean(backgroundSrc);
+    const metaText = onPhoto ? "text-white/90" : "text-foreground/90";
+    const softText = onPhoto ? "text-white/65" : "text-muted-foreground";
+    const footerBar = onPhoto
+      ? "bg-black/25 backdrop-blur-sm"
+      : "bg-secondary/40";
 
     return (
       <>
         <DashboardThemedShell
           id="dashboard-workout"
           theme="workout"
+          backgroundSrc={backgroundSrc}
+          backgroundAlt={
+            workout
+              ? workout.dayTitle || workout.planTitle
+              : platform.trainTabs.workout
+          }
+          backgroundPriority
           className={cn(
+            "min-h-[18rem]",
             hasWorkout &&
               "cursor-pointer transition-opacity hover:opacity-95 active:opacity-90"
           )}
@@ -737,7 +695,14 @@ export function DashboardWorkoutCard({
           <DashboardCardNavBody className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                <span className="inline-flex h-8 items-center rounded-full border border-primary/45 bg-primary/15 px-3 text-xs font-black uppercase tracking-[0.14em] text-primary">
+                <span
+                  className={cn(
+                    "inline-flex h-8 items-center rounded-full border px-3 text-xs font-black uppercase tracking-[0.14em]",
+                    onPhoto
+                      ? "border-white/35 bg-black/25 text-white"
+                      : "border-primary/45 bg-primary/15 text-primary"
+                  )}
+                >
                   {dayLabel}
                 </span>
                 {workout && exerciseCount > 0 ? (
@@ -755,13 +720,10 @@ export function DashboardWorkoutCard({
                   dashboardInteractive
                 )}
               >
-                {!hasScheduledWorkout ||
-                (!readOnly && removableWorkoutCount > 0) ? (
+                {!readOnly || !hasScheduledWorkout ? (
                   <DashboardWorkoutPlusMenu
-                    canAdd={true}
-                    canRemove={!readOnly && removableWorkoutCount > 0}
-                    onAddWorkout={() => setAddWorkoutOpen(true)}
-                    onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
+                    light={onPhoto}
+                    onEdit={() => setEditWorkoutOpen(true)}
                   />
                 ) : null}
                 {hasWorkout ? (
@@ -783,79 +745,112 @@ export function DashboardWorkoutCard({
             {hasWorkout && workout ? (
               <>
                 {exerciseCount > 0 ? (
-                  <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-center gap-2 sm:gap-3">
-                    <div className="flex min-w-0 flex-col justify-center gap-3.5 py-1">
-                      {durationLabel ? (
-                        <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground/90 sm:text-base">
-                          <Clock
-                            className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-300"
-                            aria-hidden
-                          />
-                          <span className="tabular-nums">{durationLabel}</span>
-                          <span className="text-xs font-medium text-muted-foreground sm:text-sm">
-                            {platform.workout.estimatedTimeCompact}
-                          </span>
-                        </p>
-                      ) : null}
-                      <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground/90 sm:text-base">
-                        <List
-                          className="h-5 w-5 shrink-0 text-primary"
+                  <div className="flex min-w-0 flex-col justify-center gap-3 py-1">
+                    {durationLabel ? (
+                      <p
+                        className={cn(
+                          "flex items-center gap-2.5 text-sm font-semibold sm:text-base",
+                          metaText
+                        )}
+                      >
+                        <Clock
+                          className={cn(
+                            "h-5 w-5 shrink-0",
+                            onPhoto ? "text-sky-300" : "text-sky-600 dark:text-sky-300"
+                          )}
                           aria-hidden
                         />
-                        <span>{platform.common.exercises(exerciseCount)}</span>
+                        <span className="tabular-nums">{durationLabel}</span>
+                        <span
+                          className={cn(
+                            "text-xs font-medium sm:text-sm",
+                            softText
+                          )}
+                        >
+                          {platform.workout.estimatedTimeCompact}
+                        </span>
                       </p>
-                      <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground/90 sm:text-base">
-                        <Layers
-                          className="h-5 w-5 shrink-0 text-primary"
-                          aria-hidden
-                        />
-                        <span>{platform.workout.setsCount(totalSets)}</span>
-                      </p>
-                      {kcalLabel ? (
-                        <p className="flex items-center gap-2.5 text-sm font-semibold text-foreground/90 sm:text-base">
-                          <Flame
-                            className="h-5 w-5 shrink-0 text-orange-500"
-                            aria-hidden
-                          />
-                          <span className="tabular-nums">{kcalLabel}</span>
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="relative min-w-0">
-                      <WorkoutMuscleMap
-                        key={workoutNavKey(workout)}
-                        variant="hero"
-                        exercises={workout.exercises}
-                        dayTitle={workout.dayTitle}
-                        gender={gender}
+                    ) : null}
+                    <p
+                      className={cn(
+                        "flex items-center gap-2.5 text-sm font-semibold sm:text-base",
+                        metaText
+                      )}
+                    >
+                      <List
+                        className={cn(
+                          "h-5 w-5 shrink-0",
+                          onPhoto ? "text-red-300" : "text-primary"
+                        )}
+                        aria-hidden
                       />
-                    </div>
+                      <span>{platform.common.exercises(exerciseCount)}</span>
+                    </p>
+                    <p
+                      className={cn(
+                        "flex items-center gap-2.5 text-sm font-semibold sm:text-base",
+                        metaText
+                      )}
+                    >
+                      <Layers
+                        className={cn(
+                          "h-5 w-5 shrink-0",
+                          onPhoto ? "text-red-300" : "text-primary"
+                        )}
+                        aria-hidden
+                      />
+                      <span>{platform.workout.setsCount(totalSets)}</span>
+                    </p>
+                    {kcalLabel ? (
+                      <p
+                        className={cn(
+                          "flex items-center gap-2.5 text-sm font-semibold sm:text-base",
+                          metaText
+                        )}
+                      >
+                        <Flame
+                          className="h-5 w-5 shrink-0 text-orange-400"
+                          aria-hidden
+                        />
+                        <span className="tabular-nums">{kcalLabel}</span>
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
 
                 <div className="mt-auto">
                   {mainDone ? (
-                    <div className="flex items-center gap-2 rounded-xl bg-secondary/40 px-3.5 py-2.5">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold leading-tight text-foreground">
-                          {workout.dayTitle || workout.planTitle}
-                        </p>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                          {platform.common.completed}
-                          {durationLabel ? ` · ${durationLabel}` : null}
-                        </p>
-                      </div>
-                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
-                        <Check className="h-5 w-5" strokeWidth={2.5} />
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 rounded-xl bg-secondary/40 px-3.5 py-2.5">
+                    <div
+                      className={cn(
+                        "flex items-center gap-2 rounded-xl px-3.5 py-2.5",
+                        footerBar
+                      )}
+                    >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold leading-tight">
                           {workout.dayTitle || workout.planTitle}
                         </p>
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                        <p className={cn("mt-0.5 truncate text-[11px]", softText)}>
+                          {platform.common.completed}
+                          {durationLabel ? ` · ${durationLabel}` : null}
+                        </p>
+                      </div>
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                        <Check className="h-5 w-5" strokeWidth={2.5} />
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      className={cn(
+                        "flex items-center gap-2 rounded-xl px-3.5 py-2.5",
+                        footerBar
+                      )}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold leading-tight">
+                          {workout.dayTitle || workout.planTitle}
+                        </p>
+                        <p className={cn("mt-0.5 truncate text-[11px]", softText)}>
                           {platform.workout.viewDayPlan}
                           {durationLabel ? ` · ${durationLabel}` : null}
                         </p>
@@ -875,14 +870,12 @@ export function DashboardWorkoutCard({
                 aria-live="polite"
               >
                 <div className="h-8 w-40 animate-pulse rounded-lg bg-secondary/80" />
-                <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] items-center gap-3">
-                  <div className="flex flex-col gap-2">
-                    <div className="h-24 animate-pulse rounded-2xl bg-secondary/80" />
-                    <div className="h-16 animate-pulse rounded-2xl bg-secondary/80" />
-                  </div>
-                  <div className="h-36 animate-pulse rounded-2xl bg-secondary/80" />
+                <div className="flex flex-col gap-2">
+                  <div className="h-6 w-44 animate-pulse rounded-lg bg-secondary/80" />
+                  <div className="h-6 w-36 animate-pulse rounded-lg bg-secondary/80" />
+                  <div className="h-6 w-40 animate-pulse rounded-lg bg-secondary/80" />
                 </div>
-                <div className="h-12 animate-pulse rounded-xl bg-secondary/80" />
+                <div className="mt-auto h-12 animate-pulse rounded-xl bg-secondary/80" />
               </div>
             ) : (
               <>
@@ -912,18 +905,18 @@ export function DashboardWorkoutCard({
             )}
           </DashboardCardNavBody>
         </DashboardThemedShell>
+        <EditDayWorkoutsDialog
+          open={editWorkoutOpen}
+          onClose={() => setEditWorkoutOpen(false)}
+          dateKey={dateKey}
+          workouts={workoutsForDay}
+          onChanged={handleWorkoutAdded}
+        />
         <AddWorkoutToDayDialog
           open={addWorkoutOpen}
           onClose={() => setAddWorkoutOpen(false)}
           dateKey={dateKey}
           onAdded={handleWorkoutAdded}
-        />
-        <RemoveWorkoutFromDayDialog
-          open={removeWorkoutOpen}
-          onClose={() => setRemoveWorkoutOpen(false)}
-          dateKey={dateKey}
-          workouts={workoutsForDay}
-          onRemoved={handleWorkoutRemoved}
         />
       </>
     );
@@ -941,13 +934,10 @@ export function DashboardWorkoutCard({
           ariaLabel={platform.trainTabs.workout}
         />
         <div className="absolute right-3 top-3 z-20 flex items-center gap-1">
-          {!hasScheduledWorkout || (!readOnly && removableWorkoutCount > 0) ? (
+          {!readOnly || !hasScheduledWorkout ? (
             <DashboardWorkoutPlusMenu
               className={dashboardInteractive}
-              canAdd={true}
-              canRemove={!readOnly && removableWorkoutCount > 0}
-              onAddWorkout={() => setAddWorkoutOpen(true)}
-              onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
+              onEdit={() => setEditWorkoutOpen(true)}
             />
           ) : null}
           <ChevronRight
@@ -986,18 +976,6 @@ export function DashboardWorkoutCard({
         </div>
 
         <DashboardCardNavBody className="flex min-h-0 flex-1 flex-col gap-3">
-          {focusWorkout && focusWorkout.exercises.length > 0 ? (
-            <div className="relative w-full">
-              <WorkoutMuscleMap
-                key={workoutNavKey(focusWorkout)}
-                variant="compact"
-                exercises={focusWorkout.exercises}
-                dayTitle={focusWorkout.dayTitle}
-                gender={gender}
-              />
-            </div>
-          ) : null}
-
           {workoutsForDay.length > 0 ? (
             <ul className={cn("mt-1 flex flex-col gap-2", dashboardInteractive)}>
               {workoutsForDay.map((workout) => (
@@ -1033,18 +1011,18 @@ export function DashboardWorkoutCard({
           ) : null}
         </DashboardCardNavBody>
       </Card>
+      <EditDayWorkoutsDialog
+        open={editWorkoutOpen}
+        onClose={() => setEditWorkoutOpen(false)}
+        dateKey={dateKey}
+        workouts={workoutsForDay}
+        onChanged={handleWorkoutAdded}
+      />
       <AddWorkoutToDayDialog
         open={addWorkoutOpen}
         onClose={() => setAddWorkoutOpen(false)}
         dateKey={dateKey}
         onAdded={handleWorkoutAdded}
-      />
-      <RemoveWorkoutFromDayDialog
-        open={removeWorkoutOpen}
-        onClose={() => setRemoveWorkoutOpen(false)}
-        dateKey={dateKey}
-        workouts={workoutsForDay}
-        onRemoved={handleWorkoutRemoved}
       />
       </>
     );
@@ -1073,12 +1051,9 @@ export function DashboardWorkoutCard({
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {!hasScheduledWorkout || (!readOnly && removableWorkoutCount > 0) ? (
+              {!readOnly || !hasScheduledWorkout ? (
                 <DashboardWorkoutPlusMenu
-                  canAdd={true}
-                  canRemove={!readOnly && removableWorkoutCount > 0}
-                  onAddWorkout={() => setAddWorkoutOpen(true)}
-                  onRemoveWorkout={() => setRemoveWorkoutOpen(true)}
+                  onEdit={() => setEditWorkoutOpen(true)}
                 />
               ) : null}
               {/* Desktop: Start lives in the top nav on mobile; keep it here for lg+. */}
@@ -1142,18 +1117,18 @@ export function DashboardWorkoutCard({
             </div>
           )}
         </div>
+        <EditDayWorkoutsDialog
+          open={editWorkoutOpen}
+          onClose={() => setEditWorkoutOpen(false)}
+          dateKey={dateKey}
+          workouts={workoutsForDay}
+          onChanged={handleWorkoutAdded}
+        />
         <AddWorkoutToDayDialog
           open={addWorkoutOpen}
           onClose={() => setAddWorkoutOpen(false)}
           dateKey={dateKey}
           onAdded={handleWorkoutAdded}
-        />
-        <RemoveWorkoutFromDayDialog
-          open={removeWorkoutOpen}
-          onClose={() => setRemoveWorkoutOpen(false)}
-          dateKey={dateKey}
-          workouts={workoutsForDay}
-          onRemoved={handleWorkoutRemoved}
         />
       </>
     );

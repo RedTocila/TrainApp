@@ -601,6 +601,12 @@ export const platformCopyEn = {
     addWorkoutToDayDesc: (day: string) =>
       `Add a warm-up, main workout, and/or stretching for ${day} — does not change your recurring schedule.`,
     addWorkoutToDayAria: "Add workout to day",
+    editDayWorkouts: "Edit day",
+    editDayWorkoutsDesc:
+      "Remove sessions from this day, or add warm-up, main, and stretching.",
+    editDayWorkoutsAria: "Edit workouts for this day",
+    noWorkoutsOnDay: "No workouts on this day yet.",
+    alreadyOnDay: "On day",
     sessionTypeMain: "Main workout",
     sessionTypeWarmup: "Warm-up",
     sessionTypeStretch: "Stretching",

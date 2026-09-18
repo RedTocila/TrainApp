@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export type DashboardCardTheme =
@@ -81,6 +82,39 @@ export function dashboardThemeAccent(theme: DashboardCardTheme) {
   return THEME[theme].accent;
 }
 
+/** Fixed photo backgrounds for home dashboard cards. */
+export const DASHBOARD_CARD_BACKGROUNDS = {
+  water: "/dashboard/water.jpg",
+  cardio: "/dashboard/cardio.jpg",
+  nutrition: "/dashboard/nutrition.jpg",
+  photos: "/dashboard/progress-photos.jpg",
+  weight: "/dashboard/body-weight.jpg",
+  bmi: "/dashboard/bmi.jpg",
+  lifestyle: "/dashboard/lifestyle.jpg",
+  habits: "/dashboard/habits.jpg",
+} as const;
+
+const PHOTO_OBJECT_POSITION: Partial<Record<DashboardCardTheme, string>> = {
+  water: "object-[65%_center]",
+  cardio: "object-[75%_center]",
+  nutrition: "object-center",
+  workout: "object-[70%_center]",
+  photos: "object-[40%_center]",
+  weight: "object-[30%_center]",
+  bmi: "object-center",
+  lifestyle: "object-[20%_center]",
+  habits: "object-center",
+};
+
+/** Darker wash for dense pair / nutrition tiles; lighter for the rest. */
+const PHOTO_OVERLAY: Partial<Record<DashboardCardTheme, string>> = {
+  water: "from-black/60 via-black/38 to-black/22",
+  cardio: "from-black/60 via-black/38 to-black/22",
+  nutrition: "from-black/60 via-black/38 to-black/22",
+};
+
+const DEFAULT_PHOTO_OVERLAY = "from-black/40 via-black/22 to-black/10";
+
 /**
  * Shared dashboard section shell — AI Coach-style accent border, wash, and glow.
  */
@@ -89,34 +123,74 @@ export function DashboardThemedShell({
   className,
   children,
   id,
+  backgroundSrc,
+  backgroundAlt = "",
+  backgroundPriority = false,
 }: {
   theme: DashboardCardTheme;
   className?: string;
   children: ReactNode;
   id?: string;
+  backgroundSrc?: string | null;
+  backgroundAlt?: string;
+  backgroundPriority?: boolean;
 }) {
   const t = THEME[theme];
+  const hasPhoto = Boolean(backgroundSrc);
   return (
     <div
       id={id}
       className={cn(
-        "relative flex w-full flex-col overflow-hidden rounded-2xl border bg-card shadow-sm",
-        t.border,
+        "relative flex w-full flex-col overflow-hidden rounded-2xl border shadow-sm",
+        hasPhoto ? "border-white/15 bg-black" : cn("bg-card", t.border),
         className
       )}
     >
+      {hasPhoto ? (
+        <>
+          <Image
+            src={backgroundSrc!}
+            alt={backgroundAlt}
+            fill
+            sizes="(min-width: 768px) 480px, 100vw"
+            className={cn(
+              "pointer-events-none object-cover",
+              PHOTO_OBJECT_POSITION[theme] ?? "object-center"
+            )}
+            priority={backgroundPriority}
+          />
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 bg-gradient-to-r",
+              PHOTO_OVERLAY[theme] ?? DEFAULT_PHOTO_OVERLAY
+            )}
+          />
+        </>
+      ) : (
+        <>
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 bg-gradient-to-br via-card to-card",
+              t.wash
+            )}
+          />
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl",
+              t.glow
+            )}
+          />
+        </>
+      )}
       <div
-        aria-hidden
-        className={cn("pointer-events-none absolute inset-0 bg-gradient-to-br via-card to-card", t.wash)}
-      />
-      <div
-        aria-hidden
         className={cn(
-          "pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl",
-          t.glow
+          "relative z-10 flex w-full flex-1 flex-col",
+          hasPhoto ? "dashboard-photo-card" : "text-foreground"
         )}
-      />
-      <div className="relative z-10 flex w-full flex-1 flex-col text-foreground">
+      >
         {children}
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { ArrowLeft, Check, Library, Plus, Sparkles, type LucideIcon } from "lucide-react";
 import { AppDialog } from "@/components/app-dialog";
+import { AppOverlay } from "@/components/app-overlay";
 import { AddWorkoutToDayAiPanel } from "@/components/add-workout-to-day-ai-panel";
 import { AddWorkoutToDayWizard } from "@/components/add-workout-to-day-wizard";
 import { usePlatformCopy } from "@/components/locale-provider";
@@ -16,7 +17,6 @@ import {
   addWorkoutToDay,
   getPersonalWorkoutsWithSchedules,
   getScheduledDayEntriesForDate,
-  unscheduleWorkoutDay,
   type PersonalWorkoutListItem,
 } from "@/lib/actions/user-workouts";
 import { inferDayCategory } from "@/lib/workout-visual-categories";
@@ -35,57 +35,20 @@ function ModeSquare({
   onClick: () => void;
   accent: "primary" | "emerald" | "violet";
 }) {
-  const accents = {
-    primary: {
-      border: "border-primary/30 hover:border-primary/55",
-      wash: "from-primary/18",
-      glow: "bg-primary/25",
-      well: "bg-primary/15 text-primary",
-    },
-    emerald: {
-      border: "border-emerald-500/30 hover:border-emerald-400/55",
-      wash: "from-emerald-500/18",
-      glow: "bg-emerald-400/25",
-      well: "bg-emerald-500/15 text-emerald-400",
-    },
-    violet: {
-      border: "border-violet-500/30 hover:border-violet-400/55",
-      wash: "from-violet-500/18",
-      glow: "bg-violet-400/25",
-      well: "bg-violet-500/15 text-violet-400",
-    },
+  const iconColor = {
+    primary: "text-primary",
+    emerald: "text-emerald-400",
+    violet: "text-violet-400",
   }[accent];
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "group relative flex aspect-square flex-col items-center justify-center gap-2.5 overflow-hidden rounded-2xl border bg-card p-3 shadow-sm",
-        "transition-[transform,border-color] duration-200 active:scale-[0.98]",
-        accents.border
-      )}
+      className="flex flex-col items-center gap-3 transition-transform duration-200 active:scale-95"
     >
-      <div
-        aria-hidden
-        className={cn("absolute inset-0 bg-gradient-to-br via-card to-card", accents.wash)}
-      />
-      <div
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute -right-4 -top-5 h-16 w-16 rounded-full blur-2xl",
-          accents.glow
-        )}
-      />
-      <span
-        className={cn(
-          "relative z-10 flex h-11 w-11 items-center justify-center rounded-full",
-          accents.well
-        )}
-      >
-        <Icon className="h-5 w-5" />
-      </span>
-      <span className="relative z-10 text-center text-[12px] font-bold leading-tight">
+      <Icon className={cn("h-12 w-12", iconColor)} strokeWidth={1.75} />
+      <span className="text-center text-sm font-bold leading-tight text-foreground">
         {label}
       </span>
     </button>
@@ -97,11 +60,14 @@ export function AddWorkoutToDayDialog({
   onClose,
   dateKey,
   onAdded,
+  intent = "add",
 }: {
   open: boolean;
   onClose: () => void;
   dateKey: string;
   onAdded?: () => void;
+  /** "edit" uses edit-day copy; library mode still adds and removes. */
+  intent?: "add" | "edit";
 }) {
   const platform = usePlatformCopy();
   const [mode, setMode] = useState<Mode | null>(null);
@@ -117,10 +83,21 @@ export function AddWorkoutToDayDialog({
   const planIdByDayIdRef = useRef<Map<string, string>>(new Map());
   const libraryDirtyRef = useRef(false);
   const selectedDayIdsRef = useRef(selectedDayIds);
-  selectedDayIdsRef.current = selectedDayIds;
+
+  const dialogTitle =
+    intent === "edit" ? platform.workout.editDayWorkouts : platform.workout.addWorkout;
+  const dialogAria =
+    intent === "edit"
+      ? platform.workout.editDayWorkoutsAria
+      : platform.workout.addWorkoutToDayAria;
 
   useEffect(() => {
-    if (!open) {
+    selectedDayIdsRef.current = selectedDayIds;
+  }, [selectedDayIds]);
+
+  useEffect(() => {
+    if (open) return;
+    const frame = window.requestAnimationFrame(() => {
       setMode(null);
       setWizardOpen(false);
       setWizardType(null);
@@ -130,16 +107,21 @@ export function AddWorkoutToDayDialog({
       initialScheduledRef.current = new Set();
       planIdByDayIdRef.current = new Map();
       libraryDirtyRef.current = false;
-    }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [open]);
 
   useEffect(() => {
     if (!open || mode !== "library") return;
-    setLoading(true);
+    let cancelled = false;
+    const frame = window.requestAnimationFrame(() => {
+      if (!cancelled) setLoading(true);
+    });
     void Promise.all([
       getPersonalWorkoutsWithSchedules(),
       getScheduledDayEntriesForDate(dateKey),
     ]).then(([loaded, scheduledEntries]) => {
+      if (cancelled) return;
       setWorkouts(loaded);
       const scheduled = new Set(scheduledEntries.map((entry) => entry.dayId));
       initialScheduledRef.current = scheduled;
@@ -155,11 +137,11 @@ export function AddWorkoutToDayDialog({
       planIdByDayIdRef.current = planIds;
       setLoading(false);
     });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
   }, [open, mode, dateKey]);
-
-  useEffect(() => {
-    if (mode !== "ai") setAiFooter(null);
-  }, [mode]);
 
   const libraryEntries = useMemo(
     () =>
@@ -190,19 +172,17 @@ export function AddWorkoutToDayDialog({
     const selected = selectedDayIdsRef.current;
     const initial = initialScheduledRef.current;
     const toAdd = [...selected].filter((dayId) => !initial.has(dayId));
-    const toRemove = [...initial].filter((dayId) => !selected.has(dayId));
-    if (toAdd.length === 0 && toRemove.length === 0) return;
+    if (toAdd.length === 0) return;
 
     startTransition(async () => {
-      await Promise.all([
-        ...toRemove.map((dayId) => unscheduleWorkoutDay(dateKey, dayId)),
-        ...toAdd.map((dayId) => {
+      await Promise.all(
+        toAdd.map((dayId) => {
           const planId = planIdByDayIdRef.current.get(dayId);
           return planId
             ? addWorkoutToDay(dateKey, planId, dayId)
             : Promise.resolve({ error: null });
-        }),
-      ]);
+        })
+      );
       onAdded?.();
     });
   };
@@ -213,6 +193,7 @@ export function AddWorkoutToDayDialog({
   };
 
   const handlePickFromLibrary = (dayId: string) => {
+    if (initialScheduledRef.current.has(dayId)) return;
     setError(null);
     setSelectedDayIds((prev) => {
       const next = new Set(prev);
@@ -239,17 +220,19 @@ export function AddWorkoutToDayDialog({
 
   return (
     <>
-      <AppDialog
-        open={open && !wizardOpen}
-        onClose={handleClose}
-        title={platform.workout.addWorkout}
-        ariaLabel={platform.workout.addWorkoutToDayAria}
-        maxWidth="max-w-md"
-        footer={mode === "ai" ? aiFooter : undefined}
-      >
-        <div className="px-5 pb-5">
-          {mode === null ? (
-            <div className="grid grid-cols-3 gap-2.5">
+      {mode === null ? (
+        <AppOverlay
+          open={open && !wizardOpen}
+          onClose={handleClose}
+          presentation="center"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={dialogAria}
+            className="relative z-10 w-full max-w-sm"
+          >
+            <div className="grid grid-cols-3 gap-4">
               <ModeSquare
                 icon={Library}
                 label={platform.workout.fromLibrary}
@@ -278,15 +261,27 @@ export function AddWorkoutToDayDialog({
                 }}
               />
             </div>
-          ) : (
+          </div>
+        </AppOverlay>
+      ) : (
+        <AppDialog
+          open={open && !wizardOpen}
+          onClose={handleClose}
+          title={dialogTitle}
+          ariaLabel={dialogAria}
+          maxWidth="max-w-md"
+          footer={mode === "ai" ? aiFooter : undefined}
+        >
+          <div className="space-y-3 px-5 pb-4">
             <div className="space-y-3">
               <button
                 type="button"
                 onClick={() => {
                   setError(null);
+                  setAiFooter(null);
                   setMode(null);
                 }}
-                className="inline-flex items-center gap-1.5 rounded-full px-1 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex items-center gap-1.5 rounded-full px-1 py-0.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
               >
                 <ArrowLeft className="h-4 w-4" />
                 {modeTitle}
@@ -307,18 +302,26 @@ export function AddWorkoutToDayDialog({
                 ) : (
                   <ul className="space-y-2">
                     {libraryEntries.map((entry) => {
-                      const isSelected = selectedDayIds.has(entry.dayId);
+                      const alreadyOnDay = initialScheduledRef.current.has(
+                        entry.dayId
+                      );
+                      const isSelected =
+                        !alreadyOnDay && selectedDayIds.has(entry.dayId);
                       return (
                         <li key={`${entry.planId}-${entry.dayId}`}>
                           <button
                             type="button"
+                            disabled={alreadyOnDay}
                             aria-pressed={isSelected}
+                            aria-disabled={alreadyOnDay}
                             onClick={() => handlePickFromLibrary(entry.dayId)}
                             className={cn(
                               "flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left shadow-sm transition-colors",
-                              isSelected
-                                ? "border-emerald-500/45 bg-emerald-500/10"
-                                : "border-border/60 bg-card/80 hover:border-primary/40 hover:bg-primary/10"
+                              alreadyOnDay
+                                ? "cursor-not-allowed border-border/40 bg-secondary/30 opacity-55"
+                                : isSelected
+                                  ? "border-emerald-500/45 bg-emerald-500/10"
+                                  : "border-border/60 bg-card/80 hover:border-primary/40 hover:bg-primary/10"
                             )}
                           >
                             <WorkoutCategoryIcon
@@ -336,7 +339,11 @@ export function AddWorkoutToDayDialog({
                                   : ""}
                               </p>
                             </div>
-                            {isSelected ? (
+                            {alreadyOnDay ? (
+                              <span className="inline-flex shrink-0 items-center rounded-full bg-secondary/80 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                                {platform.workout.alreadyOnDay}
+                              </span>
+                            ) : isSelected ? (
                               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-400">
                                 <Check className="h-3 w-3" strokeWidth={2.5} />
                                 {platform.workout.workoutAddedToDay}
@@ -361,10 +368,10 @@ export function AddWorkoutToDayDialog({
                 />
               )}
             </div>
-          )}
-          {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
-        </div>
-      </AppDialog>
+            {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+          </div>
+        </AppDialog>
+      )}
 
       <AddWorkoutToDayWizard
         open={wizardOpen}
