@@ -15,7 +15,6 @@ import { formatDateKey } from "@/lib/utils";
 import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
-import { Button } from "@/components/ui/button";
 
 export function DayTasksDialog({
   open,
@@ -95,12 +94,6 @@ export function DayTasksDialog({
 
         <div className="flex-1 overflow-y-auto px-5 pt-5 pb-4">
           <DayTasksList tasks={tasks} />
-        </div>
-
-        <div className="px-5 py-3">
-          <Button variant="outline" className="w-full" onClick={onClose}>
-            {platform.common.close}
-          </Button>
         </div>
       </AppOverlayPanel>
     </AppOverlay>

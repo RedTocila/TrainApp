@@ -1,7 +1,7 @@
 "use client";
 
 import Body from "@mjcdev/react-body-highlighter";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import {
   resolveBodyMapGender,
@@ -14,6 +14,20 @@ import { cn } from "@/lib/utils";
 const HIGHLIGHT_COLORS = ["#FF9500", "#FF3B30", "#AEB4BC"] as const;
 const BODY_RENDER_WIDTH = 200;
 const BODY_RENDER_HEIGHT = 400;
+
+/**
+ * `@mjcdev/react-body-highlighter` resolves default fills from
+ * `prefers-color-scheme` at module load (SSR always "light"). Render only after
+ * mount so server HTML and client hydration never disagree on path fills.
+ */
+function ClientOnlyBody(props: ComponentProps<typeof Body>) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) return null;
+  return <Body {...props} />;
+}
 
 export function MuscleMapLegend({
   className,
@@ -97,7 +111,7 @@ function CompactMuscleMapBody({
       )}
       aria-hidden
     >
-      <Body
+      <ClientOnlyBody
         data={highlightData}
         gender={bodyGender}
         side={side}
@@ -186,7 +200,7 @@ export function WorkoutMuscleMap({
     <div className={cn("space-y-2", className)}>
       <div className="flex items-start justify-center gap-2 sm:gap-4">
         <div className="flex flex-1 flex-col items-center">
-          <Body
+          <ClientOnlyBody
             data={highlightData}
             gender={bodyGender}
             side="front"
@@ -199,7 +213,7 @@ export function WorkoutMuscleMap({
           </span>
         </div>
         <div className="flex flex-1 flex-col items-center">
-          <Body
+          <ClientOnlyBody
             data={highlightData}
             gender={bodyGender}
             side="back"

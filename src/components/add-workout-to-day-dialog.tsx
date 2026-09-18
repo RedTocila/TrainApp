@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
-import { ArrowLeft, Check, Library, Loader2, Plus, Sparkles, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { ArrowLeft, Check, Library, Plus, Sparkles, type LucideIcon } from "lucide-react";
 import { AppDialog } from "@/components/app-dialog";
 import { AddWorkoutToDayAiPanel } from "@/components/add-workout-to-day-ai-panel";
 import { AddWorkoutToDayWizard } from "@/components/add-workout-to-day-wizard";
@@ -108,12 +108,16 @@ export function AddWorkoutToDayDialog({
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardType, setWizardType] = useState<CreateWorkoutType | null>(null);
   const [workouts, setWorkouts] = useState<PersonalWorkoutListItem[]>([]);
-  const [addedDayIds, setAddedDayIds] = useState<Set<string>>(() => new Set());
-  const [pendingDayId, setPendingDayId] = useState<string | null>(null);
+  const [selectedDayIds, setSelectedDayIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [aiFooter, setAiFooter] = useState<ReactNode>(null);
+  const initialScheduledRef = useRef<Set<string>>(new Set());
+  const planIdByDayIdRef = useRef<Map<string, string>>(new Map());
+  const libraryDirtyRef = useRef(false);
+  const selectedDayIdsRef = useRef(selectedDayIds);
+  selectedDayIdsRef.current = selectedDayIds;
 
   useEffect(() => {
     if (!open) {
@@ -122,8 +126,10 @@ export function AddWorkoutToDayDialog({
       setWizardType(null);
       setError(null);
       setAiFooter(null);
-      setAddedDayIds(new Set());
-      setPendingDayId(null);
+      setSelectedDayIds(new Set());
+      initialScheduledRef.current = new Set();
+      planIdByDayIdRef.current = new Map();
+      libraryDirtyRef.current = false;
     }
   }, [open]);
 
@@ -135,7 +141,18 @@ export function AddWorkoutToDayDialog({
       getScheduledDayEntriesForDate(dateKey),
     ]).then(([loaded, scheduledEntries]) => {
       setWorkouts(loaded);
-      setAddedDayIds(new Set(scheduledEntries.map((entry) => entry.dayId)));
+      const scheduled = new Set(scheduledEntries.map((entry) => entry.dayId));
+      initialScheduledRef.current = scheduled;
+      setSelectedDayIds(scheduled);
+      libraryDirtyRef.current = false;
+
+      const planIds = new Map<string, string>();
+      for (const { plan, days } of loaded) {
+        for (const day of days) {
+          planIds.set(day.id, plan.id);
+        }
+      }
+      planIdByDayIdRef.current = planIds;
       setLoading(false);
     });
   }, [open, mode, dateKey]);
@@ -166,41 +183,44 @@ export function AddWorkoutToDayDialog({
     [workouts]
   );
 
-  const handlePickFromLibrary = (planId: string, dayId: string) => {
-    if (isPending) return;
-    setError(null);
-    setPendingDayId(dayId);
-    const removing = addedDayIds.has(dayId);
-    startTransition(async () => {
-      if (removing) {
-        const result = await unscheduleWorkoutDay(dateKey, dayId);
-        setPendingDayId(null);
-        if (result.error) {
-          setError(result.error);
-          return;
-        }
-        setAddedDayIds((prev) => {
-          const next = new Set(prev);
-          next.delete(dayId);
-          return next;
-        });
-        onAdded?.();
-        return;
-      }
+  const applyLibrarySelection = () => {
+    if (!libraryDirtyRef.current) return;
+    libraryDirtyRef.current = false;
 
-      const result = await addWorkoutToDay(dateKey, planId, dayId);
-      setPendingDayId(null);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      setAddedDayIds((prev) => {
-        const next = new Set(prev);
-        next.add(dayId);
-        return next;
-      });
+    const selected = selectedDayIdsRef.current;
+    const initial = initialScheduledRef.current;
+    const toAdd = [...selected].filter((dayId) => !initial.has(dayId));
+    const toRemove = [...initial].filter((dayId) => !selected.has(dayId));
+    if (toAdd.length === 0 && toRemove.length === 0) return;
+
+    startTransition(async () => {
+      await Promise.all([
+        ...toRemove.map((dayId) => unscheduleWorkoutDay(dateKey, dayId)),
+        ...toAdd.map((dayId) => {
+          const planId = planIdByDayIdRef.current.get(dayId);
+          return planId
+            ? addWorkoutToDay(dateKey, planId, dayId)
+            : Promise.resolve({ error: null });
+        }),
+      ]);
       onAdded?.();
     });
+  };
+
+  const handleClose = () => {
+    onClose();
+    applyLibrarySelection();
+  };
+
+  const handlePickFromLibrary = (dayId: string) => {
+    setError(null);
+    setSelectedDayIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(dayId)) next.delete(dayId);
+      else next.add(dayId);
+      return next;
+    });
+    libraryDirtyRef.current = true;
   };
 
   const handleCreateType = (type: CreateWorkoutType) => {
@@ -221,7 +241,7 @@ export function AddWorkoutToDayDialog({
     <>
       <AppDialog
         open={open && !wizardOpen}
-        onClose={onClose}
+        onClose={handleClose}
         title={platform.workout.addWorkout}
         ariaLabel={platform.workout.addWorkoutToDayAria}
         maxWidth="max-w-md"
@@ -287,23 +307,18 @@ export function AddWorkoutToDayDialog({
                 ) : (
                   <ul className="space-y-2">
                     {libraryEntries.map((entry) => {
-                      const isAdded = addedDayIds.has(entry.dayId);
-                      const isAdding = pendingDayId === entry.dayId;
+                      const isSelected = selectedDayIds.has(entry.dayId);
                       return (
                         <li key={`${entry.planId}-${entry.dayId}`}>
                           <button
                             type="button"
-                            disabled={isPending}
-                            aria-pressed={isAdded}
-                            onClick={() =>
-                              handlePickFromLibrary(entry.planId, entry.dayId)
-                            }
+                            aria-pressed={isSelected}
+                            onClick={() => handlePickFromLibrary(entry.dayId)}
                             className={cn(
                               "flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left shadow-sm transition-colors",
-                              isAdded
+                              isSelected
                                 ? "border-emerald-500/45 bg-emerald-500/10"
-                                : "border-border/60 bg-card/80 hover:border-primary/40 hover:bg-primary/10",
-                              "disabled:cursor-not-allowed disabled:opacity-60"
+                                : "border-border/60 bg-card/80 hover:border-primary/40 hover:bg-primary/10"
                             )}
                           >
                             <WorkoutCategoryIcon
@@ -321,9 +336,7 @@ export function AddWorkoutToDayDialog({
                                   : ""}
                               </p>
                             </div>
-                            {isAdding ? (
-                              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
-                            ) : isAdded ? (
+                            {isSelected ? (
                               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-400">
                                 <Check className="h-3 w-3" strokeWidth={2.5} />
                                 {platform.workout.workoutAddedToDay}
@@ -342,8 +355,8 @@ export function AddWorkoutToDayDialog({
                   dateKey={dateKey}
                   onFooterChange={setAiFooter}
                   onAdded={() => {
-                    onAdded?.();
                     onClose();
+                    onAdded?.();
                   }}
                 />
               )}
@@ -362,9 +375,10 @@ export function AddWorkoutToDayDialog({
           setWizardType(null);
         }}
         onComplete={() => {
-          onAdded?.();
           setWizardOpen(false);
           setWizardType(null);
+          onClose();
+          onAdded?.();
         }}
       />
     </>

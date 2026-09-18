@@ -51,6 +51,14 @@ export function PwaRegister() {
     if (!("serviceWorker" in navigator)) return;
     // Native shell already is an app — skip SW registration there.
     if (Capacitor.isNativePlatform()) return;
+    // Dev + Turbopack: a controlling SW commonly surfaces as TypeError "Failed to fetch".
+    if (process.env.NODE_ENV !== "production") {
+      void navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => Promise.all(regs.map((reg) => reg.unregister())))
+        .catch(() => undefined);
+      return;
+    }
 
     const register = () => {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);

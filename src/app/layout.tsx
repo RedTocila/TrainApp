@@ -5,7 +5,6 @@ import { StartupSplash } from "@/components/startup-splash";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LocaleProvider } from "@/components/locale-provider";
 import { NativeAppBootstrap } from "@/components/native-app-bootstrap";
-import { ReminderBootstrap } from "@/components/reminder-bootstrap";
 import { PwaRegister } from "@/components/pwa-register";
 import { getRequestLocale } from "@/lib/guest-locale-server";
 import { getHtmlLang } from "@/lib/platform-copy";
@@ -109,7 +108,6 @@ export default async function RootLayout({
           <LocaleProvider locale={locale} syncGuestStorage>
             {children}
             <NativeAppBootstrap />
-            <ReminderBootstrap />
             <PwaRegister />
           </LocaleProvider>
         </ThemeProvider>

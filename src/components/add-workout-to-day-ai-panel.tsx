@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   useTransition,
@@ -27,12 +26,10 @@ import {
   getAiPlanBuilderProfile,
 } from "@/lib/actions/ai-plan-builder";
 import type { AiDayProgramResult } from "@/lib/ai/generate-workout-plan";
-import { inferAiMainWorkoutKind } from "@/lib/ai/infer-workout-kind";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { hasAiAccess } from "@/lib/subscription";
 import { buildPricingHref } from "@/lib/pricing-nav";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
@@ -64,10 +61,6 @@ export function AddWorkoutToDayAiPanel({
   const [isGenerating, startGenerate] = useTransition();
   const [isApplying, setIsApplying] = useState(false);
   const exerciseGender = resolveProfileGender(profile?.gender);
-  const detectedMainKind = useMemo(
-    () => inferAiMainWorkoutKind(prompt),
-    [prompt]
-  );
 
   useEffect(() => {
     setProfileLoading(true);
@@ -79,6 +72,7 @@ export function AddWorkoutToDayAiPanel({
 
   const aiAccess = profile ? hasAiAccess(profile) : false;
   const busy = isGenerating || isApplying;
+  const canGenerate = Boolean(prompt.trim()) && !busy;
 
   const handleGenerate = () => {
     setError(null);
@@ -217,78 +211,35 @@ export function AddWorkoutToDayAiPanel({
     <div className="space-y-4">
       {showEditor ? (
         <>
-          <div className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-card p-4 shadow-sm">
-            <div
-              aria-hidden
-              className="absolute inset-0 bg-gradient-to-br from-violet-500/18 via-card to-card"
-            />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-violet-400/25 blur-2xl"
-            />
-            <div className="relative z-10 flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-400">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <p className="font-bold">{platform.workout.aiFullDayTitle}</p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label htmlFor="ai-day-workout-prompt">
-                {platform.workout.aiFullDayPromptLabel}
-              </Label>
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
-                  detectedMainKind === "hiit"
-                    ? "bg-fuchsia-500/15 text-fuchsia-300"
-                    : "bg-primary/10 text-primary"
-                )}
-              >
-                {detectedMainKind === "hiit" ? (
-                  <>
-                    <Zap className="h-3 w-3" />
-                    HIIT
-                  </>
-                ) : (
-                  <>
-                    <Dumbbell className="h-3 w-3" />
-                    Fitness
-                  </>
-                )}
-              </span>
-            </div>
+          <div className="relative">
             <Textarea
               id="ai-day-workout-prompt"
-              rows={3}
+              rows={2}
               placeholder={platform.workout.aiFullDayPlaceholder}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
+              disabled={busy}
+              className="min-h-0 resize-none rounded-2xl pb-12 pr-12"
             />
-          </div>
-
-          <Button
-            type="button"
-            className="h-11 w-full gap-1.5 rounded-full shadow-[0_0_14px_rgba(var(--primary-rgb),0.3)]"
-            onClick={handleGenerate}
-            disabled={busy}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {platform.workout.buildingFullDay}
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                {program
+            <Button
+              type="button"
+              size="icon"
+              className="absolute bottom-2 right-2 h-10 w-10 rounded-full shadow-md shadow-primary/25"
+              onClick={handleGenerate}
+              disabled={!canGenerate}
+              aria-label={
+                program
                   ? platform.workout.regenerateWorkout
-                  : platform.workout.generateFullDay}
-              </>
-            )}
-          </Button>
+                  : platform.workout.generateFullDay
+              }
+            >
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
 
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
         </>

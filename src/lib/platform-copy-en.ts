@@ -152,6 +152,7 @@ export const platformCopyEn = {
     timeLabel: "Reminder time",
     saved: "Reminder settings saved",
     resync: "Refresh scheduled reminders",
+    networkError: "Couldn’t reach the server. Check your connection and try again.",
     channelName: "Daily reminders",
     channelDescription:
       "Nudges when workouts, meals, water, or habits are still pending",

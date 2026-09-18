@@ -100,41 +100,52 @@ export function ReminderSettingsCard({
     setPermissionHint(null);
 
     startTransition(async () => {
-      if (next.enabled && isNative) {
-        const granted = await ensureReminderPermissions();
-        if (!granted) {
-          setPermissionHint(platform.reminders.permissionDenied);
-        }
-      }
-
-      const result = await updateReminderSettings(next);
-      if (result.error) {
-        setError(result.error);
-        setSettings(serverSnapshot.current);
-        return;
-      }
-
-      const saved = result.settings ?? next;
-      serverSnapshot.current = saved;
-      setSettings(saved);
-      setSuccess(true);
-
-      if (isNative) {
-        try {
-          const pendingToday = await getTodayReminderPendingStatus(
-            new Date().getTimezoneOffset()
-          );
-          const sync = await syncReminderNotifications({
-            settings: saved,
-            pendingToday,
-            copy: buildReminderCopy(platform),
-          });
-          if (saved.enabled && !sync.permissionGranted) {
+      try {
+        if (next.enabled && isNative) {
+          const granted = await ensureReminderPermissions();
+          if (!granted) {
             setPermissionHint(platform.reminders.permissionDenied);
           }
-        } catch {
-          // offline / plugin errors
         }
+
+        const result = await updateReminderSettings(next);
+        if (result.error) {
+          setError(result.error);
+          setSettings(serverSnapshot.current);
+          return;
+        }
+
+        const saved = result.settings ?? next;
+        serverSnapshot.current = saved;
+        setSettings(saved);
+        setSuccess(true);
+
+        if (isNative) {
+          try {
+            const pendingToday = await getTodayReminderPendingStatus(
+              new Date().getTimezoneOffset()
+            );
+            const sync = await syncReminderNotifications({
+              settings: saved,
+              pendingToday,
+              copy: buildReminderCopy(platform),
+            });
+            if (saved.enabled && !sync.permissionGranted) {
+              setPermissionHint(platform.reminders.permissionDenied);
+            }
+          } catch {
+            // offline / plugin errors
+          }
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error && /failed to fetch/i.test(err.message)
+            ? platform.reminders.networkError
+            : err instanceof Error
+              ? err.message
+              : platform.reminders.networkError;
+        setError(message);
+        setSettings(serverSnapshot.current);
       }
     });
   };

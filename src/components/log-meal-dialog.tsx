@@ -703,7 +703,7 @@ export function LogMealDialog({
   );
 
   const footerActions =
-    canLogCustom || canLogPhoto || mode !== "picker" || error ? (
+    canLogCustom || canLogPhoto || error ? (
       <div
         className={cn(
           "space-y-2 border-t border-border",
@@ -713,13 +713,7 @@ export function LogMealDialog({
         )}
       >
         {error && <p className="text-sm text-red-400">{error}</p>}
-        {canLogCustom || canLogPhoto ? (
-          logPrimaryButton
-        ) : mode !== "picker" ? (
-          <Button variant="outline" className="w-full" onClick={onClose} disabled={isSaving}>
-            {platform.common.close}
-          </Button>
-        ) : null}
+        {canLogCustom || canLogPhoto ? logPrimaryButton : null}
       </div>
     ) : null;
 

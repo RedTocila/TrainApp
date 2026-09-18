@@ -1,5 +1,5 @@
 /* RUTINA PWA service worker — shell cache + network-first navigations. */
-const CACHE_VERSION = "rutina-v1";
+const CACHE_VERSION = "rutina-v2";
 const SHELL_URLS = ["/", "/dashboard", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -47,13 +47,18 @@ self.addEventListener("fetch", (event) => {
   // Navigations: always try network; only fall back to a warm shell offline.
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(async () => {
-        return (
-          (await caches.match("/dashboard")) ||
-          (await caches.match("/")) ||
-          Response.error()
-        );
-      }),
+      fetch(request)
+        .then((response) => response)
+        .catch(async () => {
+          const cached =
+            (await caches.match("/dashboard")) || (await caches.match("/"));
+          if (cached) return cached;
+          return new Response("Offline", {
+            status: 503,
+            statusText: "Service Unavailable",
+            headers: { "content-type": "text/plain; charset=utf-8" },
+          });
+        }),
     );
     return;
   }

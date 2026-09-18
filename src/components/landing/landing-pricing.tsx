@@ -34,9 +34,13 @@ export function LandingPricing() {
 
   useEffect(() => {
     let cancelled = false;
-    void getPublicActiveSubscriptionOffers().then((rows) => {
-      if (!cancelled) setOffers(rows);
-    });
+    void getPublicActiveSubscriptionOffers()
+      .then((rows) => {
+        if (!cancelled) setOffers(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setOffers([]);
+      });
     return () => {
       cancelled = true;
     };

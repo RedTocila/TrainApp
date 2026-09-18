@@ -14,7 +14,6 @@ import {
 } from "@/lib/meal-times";
 import { ScheduledMealsList } from "@/components/scheduled-meals-list";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface TodaysMealsDialogProps {
@@ -152,11 +151,6 @@ export function TodaysMealsDialog({
           )}
         </div>
 
-        <div className="px-5 py-3">
-          <Button variant="outline" className="w-full" onClick={onClose}>
-            {platform.common.close}
-          </Button>
-        </div>
       </AppOverlayPanel>
     </AppOverlay>
   );

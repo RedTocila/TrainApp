@@ -10,6 +10,7 @@ import { CoachReadMeDialog } from "@/components/coach-read-me-dialog";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
+import { useVisualViewportFrame } from "@/hooks/use-visual-viewport-frame";
 
 export function AiCoachChatDialog() {
   const {
@@ -24,6 +25,7 @@ export function AiCoachChatDialog() {
   const platform = usePlatformCopy();
   const ai = platform.ai;
   const [entered, setEntered] = useState(false);
+  const frame = useVisualViewportFrame(isOpen);
 
   useLockBodyScroll(isOpen);
 
@@ -60,9 +62,13 @@ export function AiCoachChatDialog() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-coach-chat-title"
-        className={`fixed inset-0 z-[110] flex flex-col overflow-hidden bg-background transition-transform duration-150 ease-out ${
+        className={`fixed inset-x-0 z-[110] flex flex-col overflow-hidden bg-background transition-transform duration-150 ease-out ${
           entered ? "translate-y-0 scale-100" : "translate-y-1 scale-[0.995]"
         }`}
+        style={{
+          top: frame.offsetTop,
+          height: frame.height,
+        }}
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
           <div className="flex min-w-0 items-center gap-2.5">

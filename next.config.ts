@@ -3,7 +3,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   turbopack: {
-    root: ".",
+    root: process.cwd(),
   },
   images: {
     remotePatterns: [

@@ -156,6 +156,7 @@ export const platformCopyAl = {
     timeLabel: "Ora e kujtesës",
     saved: "Cilësimet e kujtesave u ruajtën",
     resync: "Rifresko kujtesat e planifikuara",
+    networkError: "Nuk u lidh me serverin. Kontrollo lidhjen dhe provo përsëri.",
     channelName: "Kujtesa ditore",
     channelDescription:
       "Kujtesa kur stërvitjet, vaktet, uji ose zakonet janë ende të hapura",
