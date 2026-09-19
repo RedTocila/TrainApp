@@ -125,8 +125,8 @@ export function DashboardHomeView({
           schedule={schedule}
         />
 
-        <div className="flex w-full shrink-0 flex-col gap-3 sm:gap-4 md:gap-5">
-          <div className="flex w-full items-stretch gap-3 sm:gap-3.5 md:gap-4">
+        <div className="flex w-full shrink-0 flex-col gap-4 sm:gap-5 md:gap-6">
+          <div className="flex w-full items-stretch gap-3.5 sm:gap-4 md:gap-5">
             <div className="w-1/2 min-w-0">
               <DashboardWaterCard
                 clientId={clientId}

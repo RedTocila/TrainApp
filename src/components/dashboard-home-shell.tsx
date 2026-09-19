@@ -23,7 +23,7 @@ export function DashboardHomeShell({
       <div className="-mx-3 sm:-mx-4 md:-mx-6">
         <DashboardCalendar clientId={clientId} schedule={schedule} />
       </div>
-      <div className="flex flex-col gap-3 pb-[var(--dashboard-mobile-nav-height,4.25rem)] pt-3 sm:gap-4 sm:pt-4 md:gap-5 md:pt-5 lg:gap-5">
+      <div className="flex flex-col gap-4 pb-[var(--dashboard-mobile-nav-height,4.25rem)] pt-3 sm:gap-5 sm:pt-4 md:gap-6 md:pt-5 lg:gap-6">
         {children}
       </div>
     </div>

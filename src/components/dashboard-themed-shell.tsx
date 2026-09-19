@@ -108,16 +108,15 @@ const PHOTO_OBJECT_POSITION: Partial<Record<DashboardCardTheme, string>> = {
 
 /** Darker wash for dense pair / nutrition tiles; lighter for the rest. */
 const PHOTO_OVERLAY: Partial<Record<DashboardCardTheme, string>> = {
-  water: "from-black/60 via-black/38 to-black/22",
-  cardio: "from-black/60 via-black/38 to-black/22",
-  nutrition: "from-black/60 via-black/38 to-black/22",
-  workout: "from-black/55 via-black/28 to-black/12",
+  water: "from-black/78 via-black/58 to-black/40",
+  cardio: "from-black/78 via-black/58 to-black/40",
+  nutrition: "from-black/78 via-black/58 to-black/40",
 };
 
 const DEFAULT_PHOTO_OVERLAY = "from-black/40 via-black/22 to-black/10";
 
 /**
- * Shared dashboard section shell — AI Coach-style accent border, wash, and glow.
+ * Shared dashboard section shell — photo depth via soft shadow (no border).
  */
 export function DashboardThemedShell({
   theme,
@@ -127,6 +126,7 @@ export function DashboardThemedShell({
   backgroundSrc,
   backgroundAlt = "",
   backgroundPriority = false,
+  backgroundObjectClass,
 }: {
   theme: DashboardCardTheme;
   className?: string;
@@ -135,6 +135,8 @@ export function DashboardThemedShell({
   backgroundSrc?: string | null;
   backgroundAlt?: string;
   backgroundPriority?: boolean;
+  /** Optional override for photo object-position / scale. */
+  backgroundObjectClass?: string;
 }) {
   const t = THEME[theme];
   const hasPhoto = Boolean(backgroundSrc);
@@ -142,8 +144,10 @@ export function DashboardThemedShell({
     <div
       id={id}
       className={cn(
-        "relative flex w-full flex-col overflow-hidden rounded-2xl border shadow-sm",
-        hasPhoto ? "border-white/15 bg-black" : cn("bg-card", t.border),
+        "relative flex w-full flex-col overflow-hidden rounded-2xl",
+        hasPhoto
+          ? "bg-zinc-950 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.85)]"
+          : "bg-card shadow-[0_12px_32px_-12px_rgba(0,0,0,0.55)]",
         className
       )}
     >
@@ -157,7 +161,9 @@ export function DashboardThemedShell({
               sizes="(min-width: 768px) 480px, 100vw"
               className={cn(
                 "object-cover",
-                PHOTO_OBJECT_POSITION[theme] ?? "object-center"
+                backgroundObjectClass ??
+                  PHOTO_OBJECT_POSITION[theme] ??
+                  "object-center"
               )}
               priority={backgroundPriority}
             />
@@ -168,6 +174,11 @@ export function DashboardThemedShell({
               "pointer-events-none absolute inset-0 bg-gradient-to-r",
               PHOTO_OVERLAY[theme] ?? DEFAULT_PHOTO_OVERLAY
             )}
+          />
+          {/* Soft inner rim — stays above the photo so cards stay distinct on dark UI */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-[5] rounded-[inherit] ring-1 ring-inset ring-white/22"
           />
         </>
       ) : (
@@ -185,6 +196,10 @@ export function DashboardThemedShell({
               "pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl",
               t.glow
             )}
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-[5] rounded-[inherit] ring-1 ring-inset ring-white/14"
           />
         </>
       )}

@@ -401,6 +401,15 @@ export function getDashboardWorkoutBackgroundSrc(
   return map[category];
 }
 
+/** Rest-day workout card hero — gender-matched recovery art. */
+export function getDashboardRestDayBackgroundSrc(
+  gender?: string | null
+): string | null {
+  if (gender === "female") return "/workouts/woman/rest-day.jpg";
+  if (gender === "male") return "/workouts/rest-day.jpg";
+  return null;
+}
+
 /** Gender-matched workout card photos; unknown gender keeps the themed shell. */
 export function resolveDashboardWorkoutBackground(
   workout: {

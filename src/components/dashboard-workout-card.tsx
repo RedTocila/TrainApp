@@ -34,7 +34,7 @@ import {
 } from "@/lib/actions/workout-sessions";
 import { formatLocalized } from "@/lib/date-locale";
 import { formatDateKey, cn } from "@/lib/utils";
-import { resolveDashboardWorkoutBackground } from "@/lib/workout-visual-categories";
+import { resolveDashboardWorkoutBackground, getDashboardRestDayBackgroundSrc } from "@/lib/workout-visual-categories";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import {
   DashboardCardNavBody,
@@ -660,13 +660,14 @@ export function DashboardWorkoutCard({
     const backgroundSrc =
       hasWorkout && workout
         ? resolveDashboardWorkoutBackground(workout, gender)
-        : null;
+        : getDashboardRestDayBackgroundSrc(gender);
     const onPhoto = Boolean(backgroundSrc);
     const metaText = onPhoto ? "text-white/90" : "text-foreground/90";
     const softText = onPhoto ? "text-white/65" : "text-muted-foreground";
     const footerBar = onPhoto
       ? "bg-black/25 backdrop-blur-sm"
       : "bg-secondary/40";
+    const isRestDayPhoto = onPhoto && !hasWorkout;
 
     return (
       <>
@@ -675,9 +676,14 @@ export function DashboardWorkoutCard({
           theme="workout"
           backgroundSrc={backgroundSrc}
           backgroundAlt={
-            workout
+            hasWorkout && workout
               ? workout.dayTitle || workout.planTitle
-              : platform.trainTabs.workout
+              : coachLabels.restDayTitle
+          }
+          backgroundObjectClass={
+            isRestDayPhoto
+              ? "object-[55%_30%] scale-[1.08] origin-[55%_30%]"
+              : undefined
           }
           backgroundPriority
           className={cn(
