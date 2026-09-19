@@ -297,16 +297,15 @@ export function ExerciseVideoPlayer({
         aria-label={`${title} demo video`}
       >
         {/*
-          Oversized iframe + overflow clip hides YouTube title, share, and
-          residual chrome that controls=0 does not fully remove.
+          Full-size iframe so the video frame matches 16:9 without crop/zoom.
+          Overlay below still blocks residual YouTube chrome from receiving input.
         */}
         <div
           ref={mountRef}
           className={cn(
             "absolute inset-0 h-full w-full overflow-hidden",
-            "[&_iframe]:pointer-events-none [&_iframe]:absolute [&_iframe]:left-1/2 [&_iframe]:top-1/2",
-            "[&_iframe]:h-[200%] [&_iframe]:w-[200%] [&_iframe]:max-w-none",
-            "[&_iframe]:-translate-x-1/2 [&_iframe]:-translate-y-1/2"
+            "[&_iframe]:pointer-events-none [&_iframe]:absolute [&_iframe]:inset-0",
+            "[&_iframe]:h-full [&_iframe]:w-full"
           )}
         />
 
@@ -315,7 +314,7 @@ export function ExerciseVideoPlayer({
           <img
             src={thumbnailUrl}
             alt=""
-            className="pointer-events-none absolute inset-0 z-[1] h-full w-full object-cover"
+            className="pointer-events-none absolute inset-0 z-[1] h-full w-full object-contain bg-black"
             draggable={false}
           />
         ) : null}

@@ -18,61 +18,71 @@ const THEME: Record<
   {
     accent: string;
     border: string;
+    rim: string;
     wash: string;
     glow: string;
   }
 > = {
   workout: {
     accent: "text-primary",
-    border: "border-primary/30",
+    border: "border-primary/40",
+    rim: "ring-primary/35",
     wash: "from-primary/18",
     glow: "bg-primary/25",
   },
   nutrition: {
     accent: "text-emerald-700 dark:text-emerald-300",
-    border: "border-emerald-500/30",
+    border: "border-emerald-500/40",
+    rim: "ring-emerald-400/35",
     wash: "from-emerald-500/18",
     glow: "bg-emerald-400/25",
   },
   water: {
     accent: "text-sky-700 dark:text-sky-300",
-    border: "border-sky-500/30",
+    border: "border-sky-500/40",
+    rim: "ring-sky-400/35",
     wash: "from-sky-500/18",
     glow: "bg-sky-400/25",
   },
   cardio: {
     accent: "text-orange-700 dark:text-orange-300",
-    border: "border-orange-500/30",
+    border: "border-orange-500/40",
+    rim: "ring-orange-400/35",
     wash: "from-orange-500/18",
     glow: "bg-orange-400/25",
   },
   bmi: {
     accent: "text-yellow-800 dark:text-yellow-300",
-    border: "border-amber-500/30",
+    border: "border-amber-500/40",
+    rim: "ring-amber-400/35",
     wash: "from-amber-500/18",
     glow: "bg-amber-400/25",
   },
   weight: {
     accent: "text-teal-800 dark:text-teal-300",
-    border: "border-teal-500/30",
+    border: "border-teal-500/40",
+    rim: "ring-teal-400/35",
     wash: "from-teal-500/18",
     glow: "bg-teal-400/25",
   },
   habits: {
     accent: "text-violet-700 dark:text-violet-300",
-    border: "border-violet-500/30",
+    border: "border-violet-500/40",
+    rim: "ring-violet-400/35",
     wash: "from-violet-500/18",
     glow: "bg-violet-400/25",
   },
   lifestyle: {
     accent: "text-rose-700 dark:text-rose-300",
-    border: "border-rose-500/30",
+    border: "border-rose-500/40",
+    rim: "ring-rose-400/35",
     wash: "from-rose-500/18",
     glow: "bg-rose-400/25",
   },
   photos: {
     accent: "text-fuchsia-700 dark:text-fuchsia-300",
-    border: "border-fuchsia-500/30",
+    border: "border-fuchsia-500/40",
+    rim: "ring-fuchsia-400/35",
     wash: "from-fuchsia-500/18",
     glow: "bg-fuchsia-400/25",
   },
@@ -116,7 +126,7 @@ const PHOTO_OVERLAY: Partial<Record<DashboardCardTheme, string>> = {
 const DEFAULT_PHOTO_OVERLAY = "from-black/40 via-black/22 to-black/10";
 
 /**
- * Shared dashboard section shell — photo depth via soft shadow (no border).
+ * Shared dashboard section shell — themed border + soft depth shadow.
  */
 export function DashboardThemedShell({
   theme,
@@ -144,7 +154,8 @@ export function DashboardThemedShell({
     <div
       id={id}
       className={cn(
-        "relative flex w-full flex-col overflow-hidden rounded-2xl",
+        "relative flex w-full flex-col overflow-hidden rounded-2xl border",
+        t.border,
         hasPhoto
           ? "bg-zinc-950 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.85)]"
           : "bg-card shadow-[0_12px_32px_-12px_rgba(0,0,0,0.55)]",
@@ -175,10 +186,13 @@ export function DashboardThemedShell({
               PHOTO_OVERLAY[theme] ?? DEFAULT_PHOTO_OVERLAY
             )}
           />
-          {/* Soft inner rim — stays above the photo so cards stay distinct on dark UI */}
+          {/* Soft themed inner rim — keeps photo cards distinct on dark UI */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 z-[5] rounded-[inherit] ring-1 ring-inset ring-white/22"
+            className={cn(
+              "pointer-events-none absolute inset-0 z-[5] rounded-[inherit] ring-1 ring-inset",
+              t.rim
+            )}
           />
         </>
       ) : (
@@ -199,7 +213,10 @@ export function DashboardThemedShell({
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 z-[5] rounded-[inherit] ring-1 ring-inset ring-white/14"
+            className={cn(
+              "pointer-events-none absolute inset-0 z-[5] rounded-[inherit] ring-1 ring-inset",
+              t.rim
+            )}
           />
         </>
       )}

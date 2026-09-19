@@ -58,11 +58,20 @@ export function AiCoachChatDialog() {
 
   return (
     <DialogPortal open={isOpen}>
+      {/*
+        Full layout-viewport mask. The chat panel only covers the visual
+        viewport (above the keyboard); without this, dashboard cards bleed
+        through iOS’s translucent keyboard and any gap below the panel.
+      */}
+      <div
+        aria-hidden
+        className="fixed inset-0 z-[110] bg-background"
+      />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-coach-chat-title"
-        className={`fixed inset-x-0 z-[110] flex flex-col overflow-hidden bg-background transition-transform duration-150 ease-out ${
+        className={`fixed inset-x-0 z-[111] flex flex-col overflow-hidden bg-background transition-transform duration-150 ease-out ${
           entered ? "translate-y-0 scale-100" : "translate-y-1 scale-[0.995]"
         }`}
         style={{
@@ -70,7 +79,7 @@ export function AiCoachChatDialog() {
           height: frame.height,
         }}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-background px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
           <div className="flex min-w-0 items-center gap-2.5">
             <AiCoachAvatar size="sm" className="h-9 w-9 shrink-0" />
             <div className="min-w-0">
@@ -99,7 +108,7 @@ export function AiCoachChatDialog() {
             </Button>
           </div>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col bg-background">
           <AiChatClientLazy embedded />
         </div>
         <CoachReadMeDialog
