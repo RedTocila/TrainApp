@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { ArrowLeft, Check, Library, Plus, Sparkles, type LucideIcon } from "lucide-react";
-import { AppDialog } from "@/components/app-dialog";
 import { AppOverlay } from "@/components/app-overlay";
 import { AddWorkoutToDayAiPanel } from "@/components/add-workout-to-day-ai-panel";
 import { AddWorkoutToDayWizard } from "@/components/add-workout-to-day-wizard";
@@ -84,8 +83,6 @@ export function AddWorkoutToDayDialog({
   const libraryDirtyRef = useRef(false);
   const selectedDayIdsRef = useRef(selectedDayIds);
 
-  const dialogTitle =
-    intent === "edit" ? platform.workout.editDayWorkouts : platform.workout.addWorkout;
   const dialogAria =
     intent === "edit"
       ? platform.workout.editDayWorkoutsAria
@@ -209,29 +206,31 @@ export function AddWorkoutToDayDialog({
     setWizardOpen(true);
   };
 
-  const modeTitle =
-    mode === "library"
-      ? platform.workout.fromLibrary
-      : mode === "create"
-        ? platform.workout.createNew
-        : mode === "ai"
-          ? "AI"
-          : null;
-
   return (
     <>
-      {mode === null ? (
-        <AppOverlay
-          open={open && !wizardOpen}
-          onClose={handleClose}
-          presentation="center"
+      <AppOverlay
+        open={open && !wizardOpen}
+        onClose={handleClose}
+        presentation="center"
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={
+            mode === "create"
+              ? platform.workout.chooseWorkoutType
+              : mode === "library"
+                ? platform.workout.fromLibrary
+                : mode === "ai"
+                  ? platform.workout.buildWithAi
+                  : dialogAria
+          }
+          className={cn(
+            "relative z-10 w-full px-4",
+            mode === null || mode === "create" ? "max-w-sm" : "max-w-md"
+          )}
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={dialogAria}
-            className="relative z-10 w-full max-w-sm"
-          >
+          {mode === null ? (
             <div className="grid grid-cols-3 gap-4">
               <ModeSquare
                 icon={Library}
@@ -253,7 +252,7 @@ export function AddWorkoutToDayDialog({
               />
               <ModeSquare
                 icon={Sparkles}
-                label="AI"
+                label={platform.workout.buildWithAi}
                 accent="violet"
                 onClick={() => {
                   setError(null);
@@ -261,19 +260,23 @@ export function AddWorkoutToDayDialog({
                 }}
               />
             </div>
-          </div>
-        </AppOverlay>
-      ) : (
-        <AppDialog
-          open={open && !wizardOpen}
-          onClose={handleClose}
-          title={dialogTitle}
-          ariaLabel={dialogAria}
-          maxWidth="max-w-md"
-          footer={mode === "ai" ? aiFooter : undefined}
-        >
-          <div className="space-y-3 px-5 pb-4">
-            <div className="space-y-3">
+          ) : mode === "create" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setMode(null);
+                }}
+                className="mb-8 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                {platform.common.back}
+              </button>
+              <WorkoutTypeChooser value={null} onChange={handleCreateType} />
+            </>
+          ) : (
+            <div className="flex max-h-[min(80dvh,40rem)] flex-col gap-3">
               <button
                 type="button"
                 onClick={() => {
@@ -281,97 +284,112 @@ export function AddWorkoutToDayDialog({
                   setAiFooter(null);
                   setMode(null);
                 }}
-                className="inline-flex items-center gap-1.5 rounded-full px-1 py-0.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                className="flex shrink-0 items-center gap-1.5 self-start text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 <ArrowLeft className="h-4 w-4" />
-                {modeTitle}
+                {platform.common.back}
               </button>
 
-              {mode === "library" ? (
-                loading ? (
-                  <p className="text-sm text-muted-foreground">{platform.common.loading}</p>
-                ) : libraryEntries.length === 0 ? (
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      {platform.workout.libraryEmptyHint}
+              <div
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+                data-scroll-lock-scrollable
+              >
+                {mode === "library" ? (
+                  loading ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      {platform.common.loading}
                     </p>
-                    <Button size="sm" className="rounded-full" onClick={() => setMode("create")}>
-                      {platform.workout.createNew}
-                    </Button>
-                  </div>
+                  ) : libraryEntries.length === 0 ? (
+                    <div className="space-y-4 py-6 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        {platform.workout.libraryEmptyHint}
+                      </p>
+                      <Button
+                        size="sm"
+                        className="rounded-full"
+                        onClick={() => setMode("create")}
+                      >
+                        {platform.workout.createNew}
+                      </Button>
+                    </div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {libraryEntries.map((entry) => {
+                        const alreadyOnDay = initialScheduledRef.current.has(
+                          entry.dayId
+                        );
+                        const isSelected =
+                          !alreadyOnDay && selectedDayIds.has(entry.dayId);
+                        return (
+                          <li key={`${entry.planId}-${entry.dayId}`}>
+                            <button
+                              type="button"
+                              disabled={alreadyOnDay}
+                              aria-pressed={isSelected}
+                              aria-disabled={alreadyOnDay}
+                              onClick={() => handlePickFromLibrary(entry.dayId)}
+                              className={cn(
+                                "flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left transition-colors",
+                                alreadyOnDay
+                                  ? "cursor-not-allowed border-border/30 bg-secondary/25 opacity-55"
+                                  : isSelected
+                                    ? "border-emerald-500/40 bg-emerald-500/12"
+                                    : "border-border/45 bg-secondary/45 hover:border-border/60 hover:bg-secondary/55"
+                              )}
+                            >
+                              <WorkoutCategoryIcon
+                                category={entry.category}
+                                size="md"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold leading-snug">
+                                  {entry.dayTitle}
+                                </p>
+                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                  {entry.planTitle}
+                                  {entry.exerciseCount > 0
+                                    ? ` · ${platform.common.exercises(entry.exerciseCount)}`
+                                    : ""}
+                                </p>
+                              </div>
+                              {alreadyOnDay ? (
+                                <span className="inline-flex shrink-0 items-center rounded-full bg-secondary/80 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                                  {platform.workout.alreadyOnDay}
+                                </span>
+                              ) : isSelected ? (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-400">
+                                  <Check className="h-3 w-3" strokeWidth={2.5} />
+                                  {platform.workout.workoutAddedToDay}
+                                </span>
+                              ) : null}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )
                 ) : (
-                  <ul className="space-y-2">
-                    {libraryEntries.map((entry) => {
-                      const alreadyOnDay = initialScheduledRef.current.has(
-                        entry.dayId
-                      );
-                      const isSelected =
-                        !alreadyOnDay && selectedDayIds.has(entry.dayId);
-                      return (
-                        <li key={`${entry.planId}-${entry.dayId}`}>
-                          <button
-                            type="button"
-                            disabled={alreadyOnDay}
-                            aria-pressed={isSelected}
-                            aria-disabled={alreadyOnDay}
-                            onClick={() => handlePickFromLibrary(entry.dayId)}
-                            className={cn(
-                              "flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left shadow-sm transition-colors",
-                              alreadyOnDay
-                                ? "cursor-not-allowed border-border/40 bg-secondary/30 opacity-55"
-                                : isSelected
-                                  ? "border-emerald-500/45 bg-emerald-500/10"
-                                  : "border-border/60 bg-card/80 hover:border-primary/40 hover:bg-primary/10"
-                            )}
-                          >
-                            <WorkoutCategoryIcon
-                              category={entry.category}
-                              size="sm"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold">
-                                {entry.dayTitle}
-                              </p>
-                              <p className="truncate text-xs text-muted-foreground">
-                                {entry.planTitle}
-                                {entry.exerciseCount > 0
-                                  ? ` · ${platform.common.exercises(entry.exerciseCount)}`
-                                  : ""}
-                              </p>
-                            </div>
-                            {alreadyOnDay ? (
-                              <span className="inline-flex shrink-0 items-center rounded-full bg-secondary/80 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                                {platform.workout.alreadyOnDay}
-                              </span>
-                            ) : isSelected ? (
-                              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-400">
-                                <Check className="h-3 w-3" strokeWidth={2.5} />
-                                {platform.workout.workoutAddedToDay}
-                              </span>
-                            ) : null}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )
-              ) : mode === "create" ? (
-                <WorkoutTypeChooser value={null} onChange={handleCreateType} />
-              ) : (
-                <AddWorkoutToDayAiPanel
-                  dateKey={dateKey}
-                  onFooterChange={setAiFooter}
-                  onAdded={() => {
-                    onClose();
-                    onAdded?.();
-                  }}
-                />
-              )}
+                  <AddWorkoutToDayAiPanel
+                    dateKey={dateKey}
+                    onFooterChange={setAiFooter}
+                    onAdded={() => {
+                      onClose();
+                      onAdded?.();
+                    }}
+                  />
+                )}
+                {error ? (
+                  <p className="mt-3 text-sm text-red-400">{error}</p>
+                ) : null}
+              </div>
+
+              {mode === "ai" && aiFooter ? (
+                <div className="shrink-0 pt-1">{aiFooter}</div>
+              ) : null}
             </div>
-            {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
-          </div>
-        </AppDialog>
-      )}
+          )}
+        </div>
+      </AppOverlay>
 
       <AddWorkoutToDayWizard
         open={wizardOpen}
@@ -391,3 +409,4 @@ export function AddWorkoutToDayDialog({
     </>
   );
 }
+

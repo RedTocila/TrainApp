@@ -11,6 +11,7 @@ import {
   Mail,
   Dumbbell,
   Tag,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
@@ -20,6 +21,7 @@ import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", shortLabel: "Home", icon: LayoutDashboard, exact: true },
+  { href: "/admin/ai", label: "Admin AI", shortLabel: "AI", icon: Sparkles },
   { href: "/admin/classes", label: "Classes", shortLabel: "Classes", icon: Video },
   { href: "/admin/challenges", label: "Challenges", shortLabel: "Challenges", icon: Trophy },
   { href: "/admin/clients", label: "Clients", shortLabel: "Clients", icon: Users },

@@ -12,6 +12,8 @@ interface ChatCommandInputProps {
   placeholder: string;
   disabled?: boolean;
   onMultilineChange?: (multiline: boolean) => void;
+  /** Overrides default grid placement (Alex bar uses col-start-2). */
+  className?: string;
 }
 
 export function ChatCommandInput({
@@ -21,6 +23,7 @@ export function ChatCommandInput({
   placeholder,
   disabled,
   onMultilineChange,
+  className,
 }: ChatCommandInputProps) {
   const editableRef = useRef<HTMLDivElement>(null);
 
@@ -47,7 +50,12 @@ export function ChatCommandInput({
   }, [onMultilineChange, value]);
 
   return (
-    <div className="chat-command-input-wrap col-start-2 row-start-1 min-w-0 self-end">
+    <div
+      className={
+        className ??
+        "chat-command-input-wrap col-start-2 row-start-1 min-w-0 self-end"
+      }
+    >
       <div
         ref={editableRef}
         role="textbox"

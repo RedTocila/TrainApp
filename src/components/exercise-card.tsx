@@ -8,9 +8,11 @@ import { resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
 export function ExerciseCard({
   exercise,
   gender,
+  previousLabel,
 }: {
   exercise: Exercise;
   gender?: ExerciseGender | string | null;
+  previousLabel?: string | null;
 }) {
   const resolvedGender = resolveProfileGender(gender);
 
@@ -19,9 +21,9 @@ export function ExerciseCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{exercise.name}</p>
-          {exercise.notes && (
-            <p className="mt-1 text-sm text-muted-foreground">{exercise.notes}</p>
-          )}
+          {previousLabel ? (
+            <p className="mt-1 text-sm text-muted-foreground">{previousLabel}</p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">{exercise.sets} sets</Badge>

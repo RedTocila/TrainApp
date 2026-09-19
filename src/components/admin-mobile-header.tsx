@@ -9,6 +9,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  Sparkles,
   Tag,
   Trophy,
   Users,
@@ -21,6 +22,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/admin/ai", label: "Admin AI", icon: Sparkles },
   { href: "/admin/classes", label: "Classes", icon: Video },
   { href: "/admin/challenges", label: "Challenges", icon: Trophy },
   { href: "/admin/clients", label: "Clients", icon: Users },

@@ -45,6 +45,11 @@ export default async function AdminDashboardPage({
             </p>
           </div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <Link href="/admin/ai" className="w-full sm:w-auto">
+              <Button size="sm" className="w-full sm:w-auto">
+                Admin AI
+              </Button>
+            </Link>
             <Link href="/admin/clients" className="w-full sm:w-auto">
               <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 All clients

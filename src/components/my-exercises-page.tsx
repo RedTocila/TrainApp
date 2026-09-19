@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ChevronDown, Dumbbell } from "lucide-react";
-import type { PersonalExerciseLibraryItem } from "@/lib/actions/user-workouts";
+import { ChevronDown } from "lucide-react";
 import {
   EXERCISE_CATALOG,
   formatCatalogLabel,
@@ -13,8 +11,13 @@ import {
 } from "@/lib/exercise-catalog";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
 import { ExerciseGifImage } from "@/components/exercise-gif-image";
-import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
-import { resolveExerciseGifUrls, resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
+import { useBodyUnits, usePlatformCopy } from "@/components/locale-provider";
+import { resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
+import {
+  lookupExerciseHistory,
+  useExerciseHistories,
+} from "@/hooks/use-exercise-histories";
+import { formatExerciseHistoryLabel } from "@/lib/exercise-history-format";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,14 +26,14 @@ import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 40;
 
-type Tab = "library" | "mine";
-
 function CatalogExerciseCard({
   exercise,
   gender,
+  previousLabel,
 }: {
   exercise: CatalogExercise;
   gender?: ExerciseGender;
+  previousLabel: string;
 }) {
   const [open, setOpen] = useState(false);
   const { url: gifUrl, fallbackUrl } = getCatalogGifUrls(exercise, gender);
@@ -53,6 +56,7 @@ function CatalogExerciseCard({
           )}
           <div className="min-w-0 flex-1 space-y-2">
             <p className="font-semibold">{exercise.name}</p>
+            <p className="text-xs font-medium text-primary/90">{previousLabel}</p>
             <div className="flex flex-wrap gap-1.5">
               <Badge variant="secondary">{formatCatalogLabel(exercise.category)}</Badge>
               {exercise.primary_muscles.slice(0, 2).map((muscle) => (
@@ -108,88 +112,13 @@ function CatalogExerciseCard({
   );
 }
 
-function MyWorkoutExercises({
-  exercises,
-  query,
-  gender,
-}: {
-  exercises: PersonalExerciseLibraryItem[];
-  query: string;
-  gender?: ExerciseGender;
-}) {
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return exercises;
-    return exercises.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.planTitle.toLowerCase().includes(q) ||
-        item.dayTitle.toLowerCase().includes(q)
-    );
-  }, [exercises, query]);
-
-  if (filtered.length === 0) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-          <Dumbbell className="h-10 w-10 text-muted-foreground" />
-          <p className="font-medium">No exercises in your workouts yet</p>
-          <p className="text-sm text-muted-foreground">
-            Add exercises from the library when building a workout.
-          </p>
-          <Link href="/dashboard/workout" className="text-sm font-medium text-primary hover:underline">
-            Go to My Workouts
-          </Link>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <ul className="space-y-2">
-      {filtered.map((item) => {
-        return (
-        <li key={`${item.planId}-${item.id}`}>
-          <Card className="transition-colors hover:border-primary/40">
-            <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                <ExerciseGifThumbnail
-                  name={item.name}
-                  gender={gender}
-                  size="md"
-                  expandable
-                />
-                <Link
-                  href={`/dashboard/workout/${item.planId}/edit`}
-                  className="min-w-0"
-                >
-                  <p className="font-semibold">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {item.planTitle} · {item.dayTitle}
-                  </p>
-                </Link>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {item.sets != null && <Badge variant="secondary">{item.sets} sets</Badge>}
-                {item.reps != null && <Badge variant="outline">{item.reps} reps</Badge>}
-              </div>
-            </CardContent>
-          </Card>
-        </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 export function MyExercisesPage({
-  initialExercises,
   gender,
 }: {
-  initialExercises: PersonalExerciseLibraryItem[];
   gender?: string | null;
 }) {
-  const [tab, setTab] = useState<Tab>("library");
+  const platform = usePlatformCopy();
+  const units = useBodyUnits();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | undefined>();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -206,42 +135,16 @@ export function MyExercisesPage({
 
   const visibleCatalog = filteredCatalog.slice(0, visibleCount);
   const hasMore = visibleCount < filteredCatalog.length;
+  const catalogNames = useMemo(
+    () => visibleCatalog.map((exercise) => exercise.name),
+    [visibleCatalog]
+  );
+  const catalogHistories = useExerciseHistories(catalogNames);
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 rounded-xl bg-secondary/50 p-1">
-        <button
-          type="button"
-          onClick={() => setTab("library")}
-          className={cn(
-            "flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
-            tab === "library"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Library ({EXERCISE_CATALOG.exercises.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("mine")}
-          className={cn(
-            "flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
-            tab === "mine"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          My workouts ({initialExercises.length})
-        </button>
-      </div>
-
       <Input
-        placeholder={
-          tab === "library"
-            ? `Search ${EXERCISE_CATALOG.exercises.length} exercises…`
-            : "Search your exercises…"
-        }
+        placeholder={`Search ${EXERCISE_CATALOG.exercises.length} exercises…`}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
@@ -249,76 +152,80 @@ export function MyExercisesPage({
         }}
       />
 
-      {tab === "library" && (
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={category ? "outline" : "secondary"}
+          onClick={() => {
+            setCategory(undefined);
+            setVisibleCount(PAGE_SIZE);
+          }}
+        >
+          All
+        </Button>
+        {EXERCISE_CATALOG.categories.map((item) => (
           <Button
+            key={item}
             type="button"
             size="sm"
-            variant={category ? "outline" : "secondary"}
+            variant={category === item ? "secondary" : "outline"}
             onClick={() => {
-              setCategory(undefined);
+              setCategory(item);
               setVisibleCount(PAGE_SIZE);
             }}
           >
-            All
+            {formatCatalogLabel(item)}
           </Button>
-          {EXERCISE_CATALOG.categories.map((item) => (
-            <Button
-              key={item}
-              type="button"
-              size="sm"
-              variant={category === item ? "secondary" : "outline"}
-              onClick={() => {
-                setCategory(item);
-                setVisibleCount(PAGE_SIZE);
-              }}
-            >
-              {formatCatalogLabel(item)}
-            </Button>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
 
-      {tab === "library" ? (
-        <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            {filteredCatalog.length} exercise{filteredCatalog.length === 1 ? "" : "s"}
-            {category ? ` in ${formatCatalogLabel(category)}` : ""}
-            {resolvedGender
-              ? ` · ${resolvedGender === "male" ? "Male" : "Female"} demos`
-              : ""}
-          </p>
-          <ul className="space-y-2">
-            {visibleCatalog.map((exercise) => (
-              <li key={exercise.id}>
-                <CatalogExerciseCard exercise={exercise} gender={resolvedGender} />
-              </li>
-            ))}
-          </ul>
-          {filteredCatalog.length === 0 && (
-            <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                No exercises match your search.
-              </CardContent>
-            </Card>
-          )}
-          {hasMore && (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-            >
-              Load more ({filteredCatalog.length - visibleCount} remaining)
-            </Button>
-          )}
-          <p className="text-center text-[11px] text-muted-foreground">
-            {EXERCISE_CATALOG.attribution}
-          </p>
-        </div>
-      ) : (
-        <MyWorkoutExercises exercises={initialExercises} query={query} gender={resolvedGender} />
-      )}
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          {filteredCatalog.length} exercise
+          {filteredCatalog.length === 1 ? "" : "s"}
+          {category ? ` in ${formatCatalogLabel(category)}` : ""}
+          {resolvedGender
+            ? ` · ${resolvedGender === "male" ? "Male" : "Female"} demos`
+            : ""}
+        </p>
+        <ul className="space-y-2">
+          {visibleCatalog.map((exercise) => (
+            <li key={exercise.id}>
+              <CatalogExerciseCard
+                exercise={exercise}
+                gender={resolvedGender}
+                previousLabel={formatExerciseHistoryLabel(
+                  lookupExerciseHistory(catalogHistories, exercise.name),
+                  platform.workout.lastSets,
+                  units.unitSystem,
+                  platform.workout.neverTried
+                )}
+              />
+            </li>
+          ))}
+        </ul>
+        {filteredCatalog.length === 0 && (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              No exercises match your search.
+            </CardContent>
+          </Card>
+        )}
+        {hasMore && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+          >
+            Load more ({filteredCatalog.length - visibleCount} remaining)
+          </Button>
+        )}
+        <p className="text-center text-[11px] text-muted-foreground">
+          {EXERCISE_CATALOG.attribution}
+        </p>
+      </div>
     </div>
   );
 }

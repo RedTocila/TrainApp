@@ -121,18 +121,18 @@ export function LogMealDialog({
 
   const pickerOptions = [
     {
-      mode: "photo" as const,
-      label: platform.mealLog.photoLog,
-      icon: Camera,
-      accent: "primary" as const,
-      ai: true,
-    },
-    {
       mode: "library" as const,
       label: platform.mealLog.fromLibrary,
       icon: BookOpen,
       accent: "emerald" as const,
       ai: false,
+    },
+    {
+      mode: "photo" as const,
+      label: platform.mealLog.photoLog,
+      icon: Camera,
+      accent: "primary" as const,
+      ai: true,
     },
     {
       mode: "text" as const,
@@ -448,24 +448,24 @@ export function LogMealDialog({
                   No recipes match your search.
                 </p>
               ) : (
-                <ul className="max-h-[min(50vh,28rem)] space-y-2 overflow-y-auto">
+                <ul className="space-y-2.5">
                   {catalogRecipes.map((recipe) => (
                     <li
                       key={recipe.id}
-                      className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3"
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-border/45 bg-secondary/45 px-4 py-4"
                     >
-                      <div className="min-w-0">
-                        <div className="mb-1 flex flex-wrap items-center gap-2">
-                          <Badge className="capitalize">{recipe.meal_type}</Badge>
-                          <span className="font-semibold">{recipe.title}</span>
-                        </div>
-                        <p className="line-clamp-2 text-xs text-muted-foreground">
+                      <div className="min-w-0 flex-1">
+                        <Badge className="mb-1.5 capitalize">{recipe.meal_type}</Badge>
+                        <p className="text-sm font-semibold leading-snug">
+                          {recipe.title}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                           {recipe.description}
                         </p>
                       </div>
                       <Button
                         size="sm"
-                        className="shrink-0"
+                        className="h-9 shrink-0 rounded-full px-3"
                         disabled={isSaving}
                         onClick={() => handleLogFromCatalog(recipe.id)}
                       >
@@ -481,29 +481,29 @@ export function LogMealDialog({
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Your saved meals
                   </p>
-                  <ul className="space-y-2">
+                  <ul className="space-y-2.5">
                     {library.map((item) => {
                       const summary = formatMealMacrosSummary(normalizeMealMacros(item.meal));
                       return (
                         <li
                           key={item.meal.id}
-                          className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/40 p-3"
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-border/45 bg-secondary/45 px-4 py-4"
                         >
-                          <div className="min-w-0">
-                            <div className="mb-1 flex flex-wrap items-center gap-2">
-                              <Badge className="capitalize">{item.meal.meal_type}</Badge>
-                              <span className="font-semibold">{item.meal.name}</span>
-                            </div>
-                            {summary && (
-                              <p className="text-xs text-muted-foreground">{summary}</p>
-                            )}
-                            <p className="mt-1 text-xs text-muted-foreground">
+                          <div className="min-w-0 flex-1">
+                            <Badge className="mb-1.5 capitalize">{item.meal.meal_type}</Badge>
+                            <p className="text-sm font-semibold leading-snug">
+                              {item.meal.name}
+                            </p>
+                            {summary ? (
+                              <p className="mt-1 text-xs text-muted-foreground">{summary}</p>
+                            ) : null}
+                            <p className="mt-0.5 text-xs text-muted-foreground">
                               {item.folderName} · {item.planTitle}
                             </p>
                           </div>
                           <Button
                             size="sm"
-                            className="shrink-0"
+                            className="h-9 shrink-0 rounded-full px-3"
                             disabled={isSaving}
                             onClick={() => handleLogFromLibrary(item.meal.id)}
                           >
@@ -696,55 +696,105 @@ export function LogMealDialog({
     );
   }
 
+  // Photo capture / review stays immersive fullscreen.
+  if (isPhotoFullscreen) {
+    return (
+      <AppOverlay
+        open={open}
+        onClose={handleOverlayClose}
+        fullscreen
+        closeOnBackdrop={!isSaving && !isPhotoCaptureFullscreen}
+      >
+        <AppOverlayPanel
+          fullscreen
+          showHandle={false}
+          dismissible={!isSaving && !isPhotoCaptureFullscreen}
+          maxWidth="max-w-lg"
+          aria-label={platform.mealLog.photoLog}
+          className={cn(isPhotoCaptureFullscreen && "bg-black")}
+        >
+          {header}
+          <div
+            className={cn(
+              "min-h-0 flex-1",
+              isPhotoCaptureFullscreen
+                ? "relative overflow-hidden p-0"
+                : "overflow-y-auto overscroll-contain px-4 py-4"
+            )}
+            data-scroll-lock-scrollable={
+              isPhotoCaptureFullscreen ? undefined : ""
+            }
+          >
+            <div
+              className={cn(
+                isPhotoCaptureFullscreen && "absolute inset-0",
+                isPhotoReviewFullscreen && "mx-auto w-full max-w-lg"
+              )}
+            >
+              {body}
+            </div>
+          </div>
+          {isPhotoReviewFullscreen ? footerActions : null}
+        </AppOverlayPanel>
+      </AppOverlay>
+    );
+  }
+
+  // Library, AI type-it, custom, and upgrade prompts — center blur, no drawer.
   return (
     <AppOverlay
       open={open}
       onClose={handleOverlayClose}
-      fullscreen={isPhotoFullscreen}
-      closeOnBackdrop={!isSaving && !isPhotoCaptureFullscreen}
+      presentation="center"
+      closeOnBackdrop={!isSaving}
     >
-      <AppOverlayPanel
-        fullscreen={isPhotoFullscreen}
-        showHandle={!isPhotoFullscreen}
-        dismissible={!isSaving && !isPhotoCaptureFullscreen}
-        maxWidth="max-w-lg"
-        aria-label={
-          isPhotoFullscreen ? platform.mealLog.photoLog : platform.mealLog.logAMeal
-        }
-        className={cn(
-          !isPhotoFullscreen && "max-h-[min(92%,48rem)]",
-          isPhotoCaptureFullscreen && "bg-black"
-        )}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="relative z-10 flex max-h-[min(80dvh,40rem)] w-full max-w-md flex-col gap-3 px-4"
       >
-        {header}
-        <div
-          className={cn(
-            "min-h-0 flex-1",
-            isPhotoCaptureFullscreen
-              ? "relative overflow-hidden p-0"
-              : cn(
-                  "overflow-y-auto overscroll-contain",
-                  isPhotoReviewFullscreen ? "px-4 py-4" : "px-5 py-4"
-                )
-          )}
-          data-scroll-lock-scrollable={
-            isPhotoCaptureFullscreen ? undefined : ""
-          }
-        >
-          <div
-            className={cn(
-              isPhotoCaptureFullscreen && "absolute inset-0",
-              isPhotoReviewFullscreen && "mx-auto w-full max-w-lg"
-            )}
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={handleBack}
+            disabled={isSaving}
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
           >
-            {body}
-            {!isPhotoCaptureFullscreen && !isPhotoReviewFullscreen
-              ? footerActions
-              : null}
-          </div>
+            <ArrowLeft className="h-4 w-4" />
+            {platform.common.back}
+          </button>
+          <p className="min-w-0 flex-1 truncate text-center text-sm font-bold">
+            {title}
+          </p>
+          {canLogCustom ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 shrink-0 gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/15 px-2.5 text-emerald-400 hover:bg-emerald-500/25 hover:text-emerald-300"
+              onClick={handleLogCustom}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              {platform.common.save}
+            </Button>
+          ) : (
+            <span className="w-8 shrink-0" aria-hidden />
+          )}
         </div>
-        {isPhotoReviewFullscreen ? footerActions : null}
-      </AppOverlayPanel>
+
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+          data-scroll-lock-scrollable
+        >
+          {body}
+          {footerActions}
+        </div>
+      </div>
     </AppOverlay>
   );
 }

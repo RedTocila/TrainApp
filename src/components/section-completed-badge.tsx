@@ -8,11 +8,11 @@ const STATUS_UI: Record<
   { ring: string; Icon: typeof Check | null }
 > = {
   completed: {
-    ring: "bg-green-500/15 text-green-400",
+    ring: "bg-green-500/40 text-green-200 ring-1 ring-green-400/70 shadow-[0_0_10px_rgba(74,222,128,0.35)]",
     Icon: Check,
   },
   missed: {
-    ring: "bg-red-500/15 text-red-400",
+    ring: "bg-red-500/40 text-red-200 ring-1 ring-red-400/70 shadow-[0_0_10px_rgba(248,113,113,0.35)]",
     Icon: X,
   },
   warning: {
@@ -64,7 +64,7 @@ export function DashboardStatusIcon({
       aria-label={ariaLabel}
     >
       {Icon ? (
-        <Icon className="h-4 w-4" strokeWidth={2.5} />
+        <Icon className="h-4 w-4" strokeWidth={3.25} />
       ) : (
         <span
           className="h-3.5 w-3.5 rounded-full border-2 border-current opacity-80"

@@ -1,10 +1,24 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { HeartPulse, LayoutGrid, Library } from "lucide-react";
+import { CalendarDays, HeartPulse, LayoutGrid } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { CompactSubLink } from "@/components/programs/compact-nav";
+
+function isProgramsSection(path: string) {
+  if (path.startsWith("/dashboard/workout/cardio")) return false;
+  if (path.startsWith("/dashboard/workout/schedule")) return false;
+  if (path.startsWith("/dashboard/workout/session")) return false;
+  return (
+    path === "/dashboard/workout" ||
+    path.startsWith("/dashboard/workout/exercises") ||
+    path.startsWith("/dashboard/workout/folder") ||
+    path.startsWith("/dashboard/workout/workouts") ||
+    path.startsWith("/dashboard/workout/new") ||
+    /^\/dashboard\/workout\/[^/]+/.test(path)
+  );
+}
 
 export function WorkoutSectionTabs({ className }: { className?: string }) {
   const pathname = usePathname();
@@ -14,19 +28,19 @@ export function WorkoutSectionTabs({ className }: { className?: string }) {
 
   const tabs = [
     {
+      href: "/dashboard/workout/schedule",
+      label: platform.workout.myWorkout,
+      icon: CalendarDays,
+      activeClass: "bg-emerald-500/15 text-emerald-300",
+      isActive: (path: string) => path.startsWith("/dashboard/workout/schedule"),
+    },
+    {
       href: "/dashboard/workout",
       label: platform.nav.programs,
       icon: LayoutGrid,
       exactMatch: true,
       activeClass: "bg-primary/15 text-primary",
-      isActive: (path: string) => path === "/dashboard/workout",
-    },
-    {
-      href: "/dashboard/workout/exercises",
-      label: platform.workout.exercisesTile,
-      icon: Library,
-      activeClass: "bg-violet-500/15 text-violet-300",
-      isActive: (path: string) => path.startsWith("/dashboard/workout/exercises"),
+      isActive: isProgramsSection,
     },
     {
       href: "/dashboard/workout/cardio",

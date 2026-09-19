@@ -6,7 +6,7 @@ import {
   usePlatformCopy,
   useBodyUnits,
 } from "@/components/locale-provider";
-import { formatWeightWithUnitFromKg, type UnitSystem } from "@/lib/body-units";
+import { formatExerciseHistoryLabel } from "@/lib/exercise-history-format";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -66,26 +66,6 @@ import { AppDialog } from "@/components/app-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-function formatHistory(
-  history: ExerciseHistoryEntry | null | undefined,
-  lastLabel: (parts: string) => string,
-  unitSystem: UnitSystem
-): string | null {
-  if (!history?.sets.length) return null;
-  const parts = history.sets
-    .filter((s) => s.reps != null || s.weight_kg != null)
-    .map((s) => {
-      const reps = s.reps != null ? `${s.reps}` : "—";
-      const weight =
-        s.weight_kg != null
-          ? formatWeightWithUnitFromKg(Number(s.weight_kg), unitSystem)
-          : "—";
-      return `${reps} × ${weight}`;
-    });
-  if (parts.length === 0) return null;
-  return lastLabel(parts.join(", "));
-}
 
 function useElapsedSeconds(
   baseSeconds: number,
@@ -224,10 +204,11 @@ function ActiveExercisePanel({
   const [showHowTo, setShowHowTo] = useState(false);
   const [repsDraft, setRepsDraft] = useState("");
   const [weightDraft, setWeightDraft] = useState("");
-  const historyLabel = formatHistory(
+  const historyLabel = formatExerciseHistoryLabel(
     history,
     platform.workout.lastSets,
-    units.unitSystem
+    units.unitSystem,
+    platform.workout.neverTried
   );
   const previousSets = (history?.sets ?? []).filter(
     (s) => s.reps != null || s.weight_kg != null
@@ -392,11 +373,11 @@ function ActiveExercisePanel({
             ))}
           </div>
         </div>
-      ) : historyLabel ? (
+      ) : (
         <p className="text-center text-xs font-medium text-primary">
           {historyLabel}
         </p>
-      ) : null}
+      )}
 
       <AppDialog
         open={showHowTo}

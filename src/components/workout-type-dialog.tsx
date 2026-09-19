@@ -1,6 +1,6 @@
 "use client";
 
-import { AppDialog } from "@/components/app-dialog";
+import { AppOverlay } from "@/components/app-overlay";
 import { usePlatformCopy } from "@/components/locale-provider";
 import {
   WorkoutTypeChooser,
@@ -19,16 +19,15 @@ export function WorkoutTypeDialog({
   const platform = usePlatformCopy();
 
   return (
-    <AppDialog
-      open={open}
-      onClose={onClose}
-      title={platform.workout.chooseWorkoutType}
-      ariaLabel={platform.workout.chooseWorkoutType}
-      maxWidth="max-w-lg"
-    >
-      <div className="px-5 py-4">
+    <AppOverlay open={open} onClose={onClose} presentation="center">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={platform.workout.chooseWorkoutType}
+        className="relative z-10 w-full max-w-sm px-4"
+      >
         <WorkoutTypeChooser value={null} onChange={onSelect} />
       </div>
-    </AppDialog>
+    </AppOverlay>
   );
 }

@@ -81,7 +81,7 @@ export function ClientNav({
   const prefetchRoutes = useMemo(
     () => [
       "/dashboard",
-      "/dashboard/workout",
+      "/dashboard/workout/schedule",
       "/dashboard/nutrition",
       "/dashboard/ai",
       "/dashboard/classes",
@@ -123,7 +123,7 @@ export function ClientNav({
       active: homeActive,
     },
     {
-      href: "/dashboard/workout",
+      href: "/dashboard/workout/schedule",
       label: platform.nav.programs,
       icon: Dumbbell,
       active: programsActive,

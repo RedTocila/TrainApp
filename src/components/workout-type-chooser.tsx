@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 export type CreateWorkoutType = "strength" | "hiit";
 
+/** Icon + label tiles for fitness vs HIIT (no cards — overlay picker style). */
 export function WorkoutTypeChooser({
   value,
   onChange,
@@ -17,61 +18,44 @@ export function WorkoutTypeChooser({
 }) {
   const platform = usePlatformCopy();
 
-  return (
-    <div className={cn("grid grid-cols-2 gap-2.5", className)}>
-      <button
-        type="button"
-        onClick={() => onChange("strength")}
-        className={cn(
-          "group relative flex aspect-square flex-col items-center justify-center gap-2.5 overflow-hidden rounded-2xl border bg-card p-3 shadow-sm",
-          "transition-[transform,border-color] duration-200 active:scale-[0.98]",
-          value === "strength"
-            ? "border-primary/55"
-            : "border-primary/30 hover:border-primary/55"
-        )}
-      >
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-primary/18 via-card to-card"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-4 -top-5 h-16 w-16 rounded-full bg-primary/25 blur-2xl"
-        />
-        <span className="relative z-10 flex h-11 w-11 items-center justify-center rounded-full bg-primary/15 text-primary">
-          <Dumbbell className="h-5 w-5" />
-        </span>
-        <span className="relative z-10 text-center text-[12px] font-bold leading-tight">
-          {platform.workout.fitnessWorkout}
-        </span>
-      </button>
+  const options = [
+    {
+      id: "strength" as const,
+      label: platform.workout.fitnessWorkout,
+      icon: Dumbbell,
+      accent: "text-primary",
+    },
+    {
+      id: "hiit" as const,
+      label: platform.workout.hiitWorkout,
+      icon: Zap,
+      accent: "text-fuchsia-400",
+    },
+  ];
 
-      <button
-        type="button"
-        onClick={() => onChange("hiit")}
-        className={cn(
-          "group relative flex aspect-square flex-col items-center justify-center gap-2.5 overflow-hidden rounded-2xl border bg-card p-3 shadow-sm",
-          "transition-[transform,border-color] duration-200 active:scale-[0.98]",
-          value === "hiit"
-            ? "border-fuchsia-500/70"
-            : "border-fuchsia-500/30 hover:border-fuchsia-400/55"
-        )}
-      >
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/18 via-card to-card"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-4 -top-5 h-16 w-16 rounded-full bg-fuchsia-400/25 blur-2xl"
-        />
-        <span className="relative z-10 flex h-11 w-11 items-center justify-center rounded-full bg-fuchsia-500/15 text-fuchsia-400">
-          <Zap className="h-5 w-5" />
-        </span>
-        <span className="relative z-10 text-center text-[12px] font-bold leading-tight">
-          {platform.workout.hiitWorkout}
-        </span>
-      </button>
+  return (
+    <div className={cn("grid grid-cols-2 gap-8", className)}>
+      {options.map((option) => {
+        const Icon = option.icon;
+        const selected = value === option.id;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onChange(option.id)}
+            aria-pressed={value == null ? undefined : selected}
+            className="flex flex-col items-center gap-3 transition-transform duration-200 active:scale-95"
+          >
+            <Icon
+              className={cn("h-12 w-12", option.accent)}
+              strokeWidth={1.75}
+            />
+            <span className="text-center text-sm font-bold leading-tight text-foreground">
+              {option.label}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

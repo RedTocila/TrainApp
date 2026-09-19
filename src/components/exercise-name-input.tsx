@@ -10,7 +10,13 @@ import {
 } from "@/lib/exercise-catalog";
 import type { ExerciseGender } from "@/lib/exercise-gif";
 import { ExerciseGifImage } from "@/components/exercise-gif-image";
+import { useBodyUnits, usePlatformCopy } from "@/components/locale-provider";
 import { Input } from "@/components/ui/input";
+import {
+  lookupExerciseHistory,
+  useExerciseHistories,
+} from "@/hooks/use-exercise-histories";
+import { formatExerciseHistoryLabel } from "@/lib/exercise-history-format";
 import { cn } from "@/lib/utils";
 
 type ExerciseNameInputProps = {
@@ -41,6 +47,8 @@ export function ExerciseNameInput({
   className,
   placeholder = "Search exercises…",
 }: ExerciseNameInputProps) {
+  const platform = usePlatformCopy();
+  const units = useBodyUnits();
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [focused, setFocused] = useState(false);
@@ -52,6 +60,12 @@ export function ExerciseNameInput({
     if (query.length < 2) return [];
     return searchCatalogExercises({ query }).slice(0, 8);
   }, [value]);
+
+  const suggestionNames = useMemo(
+    () => suggestions.map((exercise) => exercise.name),
+    [suggestions]
+  );
+  const histories = useExerciseHistories(suggestionNames);
 
   const showSuggestions =
     focused && suggestions.length > 0 && value.trim().length >= 2;
@@ -144,6 +158,12 @@ export function ExerciseNameInput({
       >
         {suggestions.map((exercise) => {
           const { url: gifUrl, fallbackUrl } = getCatalogGifUrls(exercise, gender);
+          const historyLabel = formatExerciseHistoryLabel(
+            lookupExerciseHistory(histories, exercise.name),
+            platform.workout.lastSets,
+            units.unitSystem,
+            platform.workout.neverTried
+          );
           return (
             <li key={exercise.id}>
               <button
@@ -164,8 +184,13 @@ export function ExerciseNameInput({
                     No gif
                   </span>
                 )}
-                <span className="min-w-0 flex-1 capitalize leading-snug text-foreground">
-                  {formatCatalogLabel(exercise.name)}
+                <span className="min-w-0 flex-1">
+                  <span className="block capitalize leading-snug text-foreground">
+                    {formatCatalogLabel(exercise.name)}
+                  </span>
+                  <span className="mt-0.5 block text-xs font-medium leading-snug text-primary/90">
+                    {historyLabel}
+                  </span>
                 </span>
               </button>
             </li>

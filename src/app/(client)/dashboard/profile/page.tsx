@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   AlertTriangle,
   BadgeCheck,
-  CreditCard,
   ExternalLink,
   Gift,
   Scale,
@@ -15,6 +14,7 @@ import { ProfileSettings } from "@/components/profile-settings";
 import { ReminderSettingsCard } from "@/components/reminder-settings-card";
 import { ProfileSubscriptionSection } from "@/components/profile-subscription-section";
 import { ClientIntakeForm } from "@/components/client-intake-form";
+import { DeleteOwnAccountSection } from "@/components/delete-own-account-section";
 import { PageTransition } from "@/components/page-transition";
 import { Card, CardContent } from "@/components/ui/card";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
@@ -104,15 +104,7 @@ export default async function ProfilePage() {
             <ReminderSettingsCard initialSettings={profile.reminder_settings} />
           </div>
 
-          <Card>
-            <CardContent className="space-y-3 p-4">
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-black">{platform.profile.plan}</p>
-              </div>
-              <ProfileSubscriptionSection profile={profile} />
-            </CardContent>
-          </Card>
+          <ProfileSubscriptionSection profile={profile} />
         </div>
 
         <Card>
@@ -184,6 +176,8 @@ export default async function ProfilePage() {
         </Card>
 
         <ClientIntakeForm profile={profile} />
+
+        <DeleteOwnAccountSection />
 
         <div className="pt-2">
           <SignOutButton variant="profile" />

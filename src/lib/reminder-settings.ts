@@ -102,7 +102,7 @@ export function parseReminderSettings(raw: unknown): ReminderSettings {
 export function reminderDeepLinkPath(type: ReminderType): string {
   switch (type) {
     case "workout":
-      return "/dashboard/workout";
+      return "/dashboard/workout/schedule";
     case "cardio":
       return "/dashboard/workout/cardio";
     case "meals":

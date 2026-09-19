@@ -1111,6 +1111,112 @@ export async function getExerciseHistories(
   return Object.fromEntries(entries);
 }
 
+/**
+ * Batch-load the most recent completed sets for each exercise name.
+ * Keys are lowercase trimmed names. Used by workout lists and exercise search.
+ */
+export async function getLatestExerciseHistoriesByNames(
+  names: string[]
+): Promise<Record<string, ExerciseHistoryEntry | null>> {
+  const uniqueKeys = [
+    ...new Set(
+      names
+        .map((name) => name.trim().toLowerCase())
+        .filter((name) => name.length > 0)
+    ),
+  ];
+  const result: Record<string, ExerciseHistoryEntry | null> = {};
+  for (const key of uniqueKeys) result[key] = null;
+  if (uniqueKeys.length === 0) return result;
+
+  const { supabase, userId } = await requireUserId();
+
+  const { data: sessions } = await supabase
+    .from("workout_sessions")
+    .select("id, completed_at")
+    .eq("client_id", userId)
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false })
+    .limit(40);
+
+  if (!sessions?.length) return result;
+
+  const sessionIds = sessions.map((session) => session.id);
+  const sessionOrder = new Map(
+    sessionIds.map((id, index) => [id, index] as const)
+  );
+  const completedAtBySession = new Map(
+    sessions.map((session) => [session.id, session.completed_at] as const)
+  );
+
+  const { data: sessionExercises } = await supabase
+    .from("workout_session_exercises")
+    .select("id, session_id, exercise_id, name")
+    .in("session_id", sessionIds);
+
+  if (!sessionExercises?.length) return result;
+
+  const wanted = new Set(uniqueKeys);
+  const bestByName = new Map<
+    string,
+    {
+      id: string;
+      exercise_id: string | null;
+      name: string;
+      session_id: string;
+    }
+  >();
+
+  const sorted = [...sessionExercises].sort(
+    (a, b) =>
+      (sessionOrder.get(a.session_id) ?? 99) -
+      (sessionOrder.get(b.session_id) ?? 99)
+  );
+
+  for (const exercise of sorted) {
+    const key = exercise.name.trim().toLowerCase();
+    if (!wanted.has(key) || bestByName.has(key)) continue;
+    bestByName.set(key, exercise);
+    if (bestByName.size === wanted.size) break;
+  }
+
+  if (bestByName.size === 0) return result;
+
+  const exerciseIds = [...bestByName.values()].map((exercise) => exercise.id);
+  const { data: sets } = await supabase
+    .from("workout_session_sets")
+    .select("session_exercise_id, reps, weight_kg, set_number")
+    .in("session_exercise_id", exerciseIds)
+    .eq("completed", true)
+    .order("set_number");
+
+  const setsByExercise = new Map<
+    string,
+    { reps: number | null; weight_kg: number | null }[]
+  >();
+  for (const set of sets ?? []) {
+    const list = setsByExercise.get(set.session_exercise_id) ?? [];
+    list.push({
+      reps: set.reps,
+      weight_kg: set.weight_kg != null ? Number(set.weight_kg) : null,
+    });
+    setsByExercise.set(set.session_exercise_id, list);
+  }
+
+  for (const [key, exercise] of bestByName) {
+    const historySets = setsByExercise.get(exercise.id) ?? [];
+    if (!historySets.length) continue;
+    result[key] = {
+      exercise_id: exercise.exercise_id,
+      name: exercise.name,
+      sets: historySets,
+      completed_at: completedAtBySession.get(exercise.session_id)!,
+    };
+  }
+
+  return result;
+}
+
 export async function startWorkout({
   planId,
   dayId,

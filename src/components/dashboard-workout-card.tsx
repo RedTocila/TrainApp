@@ -42,6 +42,7 @@ import {
   dashboardInteractive,
 } from "@/components/dashboard-card-nav-link";
 import {
+  clearWorkoutDayCache,
   setWorkoutDayCache,
   getWorkoutDayCache,
   workoutDayCacheKey,
@@ -72,6 +73,42 @@ const EMPTY_PATCHED_COMPLETIONS: Record<string, boolean> = {};
 
 function workoutNavKey(workout: TodaysWorkoutInfo) {
   return workout.scheduledWorkoutId ?? workout.taskId;
+}
+
+function WorkoutHeroBodySkeleton({ onPhoto = false }: { onPhoto?: boolean }) {
+  const bar = onPhoto ? "bg-white/20" : "bg-secondary/80";
+  return (
+    <div
+      className="flex flex-1 flex-col gap-3"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <div className={cn("h-8 w-40 animate-pulse rounded-lg", bar)} />
+      <div className="flex flex-col gap-2">
+        <div className={cn("h-6 w-44 animate-pulse rounded-lg", bar)} />
+        <div className={cn("h-6 w-36 animate-pulse rounded-lg", bar)} />
+        <div className={cn("h-6 w-40 animate-pulse rounded-lg", bar)} />
+        <div className={cn("h-6 w-32 animate-pulse rounded-lg", bar)} />
+      </div>
+      <div className={cn("mt-auto h-12 animate-pulse rounded-xl", bar)} />
+    </div>
+  );
+}
+
+function WorkoutListBodySkeleton() {
+  return (
+    <div
+      className="mt-1 flex flex-col gap-2"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <div className="h-14 w-full animate-pulse rounded-xl bg-secondary/80" />
+      <div className="h-14 w-full animate-pulse rounded-xl bg-secondary/80" />
+      <div className="h-14 w-full animate-pulse rounded-xl bg-secondary/70" />
+    </div>
+  );
 }
 
 type WorkoutDayCache = {
@@ -160,6 +197,7 @@ export function DashboardWorkoutCard({
   const confirmedEmptyRef = useRef<Set<string>>(new Set());
   const [editWorkoutOpen, setEditWorkoutOpen] = useState(false);
   const [addWorkoutOpen, setAddWorkoutOpen] = useState(false);
+  const [isUpdatingDay, setIsUpdatingDay] = useState(false);
   const workoutCacheRef = useRef<Map<string, WorkoutDayCache>>(new Map());
   const selectedDateRef = useRef(selectedDate);
   selectedDateRef.current = selectedDate;
@@ -244,6 +282,7 @@ export function DashboardWorkoutCard({
   useLayoutEffect(() => {
     if (prevDateKeyRef.current === dateKey) return;
     prevDateKeyRef.current = dateKey;
+    setIsUpdatingDay(false);
 
     const applyCache = (cached: WorkoutDayCache, markLoaded: boolean) => {
       setWorkouts(cached.workouts);
@@ -441,10 +480,15 @@ export function DashboardWorkoutCard({
 
   const handleWorkoutAdded = useCallback(() => {
     confirmedEmptyRef.current.delete(dateKey);
+    workoutCacheRef.current.delete(dateKey);
+    clearWorkoutDayCache(clientId, dateKey);
+    setIsUpdatingDay(true);
     notifySync();
     router.refresh();
-    void refreshWorkout();
-  }, [dateKey, notifySync, refreshWorkout, router]);
+    void refreshWorkout().finally(() => {
+      setIsUpdatingDay(false);
+    });
+  }, [clientId, dateKey, notifySync, refreshWorkout, router]);
 
   const skipWorkoutRefresh =
     dateKey >= todayKey &&
@@ -753,7 +797,9 @@ export function DashboardWorkoutCard({
               </div>
             </div>
 
-            {hasWorkout && workout ? (
+            {isUpdatingDay || (!isDayLoaded && isRevalidating) ? (
+              <WorkoutHeroBodySkeleton onPhoto={onPhoto} />
+            ) : hasWorkout && workout ? (
               <>
                 {exerciseCount > 0 ? (
                   <div className="flex min-w-0 flex-col justify-center gap-3 py-1">
@@ -873,21 +919,6 @@ export function DashboardWorkoutCard({
                   )}
                 </div>
               </>
-            ) : !isDayLoaded && isRevalidating ? (
-              <div
-                className="flex flex-1 flex-col gap-3"
-                role="status"
-                aria-busy="true"
-                aria-live="polite"
-              >
-                <div className="h-8 w-40 animate-pulse rounded-lg bg-secondary/80" />
-                <div className="flex flex-col gap-2">
-                  <div className="h-6 w-44 animate-pulse rounded-lg bg-secondary/80" />
-                  <div className="h-6 w-36 animate-pulse rounded-lg bg-secondary/80" />
-                  <div className="h-6 w-40 animate-pulse rounded-lg bg-secondary/80" />
-                </div>
-                <div className="mt-auto h-12 animate-pulse rounded-xl bg-secondary/80" />
-              </div>
             ) : (
               <>
                 <div className="flex flex-1 flex-col justify-center py-6">
@@ -921,6 +952,7 @@ export function DashboardWorkoutCard({
           onClose={() => setEditWorkoutOpen(false)}
           dateKey={dateKey}
           workouts={workoutsForDay}
+          refreshing={isUpdatingDay}
           onChanged={handleWorkoutAdded}
         />
         <AddWorkoutToDayDialog
@@ -987,7 +1019,9 @@ export function DashboardWorkoutCard({
         </div>
 
         <DashboardCardNavBody className="flex min-h-0 flex-1 flex-col gap-3">
-          {workoutsForDay.length > 0 ? (
+          {isUpdatingDay || (!isDayLoaded && isRevalidating) ? (
+            <WorkoutListBodySkeleton />
+          ) : workoutsForDay.length > 0 ? (
             <ul className={cn("mt-1 flex flex-col gap-2", dashboardInteractive)}>
               {workoutsForDay.map((workout) => (
                 <DashboardWorkoutMiniRow
@@ -1002,14 +1036,9 @@ export function DashboardWorkoutCard({
             </ul>
           ) : isDayLoaded ? (
             <p className="text-sm text-muted-foreground">{coachLabels.noWorkoutToday}</p>
-          ) : isRevalidating ? (
-            <div className="flex w-full flex-col items-center justify-center gap-2 py-8">
-              <Dumbbell className="h-10 w-10 animate-pulse text-muted-foreground/30" aria-hidden />
-              <p className="text-xs text-muted-foreground">{platform.common.loading}</p>
-            </div>
           ) : null}
 
-          {extrasIncomplete ? (
+          {extrasIncomplete && !isUpdatingDay ? (
             <div
               className={cn(
                 "flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200",
@@ -1027,6 +1056,7 @@ export function DashboardWorkoutCard({
         onClose={() => setEditWorkoutOpen(false)}
         dateKey={dateKey}
         workouts={workoutsForDay}
+        refreshing={isUpdatingDay}
         onChanged={handleWorkoutAdded}
       />
       <AddWorkoutToDayDialog
@@ -1084,7 +1114,11 @@ export function DashboardWorkoutCard({
             </div>
           </div>
 
-          {workoutsForDay.length > 0 ? (
+          {isUpdatingDay || (!isDayLoaded && isRevalidating) ? (
+            <div className="mt-4">
+              <DashboardWorkoutDetailSkeleton />
+            </div>
+          ) : workoutsForDay.length > 0 ? (
             <div className="mt-4 space-y-2.5">
               {workoutsForDay.map((workout) => {
                 const workoutKey = workoutNavKey(workout);
@@ -1134,6 +1168,7 @@ export function DashboardWorkoutCard({
           onClose={() => setEditWorkoutOpen(false)}
           dateKey={dateKey}
           workouts={workoutsForDay}
+          refreshing={isUpdatingDay}
           onChanged={handleWorkoutAdded}
         />
         <AddWorkoutToDayDialog
@@ -1184,7 +1219,9 @@ export function DashboardWorkoutCard({
         ) : null}
       </CardHeader>
       <CardContent className="space-y-4">
-        {workoutsForDay.length > 0 ? (
+        {isUpdatingDay ? (
+          <WorkoutListBodySkeleton />
+        ) : workoutsForDay.length > 0 ? (
           <ul className="flex flex-col gap-2">
             {workoutsForDay.map((workout) => (
               <DashboardWorkoutMiniRow

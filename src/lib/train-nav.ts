@@ -1,5 +1,5 @@
 export const trainTabs = [
-  { href: "/dashboard/workout", label: "Workout" },
+  { href: "/dashboard/workout/schedule", label: "Workout" },
   { href: "/dashboard/nutrition", label: "Nutrition" },
 ] as const;
 
@@ -43,5 +43,11 @@ export function isHomeNavActive(pathname: string) {
 
 export function isTrainTabActive(pathname: string, href: string) {
   const path = pathOnly(pathname);
+  // Workout tab covers My workout, Programs, Exercises, Cardio, etc.
+  if (href.startsWith("/dashboard/workout")) {
+    return (
+      path === "/dashboard/workout" || path.startsWith("/dashboard/workout/")
+    );
+  }
   return path === href || path.startsWith(`${href}/`);
 }

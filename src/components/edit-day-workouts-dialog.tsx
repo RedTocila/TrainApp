@@ -15,12 +15,14 @@ export function EditDayWorkoutsDialog({
   onClose,
   dateKey,
   workouts,
+  refreshing = false,
   onChanged,
 }: {
   open: boolean;
   onClose: () => void;
   dateKey: string;
   workouts: TodaysWorkoutInfo[];
+  refreshing?: boolean;
   onChanged?: () => void;
 }) {
   const platform = usePlatformCopy();
@@ -30,6 +32,7 @@ export function EditDayWorkoutsDialog({
   const [error, setError] = useState<string | null>(null);
 
   const removable = workouts.filter((workout) => workout.scheduledWorkoutId);
+  const busy = isPending || refreshing;
 
   const handleRemove = (scheduledWorkoutId: string) => {
     setError(null);
@@ -46,7 +49,7 @@ export function EditDayWorkoutsDialog({
   };
 
   const handleClose = () => {
-    if (addOpen) return;
+    if (addOpen || busy) return;
     setError(null);
     onClose();
   };
@@ -61,7 +64,21 @@ export function EditDayWorkoutsDialog({
         maxWidth="max-w-md"
       >
         <div className="space-y-3 px-5 pb-4">
-          {removable.length === 0 ? (
+          {refreshing ? (
+            <div
+              className="space-y-2"
+              role="status"
+              aria-busy="true"
+              aria-live="polite"
+            >
+              <div className="h-12 w-full animate-pulse rounded-xl bg-secondary/80" />
+              <div className="h-12 w-full animate-pulse rounded-xl bg-secondary/80" />
+              <div className="h-12 w-3/4 animate-pulse rounded-xl bg-secondary/70" />
+              <p className="pt-1 text-center text-xs text-muted-foreground">
+                {platform.common.loading}
+              </p>
+            </div>
+          ) : removable.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {platform.workout.noWorkoutsOnDay}
             </p>
@@ -69,13 +86,13 @@ export function EditDayWorkoutsDialog({
             <ul className="space-y-2">
               {removable.map((workout) => {
                 const id = workout.scheduledWorkoutId!;
-                const busy = isPending && removingId === id;
+                const rowBusy = isPending && removingId === id;
                 return (
                   <li key={workout.taskId}>
                     <div
                       className={cn(
                         "flex items-center gap-3 rounded-xl border border-border/60 bg-card/80 px-3 py-2.5",
-                        busy && "opacity-60"
+                        rowBusy && "opacity-60"
                       )}
                     >
                       <p className="min-w-0 flex-1 truncate text-sm font-semibold">
@@ -86,7 +103,7 @@ export function EditDayWorkoutsDialog({
                         variant="ghost"
                         size="icon"
                         className="!h-9 !w-9 shrink-0 rounded-full text-red-500 hover:bg-red-500/15 hover:text-red-400"
-                        disabled={isPending}
+                        disabled={busy}
                         aria-label={platform.workout.removeWorkoutFromDayAria}
                         onClick={() => handleRemove(id)}
                       >
@@ -105,6 +122,7 @@ export function EditDayWorkoutsDialog({
             type="button"
             variant="secondary"
             className="h-11 w-full rounded-full font-semibold"
+            disabled={busy}
             onClick={() => {
               setError(null);
               setAddOpen(true);
