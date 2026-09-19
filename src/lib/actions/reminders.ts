@@ -59,9 +59,18 @@ export async function updateReminderSettings(
 
   const settings = parseReminderSettings(input);
 
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("reminder_settings")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const { mergeReminderSettingsJson } = await import("@/lib/read-me-acks");
+  const merged = mergeReminderSettingsJson(existing?.reminder_settings, settings);
+
   const { error } = await supabase
     .from("profiles")
-    .update({ reminder_settings: settings })
+    .update({ reminder_settings: merged })
     .eq("id", user.id);
 
   if (error) {

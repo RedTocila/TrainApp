@@ -15,25 +15,42 @@ interface AddWorkoutWizardProps {
   folderId: string;
   onClose: () => void;
   onComplete: () => void;
+  /** Skip type picker and open the builder for this workout kind. */
+  initialType?: CreateWorkoutType | null;
 }
 
 type WizardPhase = "type" | "build" | "schedule";
 
-export function AddWorkoutWizard({ open, folderId, onClose, onComplete }: AddWorkoutWizardProps) {
+export function AddWorkoutWizard({
+  open,
+  folderId,
+  onClose,
+  onComplete,
+  initialType = null,
+}: AddWorkoutWizardProps) {
   const platform = usePlatformCopy();
-  const [phase, setPhase] = useState<WizardPhase>("type");
-  const [workoutType, setWorkoutType] = useState<CreateWorkoutType | null>(null);
+  const [phase, setPhase] = useState<WizardPhase>(
+    initialType ? "build" : "type"
+  );
+  const [workoutType, setWorkoutType] = useState<CreateWorkoutType | null>(
+    initialType
+  );
   const [planId, setPlanId] = useState<string | null>(null);
   const [days, setDays] = useState<Awaited<ReturnType<typeof getPersonalWorkoutPlanWithDetails>>["days"]>([]);
 
   useEffect(() => {
     if (!open) {
-      setPhase("type");
-      setWorkoutType(null);
+      setPhase(initialType ? "build" : "type");
+      setWorkoutType(initialType);
       setPlanId(null);
       setDays([]);
+      return;
     }
-  }, [open]);
+    if (initialType) {
+      setWorkoutType(initialType);
+      setPhase("build");
+    }
+  }, [open, initialType]);
 
   const handleTypeSelect = (type: CreateWorkoutType) => {
     setWorkoutType(type);
@@ -51,10 +68,12 @@ export function AddWorkoutWizard({ open, folderId, onClose, onComplete }: AddWor
     onClose();
   };
 
+  const showTypeDialog = open && phase === "type" && !initialType;
+
   return (
     <>
       <WorkoutTypeDialog
-        open={open && phase === "type"}
+        open={showTypeDialog}
         onClose={handleCloseAll}
         onSelect={handleTypeSelect}
       />
@@ -65,6 +84,10 @@ export function AddWorkoutWizard({ open, folderId, onClose, onComplete }: AddWor
         onBack={() => {
           if (phase === "schedule") {
             setPhase("build");
+            return;
+          }
+          if (initialType) {
+            handleCloseAll();
             return;
           }
           setPhase("type");

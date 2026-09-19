@@ -162,6 +162,16 @@ export function WeightTracker({
         }
         action={
           <div className="flex items-center gap-2">
+            {!readOnly && !formOpen ? (
+              <Button
+                size="sm"
+                className="!h-8 rounded-full px-3 text-xs"
+                onClick={openForm}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {platform.weight.logWeight}
+              </Button>
+            ) : null}
             <DashboardStatusIcon
               status={dashboardCompletionStatus(
                 !!todayLogForDay,
@@ -173,16 +183,6 @@ export function WeightTracker({
                   : platform.common.incomplete
               }
             />
-            {!readOnly && !formOpen ? (
-              <Button
-                size="sm"
-                className="!h-8 rounded-full px-3 text-xs"
-                onClick={openForm}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                {platform.weight.logWeight}
-              </Button>
-            ) : null}
           </div>
         }
       />

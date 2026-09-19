@@ -316,6 +316,9 @@ export const platformCopyEn = {
     macros: "Macros",
     microNutrients: "Micro nutrients",
     water: "Water",
+    buildCta: "BUILD",
+    buildWithAi: "AI build",
+    buildManually: "Build manually",
     logMeal: "Log meal",
     viewDietPlan: "Diet plan",
     seeWhatWentWrong: "What went wrong",
@@ -597,6 +600,9 @@ export const platformCopyEn = {
     hiitWorkout: "HIIT workout",
     hiitWorkoutDesc:
       "Timed intervals — work, rest, rounds, and cycles with a live timer.",
+    buildCta: "BUILD",
+    buildWithAi: "AI build",
+    buildManually: "Build manually",
     addWorkout: "Add workout",
     addWorkoutToDayDesc: (day: string) =>
       `Add a warm-up, main workout, and/or stretching for ${day} — does not change your recurring schedule.`,

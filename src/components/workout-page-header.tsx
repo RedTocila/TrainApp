@@ -1,27 +1,15 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { AiBuildPlanButton } from "@/components/ai-build-plan-button";
+import { BuildWorkoutButton } from "@/components/build-workout-button";
 import { ProgramsPageHeader } from "@/components/programs/programs-page-header";
 import { WorkoutSectionTabs } from "@/components/workout-section-tabs";
 
-export function WorkoutPageHeader({
-  title,
-  action,
-}: {
-  title: string;
-  action?: ReactNode;
-}) {
+export function WorkoutPageHeader({ title }: { title: string }) {
   return (
     <ProgramsPageHeader
       title={title}
       tabs={<WorkoutSectionTabs />}
-      actions={
-        <>
-          <AiBuildPlanButton type="workout" iconOnly />
-          {action}
-        </>
-      }
+      actions={<BuildWorkoutButton />}
     />
   );
 }

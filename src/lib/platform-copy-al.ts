@@ -320,6 +320,9 @@ export const platformCopyAl = {
     macros: "Makro",
     microNutrients: "Mikro ushqyes",
     water: "Ujë",
+    buildCta: "NDËRTO",
+    buildWithAi: "Ndërto me AI",
+    buildManually: "Ndërto vetë",
     logMeal: "Regjistro vakt",
     viewDietPlan: "Plani ushqimor",
     seeWhatWentWrong: "Çfarë shkoi keq",
@@ -608,6 +611,9 @@ export const platformCopyAl = {
     hiitWorkout: "Stërvitje HIIT",
     hiitWorkoutDesc:
       "Intervale me kohë — punë, pushim, raunde dhe cikle me kohëmatës live.",
+    buildCta: "Ndërto",
+    buildWithAi: "Ndërto me AI",
+    buildManually: "Ndërto vetë",
     addWorkout: "Shto stërvitje",
     addWorkoutToDayDesc: (day: string) =>
       `Shto ngrohje, stërvitje kryesore dhe/ose shtrirje për ${day} — nuk ndryshon orarin tënd të përsëritur.`,

@@ -4,8 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deletePersonalWorkoutPlan } from "@/lib/actions/user-workouts";
 import type { PersonalWorkoutListItem } from "@/lib/actions/user-workouts";
-import { AiBuildPlanButton } from "@/components/ai-build-plan-button";
-import { CreateWorkoutButton } from "@/components/programs/create-program-buttons";
+import { BuildWorkoutButton } from "@/components/build-workout-button";
 import { WorkoutPageHeader } from "@/components/workout-page-header";
 import { WorkoutCategoryIcon } from "@/components/programs/workout-day-chip";
 import { WorkoutCategoryFilter as WorkoutCategoryFilterBar } from "@/components/programs/workout-color-legend";
@@ -57,15 +56,11 @@ export function AllWorkoutsPage({
   if (workouts.length === 0) {
     return (
       <>
-        <WorkoutPageHeader
-          title="Workouts"
-          action={<CreateWorkoutButton iconOnly variant="outline" />}
-        />
+        <WorkoutPageHeader title="Workouts" />
         <Card className="overflow-hidden border-dashed">
           <div className="flex flex-col items-center gap-4 px-4 py-12 text-center">
             <WorkoutCategoryIcon category="general" size="lg" />
-            <CreateWorkoutButton label="New workout" />
-            <AiBuildPlanButton type="workout" />
+            <BuildWorkoutButton />
           </div>
         </Card>
       </>
@@ -74,10 +69,7 @@ export function AllWorkoutsPage({
 
   return (
     <>
-      <WorkoutPageHeader
-        title="Workouts"
-        action={<CreateWorkoutButton iconOnly variant="outline" />}
-      />
+      <WorkoutPageHeader title="Workouts" />
 
       <WorkoutCategoryFilterBar
         workouts={workouts}

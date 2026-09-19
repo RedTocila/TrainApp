@@ -15,10 +15,9 @@ import {
   deletePersonalNutritionPlan,
   type PersonalNutritionListItem,
 } from "@/lib/actions/user-nutrition";
-import { AiBuildPlanButton } from "@/components/ai-build-plan-button";
+import { BuildNutritionButton } from "@/components/build-nutrition-button";
 import { NutritionPageHeader } from "@/components/nutrition-page-header";
 import { MacroSummary } from "@/components/programs/macro-summary";
-import { CreateMealPlanButton } from "@/components/programs/create-program-buttons";
 import { MoveNutritionButton } from "@/components/move-nutrition-dialog";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { useCoachCopy } from "@/components/locale-provider";
@@ -66,41 +65,28 @@ export function AllMealPlansPage({
   if (plans.length === 0) {
     return (
       <>
-        <NutritionPageHeader
-          title="Day menus"
-          action={
-            <CreateMealPlanButton iconOnly variant="outline" label="New day menu" />
-          }
-        />
-      <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10">
-            <Apple className="h-7 w-7 text-emerald-400" />
-          </div>
-          <div className="space-y-1">
-            <p className="font-semibold">No day menus yet</p>
-            <p className="max-w-xs text-sm text-muted-foreground">
-              Create a day menu with meals for each slot, then schedule it on your calendar.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <CreateMealPlanButton />
-            <AiBuildPlanButton type="nutrition" />
-          </div>
-        </CardContent>
-      </Card>
+        <NutritionPageHeader title="Day menus" />
+        <Card>
+          <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10">
+              <Apple className="h-7 w-7 text-emerald-400" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-semibold">No day menus yet</p>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                Create a day menu with meals for each slot, then schedule it on your calendar.
+              </p>
+            </div>
+            <BuildNutritionButton />
+          </CardContent>
+        </Card>
       </>
     );
   }
 
   return (
     <>
-      <NutritionPageHeader
-        title="Day menus"
-        action={
-          <CreateMealPlanButton iconOnly variant="outline" label="New day menu" />
-        }
-      />
+      <NutritionPageHeader title="Day menus" />
       <ul className="space-y-3">
         {plans.map(({ plan, meals }) => {
           const isActive = !!activePlanId && plan.id === activePlanId;

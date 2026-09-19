@@ -66,6 +66,49 @@ export async function createPersonalWorkoutPlan(
   return { data };
 }
 
+export async function updatePersonalWorkoutPlan(
+  planId: string,
+  title: string,
+  description?: string
+) {
+  const access = await ensurePlanMutationAccess();
+  if ("error" in access) return { error: access.error };
+  const { admin, userId } = access;
+
+  const trimmed = title.trim();
+  if (!trimmed) return { error: "Title is required" };
+
+  const { data: existing } = await admin
+    .from("workout_plans")
+    .select("id, folder_id")
+    .eq("id", planId)
+    .eq("created_by", userId)
+    .eq("is_personal", true)
+    .single();
+
+  if (!existing) return { error: "Workout not found" };
+
+  const { error } = await admin
+    .from("workout_plans")
+    .update({
+      title: trimmed,
+      description: description?.trim() || null,
+    })
+    .eq("id", planId)
+    .eq("created_by", userId)
+    .eq("is_personal", true);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/workout");
+  revalidatePath(`/dashboard/workout/${planId}/edit`);
+  revalidatePath(`/dashboard/workout/${planId}`);
+  if (existing.folder_id) {
+    revalidatePath(`/dashboard/workout/folder/${existing.folder_id}`);
+  }
+  return { success: true };
+}
+
 export async function getPersonalWorkoutPlans(folderId?: string) {
   const { supabase, userId } = await requireUserId();
 

@@ -59,19 +59,28 @@ export function AiCoachChatDialog() {
   return (
     <DialogPortal open={isOpen}>
       {/*
-        Full layout-viewport mask. The chat panel only covers the visual
-        viewport (above the keyboard); without this, dashboard cards bleed
-        through iOS’s translucent keyboard and any gap below the panel.
+        Layout + keyboard-band mask. The chat panel only covers the visual
+        viewport; iOS keeps a translucent strip (and sometimes a gap) below
+        it where dashboard content would otherwise show through.
       */}
       <div
         aria-hidden
-        className="fixed inset-0 z-[110] bg-background"
+        className="pointer-events-none fixed left-0 top-0 z-[110] w-full bg-background"
+        style={{ height: frame.maskHeight }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-x-0 z-[110] bg-background"
+        style={{
+          top: frame.underlayTop,
+          height: frame.underlayHeight,
+        }}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-coach-chat-title"
-        className={`fixed inset-x-0 z-[111] flex flex-col overflow-hidden bg-background transition-transform duration-150 ease-out ${
+        className={`fixed inset-x-0 z-[111] flex flex-col overflow-hidden bg-background shadow-[0_48px_0_0_var(--background)] transition-transform duration-150 ease-out ${
           entered ? "translate-y-0 scale-100" : "translate-y-1 scale-[0.995]"
         }`}
         style={{

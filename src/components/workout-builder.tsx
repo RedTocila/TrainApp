@@ -11,8 +11,13 @@ import { cn } from "@/lib/utils";
 import {
   createWorkoutPlan,
   saveWorkoutDay,
+  updateWorkoutPlan,
 } from "@/lib/actions/plans";
-import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan } from "@/lib/actions/user-workouts";
+import {
+  createPersonalWorkoutPlan,
+  assignPersonalWorkoutPlan,
+  updatePersonalWorkoutPlan,
+} from "@/lib/actions/user-workouts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -104,6 +109,7 @@ export function WorkoutBuilder({
     imageUrl?: string | null;
     videoUrl?: string | null;
   } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const addDay = () => {
     setDays([
@@ -168,20 +174,33 @@ export function WorkoutBuilder({
 
   const handleSave = () => {
     startTransition(async () => {
+      setError(null);
       let currentPlanId = planId;
       if (!currentPlanId) {
         const result =
           mode === "client"
             ? await createPersonalWorkoutPlan(title, description, folderId)
             : await createWorkoutPlan(title, description);
-        if (result.error || !result.data) return;
+        if (result.error || !result.data) {
+          setError(result.error ?? "Failed to create workout");
+          return;
+        }
         currentPlanId = result.data.id;
         setPlanId(currentPlanId);
+      } else {
+        const metaResult =
+          mode === "client"
+            ? await updatePersonalWorkoutPlan(currentPlanId, title, description)
+            : await updateWorkoutPlan(currentPlanId, title, description);
+        if (metaResult.error) {
+          setError(metaResult.error);
+          return;
+        }
       }
 
       for (let i = 0; i < days.length; i++) {
         const day = days[i];
-        await saveWorkoutDay(
+        const dayResult = await saveWorkoutDay(
           currentPlanId!,
           i,
           day.title,
@@ -194,6 +213,17 @@ export function WorkoutBuilder({
             })),
           day.dayId
         );
+        if (dayResult.error) {
+          setError(dayResult.error);
+          return;
+        }
+        if (dayResult.dayId && !day.dayId) {
+          setDays((current) =>
+            current.map((d, idx) =>
+              idx === i ? { ...d, dayId: dayResult.dayId } : d
+            )
+          );
+        }
       }
 
       if (wizard && currentPlanId && onWizardComplete) {
@@ -206,9 +236,11 @@ export function WorkoutBuilder({
           onSaved?.();
         } else {
           router.push("/dashboard/workout");
+          router.refresh();
         }
       } else {
         router.push(`/admin/workouts/${currentPlanId}/edit`);
+        router.refresh();
       }
     });
   };
@@ -386,7 +418,7 @@ export function WorkoutBuilder({
         );
       })}
 
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         {!singleDay ? (
           <Button type="button" variant="secondary" onClick={addDay}>
             <Plus className="mr-2 h-4 w-4" /> Add Day
@@ -402,6 +434,11 @@ export function WorkoutBuilder({
               : "Save Plan"}
         </Button>
       </div>
+      {error ? (
+        <p className="text-sm text-red-400" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <ExerciseDemoDialog
         open={demoPreview !== null}

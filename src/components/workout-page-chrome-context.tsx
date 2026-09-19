@@ -13,6 +13,8 @@ export type WorkoutPageChromeActions = {
   date: Date;
   disabled?: boolean;
   showStart: boolean;
+  showEdit?: boolean;
+  onEdit?: () => void;
 };
 
 const WorkoutPageChromeContext = createContext<{

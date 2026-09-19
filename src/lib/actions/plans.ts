@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { enrichExerciseWithGif } from "@/lib/exercise-gif";
 import type { MealType } from "@/lib/types";
 
@@ -20,6 +21,30 @@ export async function createWorkoutPlan(title: string, description?: string) {
   return { data };
 }
 
+export async function updateWorkoutPlan(
+  planId: string,
+  title: string,
+  description?: string
+) {
+  const supabase = await createClient();
+  const trimmed = title.trim();
+  if (!trimmed) return { error: "Title is required" };
+
+  const { error } = await supabase
+    .from("workout_plans")
+    .update({
+      title: trimmed,
+      description: description?.trim() || null,
+    })
+    .eq("id", planId);
+
+  if (error) return { error: error.message };
+  revalidatePath(`/admin/workouts/${planId}/edit`);
+  revalidatePath(`/dashboard/workout/${planId}/edit`);
+  revalidatePath(`/dashboard/workout`);
+  return { success: true };
+}
+
 export async function saveWorkoutDay(
   planId: string,
   dayIndex: number,
@@ -36,10 +61,31 @@ export async function saveWorkoutDay(
   dayId?: string
 ) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Personal client plans: use service role (same path as HIIT) so edits
+  // reliably persist past RLS edge cases on delete/insert.
+  let db: Awaited<ReturnType<typeof createClient>> | ReturnType<
+    typeof createAdminClient
+  > = supabase;
+
+  if (user) {
+    const { data: plan } = await supabase
+      .from("workout_plans")
+      .select("id, is_personal, created_by")
+      .eq("id", planId)
+      .maybeSingle();
+
+    if (plan?.is_personal && plan.created_by === user.id) {
+      db = createAdminClient();
+    }
+  }
 
   let targetDayId = dayId;
   if (!targetDayId) {
-    const { data: day, error } = await supabase
+    const { data: day, error } = await db
       .from("workout_days")
       .insert({ plan_id: planId, day_index: dayIndex, title })
       .select()
@@ -47,13 +93,22 @@ export async function saveWorkoutDay(
     if (error) return { error: error.message };
     targetDayId = day.id;
   } else {
-    await supabase.from("workout_days").update({ title, day_index: dayIndex }).eq("id", targetDayId);
-    await supabase.from("exercises").delete().eq("day_id", targetDayId);
+    const { error: dayError } = await db
+      .from("workout_days")
+      .update({ title, day_index: dayIndex })
+      .eq("id", targetDayId);
+    if (dayError) return { error: dayError.message };
+
+    const { error: deleteError } = await db
+      .from("exercises")
+      .delete()
+      .eq("day_id", targetDayId);
+    if (deleteError) return { error: deleteError.message };
   }
 
   if (exercises.length > 0) {
     const enriched = exercises.map((ex) => enrichExerciseWithGif(ex));
-    const { error } = await supabase.from("exercises").insert(
+    const { error } = await db.from("exercises").insert(
       enriched.map((ex, i) => ({
         day_id: targetDayId!,
         name: ex.name,
@@ -72,6 +127,7 @@ export async function saveWorkoutDay(
   revalidatePath(`/admin/workouts/${planId}/edit`);
   revalidatePath(`/dashboard/workout`);
   revalidatePath(`/dashboard/workout/${planId}/edit`);
+  revalidatePath(`/dashboard/workout/${planId}`);
   return { success: true, dayId: targetDayId };
 }
 

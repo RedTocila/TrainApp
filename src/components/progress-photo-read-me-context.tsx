@@ -12,6 +12,10 @@ import {
 import { CoachReadMeDialog } from "@/components/coach-read-me-dialog";
 import { usePlatformCopy } from "@/components/locale-provider";
 import {
+  acknowledgeProgressPhotoReadMe,
+  getReadMeAcknowledgments,
+} from "@/lib/actions/read-me-acks";
+import {
   hasProgressPhotoReadMeAcknowledged,
   setProgressPhotoReadMeAcknowledged,
 } from "@/lib/progress-photo-read-me-storage";
@@ -44,18 +48,49 @@ export function ProgressPhotoReadMeProvider({
   const [readMeOpen, setReadMeOpen] = useState(false);
 
   useEffect(() => {
-    const acked = hasProgressPhotoReadMeAcknowledged(clientId);
-    setHasAcknowledged(acked);
-    setHydrated(true);
-    if (autoPrompt && !acked) {
-      setReadMeOpen(true);
-    }
+    let cancelled = false;
+
+    const hydrate = async () => {
+      const localAck = hasProgressPhotoReadMeAcknowledged(clientId);
+      if (localAck) {
+        setHasAcknowledged(true);
+      }
+
+      try {
+        const remote = await getReadMeAcknowledgments();
+        if (cancelled) return;
+
+        if (remote.progressPhotos) {
+          setProgressPhotoReadMeAcknowledged(clientId);
+          setHasAcknowledged(true);
+        } else if (localAck) {
+          const result = await acknowledgeProgressPhotoReadMe();
+          if (!cancelled && !("error" in result)) {
+            setHasAcknowledged(true);
+          }
+        } else if (autoPrompt) {
+          setReadMeOpen(true);
+        }
+      } catch {
+        if (!cancelled && autoPrompt && !localAck) {
+          setReadMeOpen(true);
+        }
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    };
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
   }, [clientId, autoPrompt]);
 
   const acknowledgeReadMe = useCallback(() => {
     setProgressPhotoReadMeAcknowledged(clientId);
     setHasAcknowledged(true);
     setReadMeOpen(false);
+    void acknowledgeProgressPhotoReadMe();
   }, [clientId]);
 
   const openReadMe = useCallback(() => setReadMeOpen(true), []);

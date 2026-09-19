@@ -7,19 +7,50 @@ export type VisualViewportFrame = {
   offsetTop: number;
   /** Visible height excluding the software keyboard. */
   height: number;
+  /**
+   * Opaque fill from the bottom of the visual viewport downward — covers the
+   * keyboard band so underlying page content cannot show through (iOS).
+   */
+  underlayTop: number;
+  underlayHeight: number;
+  /** Full mask height covering layout + keyboard band. */
+  maskHeight: number;
 };
 
 function readVisualViewportFrame(): VisualViewportFrame {
   if (typeof window === "undefined") {
-    return { offsetTop: 0, height: 800 };
+    return {
+      offsetTop: 0,
+      height: 800,
+      underlayTop: 800,
+      underlayHeight: 480,
+      maskHeight: 1280,
+    };
   }
+
   const vv = window.visualViewport;
-  if (!vv) {
-    return { offsetTop: 0, height: window.innerHeight };
-  }
+  const offsetTop = vv ? Math.max(0, vv.offsetTop) : 0;
+  const height = vv ? Math.max(0, vv.height) : window.innerHeight;
+  const vvBottom = offsetTop + height;
+
+  // Layout size can stay large while the visual viewport shrinks with the keyboard.
+  const layoutHeight = Math.max(
+    window.innerHeight,
+    document.documentElement.clientHeight,
+    vvBottom
+  );
+
+  // Paint well past the keyboard / accessory bar (translucent on iOS).
+  const keyboardBand = Math.max(0, layoutHeight - vvBottom);
+  const underlayHeight = Math.max(420, keyboardBand + 160);
+  const maskHeight = Math.max(layoutHeight, vvBottom + underlayHeight);
+
   return {
-    offsetTop: Math.max(0, vv.offsetTop),
-    height: Math.max(0, vv.height),
+    offsetTop,
+    height,
+    underlayTop: vvBottom,
+    underlayHeight,
+    maskHeight,
   };
 }
 

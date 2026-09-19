@@ -528,27 +528,32 @@ export function DashboardWorkoutCard({
       .find((id): id is string => Boolean(id)) ??
     null;
 
-  const workoutChromeActions = useMemo(
-    () =>
-      variant === "detail" &&
-      !readOnly &&
-      workoutsForDay.length > 0 &&
-      !showCompletedState
-        ? {
-            date: selectedDate,
-            disabled: !isDayLoaded,
-            showStart: true as const,
-          }
-        : null,
-    [
-      variant,
-      readOnly,
-      workoutsForDay.length,
-      showCompletedState,
-      selectedDate,
-      isDayLoaded,
-    ]
-  );
+  const openEditWorkout = useCallback(() => setEditWorkoutOpen(true), []);
+
+  const canEditDayWorkouts = !readOnly || !hasScheduledWorkout;
+  const workoutChromeActions = useMemo(() => {
+    if (variant !== "detail") return null;
+    const showStart =
+      !readOnly && workoutsForDay.length > 0 && !showCompletedState;
+    if (!showStart && !canEditDayWorkouts) return null;
+    return {
+      date: selectedDate,
+      disabled: !isDayLoaded,
+      showStart,
+      ...(canEditDayWorkouts
+        ? { showEdit: true as const, onEdit: openEditWorkout }
+        : {}),
+    };
+  }, [
+    variant,
+    canEditDayWorkouts,
+    readOnly,
+    workoutsForDay.length,
+    showCompletedState,
+    selectedDate,
+    isDayLoaded,
+    openEditWorkout,
+  ]);
   useRegisterWorkoutPageChrome(workoutChromeActions);
 
   useEffect(() => {
@@ -1057,10 +1062,11 @@ export function DashboardWorkoutCard({
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {!readOnly || !hasScheduledWorkout ? (
-                <DashboardWorkoutPlusMenu
-                  onEdit={() => setEditWorkoutOpen(true)}
-                />
+              {/* Mobile: edit lives in top chrome left of Start; keep here for lg+. */}
+              {canEditDayWorkouts ? (
+                <div className="hidden lg:block">
+                  <DashboardWorkoutPlusMenu nav onEdit={openEditWorkout} />
+                </div>
               ) : null}
               {/* Desktop: Start lives in the top nav on mobile; keep it here for lg+. */}
               {!readOnly &&

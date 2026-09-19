@@ -10,6 +10,10 @@ import {
   type ReactNode,
 } from "react";
 import {
+  acknowledgeCoachReadMe,
+  getReadMeAcknowledgments,
+} from "@/lib/actions/read-me-acks";
+import {
   hasCoachReadMeAcknowledged,
   setCoachReadMeAcknowledged,
 } from "@/lib/coach-read-me-storage";
@@ -40,8 +44,39 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
   const [readMeHydrated, setReadMeHydrated] = useState(false);
 
   useEffect(() => {
-    setHasAcknowledgedReadMe(hasCoachReadMeAcknowledged());
-    setReadMeHydrated(true);
+    let cancelled = false;
+
+    const hydrate = async () => {
+      const localAck = hasCoachReadMeAcknowledged();
+      if (localAck) {
+        setHasAcknowledgedReadMe(true);
+      }
+
+      try {
+        const remote = await getReadMeAcknowledgments();
+        if (cancelled) return;
+
+        if (remote.coach) {
+          setCoachReadMeAcknowledged();
+          setHasAcknowledgedReadMe(true);
+        } else if (localAck) {
+          // One-time migrate device ack → profile.
+          const result = await acknowledgeCoachReadMe();
+          if (!cancelled && !("error" in result)) {
+            setHasAcknowledgedReadMe(true);
+          }
+        }
+      } catch {
+        // Offline / migration not applied — keep localStorage result.
+      } finally {
+        if (!cancelled) setReadMeHydrated(true);
+      }
+    };
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -81,6 +116,7 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
     setCoachReadMeAcknowledged();
     setHasAcknowledgedReadMe(true);
     setReadMeOpen(false);
+    void acknowledgeCoachReadMe();
   }, []);
 
   const canChat = readMeHydrated && hasAcknowledgedReadMe;
