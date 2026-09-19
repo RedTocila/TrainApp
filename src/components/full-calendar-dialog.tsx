@@ -5,23 +5,30 @@ import {
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
+  format,
   isBefore,
   isSameDay,
   isSameMonth,
+  max as maxDate,
   startOfMonth,
   startOfDay,
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { CalendarDayDot } from "@/components/calendar-day-card";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { fetchFullCalendarMonthSlice } from "@/lib/actions/full-calendar-month";
 import { formatLocalized } from "@/lib/date-locale";
+import {
+  mergeCalendarEnrichment,
+  mergeCalendarSchedule,
+} from "@/lib/full-calendar-merge";
 import { getSundayFirstWeekdayLabels } from "@/lib/locale-labels";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import {
@@ -40,19 +47,34 @@ interface FullCalendarDialogProps {
   enrichment: DashboardEnrichmentData;
 }
 
+function monthRangeKeys(viewMonth: Date): { from: string; to: string; cacheKey: string } {
+  const start = startOfWeek(startOfMonth(viewMonth));
+  const end = endOfWeek(endOfMonth(viewMonth));
+  const from = format(start, "yyyy-MM-dd");
+  const to = format(end, "yyyy-MM-dd");
+  return { from, to, cacheKey: `${from}:${to}` };
+}
+
 export function FullCalendarDialog({
   open,
   onClose,
   selectedDate,
   onSelectDate,
-  schedule,
-  enrichment,
+  schedule: initialSchedule,
+  enrichment: initialEnrichment,
 }: FullCalendarDialogProps) {
   const platform = usePlatformCopy();
   const locale = useLocale();
   const weekdays = useMemo(() => getSundayFirstWeekdayLabels(locale), [locale]);
   const [viewMonth, setViewMonth] = useState(startOfMonth(selectedDate));
   const [now, setNow] = useState(() => new Date());
+  const [schedule, setSchedule] = useState(initialSchedule);
+  const [enrichment, setEnrichment] = useState(initialEnrichment);
+  const [loadingMonth, setLoadingMonth] = useState(false);
+  const loadedRangesRef = useRef<Set<string>>(new Set());
+  const inflightRef = useRef<string | null>(null);
+  const wasOpenRef = useRef(false);
+
   const activeFrom = useMemo(() => {
     if (!enrichment.accountCreatedAt) return null;
     const d = new Date(enrichment.accountCreatedAt);
@@ -60,14 +82,27 @@ export function FullCalendarDialog({
     return startOfDay(d);
   }, [enrichment.accountCreatedAt]);
 
+  const earliestMonth = useMemo(() => {
+    if (!activeFrom) return null;
+    return startOfMonth(activeFrom);
+  }, [activeFrom]);
+
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
+  // Seed from dashboard data only when the dialog opens (not on every enrichment tick).
   useEffect(() => {
-    if (open) setViewMonth(startOfMonth(selectedDate));
-  }, [open, selectedDate]);
+    if (open && !wasOpenRef.current) {
+      setViewMonth(startOfMonth(selectedDate));
+      setSchedule(initialSchedule);
+      setEnrichment(initialEnrichment);
+      loadedRangesRef.current = new Set();
+      inflightRef.current = null;
+    }
+    wasOpenRef.current = open;
+  }, [open, selectedDate, initialSchedule, initialEnrichment]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,6 +114,53 @@ export function FullCalendarDialog({
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open, onClose]);
+
+  // Lazy-load completions + schedule for the visible month grid.
+  useEffect(() => {
+    if (!open) return;
+
+    const { from, to, cacheKey } = monthRangeKeys(viewMonth);
+    if (loadedRangesRef.current.has(cacheKey)) {
+      setLoadingMonth(false);
+      return;
+    }
+
+    let cancelled = false;
+    inflightRef.current = cacheKey;
+    setLoadingMonth(true);
+
+    const timezoneOffsetMinutes = new Date().getTimezoneOffset();
+    void fetchFullCalendarMonthSlice(from, to, timezoneOffsetMinutes)
+      .then((result) => {
+        if (cancelled) return;
+        if ("error" in result) {
+          console.error("[full-calendar]", result.error);
+          return;
+        }
+        loadedRangesRef.current.add(cacheKey);
+        setEnrichment((prev) => mergeCalendarEnrichment(prev, result.enrichment));
+        setSchedule((prev) => mergeCalendarSchedule(prev, result.scheduleSlice));
+      })
+      .catch((err) => {
+        if (!cancelled) console.error("[full-calendar]", err);
+      })
+      .finally(() => {
+        if (inflightRef.current === cacheKey) {
+          inflightRef.current = null;
+        }
+        if (!cancelled) {
+          setLoadingMonth(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      // Allow a remount (Strict Mode) to start a fresh request for the same month.
+      if (inflightRef.current === cacheKey) {
+        inflightRef.current = null;
+      }
+    };
+  }, [open, viewMonth]);
 
   const monthDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(viewMonth));
@@ -97,6 +179,10 @@ export function FullCalendarDialog({
   );
   const beforeAccount =
     activeFrom != null && isBefore(selectedDate, activeFrom);
+
+  const canGoPrev =
+    !earliestMonth || isBefore(earliestMonth, startOfMonth(viewMonth));
+  const canGoNext = true;
 
   if (!open) return null;
 
@@ -117,17 +203,33 @@ export function FullCalendarDialog({
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setViewMonth((m) => subMonths(m, 1))}
+              disabled={!canGoPrev || loadingMonth}
+              onClick={() =>
+                setViewMonth((m) => {
+                  const prev = subMonths(m, 1);
+                  if (!earliestMonth) return prev;
+                  return maxDate([prev, earliestMonth]);
+                })
+              }
               aria-label={platform.calendar.previousMonth}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="text-base font-black tracking-tight">
-              {formatLocalized(viewMonth, "MMMM yyyy", locale)}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-black tracking-tight">
+                {formatLocalized(viewMonth, "MMMM yyyy", locale)}
+              </h3>
+              {loadingMonth ? (
+                <Loader2
+                  className="h-4 w-4 animate-spin text-muted-foreground"
+                  aria-label={platform.common.loading}
+                />
+              ) : null}
+            </div>
             <Button
               variant="outline"
               size="icon"
+              disabled={!canGoNext || loadingMonth}
               onClick={() => setViewMonth((m) => addMonths(m, 1))}
               aria-label={platform.calendar.nextMonth}
             >
@@ -138,19 +240,15 @@ export function FullCalendarDialog({
           <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-red-500" />{" "}
-              {platform.calendar.completionLow}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />{" "}
-              {platform.calendar.completionMid}
+              {platform.calendar.completionFailed}
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-green-500" />{" "}
-              {platform.calendar.completionHigh}
+              {platform.calendar.completionSuccess}
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-muted-foreground/30" />{" "}
-              {platform.calendar.preAccount}
+              {platform.calendar.completionNeutral}
             </span>
           </div>
 
@@ -165,7 +263,12 @@ export function FullCalendarDialog({
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5">
+          <div
+            className={cn(
+              "grid grid-cols-7 gap-1.5 transition-opacity",
+              loadingMonth && "opacity-60"
+            )}
+          >
             {monthDays.map((day) => {
               const rawTasks = enrichTasksForDate(day, schedule, enrichment, now);
               const beforeActive = activeFrom ? isBefore(day, activeFrom) : false;
@@ -183,6 +286,8 @@ export function FullCalendarDialog({
                     date={day}
                     tasks={tasks}
                     dayStatus={dayStatus}
+                    inactive={beforeActive}
+                    now={now}
                     selected={selected}
                     onSelect={() => {
                       onSelectDate(day);

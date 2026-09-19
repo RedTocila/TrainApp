@@ -8,8 +8,8 @@ import { formatLocalized } from "@/lib/date-locale";
 import type { DailyTask, TaskCategory } from "@/lib/daily-tasks";
 import type { CalendarDayStatus } from "@/lib/dashboard-task-enrichment";
 import {
-  getCompletionTone,
   getDayCompletionRatio,
+  getDayVisualTone,
 } from "@/lib/dashboard-task-enrichment";
 import { cn } from "@/lib/utils";
 
@@ -31,28 +31,36 @@ interface CalendarStripDayProps {
   buttonRef?: Ref<HTMLButtonElement>;
   /** Scroll strip needs a fixed width; grid cells fill their column. */
   layout?: "scroll" | "grid";
+  now?: Date;
 }
 
 export function CalendarStripDay({
   date,
   selected,
   tasks,
-  dayStatus: _dayStatus,
+  dayStatus,
   inactive = false,
   onSelect,
   buttonRef,
   layout = "scroll",
+  now,
 }: CalendarStripDayProps) {
   const platform = usePlatformCopy();
   const locale = useLocale();
-  const future = isAfter(startOfDay(date), startOfDay(new Date()));
+  const clock = now ?? new Date();
+  const future = isAfter(startOfDay(date), startOfDay(clock));
   const hasTasks = tasks.length > 0;
   const categories = [...new Set(tasks.map((task) => task.category))];
   const doneCount = tasks.filter((task) => task.completed).length;
   const ratio = getDayCompletionRatio(tasks);
-  const tone = ratio == null ? null : getCompletionTone(ratio);
-  const ringTone = inactive || ratio == null ? "muted" : tone!;
-  const ringProgress = inactive || ratio == null ? 0 : ratio;
+  const tone = getDayVisualTone({
+    date,
+    dayStatus,
+    inactive,
+    now: clock,
+  });
+  const ringProgress =
+    tone === "green" ? 1 : tone === "red" ? (ratio ?? 0) : 0;
 
   const dayAbbreviation = isToday(date)
     ? platform.calendar.today
@@ -91,7 +99,7 @@ export function CalendarStripDay({
           "relative z-10 max-w-full truncate text-[0.625rem] font-medium tracking-wide sm:text-[11px]",
           selected && !inactive
             ? "text-foreground"
-            : future || inactive
+            : future || inactive || tone === "muted"
               ? "text-muted-foreground/45"
               : "text-muted-foreground"
         )}
@@ -101,7 +109,7 @@ export function CalendarStripDay({
 
       <DayCompletionRing
         progress={ringProgress}
-        tone={ringTone}
+        tone={tone}
         size={44}
         stroke={2.5}
         className="relative z-10"
@@ -109,7 +117,7 @@ export function CalendarStripDay({
         <span
           className={cn(
             "text-sm font-semibold leading-none tabular-nums sm:text-base",
-            inactive || (future && !selected)
+            inactive || tone === "muted"
               ? "text-muted-foreground/45"
               : "text-foreground"
           )}
@@ -118,20 +126,11 @@ export function CalendarStripDay({
         </span>
       </DayCompletionRing>
 
-      {hasTasks && !inactive && ratio != null && ratio > 0 && ratio < 1 ? (
-        <span
-          className={cn(
-            "relative z-10 text-[9px] font-semibold tabular-nums",
-            tone === "green"
-              ? "text-green-500"
-              : tone === "amber"
-                ? "text-amber-500"
-                : "text-red-500"
-          )}
-        >
+      {hasTasks && !inactive && tone === "red" && ratio != null && ratio > 0 && ratio < 1 ? (
+        <span className="relative z-10 text-[9px] font-semibold tabular-nums text-red-500">
           {doneCount}/{tasks.length}
         </span>
-      ) : hasTasks && !inactive && (ratio == null || ratio === 0) && future ? (
+      ) : hasTasks && !inactive && tone === "muted" && future ? (
         <span className="relative z-10 flex h-1.5 items-center justify-center gap-0.5">
           {categories.slice(0, 3).map((category) => (
             <span

@@ -62,7 +62,8 @@ export type CalendarDayStatus =
   | "incomplete_active"
   | "default";
 
-export type CompletionTone = "red" | "amber" | "green";
+/** Visual day accent: success / failed past / future·pre-account·in-progress. */
+export type CompletionTone = "red" | "green" | "muted";
 
 /** Completed-task ratio for a day, or null when there are no tasks. */
 export function getDayCompletionRatio(tasks: DailyTask[]): number | null {
@@ -71,11 +72,37 @@ export function getDayCompletionRatio(tasks: DailyTask[]): number | null {
   return done / tasks.length;
 }
 
-/** <60% red · 60–80% amber · 80–100% green */
+/**
+ * Calendar day color:
+ * - green = all tasks done (success)
+ * - red = past day that failed to finish tasks
+ * - muted = future, pre-account, or still-open day
+ */
+export function getDayVisualTone(args: {
+  date: Date;
+  dayStatus: CalendarDayStatus;
+  inactive?: boolean;
+  now?: Date;
+}): CompletionTone {
+  if (args.inactive) return "muted";
+
+  const now = args.now ?? new Date();
+  const dayStart = new Date(args.date);
+  dayStart.setHours(0, 0, 0, 0);
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  if (dayStart.getTime() > todayStart.getTime()) return "muted";
+
+  if (args.dayStatus === "complete") return "green";
+  if (args.dayStatus === "incomplete_past") return "red";
+  return "muted";
+}
+
+/** @deprecated Use getDayVisualTone — kept for any stray ratio callers. */
 export function getCompletionTone(ratio: number): CompletionTone {
-  if (ratio < 0.6) return "red";
-  if (ratio < 0.8) return "amber";
-  return "green";
+  if (ratio >= 1) return "green";
+  if (ratio <= 0) return "red";
+  return "muted";
 }
 
 export function getCalendarDayStatus(

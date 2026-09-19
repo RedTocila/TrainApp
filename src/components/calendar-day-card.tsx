@@ -20,8 +20,8 @@ import { getTaskCategoryLabels } from "@/lib/locale-labels";
 import { DayCompletionRing } from "@/components/day-completion-ring";
 import type { CalendarDayStatus } from "@/lib/dashboard-task-enrichment";
 import {
-  getCompletionTone,
   getDayCompletionRatio,
+  getDayVisualTone,
 } from "@/lib/dashboard-task-enrichment";
 import { cn } from "@/lib/utils";
 
@@ -342,43 +342,51 @@ export function CalendarDayDot({
   date,
   tasks,
   selected,
-  dayStatus: _dayStatus = "default",
+  dayStatus = "default",
+  inactive = false,
   onSelect,
   size = "default",
+  now,
 }: {
   date: Date;
   tasks: DailyTask[];
   selected: boolean;
   dayStatus?: CalendarDayStatus;
+  /** Days before account creation. */
+  inactive?: boolean;
   onSelect: () => void;
   size?: "default" | "large";
+  now?: Date;
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
   const todayDay = isToday(date);
   const doneCount = tasks.filter((t) => t.completed).length;
   const ratio = getDayCompletionRatio(tasks);
-  const tone = ratio == null ? null : getCompletionTone(ratio);
+  const tone = getDayVisualTone({
+    date,
+    dayStatus,
+    inactive,
+    now,
+  });
   const large = size === "large";
   const ringSize = large ? 22 : 16;
   const ringStroke = large ? 2.75 : 2.25;
+  const ringProgress =
+    tone === "green" ? 1 : tone === "red" ? (ratio ?? 0) : 0;
 
   const toneBorder =
     tone === "green"
       ? selected
         ? "border-green-500 bg-green-500/15"
         : "border-green-500/45 bg-green-500/10 hover:bg-green-500/15"
-      : tone === "amber"
+      : tone === "red"
         ? selected
-          ? "border-amber-500 bg-amber-500/15"
-          : "border-amber-500/45 bg-amber-500/10 hover:bg-amber-500/15"
-        : tone === "red"
-          ? selected
-            ? "border-red-500 bg-red-500/15"
-            : "border-red-500/45 bg-red-500/10 hover:bg-red-500/15"
-          : selected
-            ? "border-primary bg-primary/10"
-            : "border-border/60 bg-secondary/20 hover:bg-secondary/40";
+          ? "border-red-500 bg-red-500/15"
+          : "border-red-500/45 bg-red-500/10 hover:bg-red-500/15"
+        : selected
+          ? "border-muted-foreground/50 bg-secondary/30"
+          : "border-border/50 bg-secondary/15 hover:bg-secondary/30";
 
   return (
     <button
@@ -390,7 +398,8 @@ export function CalendarDayDot({
           ? "min-h-[4.25rem] gap-1.5 rounded-2xl px-1 py-2 sm:min-h-[4.75rem]"
           : "aspect-square gap-0.5 text-sm",
         toneBorder,
-        todayDay && !selected && "ring-2 ring-primary/40"
+        todayDay && !selected && "ring-2 ring-primary/40",
+        (inactive || tone === "muted") && !selected && "opacity-80"
       )}
       aria-label={
         ratio == null
@@ -398,10 +407,16 @@ export function CalendarDayDot({
           : platform.calendar.tasksCompletedAria(doneCount, tasks.length)
       }
     >
-      <span className={cn("font-bold leading-none", large ? "text-base" : "text-xs")}>
+      <span
+        className={cn(
+          "font-bold leading-none",
+          large ? "text-base" : "text-xs",
+          tone === "muted" && !selected && "text-muted-foreground"
+        )}
+      >
         {formatLocalized(date, "d", locale)}
       </span>
-      {ratio == null ? (
+      {tone === "muted" && ratio == null ? (
         <span
           className={cn(
             "rounded-full bg-muted-foreground/25",
@@ -411,8 +426,8 @@ export function CalendarDayDot({
         />
       ) : (
         <DayCompletionRing
-          progress={ratio}
-          tone={tone!}
+          progress={ringProgress}
+          tone={tone}
           size={ringSize}
           stroke={ringStroke}
         />

@@ -205,6 +205,8 @@ function AdminClientCalendarInner({
                       date={day}
                       tasks={tasks}
                       dayStatus={dayStatus}
+                      inactive={beforeActive}
+                      now={now}
                       selected={selected}
                       onSelect={() => setSelectedDate(day)}
                     />

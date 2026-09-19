@@ -13,7 +13,7 @@ export function DayCompletionRing({
   className,
 }: {
   progress: number;
-  tone: CompletionTone | "muted";
+  tone: CompletionTone;
   size: number;
   stroke: number;
   children?: ReactNode;
@@ -26,11 +26,9 @@ export function DayCompletionRing({
   const strokeClass =
     tone === "green"
       ? "stroke-green-500"
-      : tone === "amber"
-        ? "stroke-amber-500"
-        : tone === "red"
-          ? "stroke-red-500"
-          : "stroke-muted-foreground/30";
+      : tone === "red"
+        ? "stroke-red-500"
+        : "stroke-muted-foreground/30";
 
   return (
     <span
