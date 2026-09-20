@@ -62,8 +62,11 @@ export type CalendarDayStatus =
   | "incomplete_active"
   | "default";
 
-/** Visual day accent: success / failed past / future·pre-account·in-progress. */
-export type CompletionTone = "red" | "green" | "muted";
+/** Visual day accent: success / near-complete / behind / future·pre-account. */
+export type CompletionTone = "red" | "amber" | "green" | "muted";
+
+/** Near-complete threshold — amber when at least this ratio, green only at 100%. */
+export const CALENDAR_AMBER_RATIO = 0.75;
 
 /** Completed-task ratio for a day, or null when there are no tasks. */
 export function getDayCompletionRatio(tasks: DailyTask[]): number | null {
@@ -74,15 +77,18 @@ export function getDayCompletionRatio(tasks: DailyTask[]): number | null {
 
 /**
  * Calendar day color:
- * - green = all tasks done (success)
- * - red = past day that failed to finish tasks
- * - muted = future, pre-account, or still-open day
+ * - green = 100% complete
+ * - amber = ≥75% complete (not full)
+ * - red = under 75%
+ * - muted = future, pre-account, or no tasks
  */
 export function getDayVisualTone(args: {
   date: Date;
   dayStatus: CalendarDayStatus;
   inactive?: boolean;
   now?: Date;
+  /** Prefer passing ratio so amber/red thresholds apply. */
+  ratio?: number | null;
 }): CompletionTone {
   if (args.inactive) return "muted";
 
@@ -94,15 +100,24 @@ export function getDayVisualTone(args: {
   if (dayStart.getTime() > todayStart.getTime()) return "muted";
 
   if (args.dayStatus === "complete") return "green";
-  if (args.dayStatus === "incomplete_past") return "red";
-  return "muted";
+
+  const ratio = args.ratio;
+  if (ratio == null) {
+    // No tasks, or caller didn't pass ratio — keep prior status fallback.
+    if (args.dayStatus === "incomplete_past") return "red";
+    return "muted";
+  }
+
+  if (ratio >= 1) return "green";
+  if (ratio >= CALENDAR_AMBER_RATIO) return "amber";
+  return "red";
 }
 
 /** @deprecated Use getDayVisualTone — kept for any stray ratio callers. */
 export function getCompletionTone(ratio: number): CompletionTone {
   if (ratio >= 1) return "green";
-  if (ratio <= 0) return "red";
-  return "muted";
+  if (ratio >= CALENDAR_AMBER_RATIO) return "amber";
+  return "red";
 }
 
 export function getCalendarDayStatus(

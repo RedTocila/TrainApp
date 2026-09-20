@@ -1,6 +1,6 @@
 "use client";
 
-import { isSameDay, isToday, isTomorrow } from "date-fns";
+import { isAfter, isSameDay, isToday, isTomorrow, startOfDay } from "date-fns";
 import { motion } from "framer-motion";
 import {
   Apple,
@@ -368,25 +368,32 @@ export function CalendarDayDot({
     dayStatus,
     inactive,
     now,
+    ratio,
   });
   const large = size === "large";
   const ringSize = large ? 22 : 16;
   const ringStroke = large ? 2.75 : 2.25;
+  const future = !inactive && isAfter(startOfDay(date), startOfDay(now ?? new Date()));
+  // Future / pre-account stay empty; active days fill by completion ratio.
   const ringProgress =
-    tone === "green" ? 1 : tone === "red" ? (ratio ?? 0) : 0;
+    inactive || future ? 0 : tone === "green" ? 1 : Math.max(0, ratio ?? 0);
 
   const toneBorder =
     tone === "green"
       ? selected
         ? "border-green-500 bg-green-500/15"
         : "border-green-500/45 bg-green-500/10 hover:bg-green-500/15"
-      : tone === "red"
+      : tone === "amber"
         ? selected
-          ? "border-red-500 bg-red-500/15"
-          : "border-red-500/45 bg-red-500/10 hover:bg-red-500/15"
-        : selected
-          ? "border-muted-foreground/50 bg-secondary/30"
-          : "border-border/50 bg-secondary/15 hover:bg-secondary/30";
+          ? "border-amber-500 bg-amber-500/15"
+          : "border-amber-500/45 bg-amber-500/10 hover:bg-amber-500/15"
+        : tone === "red"
+          ? selected
+            ? "border-red-500 bg-red-500/15"
+            : "border-red-500/45 bg-red-500/10 hover:bg-red-500/15"
+          : selected
+            ? "border-muted-foreground/50 bg-secondary/30"
+            : "border-border/50 bg-secondary/15 hover:bg-secondary/30";
 
   return (
     <button

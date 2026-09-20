@@ -58,9 +58,11 @@ export function CalendarStripDay({
     dayStatus,
     inactive,
     now: clock,
+    ratio,
   });
+  // Future / pre-account stay empty; active days fill by completion ratio.
   const ringProgress =
-    tone === "green" ? 1 : tone === "red" ? (ratio ?? 0) : 0;
+    inactive || future ? 0 : tone === "green" ? 1 : Math.max(0, ratio ?? 0);
 
   const dayAbbreviation = isToday(date)
     ? platform.calendar.today
@@ -117,7 +119,7 @@ export function CalendarStripDay({
         <span
           className={cn(
             "text-sm font-semibold leading-none tabular-nums sm:text-base",
-            inactive || tone === "muted"
+            inactive || (tone === "muted" && (future || ringProgress === 0))
               ? "text-muted-foreground/45"
               : "text-foreground"
           )}
@@ -126,8 +128,22 @@ export function CalendarStripDay({
         </span>
       </DayCompletionRing>
 
-      {hasTasks && !inactive && tone === "red" && ratio != null && ratio > 0 && ratio < 1 ? (
-        <span className="relative z-10 text-[9px] font-semibold tabular-nums text-red-500">
+      {hasTasks &&
+      !inactive &&
+      !future &&
+      ratio != null &&
+      ratio > 0 &&
+      ratio < 1 ? (
+        <span
+          className={cn(
+            "relative z-10 text-[9px] font-semibold tabular-nums",
+            tone === "red"
+              ? "text-red-500"
+              : tone === "amber"
+                ? "text-amber-500"
+                : "text-muted-foreground"
+          )}
+        >
           {doneCount}/{tasks.length}
         </span>
       ) : hasTasks && !inactive && tone === "muted" && future ? (
