@@ -26,10 +26,13 @@ export function LandingCta() {
             <p className="mx-auto max-w-md text-sm text-muted-foreground">
               Answer a few questions, create your account, then pick a package — or skip straight to your dashboard.
             </p>
-            <Link href={GET_STARTED_HREF}>
-              <Button size="lg" className="gap-2 px-8">
+            <Link href={GET_STARTED_HREF} className="inline-flex w-full max-w-sm justify-center sm:w-auto">
+              <Button
+                size="xl"
+                className="w-full gap-2.5 font-bold shadow-xl shadow-primary/30 sm:w-auto"
+              >
                 {GET_STARTED_CTA}
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
             <p className="text-xs text-muted-foreground">

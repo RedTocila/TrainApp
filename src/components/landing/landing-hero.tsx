@@ -43,27 +43,29 @@ export function LandingHero() {
             ))}
           </div>
 
-          <div className="flex flex-col items-center gap-3 lg:items-start">
-            <Link href={GET_STARTED_HREF} className="w-full max-w-sm lg:w-auto">
-              <Button size="lg" className="w-full gap-2 px-8 lg:w-auto">
+          <div className="mx-auto flex w-full max-w-sm flex-col gap-3 lg:mx-0 lg:max-w-md">
+            <Link href={GET_STARTED_HREF} className="w-full">
+              <Button
+                size="xl"
+                className="w-full gap-2.5 font-bold shadow-xl shadow-primary/30"
+              >
                 {GET_STARTED_CTA}
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
-            <Link href="/login" className="w-full max-w-sm lg:w-auto">
+            <Link href="/login" className="w-full">
               <Button
-                size="lg"
+                size="xl"
                 variant="outline"
-                className="w-full px-8 lg:w-auto"
+                className="w-full border-border/60 font-semibold text-muted-foreground hover:text-foreground"
               >
                 Log In
               </Button>
             </Link>
+            <p className="text-center text-sm text-muted-foreground lg:text-left">
+              2-min questionnaire · Plans from €20/mo
+            </p>
           </div>
-
-          <p className="text-sm text-muted-foreground">
-            2-min questionnaire · Plans from €20/mo
-          </p>
         </div>
 
         <div className="relative mx-auto w-full max-w-xl">

@@ -94,13 +94,22 @@ export function LandingNav({ overlay = false }: { overlay?: boolean }) {
               </Link>
             ))}
             <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
-              <Link href="/login" onClick={() => setMobileOpen(false)}>
-                <Button variant="outline" className="w-full">
-                  Sign in
+              <Link href={GET_STARTED_HREF} onClick={() => setMobileOpen(false)}>
+                <Button
+                  size="xl"
+                  className="w-full font-bold shadow-xl shadow-primary/30"
+                >
+                  {GET_STARTED_CTA}
                 </Button>
               </Link>
-              <Link href={GET_STARTED_HREF} onClick={() => setMobileOpen(false)}>
-                <Button className="w-full">{GET_STARTED_CTA}</Button>
+              <Link href="/login" onClick={() => setMobileOpen(false)}>
+                <Button
+                  size="xl"
+                  variant="outline"
+                  className="w-full border-border/60 font-semibold text-muted-foreground"
+                >
+                  Sign in
+                </Button>
               </Link>
             </div>
           </nav>

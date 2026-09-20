@@ -24,6 +24,8 @@ const buttonVariants = cva(
         default: "px-4",
         sm: "px-3.5 text-sm",
         lg: "px-8 text-base",
+        /** Landing / funnel CTAs — matches landing nav row (py-4 + wordmark). */
+        xl: "!h-14 px-8 text-base sm:!h-16 sm:text-lg",
         icon: "!w-[var(--control-height)] shrink-0 p-0",
       },
     },
