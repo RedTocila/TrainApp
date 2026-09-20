@@ -1,4 +1,4 @@
-import { Flame, Leaf, Skull, Target } from "lucide-react";
+import { Flame, Leaf, Target } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { PersonalWorkoutDifficultyId } from "@/lib/workout-difficulty";
 
@@ -6,7 +6,6 @@ export const DIFFICULTY_ICONS: Record<PersonalWorkoutDifficultyId, LucideIcon> =
   easy: Leaf,
   intermediate: Target,
   hard: Flame,
-  impossible: Skull,
 };
 
 export const DIFFICULTY_BUTTON_STYLES: Record<
@@ -24,10 +23,6 @@ export const DIFFICULTY_BUTTON_STYLES: Record<
   hard: {
     ring: "border-orange-500/35 bg-orange-500/10 hover:bg-orange-500/15",
     icon: "text-orange-400",
-  },
-  impossible: {
-    ring: "border-fuchsia-500/35 bg-fuchsia-500/10 hover:bg-fuchsia-500/15",
-    icon: "text-fuchsia-400",
   },
 };
 
@@ -49,10 +44,5 @@ export const DIFFICULTY_PANEL_STYLES: Record<
     panel: "border-orange-500/30 bg-orange-500/8",
     icon: "text-orange-400",
     label: "text-orange-300",
-  },
-  impossible: {
-    panel: "border-fuchsia-500/35 bg-fuchsia-500/10",
-    icon: "text-fuchsia-400",
-    label: "text-fuchsia-300",
   },
 };

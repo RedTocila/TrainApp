@@ -22,8 +22,8 @@ type CompleteResult = {
 };
 
 /**
- * After a session completes: auto-continue warm-up → main,
- * or offer optional stretch after main.
+ * After a session completes: auto-continue warm-up → main.
+ * After main → stretch: stay on page and let the user start or skip.
  */
 export function useDayWorkoutFlowContinue() {
   const router = useRouter();
@@ -108,6 +108,7 @@ export function useDayWorkoutFlowContinue() {
       <StretchOfferOverlay
         open={Boolean(stretchOffer)}
         busy={isContinuing}
+        dayTitle={stretchOffer?.dayTitle ?? null}
         onAccept={acceptStretch}
         onSkip={dismissStretch}
       />
@@ -118,11 +119,13 @@ export function useDayWorkoutFlowContinue() {
 function StretchOfferOverlay({
   open,
   busy,
+  dayTitle,
   onAccept,
   onSkip,
 }: {
   open: boolean;
   busy: boolean;
+  dayTitle?: string | null;
   onAccept: () => void;
   onSkip: () => void;
 }) {
@@ -139,6 +142,11 @@ function StretchOfferOverlay({
           <p className="text-sm text-muted-foreground">
             {platform.workout.stretchOfferBody}
           </p>
+          {dayTitle ? (
+            <p className="pt-1 text-sm font-semibold text-foreground">
+              {dayTitle}
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent className="flex flex-col gap-2 pb-5">
           <Button className="w-full" disabled={busy} onClick={onAccept}>

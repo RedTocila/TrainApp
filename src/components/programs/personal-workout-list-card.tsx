@@ -57,7 +57,12 @@ export function PersonalWorkoutListCard({
   const hasExercises = exerciseCount > 0;
   const programCategory = inferProgramCategory(plan.title, days, plan.kind);
   const programStyle = getWorkoutCategoryStyle(programCategory);
-  const dayTitle = days.length === 1 ? days[0].title : plan.title;
+  // Prefer plan title so regional cues ("Back Stretching") aren't lost when the
+  // day title is a generic label like "Stretching" / "Warm-up" / "HIIT".
+  const dayTitle =
+    days.length === 1
+      ? [plan.title, days[0].title].filter(Boolean).join(" ")
+      : plan.title;
   const previewHref = `/dashboard/workout/${plan.id}`;
   const editHref = `/dashboard/workout/${plan.id}/edit`;
 

@@ -9,17 +9,7 @@ import {
   useTransition,
   type ReactNode,
 } from "react";
-import {
-  Check,
-  ChevronDown,
-  Dumbbell,
-  Flame,
-  Loader2,
-  PenLine,
-  PersonStanding,
-  Sparkles,
-  Zap,
-} from "lucide-react";
+import { Check, ChevronDown, Loader2, PenLine, Sparkles } from "lucide-react";
 import {
   applyAiFullTrainingDayToDateAction,
   generateAiFullTrainingDayAction,
@@ -36,6 +26,21 @@ import type { Profile } from "@/lib/types";
 import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { resolveProfileGender } from "@/lib/exercise-gif";
 import { hiitSummaryLabel } from "@/lib/hiit";
+import { WorkoutCategoryIcon } from "@/components/programs/workout-day-chip";
+import {
+  inferWorkoutCategoryFromText,
+  type WorkoutCategory,
+} from "@/lib/workout-visual-categories";
+
+function categoryForSection(
+  tone: "warmup" | "main" | "hiit" | "stretch",
+  title: string
+): WorkoutCategory {
+  if (tone === "warmup") return "warmup";
+  if (tone === "stretch") return "stretch";
+  if (tone === "hiit") return "hiit";
+  return inferWorkoutCategoryFromText(title);
+}
 
 export function AddWorkoutToDayAiPanel({
   dateKey,
@@ -206,6 +211,19 @@ export function AddWorkoutToDayAiPanel({
     );
   }
 
+  const mainTitle =
+    program?.main.kind === "hiit"
+      ? program.main.plan.title
+      : program?.main.workout.title ?? "";
+  const mainSummary =
+    program?.main.kind === "hiit"
+      ? hiitSummaryLabel(program.main.plan.config)
+      : platform.common.exercises(program?.main.workout.exercises.length ?? 0);
+  const mainExerciseCount =
+    program?.main.kind === "hiit"
+      ? program.main.plan.config.exercises.length
+      : program?.main.workout.exercises.length ?? 0;
+
   return (
     <div className="space-y-4">
       {showEditor ? (
@@ -245,158 +263,159 @@ export function AddWorkoutToDayAiPanel({
       ) : null}
 
       {program && !showEditor ? (
-        <div className="space-y-2">
-          <ProgramSection
-            id="warmup"
-            open={openSection === "warmup"}
-            onToggle={() =>
-              setOpenSection((cur) => (cur === "warmup" ? null : "warmup"))
-            }
-            tone="warmup"
-            icon={Flame}
-            label={platform.workout.sessionTypeWarmup}
-            title={program.warmup.title}
-            summary={hiitSummaryLabel(program.warmup.config)}
-            exerciseCount={program.warmup.config.exercises.length}
-            exercisesLabel={platform.common.exercises}
-          >
-            {program.warmup.config.exercises.map((ex) => (
-              <li
-                key={ex.name}
-                className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
-              >
-                <ExerciseGifThumbnail
-                  name={ex.name}
-                  imageUrl={ex.image_url}
-                  videoUrl={ex.video_url}
-                  gender={exerciseGender}
-                  size="sm"
-                  expandable
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{ex.name}</p>
-                  <p className="text-muted-foreground">
-                    {ex.work_seconds}s work · {ex.rest_seconds}s rest
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ProgramSection>
+        <ul className="space-y-2">
+          <li>
+            <ProgramSection
+              open={openSection === "warmup"}
+              onToggle={() =>
+                setOpenSection((cur) => (cur === "warmup" ? null : "warmup"))
+              }
+              category={categoryForSection("warmup", program.warmup.title)}
+              sessionLabel={platform.workout.sessionTypeWarmup}
+              title={program.warmup.title}
+              summary={hiitSummaryLabel(program.warmup.config)}
+              exerciseCount={program.warmup.config.exercises.length}
+              exercisesLabel={platform.common.exercises}
+              applied={applied}
+              addedLabel={platform.workout.workoutAddedToDay}
+            >
+              {program.warmup.config.exercises.map((ex) => (
+                <li
+                  key={ex.name}
+                  className="flex items-start gap-2.5 rounded-xl border border-border/35 bg-secondary/35 px-2.5 py-2 text-xs"
+                >
+                  <ExerciseGifThumbnail
+                    name={ex.name}
+                    imageUrl={ex.image_url}
+                    videoUrl={ex.video_url}
+                    gender={exerciseGender}
+                    size="sm"
+                    expandable
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{ex.name}</p>
+                    <p className="text-muted-foreground">
+                      {ex.work_seconds}s work · {ex.rest_seconds}s rest
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ProgramSection>
+          </li>
 
-          <ProgramSection
-            id="main"
-            open={openSection === "main"}
-            onToggle={() =>
-              setOpenSection((cur) => (cur === "main" ? null : "main"))
-            }
-            tone={program.main.kind === "hiit" ? "hiit" : "main"}
-            icon={program.main.kind === "hiit" ? Zap : Dumbbell}
-            label={
-              program.main.kind === "hiit"
-                ? "HIIT"
-                : platform.workout.sessionTypeMain
-            }
-            title={
-              program.main.kind === "hiit"
-                ? program.main.plan.title
-                : program.main.workout.title
-            }
-            summary={
-              program.main.kind === "hiit"
-                ? hiitSummaryLabel(program.main.plan.config)
-                : platform.common.exercises(program.main.workout.exercises.length)
-            }
-            exerciseCount={
-              program.main.kind === "hiit"
-                ? program.main.plan.config.exercises.length
-                : program.main.workout.exercises.length
-            }
-            exercisesLabel={platform.common.exercises}
-          >
-            {program.main.kind === "hiit"
-              ? program.main.plan.config.exercises.map((ex) => (
-                  <li
-                    key={ex.name}
-                    className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
-                  >
-                    <ExerciseGifThumbnail
-                      name={ex.name}
-                      imageUrl={ex.image_url}
-                      videoUrl={ex.video_url}
-                      gender={exerciseGender}
-                      size="sm"
-                      expandable
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium">{ex.name}</p>
-                      <p className="text-muted-foreground">
-                        {ex.work_seconds}s work · {ex.rest_seconds}s rest
-                      </p>
-                    </div>
-                  </li>
-                ))
-              : program.main.workout.exercises.map((ex) => (
-                  <li
-                    key={ex.name}
-                    className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
-                  >
-                    <ExerciseGifThumbnail
-                      name={ex.name}
-                      imageUrl={ex.image_url}
-                      videoUrl={ex.video_url}
-                      gender={exerciseGender}
-                      size="sm"
-                      expandable
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium">{ex.name}</p>
-                      <p className="text-muted-foreground">
-                        {ex.sets} sets × {ex.reps} · {ex.rest_seconds}s rest
-                      </p>
-                    </div>
-                  </li>
-                ))}
-          </ProgramSection>
+          <li>
+            <ProgramSection
+              open={openSection === "main"}
+              onToggle={() =>
+                setOpenSection((cur) => (cur === "main" ? null : "main"))
+              }
+              category={categoryForSection(
+                program.main.kind === "hiit" ? "hiit" : "main",
+                mainTitle
+              )}
+              sessionLabel={
+                program.main.kind === "hiit"
+                  ? "HIIT"
+                  : platform.workout.sessionTypeMain
+              }
+              title={mainTitle}
+              summary={mainSummary}
+              exerciseCount={mainExerciseCount}
+              exercisesLabel={platform.common.exercises}
+              applied={applied}
+              addedLabel={platform.workout.workoutAddedToDay}
+            >
+              {program.main.kind === "hiit"
+                ? program.main.plan.config.exercises.map((ex) => (
+                    <li
+                      key={ex.name}
+                      className="flex items-start gap-2.5 rounded-xl border border-border/35 bg-secondary/35 px-2.5 py-2 text-xs"
+                    >
+                      <ExerciseGifThumbnail
+                        name={ex.name}
+                        imageUrl={ex.image_url}
+                        videoUrl={ex.video_url}
+                        gender={exerciseGender}
+                        size="sm"
+                        expandable
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{ex.name}</p>
+                        <p className="text-muted-foreground">
+                          {ex.work_seconds}s work · {ex.rest_seconds}s rest
+                        </p>
+                      </div>
+                    </li>
+                  ))
+                : program.main.workout.exercises.map((ex) => (
+                    <li
+                      key={ex.name}
+                      className="flex items-start gap-2.5 rounded-xl border border-border/35 bg-secondary/35 px-2.5 py-2 text-xs"
+                    >
+                      <ExerciseGifThumbnail
+                        name={ex.name}
+                        imageUrl={ex.image_url}
+                        videoUrl={ex.video_url}
+                        gender={exerciseGender}
+                        size="sm"
+                        expandable
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{ex.name}</p>
+                        <p className="text-muted-foreground">
+                          {ex.sets} sets × {ex.reps} · {ex.rest_seconds}s rest
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+            </ProgramSection>
+          </li>
 
-          <ProgramSection
-            id="stretch"
-            open={openSection === "stretch"}
-            onToggle={() =>
-              setOpenSection((cur) => (cur === "stretch" ? null : "stretch"))
-            }
-            tone="stretch"
-            icon={PersonStanding}
-            label={platform.workout.sessionTypeStretch}
-            title={program.stretch.title}
-            summary={hiitSummaryLabel(program.stretch.config)}
-            exerciseCount={program.stretch.config.exercises.length}
-            exercisesLabel={platform.common.exercises}
-          >
-            {program.stretch.config.exercises.map((ex) => (
-              <li
-                key={ex.name}
-                className="flex items-start gap-2.5 rounded-lg bg-secondary/30 px-2.5 py-2 text-xs"
-              >
-                <ExerciseGifThumbnail
-                  name={ex.name}
-                  imageUrl={ex.image_url}
-                  videoUrl={ex.video_url}
-                  gender={exerciseGender}
-                  size="sm"
-                  expandable
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{ex.name}</p>
-                  <p className="text-muted-foreground">
-                    {ex.work_seconds}s work · {ex.rest_seconds}s rest
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ProgramSection>
+          <li>
+            <ProgramSection
+              open={openSection === "stretch"}
+              onToggle={() =>
+                setOpenSection((cur) => (cur === "stretch" ? null : "stretch"))
+              }
+              category={categoryForSection("stretch", program.stretch.title)}
+              sessionLabel={platform.workout.sessionTypeStretch}
+              title={program.stretch.title}
+              summary={hiitSummaryLabel(program.stretch.config)}
+              exerciseCount={program.stretch.config.exercises.length}
+              exercisesLabel={platform.common.exercises}
+              applied={applied}
+              addedLabel={platform.workout.workoutAddedToDay}
+            >
+              {program.stretch.config.exercises.map((ex) => (
+                <li
+                  key={ex.name}
+                  className="flex items-start gap-2.5 rounded-xl border border-border/35 bg-secondary/35 px-2.5 py-2 text-xs"
+                >
+                  <ExerciseGifThumbnail
+                    name={ex.name}
+                    imageUrl={ex.image_url}
+                    videoUrl={ex.video_url}
+                    gender={exerciseGender}
+                    size="sm"
+                    expandable
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{ex.name}</p>
+                    <p className="text-muted-foreground">
+                      {ex.work_seconds}s work · {ex.rest_seconds}s rest
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ProgramSection>
+          </li>
 
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
-        </div>
+          {error ? (
+            <li>
+              <p className="text-sm text-red-400">{error}</p>
+            </li>
+          ) : null}
+        </ul>
       ) : null}
     </div>
   );
@@ -405,67 +424,70 @@ export function AddWorkoutToDayAiPanel({
 function ProgramSection({
   open,
   onToggle,
-  tone,
-  icon: Icon,
-  label,
+  category,
+  sessionLabel,
   title,
   summary,
   exerciseCount,
   exercisesLabel,
+  applied,
+  addedLabel,
   children,
 }: {
-  id: string;
   open: boolean;
   onToggle: () => void;
-  tone: "warmup" | "main" | "hiit" | "stretch";
-  icon: typeof Flame;
-  label: string;
+  category: WorkoutCategory;
+  sessionLabel: string;
   title: string;
   summary: string;
   exerciseCount: number;
   exercisesLabel: (n: number) => string;
+  applied?: boolean;
+  addedLabel: string;
   children: ReactNode;
 }) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border bg-card/80",
-        tone === "warmup" && "border-orange-500/25",
-        tone === "stretch" && "border-teal-500/25",
-        tone === "hiit" && "border-fuchsia-500/25",
-        tone === "main" && "border-border/60"
+        "overflow-hidden rounded-2xl border transition-colors",
+        applied
+          ? "border-emerald-500/40 bg-emerald-500/12"
+          : "border-border/45 bg-secondary/45"
       )}
     >
-      <div className="border-b border-border/60 px-3 py-2.5">
-        <div
-          className={cn(
-            "mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide",
-            tone === "warmup" && "text-orange-400",
-            tone === "stretch" && "text-teal-400",
-            tone === "hiit" && "text-fuchsia-400",
-            tone === "main" && "text-primary"
-          )}
-        >
-          <Icon className="h-3.5 w-3.5" />
-          {label}
-          <span className="font-normal normal-case text-muted-foreground">
-            · {summary}
-          </span>
-        </div>
-        <p className="text-sm font-semibold">{title}</p>
-      </div>
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs text-muted-foreground hover:bg-secondary/40"
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-secondary/35"
       >
-        <span>{exercisesLabel(exerciseCount)}</span>
-        <ChevronDown
-          className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
-        />
+        <WorkoutCategoryIcon category={category} size="md" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold leading-snug">{title}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {sessionLabel}
+            {summary ? ` · ${summary}` : ""}
+            {exerciseCount > 0 ? ` · ${exercisesLabel(exerciseCount)}` : ""}
+          </p>
+        </div>
+        {applied ? (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-400">
+            <Check className="h-3 w-3" strokeWidth={2.5} />
+            {addedLabel}
+          </span>
+        ) : (
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+              open && "rotate-180"
+            )}
+          />
+        )}
       </button>
       {open ? (
-        <ul className="space-y-1.5 border-t border-border/60 px-3 py-2">{children}</ul>
+        <ul className="space-y-1.5 border-t border-border/40 px-3 pb-3 pt-2">
+          {children}
+        </ul>
       ) : null}
     </div>
   );

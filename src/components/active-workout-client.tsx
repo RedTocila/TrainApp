@@ -45,7 +45,7 @@ import { useDashboardSync } from "@/components/dashboard-sync";
 import { DayFlowProgress } from "@/components/day-flow-progress";
 import { useDayWorkoutFlowContinue } from "@/components/day-workout-flow";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
-import { formatDateKey } from "@/lib/utils";
+import { cn, formatDateKey } from "@/lib/utils";
 import {
   estimateWorkoutDurationSeconds,
   formatElapsedClock,
@@ -181,6 +181,7 @@ function ActiveExercisePanel({
   readOnly,
   gender,
   restClock,
+  restRunning = false,
   onLoggedSet,
   onAllSetsDone,
   mediaPaused,
@@ -194,6 +195,7 @@ function ActiveExercisePanel({
   readOnly: boolean;
   gender?: ExerciseGender | null;
   restClock: string;
+  restRunning?: boolean;
   onLoggedSet: () => void;
   onAllSetsDone?: () => void;
   mediaPaused?: boolean;
@@ -417,7 +419,12 @@ function ActiveExercisePanel({
           value={exercise.target_reps || "—"}
           label={platform.workout.repsRequired}
         />
-        <SessionStat value={restClock} label={platform.workout.rest} emphasize />
+        <SessionStat
+          value={restClock}
+          label={platform.workout.rest}
+          emphasize
+          pulse={restRunning}
+        />
         <SessionStat
           value={`${completedSets}/${targetSets}`}
           label={platform.workout.setsDone}
@@ -468,22 +475,81 @@ function ActiveExercisePanel({
             </Button>
           </div>
 
-          {sets.length > 0 ? (
-            <div className="flex w-full gap-1.5">
-              {sets.map((set) => (
-                <span
-                  key={set.id}
-                  className="inline-flex min-w-0 flex-1 items-center justify-center rounded-xl border border-border/50 bg-secondary/40 px-2 py-2 text-center text-[11px] font-medium tabular-nums text-muted-foreground"
-                >
-                  {set.set_number}.{" "}
-                  {set.reps != null ? set.reps : "—"}
-                  {set.weight_kg != null
-                    ? ` × ${units.formatWeightKg(Number(set.weight_kg))}`
-                    : ""}
-                </span>
-              ))}
-            </div>
-          ) : null}
+          {(() => {
+            const setSlots = Array.from({ length: targetSets }, (_, i) => {
+              const setNumber = i + 1;
+              return (
+                sets.find((set) => set.set_number === setNumber) ?? null
+              );
+            });
+            const isSetDone = (set: WorkoutSessionSet | null) =>
+              Boolean(
+                set &&
+                  (set.completed || set.reps != null || set.weight_kg != null)
+              );
+
+            return (
+              <div className="flex w-full gap-1.5">
+                {setSlots.map((set, index) => {
+                  const setNumber = index + 1;
+                  const done = isSetDone(set);
+                  const isCurrent =
+                    !done &&
+                    (activeSet
+                      ? activeSet.set_number === setNumber
+                      : completedSets === index);
+
+                  return (
+                    <span
+                      key={set?.id ?? `slot-${setNumber}`}
+                      className={cn(
+                        "inline-flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border px-1.5 py-2 text-center tabular-nums",
+                        done &&
+                          "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+                        isCurrent &&
+                          "border-primary/45 bg-primary/10 text-foreground",
+                        !done &&
+                          !isCurrent &&
+                          "border-border/50 bg-secondary/40 text-muted-foreground"
+                      )}
+                      aria-label={
+                        done
+                          ? `Set ${setNumber} completed`
+                          : isCurrent
+                            ? `Set ${setNumber} current`
+                            : `Set ${setNumber}`
+                      }
+                    >
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide">
+                        {done ? (
+                          <Check
+                            className="h-3 w-3 shrink-0 text-emerald-500"
+                            strokeWidth={3}
+                            aria-hidden
+                          />
+                        ) : null}
+                        {setNumber}
+                      </span>
+                      <span className="max-w-full truncate text-[11px] font-medium leading-tight">
+                        {done && set
+                          ? [
+                              set.reps != null ? String(set.reps) : "—",
+                              set.weight_kg != null
+                                ? units.formatWeightKg(Number(set.weight_kg))
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" × ")
+                          : isCurrent
+                            ? "…"
+                            : "—"}
+                      </span>
+                    </span>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       ) : (
         <p className="text-center text-sm text-muted-foreground">
@@ -809,6 +875,7 @@ export function ActiveWorkoutClient({
             readOnly={!isStarted}
             gender={exerciseGender}
             restClock={formatSessionClock(rest.displaySeconds)}
+            restRunning={rest.running}
             onLoggedSet={() => rest.start(activeExercise.rest_seconds)}
             onAllSetsDone={() => {
               if (activeIndex < exercises.length - 1) {

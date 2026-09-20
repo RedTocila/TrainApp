@@ -76,7 +76,12 @@ export function WorkoutPlanPreviewClient({
 
   const exerciseCount =
     dayExercises.length > 0 ? dayExercises.length : hiitExercises.length;
-  const dayTitle = days.length === 1 ? days[0].title : plan.title;
+  // Prefer plan title so regional cues ("Back Stretching") aren't lost when the
+  // day title is a generic label like "Stretching" / "Warm-up" / "HIIT".
+  const dayTitle =
+    days.length === 1
+      ? [plan.title, days[0].title].filter(Boolean).join(" ")
+      : plan.title;
 
   const meta = [
     programStyle.shortLabel,

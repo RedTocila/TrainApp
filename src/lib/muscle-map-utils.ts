@@ -119,12 +119,26 @@ const CARDIO_PRIMARY_SLUGS: BodyMuscleSlug[] = ["quadriceps", "calves"];
 const CATEGORY_PRIMARY_SLUGS: Partial<Record<string, BodyMuscleSlug[]>> = {
   push: ["chest", "deltoids", "triceps"],
   pull: ["upper-back", "biceps"],
+  back: ["upper-back", "lower-back", "trapezius"],
   legs: ["quadriceps", "hamstring", "gluteal"],
   core: ["abs", "obliques"],
   upper: ["chest", "deltoids", "upper-back"],
   cardio: CARDIO_PRIMARY_SLUGS,
   full: ["chest", "quadriceps", "upper-back", "abs"],
+  /** Generic mobility when no body-region cue is present. */
+  stretch: ["upper-back", "hamstring", "gluteal", "chest", "deltoids"],
+  warmup: ["chest", "quadriceps", "upper-back", "abs"],
 };
+
+const REGION_CATEGORIES = new Set([
+  "push",
+  "pull",
+  "back",
+  "legs",
+  "core",
+  "upper",
+  "full",
+]);
 
 function normalizeText(parts: (string | null | undefined)[]): string {
   return parts
@@ -236,11 +250,16 @@ function inferCategoriesFromText(...parts: (string | null | undefined)[]): strin
   }
   if (/\b(push|press|chest|shoulder|tricep)\b/.test(text)) categories.push("push");
   if (/\b(pull|row|lat|chin|bicep)\b/.test(text)) categories.push("pull");
+  if (/\b(back|trap|rhomboid)\b/.test(text)) categories.push("back");
   if (/\b(leg|squat|lunge|glute|hamstring|calf|deadlift)\b/.test(text)) {
     categories.push("legs");
   }
   if (/\b(upper body|upper)\b/.test(text)) categories.push("upper");
   if (/\b(full body|full-body|total body)\b/.test(text)) categories.push("full");
+  if (/\b(stretch|stretching|mobility|flexibility|yoga)\b/.test(text)) {
+    categories.push("stretch");
+  }
+  if (/\b(warm[- ]?up|warmup)\b/.test(text)) categories.push("warmup");
 
   if (categories.length === 0) {
     const inferred = inferWorkoutCategoryFromText(...parts);
@@ -257,6 +276,7 @@ function highlightsFromCategoryFallback(
 ): WorkoutMuscleHighlight[] {
   const intensities = new Map<BodyMuscleSlug, MuscleIntensity>();
   const hasCardio = categories.includes("cardio") || categories.includes("hiit");
+  const hasRegion = categories.some((category) => REGION_CATEGORIES.has(category));
 
   if (hasCardio) {
     for (const slug of CARDIO_PRIMARY_SLUGS) {
@@ -266,6 +286,8 @@ function highlightsFromCategoryFallback(
 
   for (const category of categories) {
     if (category === "cardio" || category === "hiit") continue;
+    // Prefer body-region cues over generic stretch/warmup defaults.
+    if (hasRegion && (category === "stretch" || category === "warmup")) continue;
     for (const slug of CATEGORY_PRIMARY_SLUGS[category] ?? []) {
       applyIntensity(intensities, slug, INTENSITY_PRIMARY_FOCUS);
     }

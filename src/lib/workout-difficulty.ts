@@ -13,7 +13,7 @@ import type { WorkoutDifficultyBehaviorContext } from "@/lib/workout-difficulty-
 import type { Profile } from "@/lib/types";
 import { estimateWorkoutDurationSeconds } from "@/lib/workout-duration";
 
-export type PersonalWorkoutDifficultyId = "easy" | "intermediate" | "hard" | "impossible";
+export type PersonalWorkoutDifficultyId = "easy" | "intermediate" | "hard";
 
 export type WorkoutDifficultyInput = {
   sets: number;
@@ -377,8 +377,7 @@ export function assessPersonalWorkoutDifficulty(
   let id: PersonalWorkoutDifficultyId;
   if (gap < -15) id = "easy";
   else if (gap < 8) id = "intermediate";
-  else if (gap < 25) id = "hard";
-  else id = "impossible";
+  else id = "hard";
 
   return {
     id,

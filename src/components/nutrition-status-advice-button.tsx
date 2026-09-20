@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import {
@@ -33,22 +33,26 @@ const STATUS_STYLES: Record<
   { button: string; title: string; dialog: string }
 > = {
   good: {
-    button: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20",
+    button:
+      "border-emerald-400/55 bg-background/70 text-emerald-400 shadow-[0_4px_16px_rgba(0,0,0,0.18)] backdrop-blur-xl hover:bg-background/80 dark:bg-background/55 dark:hover:bg-background/70",
     title: "text-emerald-400",
     dialog: "border-emerald-500/30 bg-emerald-500/15",
   },
   bad: {
-    button: "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20",
+    button:
+      "border-amber-400/55 bg-background/70 text-amber-400 shadow-[0_4px_16px_rgba(0,0,0,0.18)] backdrop-blur-xl hover:bg-background/80 dark:bg-background/55 dark:hover:bg-background/70",
     title: "text-amber-400",
     dialog: "border-amber-500/30 bg-amber-500/15",
   },
   missed: {
-    button: "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20",
+    button:
+      "border-red-400/55 bg-background/70 text-red-400 shadow-[0_4px_16px_rgba(0,0,0,0.18)] backdrop-blur-xl hover:bg-background/80 dark:bg-background/55 dark:hover:bg-background/70",
     title: "text-red-400",
     dialog: "border-red-500/30 bg-red-500/15",
   },
   too_much: {
-    button: "border-orange-500/40 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20",
+    button:
+      "border-orange-400/55 bg-background/70 text-orange-400 shadow-[0_4px_16px_rgba(0,0,0,0.18)] backdrop-blur-xl hover:bg-background/80 dark:bg-background/55 dark:hover:bg-background/70",
     title: "text-orange-400",
     dialog: "border-orange-500/30 bg-orange-500/15",
   },
@@ -182,7 +186,7 @@ export function NutritionStatusAdviceButton({
                 "hover:brightness-110"
               )
             : cn(
-                "max-w-full shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase leading-snug tracking-wide transition-colors",
+                "inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold uppercase leading-none tracking-wide transition-colors",
                 styles.button
               ),
           className
@@ -202,7 +206,16 @@ export function NutritionStatusAdviceButton({
             </div>
           </>
         ) : (
-          advice.title
+          <>
+            {status !== "good" ? (
+              <AlertTriangle
+                className="h-3.5 w-3.5 shrink-0"
+                strokeWidth={2.5}
+                aria-hidden
+              />
+            ) : null}
+            {advice.title}
+          </>
         )}
       </button>
 

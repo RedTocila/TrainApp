@@ -106,11 +106,14 @@ export function SessionStat({
   value,
   label,
   emphasize,
+  pulse,
   compact,
 }: {
   value: ReactNode;
   label: string;
   emphasize?: boolean;
+  /** Soft pulse while a live countdown is running (e.g. rest). */
+  pulse?: boolean;
   compact?: boolean;
 }) {
   return (
@@ -119,12 +122,18 @@ export function SessionStat({
         className={cn(
           "font-mono font-black tabular-nums tracking-tight",
           compact ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl",
-          emphasize ? "text-primary" : "text-foreground"
+          emphasize ? "text-primary" : "text-foreground",
+          pulse && "animate-pulse"
         )}
       >
         {value}
       </p>
-      <p className="max-w-[6.5rem] text-[0.65rem] font-semibold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
+      <p
+        className={cn(
+          "max-w-[6.5rem] text-[0.65rem] font-semibold uppercase leading-tight tracking-[0.12em] text-muted-foreground",
+          pulse && "animate-pulse"
+        )}
+      >
         {label}
       </p>
     </div>

@@ -96,11 +96,14 @@ export function ActiveHiitClient({
   config,
   planKind = "hiit",
   gender,
+  continuesToMain = false,
 }: {
   session: WorkoutSession;
   config: HiitConfig;
   planKind?: WorkoutPlanKind;
   gender?: string | null;
+  /** Warm-up has a main workout next — finish CTA points into it. */
+  continuesToMain?: boolean;
 }) {
   const router = useRouter();
   const platform = usePlatformCopy();
@@ -136,6 +139,20 @@ export function ActiveHiitClient({
     : isStretch
       ? platform.workout.skipStretch
       : platform.workout.skipSession;
+  const showSkipDayFlow =
+    (isWarmup && continuesToMain) || isStretch;
+  const finishCtaLabel =
+    isWarmup && continuesToMain
+      ? platform.workout.finishWarmupNextMain
+      : "Complete workout";
+  const doneBannerTitle =
+    isWarmup && continuesToMain
+      ? platform.workout.finishWarmupBannerTitle
+      : "Finished";
+  const doneBannerBody =
+    isWarmup && continuesToMain
+      ? platform.workout.finishWarmupBannerBody
+      : "Great work";
 
   const phaseIndex = timer?.phaseIndex ?? 0;
   const phase: HiitPhase =
@@ -497,7 +514,12 @@ export function ActiveHiitClient({
                 <p className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   {phaseEyebrow}
                 </p>
-                <p className="font-mono text-5xl font-black tabular-nums tracking-tighter">
+                <p
+                  className={cn(
+                    "font-mono text-5xl font-black tabular-nums tracking-tighter",
+                    isRunning && isRestPhase && "animate-pulse text-primary"
+                  )}
+                >
                   {isDone
                     ? "00:00"
                     : isIdle
@@ -547,6 +569,7 @@ export function ActiveHiitClient({
                   : phaseEyebrow ?? platform.workout.rest
             }
             emphasize
+            pulse={isRunning && isRestPhase}
           />
           <SessionStat
             compact
@@ -558,9 +581,11 @@ export function ActiveHiitClient({
         {isDone ? (
           <div className="shrink-0 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-center">
             <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-emerald-400">
-              Finished
+              {doneBannerTitle}
             </p>
-            <p className="text-base font-black uppercase text-foreground">Great work</p>
+            <p className="text-base font-black uppercase text-foreground">
+              {doneBannerBody}
+            </p>
           </div>
         ) : null}
       </div>
@@ -594,7 +619,7 @@ export function ActiveHiitClient({
               ) : (
                 <>
                   <Check className="h-4 w-4" strokeWidth={2.5} />
-                  Complete workout
+                  {finishCtaLabel}
                 </>
               )}
             </Button>
@@ -615,12 +640,12 @@ export function ActiveHiitClient({
             ) : (
               <>
                 <Check className="h-4 w-4" strokeWidth={2.5} />
-                Complete workout
+                {finishCtaLabel}
               </>
             )}
           </Button>
         ) : null}
-        {isWarmup || isStretch ? (
+        {showSkipDayFlow ? (
           <Button
             type="button"
             variant="secondary"

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AiCoachFab } from "@/components/ai-coach-fab";
+import { AiCoachFab, DASHBOARD_NAV_GLASS_CLASS } from "@/components/ai-coach-fab";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { AppLogo } from "@/components/app-logo";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -196,8 +196,7 @@ export function ClientNav({
             <nav
               className={cn(
                 "dashboard-instant-nav pointer-events-auto isolate relative flex h-14 w-full max-w-[min(28rem,calc(100%-3.75rem))] items-center justify-around p-1.5",
-                "rounded-full border border-zinc-300/90 bg-white/90 shadow-[0_8px_28px_rgba(0,0,0,0.12)] backdrop-blur-2xl",
-                "dark:border-white/15 dark:bg-background/35 dark:shadow-[0_8px_28px_rgba(0,0,0,0.22)]"
+                DASHBOARD_NAV_GLASS_CLASS
               )}
               aria-label="Primary"
             >

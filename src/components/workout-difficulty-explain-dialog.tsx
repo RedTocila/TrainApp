@@ -18,7 +18,6 @@ const DIFFICULTY_LABEL_CLASS: Record<PersonalWorkoutDifficultyId, string> = {
   easy: "text-emerald-400",
   intermediate: "text-sky-400",
   hard: "text-orange-400",
-  impossible: "text-fuchsia-400",
 };
 
 function humanizeReasonId(id: string): string {

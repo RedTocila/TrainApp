@@ -511,12 +511,6 @@ export const platformCopyAl = {
         tagline: "Respekto seancën.",
         summary: "Volumi, faktoret e rikuperimit ose profili yt e bëjnë këtë ditë të rëndë.",
       },
-      impossible: {
-        label: "E pamundur",
-        tagline: "Ji i zgjuar — ul volumin nëse duhet.",
-        summary:
-          "Sipas profilit tënd shëndetësor dhe të stilit të jetës, kjo tejkalon kapacitetin realistik për momentin.",
-      },
     },
     personalDifficultyReasons: {
       beginnerExperience:
@@ -580,10 +574,8 @@ export const platformCopyAl = {
     },
     difficulty: {
       easy: { label: "E lehtë", tagline: "Punë e lehtë. Dil dhe lëviz." },
-      moderate: { label: "Mesatare", tagline: "Seancë e vërtetë. Qëndro i fokusuar." },
+      intermediate: { label: "Mesatare", tagline: "Seancë e vërtetë. Qëndro i fokusuar." },
       hard: { label: "E vështirë", tagline: "Ditë e rëndë. Merre dushun me meritë." },
-      brutal: { label: "Brutale", tagline: "Modalitet bishë. Pa justifikime." },
-      legend: { label: "E pamundur", tagline: "Nivel legjende. Dërgo ndihmë." },
     },
     timeRemaining: (duration: string) => `~${duration} mbeten`,
     finishSummaryTitle: "Përmbledhje seance",
@@ -659,6 +651,9 @@ export const platformCopyAl = {
     skipToMainWorkout: "Kalo te stërvitja kryesore",
     skipWarmupHint: "Kalo drejt te stërvitja kryesore",
     continueToMain: "Vazhdo te stërvitja kryesore",
+    finishWarmupNextMain: "Tjetër: nise stërvitjen e vërtetë",
+    finishWarmupBannerTitle: "Ngrohja u krye",
+    finishWarmupBannerBody: "Tjetër — stërvitja e vërtetë",
     stretchOfferTitle: "Shto shtrirje?",
     stretchOfferBody:
       "Stërvitja kryesore u krye. Bëj shtrirjen tani, ose anashkaloje dhe përfundo sot.",

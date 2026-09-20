@@ -41,12 +41,14 @@ export async function savePersonalHiitPlan(input: {
   const config = await enrichHiitConfigWithYoutube(normalized);
 
   const planKind = input.kind ?? "hiit";
+  // Use the plan title so muscle-map region cues (e.g. "Back Stretching") survive.
   const dayTitle =
-    planKind === "warmup"
+    title ||
+    (planKind === "warmup"
       ? "Warm-up"
       : planKind === "stretch"
         ? "Stretching"
-        : "HIIT";
+        : "HIIT");
 
   const resolvedFolderId =
     input.folderId && input.folderId !== UNCATEGORIZED_FOLDER_ID

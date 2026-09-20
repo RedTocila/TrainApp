@@ -504,11 +504,6 @@ export const platformCopyEn = {
         tagline: "Respect the session.",
         summary: "Volume, recovery factors, or your profile make this a demanding day.",
       },
-      impossible: {
-        label: "Impossible",
-        tagline: "Be smart — scale if needed.",
-        summary: "On paper this outpaces what your health & lifestyle profile suggests is realistic right now.",
-      },
     },
     personalDifficultyReasons: {
       beginnerExperience:
@@ -572,10 +567,8 @@ export const platformCopyEn = {
     },
     difficulty: {
       easy: { label: "Easy", tagline: "Light work. Show up and move." },
-      moderate: { label: "Moderate", tagline: "Real session. Stay locked in." },
+      intermediate: { label: "Intermediate", tagline: "Real session. Stay locked in." },
       hard: { label: "Hard", tagline: "Heavy day. Earn your shower." },
-      brutal: { label: "Brutal", tagline: "Beast mode. No excuses." },
-      legend: { label: "Impossible", tagline: "Legend tier. Send help." },
     },
     timeRemaining: (duration: string) => `~${duration} left`,
     finishSummaryTitle: "Session summary",
@@ -648,6 +641,9 @@ export const platformCopyEn = {
     skipToMainWorkout: "Skip to main workout",
     skipWarmupHint: "Jump straight into the main workout",
     continueToMain: "Continue to main workout",
+    finishWarmupNextMain: "Next: start the real workout",
+    finishWarmupBannerTitle: "Warm-up done",
+    finishWarmupBannerBody: "Next up — the real workout",
     stretchOfferTitle: "Add stretching?",
     stretchOfferBody:
       "Main workout done. Stretch now, or skip and finish for today.",
