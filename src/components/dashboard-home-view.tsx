@@ -7,6 +7,7 @@ import { DashboardOverview } from "@/components/dashboard-overview";
 import { DashboardWaterCard } from "@/components/dashboard-water-card";
 import { DashboardCardioCard } from "@/components/dashboard-cardio-card";
 import { ClientIntakeForm } from "@/components/client-intake-form";
+import { IntakeRefreshBanner } from "@/components/intake-refresh-banner";
 import { DashboardScheduleProvider } from "@/components/dashboard-schedule-context";
 import { DashboardTodayCacheSeed } from "@/components/dashboard-today-cache-seed";
 import type { ClientSchedule } from "@/lib/daily-tasks";
@@ -97,6 +98,7 @@ export function DashboardHomeView({
         }}
       />
       <DashboardHomeShell clientId={clientId} schedule={schedule}>
+        <IntakeRefreshBanner profile={profile} />
         <DashboardWorkoutCard
           clientId={clientId}
           seedDateKey={seedDateKey}

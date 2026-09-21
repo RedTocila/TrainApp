@@ -176,10 +176,12 @@ export function SessionMediaStage({
       <div
         className={cn(
           "relative z-0 isolate min-h-0 overflow-hidden rounded-2xl border border-border/50 bg-secondary/30",
-          fill && "flex-1"
+          fill && "flex min-h-0 flex-1 flex-col"
         )}
       >
-        <div className="relative z-0">{children}</div>
+        <div className={cn("relative z-0", fill && "min-h-0 flex-1")}>
+          {children}
+        </div>
         {sideActions ? (
           <div className="pointer-events-auto absolute right-2 top-2 z-50 flex flex-col gap-2">
             {sideActions}

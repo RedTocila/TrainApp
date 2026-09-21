@@ -91,6 +91,8 @@ export interface Profile {
   phone?: string | null;
   dismissed_habit_suggestions?: string[];
   intake_responses?: IntakeResponses;
+  /** When health & lifestyle questionnaire was last saved. */
+  intake_responses_updated_at?: string | null;
   /** Baseline person identity from first accepted progress photo. */
   progress_photo_identity?: ProgressPhotoIdentity | null;
   created_at: string;

@@ -37,7 +37,7 @@ function AdminTaskRow({ task }: { task: DailyTask }) {
       className={cn(
         "flex items-center gap-2.5 rounded-xl border border-border bg-secondary/40 px-3 py-2.5",
         task.completed && "border-green-500/30 bg-green-500/5",
-        isExceeded && "border-orange-500/30 bg-orange-500/5",
+        isExceeded && "border-amber-500/30 bg-amber-500/5",
         isMissed && "border-red-500/30 bg-red-500/5",
         isInProgress && "border-primary/20"
       )}
@@ -48,7 +48,7 @@ function AdminTaskRow({ task }: { task: DailyTask }) {
           task.completed
             ? "bg-green-500/15 text-green-400"
             : isExceeded
-              ? "bg-orange-500/15 text-orange-400"
+              ? "bg-amber-500/15 text-amber-400"
               : isMissed
                 ? "bg-red-500/15 text-red-400"
                 : "bg-primary/10 text-primary"
@@ -62,7 +62,7 @@ function AdminTaskRow({ task }: { task: DailyTask }) {
             className={cn(
               "text-sm font-medium",
               task.completed && "text-green-400",
-              isExceeded && "text-orange-400",
+              isExceeded && "text-amber-400",
               isMissed && "text-red-400"
             )}
           >
@@ -74,7 +74,7 @@ function AdminTaskRow({ task }: { task: DailyTask }) {
             </span>
           )}
           {isExceeded && (
-            <span className="rounded bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-orange-400">
+            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-400">
               Too much
             </span>
           )}

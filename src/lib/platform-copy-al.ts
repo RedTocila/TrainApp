@@ -26,6 +26,15 @@ export const platformCopyAl = {
       `${count} fusha të mbetura — ${preview}`,
     healthLifestyleLockedHint:
       "Profili është i ruajtur. Përditësoje kur të ndryshojë rutina ose qëllimet.",
+    buildingWorkoutProgram: "Po ndërtohet programi yt 4-javor i stërvitjes…",
+    workoutProgramReady: (title: string, daysPerWeek: number, sessions: number) =>
+      `Stërvitja gati: “${title}” · ${daysPerWeek} ditë/javë · ${sessions} seanca të planifikuara për 4 javë.`,
+    workoutProgramFailed:
+      "Profili u ruajt. Nuk mundëm të ndërtojmë stërvitjen tani — provo Coach AI → Planet e stërvitjes.",
+    intakeRefreshTitle: "Koha për të përditësuar shëndetin & stilin e jetesës",
+    intakeRefreshBody:
+      "Ka kaluar rreth një muaj — përditëso rutinën dhe progresin që AI të rianalizojë profilin për raporte, makro dhe coaching më të sakta.",
+    intakeRefreshCta: "Përditëso pyetësorin",
     complete: "I plotë",
     inProgress: "Në progres",
     incomplete: "I paplotë",
@@ -941,14 +950,14 @@ export const platformCopyAl = {
     starterPrompts: [
       "Si jam sot?",
       "Trego raportin tim javor",
-      "Çfarë të ha për darkë?",
-      "Trego trendin e peshës",
+      "Regjistro 500 ml ujë",
+      "Planifiko stërvitjen time për 4 javë",
       "Më ndërto një plan stërvitjeje për këtë javë",
       "Analizo fotot e mia të progresit",
     ],
     thinking: "Duke menduar…",
     searching: "Duke kërkuar dhe menduar…",
-    placeholder: "Pyet për stërvitje, ushqim, rikuperim…",
+    placeholder: "Kërkoji Alex të regjistrojë, planifikojë, ndërtojë ose fshijë…",
     imageOnlyPrompt: "Çfarë mund të më thuash për këtë foto?",
     medicalDisclaimer:
       "Nuk jap këshilla mjekësore. Për ato, konsultohu me mjekun, jo me mua.",

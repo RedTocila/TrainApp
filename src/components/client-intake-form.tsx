@@ -32,12 +32,23 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [macroMessage, setMacroMessage] = useState<string | null>(null);
+  const [workoutMessage, setWorkoutMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [buildingProgram, setBuildingProgram] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     if (!complete) setMode("update");
   }, [complete]);
+
+  useEffect(() => {
+    const openUpdate = () => setMode("update");
+    window.addEventListener("intake-refresh-open", openUpdate);
+    if (window.location.hash === "#dashboard-health-lifestyle") {
+      openUpdate();
+    }
+    return () => window.removeEventListener("intake-refresh-open", openUpdate);
+  }, []);
 
   const summary = buildFullIntakeSummary(profile, unitSystem);
 
@@ -45,12 +56,20 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
     setError(null);
     setSuccess(false);
     setMacroMessage(null);
+    setWorkoutMessage(null);
+    const firstCompletion = !complete;
+    setBuildingProgram(firstCompletion);
     startTransition(async () => {
       const result = await updateClientIntakeFromResponses(responses);
+      setBuildingProgram(false);
       if (result?.error) {
         setError(result.error);
         return;
       }
+      const { clearIntakeRefreshDismiss } = await import(
+        "@/lib/client-intake-utils"
+      );
+      clearIntakeRefreshDismiss(profile.id);
       setSuccess(true);
       setMode("view");
       if (result.macrosUpdated && result.macros) {
@@ -63,6 +82,22 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
         setMacroMessage(
           `${prefix}: ${result.macros.calories} cal · P${result.macros.protein} C${result.macros.carbs} F${result.macros.fat}${rationale}`
         );
+      }
+      if (result.workoutProgram?.built) {
+        setWorkoutMessage(
+          platform.profile.workoutProgramReady(
+            result.workoutProgram.title,
+            result.workoutProgram.daysPerWeek,
+            result.workoutProgram.sessionsScheduled
+          )
+        );
+      } else if (
+        firstCompletion &&
+        result.workoutProgram &&
+        !result.workoutProgram.built &&
+        !("skipped" in result.workoutProgram && result.workoutProgram.skipped)
+      ) {
+        setWorkoutMessage(platform.profile.workoutProgramFailed);
       }
       router.refresh();
     });
@@ -149,6 +184,18 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
                 {platform.profile.healthLifestyleLockedHint}
               </p>
             )}
+            {macroMessage && (
+              <p className="flex items-start gap-1.5 text-sm text-green-400/90">
+                <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {macroMessage}
+              </p>
+            )}
+            {workoutMessage && (
+              <p className="flex items-start gap-1.5 text-sm text-green-400/90">
+                <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {workoutMessage}
+              </p>
+            )}
           </div>
         )}
 
@@ -168,8 +215,18 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
                 {macroMessage}
               </p>
             )}
+            {workoutMessage && (
+              <p className="flex items-start gap-1.5 text-sm text-green-400/90">
+                <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {workoutMessage}
+              </p>
+            )}
             {isPending && (
-              <p className="text-sm text-muted-foreground">{platform.common.saving}</p>
+              <p className="text-sm text-muted-foreground">
+                {buildingProgram
+                  ? platform.profile.buildingWorkoutProgram
+                  : platform.common.saving}
+              </p>
             )}
           </div>
         )}

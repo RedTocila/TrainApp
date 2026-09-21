@@ -52,9 +52,9 @@ const STATUS_STYLES: Record<
   },
   too_much: {
     button:
-      "border-orange-400/55 bg-background/70 text-orange-400 shadow-[0_4px_16px_rgba(0,0,0,0.18)] backdrop-blur-xl hover:bg-background/80 dark:bg-background/55 dark:hover:bg-background/70",
-    title: "text-orange-400",
-    dialog: "border-orange-500/30 bg-orange-500/15",
+      "border-amber-400/55 bg-background/70 text-amber-400 shadow-[0_4px_16px_rgba(0,0,0,0.18)] backdrop-blur-xl hover:bg-background/80 dark:bg-background/55 dark:hover:bg-background/70",
+    title: "text-amber-400",
+    dialog: "border-amber-500/30 bg-amber-500/15",
   },
 };
 
@@ -248,7 +248,7 @@ export function NutritionStatusAdviceButton({
                       {platform.nutrition.problemMeal}
                     </p>
                     {refining ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-orange-300" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-300" />
                     ) : null}
                   </div>
                   {error ? (

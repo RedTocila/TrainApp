@@ -47,6 +47,30 @@ function normalizeExerciseName(name: string): string {
     .replace(/\s*-\s*/g, "-");
 }
 
+/** Light stemming so AI plurals / short forms still hit catalog names. */
+function stemExerciseToken(token: string): string {
+  if (token === "triceps" || token === "tricep") return "tricep";
+  if (token === "biceps" || token === "bicep") return "bicep";
+  if (token === "raises") return "raise";
+  if (token === "rows") return "row";
+  if (token === "curls") return "curl";
+  if (token === "presses") return "press";
+  if (token === "extensions") return "extension";
+  if (token === "flies" || token === "flyes" || token === "flys") return "fly";
+  if (token === "lunges") return "lunge";
+  if (token === "squats") return "squat";
+  if (token === "deadlifts") return "deadlift";
+  if (token === "pulldowns") return "pulldown";
+  if (token === "pushups" || token === "pushup") return "pushup";
+  if (token === "pullups" || token === "pullup") return "pullup";
+  if (token.endsWith("ies") && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith("ses") && token.length > 4) return token.slice(0, -2);
+  if (token.endsWith("s") && !token.endsWith("ss") && token.length > 3) {
+    return token.slice(0, -1);
+  }
+  return token;
+}
+
 const STOP_WORDS = new Set([
   "the",
   "with",
@@ -112,7 +136,8 @@ const EQUIPMENT_TOKENS = new Set([
 function tokenizeExerciseName(name: string): string[] {
   return normalizeExerciseName(name)
     .split(/[\s-]+/)
-    .filter((token) => token.length > 1 && !STOP_WORDS.has(token));
+    .filter((token) => token.length > 1 && !STOP_WORDS.has(token))
+    .map(stemExerciseToken);
 }
 
 function extractEquipmentTokens(tokens: string[]): Set<string> {
@@ -136,7 +161,12 @@ function scoreCatalogNameMatch(query: string, catalogName: string): number {
   }
 
   const queryCoverage = shared / queryTokens.length;
-  if (queryCoverage < 1) return 0;
+  // Short queries must match every token; longer ones may miss one (plurals / wording).
+  if (queryTokens.length <= 3) {
+    if (shared < queryTokens.length) return 0;
+  } else if (queryCoverage < 0.75 && shared < queryTokens.length - 1) {
+    return 0;
+  }
 
   const extraCatalogTokens = catalogTokens.filter((token) => !querySet.has(token));
   const extraPenalty = Math.min(0.35, extraCatalogTokens.length * 0.06);
@@ -217,7 +247,7 @@ export function findCatalogExercise(name: string): CatalogExercise | null {
   if (exact) return exact;
 
   let best: CatalogExercise | null = null;
-  let bestScore = 0.62;
+  let bestScore = 0.55;
 
   for (const [catalogName, exercise] of catalogByName) {
     const score = scoreCatalogNameMatch(trimmed, catalogName);
@@ -231,6 +261,37 @@ export function findCatalogExercise(name: string): CatalogExercise | null {
   }
 
   return best;
+}
+
+/**
+ * Rewrite an AI / free-form exercise name to the nearest catalog canonical name
+ * so GIF / video demos resolve. Falls back to the original if nothing matches.
+ */
+export function canonicalizeAiExerciseName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return trimmed;
+
+  const direct = findCatalogExercise(trimmed);
+  if (direct) return direct.name;
+
+  // Last resort: pick the top search hit when tokens overlap enough.
+  const tokens = tokenizeExerciseName(trimmed).slice(0, 4);
+  if (tokens.length === 0) return trimmed;
+
+  const candidates = searchCatalogExercises({ query: tokens.join(" ") }).slice(0, 25);
+  let best: CatalogExercise | null = null;
+  let bestScore = 0.72;
+  for (const exercise of candidates) {
+    const score =
+      scoreCatalogNameMatch(trimmed, exercise.name) +
+      equipmentPreferenceScore(exercise.name, trimmed);
+    if (score > bestScore) {
+      bestScore = score;
+      best = exercise;
+    }
+  }
+
+  return best?.name ?? trimmed;
 }
 
 export function getCatalogGifUrl(

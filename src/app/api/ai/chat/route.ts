@@ -145,6 +145,9 @@ export async function POST(request: Request) {
               if (event.type === "rich_blocks") {
                 enqueue({ richBlocks: event.blocks });
               }
+              if (event.type === "pending_action") {
+                enqueue({ pendingAction: event.action });
+              }
             },
             { maxTokens: 900, signal: request.signal, onToken }
           );
@@ -153,6 +156,11 @@ export async function POST(request: Request) {
 
           if (result.planPreview) {
             enqueue({ planPreview: result.planPreview });
+          }
+          if (result.pendingActions?.length) {
+            for (const action of result.pendingActions) {
+              enqueue({ pendingAction: action });
+            }
           }
         } else {
           for await (const chunk of streamChatCompletion(chatMessages, {

@@ -2,6 +2,7 @@ import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { buildPlanTextLanguageRule } from "@/lib/ai/language-instructions";
+import { buildCatalogExerciseNameRule } from "@/lib/ai/catalog-exercise-prompt";
 import { withPlanMedicalDisclaimer } from "@/lib/ai/plan-medical-disclaimer";
 import { enrichExercisesWithDemoVideos } from "@/lib/ai/exercise-video-search";
 import type {
@@ -14,8 +15,23 @@ import { normalizeHiitConfig, type HiitConfig, type WorkoutPlanKind } from "@/li
 import { inferAiWorkoutKind, inferAiMainWorkoutKind } from "@/lib/ai/infer-workout-kind";
 import { trainingGoalRulesForAi } from "@/lib/goal-coaching";
 import type { Profile } from "@/lib/types";
+import {
+  STARTER_PROGRAM_WEEKS,
+  buildOnboardingProgramPreferences,
+  daysPerWeekFromIntake,
+  equipmentConstraintFromIntake,
+  experienceConstraintFromIntake,
+} from "@/lib/intake-starter-program";
+import { profileToResponses } from "@/lib/intake-questionnaire";
 
 export { inferAiWorkoutKind } from "@/lib/ai/infer-workout-kind";
+
+export type WorkoutPlanGenerationOptions = {
+  /** Exact number of training days the weekly template must include. */
+  targetDaysPerWeek?: number;
+  /** Extra hard constraints for first-time onboarding programs. */
+  onboarding?: boolean;
+};
 
 function clampSets(n: unknown): number {
   const v = typeof n === "number" ? n : parseInt(String(n), 10);
@@ -29,11 +45,15 @@ function clampRest(n: unknown): number {
 
 function normalizeWorkoutPlan(
   raw: AiGeneratedWorkoutPlan,
-  locale?: string | null
+  locale?: string | null,
+  targetDaysPerWeek?: number
 ): AiGeneratedWorkoutPlan {
+  const maxDays = targetDaysPerWeek
+    ? Math.min(6, Math.max(1, targetDaysPerWeek))
+    : 6;
   const days = (raw.days ?? [])
     .filter((d) => d.title?.trim())
-    .slice(0, 6)
+    .slice(0, maxDays)
     .map((day) => ({
       title: day.title.trim(),
       exercises: (day.exercises ?? [])
@@ -46,6 +66,7 @@ function normalizeWorkoutPlan(
           rest_seconds: clampRest(ex.rest_seconds),
           notes: ex.notes?.trim() || undefined,
           image_url: ex.image_url?.trim() || undefined,
+          video_url: ex.video_url?.trim() || undefined,
         })),
     }))
     .filter((d) => d.exercises.length > 0);
@@ -54,7 +75,7 @@ function normalizeWorkoutPlan(
     kind: "strength",
     title: raw.title?.trim() || "AI Workout Plan",
     description: raw.description?.trim() || "",
-    days_per_week: Math.min(6, Math.max(1, days.length)),
+    days_per_week: Math.min(6, Math.max(1, targetDaysPerWeek ?? days.length)),
     days,
     coach_notes: withPlanMedicalDisclaimer(raw.coach_notes, locale),
   };
@@ -76,9 +97,24 @@ async function attachDemoVideosToPlan(
 
 async function generateStrengthWorkoutPlanFromProfile(
   profile: Profile,
-  preferences?: string
+  preferences?: string,
+  options?: WorkoutPlanGenerationOptions
 ): Promise<AiGeneratedWorkoutPlan> {
   const intake = buildIntakeContextForAi(profile, preferences);
+  const targetDays = options?.targetDaysPerWeek;
+  const daysRule = targetDays
+    ? `- Create EXACTLY ${targetDays} training days in the "days" array (days_per_week must be ${targetDays}).`
+    : "- 3–5 training days per week unless schedule clearly allows fewer.";
+
+  const onboardingRules = options?.onboarding
+    ? `
+ONBOARDING CONSTRAINTS (mandatory):
+- This weekly template will be scheduled across ${STARTER_PROGRAM_WEEKS} weeks on the client's calendar.
+- ${experienceConstraintFromIntake(profileToResponses(profile))}
+- ${equipmentConstraintFromIntake(profileToResponses(profile))}
+- Keep sessions 40–70 minutes. Prefer catalog exercise names that match available equipment.
+`
+    : "";
 
   const prompt = `You are an expert personal trainer. Create a safe, practical weekly TRADITIONAL strength/fitness workout plan (sets, reps, rest) tailored to this client.
 
@@ -92,13 +128,13 @@ Rules:
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match volume and split to goal, age, schedule, and recovery capacity.
 ${trainingGoalRulesForAi(profile.goal)}
-- Use clear exercise names (no equipment codes).
-- 3–5 training days per week unless schedule clearly allows fewer.
+${buildCatalogExerciseNameRule()}
+${daysRule}
 - 4–8 exercises per session.
 - Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.
 - Description and coach_notes must explicitly mention why this plan is safe and appropriate for this specific profile.
 - End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
-
+${onboardingRules}
 ${buildPlanTextLanguageRule(profile.preferred_locale)}
 
 Respond with ONLY valid JSON:
@@ -126,7 +162,7 @@ Respond with ONLY valid JSON:
   const raw = await runTextPrompt(prompt, { maxTokens: 2500, json: true });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutPlan;
   const plan = await attachDemoVideosToPlan(
-    normalizeWorkoutPlan(parsed, profile.preferred_locale),
+    normalizeWorkoutPlan(parsed, profile.preferred_locale, targetDays),
     profile.gender
   );
 
@@ -230,7 +266,8 @@ Rules:
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match intensity and duration to fitness level and schedule (typically ~15–35 minutes total).
 ${trainingGoalRulesForAi(profile.goal)}
-- 4–8 exercises with clear names.
+${buildCatalogExerciseNameRule()}
+- 4–8 exercises with clear library names (see rule above).
 - work_seconds usually 20–45; rest_seconds between moves usually 10–30.
 - rounds usually 2–5; cycles usually 1–2.
 - prepare_seconds 5–15; round_rest_seconds 45–120; cycle_rest_seconds 60–180 when cycles > 1.
@@ -277,13 +314,27 @@ Respond with ONLY valid JSON:
 export async function generateWorkoutPlanFromProfile(
   profile: Profile,
   preferences?: string,
-  explicitKind?: WorkoutPlanKind | null
+  explicitKind?: WorkoutPlanKind | null,
+  options?: WorkoutPlanGenerationOptions
 ): Promise<AiWorkoutPlanResult> {
   const kind = inferAiWorkoutKind(preferences, explicitKind);
   if (kind === "hiit") {
     return generateHiitPlanFromProfile(profile, preferences);
   }
-  return generateStrengthWorkoutPlanFromProfile(profile, preferences);
+  return generateStrengthWorkoutPlanFromProfile(profile, preferences, options);
+}
+
+/** First-time questionnaire → personalized weekly strength template for a 4-week calendar. */
+export async function generateOnboardingWorkoutPlanFromProfile(
+  profile: Profile
+): Promise<AiGeneratedWorkoutPlan> {
+  const responses = profileToResponses(profile);
+  const targetDays = daysPerWeekFromIntake(responses);
+  const preferences = buildOnboardingProgramPreferences(responses);
+  return generateStrengthWorkoutPlanFromProfile(profile, preferences, {
+    targetDaysPerWeek: targetDays,
+    onboarding: true,
+  });
 }
 
 function normalizeWorkoutDay(
@@ -410,6 +461,7 @@ Rules:
 - Stretching: 4–6 gentle stretches matched to muscles used in main, ~5–10 min. work_seconds 20–40, rest 5–15, rounds 1.
 - Main: 4–8 exercises. Respect injuries. Match the day request (push/pull/legs/full body/etc.).
 ${trainingGoalRulesForAi(profile.goal)}
+${buildCatalogExerciseNameRule()}
 - Titles should be clear (e.g. "Upper warm-up", "Upper Push", "Upper stretch").
 - coach_notes must mention at least one concrete personalization tied to profile constraints or health/lifestyle data.
 - End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
@@ -580,7 +632,7 @@ Rules:
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match volume to goal, age, schedule, and recovery capacity.
 ${trainingGoalRulesForAi(profile.goal)}
-- Use clear exercise names (no equipment codes).
+${buildCatalogExerciseNameRule()}
 - 4–8 exercises per session.
 - Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.
 - coach_notes must include at least one line about how this session is adjusted for the client's profile.
@@ -653,7 +705,8 @@ Rules:
       : "Focus on stretching and mobility: gentle holds/movements for recovery. Avoid high-intensity work."
   }
 - Respect injuries — choose safe alternatives when needed.
-- 4–7 exercises with clear names.
+${buildCatalogExerciseNameRule()}
+- 4–7 exercises with clear library names (see rule above).
 - ${
     isWarmup
       ? "work_seconds usually 20–40; rest_seconds usually 10–20."

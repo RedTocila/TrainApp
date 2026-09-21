@@ -14,6 +14,7 @@ import {
   type IntakeResponses,
 } from "@/lib/intake-questionnaire";
 import { resolveMacroTargets } from "@/lib/resolve-macro-targets";
+import { buildStarterWorkoutProgramForUser } from "@/lib/actions/onboarding-workout";
 
 export interface ClientIntakeInfo {
   profile: Profile;
@@ -70,6 +71,10 @@ export async function updateClientIntakeFromResponses(responses: IntakeResponses
     .eq("id", user.id)
     .single();
 
+  const wasComplete = existingProfile
+    ? isClientIntakeComplete(existingProfile as Profile)
+    : false;
+
   const mergedProfile = {
     ...(existingProfile as Profile),
     ...intakeFields,
@@ -79,7 +84,10 @@ export async function updateClientIntakeFromResponses(responses: IntakeResponses
   const shouldUpdateMacros =
     isClientIntakeComplete(mergedProfile) && resolved !== null;
 
-  const profileUpdate: Record<string, unknown> = { ...intakeFields };
+  const profileUpdate: Record<string, unknown> = {
+    ...intakeFields,
+    intake_responses_updated_at: new Date().toISOString(),
+  };
 
   if (shouldUpdateMacros && resolved) {
     profileUpdate.target_calories = resolved.targets.calories;
@@ -95,17 +103,39 @@ export async function updateClientIntakeFromResponses(responses: IntakeResponses
 
   if (error) return { error: error.message };
 
+  const intakeComplete = isClientIntakeComplete(mergedProfile);
+  let workoutProgram:
+    | {
+        built: true;
+        planId: string;
+        title: string;
+        daysPerWeek: number;
+        sessionsScheduled: number;
+      }
+    | { built: false; skipped?: boolean; reason?: string; error?: string }
+    | undefined;
+
+  // First-time completion → personalized 4-week starter workout on the calendar.
+  if (intakeComplete && !wasComplete) {
+    workoutProgram = await buildStarterWorkoutProgramForUser(
+      user.id,
+      mergedProfile as Profile
+    );
+  }
+
   revalidatePath("/dashboard/profile");
   revalidatePath("/dashboard/nutrition");
+  revalidatePath("/dashboard/workout");
   revalidatePath("/dashboard");
 
   return {
     success: true,
-    intakeComplete: isClientIntakeComplete(mergedProfile),
+    intakeComplete,
     macrosUpdated: shouldUpdateMacros,
     macros: shouldUpdateMacros ? resolved?.targets : undefined,
     macroSource: resolved?.source,
     macroRationale: resolved?.rationale,
+    workoutProgram,
   };
 }
 
@@ -157,14 +187,17 @@ export async function updateClientIntake(formData: FormData) {
 
 export async function applyIntakeToProfile(
   userId: string,
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Awaited<ReturnType<typeof createClient>> | ReturnType<typeof createAdminClient>,
   responses: IntakeResponses
 ): Promise<string | null> {
   const intakeFields = responsesToProfileFields(normalizeIntakeResponses(responses));
   const mergedProfile = intakeFields as Profile;
   const resolved = await resolveMacroTargets(mergedProfile, responses);
 
-  const profileUpdate: Record<string, unknown> = { ...intakeFields };
+  const profileUpdate: Record<string, unknown> = {
+    ...intakeFields,
+    intake_responses_updated_at: new Date().toISOString(),
+  };
   if (resolved) {
     profileUpdate.target_calories = resolved.targets.calories;
     profileUpdate.target_protein = resolved.targets.protein;
@@ -173,7 +206,22 @@ export async function applyIntakeToProfile(
   }
 
   const { error } = await supabase.from("profiles").update(profileUpdate).eq("id", userId);
-  return error?.message ?? null;
+  if (error) return error.message;
+
+  // Signup / draft apply with a complete questionnaire — build the starter program.
+  if (isIntakeResponsesComplete(responses)) {
+    const { data: fresh } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    if (fresh) {
+      await buildStarterWorkoutProgramForUser(userId, fresh as Profile);
+    }
+  }
+
+  return null;
 }
 
 export async function dismissHabitSuggestion(suggestionId: string) {

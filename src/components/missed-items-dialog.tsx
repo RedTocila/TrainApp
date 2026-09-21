@@ -42,7 +42,7 @@ export function MissedButton({
         className={cn(
           "max-w-full shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase leading-snug tracking-wide transition-colors",
           tone === "warning"
-            ? "border-orange-500/40 bg-orange-500/10 text-orange-400 hover:border-orange-500/60 hover:bg-orange-500/20"
+            ? "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:border-amber-500/60 hover:bg-amber-500/20"
             : "border-red-500/40 bg-red-500/10 text-red-400 hover:border-red-500/60 hover:bg-red-500/20",
           className
         )}
@@ -96,7 +96,7 @@ export function MissedItemsDialog({
       <AppOverlayPanel maxWidth="max-w-md" aria-label={title} className="max-h-[min(92%,28rem)]">
         <AppDrawerHeader
           title={
-            <span className={tone === "warning" ? "text-orange-400" : "text-red-400"}>
+            <span className={tone === "warning" ? "text-amber-400" : "text-red-400"}>
               {title}
             </span>
           }
@@ -116,14 +116,14 @@ export function MissedItemsDialog({
                   className={cn(
                     "rounded-lg border px-3 py-2.5",
                     tone === "warning"
-                      ? "border-orange-500/30 bg-orange-500/5"
+                      ? "border-amber-500/30 bg-amber-500/5"
                       : "border-red-500/30 bg-red-500/5"
                   )}
                 >
                   <p
                     className={cn(
                       "text-sm font-medium",
-                      tone === "warning" ? "text-orange-400" : "text-red-400"
+                      tone === "warning" ? "text-amber-400" : "text-red-400"
                     )}
                   >
                     {item.label}

@@ -11,8 +11,10 @@ import { compressImageFile, fileToDataUrl, parseDataUrl } from "@/lib/image-comp
 import { cn } from "@/lib/utils";
 import { ChatCommandInput } from "@/components/chat-command-input";
 import { ChatPlanPreviewCard } from "@/components/chat-plan-preview";
+import { ChatActionConfirmCard } from "@/components/chat-action-confirm";
 import { ChatRichBlocks } from "@/components/chat-rich-blocks";
 import type { ChatPlanPreview } from "@/lib/ai/coach-chat-tools";
+import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
@@ -178,7 +180,8 @@ const ChatBubble = memo(function ChatBubble({
     !message.content.trim() &&
     !message.planPreview &&
     !message.toolStatus &&
-    !message.richBlocks?.length
+    !message.richBlocks?.length &&
+    !message.pendingActions?.length
   ) {
     return null;
   }
@@ -230,6 +233,12 @@ const ChatBubble = memo(function ChatBubble({
         {message.role === "assistant" && message.planPreview && (
           <ChatPlanPreviewCard preview={message.planPreview} />
         )}
+        {message.role === "assistant" &&
+          message.pendingActions &&
+          message.pendingActions.length > 0 &&
+          message.pendingActions.map((action) => (
+            <ChatActionConfirmCard key={action.id} action={action} />
+          ))}
         {message.role === "assistant" && message.richBlocks && message.richBlocks.length > 0 && (
           <ChatRichBlocks blocks={message.richBlocks} />
         )}
@@ -506,6 +515,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               planPreview?: ChatPlanPreview;
               toolStatus?: string | null;
               richBlocks?: CoachChatRichBlock[];
+              pendingAction?: CoachPendingAction;
             };
             if (parsed.error) throw new Error(parsed.error);
             if (parsed.meta?.searchedWeb !== undefined) {
@@ -534,6 +544,25 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
                   next[next.length - 1] = {
                     ...last,
                     planPreview: parsed.planPreview,
+                    toolStatus: undefined,
+                  };
+                }
+                return next;
+              });
+              continue;
+            }
+            if (parsed.pendingAction) {
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.role === "assistant") {
+                  const existing = last.pendingActions ?? [];
+                  const already = existing.some((a) => a.id === parsed.pendingAction!.id);
+                  next[next.length - 1] = {
+                    ...last,
+                    pendingActions: already
+                      ? existing
+                      : [...existing, parsed.pendingAction!],
                     toolStatus: undefined,
                   };
                 }

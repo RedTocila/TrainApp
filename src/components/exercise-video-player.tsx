@@ -15,6 +15,10 @@ interface ExerciseVideoPlayerProps {
   autoplay?: boolean;
   /** When true, force the YouTube player to pause. */
   paused?: boolean;
+  /** Fill a parent frame (HIIT) instead of a fixed 16:9 box. */
+  fill?: boolean;
+  /** Called when the YouTube iframe API reports an unrecoverable error. */
+  onError?: () => void;
 }
 
 type YtPlayer = {
@@ -55,6 +59,7 @@ declare global {
               data: number;
               target: YtPlayer;
             }) => void;
+            onError?: (event: { data: number }) => void;
           };
         }
       ) => YtPlayer;
@@ -107,6 +112,8 @@ export function ExerciseVideoPlayer({
   title,
   autoplay = false,
   paused = false,
+  fill = false,
+  onError,
 }: ExerciseVideoPlayerProps) {
   const videoId = videoUrl ? extractYoutubeId(videoUrl) : null;
   const startSeconds = videoUrl ? extractYoutubeStartSeconds(videoUrl) : null;
@@ -117,12 +124,14 @@ export function ExerciseVideoPlayer({
   const hideTimerRef = useRef<number | null>(null);
   const pausedRef = useRef(paused);
   const userPausedRef = useRef(false);
+  const onErrorRef = useRef(onError);
 
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [showPlayButton, setShowPlayButton] = useState(!autoplay);
 
   pausedRef.current = paused;
+  onErrorRef.current = onError;
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current != null) {
@@ -213,6 +222,10 @@ export function ExerciseVideoPlayer({
               setShowPlayButton(true);
             }
           },
+          onError: () => {
+            if (cancelled) return;
+            onErrorRef.current?.();
+          },
         },
       });
 
@@ -231,7 +244,9 @@ export function ExerciseVideoPlayer({
       setReady(false);
       setPlaying(false);
     };
-  }, [videoId, autoplay, startSeconds, clearHideTimer]);
+    // Recreate only when the video identity changes — play/pause is handled below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- autoplay/paused applied in separate effect
+  }, [videoId, startSeconds, clearHideTimer]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -289,15 +304,25 @@ export function ExerciseVideoPlayer({
   const showPoster = !playing;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-muted">
+    <div
+      className={cn(
+        "overflow-hidden bg-black",
+        fill
+          ? "h-full w-full"
+          : "rounded-lg border border-border bg-muted"
+      )}
+    >
       <div
-        className="relative aspect-video w-full cursor-pointer"
+        className={cn(
+          "relative cursor-pointer",
+          fill ? "h-full w-full" : "aspect-video w-full"
+        )}
         onClick={onShellClick}
         role="group"
         aria-label={`${title} demo video`}
       >
         {/*
-          Full-size iframe so the video frame matches 16:9 without crop/zoom.
+          Full-size iframe so the video frame matches the stage without crop/zoom.
           Overlay below still blocks residual YouTube chrome from receiving input.
         */}
         <div

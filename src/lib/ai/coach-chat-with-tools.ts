@@ -5,12 +5,13 @@ import {
   type CoachChatToolEvent,
 } from "@/lib/ai/coach-chat-tools";
 import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
+import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import { getOpenAIClient } from "@/lib/ai/providers";
 import type { ChatTurn } from "@/lib/ai/types";
 import type { Profile } from "@/lib/types";
 import type OpenAI from "openai";
 
-const MAX_TOOL_ROUNDS = 5;
+const MAX_TOOL_ROUNDS = 6;
 
 function getTurnImages(message: ChatTurn) {
   if (message.images?.length) return message.images;
@@ -63,11 +64,17 @@ export async function runCoachChatWithTools(
     /** Fired for final-answer tokens (not for tool-call rounds). */
     onToken?: (text: string) => void;
   }
-): Promise<{ reply: string; planPreview?: ChatPlanPreview; richBlocks?: CoachChatRichBlock[] }> {
+): Promise<{
+  reply: string;
+  planPreview?: ChatPlanPreview;
+  richBlocks?: CoachChatRichBlock[];
+  pendingActions?: CoachPendingAction[];
+}> {
   const client = getOpenAIClient();
   const conversation = messages.map(toOpenAIMessage);
   let planPreview: ChatPlanPreview | undefined;
   const richBlocks: CoachChatRichBlock[] = [];
+  const pendingActions: CoachPendingAction[] = [];
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     if (options?.signal?.aborted) {
@@ -130,7 +137,12 @@ export async function runCoachChatWithTools(
       });
 
       for (const toolCall of toolCalls) {
-        const { result, planPreview: preview, richBlocks: blocks } = await executeCoachChatTool(
+        const {
+          result,
+          planPreview: preview,
+          richBlocks: blocks,
+          pendingAction,
+        } = await executeCoachChatTool(
           toolCall.name,
           toolCall.arguments,
           profile,
@@ -138,6 +150,7 @@ export async function runCoachChatWithTools(
         );
         if (preview) planPreview = preview;
         if (blocks?.length) richBlocks.push(...blocks);
+        if (pendingAction) pendingActions.push(pendingAction);
 
         conversation.push({
           role: "tool",
@@ -150,7 +163,7 @@ export async function runCoachChatWithTools(
 
     // Final text answer — tokens already streamed live when toolAcc stayed empty.
     const text = content.trim();
-    if (!text && !planPreview && richBlocks.length === 0) {
+    if (!text && !planPreview && richBlocks.length === 0 && pendingActions.length === 0) {
       throw new Error("OpenAI returned an empty response");
     }
 
@@ -158,7 +171,9 @@ export async function runCoachChatWithTools(
       text ||
       (planPreview
         ? "Your plan preview is ready — tap Apply to save it to your program."
-        : "Here's your coach dashboard — check the cards above.");
+        : pendingActions.length > 0
+          ? "Confirm the action above to continue."
+          : "Here's your coach dashboard — check the cards above.");
 
     // Fallback copy was not streamed token-by-token — emit once for the client.
     if (!text && options?.onToken) {
@@ -169,6 +184,7 @@ export async function runCoachChatWithTools(
       reply,
       planPreview,
       richBlocks: richBlocks.length > 0 ? richBlocks : undefined,
+      pendingActions: pendingActions.length > 0 ? pendingActions : undefined,
     };
   }
 
@@ -176,5 +192,6 @@ export async function runCoachChatWithTools(
     reply: "I hit the tool limit — try a simpler request or apply the preview above.",
     planPreview,
     richBlocks: richBlocks.length > 0 ? richBlocks : undefined,
+    pendingActions: pendingActions.length > 0 ? pendingActions : undefined,
   };
 }

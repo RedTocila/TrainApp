@@ -498,15 +498,17 @@ export function ActiveHiitClient({
             </>
           }
         >
-          <div className="relative h-full min-h-[9rem] w-full overflow-hidden bg-secondary/40">
+          <div className="relative h-full min-h-0 w-full overflow-hidden bg-black">
             {currentExerciseName ? (
-              <div className="absolute inset-0 flex items-center justify-center [&_>div]:h-full [&_>div]:w-full [&_>div]:max-w-none [&_>div]:rounded-none [&_>div]:border-0 [&_img]:object-contain">
+              <div className="absolute inset-0">
                 <ExerciseDemoPlayer
                   name={currentExerciseName}
                   imageUrl={currentExercise?.image_url}
                   videoUrl={currentExercise?.video_url}
                   gender={exerciseGender}
-                  autoplay={isRunning && phase?.type === "work"}
+                  fill
+                  autoplay={Boolean(isRunning && currentExerciseName)}
+                  paused={!isRunning}
                 />
               </div>
             ) : (

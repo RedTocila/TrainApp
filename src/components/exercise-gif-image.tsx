@@ -63,8 +63,8 @@ export function ExerciseGifImage({
       <img
         src={src}
         alt={alt}
-        className={cn("h-full w-full object-contain", imgClassName)}
-        loading="lazy"
+        className={cn("size-full object-contain", imgClassName)}
+        loading="eager"
         decoding="async"
         onError={() => {
           const next = toExerciseGifProxyUrl(fallbackUrl) ?? fallbackUrl?.trim();

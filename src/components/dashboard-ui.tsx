@@ -23,7 +23,7 @@ export const dashboard = {
   label: "text-xs text-muted-foreground",
   completedTile: "border-green-500/35 bg-green-500/5",
   missedTile: "border-red-500/35 bg-red-500/5",
-  warningTile: "border-orange-500/40 bg-orange-500/5",
+  warningTile: "border-amber-500/40 bg-amber-500/5",
   chipButton:
     "pressable inline-flex flex-1 touch-manipulation select-none items-center justify-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur-sm transition-[transform,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-tap-highlight-color:transparent] active:scale-[0.97] active:opacity-90 hover:border-primary/50 hover:bg-primary/10 dark:bg-background/40",
   /**

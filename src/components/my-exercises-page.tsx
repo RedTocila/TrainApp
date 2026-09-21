@@ -222,9 +222,6 @@ export function MyExercisesPage({
             Load more ({filteredCatalog.length - visibleCount} remaining)
           </Button>
         )}
-        <p className="text-center text-[11px] text-muted-foreground">
-          {EXERCISE_CATALOG.attribution}
-        </p>
       </div>
     </div>
   );

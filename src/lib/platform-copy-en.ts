@@ -26,6 +26,15 @@ export const platformCopyEn = {
       `${count} areas left — ${preview}`,
     healthLifestyleLockedHint:
       "Profile locked in. Update anytime if your routine or goals change.",
+    buildingWorkoutProgram: "Building your 4-week workout program…",
+    workoutProgramReady: (title: string, daysPerWeek: number, sessions: number) =>
+      `Workout ready: “${title}” · ${daysPerWeek} days/week · ${sessions} sessions scheduled over 4 weeks.`,
+    workoutProgramFailed:
+      "Health profile saved. We couldn’t build your workout yet — try AI Coach → Workout plans.",
+    intakeRefreshTitle: "Time to update health & lifestyle",
+    intakeRefreshBody:
+      "It’s been about a month — refresh your routine and progress so AI can re-analyse your profile for more accurate reports, macros, and coaching.",
+    intakeRefreshCta: "Update questionnaire",
     complete: "Complete",
     inProgress: "In progress",
     incomplete: "Incomplete",
@@ -929,14 +938,14 @@ export const platformCopyEn = {
     starterPrompts: [
       "How am I doing today?",
       "Show my weekly report",
-      "What should I eat for dinner?",
-      "Show my weight trend",
+      "Log 500 ml of water",
+      "Schedule my workout for 4 weeks",
       "Build me a workout plan for this week",
       "Analyze my progress photos",
     ],
     thinking: "Thinking…",
     searching: "Searching & thinking…",
-    placeholder: "Ask about training, food, recovery…",
+    placeholder: "Ask Alex to log, schedule, build, or delete…",
     imageOnlyPrompt: "What can you tell me about this image?",
     medicalDisclaimer:
       "I can't give medical advice. For that consult with a doctor, not me.",

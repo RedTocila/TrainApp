@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
@@ -33,22 +33,15 @@ export function AiCoachFab({
     setMounted(true);
   }, []);
 
-  // Accent-red always; glow only while on the AI route.
+  // Accent-colored Alex avatar; glow only while on the AI route.
   const linkClass = cn(
-    "relative flex items-center justify-center rounded-full border border-primary bg-primary text-primary-foreground",
-    "transition-[transform,box-shadow] duration-150 ease-out will-change-transform active:scale-[0.9]",
+    "relative overflow-hidden rounded-full border-2 border-border/60 pressable transition-[transform,border-color,box-shadow] duration-200 hover:scale-105 hover:border-border active:scale-95",
     active
-      ? "shadow-[0_0_28px_rgba(var(--primary-rgb),0.55),0_8px_28px_rgba(var(--primary-rgb),0.35)]"
-      : "shadow-[0_8px_28px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_28px_rgba(0,0,0,0.22)]"
+      ? "border-primary shadow-[0_0_28px_rgba(var(--primary-rgb),0.55),0_8px_28px_rgba(var(--primary-rgb),0.35)]"
+      : null
   );
 
-  const icon = (
-    <Sparkles
-      className="relative z-[1] h-6 w-6"
-      strokeWidth={2.25}
-      aria-hidden
-    />
-  );
+  const avatar = <AiCoachAvatar size="fab" className="h-full w-full" />;
 
   if (placement === "docked") {
     return (
@@ -60,10 +53,10 @@ export function AiCoachFab({
         aria-current={active ? "page" : undefined}
         className={cn(
           linkClass,
-          "pointer-events-auto h-14 w-14 shrink-0 lg:hidden"
+          "pointer-events-auto flex h-14 w-14 shrink-0 items-center justify-center lg:hidden"
         )}
       >
-        {icon}
+        {avatar}
       </InstantNavLink>
     );
   }
@@ -79,10 +72,10 @@ export function AiCoachFab({
       aria-current={active ? "page" : undefined}
       className={cn(
         linkClass,
-        "fixed z-[70] hidden h-14 w-14 lg:bottom-6 lg:right-6 lg:flex"
+        "fixed z-[70] hidden h-14 w-14 items-center justify-center lg:bottom-6 lg:right-6 lg:flex"
       )}
     >
-      {icon}
+      <AiCoachAvatar size="fab" className="h-14 w-14" />
     </InstantNavLink>,
     document.body
   );

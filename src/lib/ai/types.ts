@@ -1,5 +1,6 @@
 import type { ChatPlanPreview } from "@/lib/ai/coach-chat-tools";
 import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
+import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import type { MealType } from "@/lib/types";
 import type { MealIngredient } from "@/lib/meal-utils";
 
@@ -20,6 +21,7 @@ export interface ChatMessage {
   planPreview?: ChatPlanPreview;
   toolStatus?: string;
   richBlocks?: CoachChatRichBlock[];
+  pendingActions?: CoachPendingAction[];
 }
 
 export interface WebSource {

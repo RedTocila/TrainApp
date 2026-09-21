@@ -7,6 +7,13 @@ import {
 } from "@/lib/ai/coach-chat-block-builders";
 import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
 import {
+  COACH_COMMAND_TOOLS,
+  COACH_COMMAND_TOOL_NAMES,
+  COMMAND_TOOL_STATUS_LABELS,
+  executeCoachCommandTool,
+} from "@/lib/ai/coach-chat-commands";
+import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
+import {
   editNutritionPlanForChat,
   editWorkoutPlanForChat,
   generateNutritionPlanForChat,
@@ -32,7 +39,8 @@ export type CoachChatToolEvent =
   | { type: "tool_start"; name: string }
   | { type: "tool_done"; name: string }
   | { type: "plan_preview"; preview: ChatPlanPreview }
-  | { type: "rich_blocks"; blocks: CoachChatRichBlock[] };
+  | { type: "rich_blocks"; blocks: CoachChatRichBlock[] }
+  | { type: "pending_action"; action: CoachPendingAction };
 
 const PLAN_TOOLS = new Set([
   "generate_workout_plan",
@@ -52,9 +60,10 @@ export const TOOL_STATUS_LABELS: Record<string, string> = {
   show_meal_ideas: "Finding meal ideas…",
   show_weight_trend: "Loading weight trend…",
   show_coaching_tips: "Loading coaching tips…",
+  ...COMMAND_TOOL_STATUS_LABELS,
 };
 
-export const COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
@@ -191,6 +200,11 @@ export const COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   },
 ];
 
+export const COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+  ...BASE_COACH_CHAT_TOOLS,
+  ...COACH_COMMAND_TOOLS,
+];
+
 function aiAccessError(profile: Profile): string {
   return getLimitExceededMessage(parseCheckoutLocale(profile.preferred_locale));
 }
@@ -208,12 +222,36 @@ export async function executeCoachChatTool(
   argsJson: string,
   profile: Profile,
   onEvent?: (event: CoachChatToolEvent) => void
-): Promise<{ result: string; planPreview?: ChatPlanPreview; richBlocks?: CoachChatRichBlock[] }> {
+): Promise<{
+  result: string;
+  planPreview?: ChatPlanPreview;
+  richBlocks?: CoachChatRichBlock[];
+  pendingAction?: CoachPendingAction;
+}> {
   onEvent?.({ type: "tool_start", name });
 
   if (PLAN_TOOLS.has(name) && !hasAiPlanBuilderAccess(profile)) {
     onEvent?.({ type: "tool_done", name });
     return { result: aiAccessError(profile) };
+  }
+
+  if (COACH_COMMAND_TOOL_NAMES.has(name)) {
+    try {
+      const { result, pendingAction } = await executeCoachCommandTool(
+        name,
+        argsJson,
+        profile
+      );
+      if (pendingAction) {
+        onEvent?.({ type: "pending_action", action: pendingAction });
+      }
+      onEvent?.({ type: "tool_done", name });
+      return { result, pendingAction };
+    } catch (error) {
+      onEvent?.({ type: "tool_done", name });
+      const msg = error instanceof Error ? error.message : "Command failed";
+      return { result: `Error: ${msg}` };
+    }
   }
 
   const args = parseToolArgs(argsJson);

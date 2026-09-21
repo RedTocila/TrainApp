@@ -48,7 +48,7 @@ export function NutritionStatsPanel({
   return (
     <div className="space-y-4">
       {macrosExceededMessage && (
-        <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm font-medium text-orange-300">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-300">
           {macrosExceededMessage}
         </div>
       )}
