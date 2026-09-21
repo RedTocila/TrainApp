@@ -30,9 +30,9 @@ export type VoiceDictationStatus =
   | "recording"
   | "transcribing";
 
-const SILENCE_MS = 2500;
-const MIN_RECORD_MS = 900;
-const SPEECH_RMS_THRESHOLD = 0.02;
+const SILENCE_MS = 1100;
+const MIN_RECORD_MS = 450;
+const SPEECH_RMS_THRESHOLD = 0.025;
 
 function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
   if (typeof window === "undefined") return null;
@@ -70,6 +70,13 @@ function joinText(base: string, addition: string): string {
   return `${a} ${b}`;
 }
 
+function commonPrefixLength(a: string, b: string): number {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a[i] === b[i]) i += 1;
+  return i;
+}
+
 export function useVoiceDictation({
   locale,
   value,
@@ -103,9 +110,14 @@ export function useVoiceDictation({
   const recordStartedAtRef = useRef(0);
   const hadSpeechRef = useRef(false);
   const lastSoundAtRef = useRef(0);
+  const revealTargetRef = useRef(value);
+  const revealShownRef = useRef(value);
+  const revealRafRef = useRef<number | null>(null);
+  const onChangeRef = useRef(onChange);
 
   valueRef.current = value;
   onCompleteRef.current = onComplete;
+  onChangeRef.current = onChange;
 
   const clearSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -114,6 +126,64 @@ export function useVoiceDictation({
     }
   }, []);
 
+  const stopReveal = useCallback(() => {
+    if (revealRafRef.current != null) {
+      cancelAnimationFrame(revealRafRef.current);
+      revealRafRef.current = null;
+    }
+  }, []);
+
+  const flushReveal = useCallback((text: string) => {
+    stopReveal();
+    revealTargetRef.current = text;
+    revealShownRef.current = text;
+    valueRef.current = text;
+    onChangeRef.current(text);
+  }, [stopReveal]);
+
+  const revealTick = useCallback(() => {
+    const target = revealTargetRef.current;
+    let shown = revealShownRef.current;
+
+    if (shown === target) {
+      revealRafRef.current = null;
+      return;
+    }
+
+    if (target.startsWith(shown)) {
+      // Ease in a few characters at a time toward the live transcript.
+      const remaining = target.length - shown.length;
+      const step = remaining > 24 ? 4 : remaining > 10 ? 2 : 1;
+      shown = target.slice(0, shown.length + step);
+    } else if (shown.startsWith(target)) {
+      // Interim shortened — ease back without a hard snap.
+      const step = Math.max(1, Math.ceil((shown.length - target.length) / 3));
+      shown = shown.slice(0, Math.max(target.length, shown.length - step));
+    } else {
+      // Rewritten interim hypothesis — keep shared prefix, then catch up.
+      const prefix = commonPrefixLength(shown, target);
+      if (shown.length > prefix + 2) {
+        shown = shown.slice(0, Math.max(prefix, shown.length - 2));
+      } else {
+        shown = target.slice(0, Math.min(target.length, prefix + 2));
+      }
+    }
+
+    revealShownRef.current = shown;
+    valueRef.current = shown;
+    onChangeRef.current(shown);
+    revealRafRef.current = requestAnimationFrame(revealTick);
+  }, []);
+
+  const revealToward = useCallback(
+    (next: string) => {
+      revealTargetRef.current = next;
+      if (revealRafRef.current == null) {
+        revealRafRef.current = requestAnimationFrame(revealTick);
+      }
+    },
+    [revealTick]
+  );
   const cleanupAnalyser = useCallback(() => {
     if (analyserRafRef.current != null) {
       cancelAnimationFrame(analyserRafRef.current);
@@ -159,17 +229,17 @@ export function useVoiceDictation({
       if (!trimmed || completeFiredRef.current) return;
       completeFiredRef.current = true;
       clearSilenceTimer();
-      onChange(trimmed);
+      flushReveal(trimmed);
       onCompleteRef.current?.(trimmed);
     },
-    [clearSilenceTimer, onChange]
+    [clearSilenceTimer, flushReveal]
   );
 
   const scheduleSpeechAutoComplete = useCallback(() => {
     clearSilenceTimer();
     silenceTimerRef.current = setTimeout(() => {
       if (modeRef.current !== "speech") return;
-      const text = valueRef.current.trim();
+      const text = (revealTargetRef.current || valueRef.current).trim();
       if (!text) return;
       stopRequestedRef.current = true;
       stopSpeech();
@@ -183,13 +253,14 @@ export function useVoiceDictation({
     return () => {
       stopRequestedRef.current = true;
       clearSilenceTimer();
+      stopReveal();
       stopSpeech();
       if (mediaRecorderRef.current?.state === "recording") {
         mediaRecorderRef.current.stop();
       }
       cleanupMedia();
     };
-  }, [cleanupMedia, clearSilenceTimer, stopSpeech]);
+  }, [cleanupMedia, clearSilenceTimer, stopReveal, stopSpeech]);
 
   const transcribeBlob = useCallback(
     async (blob: Blob, autoSend: boolean) => {
@@ -219,7 +290,7 @@ export function useVoiceDictation({
         const text = payload?.text?.trim();
         if (!text) throw new Error("Couldn't catch that — try again.");
         const next = joinText(baseRef.current, text);
-        onChange(next);
+        flushReveal(next);
         if (autoSend) finishWithText(next);
       } catch (error) {
         onError(error instanceof Error ? error.message : "Transcription failed");
@@ -229,7 +300,7 @@ export function useVoiceDictation({
         cleanupMedia();
       }
     },
-    [cleanupMedia, finishWithText, locale, onChange, onError]
+    [cleanupMedia, finishWithText, flushReveal, locale, onError]
   );
 
   const startRecording = useCallback(async () => {
@@ -242,7 +313,13 @@ export function useVoiceDictation({
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       mediaStreamRef.current = stream;
       const mimeType = pickRecorderMimeType();
       const recorder = mimeType
@@ -285,48 +362,58 @@ export function useVoiceDictation({
         void transcribeBlob(blob, shouldSend);
       };
 
-      // Silence detection → auto-stop → Whisper → auto-send
-      try {
-        const AudioCtx =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext })
-            .webkitAudioContext;
-        const ctx = new AudioCtx();
-        audioCtxRef.current = ctx;
-        const source = ctx.createMediaStreamSource(stream);
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 2048;
-        source.connect(analyser);
-        const data = new Uint8Array(analyser.fftSize);
+      // Silence detection → auto-stop → Whisper → auto-send.
+      // Keep AudioContext fully muted (never play mic through speakers).
+      window.setTimeout(() => {
+        if (modeRef.current !== "record" || mediaStreamRef.current !== stream) {
+          return;
+        }
+        try {
+          const AudioCtx =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext })
+              .webkitAudioContext;
+          const ctx = new AudioCtx({ latencyHint: "interactive" });
+          audioCtxRef.current = ctx;
+          const mute = ctx.createGain();
+          mute.gain.value = 0;
+          mute.connect(ctx.destination);
+          const source = ctx.createMediaStreamSource(stream);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 2048;
+          // Analyse only — never route mic audio to output.
+          source.connect(analyser);
+          const data = new Uint8Array(analyser.fftSize);
 
-        const tick = () => {
-          if (modeRef.current !== "record") return;
-          analyser.getByteTimeDomainData(data);
-          let sum = 0;
-          for (let i = 0; i < data.length; i++) {
-            const v = (data[i] - 128) / 128;
-            sum += v * v;
-          }
-          const rms = Math.sqrt(sum / data.length);
-          const now = Date.now();
-          if (rms >= SPEECH_RMS_THRESHOLD) {
-            hadSpeechRef.current = true;
-            lastSoundAtRef.current = now;
-          } else if (
-            hadSpeechRef.current &&
-            now - recordStartedAtRef.current >= MIN_RECORD_MS &&
-            now - lastSoundAtRef.current >= SILENCE_MS
-          ) {
-            stopRequestedRef.current = true;
-            if (recorder.state !== "inactive") recorder.stop();
-            return;
-          }
+          const tick = () => {
+            if (modeRef.current !== "record") return;
+            analyser.getByteTimeDomainData(data);
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) {
+              const v = (data[i] - 128) / 128;
+              sum += v * v;
+            }
+            const rms = Math.sqrt(sum / data.length);
+            const now = Date.now();
+            if (rms >= SPEECH_RMS_THRESHOLD) {
+              hadSpeechRef.current = true;
+              lastSoundAtRef.current = now;
+            } else if (
+              hadSpeechRef.current &&
+              now - recordStartedAtRef.current >= MIN_RECORD_MS &&
+              now - lastSoundAtRef.current >= SILENCE_MS
+            ) {
+              stopRequestedRef.current = true;
+              if (recorder.state !== "inactive") recorder.stop();
+              return;
+            }
+            analyserRafRef.current = requestAnimationFrame(tick);
+          };
           analyserRafRef.current = requestAnimationFrame(tick);
-        };
-        analyserRafRef.current = requestAnimationFrame(tick);
-      } catch {
-        /* silence auto-stop optional; user can tap stop */
-      }
+        } catch {
+          /* silence auto-stop optional; user can tap stop */
+        }
+      }, 120);
 
       recorder.start(250);
       setStatus("recording");
@@ -351,6 +438,8 @@ export function useVoiceDictation({
     recognition.lang = speechLang(locale);
     recognitionRef.current = recognition;
     baseRef.current = valueRef.current;
+    revealTargetRef.current = valueRef.current;
+    revealShownRef.current = valueRef.current;
     modeRef.current = "speech";
     stopRequestedRef.current = false;
     completeFiredRef.current = false;
@@ -366,11 +455,10 @@ export function useVoiceDictation({
       }
       if (finalChunk.trim()) {
         baseRef.current = joinText(baseRef.current, finalChunk);
-        onChange(joinText(baseRef.current, interimChunk));
-      } else {
-        onChange(joinText(baseRef.current, interimChunk));
       }
-      if (baseRef.current.trim() || interimChunk.trim()) {
+      const next = joinText(baseRef.current, interimChunk);
+      revealToward(next);
+      if (next.trim()) {
         scheduleSpeechAutoComplete();
       }
     };
@@ -432,8 +520,8 @@ export function useVoiceDictation({
   }, [
     clearSilenceTimer,
     locale,
-    onChange,
     onError,
+    revealToward,
     scheduleSpeechAutoComplete,
     startRecording,
     stopSpeech,
@@ -443,7 +531,7 @@ export function useVoiceDictation({
     stopRequestedRef.current = true;
     clearSilenceTimer();
     if (modeRef.current === "speech") {
-      const text = valueRef.current.trim();
+      const text = (revealTargetRef.current || valueRef.current).trim();
       stopSpeech();
       setStatus("idle");
       modeRef.current = null;

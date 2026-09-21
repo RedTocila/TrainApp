@@ -16,6 +16,16 @@ interface ChatCommandInputProps {
   className?: string;
 }
 
+function placeCaretAtEnd(el: HTMLElement) {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 export function ChatCommandInput({
   value,
   onChange,
@@ -26,11 +36,21 @@ export function ChatCommandInput({
   className,
 }: ChatCommandInputProps) {
   const editableRef = useRef<HTMLDivElement>(null);
+  const lastValueRef = useRef(value);
 
   useEffect(() => {
     const el = editableRef.current;
-    if (!el || el.innerText === value) return;
+    if (!el || el.innerText === value) {
+      lastValueRef.current = value;
+      return;
+    }
+    const grew = value.length >= lastValueRef.current.length;
     el.innerText = value;
+    lastValueRef.current = value;
+    // Keep caret at the end while voice / programmatic text streams in.
+    if (grew && document.activeElement === el) {
+      placeCaretAtEnd(el);
+    }
   }, [value]);
 
   useEffect(() => {
@@ -65,6 +85,7 @@ export function ChatCommandInput({
         suppressContentEditableWarning
         onInput={(e) => {
           const text = e.currentTarget.innerText.replace(/\n$/, "");
+          lastValueRef.current = text;
           onChange(text);
           if (onMultilineChange) {
             const el = e.currentTarget;

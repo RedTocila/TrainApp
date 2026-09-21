@@ -391,7 +391,7 @@ function ChatCommandBar({
             isMultiline && "mb-0.5",
             isAct
               ? "bg-primary/15 text-primary hover:bg-primary/20"
-              : "bg-sky-500/15 text-sky-400 hover:bg-sky-500/20"
+              : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
           )}
         >
           {isAct ? (
