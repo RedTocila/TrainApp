@@ -491,7 +491,7 @@ function ChatCommandBar({
 export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const platform = usePlatformCopy();
   const ai = platform.ai;
-  const { openReadMe, canChat, isOpen, pendingPrompt, consumePendingPrompt } =
+  const { canChat, isOpen, pendingPrompt, consumePendingPrompt } =
     useAiCoachChat();
   const starterPrompts = [...ai.starterPrompts];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -816,16 +816,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             {messages.length === 0 && (
               <div className="space-y-4 py-4 text-center">
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
-                <div>
-                  <p className="font-bold">{ai.askAlex}</p>
-                  <button
-                    type="button"
-                    onClick={openReadMe}
-                    className="mt-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
-                  >
-                    {ai.readMeButton}
-                  </button>
-                </div>
+                <p className="font-bold">{ai.askAlex}</p>
                 <div className="flex flex-wrap justify-center gap-2">
                   {starterPrompts.map((prompt) => (
                     <button
@@ -907,16 +898,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             {messages.length === 0 && (
               <div className="space-y-4 py-4 text-center">
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
-                <div>
-                  <p className="font-bold">{ai.askAlex}</p>
-                  <button
-                    type="button"
-                    onClick={openReadMe}
-                    className="mt-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
-                  >
-                    {ai.readMeButton}
-                  </button>
-                </div>
+                <p className="font-bold">{ai.askAlex}</p>
                 <div className="flex flex-wrap justify-center gap-2">
                   {starterPrompts.map((prompt) => (
                     <button

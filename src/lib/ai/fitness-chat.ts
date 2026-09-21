@@ -76,6 +76,7 @@ function buildSystemPrompt(
     activePlansSummary?: string;
     progressPhotoContext?: string;
     dailyProgressContext?: string;
+    progressHistoryContext?: string;
     profile?: Profile | null;
     progressPhotoSummary?: ProgressPhotoCoachSummary | null;
   },
@@ -106,7 +107,8 @@ ${NUTRITION_ACCURACY_RULES}
 ${coachingPriority}
 
 Read-before-answer (critical):
-- EVERY reply must be grounded in the client blocks below: profile/lifestyle, today's progress (workout, nutrition, cardio, water, habits), weight log, progress photos, and active programs.
+- EVERY reply must be grounded in the client blocks below: profile/lifestyle, today's progress (workout, nutrition, cardio, water, habits), LONG-TERM PROGRESS (7/30/90-day + all-time), weight log, progress photos, and active programs.
+- When they ask how they're doing, what they've accomplished, consistency, or progress over time — use the LONG-TERM PROGRESS block (30/90-day and all-time), not only the last 7 days.
 - Do not give generic cut/bulk advice that ignores their goal or lean physique. If they look lean / have abs / want muscle / want to gain weight, coach surplus, muscle, and weak points — not imaginary pizza and cutting.
 - Prefer their logged numbers and photo analysis over stereotypes. If data is missing, ask one sharp question instead of inventing a narrative.
 
@@ -139,7 +141,7 @@ How to coach:
 - Answer questions about workouts, training splits, exercise form cues, nutrition, macros, meal timing, recovery, sleep, habits, and mindset.
 - When discussing today's food, ground advice in TODAY'S LOGGED MEALS — name the real meals and their macros. Do not invent meals they did not log.
 - When they name logged meals or foods (in the message or activity context), repeat those names verbatim — do not translate or rewrite them (e.g. keep "Milk", never change it to "Mish").
-- Personalize using their full context: profile/lifestyle, TODAY'S DAILY PROGRESS, weight log, macros, photos, and active programs. Reference their actual numbers when relevant — especially when roasting them or praising them.
+- Personalize using their full context: profile/lifestyle, TODAY'S DAILY PROGRESS, LONG-TERM PROGRESS, weight log, macros, photos, and active programs. Reference their actual numbers when relevant — especially when roasting them or praising them.
 - Match phase to goal + physique: gain_weight / build_muscle / lean clients get hypertrophy, surplus calories, and weak-point work; lose_weight / high-fat clients get deficit + retention. Never default to "time for a cut" when abs are visible, they are slim, or the goal is muscle / weight gain.
 - PROFILE SAFETY FLAGS in the client profile are mandatory constraints. If the profile includes conditions (for example PCOS), injuries, medications/supplements, allergies, or other limitations, every recommendation must be adapted to those details.
 - Never give generic "one-size-fits-all" workout or nutrition advice when profile constraints exist. Explain the adaptation briefly.
@@ -244,6 +246,7 @@ Recent activity (last 7 days):
 - Workouts completed: ${stats.workoutsCompleted}
 - Days with meals logged: ${stats.daysTracked}/7
 - Average daily protein: ${stats.avgProtein}g (target ${stats.targets.protein}g)
+${stats.progressHistoryContext ? `\n${stats.progressHistoryContext}\n` : ""}
 ${stats.dailyProgressContext ? `\n${stats.dailyProgressContext}\n` : ""}
 TODAY'S MACRO CHECK (ground truth — do not contradict):
 ${macroCheck}
@@ -318,6 +321,7 @@ export async function prepareFitnessCoachChatMessages(
         activePlansSummary,
         progressPhotoContext: ctx.progressPhotoContextText,
         dailyProgressContext: ctx.dailyProgressContextText,
+        progressHistoryContext: ctx.progressHistoryText,
         profile: ctx.profile,
         progressPhotoSummary: ctx.progressPhotoSummary,
       },

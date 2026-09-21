@@ -12,6 +12,10 @@ import {
   getProgressPhotoSetsWithAnalysis,
   summarizeProgressPhotosForCoach,
 } from "@/lib/ai/progress-photo-context";
+import {
+  buildProgressHistorySummary,
+  type ProgressHistorySummary,
+} from "@/lib/ai/progress-history-summary";
 import type { DailyMealLog, Profile } from "@/lib/types";
 import {
   dailyMacroSurplus,
@@ -88,36 +92,45 @@ export async function getMacroGapForDate(
   return buildMacroGap(consumed, targets);
 }
 
+function daysAgoKey(dateKey: string, daysAgo: number): string {
+  const d = new Date(`${dateKey}T12:00:00`);
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().split("T")[0];
+}
+
 export async function getCoachContext(clientId: string, dateKey: string) {
   const supabase = await createClient();
-  const weekAgo = new Date(dateKey);
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const weekStart = weekAgo.toISOString().split("T")[0];
+  const weekStart = daysAgoKey(dateKey, 6);
+  const ninetyStart = daysAgoKey(dateKey, 89);
 
   const [
     profile,
     weightHistory,
-    mealLogs,
-    sessions,
+    mealLogs90,
+    sessions90,
     habits,
     progressPhotoSets,
     progressPhotoContextText,
     dayMacros,
+    allTimeMealCount,
+    allTimeWorkoutCount,
+    firstMeal,
+    firstWorkout,
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", clientId).single(),
-    getBodyWeightHistory(clientId, 90),
+    getBodyWeightHistory(clientId, 365),
     supabase
       .from("daily_meal_logs")
       .select("date, protein, calories")
       .eq("client_id", clientId)
-      .gte("date", weekStart)
+      .gte("date", ninetyStart)
       .lte("date", dateKey),
     supabase
       .from("workout_sessions")
       .select("id, status, completed_at")
       .eq("client_id", clientId)
       .eq("status", "completed")
-      .gte("completed_at", `${weekStart}T00:00:00`),
+      .gte("completed_at", `${ninetyStart}T00:00:00`),
     supabase
       .from("habit_completions")
       .select("habit_id, date")
@@ -127,6 +140,30 @@ export async function getCoachContext(clientId: string, dateKey: string) {
     getProgressPhotoSetsWithAnalysis(clientId, 12),
     buildProgressPhotoContextForAi(clientId),
     loadConsumedMacrosForDate(clientId, dateKey),
+    supabase
+      .from("daily_meal_logs")
+      .select("date", { count: "exact", head: true })
+      .eq("client_id", clientId),
+    supabase
+      .from("workout_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", clientId)
+      .eq("status", "completed"),
+    supabase
+      .from("daily_meal_logs")
+      .select("date")
+      .eq("client_id", clientId)
+      .order("date", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("workout_sessions")
+      .select("completed_at")
+      .eq("client_id", clientId)
+      .eq("status", "completed")
+      .order("completed_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const p = profile.data as Profile | null;
@@ -139,13 +176,32 @@ export async function getCoachContext(clientId: string, dateKey: string) {
 
   const macroGap = buildMacroGap(dayMacros.consumed, targets);
 
-  const daysWithMeals = new Set((mealLogs.data ?? []).map((m) => m.date)).size;
+  const mealRows = mealLogs90.data ?? [];
+  const weekMeals = mealRows.filter((m) => m.date >= weekStart);
+  const daysWithMeals = new Set(weekMeals.map((m) => m.date)).size;
   const avgProtein =
-    (mealLogs.data ?? []).reduce((s, m) => s + (m.protein ?? 0), 0) /
-    Math.max(1, daysWithMeals);
+    weekMeals.reduce((s, m) => s + (m.protein ?? 0), 0) / Math.max(1, daysWithMeals);
+
+  const weekSessions = (sessions90.data ?? []).filter((s) => {
+    const d = s.completed_at?.slice(0, 10);
+    return d != null && d >= weekStart;
+  });
 
   const habitCompletions = habits.data?.length ?? 0;
   const progressPhotoSummary = summarizeProgressPhotosForCoach(progressPhotoSets);
+
+  const progressHistory: ProgressHistorySummary = buildProgressHistorySummary({
+    todayKey: dateKey,
+    proteinTarget: targets.protein,
+    mealRows,
+    sessions: sessions90.data ?? [],
+    weightHistory,
+    // Row count ≈ meals logged; window stats use distinct days. Good enough for all-time scale.
+    allTimeMealDays: allTimeMealCount.count ?? 0,
+    allTimeWorkouts: allTimeWorkoutCount.count ?? 0,
+    firstMealDate: firstMeal.data?.date ?? null,
+    firstWorkoutDate: firstWorkout.data?.completed_at?.slice(0, 10) ?? null,
+  });
 
   let dailyProgress: DailyProgressSnapshot | null = null;
   let dailyProgressContextText = "";
@@ -167,7 +223,7 @@ export async function getCoachContext(clientId: string, dateKey: string) {
     macroGap,
     todaysMeals: dayMacros.meals,
     weightHistory,
-    workoutsCompleted: sessions.data?.length ?? 0,
+    workoutsCompleted: weekSessions.length,
     habitCompletions,
     daysTracked: daysWithMeals,
     avgProtein: Math.round(avgProtein),
@@ -176,5 +232,7 @@ export async function getCoachContext(clientId: string, dateKey: string) {
     progressPhotoSummary,
     dailyProgress,
     dailyProgressContextText,
+    progressHistoryText: progressHistory.promptText,
+    progressHistory,
   };
 }

@@ -113,7 +113,7 @@ Respond with ONLY JSON:
         "You exceeded your macro ceiling — review today's meals and plan smaller portions tomorrow."
       );
     } else if (ctx.macroGap.protein > 20) {
-      recommendations.push("Add a high-protein snack daily (Greek yogurt, chicken, or shake).");
+      recommendations.push("Add a high-protein snack daily (eggs, chicken, tuna, or plain yogurt).");
     }
     recommendations.push("Schedule workouts at the same time each day to build consistency.");
   }

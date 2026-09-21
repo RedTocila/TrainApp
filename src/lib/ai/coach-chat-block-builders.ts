@@ -17,7 +17,7 @@ function buildInsightMessage(
     return `You went over your macro limit today (${summary}). Eat lighter tomorrow and review today's meals.`;
   }
   if (gap.protein > 25) {
-    return `You need about ${Math.round(gap.protein)}g more protein today. Try chicken, Greek yogurt, tuna, or protein oats.`;
+    return `You need about ${Math.round(gap.protein)}g more protein today. Try chicken, tuna, eggs, or plain yogurt.`;
   }
   if (gap.calories > 400) {
     return `~${Math.round(gap.calories)} calories left — plan a balanced meal with lean protein.`;

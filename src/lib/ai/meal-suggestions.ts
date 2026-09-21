@@ -48,7 +48,7 @@ function fallbackSuggestions(gap: MacroGap): MealSuggestion[] {
   if (gap.protein > 15) {
     suggestions.push({
       title: "High-protein boost",
-      description: "Greek yogurt, chicken breast, tuna, cottage cheese, or a protein shake.",
+      description: "Eggs, chicken breast, tuna, cottage cheese, or plain yogurt.",
       protein_g: Math.min(gap.protein, 40),
       calories: Math.min(gap.calories, 350),
       reason: `You need about ${Math.round(gap.protein)}g more protein today.`,
@@ -58,7 +58,7 @@ function fallbackSuggestions(gap: MacroGap): MealSuggestion[] {
     suggestions.push({
       title: "Calorie-dense meal",
       description:
-        "Rice or pasta with protein and olive oil, oats with nut butter and milk, or a smoothie with banana, yogurt, and peanut butter.",
+        "Rice or pasta with protein and olive oil, oats with nut butter and milk, or a banana-yogurt bowl with oats.",
       protein_g: Math.min(gap.protein, 35),
       calories: Math.min(gap.calories, 650),
       reason: `You still have ~${Math.round(gap.calories)} calories to fill.`,
@@ -66,7 +66,7 @@ function fallbackSuggestions(gap: MacroGap): MealSuggestion[] {
   } else if (gap.calories > 200 && suggestions.length < 3) {
     suggestions.push({
       title: "Balanced snack",
-      description: "Rice with lean protein and vegetables, or oats with fruit and Greek yogurt.",
+      description: "Rice with lean protein and vegetables, or oats with fruit and plain yogurt.",
       protein_g: Math.min(gap.protein, 25),
       calories: Math.min(gap.calories, 450),
       reason: `You have ~${Math.round(gap.calories)} calories left.`,
@@ -153,7 +153,7 @@ Remaining today (room left before upper tolerance):
 Consumed: ${gap.consumed.calories} kcal, P${gap.consumed.protein}g C${gap.consumed.carbs}g F${gap.consumed.fat}g
 Targets: ${gap.targets.calories} kcal, ${gap.targets.protein}g protein, ${gap.targets.carbs}g carbs, ${gap.targets.fat}g fat.
 Prioritize protein if protein gap is largest. Never suggest foods that push an already-over macro further over.
-If remaining calories are high (300+), suggest calorie-dense meals that are easy to eat — rice, pasta, oats, nut butters, olive oil, dairy, smoothies — not tiny salads.
+If remaining calories are high (300+), suggest calorie-dense WHOLE-food meals that are easy to eat — rice, pasta, oats, nut butters, olive oil, milk, plain yogurt, fruit — not tiny salads and never protein powders, shakes, or bars.
 
 Respond with ONLY valid JSON:
 {
