@@ -300,6 +300,7 @@ function ChatCommandBar({
   modeAskAria,
   modeActAria,
   onVoiceError,
+  onVoiceSend,
 }: {
   input: string;
   onInputChange: (value: string) => void;
@@ -322,6 +323,7 @@ function ChatCommandBar({
   modeAskAria: string;
   modeActAria: string;
   onVoiceError: (message: string) => void;
+  onVoiceSend: (text: string) => void;
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
@@ -334,6 +336,7 @@ function ChatCommandBar({
     value: input,
     onChange: onInputChange,
     onError: onVoiceError,
+    onComplete: onVoiceSend,
     enabled: !disabled,
   });
 
@@ -890,6 +893,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeAskAria={ai.modeAskAria}
               modeActAria={ai.modeActAria}
               onVoiceError={setError}
+              onVoiceSend={(text) => void sendMessage(text)}
             />
           </div>
         </div>
@@ -980,6 +984,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeAskAria={ai.modeAskAria}
               modeActAria={ai.modeActAria}
               onVoiceError={setError}
+              onVoiceSend={(text) => void sendMessage(text)}
             />
           </div>
         </CardContent>

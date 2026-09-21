@@ -24,7 +24,15 @@ type SpeechRecognitionEventLike = {
 
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
-export type VoiceDictationStatus = "idle" | "listening" | "recording" | "transcribing";
+export type VoiceDictationStatus =
+  | "idle"
+  | "listening"
+  | "recording"
+  | "transcribing";
+
+const SILENCE_MS = 2500;
+const MIN_RECORD_MS = 900;
+const SPEECH_RMS_THRESHOLD = 0.02;
 
 function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
   if (typeof window === "undefined") return null;
@@ -33,18 +41,6 @@ function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
     webkitSpeechRecognition?: SpeechRecognitionCtor;
   };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
-function prefersWhisperFallback(): boolean {
-  if (typeof navigator === "undefined") return true;
-  const ua = navigator.userAgent;
-  // Web Speech is unreliable on iOS Safari and often blocked in Brave.
-  if (/iPhone|iPad|iPod/i.test(ua)) return true;
-  if (/Safari/i.test(ua) && !/Chrome|CriOS|Edg|FxiOS|OPiOS/i.test(ua)) return true;
-  if (/Brave/i.test(ua)) return true;
-  const nav = navigator as Navigator & { brave?: { isBrave?: unknown } };
-  if (nav.brave) return true;
-  return false;
 }
 
 function speechLang(locale: string): string {
@@ -79,12 +75,15 @@ export function useVoiceDictation({
   value,
   onChange,
   onError,
+  onComplete,
   enabled = true,
 }: {
   locale: string;
   value: string;
   onChange: (next: string) => void;
   onError: (message: string) => void;
+  /** Called after silence with the final transcript (auto-send). */
+  onComplete?: (text: string) => void;
   enabled?: boolean;
 }) {
   const [status, setStatus] = useState<VoiceDictationStatus>("idle");
@@ -96,17 +95,45 @@ export function useVoiceDictation({
   const chunksRef = useRef<Blob[]>([]);
   const modeRef = useRef<"speech" | "record" | null>(null);
   const stopRequestedRef = useRef(false);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completeFiredRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRafRef = useRef<number | null>(null);
+  const recordStartedAtRef = useRef(0);
+  const hadSpeechRef = useRef(false);
+  const lastSoundAtRef = useRef(0);
 
   valueRef.current = value;
+  onCompleteRef.current = onComplete;
+
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }, []);
+
+  const cleanupAnalyser = useCallback(() => {
+    if (analyserRafRef.current != null) {
+      cancelAnimationFrame(analyserRafRef.current);
+      analyserRafRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      void audioCtxRef.current.close().catch(() => undefined);
+      audioCtxRef.current = null;
+    }
+  }, []);
 
   const cleanupMedia = useCallback(() => {
+    cleanupAnalyser();
     mediaRecorderRef.current = null;
     chunksRef.current = [];
     if (mediaStreamRef.current) {
       for (const track of mediaStreamRef.current.getTracks()) track.stop();
       mediaStreamRef.current = null;
     }
-  }, []);
+  }, [cleanupAnalyser]);
 
   const stopSpeech = useCallback(() => {
     const recognition = recognitionRef.current;
@@ -126,24 +153,55 @@ export function useVoiceDictation({
     }
   }, []);
 
+  const finishWithText = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || completeFiredRef.current) return;
+      completeFiredRef.current = true;
+      clearSilenceTimer();
+      onChange(trimmed);
+      onCompleteRef.current?.(trimmed);
+    },
+    [clearSilenceTimer, onChange]
+  );
+
+  const scheduleSpeechAutoComplete = useCallback(() => {
+    clearSilenceTimer();
+    silenceTimerRef.current = setTimeout(() => {
+      if (modeRef.current !== "speech") return;
+      const text = valueRef.current.trim();
+      if (!text) return;
+      stopRequestedRef.current = true;
+      stopSpeech();
+      setStatus("idle");
+      modeRef.current = null;
+      finishWithText(text);
+    }, SILENCE_MS);
+  }, [clearSilenceTimer, finishWithText, stopSpeech]);
+
   useEffect(() => {
     return () => {
       stopRequestedRef.current = true;
+      clearSilenceTimer();
       stopSpeech();
       if (mediaRecorderRef.current?.state === "recording") {
         mediaRecorderRef.current.stop();
       }
       cleanupMedia();
     };
-  }, [cleanupMedia, stopSpeech]);
+  }, [cleanupMedia, clearSilenceTimer, stopSpeech]);
 
   const transcribeBlob = useCallback(
-    async (blob: Blob) => {
+    async (blob: Blob, autoSend: boolean) => {
       setStatus("transcribing");
       try {
         const form = new FormData();
         const type = blob.type || "audio/webm";
-        const ext = type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
+        const ext = type.includes("mp4")
+          ? "m4a"
+          : type.includes("ogg")
+            ? "ogg"
+            : "webm";
         form.append("audio", blob, `voice.${ext}`);
         const lang = whisperLang(locale);
         if (lang) form.append("language", lang);
@@ -160,7 +218,9 @@ export function useVoiceDictation({
         }
         const text = payload?.text?.trim();
         if (!text) throw new Error("Couldn't catch that — try again.");
-        onChange(joinText(baseRef.current, text));
+        const next = joinText(baseRef.current, text);
+        onChange(next);
+        if (autoSend) finishWithText(next);
       } catch (error) {
         onError(error instanceof Error ? error.message : "Transcription failed");
       } finally {
@@ -169,11 +229,14 @@ export function useVoiceDictation({
         cleanupMedia();
       }
     },
-    [cleanupMedia, locale, onChange, onError]
+    [cleanupMedia, finishWithText, locale, onChange, onError]
   );
 
   const startRecording = useCallback(async () => {
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    if (
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === "undefined"
+    ) {
       onError("Voice input isn't supported in this browser.");
       return;
     }
@@ -190,6 +253,10 @@ export function useVoiceDictation({
       baseRef.current = valueRef.current;
       modeRef.current = "record";
       stopRequestedRef.current = false;
+      completeFiredRef.current = false;
+      hadSpeechRef.current = false;
+      recordStartedAtRef.current = Date.now();
+      lastSoundAtRef.current = Date.now();
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
@@ -201,18 +268,65 @@ export function useVoiceDictation({
         cleanupMedia();
       };
       recorder.onstop = () => {
+        cleanupAnalyser();
         const blob = new Blob(chunksRef.current, {
           type: recorder.mimeType || mimeType || "audio/webm",
         });
+        const shouldSend = stopRequestedRef.current && hadSpeechRef.current;
         if (!stopRequestedRef.current || blob.size < 200) {
           setStatus("idle");
           modeRef.current = null;
           cleanupMedia();
-          if (blob.size < 200) onError("Recording was too short.");
+          if (stopRequestedRef.current && blob.size < 200) {
+            onError("Recording was too short.");
+          }
           return;
         }
-        void transcribeBlob(blob);
+        void transcribeBlob(blob, shouldSend);
       };
+
+      // Silence detection → auto-stop → Whisper → auto-send
+      try {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext;
+        const ctx = new AudioCtx();
+        audioCtxRef.current = ctx;
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+        const data = new Uint8Array(analyser.fftSize);
+
+        const tick = () => {
+          if (modeRef.current !== "record") return;
+          analyser.getByteTimeDomainData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) {
+            const v = (data[i] - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / data.length);
+          const now = Date.now();
+          if (rms >= SPEECH_RMS_THRESHOLD) {
+            hadSpeechRef.current = true;
+            lastSoundAtRef.current = now;
+          } else if (
+            hadSpeechRef.current &&
+            now - recordStartedAtRef.current >= MIN_RECORD_MS &&
+            now - lastSoundAtRef.current >= SILENCE_MS
+          ) {
+            stopRequestedRef.current = true;
+            if (recorder.state !== "inactive") recorder.stop();
+            return;
+          }
+          analyserRafRef.current = requestAnimationFrame(tick);
+        };
+        analyserRafRef.current = requestAnimationFrame(tick);
+      } catch {
+        /* silence auto-stop optional; user can tap stop */
+      }
 
       recorder.start(250);
       setStatus("recording");
@@ -222,7 +336,7 @@ export function useVoiceDictation({
       modeRef.current = null;
       cleanupMedia();
     }
-  }, [cleanupMedia, onError, transcribeBlob]);
+  }, [cleanupAnalyser, cleanupMedia, onError, transcribeBlob]);
 
   const startSpeech = useCallback(() => {
     const Ctor = getSpeechRecognitionCtor();
@@ -239,6 +353,7 @@ export function useVoiceDictation({
     baseRef.current = valueRef.current;
     modeRef.current = "speech";
     stopRequestedRef.current = false;
+    completeFiredRef.current = false;
 
     recognition.onresult = (event) => {
       let finalChunk = "";
@@ -255,10 +370,13 @@ export function useVoiceDictation({
       } else {
         onChange(joinText(baseRef.current, interimChunk));
       }
+      if (baseRef.current.trim() || interimChunk.trim()) {
+        scheduleSpeechAutoComplete();
+      }
     };
 
     recognition.onerror = (event) => {
-      // Fall back to Whisper recording for unsupported / broken browsers.
+      clearSilenceTimer();
       if (
         event.error === "not-allowed" ||
         event.error === "service-not-allowed"
@@ -271,14 +389,17 @@ export function useVoiceDictation({
       }
       if (
         event.error === "network" ||
-        event.error === "service-not-allowed" ||
         event.error === "language-not-supported"
       ) {
         stopSpeech();
         void startRecording();
         return;
       }
-      if (event.error !== "aborted" && event.error !== "no-speech") {
+      if (event.error === "no-speech") {
+        // Keep listening; silence timer / restart handles end.
+        return;
+      }
+      if (event.error !== "aborted") {
         onError("Couldn't hear that — try again.");
       }
       setStatus("idle");
@@ -289,7 +410,6 @@ export function useVoiceDictation({
     recognition.onend = () => {
       if (modeRef.current !== "speech") return;
       if (!stopRequestedRef.current) {
-        // Some browsers end after a pause; keep listening until user stops.
         try {
           recognition.start();
           return;
@@ -309,19 +429,32 @@ export function useVoiceDictation({
       stopSpeech();
       void startRecording();
     }
-  }, [locale, onChange, onError, startRecording, stopSpeech]);
+  }, [
+    clearSilenceTimer,
+    locale,
+    onChange,
+    onError,
+    scheduleSpeechAutoComplete,
+    startRecording,
+    stopSpeech,
+  ]);
 
   const stop = useCallback(() => {
     stopRequestedRef.current = true;
+    clearSilenceTimer();
     if (modeRef.current === "speech") {
+      const text = valueRef.current.trim();
       stopSpeech();
       setStatus("idle");
       modeRef.current = null;
+      if (text) finishWithText(text);
       return;
     }
     if (modeRef.current === "record") {
       const recorder = mediaRecorderRef.current;
       if (recorder && recorder.state !== "inactive") {
+        // Manual stop still transcribes + auto-sends if we heard speech.
+        hadSpeechRef.current = hadSpeechRef.current || chunksRef.current.length > 0;
         recorder.stop();
       } else {
         setStatus("idle");
@@ -329,7 +462,7 @@ export function useVoiceDictation({
         cleanupMedia();
       }
     }
-  }, [cleanupMedia, stopSpeech]);
+  }, [cleanupMedia, clearSilenceTimer, finishWithText, stopSpeech]);
 
   const toggle = useCallback(() => {
     if (!enabled) return;
@@ -338,11 +471,9 @@ export function useVoiceDictation({
       return;
     }
     if (status === "transcribing") return;
-    if (prefersWhisperFallback() || !getSpeechRecognitionCtor()) {
-      void startRecording();
-      return;
-    }
-    startSpeech();
+    // Prefer live Web Speech so text reveals while talking; Whisper is fallback.
+    if (getSpeechRecognitionCtor()) startSpeech();
+    else void startRecording();
   }, [enabled, startRecording, startSpeech, status, stop]);
 
   return {
