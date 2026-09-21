@@ -78,13 +78,19 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "generate_workout_plan",
       description:
-        "Generate a new personalized workout. Use workout_kind=hiit for HIIT/interval/tabata timer sessions; use strength (default) for traditional sets/reps weekly splits. Prefer hiit when they ask for HIIT, intervals, or tabata; prefer strength for traditional, hypertrophy, bodybuilding, or general 'workout plan'.",
+        "Generate a new personalized workout program with multiple training days. Use when they want a new plan OR before scheduling N days/week if their current plan has fewer days than requested. Use workout_kind=hiit for HIIT/interval/tabata; strength (default) for traditional weekly splits. ALWAYS set days_per_week to match how many distinct training days they want (e.g. 4 for Mon/Tue/Thu/Fri).",
       parameters: {
         type: "object",
         properties: {
           preferences: {
             type: "string",
-            description: "Optional extra instructions (equipment, days per week, focus areas, HIIT duration).",
+            description:
+              "Extra instructions (equipment, focus areas, split style, which weekdays). Mention the exact training days if they named them.",
+          },
+          days_per_week: {
+            type: "number",
+            description:
+              "Exact number of distinct training days in the plan (1–6). Required when they ask for a multi-day week (e.g. 4 for Mon/Tue/Thu/Fri). Do not leave this at 1 if they want multiple training days.",
           },
           workout_kind: {
             type: "string",
@@ -120,7 +126,7 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "edit_workout_plan",
       description:
-        "Modify the client's current active workout plan based on their instructions (swap exercises, add a day, reduce volume, etc.).",
+        "Modify the client's current active workout plan (swap exercises, reduce volume, etc.). To turn a 1-day plan into a multi-day split for scheduling, prefer generate_workout_plan with days_per_week instead.",
       parameters: {
         type: "object",
         properties: {
@@ -311,7 +317,16 @@ export async function executeCoachChatTool(
           args.workout_kind === "hiit" || args.workout_kind === "strength"
             ? args.workout_kind
             : null;
-        const plan = await generateWorkoutPlanForChat(profile, preferences, workoutKind);
+        const daysPerWeek =
+          typeof args.days_per_week === "number" && args.days_per_week > 0
+            ? Math.min(6, Math.max(1, Math.round(args.days_per_week)))
+            : undefined;
+        const plan = await generateWorkoutPlanForChat(
+          profile,
+          preferences,
+          workoutKind,
+          daysPerWeek
+        );
         const preview: ChatPlanPreview = { type: "workout", plan };
         onEvent?.({ type: "plan_preview", preview });
         onEvent?.({ type: "tool_done", name });
@@ -322,7 +337,7 @@ export async function executeCoachChatTool(
           };
         }
         return {
-          result: `Generated workout plan "${plan.title}" with ${plan.days.length} training day(s). A preview card is shown in chat — the client must tap Apply to save it.`,
+          result: `Generated workout plan "${plan.title}" with ${plan.days.length} training day(s). A preview card is shown in chat — the client must tap Apply to save it before you can schedule it. If they asked to schedule specific weekdays, tell them to Apply, then ask you to schedule (or send the schedule request again).`,
           planPreview: preview,
         };
       }

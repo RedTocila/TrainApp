@@ -252,17 +252,35 @@ async function scheduleWorkoutPlanDays(input: {
   const weeks = Math.min(52, Math.max(1, Math.round(input.weeks) || 4));
   let count = 0;
 
-  for (let i = 0; i < days.length; i++) {
-    const weekday = weekdays[i % weekdays.length]!;
-    const result = await scheduleWorkoutSeries({
-      startDate,
-      weekdays: [weekday],
-      weeks,
-      planId: input.planId,
-      dayId: days[i].id as string,
-    });
-    if (result.error) return { error: result.error };
-    count += "count" in result ? (result.count as number) : 0;
+  // When the client named weekdays, schedule one session per weekday (cycle plan
+  // days if the plan is shorter). Otherwise map each plan day to a default weekday.
+  if (input.weekdays.length > 0) {
+    for (let i = 0; i < weekdays.length; i++) {
+      const weekday = weekdays[i]!;
+      const day = days[i % days.length]!;
+      const result = await scheduleWorkoutSeries({
+        startDate,
+        weekdays: [weekday],
+        weeks,
+        planId: input.planId,
+        dayId: day.id as string,
+      });
+      if (result.error) return { error: result.error };
+      count += "count" in result ? (result.count as number) : 0;
+    }
+  } else {
+    for (let i = 0; i < days.length; i++) {
+      const weekday = weekdays[i % weekdays.length]!;
+      const result = await scheduleWorkoutSeries({
+        startDate,
+        weekdays: [weekday],
+        weeks,
+        planId: input.planId,
+        dayId: days[i].id as string,
+      });
+      if (result.error) return { error: result.error };
+      count += "count" in result ? (result.count as number) : 0;
+    }
   }
 
   return { success: true as const, count };

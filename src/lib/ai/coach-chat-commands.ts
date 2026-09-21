@@ -118,7 +118,7 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
     function: {
       name: "schedule_workout_plan",
       description:
-        "Propose scheduling a workout plan onto the calendar for several weeks. SERIOUS — shows a Confirm button; do not claim it is scheduled until they confirm. Call list_my_workouts first if you lack plan_id.",
+        "Propose scheduling an EXISTING saved workout plan onto the calendar for several weeks. SERIOUS — Confirm button required. The plan must already have enough training days: scheduling places one plan day per weekday. If they want Mon/Tue/Thu/Fri (4 days), the plan needs 4 days — call generate_workout_plan with days_per_week=4 first, wait for Apply, then schedule. Call list_my_workouts first if you lack plan_id.",
       parameters: {
         type: "object",
         properties: {
@@ -128,7 +128,7 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
             type: "array",
             items: { type: "number" },
             description:
-              "JS weekdays Sun=0…Sat=6 for each plan day in order. Default Mon/Wed/Fri or Mon/Tue/Thu/Fri.",
+              "JS weekdays Sun=0…Sat=6 for each training day in order. Example Mon/Tue/Thu/Fri = [1,2,4,5]. Length should match the plan's training day count.",
           },
           start_date: { type: "string", description: "YYYY-MM-DD, default today" },
         },
@@ -412,19 +412,33 @@ export async function executeCoachCommandTool(
       const weeks =
         typeof args.weeks === "number" && args.weeks > 0 ? Math.round(args.weeks) : 4;
       const weekdays = Array.isArray(args.weekdays)
-        ? args.weekdays.map(Number).filter((n) => Number.isFinite(n))
+        ? args.weekdays.map(Number).filter((n) => Number.isFinite(n) && n >= 0 && n <= 6)
         : [];
       const startDate =
         typeof args.start_date === "string" ? args.start_date : undefined;
       const days = await getWorkoutPlanDaysSummary(planId);
+
+      if (weekdays.length > 0 && meta.dayCount < weekdays.length) {
+        return {
+          result: `Blocked: plan "${meta.title}" only has ${meta.dayCount} training day(s), but they asked for ${weekdays.length} weekdays (${weekdayNames(weekdays)}). Scheduling cannot invent missing plan days. FIRST call generate_workout_plan with days_per_week=${weekdays.length} and preferences that name those weekdays. After they tap Apply on the preview, call list_my_workouts, then schedule_workout_plan with the new plan_id, weeks=${weeks}, and weekdays=${JSON.stringify(weekdays)}.`,
+        };
+      }
+
+      if (meta.dayCount < 1) {
+        return {
+          result:
+            "Blocked: this workout has no days to schedule. Generate a new plan with generate_workout_plan first.",
+        };
+      }
+
       const pendingAction = createPendingAction(
         "schedule_workout_plan",
         `Schedule “${meta.title}”`,
-        `${meta.dayCount} day(s) · ${weeks} week(s)${
+        `${meta.dayCount} training day(s) · ${weeks} week(s)${
           weekdays.length ? ` · ${weekdayNames(weekdays)}` : " · default training days"
-        }${startDate ? ` · from ${startDate}` : " · starting today"}. Days: ${
-          days.map((d) => d.title).join(", ") || "—"
-        }`,
+        }${startDate ? ` · from ${startDate}` : " · starting today"} → ~${
+          (weekdays.length || meta.dayCount) * weeks
+        } sessions. Days: ${days.map((d) => d.title).join(", ") || "—"}`,
         { planId, weeks, weekdays, startDate },
         { confirmLabel: "Confirm schedule" }
       );

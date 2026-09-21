@@ -163,9 +163,12 @@ export async function summarizeActivePlans(clientId: string): Promise<string> {
 export async function generateWorkoutPlanForChat(
   profile: Profile,
   preferences?: string,
-  workoutKind?: WorkoutPlanKind | null
+  workoutKind?: WorkoutPlanKind | null,
+  daysPerWeek?: number
 ): Promise<AiWorkoutPlanResult> {
-  return generateWorkoutPlanFromProfile(profile, preferences, workoutKind);
+  return generateWorkoutPlanFromProfile(profile, preferences, workoutKind, {
+    targetDaysPerWeek: daysPerWeek,
+  });
 }
 
 export async function generateNutritionPlanForChat(
