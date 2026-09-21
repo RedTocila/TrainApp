@@ -170,8 +170,9 @@ Plan building & editing (you have tools):
 - generate_workout_plan / generate_nutrition_plan: brand-new programs.
 - For workouts: set workout_kind to "hiit" when they ask for HIIT, intervals, tabata, or timed circuits; use "strength" (or omit) for traditional / sets-and-reps / weekly split programs.
 - ALWAYS set days_per_week on generate_workout_plan to the number of distinct training days they want (e.g. 4 for Mon/Tue/Thu/Fri). Never generate a 1-day plan when they asked for multiple training days.
+- ALWAYS set schedule_weeks (e.g. 4) and schedule_weekdays (e.g. [1,2,4,5] for Mon/Tue/Thu/Fri) on generate_workout_plan when they want it on the calendar. Apply saves AND schedules — no separate schedule step needed.
 - edit_workout_plan / edit_nutrition_plan: tweak their current active plan (swap exercises, adjust meals, raise or lower calories to match their goal, etc.). To expand a 1-day plan into a multi-day split, prefer generate_workout_plan with the correct days_per_week.
-- After a plan is generated, a preview card appears in chat. Tell them to tap "Apply to my program" to save it — do NOT say it's already saved until they apply. You cannot schedule a brand-new plan until they Apply.
+- After a plan is generated, a preview card appears in chat. Tell them to tap "Apply & schedule" — that saves the program AND puts it on the calendar. Do NOT say they need a second schedule step.
 - Keep your reply short after using a tool; the preview card shows the details.`
     : isActMode
       ? `
@@ -195,13 +196,10 @@ Coach dashboard visuals (you have tools — same as the AI Coach tab):
 Chat mode: ACT (manage platform)
 - Prefer doing actions via tools over telling them to navigate the UI manually.
 
-Scheduling workouts (critical — do not skip build step):
-- schedule_workout_plan only places EXISTING saved plan days onto the calendar. It does NOT create a multi-day program by itself.
-- If they ask to train N days/week (e.g. Mon/Tue/Thu/Fri) for W weeks:
-  1. Call list_my_workouts or get_my_active_plans.
-  2. If the plan has fewer than N training days (or none), call generate_workout_plan with days_per_week=N and preferences naming those weekdays. Tell them to tap Apply. Do NOT schedule yet.
-  3. After they Apply (or if the plan already has ≥ N days), call schedule_workout_plan with weeks=W and weekdays as JS numbers (Mon=1 … Sun=0), e.g. Mon/Tue/Thu/Fri = [1,2,4,5].
-- Never schedule a 1-day plan when they asked for 4 training days — that only puts one weekday on the calendar.
+Building + scheduling workouts (critical):
+- When they ask for an N-day split for W weeks (e.g. 4-day Mon/Tue/Thu/Fri for 4 weeks): call generate_workout_plan with days_per_week=N, schedule_weeks=W, schedule_weekdays=[1,2,4,5] (JS: Sun=0…Sat=6). Then tell them to tap Apply & schedule once.
+- Apply on the preview card saves the plan AND schedules the calendar. Do not require a separate schedule_workout_plan after Apply unless they change days later.
+- schedule_workout_plan is still available to re-schedule an already-saved plan.
 - Soft actions (run immediately, no confirm): log_meal, log_weight, log_water. Use when they clearly want something logged with enough detail.
 - Serious actions (ALWAYS show a Confirm button — never claim done until they confirm): schedule_workout_plan, schedule_nutrition_plan, clear_workout_schedule, clear_nutrition_schedule, delete_workout_plan, delete_nutrition_plan, assign_workout_plan, assign_nutrition_plan, update_health_lifestyle.
 - Before delete / schedule / assign / clear: call list_my_workouts or list_my_nutrition_plans to get the correct plan_id unless you already have it.

@@ -209,7 +209,8 @@ export async function coachLogWaterCommand(input: {
   };
 }
 
-async function scheduleWorkoutPlanDays(input: {
+/** Schedule a personal workout plan across weekdays for N weeks (used by Confirm + Apply). */
+export async function scheduleWorkoutPlanDays(input: {
   planId: string;
   weeks: number;
   weekdays: number[];

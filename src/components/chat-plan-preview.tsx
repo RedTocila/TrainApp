@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Check, ChevronDown, Dumbbell, Loader2, Salad, Zap } from "lucide-react";
 import { applyChatPlanPreviewAction } from "@/lib/actions/ai-plan-builder";
@@ -12,6 +11,18 @@ import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { hiitSummaryLabel } from "@/lib/hiit";
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function describeSchedule(preview: ChatPlanPreview): string | null {
+  const schedule = preview.schedule;
+  if (!schedule) return null;
+  const days =
+    schedule.weekdays.length > 0
+      ? schedule.weekdays.map((d) => WEEKDAY_SHORT[d] ?? "?").join("/")
+      : "default days";
+  return `${schedule.weeks} week(s) · ${days}`;
+}
 
 export function ChatPlanPreviewCard({
   preview,
@@ -24,25 +35,33 @@ export function ChatPlanPreviewCard({
   onApplied?: () => void;
   gender?: string | null;
 }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [localApplied, setLocalApplied] = useState(false);
+  const [scheduledCount, setScheduledCount] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [openDay, setOpenDay] = useState(0);
   const isWorkout = preview.type === "workout";
   const workoutPlan = isWorkout ? preview.plan : null;
   const hiitPlan = workoutPlan && isAiHiitPlan(workoutPlan) ? workoutPlan : null;
   const strengthPlan = workoutPlan && !isAiHiitPlan(workoutPlan) ? workoutPlan : null;
+  const scheduleLabel = describeSchedule(preview);
+  const isApplied = applied || localApplied;
 
   const handleApply = () => {
     setError(null);
     startTransition(async () => {
-      const result = await applyChatPlanPreviewAction(preview.type, preview.plan);
+      const result = await applyChatPlanPreviewAction(
+        preview.type,
+        preview.plan,
+        preview.schedule ?? { weeks: 4, weekdays: [] }
+      );
       if ("error" in result) {
         setError(result.error);
         return;
       }
+      setLocalApplied(true);
+      setScheduledCount(result.scheduledCount);
       onApplied?.();
-      router.push(result.editPath);
     });
   };
 
@@ -67,6 +86,11 @@ export function ChatPlanPreviewCard({
           <p className="mt-0.5 font-semibold">{preview.plan.title}</p>
           {preview.plan.description && (
             <p className="mt-1 text-xs text-muted-foreground">{preview.plan.description}</p>
+          )}
+          {scheduleLabel && (
+            <p className="mt-1 text-[11px] font-medium text-emerald-400/90">
+              Apply will save + schedule: {scheduleLabel}
+            </p>
           )}
 
           {hiitPlan ? (
@@ -176,11 +200,19 @@ export function ChatPlanPreviewCard({
 
           {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            {applied ? (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-400">
-                <Check className="h-3.5 w-3.5" />
-                Applied to your program
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {isApplied ? (
+              <span className="inline-flex flex-col gap-0.5 text-xs font-semibold text-green-400">
+                <span className="inline-flex items-center gap-1">
+                  <Check className="h-3.5 w-3.5" />
+                  Applied to your program
+                </span>
+                {scheduledCount != null && scheduledCount > 0 ? (
+                  <span className="font-medium text-emerald-300/90">
+                    Scheduled {scheduledCount} session
+                    {scheduledCount === 1 ? "" : "s"} on your calendar
+                  </span>
+                ) : null}
               </span>
             ) : (
               <Button size="sm" className="h-8" disabled={isPending} onClick={handleApply}>
@@ -189,16 +221,18 @@ export function ChatPlanPreviewCard({
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     Applying…
                   </>
+                ) : scheduleLabel ? (
+                  "Apply & schedule"
                 ) : (
                   "Apply to my program"
                 )}
               </Button>
             )}
             <Link
-              href={isWorkout ? "/dashboard/ai/plans/workout" : "/dashboard/ai/plans/nutrition"}
+              href={isWorkout ? "/dashboard/workout" : "/dashboard/nutrition"}
               className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline"
             >
-              Open full builder
+              Open calendar
             </Link>
           </div>
         </div>

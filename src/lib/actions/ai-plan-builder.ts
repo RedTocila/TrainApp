@@ -26,6 +26,8 @@ import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import { saveWorkoutDay } from "@/lib/actions/plans";
 import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan, addWorkoutToDay, getPersonalWorkoutPlanWithDetails } from "@/lib/actions/user-workouts";
 import { savePersonalHiitPlan } from "@/lib/actions/user-hiit";
+import { scheduleWorkoutPlanDays } from "@/lib/actions/coach-commands";
+import { scheduleNutritionSeries } from "@/lib/actions/user-nutrition-schedule";
 import { enrichExerciseWithGif } from "@/lib/exercise-gif";
 import type { WorkoutPlanKind } from "@/lib/hiit";
 import { isMainWorkoutKind } from "@/lib/hiit";
@@ -548,18 +550,72 @@ export async function applyAiNutritionPlanAction(
   return { planId };
 }
 
-/** Apply a plan preview from AI coach chat (same as plan builder apply). */
+/** Apply a plan preview from AI coach chat (same as plan builder apply).
+ * When the preview includes schedule intent, also places it on the calendar.
+ */
 export async function applyChatPlanPreviewAction(
   type: "workout" | "nutrition",
-  plan: AiWorkoutPlanResult | AiGeneratedNutritionPlan
-): Promise<{ planId: string; editPath: string } | { error: string }> {
+  plan: AiWorkoutPlanResult | AiGeneratedNutritionPlan,
+  schedule?: { weeks: number; weekdays: number[]; startDate?: string } | null
+): Promise<
+  | { planId: string; editPath: string; scheduledCount: number; weeks: number }
+  | { error: string }
+> {
   if (type === "workout") {
     const result = await applyAiWorkoutPlanAction(plan as AiWorkoutPlanResult);
     if ("error" in result) return result;
-    return { planId: result.planId, editPath: `/dashboard/workout/${result.planId}/edit` };
+
+    let scheduledCount = 0;
+    const weeks = schedule?.weeks ?? 4;
+    if (schedule) {
+      const scheduled = await scheduleWorkoutPlanDays({
+        planId: result.planId,
+        weeks,
+        weekdays: schedule.weekdays ?? [],
+        startDate: schedule.startDate,
+      });
+      if ("error" in scheduled && scheduled.error) {
+        return {
+          error: `Plan saved, but scheduling failed: ${scheduled.error}`,
+        };
+      }
+      scheduledCount = "count" in scheduled ? (scheduled.count as number) : 0;
+    }
+
+    return {
+      planId: result.planId,
+      editPath: `/dashboard/workout/${result.planId}/edit`,
+      scheduledCount,
+      weeks,
+    };
   }
 
   const result = await applyAiNutritionPlanAction(plan as AiGeneratedNutritionPlan);
   if ("error" in result) return result;
-  return { planId: result.planId, editPath: `/dashboard/nutrition/${result.planId}/edit` };
+
+  let scheduledCount = 0;
+  const weeks = schedule?.weeks ?? 4;
+  if (schedule) {
+    const startDate =
+      schedule.startDate?.trim() || new Date().toISOString().split("T")[0];
+    const weekdays =
+      schedule.weekdays.length > 0 ? schedule.weekdays : [0, 1, 2, 3, 4, 5, 6];
+    const scheduled = await scheduleNutritionSeries({
+      startDate,
+      weekdays,
+      weeks: Math.min(52, Math.max(1, Math.round(weeks))),
+      planId: result.planId,
+    });
+    if (scheduled?.error) {
+      return { error: `Plan saved, but scheduling failed: ${scheduled.error}` };
+    }
+    scheduledCount = "count" in scheduled ? (scheduled.count as number) : 0;
+  }
+
+  return {
+    planId: result.planId,
+    editPath: `/dashboard/nutrition/${result.planId}/edit`,
+    scheduledCount,
+    weeks,
+  };
 }

@@ -31,9 +31,26 @@ import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import type { Profile } from "@/lib/types";
 import type OpenAI from "openai";
 
+export type ChatPlanScheduleIntent = {
+  /** Calendar weeks to place (1–52). */
+  weeks: number;
+  /** JS weekdays Sun=0…Sat=6. Empty = defaults from plan day count. */
+  weekdays: number[];
+  startDate?: string;
+};
+
 export type ChatPlanPreview =
-  | { type: "workout"; plan: AiWorkoutPlanResult }
-  | { type: "nutrition"; plan: AiGeneratedNutritionPlan };
+  | {
+      type: "workout";
+      plan: AiWorkoutPlanResult;
+      /** When set, Apply also schedules onto the calendar. */
+      schedule?: ChatPlanScheduleIntent;
+    }
+  | {
+      type: "nutrition";
+      plan: AiGeneratedNutritionPlan;
+      schedule?: ChatPlanScheduleIntent;
+    };
 
 export type CoachChatToolEvent =
   | { type: "tool_start"; name: string }
@@ -78,7 +95,7 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "generate_workout_plan",
       description:
-        "Generate a new personalized workout program with multiple training days. Use when they want a new plan OR before scheduling N days/week if their current plan has fewer days than requested. Use workout_kind=hiit for HIIT/interval/tabata; strength (default) for traditional weekly splits. ALWAYS set days_per_week to match how many distinct training days they want (e.g. 4 for Mon/Tue/Thu/Fri).",
+        "Generate a new personalized workout program with multiple training days AND attach calendar schedule settings. Use when they want a new plan or an N-day split for W weeks. Set days_per_week, schedule_weeks, and schedule_weekdays. Apply on the preview saves + schedules — no second step.",
       parameters: {
         type: "object",
         properties: {
@@ -91,6 +108,17 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             type: "number",
             description:
               "Exact number of distinct training days in the plan (1–6). Required when they ask for a multi-day week (e.g. 4 for Mon/Tue/Thu/Fri). Do not leave this at 1 if they want multiple training days.",
+          },
+          schedule_weeks: {
+            type: "number",
+            description:
+              "How many weeks to put on the calendar when they Apply (1–52). Default 4. Always set this when they ask for a multi-week schedule.",
+          },
+          schedule_weekdays: {
+            type: "array",
+            items: { type: "number" },
+            description:
+              "JS weekdays Sun=0…Sat=6 to schedule on Apply. Mon/Tue/Thu/Fri = [1,2,4,5]. Must match days_per_week length when they named specific days.",
           },
           workout_kind: {
             type: "string",
@@ -255,6 +283,33 @@ function parseToolArgs(raw: string): Record<string, unknown> {
   }
 }
 
+function defaultWeekdaysForDayCount(dayCount: number): number[] {
+  if (dayCount >= 5) return [1, 2, 3, 4, 5];
+  if (dayCount >= 4) return [1, 2, 4, 5];
+  if (dayCount === 3) return [1, 3, 5];
+  if (dayCount === 2) return [1, 4];
+  return [1];
+}
+
+function buildWorkoutScheduleIntent(
+  args: Record<string, unknown>,
+  dayCount: number
+): ChatPlanScheduleIntent {
+  const weeks =
+    typeof args.schedule_weeks === "number" && args.schedule_weeks > 0
+      ? Math.min(52, Math.max(1, Math.round(args.schedule_weeks)))
+      : 4;
+  const fromArgs = Array.isArray(args.schedule_weekdays)
+    ? args.schedule_weekdays
+        .map(Number)
+        .filter((n) => Number.isFinite(n) && n >= 0 && n <= 6)
+    : [];
+  return {
+    weeks,
+    weekdays: fromArgs.length > 0 ? fromArgs : defaultWeekdaysForDayCount(Math.max(1, dayCount)),
+  };
+}
+
 export async function executeCoachChatTool(
   name: string,
   argsJson: string,
@@ -327,17 +382,19 @@ export async function executeCoachChatTool(
           workoutKind,
           daysPerWeek
         );
-        const preview: ChatPlanPreview = { type: "workout", plan };
+        const dayCount = isAiHiitPlan(plan) ? 1 : plan.days.length;
+        const schedule = buildWorkoutScheduleIntent(args, dayCount);
+        const preview: ChatPlanPreview = { type: "workout", plan, schedule };
         onEvent?.({ type: "plan_preview", preview });
         onEvent?.({ type: "tool_done", name });
         if (isAiHiitPlan(plan)) {
           return {
-            result: `Generated HIIT workout "${plan.title}" with ${plan.config.exercises.length} move(s), ${plan.config.rounds} round(s). A preview card is shown in chat — the client must tap Apply to save it.`,
+            result: `Generated HIIT workout "${plan.title}". Preview ready — Apply saves it and schedules ${schedule.weeks} week(s) on the calendar.`,
             planPreview: preview,
           };
         }
         return {
-          result: `Generated workout plan "${plan.title}" with ${plan.days.length} training day(s). A preview card is shown in chat — the client must tap Apply to save it before you can schedule it. If they asked to schedule specific weekdays, tell them to Apply, then ask you to schedule (or send the schedule request again).`,
+          result: `Generated workout plan "${plan.title}" with ${plan.days.length} training day(s). Preview ready — when they tap Apply it SAVES the program AND schedules ~${schedule.weekdays.length * schedule.weeks} sessions (${schedule.weeks} weeks). Do not ask them to schedule separately.`,
           planPreview: preview,
         };
       }
@@ -345,11 +402,18 @@ export async function executeCoachChatTool(
         const preferences =
           typeof args.preferences === "string" ? args.preferences : undefined;
         const plan = await generateNutritionPlanForChat(profile, preferences);
-        const preview: ChatPlanPreview = { type: "nutrition", plan };
+        const schedule: ChatPlanScheduleIntent = {
+          weeks:
+            typeof args.schedule_weeks === "number" && args.schedule_weeks > 0
+              ? Math.min(52, Math.max(1, Math.round(args.schedule_weeks)))
+              : 4,
+          weekdays: [0, 1, 2, 3, 4, 5, 6],
+        };
+        const preview: ChatPlanPreview = { type: "nutrition", plan, schedule };
         onEvent?.({ type: "plan_preview", preview });
         onEvent?.({ type: "tool_done", name });
         return {
-          result: `Generated nutrition plan "${plan.title}" (${plan.daily_targets.calories} cal). A preview card is shown in chat — the client must tap Apply to save it.`,
+          result: `Generated nutrition plan "${plan.title}" (${plan.daily_targets.calories} cal). Apply saves it and schedules ${schedule.weeks} week(s) of meals on the calendar.`,
           planPreview: preview,
         };
       }
@@ -360,11 +424,13 @@ export async function executeCoachChatTool(
           return { result: "Missing instructions for workout plan edit." };
         }
         const plan = await editWorkoutPlanForChat(profile, instructions);
-        const preview: ChatPlanPreview = { type: "workout", plan };
+        const dayCount = isAiHiitPlan(plan) ? 1 : plan.days.length;
+        const schedule = buildWorkoutScheduleIntent(args, dayCount);
+        const preview: ChatPlanPreview = { type: "workout", plan, schedule };
         onEvent?.({ type: "plan_preview", preview });
         onEvent?.({ type: "tool_done", name });
         return {
-          result: `Updated workout plan "${plan.title}". Preview ready — client must Apply to save changes.`,
+          result: `Updated workout plan "${plan.title}". Apply saves changes and schedules ${schedule.weeks} week(s) on the calendar.`,
           planPreview: preview,
         };
       }
@@ -375,11 +441,15 @@ export async function executeCoachChatTool(
           return { result: "Missing instructions for nutrition plan edit." };
         }
         const plan = await editNutritionPlanForChat(profile, instructions);
-        const preview: ChatPlanPreview = { type: "nutrition", plan };
+        const preview: ChatPlanPreview = {
+          type: "nutrition",
+          plan,
+          schedule: { weeks: 4, weekdays: [0, 1, 2, 3, 4, 5, 6] },
+        };
         onEvent?.({ type: "plan_preview", preview });
         onEvent?.({ type: "tool_done", name });
         return {
-          result: `Updated nutrition plan "${plan.title}". Preview ready — client must Apply to save changes.`,
+          result: `Updated nutrition plan "${plan.title}". Apply saves and schedules 4 weeks on the calendar.`,
           planPreview: preview,
         };
       }
