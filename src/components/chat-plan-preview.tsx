@@ -40,21 +40,31 @@ export function ChatPlanPreviewCard({
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [openDay, setOpenDay] = useState(0);
+  const isWeeklyFull = preview.type === "weekly_full";
   const isWorkout = preview.type === "workout";
+  const isNutrition = preview.type === "nutrition";
   const workoutPlan = isWorkout ? preview.plan : null;
   const hiitPlan = workoutPlan && isAiHiitPlan(workoutPlan) ? workoutPlan : null;
   const strengthPlan = workoutPlan && !isAiHiitPlan(workoutPlan) ? workoutPlan : null;
+  const weeklyProgram = isWeeklyFull ? preview.program : null;
   const scheduleLabel = describeSchedule(preview);
   const isApplied = applied || localApplied;
 
   const handleApply = () => {
     setError(null);
     startTransition(async () => {
-      const result = await applyChatPlanPreviewAction(
-        preview.type,
-        preview.plan,
-        preview.schedule ?? { weeks: 4, weekdays: [] }
-      );
+      const result =
+        preview.type === "weekly_full"
+          ? await applyChatPlanPreviewAction(
+              "weekly_full",
+              preview.program,
+              preview.schedule
+            )
+          : await applyChatPlanPreviewAction(
+              preview.type,
+              preview.plan,
+              preview.schedule ?? { weeks: 4, weekdays: [] }
+            );
       if ("error" in result) {
         setError(result.error);
         return;
@@ -65,12 +75,19 @@ export function ChatPlanPreviewCard({
     });
   };
 
+  const title = isWeeklyFull
+    ? preview.program.title
+    : preview.plan.title;
+  const description = isWeeklyFull
+    ? preview.program.description
+    : preview.plan.description;
+
   return (
     <div className="mt-3 rounded-xl border border-primary/30 bg-background/80 p-3">
       <div className="flex items-start gap-2">
         {hiitPlan ? (
           <Zap className="mt-0.5 h-4 w-4 shrink-0 text-fuchsia-400" />
-        ) : isWorkout ? (
+        ) : isWorkout || isWeeklyFull ? (
           <Dumbbell className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         ) : (
           <Salad className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -79,17 +96,20 @@ export function ChatPlanPreviewCard({
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
             {hiitPlan
               ? "HIIT workout preview"
-              : isWorkout
-                ? "Workout plan preview"
-                : "Nutrition plan preview"}
+              : isWeeklyFull
+                ? "Weekly program preview"
+                : isWorkout
+                  ? "Workout plan preview"
+                  : "Nutrition plan preview"}
           </p>
-          <p className="mt-0.5 font-semibold">{preview.plan.title}</p>
-          {preview.plan.description && (
-            <p className="mt-1 text-xs text-muted-foreground">{preview.plan.description}</p>
+          <p className="mt-0.5 font-semibold">{title}</p>
+          {description && (
+            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
           )}
           {scheduleLabel && (
             <p className="mt-1 text-[11px] font-medium text-emerald-400/90">
               Apply will save + schedule: {scheduleLabel}
+              {weeklyProgram?.includeExtras ? " · warm-up + stretch each day" : ""}
             </p>
           )}
 
@@ -121,6 +141,83 @@ export function ChatPlanPreviewCard({
                   </li>
                 ))}
               </ul>
+            </div>
+          ) : weeklyProgram ? (
+            <div className="mt-2 space-y-1">
+              {weeklyProgram.days.map((day, i) => {
+                const mainLabel =
+                  day.main.kind === "strength"
+                    ? `${day.main.workout.exercises.length} exercises`
+                    : hiitSummaryLabel(day.main.plan.config);
+                return (
+                  <div key={i} className="overflow-hidden rounded-lg border border-border/60">
+                    <button
+                      type="button"
+                      onClick={() => setOpenDay((current) => (current === i ? -1 : i))}
+                      className="flex w-full items-center justify-between gap-2 px-2.5 py-2 text-left text-xs"
+                    >
+                      <span>
+                        <span className="font-medium text-foreground">{day.focus}</span>
+                        {" — "}
+                        {weeklyProgram.includeExtras ? "WU + main + stretch" : "main"}
+                        {" · "}
+                        {mainLabel}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+                          openDay === i && "rotate-180"
+                        )}
+                      />
+                    </button>
+                    {openDay === i ? (
+                      <div className="space-y-2 border-t border-border/60 px-2.5 py-2 text-xs">
+                        {weeklyProgram.includeExtras && (
+                          <p className="text-muted-foreground">
+                            Warm-up: {day.warmup.title} (
+                            {day.warmup.config.exercises.length} moves)
+                          </p>
+                        )}
+                        {day.main.kind === "strength" ? (
+                          <ul className="space-y-1.5">
+                            {day.main.workout.exercises.map((ex) => (
+                              <li
+                                key={`${day.focus}-${ex.name}`}
+                                className="flex items-start gap-2 rounded-md bg-secondary/30 px-2 py-1.5"
+                              >
+                                <ExerciseGifThumbnail
+                                  name={ex.name}
+                                  imageUrl={ex.image_url}
+                                  videoUrl={ex.video_url}
+                                  gender={gender}
+                                  size="sm"
+                                  expandable
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-foreground">{ex.name}</p>
+                                  <p className="text-muted-foreground">
+                                    {ex.sets} × {ex.reps}
+                                  </p>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-muted-foreground">
+                            HIIT: {day.main.plan.title}
+                          </p>
+                        )}
+                        {weeklyProgram.includeExtras && (
+                          <p className="text-muted-foreground">
+                            Stretch: {day.stretch.title} (
+                            {day.stretch.config.exercises.length} moves)
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           ) : strengthPlan ? (
             <div className="mt-2 space-y-1">
@@ -171,7 +268,7 @@ export function ChatPlanPreviewCard({
                 </div>
               ))}
             </div>
-          ) : preview.type === "nutrition" ? (
+          ) : isNutrition ? (
             <div className="mt-2 space-y-2">
               <div className="flex flex-wrap gap-1.5 text-[10px]">
                 <span className="rounded bg-secondary px-1.5 py-0.5 font-semibold">
@@ -229,7 +326,7 @@ export function ChatPlanPreviewCard({
               </Button>
             )}
             <Link
-              href={isWorkout ? "/dashboard/workout" : "/dashboard/nutrition"}
+              href={isNutrition ? "/dashboard/nutrition" : "/dashboard/workout"}
               className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline"
             >
               Open calendar
