@@ -84,7 +84,8 @@ function buildSystemPrompt(
   hasImage = false,
   hasProgressPhotos = false,
   hasAiPlanTools = false,
-  hasCoachDashboardTools = false
+  hasCoachDashboardTools = false,
+  coachMode: "ask" | "act" = "ask"
 ): string {
   const { consumed, overTolerance } = stats.macroGap;
   const overSummary = overTolerance
@@ -97,6 +98,7 @@ function buildSystemPrompt(
     stats.profile ?? null,
     stats.progressPhotoSummary
   );
+  const isActMode = coachMode === "act";
   return `You are Coach Alex — a sarcastic, darkly funny personal trainer and nutrition coach inside the ${PLATFORM_NAME} app. You talk like the coach who roasts you between sets but still makes sure you hit your reps. You care about results, not coddling people through bad habits.
 
 ${NUTRITION_ACCURACY_RULES}
@@ -149,7 +151,16 @@ How to coach:
 - If they uploaded wrong progress photos recently, call it out with sarcasm and tell them to retake front/back/side properly.
 - Be concise. Short paragraphs or tight bullet points. One clear recommendation beats five vague options.
 - If you lack information, ask one sharp clarifying question — don't guess.
-${hasAiPlanTools
+${
+  isActMode
+    ? ""
+    : `
+Chat mode: ASK (read-only)
+- You can answer questions and use insight tools only (snapshots, reports, meal ideas, trends, tips, list/active plans).
+- You CANNOT log, schedule, delete, assign, update profile, or build/edit plans in this mode — those tools are unavailable.
+- If they ask you to change the app (log food/weight/water, schedule, delete, build a plan, update lifestyle), tell them briefly to switch to Act mode using the Ask/Act control next to the paperclip, then send again. Do not pretend you already did it.`
+}${
+  isActMode && hasAiPlanTools
     ? `
 Plan building & editing (you have tools):
 - You can generate and edit full workout and nutrition plans with your tools — same power as the AI plan builders in the app.
@@ -159,10 +170,12 @@ Plan building & editing (you have tools):
 - edit_workout_plan / edit_nutrition_plan: tweak their current active plan (swap exercises, adjust meals, raise or lower calories to match their goal, etc.).
 - After a plan is generated, a preview card appears in chat. Tell them to tap "Apply to my program" to save it — do NOT say it's already saved until they apply.
 - Keep your reply short after using a tool; the preview card shows the details.`
-    : `
+    : isActMode
+      ? `
 Plan building:
-- If they ask you to build or edit full workout/nutrition plans in chat, tell them to upgrade to the AI plan tier — or use Dashboard → AI → Plans.`}
-${hasCoachDashboardTools
+- If they ask you to build or edit full workout/nutrition plans in chat, tell them to upgrade to the AI plan tier — or use Dashboard → AI → Plans.`
+      : ""
+}${hasCoachDashboardTools
     ? `
 Coach dashboard visuals (you have tools — same as the AI Coach tab):
 - show_today_snapshot: today's macro rings, insight, workouts & tracking stats, weekly score gauges.
@@ -172,15 +185,21 @@ Coach dashboard visuals (you have tools — same as the AI Coach tab):
 - show_coaching_tips: last-7-days stat bars and personalized tip cards.
 - When they ask for reports, trends, meals, tips, macros, or "how am I doing", call the matching tool.
 - Rich visual cards appear in chat — keep your text reply short; the cards show charts, rings, and colors.`
-    : ""}
+    : ""
+}${
+  isActMode
+    ? `
+Chat mode: ACT (manage platform)
+- Prefer doing actions via tools over telling them to navigate the UI manually.
 
 App commands (you control the app — use tools, don't only give instructions):
 - Soft actions (run immediately, no confirm): log_meal, log_weight, log_water. Use when they clearly want something logged with enough detail.
 - Serious actions (ALWAYS show a Confirm button — never claim done until they confirm): schedule_workout_plan, schedule_nutrition_plan, clear_workout_schedule, clear_nutrition_schedule, delete_workout_plan, delete_nutrition_plan, assign_workout_plan, assign_nutrition_plan, update_health_lifestyle.
 - Before delete / schedule / assign / clear: call list_my_workouts or list_my_nutrition_plans to get the correct plan_id unless you already have it.
 - update_health_lifestyle: only include fields they asked to change (goal, experience, equipment_access, training_days_per_week, sleep, injuries, etc.).
-- When a Confirm card is shown, tell them to tap Confirm or Cancel — do not pretend the change already happened.
-- Prefer doing the action via tools over telling them to navigate the UI manually.
+- When a Confirm card is shown, tell them to tap Confirm or Cancel — do not pretend the change already happened.`
+    : ""
+}
 
 Medical & health boundaries (critical):
 - You are NOT a doctor and cannot give medical advice, diagnoses, or prescriptions.
@@ -253,7 +272,8 @@ export async function prepareFitnessCoachChatMessages(
   history: ChatMessage[],
   webSources: WebSource[] = [],
   preferredLocale?: string | null,
-  image?: ChatImageAttachment | null
+  image?: ChatImageAttachment | null,
+  coachMode: "ask" | "act" = "ask"
 ): Promise<{ messages: ChatTurn[]; sources: WebSource[] } | { error: string }> {
   if (!isAiConfigured()) {
     return { error: "AI Coach is not available right now. Please try again later." };
@@ -305,8 +325,9 @@ export async function prepareFitnessCoachChatMessages(
       webSources.length > 0,
       hasUserImage,
       hasProgressPhotos,
-      hasAiPlanBuilderAccess(ctx.profile),
-      true
+      hasAiPlanBuilderAccess(ctx.profile) && coachMode === "act",
+      true,
+      coachMode
     ) + (webContext ? `\n\n${webContext}` : "");
   const recentHistory = history.slice(-MAX_HISTORY);
 
@@ -337,7 +358,8 @@ export async function prepareFitnessCoachChatWithSearch(
   message: string,
   history: ChatMessage[],
   preferredLocale?: string | null,
-  image?: ChatImageAttachment | null
+  image?: ChatImageAttachment | null,
+  coachMode: "ask" | "act" = "ask"
 ): Promise<
   | { messages: ChatTurn[]; sources: WebSource[]; searchedWeb: boolean }
   | { error: string }
@@ -351,7 +373,8 @@ export async function prepareFitnessCoachChatWithSearch(
     history,
     webSources,
     preferredLocale,
-    image
+    image,
+    coachMode
   );
   if ("error" in prepared) return prepared;
   return { ...prepared, searchedWeb };

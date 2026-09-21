@@ -41,14 +41,24 @@ function readVisualViewportFrame(): VisualViewportFrame {
   );
 
   // Paint well past the keyboard / accessory bar (translucent on iOS).
+  // Use a tall band so dashboard content never peeks under the chat sheet.
   const keyboardBand = Math.max(0, layoutHeight - vvBottom);
-  const underlayHeight = Math.max(420, keyboardBand + 160);
-  const maskHeight = Math.max(layoutHeight, vvBottom + underlayHeight);
+  const underlayHeight = Math.max(
+    window.innerHeight,
+    layoutHeight,
+    keyboardBand + 320,
+    720
+  );
+  const maskHeight = Math.max(
+    layoutHeight + underlayHeight,
+    vvBottom + underlayHeight,
+    window.innerHeight * 2
+  );
 
   return {
     offsetTop,
     height,
-    underlayTop: vvBottom,
+    underlayTop: Math.max(0, vvBottom - 2),
     underlayHeight,
     maskHeight,
   };

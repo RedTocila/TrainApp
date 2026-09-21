@@ -1,7 +1,8 @@
 import {
-  COACH_CHAT_TOOLS,
   executeCoachChatTool,
+  getCoachChatToolsForMode,
   type ChatPlanPreview,
+  type CoachChatMode,
   type CoachChatToolEvent,
 } from "@/lib/ai/coach-chat-tools";
 import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
@@ -63,6 +64,7 @@ export async function runCoachChatWithTools(
     signal?: AbortSignal;
     /** Fired for final-answer tokens (not for tool-call rounds). */
     onToken?: (text: string) => void;
+    mode?: CoachChatMode;
   }
 ): Promise<{
   reply: string;
@@ -70,6 +72,8 @@ export async function runCoachChatWithTools(
   richBlocks?: CoachChatRichBlock[];
   pendingActions?: CoachPendingAction[];
 }> {
+  const mode = options?.mode ?? "ask";
+  const tools = getCoachChatToolsForMode(mode);
   const client = getOpenAIClient();
   const conversation = messages.map(toOpenAIMessage);
   let planPreview: ChatPlanPreview | undefined;
@@ -85,8 +89,9 @@ export async function runCoachChatWithTools(
       {
         model: process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini",
         messages: conversation,
-        tools: COACH_CHAT_TOOLS,
-        tool_choice: "auto",
+        ...(tools.length > 0
+          ? { tools, tool_choice: "auto" as const }
+          : {}),
         max_tokens: options?.maxTokens ?? 900,
         stream: true,
       },
@@ -146,7 +151,8 @@ export async function runCoachChatWithTools(
           toolCall.name,
           toolCall.arguments,
           profile,
-          onEvent
+          onEvent,
+          mode
         );
         if (preview) planPreview = preview;
         if (blocks?.length) richBlocks.push(...blocks);

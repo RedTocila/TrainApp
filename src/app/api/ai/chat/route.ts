@@ -4,7 +4,7 @@ import {
   canUseCoachChatTools,
   runCoachChatWithTools,
 } from "@/lib/ai/coach-chat-with-tools";
-import { TOOL_STATUS_LABELS } from "@/lib/ai/coach-chat-tools";
+import { TOOL_STATUS_LABELS, parseCoachChatMode } from "@/lib/ai/coach-chat-tools";
 import { maybeNaturalizeCoachReply } from "@/lib/ai/albanian-naturalize";
 import { streamChatCompletion, getConfiguredProviders } from "@/lib/ai/providers";
 import {
@@ -69,6 +69,7 @@ export async function POST(request: Request) {
     message?: string;
     history?: ChatMessage[];
     image?: ChatImageAttachment | null;
+    mode?: string;
   };
   try {
     body = await request.json();
@@ -79,6 +80,7 @@ export async function POST(request: Request) {
   const message = body.message ?? "";
   const history = Array.isArray(body.history) ? body.history : [];
   const imageInput = body.image ?? null;
+  const coachMode = parseCoachChatMode(body.mode);
   const validatedImage = imageInput ? validateChatImage(imageInput) : null;
   if (validatedImage && "error" in validatedImage) {
     return Response.json({ error: validatedImage.error }, { status: 400 });
@@ -92,7 +94,8 @@ export async function POST(request: Request) {
     message,
     history,
     preferredLocale,
-    image
+    image,
+    coachMode
   );
   if ("error" in prepared) {
     return Response.json({ error: prepared.error }, { status: 400 });
@@ -149,7 +152,7 @@ export async function POST(request: Request) {
                 enqueue({ pendingAction: event.action });
               }
             },
-            { maxTokens: 900, signal: request.signal, onToken }
+            { maxTokens: 900, signal: request.signal, onToken, mode: coachMode }
           );
 
           reply = result.reply;

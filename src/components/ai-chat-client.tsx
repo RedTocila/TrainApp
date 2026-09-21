@@ -1,7 +1,17 @@
 "use client";
 
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, ExternalLink, Globe, Loader2, Paperclip, UserRound, X } from "lucide-react";
+import {
+  ArrowUp,
+  ExternalLink,
+  Globe,
+  Loader2,
+  MessageCircle,
+  Paperclip,
+  UserRound,
+  X,
+  Zap,
+} from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { usePlatformCopy } from "@/components/locale-provider";
@@ -13,7 +23,7 @@ import { ChatCommandInput } from "@/components/chat-command-input";
 import { ChatPlanPreviewCard } from "@/components/chat-plan-preview";
 import { ChatActionConfirmCard } from "@/components/chat-action-confirm";
 import { ChatRichBlocks } from "@/components/chat-rich-blocks";
-import type { ChatPlanPreview } from "@/lib/ai/coach-chat-tools";
+import type { ChatPlanPreview, CoachChatMode } from "@/lib/ai/coach-chat-tools";
 import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
 
@@ -280,6 +290,12 @@ function ChatCommandBar({
   attachmentPreviewUrl,
   onAttachSelect,
   onAttachmentClear,
+  chatMode,
+  onChatModeChange,
+  modeAskLabel,
+  modeActLabel,
+  modeAskAria,
+  modeActAria,
 }: {
   input: string;
   onInputChange: (value: string) => void;
@@ -295,9 +311,16 @@ function ChatCommandBar({
   attachmentPreviewUrl: string | null;
   onAttachSelect: (file: File) => void;
   onAttachmentClear: () => void;
+  chatMode: CoachChatMode;
+  onChatModeChange: (mode: CoachChatMode) => void;
+  modeAskLabel: string;
+  modeActLabel: string;
+  modeAskAria: string;
+  modeActAria: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMultiline, setIsMultiline] = useState(false);
+  const isAct = chatMode === "act";
 
   return (
     <form onSubmit={onSubmit} className="min-w-0 w-full space-y-2">
@@ -324,10 +347,40 @@ function ChatCommandBar({
       )}
       <div
         className={cn(
-          "chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-1 overflow-hidden border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm transition-[border-radius] duration-200",
-          isMultiline ? "rounded-2xl" : "rounded-full"
+          "chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1 overflow-hidden border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm transition-[border-radius] duration-200",
+          isMultiline ? "rounded-2xl items-end" : "rounded-full"
         )}
       >
+        <button
+          type="button"
+          onClick={() => onChatModeChange(isAct ? "ask" : "act")}
+          disabled={disabled}
+          aria-label={isAct ? modeActAria : modeAskAria}
+          title={isAct ? modeActAria : modeAskAria}
+          className={cn(
+            "col-start-1 flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+            isMultiline && "mb-0.5",
+            isAct
+              ? "bg-primary/15 text-primary hover:bg-primary/20"
+              : "bg-sky-500/15 text-sky-400 hover:bg-sky-500/20"
+          )}
+        >
+          {isAct ? (
+            <Zap className="h-3.5 w-3.5" strokeWidth={2.25} />
+          ) : (
+            <MessageCircle className="h-3.5 w-3.5" strokeWidth={2.25} />
+          )}
+          <span>{isAct ? modeActLabel : modeAskLabel}</span>
+        </button>
+        <ChatCommandInput
+          value={input}
+          onChange={onInputChange}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          onMultilineChange={setIsMultiline}
+          className="chat-command-input-wrap col-start-2 row-start-1 min-w-0 self-center"
+        />
         <input
           ref={fileInputRef}
           type="file"
@@ -345,24 +398,20 @@ function ChatCommandBar({
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled}
           aria-label={attachAriaLabel}
-          className="col-start-1 mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45"
+          className={cn(
+            "col-start-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45",
+            isMultiline && "mb-0.5"
+          )}
         >
           <Paperclip className="h-4 w-4" strokeWidth={2} />
         </button>
-        <ChatCommandInput
-          value={input}
-          onChange={onInputChange}
-          onKeyDown={onKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-          onMultilineChange={setIsMultiline}
-        />
         <button
           type="submit"
           disabled={!canSend}
           aria-label={sendAriaLabel}
           className={cn(
-            "col-start-3 mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+            "col-start-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+            isMultiline && "mb-0.5",
             canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
           )}
         >
@@ -389,14 +438,17 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingWebSearch, setPendingWebSearch] = useState(false);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
+  const [chatMode, setChatMode] = useState<CoachChatMode>("ask");
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const sendMessageRef = useRef<(text: string) => Promise<void>>(async () => {});
   const autoSendingRef = useRef(false);
   const isStreamingRef = useRef(false);
   const canChatRef = useRef(canChat);
+  const chatModeRef = useRef(chatMode);
   isStreamingRef.current = isStreaming;
   canChatRef.current = canChat;
+  chatModeRef.current = chatMode;
 
   const handleAttachSelect = async (file: File) => {
     try {
@@ -455,6 +507,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
         body: JSON.stringify({
           message: messageContent,
           history,
+          mode: chatModeRef.current,
           ...(image ? { image } : {}),
         }),
         signal: controller.signal,
@@ -754,7 +807,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             )}
           </div>
 
-          <div className="min-w-0 shrink-0 bg-background px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2">
+          <div className="relative min-w-0 shrink-0 bg-background px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2 shadow-[0_100dvh_0_0_var(--background)]">
             {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
             <ChatCommandBar
               input={input}
@@ -771,6 +824,12 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               attachmentPreviewUrl={attachmentPreviewUrl}
               onAttachSelect={(file) => void handleAttachSelect(file)}
               onAttachmentClear={handleAttachmentClear}
+              chatMode={chatMode}
+              onChatModeChange={setChatMode}
+              modeAskLabel={ai.modeAsk}
+              modeActLabel={ai.modeAct}
+              modeAskAria={ai.modeAskAria}
+              modeActAria={ai.modeActAria}
             />
           </div>
         </div>
@@ -837,7 +896,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             )}
           </div>
 
-          <div className="min-w-0 border-t border-border/50 bg-card p-4">
+          <div className="min-w-0 border-t border-border/50 bg-card p-4 shadow-[0_100dvh_0_0_var(--card)]">
             {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
             <ChatCommandBar
               input={input}
@@ -854,6 +913,12 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               attachmentPreviewUrl={attachmentPreviewUrl}
               onAttachSelect={(file) => void handleAttachSelect(file)}
               onAttachmentClear={handleAttachmentClear}
+              chatMode={chatMode}
+              onChatModeChange={setChatMode}
+              modeAskLabel={ai.modeAsk}
+              modeActLabel={ai.modeAct}
+              modeAskAria={ai.modeAskAria}
+              modeActAria={ai.modeActAria}
             />
           </div>
         </CardContent>

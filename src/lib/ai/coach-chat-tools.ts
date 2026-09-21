@@ -205,6 +205,38 @@ export const COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   ...COACH_COMMAND_TOOLS,
 ];
 
+/** Ask = insights/lists only. Act = mutate plans + log/schedule/delete. */
+export type CoachChatMode = "ask" | "act";
+
+export function parseCoachChatMode(value: unknown): CoachChatMode {
+  return value === "act" ? "act" : "ask";
+}
+
+const ASK_TOOL_NAMES = new Set([
+  "get_my_active_plans",
+  "show_today_snapshot",
+  "show_weekly_report",
+  "show_meal_ideas",
+  "show_weight_trend",
+  "show_coaching_tips",
+  "list_my_workouts",
+  "list_my_nutrition_plans",
+]);
+
+export function isAskModeTool(name: string): boolean {
+  return ASK_TOOL_NAMES.has(name);
+}
+
+export function getCoachChatToolsForMode(
+  mode: CoachChatMode
+): OpenAI.Chat.Completions.ChatCompletionTool[] {
+  if (mode === "act") return COACH_CHAT_TOOLS;
+  return COACH_CHAT_TOOLS.filter(
+    (tool) =>
+      tool.type === "function" && isAskModeTool(tool.function.name)
+  );
+}
+
 function aiAccessError(profile: Profile): string {
   return getLimitExceededMessage(parseCheckoutLocale(profile.preferred_locale));
 }
@@ -221,7 +253,8 @@ export async function executeCoachChatTool(
   name: string,
   argsJson: string,
   profile: Profile,
-  onEvent?: (event: CoachChatToolEvent) => void
+  onEvent?: (event: CoachChatToolEvent) => void,
+  mode: CoachChatMode = "ask"
 ): Promise<{
   result: string;
   planPreview?: ChatPlanPreview;
@@ -229,6 +262,14 @@ export async function executeCoachChatTool(
   pendingAction?: CoachPendingAction;
 }> {
   onEvent?.({ type: "tool_start", name });
+
+  if (mode === "ask" && !isAskModeTool(name)) {
+    onEvent?.({ type: "tool_done", name });
+    return {
+      result:
+        "Blocked: Ask mode is read-only. Tell the client to switch to Act mode (control next to the paperclip) to log, schedule, build, or delete.",
+    };
+  }
 
   if (PLAN_TOOLS.has(name) && !hasAiPlanBuilderAccess(profile)) {
     onEvent?.({ type: "tool_done", name });
