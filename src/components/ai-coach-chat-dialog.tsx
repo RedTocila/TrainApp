@@ -12,8 +12,32 @@ import { Button } from "@/components/ui/button";
 import { useLockBodyScroll } from "@/hooks/use-lock-body-scroll";
 import { useVisualViewportFrame } from "@/hooks/use-visual-viewport-frame";
 
-/** Opaque fill — never inherit translucent dashboard photo-card tokens. */
-const OPAQUE_BG = "var(--background, #121214)";
+/**
+ * Hard opaque fills — never `var(--background)` alone (dashboard photo cards
+ * override it to translucent rgba, and some browsers resolve that through).
+ */
+const OPAQUE_DARK = "#121214";
+const OPAQUE_LIGHT = "#f4f4f5";
+
+function useOpaqueChatBg(): string {
+  const [bg, setBg] = useState(OPAQUE_DARK);
+
+  useEffect(() => {
+    const read = () => {
+      const light = document.documentElement.classList.contains("light");
+      setBg(light ? OPAQUE_LIGHT : OPAQUE_DARK);
+    };
+    read();
+    const obs = new MutationObserver(read);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => obs.disconnect();
+  }, []);
+
+  return bg;
+}
 
 export function AiCoachChatDialog() {
   const {
@@ -29,6 +53,7 @@ export function AiCoachChatDialog() {
   const ai = platform.ai;
   const [entered, setEntered] = useState(false);
   const frame = useVisualViewportFrame(isOpen);
+  const opaqueBg = useOpaqueChatBg();
 
   useLockBodyScroll(isOpen);
 
@@ -59,94 +84,81 @@ export function AiCoachChatDialog() {
 
   if (!isOpen) return null;
 
-  // Paint past the visual viewport into the keyboard / browser-chrome band.
-  const skirt = Math.max(frame.keyboardBand, 280);
-  const sheetHeight = frame.height + skirt;
-
   return (
     <DialogPortal open={isOpen}>
-      {/*
-        Full opaque masks keyed to visualViewport — never use layout
-        `bottom: 0` alone (breaks when iOS shifts offsetTop with the keyboard).
-      */}
+      {/* Full-screen opaque backdrop — covers whatever is behind the chat. */}
       <div
         aria-hidden
-        className="pointer-events-none fixed left-0 top-0 z-[110] w-full"
-        style={{ height: frame.maskHeight, backgroundColor: OPAQUE_BG }}
+        className="pointer-events-none fixed inset-0 z-[110]"
+        style={{ backgroundColor: opaqueBg }}
       />
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-x-0 z-[110]"
-        style={{
-          top: frame.underlayTop,
-          height: frame.underlayHeight,
-          backgroundColor: OPAQUE_BG,
-        }}
-      />
+      {/* Only when the keyboard is open: paint the band under the visual viewport. */}
+      {frame.keyboardOpen ? (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-x-0 z-[110]"
+          style={{
+            top: frame.underlayTop,
+            height: frame.underlayHeight,
+            backgroundColor: opaqueBg,
+          }}
+        />
+      ) : null}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-coach-chat-title"
         className={`fixed inset-x-0 z-[111] flex flex-col overflow-hidden transition-transform duration-150 ease-out ${
-          entered ? "translate-y-0 scale-100" : "translate-y-1 scale-[0.995]"
+          entered ? "translate-y-0" : "translate-y-1"
         }`}
         style={{
           top: frame.offsetTop,
-          height: sheetHeight,
-          backgroundColor: OPAQUE_BG,
-          // Extra paint below the sheet for browsers that clip fixed layers oddly.
-          boxShadow: `0 ${skirt + 240}px 0 0 ${OPAQUE_BG}`,
+          height: frame.height,
+          backgroundColor: opaqueBg,
+          // Soft skirt under the sheet for iOS keyboard / accessory chrome.
+          boxShadow: frame.keyboardOpen
+            ? `0 ${Math.max(frame.keyboardBand, 120)}px 0 0 ${opaqueBg}`
+            : undefined,
         }}
       >
         <div
-          className="flex min-h-0 w-full flex-col"
-          style={{ height: frame.height, maxHeight: frame.height }}
+          className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]"
+          style={{ backgroundColor: opaqueBg }}
         >
-          <div
-            className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]"
-            style={{ backgroundColor: OPAQUE_BG }}
-          >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <AiCoachAvatar size="sm" className="h-9 w-9 shrink-0" />
-              <div className="min-w-0">
-                <h2 id="ai-coach-chat-title" className="text-base font-bold">
-                  Coach Alex
-                </h2>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-0.5">
-              <button
-                type="button"
-                onClick={openReadMe}
-                className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                {ai.readMeButton}
-              </button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={closeChat}
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <AiCoachAvatar size="sm" className="h-9 w-9 shrink-0" />
+            <div className="min-w-0">
+              <h2 id="ai-coach-chat-title" className="text-base font-bold">
+                Coach Alex
+              </h2>
             </div>
           </div>
-          <div
-            className="flex min-h-0 flex-1 flex-col"
-            style={{ backgroundColor: OPAQUE_BG }}
-          >
-            <AiChatClientLazy embedded />
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button
+              type="button"
+              onClick={openReadMe}
+              className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              {ai.readMeButton}
+            </button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={closeChat}
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-        {/* Opaque extension into the keyboard / browser-nav band */}
         <div
-          aria-hidden
-          className="w-full shrink-0"
-          style={{ height: skirt, backgroundColor: OPAQUE_BG }}
-        />
+          className="flex min-h-0 flex-1 flex-col"
+          style={{ backgroundColor: opaqueBg }}
+        >
+          <AiChatClientLazy embedded />
+        </div>
         <CoachReadMeDialog
           open={readMeOpen}
           onClose={closeReadMe}
