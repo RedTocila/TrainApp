@@ -203,6 +203,19 @@ export function DashboardWorkoutCard({
   selectedDateRef.current = selectedDate;
   const patchesRef = useRef(patches);
   patchesRef.current = patches;
+  /** Scheduled workout ids removed optimistically — ignore until delete settles. */
+  const pendingRemovedIdsRef = useRef<Set<string>>(new Set());
+
+  const withoutPendingRemoved = useCallback(
+    (list: TodaysWorkoutInfo[]) => {
+      const pending = pendingRemovedIdsRef.current;
+      if (pending.size === 0) return list;
+      return list.filter(
+        (w) => !w.scheduledWorkoutId || !pending.has(w.scheduledWorkoutId)
+      );
+    },
+    []
+  );
 
   const seedFromSchedule = useCallback(
     (key: string): WorkoutDayCache | null => {
@@ -252,22 +265,28 @@ export function DashboardWorkoutCard({
 
   useEffect(() => {
     if (!isSeedDate) return;
+    const seeded = withoutPendingRemoved(seedWorkouts);
     const snapshot: WorkoutDayCache = {
-      workouts: seedWorkouts,
+      workouts: seeded,
       completedByTaskId: Object.fromEntries(
-        seedWorkouts.map((workout) => [workout.taskId, initialWorkoutCompleted])
+        seeded.map((workout) => [workout.taskId, initialWorkoutCompleted])
       ),
       skippedByTaskId: {},
       sessionIdByTaskId: {},
-      allCompleted: initialWorkoutCompleted,
-      results: initialWorkoutResults,
+      allCompleted:
+        seeded.length > 0 &&
+        areMainWorkoutsComplete(seeded, () => initialWorkoutCompleted),
+      results:
+        seeded.length > 0 && initialWorkoutCompleted
+          ? initialWorkoutResults
+          : null,
     };
     workoutCacheRef.current.set(dateKey, snapshot);
     setWorkoutDayCache(clientId, dateKey, snapshot);
     setWorkouts(snapshot.workouts);
     setCompletedByTaskId(snapshot.completedByTaskId);
     setSkippedByTaskId(snapshot.skippedByTaskId ?? {});
-    if (initialWorkoutResults) setWorkoutResults(initialWorkoutResults);
+    setWorkoutResults(snapshot.results);
     setLoadedDateKey(dateKey);
   }, [
     seedWorkouts,
@@ -276,6 +295,7 @@ export function DashboardWorkoutCard({
     dateKey,
     isSeedDate,
     clientId,
+    withoutPendingRemoved,
   ]);
 
   const prevDateKeyRef = useRef(dateKey);
@@ -344,27 +364,42 @@ export function DashboardWorkoutCard({
     if (confirmedEmptyRef.current.has(dateKey)) return;
     const seed = seedFromSchedule(dateKey);
     if (!seed?.workouts.length) return;
+    const filtered = withoutPendingRemoved(seed.workouts);
+    if (filtered.length === 0) {
+      confirmedEmptyRef.current.add(dateKey);
+      return;
+    }
 
-    workoutCacheRef.current.set(dateKey, seed);
-    setWorkoutDayCache(clientId, dateKey, seed);
-    setWorkouts(seed.workouts);
-    setCompletedByTaskId(seed.completedByTaskId);
-    setSkippedByTaskId(seed.skippedByTaskId ?? {});
-    setSessionIdByTaskId(seed.sessionIdByTaskId);
-    setWorkoutResults(seed.results);
+    const snapshot: WorkoutDayCache = {
+      ...seed,
+      workouts: filtered,
+      allCompleted: areMainWorkoutsComplete(
+        filtered,
+        (taskId) => seed.completedByTaskId[taskId] === true
+      ),
+    };
+    workoutCacheRef.current.set(dateKey, snapshot);
+    setWorkoutDayCache(clientId, dateKey, snapshot);
+    setWorkouts(snapshot.workouts);
+    setCompletedByTaskId(snapshot.completedByTaskId);
+    setSkippedByTaskId(snapshot.skippedByTaskId ?? {});
+    setSessionIdByTaskId(snapshot.sessionIdByTaskId);
+    setWorkoutResults(snapshot.allCompleted ? snapshot.results : null);
     setLoadedDateKey(dateKey);
-  }, [clientId, dateKey, workouts.length, seedFromSchedule]);
+  }, [clientId, dateKey, workouts.length, seedFromSchedule, withoutPendingRemoved]);
 
   const refreshWorkout = useCallback(async () => {
     const key = formatDateKey(selectedDateRef.current);
     const timezoneOffsetMinutes = new Date().getTimezoneOffset();
     try {
-      const resolved = await resolveWorkoutsForDate(
+      const resolvedRaw = await resolveWorkoutsForDate(
         clientId,
         key,
         timezoneOffsetMinutes
       );
       if (formatDateKey(selectedDateRef.current) !== key) return;
+
+      const resolved = withoutPendingRemoved(resolvedRaw);
 
       const status = await getWorkoutCompletionStatusForDate(
         clientId,
@@ -410,7 +445,7 @@ export function DashboardWorkoutCard({
       setSkippedByTaskId(skippedMap);
       setSessionIdByTaskId(sessionMap);
 
-      if (!allCompleted) {
+      if (!allCompleted || resolved.length === 0) {
         setWorkoutResults(null);
       } else {
         void loadWorkoutResults(
@@ -432,7 +467,7 @@ export function DashboardWorkoutCard({
         setLoadedDateKey(key);
       }
     }
-  }, [clientId]);
+  }, [clientId, withoutPendingRemoved]);
 
   useEffect(() => {
     if (dateKey !== todayKey) return;
@@ -494,43 +529,109 @@ export function DashboardWorkoutCard({
     (scheduledWorkoutIds: string[]) => {
       if (scheduledWorkoutIds.length === 0) return;
       const idSet = new Set(scheduledWorkoutIds);
+      for (const id of scheduledWorkoutIds) {
+        pendingRemovedIdsRef.current.add(id);
+      }
 
       setWorkouts((prev) => {
+        const removedTaskIds = new Set(
+          prev
+            .filter((w) => w.scheduledWorkoutId && idSet.has(w.scheduledWorkoutId))
+            .map((w) => w.taskId)
+        );
         const next = prev.filter(
           (w) => !w.scheduledWorkoutId || !idSet.has(w.scheduledWorkoutId)
         );
-        const previous = workoutCacheRef.current.get(dateKey);
+
+        setCompletedByTaskId((prevCompleted) => {
+          if (removedTaskIds.size === 0) return prevCompleted;
+          const nextCompleted = { ...prevCompleted };
+          for (const taskId of removedTaskIds) delete nextCompleted[taskId];
+          return nextCompleted;
+        });
+        setSkippedByTaskId((prevSkipped) => {
+          if (removedTaskIds.size === 0) return prevSkipped;
+          const nextSkipped = { ...prevSkipped };
+          for (const taskId of removedTaskIds) delete nextSkipped[taskId];
+          return nextSkipped;
+        });
+        setSessionIdByTaskId((prevSessions) => {
+          if (removedTaskIds.size === 0) return prevSessions;
+          const nextSessions = { ...prevSessions };
+          for (const taskId of removedTaskIds) delete nextSessions[taskId];
+          return nextSessions;
+        });
+
+        const allCompleted = areMainWorkoutsComplete(
+          next,
+          (taskId) =>
+            !(removedTaskIds.has(taskId)) &&
+            (workoutCacheRef.current.get(dateKey)?.completedByTaskId[taskId] ===
+              true ||
+              completedByTaskId[taskId] === true)
+        );
+
+        if (!allCompleted || next.length === 0) {
+          setWorkoutResults(null);
+        }
+
         const snapshot: WorkoutDayCache = {
           workouts: next,
-          completedByTaskId: previous?.completedByTaskId ?? completedByTaskId,
-          skippedByTaskId: previous?.skippedByTaskId ?? skippedByTaskId,
-          sessionIdByTaskId: previous?.sessionIdByTaskId ?? sessionIdByTaskId,
-          allCompleted: areMainWorkoutsComplete(
-            next,
-            (taskId) =>
-              (previous?.completedByTaskId ?? completedByTaskId)[taskId] === true
+          completedByTaskId: Object.fromEntries(
+            Object.entries(
+              workoutCacheRef.current.get(dateKey)?.completedByTaskId ??
+                completedByTaskId
+            ).filter(([taskId]) => !removedTaskIds.has(taskId))
           ),
-          results: previous?.results ?? null,
+          skippedByTaskId: Object.fromEntries(
+            Object.entries(
+              workoutCacheRef.current.get(dateKey)?.skippedByTaskId ??
+                skippedByTaskId
+            ).filter(([taskId]) => !removedTaskIds.has(taskId))
+          ),
+          sessionIdByTaskId: Object.fromEntries(
+            Object.entries(
+              workoutCacheRef.current.get(dateKey)?.sessionIdByTaskId ??
+                sessionIdByTaskId
+            ).filter(([taskId]) => !removedTaskIds.has(taskId))
+          ),
+          allCompleted,
+          results: allCompleted && next.length > 0 ? workoutResults : null,
         };
         workoutCacheRef.current.set(dateKey, snapshot);
         setWorkoutDayCache(clientId, dateKey, snapshot);
         if (next.length === 0) confirmedEmptyRef.current.add(dateKey);
         return next;
       });
-
-      notifySync();
-      // Soft reconcile in the background — UI already updated.
-      void refreshWorkout();
     },
     [
       clientId,
       completedByTaskId,
       dateKey,
-      notifySync,
-      refreshWorkout,
       sessionIdByTaskId,
       skippedByTaskId,
+      workoutResults,
     ]
+  );
+
+  const handleRemoveSettled = useCallback(
+    (scheduledWorkoutIds: string[], ok: boolean) => {
+      for (const id of scheduledWorkoutIds) {
+        pendingRemovedIdsRef.current.delete(id);
+      }
+      if (!ok) {
+        // Roll back optimistic UI from server truth.
+        confirmedEmptyRef.current.delete(dateKey);
+        workoutCacheRef.current.delete(dateKey);
+        clearWorkoutDayCache(clientId, dateKey);
+        setIsUpdatingDay(true);
+        void refreshWorkout().finally(() => setIsUpdatingDay(false));
+        return;
+      }
+      // Quiet reconcile — pending set is clear so fetch won't resurrect deletes.
+      void refreshWorkout();
+    },
+    [clientId, dateKey, refreshWorkout]
   );
 
   const skipWorkoutRefresh =
@@ -606,7 +707,8 @@ export function DashboardWorkoutCard({
     (workout) => workout.scheduledWorkoutId
   ).length;
   const hasScheduledWorkout = removableWorkoutCount > 0;
-  const showCompletedState = allWorkoutsComplete;
+  const showCompletedState =
+    workoutsForDay.length > 0 && allWorkoutsComplete;
   const resultsReady = variant !== "detail" && showCompletedState;
   const patchedSessionId =
     patches.workoutSessionIds[dateKey] ??
@@ -998,6 +1100,7 @@ export function DashboardWorkoutCard({
           refreshing={isUpdatingDay}
           onChanged={handleWorkoutAdded}
           onRemoved={handleWorkoutsRemoved}
+          onRemoveSettled={handleRemoveSettled}
         />
         <AddWorkoutToDayDialog
           open={addWorkoutOpen}
@@ -1103,6 +1206,7 @@ export function DashboardWorkoutCard({
         refreshing={isUpdatingDay}
         onChanged={handleWorkoutAdded}
         onRemoved={handleWorkoutsRemoved}
+        onRemoveSettled={handleRemoveSettled}
       />
       <AddWorkoutToDayDialog
         open={addWorkoutOpen}
@@ -1216,6 +1320,7 @@ export function DashboardWorkoutCard({
           refreshing={isUpdatingDay}
           onChanged={handleWorkoutAdded}
           onRemoved={handleWorkoutsRemoved}
+          onRemoveSettled={handleRemoveSettled}
         />
         <AddWorkoutToDayDialog
           open={addWorkoutOpen}

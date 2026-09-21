@@ -14,12 +14,14 @@ export function RemoveWorkoutFromDayDialog({
   dateKey,
   workouts,
   onRemoved,
+  onRemoveSettled,
 }: {
   open: boolean;
   onClose: () => void;
   dateKey: string;
   workouts: TodaysWorkoutInfo[];
   onRemoved?: (scheduledWorkoutIds: string[]) => void;
+  onRemoveSettled?: (scheduledWorkoutIds: string[], ok: boolean) => void;
 }) {
   const platform = usePlatformCopy();
   const [isPending, startTransition] = useTransition();
@@ -53,14 +55,12 @@ export function RemoveWorkoutFromDayDialog({
   const handleRemove = () => {
     if (selectedIds.length === 0) return;
     setError(null);
-    // Instant UI — close and update before the server finishes.
-    onRemoved?.(selectedIds);
+    const ids = [...selectedIds];
+    onRemoved?.(ids);
     onClose();
     startTransition(async () => {
-      const result = await unscheduleWorkout(dateKey, selectedIds);
-      if (result.error) {
-        setError(result.error);
-      }
+      const result = await unscheduleWorkout(dateKey, ids);
+      onRemoveSettled?.(ids, !result.error);
     });
   };
 

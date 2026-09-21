@@ -18,6 +18,7 @@ export function EditDayWorkoutsDialog({
   refreshing = false,
   onChanged,
   onRemoved,
+  onRemoveSettled,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,8 @@ export function EditDayWorkoutsDialog({
   onChanged?: () => void;
   /** Optimistic remove — called immediately with scheduled workout ids. */
   onRemoved?: (scheduledWorkoutIds: string[]) => void;
+  /** Called after the server delete finishes (ok=false → roll back). */
+  onRemoveSettled?: (scheduledWorkoutIds: string[], ok: boolean) => void;
 }) {
   const platform = usePlatformCopy();
   const [addOpen, setAddOpen] = useState(false);
@@ -40,16 +43,15 @@ export function EditDayWorkoutsDialog({
   const handleRemove = (scheduledWorkoutId: string) => {
     setError(null);
     setRemovingId(scheduledWorkoutId);
-    // Instant UI update — don't wait for the server round-trip.
-    onRemoved?.([scheduledWorkoutId]);
+    const ids = [scheduledWorkoutId];
+    onRemoved?.(ids);
     startTransition(async () => {
       const result = await unscheduleWorkout(dateKey, scheduledWorkoutId);
       setRemovingId(null);
-      if (result.error) {
-        setError(result.error);
-        // Roll back by reloading the day.
-        onChanged?.();
-        return;
+      const ok = !result.error;
+      onRemoveSettled?.(ids, ok);
+      if (!ok) {
+        setError(result.error ?? "Could not remove workout");
       }
     });
   };
