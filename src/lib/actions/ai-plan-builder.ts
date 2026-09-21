@@ -195,7 +195,8 @@ async function scheduleAiSessionOnDate(
             ? "AI Coach · stretching · one-off session"
             : "AI Coach · HIIT · one-off session"),
       config: plan.config,
-      assign: true,
+      // Don't steal the active program assignment for warm-up / stretch extras.
+      assign: session.kind === "hiit",
       kind: session.kind,
     });
     if (saved.error || !saved.data) {
@@ -714,12 +715,36 @@ export async function applyWeeklyFullProgramAction(
     schedule.startDate?.trim() || new Date().toISOString().split("T")[0];
   const anchor = new Date(startDate + "T12:00:00");
 
+  // Deduplicate weekdays so we never place two warm-ups on the same calendar day.
+  const uniqueWeekdays = [...new Set(weekdays)];
+  const slotCount = Math.min(program.days.length, uniqueWeekdays.length);
+
+  const targetDates = new Set<string>();
+  for (let i = 0; i < slotCount; i++) {
+    const dates = generateRecurringScheduleDates(
+      anchor,
+      [uniqueWeekdays[i]!],
+      weeks
+    );
+    for (const d of dates) targetDates.add(d);
+  }
+
+  // Clear prior warm-up / main / stretch on those dates so re-Apply after a
+  // partial failure (or a previous program) doesn't hit "already has a warm-up".
+  await clearScheduledWorkoutKindsOnDates(
+    admin,
+    userId,
+    [...targetDates],
+    program.includeExtras
+      ? ["warmup", "stretch", "strength", "hiit"]
+      : ["strength", "hiit"]
+  );
+
   let scheduledCount = 0;
-  const slotCount = Math.min(program.days.length, weekdays.length);
 
   for (let i = 0; i < slotCount; i++) {
     const dayProgram = program.days[i]!;
-    const weekday = weekdays[i]!;
+    const weekday = uniqueWeekdays[i]!;
     const dates = generateRecurringScheduleDates(anchor, [weekday], weeks);
 
     for (const dateKey of dates) {
@@ -761,4 +786,38 @@ export async function applyWeeklyFullProgramAction(
       : "/dashboard/workout",
     scheduledCount,
   };
+}
+
+async function clearScheduledWorkoutKindsOnDates(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  userId: string,
+  dateKeys: string[],
+  kinds: string[]
+) {
+  if (dateKeys.length === 0 || kinds.length === 0) return;
+
+  const { data: rows } = await admin
+    .from("scheduled_workouts")
+    .select("id, scheduled_date, workout_plans(kind)")
+    .eq("client_id", userId)
+    .in("scheduled_date", dateKeys);
+
+  const ids = (rows ?? [])
+    .filter(
+      (row: {
+        id: string;
+        workout_plans?: { kind?: string } | { kind?: string }[] | null;
+      }) => {
+        const kind = Array.isArray(row.workout_plans)
+          ? row.workout_plans[0]?.kind
+          : row.workout_plans?.kind;
+        return kind != null && kinds.includes(kind);
+      }
+    )
+    .map((row: { id: string }) => row.id);
+
+  if (ids.length === 0) return;
+
+  await admin.from("scheduled_workouts").delete().in("id", ids);
 }
