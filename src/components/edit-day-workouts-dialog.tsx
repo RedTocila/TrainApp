@@ -17,6 +17,7 @@ export function EditDayWorkoutsDialog({
   workouts,
   refreshing = false,
   onChanged,
+  onRemoved,
 }: {
   open: boolean;
   onClose: () => void;
@@ -24,6 +25,8 @@ export function EditDayWorkoutsDialog({
   workouts: TodaysWorkoutInfo[];
   refreshing?: boolean;
   onChanged?: () => void;
+  /** Optimistic remove — called immediately with scheduled workout ids. */
+  onRemoved?: (scheduledWorkoutIds: string[]) => void;
 }) {
   const platform = usePlatformCopy();
   const [addOpen, setAddOpen] = useState(false);
@@ -32,19 +35,22 @@ export function EditDayWorkoutsDialog({
   const [error, setError] = useState<string | null>(null);
 
   const removable = workouts.filter((workout) => workout.scheduledWorkoutId);
-  const busy = isPending || refreshing;
+  const busy = refreshing;
 
   const handleRemove = (scheduledWorkoutId: string) => {
     setError(null);
     setRemovingId(scheduledWorkoutId);
+    // Instant UI update — don't wait for the server round-trip.
+    onRemoved?.([scheduledWorkoutId]);
     startTransition(async () => {
       const result = await unscheduleWorkout(dateKey, scheduledWorkoutId);
       setRemovingId(null);
       if (result.error) {
         setError(result.error);
+        // Roll back by reloading the day.
+        onChanged?.();
         return;
       }
-      onChanged?.();
     });
   };
 

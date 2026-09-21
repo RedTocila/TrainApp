@@ -53,14 +53,14 @@ export function RemoveWorkoutFromDayDialog({
   const handleRemove = () => {
     if (selectedIds.length === 0) return;
     setError(null);
+    // Instant UI — close and update before the server finishes.
+    onRemoved?.(selectedIds);
+    onClose();
     startTransition(async () => {
       const result = await unscheduleWorkout(dateKey, selectedIds);
       if (result.error) {
         setError(result.error);
-        return;
       }
-      onRemoved?.(selectedIds);
-      onClose();
     });
   };
 

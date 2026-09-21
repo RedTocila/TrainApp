@@ -490,6 +490,49 @@ export function DashboardWorkoutCard({
     });
   }, [clientId, dateKey, notifySync, refreshWorkout, router]);
 
+  const handleWorkoutsRemoved = useCallback(
+    (scheduledWorkoutIds: string[]) => {
+      if (scheduledWorkoutIds.length === 0) return;
+      const idSet = new Set(scheduledWorkoutIds);
+
+      setWorkouts((prev) => {
+        const next = prev.filter(
+          (w) => !w.scheduledWorkoutId || !idSet.has(w.scheduledWorkoutId)
+        );
+        const previous = workoutCacheRef.current.get(dateKey);
+        const snapshot: WorkoutDayCache = {
+          workouts: next,
+          completedByTaskId: previous?.completedByTaskId ?? completedByTaskId,
+          skippedByTaskId: previous?.skippedByTaskId ?? skippedByTaskId,
+          sessionIdByTaskId: previous?.sessionIdByTaskId ?? sessionIdByTaskId,
+          allCompleted: areMainWorkoutsComplete(
+            next,
+            (taskId) =>
+              (previous?.completedByTaskId ?? completedByTaskId)[taskId] === true
+          ),
+          results: previous?.results ?? null,
+        };
+        workoutCacheRef.current.set(dateKey, snapshot);
+        setWorkoutDayCache(clientId, dateKey, snapshot);
+        if (next.length === 0) confirmedEmptyRef.current.add(dateKey);
+        return next;
+      });
+
+      notifySync();
+      // Soft reconcile in the background — UI already updated.
+      void refreshWorkout();
+    },
+    [
+      clientId,
+      completedByTaskId,
+      dateKey,
+      notifySync,
+      refreshWorkout,
+      sessionIdByTaskId,
+      skippedByTaskId,
+    ]
+  );
+
   const skipWorkoutRefresh =
     dateKey >= todayKey &&
     isDashboardDayCacheFresh(workoutDayCacheKey(clientId, dateKey)) &&
@@ -954,6 +997,7 @@ export function DashboardWorkoutCard({
           workouts={workoutsForDay}
           refreshing={isUpdatingDay}
           onChanged={handleWorkoutAdded}
+          onRemoved={handleWorkoutsRemoved}
         />
         <AddWorkoutToDayDialog
           open={addWorkoutOpen}
@@ -1058,6 +1102,7 @@ export function DashboardWorkoutCard({
         workouts={workoutsForDay}
         refreshing={isUpdatingDay}
         onChanged={handleWorkoutAdded}
+        onRemoved={handleWorkoutsRemoved}
       />
       <AddWorkoutToDayDialog
         open={addWorkoutOpen}
@@ -1170,6 +1215,7 @@ export function DashboardWorkoutCard({
           workouts={workoutsForDay}
           refreshing={isUpdatingDay}
           onChanged={handleWorkoutAdded}
+          onRemoved={handleWorkoutsRemoved}
         />
         <AddWorkoutToDayDialog
           open={addWorkoutOpen}

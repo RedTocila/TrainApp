@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ensureManualPlanCreation, ensurePlanMutationAccess } from "@/lib/actions/usage-limits";
 import { generateRecurringScheduleDates, inferScheduleFromSessions } from "@/lib/schedule-utils";
@@ -403,8 +404,11 @@ export async function unscheduleWorkout(
   const { error } = await query;
 
   if (error) return { error: error.message };
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/workout");
+  // Don't block the client on a full dashboard RSC refresh.
+  after(() => {
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/workout");
+  });
   return { success: true };
 }
 
@@ -568,8 +572,10 @@ export async function unscheduleWorkoutDay(
     .eq("day_id", dayId);
 
   if (error) return { error: error.message };
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/workout");
+  after(() => {
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/workout");
+  });
   return { success: true };
 }
 
