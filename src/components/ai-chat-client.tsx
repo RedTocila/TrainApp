@@ -7,6 +7,8 @@ import {
   Globe,
   Loader2,
   MessageCircle,
+  Mic,
+  MicOff,
   Paperclip,
   UserRound,
   X,
@@ -14,7 +16,7 @@ import {
 } from "lucide-react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
-import { usePlatformCopy } from "@/components/locale-provider";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import type { ChatImageAttachment, ChatMessage, WebSource } from "@/lib/ai/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { compressImageFile, fileToDataUrl, parseDataUrl } from "@/lib/image-compress";
@@ -26,6 +28,7 @@ import { ChatRichBlocks } from "@/components/chat-rich-blocks";
 import type { ChatPlanPreview, CoachChatMode } from "@/lib/ai/coach-chat-tools";
 import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
+import { useVoiceDictation } from "@/hooks/use-voice-dictation";
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
 
@@ -296,6 +299,7 @@ function ChatCommandBar({
   modeActLabel,
   modeAskAria,
   modeActAria,
+  onVoiceError,
 }: {
   input: string;
   onInputChange: (value: string) => void;
@@ -317,10 +321,32 @@ function ChatCommandBar({
   modeActLabel: string;
   modeAskAria: string;
   modeActAria: string;
+  onVoiceError: (message: string) => void;
 }) {
+  const platform = usePlatformCopy();
+  const locale = useLocale();
+  const ai = platform.ai;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMultiline, setIsMultiline] = useState(false);
   const isAct = chatMode === "act";
+  const voice = useVoiceDictation({
+    locale,
+    value: input,
+    onChange: onInputChange,
+    onError: onVoiceError,
+    enabled: !disabled,
+  });
+
+  const voiceAria =
+    voice.status === "transcribing"
+      ? ai.voiceTranscribing
+      : voice.isActive
+        ? ai.voiceStopAria
+        : ai.voiceStartAria;
+
+  const hasDraft = Boolean(input.trim() || attachmentPreviewUrl);
+  const showMicAction =
+    voice.isActive || voice.isBusy || (!hasDraft && !isStreaming);
 
   return (
     <form onSubmit={onSubmit} className="min-w-0 w-full space-y-2">
@@ -354,7 +380,7 @@ function ChatCommandBar({
         <button
           type="button"
           onClick={() => onChatModeChange(isAct ? "ask" : "act")}
-          disabled={disabled}
+          disabled={disabled || voice.isActive || voice.isBusy}
           aria-label={isAct ? modeActAria : modeAskAria}
           title={isAct ? modeActAria : modeAskAria}
           className={cn(
@@ -376,8 +402,16 @@ function ChatCommandBar({
           value={input}
           onChange={onInputChange}
           onKeyDown={onKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
+          placeholder={
+            voice.status === "listening"
+              ? ai.voiceListening
+              : voice.status === "recording"
+                ? ai.voiceRecording
+                : voice.status === "transcribing"
+                  ? ai.voiceTranscribing
+                  : placeholder
+          }
+          disabled={disabled || voice.isBusy}
           onMultilineChange={setIsMultiline}
           className="chat-command-input-wrap col-start-2 row-start-1 min-w-0 self-center"
         />
@@ -386,7 +420,7 @@ function ChatCommandBar({
           type="file"
           accept="image/*"
           className="hidden"
-          disabled={disabled}
+          disabled={disabled || voice.isActive || voice.isBusy}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) onAttachSelect(file);
@@ -396,7 +430,7 @@ function ChatCommandBar({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={disabled}
+          disabled={disabled || voice.isActive || voice.isBusy}
           aria-label={attachAriaLabel}
           className={cn(
             "col-start-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45",
@@ -405,22 +439,47 @@ function ChatCommandBar({
         >
           <Paperclip className="h-4 w-4" strokeWidth={2} />
         </button>
-        <button
-          type="submit"
-          disabled={!canSend}
-          aria-label={sendAriaLabel}
-          className={cn(
-            "col-start-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
-            isMultiline && "mb-0.5",
-            canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
-          )}
-        >
-          {isStreaming ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-          )}
-        </button>
+        {showMicAction ? (
+          <button
+            type="button"
+            onClick={voice.toggle}
+            disabled={disabled || voice.isBusy}
+            aria-label={voiceAria}
+            title={voiceAria}
+            className={cn(
+              "col-start-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+              isMultiline && "mb-0.5",
+              disabled || voice.isBusy
+                ? "cursor-not-allowed opacity-45"
+                : "hover:opacity-90"
+            )}
+          >
+            {voice.isBusy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : voice.isActive ? (
+              <MicOff className="h-4 w-4" strokeWidth={2.5} />
+            ) : (
+              <Mic className="h-4 w-4" strokeWidth={2.5} />
+            )}
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!canSend}
+            aria-label={sendAriaLabel}
+            className={cn(
+              "col-start-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+              isMultiline && "mb-0.5",
+              canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
+            )}
+          >
+            {isStreaming ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+            )}
+          </button>
+        )}
       </div>
     </form>
   );
@@ -830,6 +889,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeActLabel={ai.modeAct}
               modeAskAria={ai.modeAskAria}
               modeActAria={ai.modeActAria}
+              onVoiceError={setError}
             />
           </div>
         </div>
@@ -919,6 +979,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeActLabel={ai.modeAct}
               modeAskAria={ai.modeAskAria}
               modeActAria={ai.modeActAria}
+              onVoiceError={setError}
             />
           </div>
         </CardContent>

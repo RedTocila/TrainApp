@@ -15,7 +15,6 @@ import { AppLogo } from "@/components/app-logo";
 import {
   FullCalendarNavButton,
 } from "@/components/full-calendar-nav-button";
-import { SupportContactButton } from "@/components/support-contact-button";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { useNutritionPageChromeActions } from "@/components/nutrition-page-chrome-context";
@@ -177,7 +176,6 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
                 className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background"
               />
             </Link>
-            <SupportContactButton buttonClassName={headerIconButton} />
             {showCalendar ? (
               <FullCalendarNavButton className={headerIconButton} />
             ) : null}

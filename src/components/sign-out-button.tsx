@@ -62,8 +62,11 @@ export function SignOutButton({
     <>
       <Button
         type="button"
-        variant="outline"
-        className={cn("w-full", className)}
+        variant="ghost"
+        className={cn(
+          "w-full rounded-2xl border border-primary/25 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+          className
+        )}
         onClick={() => setOpen(true)}
       >
         <LogOut className="h-4 w-4" />

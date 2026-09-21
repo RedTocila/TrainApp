@@ -12,7 +12,7 @@ interface ChatCommandInputProps {
   placeholder: string;
   disabled?: boolean;
   onMultilineChange?: (multiline: boolean) => void;
-  /** Overrides default grid placement (Alex bar: mode | input | attach | send). */
+  /** Overrides default grid placement (Alex bar: mode | input | attach | mic/send). */
   className?: string;
 }
 

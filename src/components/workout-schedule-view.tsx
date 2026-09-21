@@ -100,11 +100,7 @@ export function WorkoutScheduleView() {
     });
   }, [selectedMonday, workouts, cardios]);
 
-  const relativeWeek = weekOffset - WEEKS_BACK + 1;
-  const weekLabel =
-    relativeWeek >= 1
-      ? platform.workout.scheduleWeek(relativeWeek)
-      : formatLocalized(selectedMonday, "MMM d", locale);
+  const weekLabel = formatLocalized(selectedMonday, "MMM d", locale);
   const rangeLabel = `${formatLocalized(selectedMonday, "MMM d", locale)} – ${formatLocalized(selectedSunday, "MMM d", locale)}`;
 
   return (
@@ -141,12 +137,8 @@ export function WorkoutScheduleView() {
       </div>
 
       <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {weekStarts.map((_, index) => {
-          const weekNum = index - WEEKS_BACK + 1;
-          const label =
-            weekNum >= 1
-              ? platform.workout.scheduleWeek(weekNum)
-              : formatLocalized(weekStarts[index], "MMM d", locale);
+        {weekStarts.map((weekStart, index) => {
+          const label = formatLocalized(weekStart, "MMM d", locale);
           return (
             <button
               key={index}

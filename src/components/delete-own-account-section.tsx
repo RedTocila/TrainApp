@@ -60,10 +60,10 @@ export function DeleteOwnAccountSection() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-3 rounded-xl border border-destructive/30 bg-card p-4 text-left transition-colors hover:bg-destructive/5 active:scale-[0.99]"
+        className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 text-left shadow-sm transition-colors hover:bg-secondary/40 active:scale-[0.99]"
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10">
-          <Trash2 className="h-5 w-5 text-destructive" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+          <Trash2 className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-black">{copy.deleteAccount}</p>
