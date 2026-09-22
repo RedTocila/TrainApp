@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, type KeyboardEvent } from "react";
 
-/** Matches .chat-command-editable min-height (2rem). */
-const SINGLE_LINE_HEIGHT_PX = 32;
+/** Matches .chat-command-editable min-height (2.25rem). */
+const SINGLE_LINE_HEIGHT_PX = 36;
 
 interface ChatCommandInputProps {
   value: string;

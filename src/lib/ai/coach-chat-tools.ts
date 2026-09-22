@@ -74,7 +74,8 @@ export type CoachChatToolEvent =
   | { type: "tool_done"; name: string }
   | { type: "plan_preview"; preview: ChatPlanPreview }
   | { type: "rich_blocks"; blocks: CoachChatRichBlock[] }
-  | { type: "pending_action"; action: CoachPendingAction };
+  | { type: "pending_action"; action: CoachPendingAction }
+  | { type: "navigate"; href: string };
 
 const PLAN_TOOLS = new Set([
   "generate_workout_plan",
@@ -397,9 +398,13 @@ const ASK_TOOL_NAMES = new Set([
   "list_upcoming_workout_schedule",
   "list_my_nutrition_plans",
   "list_today_habits",
+  "list_my_habits",
+  "list_today_workouts",
+  "list_my_cardio",
+  "list_today_cardio",
 ]);
 
-/** Immediate logging — same as tapping buttons on the dashboard (no Confirm card). */
+/** Immediate logging — available in Ask too (same as tapping dashboard buttons). */
 export const COACH_SOFT_ACT_TOOL_NAMES = new Set([
   "log_meal",
   "log_weight",
@@ -476,6 +481,7 @@ export async function executeCoachChatTool(
   richBlocks?: CoachChatRichBlock[];
   pendingAction?: CoachPendingAction;
   dashboardMutated?: boolean;
+  navigate?: string;
 }> {
   onEvent?.({ type: "tool_start", name });
 
@@ -494,13 +500,16 @@ export async function executeCoachChatTool(
 
   if (COACH_COMMAND_TOOL_NAMES.has(name)) {
     try {
-      const { result, pendingAction, dashboardMutated } =
+      const { result, pendingAction, dashboardMutated, navigate } =
         await executeCoachCommandTool(name, argsJson, profile);
       if (pendingAction) {
         onEvent?.({ type: "pending_action", action: pendingAction });
       }
+      if (navigate) {
+        onEvent?.({ type: "navigate", href: navigate });
+      }
       onEvent?.({ type: "tool_done", name });
-      return { result, pendingAction, dashboardMutated };
+      return { result, pendingAction, dashboardMutated, navigate };
     } catch (error) {
       onEvent?.({ type: "tool_done", name });
       const msg = error instanceof Error ? error.message : "Command failed";

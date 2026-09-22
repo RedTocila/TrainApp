@@ -151,6 +151,9 @@ export async function POST(request: Request) {
               if (event.type === "pending_action") {
                 enqueue({ pendingAction: event.action });
               }
+              if (event.type === "navigate") {
+                enqueue({ navigate: event.href });
+              }
             },
             { maxTokens: 900, signal: request.signal, onToken, mode: coachMode }
           );
@@ -167,6 +170,9 @@ export async function POST(request: Request) {
           }
           if (result.dashboardMutated) {
             enqueue({ dashboardRefresh: true });
+          }
+          if (result.navigate) {
+            enqueue({ navigate: result.navigate });
           }
         } else {
           for await (const chunk of streamChatCompletion(chatMessages, {

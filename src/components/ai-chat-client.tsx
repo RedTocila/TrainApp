@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowUp,
   ExternalLink,
@@ -8,7 +9,6 @@ import {
   Loader2,
   MessageCircle,
   Mic,
-  MicOff,
   Paperclip,
   Square,
   UserRound,
@@ -386,8 +386,11 @@ function ChatCommandBar({
       )}
       <div
         className={cn(
-          "chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1 overflow-hidden border border-border/70 bg-secondary/60 p-1 pl-1.5 shadow-sm backdrop-blur-sm transition-[border-radius] duration-200",
-          isMultiline ? "rounded-2xl items-end" : "rounded-full"
+          "chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 border border-border/70 bg-secondary/60 p-1.5 pl-2 shadow-sm backdrop-blur-sm transition-[border-radius,box-shadow,border-color] duration-200",
+          isMultiline ? "rounded-2xl items-end" : "rounded-full",
+          voice.isActive
+            ? "overflow-visible border-primary/50 shadow-[0_0_0_1px_rgba(var(--primary-rgb),0.18),0_0_18px_rgba(var(--primary-rgb),0.22)]"
+            : "overflow-hidden"
         )}
       >
         <button
@@ -397,7 +400,7 @@ function ChatCommandBar({
           aria-label={isAct ? modeActAria : modeAskAria}
           title={isAct ? modeActAria : modeAskAria}
           className={cn(
-            "col-start-1 flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+            "col-start-1 flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
             isMultiline && "mb-0.5",
             isAct
               ? "bg-primary/15 text-primary hover:bg-primary/20"
@@ -411,23 +414,39 @@ function ChatCommandBar({
           )}
           <span>{isAct ? modeActLabel : modeAskLabel}</span>
         </button>
-        <ChatCommandInput
-          value={input}
-          onChange={onInputChange}
-          onKeyDown={onKeyDown}
-          placeholder={
-            voice.status === "listening"
-              ? ai.voiceListening
-              : voice.status === "recording"
-                ? ai.voiceRecording
-                : voice.status === "transcribing"
-                  ? ai.voiceTranscribing
-                  : placeholder
-          }
-          disabled={composerLocked}
-          onMultilineChange={setIsMultiline}
-          className="chat-command-input-wrap col-start-2 row-start-1 min-w-0 self-center"
-        />
+        <div className="relative col-start-2 row-start-1 min-w-0 self-center">
+          <ChatCommandInput
+            value={input}
+            onChange={onInputChange}
+            onKeyDown={onKeyDown}
+            placeholder={
+              voice.status === "listening"
+                ? ai.voiceListening
+                : voice.status === "recording"
+                  ? ai.voiceRecording
+                  : voice.status === "transcribing"
+                    ? ai.voiceTranscribing
+                    : placeholder
+            }
+            disabled={composerLocked}
+            onMultilineChange={setIsMultiline}
+            className={cn(
+              "chat-command-input-wrap min-w-0",
+              voice.isActive && "pr-6"
+            )}
+          />
+          {voice.isActive ? (
+            <span
+              className="chat-voice-bars pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-primary"
+              aria-hidden
+            >
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
+          ) : null}
+        </div>
         <input
           ref={fileInputRef}
           type="file"
@@ -446,7 +465,7 @@ function ChatCommandBar({
           disabled={composerLocked || voice.isActive}
           aria-label={attachAriaLabel}
           className={cn(
-            "col-start-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45",
+            "col-start-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45",
             isMultiline && "mb-0.5"
           )}
         >
@@ -459,7 +478,7 @@ function ChatCommandBar({
             aria-label={stopAriaLabel}
             title={stopAriaLabel}
             className={cn(
-              "col-start-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity hover:opacity-90",
+              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity hover:opacity-90",
               isMultiline && "mb-0.5"
             )}
           >
@@ -473,8 +492,9 @@ function ChatCommandBar({
             aria-label={voiceAria}
             title={voiceAria}
             className={cn(
-              "col-start-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
               isMultiline && "mb-0.5",
+              voice.isActive && "chat-voice-active",
               disabled || voice.isBusy
                 ? "cursor-not-allowed opacity-45"
                 : "hover:opacity-90"
@@ -483,7 +503,10 @@ function ChatCommandBar({
             {voice.isBusy ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : voice.isActive ? (
-              <MicOff className="h-4 w-4" strokeWidth={2.5} />
+              <Square
+                className="relative z-10 h-3.5 w-3.5 fill-current"
+                strokeWidth={0}
+              />
             ) : (
               <Mic className="h-4 w-4" strokeWidth={2.5} />
             )}
@@ -494,7 +517,7 @@ function ChatCommandBar({
             disabled={!canSend}
             aria-label={sendAriaLabel}
             className={cn(
-              "col-start-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
               isMultiline && "mb-0.5",
               canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
             )}
@@ -508,9 +531,10 @@ function ChatCommandBar({
 }
 
 export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
+  const router = useRouter();
   const platform = usePlatformCopy();
   const ai = platform.ai;
-  const { canChat, isOpen, pendingPrompt, consumePendingPrompt } =
+  const { canChat, isOpen, pendingPrompt, consumePendingPrompt, closeChat } =
     useAiCoachChat();
   const starterPrompts = [...ai.starterPrompts];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -527,6 +551,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const isStreamingRef = useRef(false);
   const canChatRef = useRef(canChat);
   const chatModeRef = useRef(chatMode);
+  const pendingNavigateRef = useRef<string | null>(null);
   isStreamingRef.current = isStreaming;
   canChatRef.current = canChat;
   chatModeRef.current = chatMode;
@@ -576,6 +601,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     setAttachmentPreviewUrl(null);
     setIsStreaming(true);
     setPendingWebSearch(false);
+    pendingNavigateRef.current = null;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -651,8 +677,13 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               richBlocks?: CoachChatRichBlock[];
               pendingAction?: CoachPendingAction;
               dashboardRefresh?: boolean;
+              navigate?: string;
             };
             if (parsed.error) throw new Error(parsed.error);
+            if (parsed.navigate) {
+              pendingNavigateRef.current = parsed.navigate;
+              continue;
+            }
             if (parsed.dashboardRefresh) {
               window.dispatchEvent(new Event(DASHBOARD_PULL_REFRESH_EVENT));
               continue;
@@ -748,7 +779,16 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
       } finally {
         reveal.stop();
       }
+
+      const href = pendingNavigateRef.current;
+      pendingNavigateRef.current = null;
+      if (href) {
+        closeChat();
+        router.push(href);
+        router.refresh();
+      }
     } catch (err) {
+      pendingNavigateRef.current = null;
       if (controller.signal.aborted) {
         // Keep the user message and any partial reply; clear in-progress analysis UI.
         setMessages((prev) => {

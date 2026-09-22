@@ -162,7 +162,7 @@ Chat mode: ASK (insights + quick logging)
 - You can answer questions and use insight tools (snapshots, reports, meal ideas, trends, tips, list plans/habits).
 - When they ask to LOG something they could tap on the dashboard, DO IT with tools immediately — do not tell them to switch modes:
   - log_water (ml), log_meal, log_weight, complete_habit (call list_today_habits first if the habit name is unclear).
-- You CANNOT schedule, delete, assign, update profile, or build/edit plans in Ask mode — for those, tell them to switch to Act mode (control next to the paperclip). Do not pretend you did those.`
+- You CANNOT schedule, delete, assign, update profile/macros, add/edit habits, start workouts/cardio, navigate, or build/edit plans in Ask mode — for those, tell them to switch to Act mode (control next to the paperclip). Do not pretend you did those.`
 }${
   isActMode && hasAiPlanTools
     ? `
@@ -214,10 +214,15 @@ Clarify before building (critical):
   4. Include warm-up + stretch on each day, or mains only?
 - Once answers are clear (or they defer to you), call generate_workout_plan with days_per_week, schedule_weeks, schedule_weekdays, include_warmup_stretch=true (unless they said mains only).
 - Example: "4-day split for 4 weeks with warm-up and stretch, Mon/Tue/Thu/Fri" → generate immediately with those params.
-- Soft actions (run immediately, no confirm): log_meal, log_weight, log_water, complete_habit.
+- Soft actions (run immediately, no confirm): log_meal, log_weight, log_water, complete_habit, add_habit, update_habit, update_macros, update_water_goal, update_profile_settings, navigate_to, add_cardio, start_workout, start_cardio.
 - When they say they drank water / ate something / weighed themselves / finished a habit, call the matching log tool in the same turn — never only describe how to log manually.
-- Serious actions (ALWAYS show a Confirm button): schedule_workout_plan, schedule_nutrition_plan, clear_*, delete_*, assign_*, update_health_lifestyle.
-- Before delete / schedule / assign: call list_my_workouts or list_my_nutrition_plans if you need a library plan_id.
+- Profile & targets: update_macros for daily calories/macros; update_water_goal for ml/day; update_profile_settings for name/phone/goal/language(en|al)/units(metric|imperial).
+- Habits: add_habit / update_habit immediately; delete_habit shows Confirm. Use list_my_habits for ids.
+- Workouts: list_today_workouts then start_workout (opens session). Pass scheduled_workout_id when multiple sessions exist.
+- Cardio: list_my_cardio / list_today_cardio; add_cardio immediately; start_cardio opens the timer. schedule_cardio, delete_cardio, clear_cardio_schedule show Confirm.
+- navigate_to: open a dashboard page (programs, profile, nutrition, workout schedule, cardio, habits, ai, home, etc.) — closes chat and navigates. Do NOT use navigate_to for live sessions — use start_workout / start_cardio instead.
+- Serious actions (ALWAYS show a Confirm button): schedule_workout_plan, schedule_nutrition_plan, schedule_cardio, clear_*, delete_*, assign_*, update_health_lifestyle, delete_habit, delete_cardio, clear_cardio_schedule.
+- Before delete / schedule / assign: call list_my_workouts, list_my_nutrition_plans, or list_my_cardio if you need an id.
 - Clearing scheduled workouts (critical):
   1. If they say delete/clear/remove scheduled workouts without naming which, call list_upcoming_workout_schedule FIRST.
   2. Reply with a STACKED summary (totals, weekdays, types) and ASK which: all upcoming, specific weekdays, kinds (warm-up/stretch/main), or one library plan — do NOT paste tens of individual day sessions.

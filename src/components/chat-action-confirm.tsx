@@ -13,6 +13,9 @@ const DESTRUCTIVE_KINDS = new Set([
   "delete_nutrition_plan",
   "clear_workout_schedule",
   "clear_nutrition_schedule",
+  "delete_habit",
+  "delete_cardio",
+  "clear_cardio_schedule",
 ]);
 
 export function ChatActionConfirmCard({

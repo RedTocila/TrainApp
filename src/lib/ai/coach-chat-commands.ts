@@ -2,18 +2,33 @@ import type OpenAI from "openai";
 import { createPendingAction } from "@/lib/ai/coach-pending-actions";
 import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import {
+  coachAddCardioCommand,
+  coachClearCardioSchedule,
   coachCompleteHabitCommand,
+  coachListAllHabitsCommand,
+  coachListMyCardioCommand,
+  coachListTodayCardioCommand,
   coachListTodayHabitsCommand,
+  coachListTodayWorkoutsCommand,
   coachLogMealCommand,
   coachLogWaterCommand,
   coachLogWeightCommand,
+  coachSaveHabitCommand,
+  coachStartCardioCommand,
+  coachStartWorkoutCommand,
+  coachUpdateMacrosCommand,
+  coachUpdateProfileSettingsCommand,
+  coachUpdateWaterGoalCommand,
   getWorkoutPlanDaysSummary,
   listCoachNutritionPlans,
   listCoachWorkoutPlans,
+  resolveCardioForCoach,
+  resolveHabitForCoach,
   resolveNutritionPlanLabel,
   resolveWorkoutPlanLabel,
   summarizeCoachUpcomingWorkoutSchedule,
 } from "@/lib/actions/coach-commands";
+import { resolveCoachNavigatePath } from "@/lib/ai/coach-navigate";
 import {
   INTAKE_MULTI_SELECT_KEYS,
   type IntakeResponses,
@@ -28,7 +43,24 @@ export const COMMAND_TOOL_STATUS_LABELS: Record<string, string> = {
   log_weight: "Logging weight…",
   log_water: "Logging water…",
   list_today_habits: "Loading today's habits…",
+  list_my_habits: "Loading your habits…",
   complete_habit: "Marking habit complete…",
+  add_habit: "Adding habit…",
+  update_habit: "Updating habit…",
+  delete_habit: "Preparing to delete habit…",
+  update_macros: "Updating macros…",
+  update_water_goal: "Updating water goal…",
+  update_profile_settings: "Updating profile…",
+  navigate_to: "Opening page…",
+  list_today_workouts: "Checking today's workouts…",
+  list_my_cardio: "Loading your cardio…",
+  list_today_cardio: "Checking today's cardio…",
+  add_cardio: "Adding cardio…",
+  schedule_cardio: "Preparing cardio schedule…",
+  delete_cardio: "Preparing to delete cardio…",
+  clear_cardio_schedule: "Preparing to clear cardio schedule…",
+  start_workout: "Starting workout…",
+  start_cardio: "Starting cardio…",
   schedule_workout_plan: "Preparing workout schedule…",
   schedule_nutrition_plan: "Preparing nutrition schedule…",
   clear_workout_schedule: "Preparing to clear workout schedule…",
@@ -151,6 +183,318 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
             type: "string",
             description: "Partial title match if id unknown",
           },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_my_habits",
+      description:
+        "List all saved habits with ids (not only today). Call before update_habit or delete_habit.",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_habit",
+      description:
+        "Create a new recurring habit. Soft action — runs immediately. Defaults to every day for 12 weeks if weekdays/weeks omitted.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          weekdays: {
+            type: "array",
+            items: { type: "number" },
+            description: "0=Sun … 6=Sat. Default all days.",
+          },
+          weeks: { type: "number", description: "Repeat length, default 12" },
+          time_start: { type: "string", description: "HH:MM optional" },
+          time_end: { type: "string", description: "HH:MM optional" },
+          start_mode: {
+            type: "string",
+            enum: ["now", "next_week"],
+            description: "Default now",
+          },
+        },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_habit",
+      description:
+        "Update an existing habit title/schedule. Soft action. Call list_my_habits first for habit_id.",
+      parameters: {
+        type: "object",
+        properties: {
+          habit_id: { type: "string" },
+          title: { type: "string" },
+          weekdays: {
+            type: "array",
+            items: { type: "number" },
+          },
+          weeks: { type: "number" },
+          time_start: { type: "string" },
+          time_end: { type: "string" },
+          start_mode: { type: "string", enum: ["now", "next_week"] },
+        },
+        required: ["habit_id", "title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_habit",
+      description:
+        "Propose permanently deleting a habit. SERIOUS — Confirm button required. Call list_my_habits first if needed.",
+      parameters: {
+        type: "object",
+        properties: {
+          habit_id: { type: "string" },
+          habit_name: { type: "string" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_macros",
+      description:
+        "Update daily calorie/macro targets on the profile (same as Profile tab macros). Soft action. Prefer absolute grams: calories + protein_g/carbs_g/fat_g. Or calories + protein_pct/carbs_pct/fat_pct.",
+      parameters: {
+        type: "object",
+        properties: {
+          calories: { type: "number" },
+          protein_g: { type: "number" },
+          carbs_g: { type: "number" },
+          fat_g: { type: "number" },
+          protein_pct: { type: "number" },
+          carbs_pct: { type: "number" },
+          fat_pct: { type: "number" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_water_goal",
+      description:
+        "Set daily water goal in ml (profile/dashboard water target). Soft action.",
+      parameters: {
+        type: "object",
+        properties: {
+          water_goal_ml: { type: "number" },
+        },
+        required: ["water_goal_ml"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_profile_settings",
+      description:
+        "Update profile settings: name, phone, goal, language (en/al), units (metric/imperial). Soft action. Only include fields the client wants changed.",
+      parameters: {
+        type: "object",
+        properties: {
+          full_name: { type: "string" },
+          phone: { type: "string" },
+          goal: {
+            type: "string",
+            enum: [
+              "lose_weight",
+              "gain_weight",
+              "build_muscle",
+              "stay_fit",
+              "improve_endurance",
+              "general_health",
+            ],
+          },
+          preferred_locale: { type: "string", enum: ["en", "al"] },
+          unit_system: { type: "string", enum: ["metric", "imperial"] },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "navigate_to",
+      description:
+        "Open a dashboard page for the client (closes chat and navigates). Use aliases like programs, profile, nutrition, workout schedule, cardio, habits, ai, progress photos, home — or a /dashboard/... path.",
+      parameters: {
+        type: "object",
+        properties: {
+          page: {
+            type: "string",
+            description: "Alias or path, e.g. programs, profile, /dashboard/workout",
+          },
+        },
+        required: ["page"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_today_workouts",
+      description:
+        "List workouts scheduled for today (or date) with scheduled_workout_id. Call before start_workout when multiple sessions exist.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "YYYY-MM-DD, default today" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "start_workout",
+      description:
+        "Start today's next workout (or a specific scheduled_workout_id) and open the live session. Soft action — navigates immediately.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "YYYY-MM-DD, default today" },
+          scheduled_workout_id: {
+            type: "string",
+            description: "Optional — from list_today_workouts",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_my_cardio",
+      description:
+        "List saved cardio library items with ids. Call before schedule/delete/start when id unknown.",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_today_cardio",
+      description: "List cardio scheduled for today (or date).",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "YYYY-MM-DD, default today" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_cardio",
+      description:
+        "Create a cardio library item (title, optional duration minutes / YouTube URL). Soft action.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          duration_minutes: { type: "number" },
+          youtube_url: { type: "string" },
+        },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "schedule_cardio",
+      description:
+        "Propose scheduling a cardio item onto calendar weekdays for N weeks. SERIOUS — Confirm required. Call list_my_cardio first if needed.",
+      parameters: {
+        type: "object",
+        properties: {
+          cardio_id: { type: "string" },
+          cardio_name: { type: "string" },
+          weeks: { type: "number", description: "Default 4" },
+          weekdays: {
+            type: "array",
+            items: { type: "number" },
+            description: "0=Sun … 6=Sat. Default Mon/Wed/Fri",
+          },
+          start_mode: { type: "string", enum: ["now", "next_week"] },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_cardio",
+      description:
+        "Propose permanently deleting a cardio library item. SERIOUS — Confirm required.",
+      parameters: {
+        type: "object",
+        properties: {
+          cardio_id: { type: "string" },
+          cardio_name: { type: "string" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "clear_cardio_schedule",
+      description:
+        "Propose clearing upcoming scheduled cardio. SERIOUS — Confirm required. Use clear_all or cardio_id.",
+      parameters: {
+        type: "object",
+        properties: {
+          cardio_id: { type: "string" },
+          clear_all: { type: "boolean" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "start_cardio",
+      description:
+        "Open the cardio timer session for today (or date). Soft action — navigates immediately. Pass cardio_id if multiple.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: { type: "string" },
+          cardio_id: { type: "string" },
+          cardio_name: { type: "string" },
         },
         additionalProperties: false,
       },
@@ -415,6 +759,7 @@ export async function executeCoachCommandTool(
   result: string;
   pendingAction?: CoachPendingAction;
   dashboardMutated?: boolean;
+  navigate?: string;
 }> {
   const args = parseToolArgs(argsJson);
 
@@ -508,6 +853,302 @@ export async function executeCoachCommandTool(
       return {
         result: `${result.message} Tell the client it's checked off.`,
         dashboardMutated: true,
+      };
+    }
+    case "list_my_habits": {
+      const result = await coachListAllHabitsCommand();
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return { result: result.text };
+    }
+    case "add_habit": {
+      const result = await coachSaveHabitCommand({
+        title: String(args.title ?? ""),
+        weekdays: Array.isArray(args.weekdays)
+          ? args.weekdays.map(Number)
+          : undefined,
+        weeks: typeof args.weeks === "number" ? args.weeks : undefined,
+        time_start:
+          typeof args.time_start === "string" ? args.time_start : undefined,
+        time_end: typeof args.time_end === "string" ? args.time_end : undefined,
+        start_mode:
+          args.start_mode === "next_week" ? "next_week" : "now",
+      });
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return {
+        result: `${result.message} Tell the client it's saved.`,
+        dashboardMutated: true,
+      };
+    }
+    case "update_habit": {
+      const habitId = String(args.habit_id ?? "");
+      if (!habitId) return { result: "Error: habit_id is required. Call list_my_habits." };
+      const result = await coachSaveHabitCommand({
+        habit_id: habitId,
+        title: String(args.title ?? ""),
+        weekdays: Array.isArray(args.weekdays)
+          ? args.weekdays.map(Number)
+          : undefined,
+        weeks: typeof args.weeks === "number" ? args.weeks : undefined,
+        time_start:
+          typeof args.time_start === "string" ? args.time_start : undefined,
+        time_end: typeof args.time_end === "string" ? args.time_end : undefined,
+        start_mode:
+          args.start_mode === "next_week" ? "next_week" : "now",
+      });
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return {
+        result: `${result.message} Tell the client it's updated.`,
+        dashboardMutated: true,
+      };
+    }
+    case "delete_habit": {
+      const resolved = await resolveHabitForCoach({
+        habit_id:
+          typeof args.habit_id === "string" ? args.habit_id : undefined,
+        habit_name:
+          typeof args.habit_name === "string" ? args.habit_name : undefined,
+      });
+      if ("error" in resolved) return { result: `Error: ${resolved.error}` };
+      const pendingAction = createPendingAction(
+        "delete_habit",
+        `Delete habit “${resolved.title}”`,
+        "Permanently removes this habit and its schedule.",
+        { habitId: resolved.id, title: resolved.title },
+        { confirmLabel: "Delete habit" }
+      );
+      return {
+        result:
+          "Confirm card shown for habit delete. Not deleted until they confirm.",
+        pendingAction,
+      };
+    }
+    case "update_macros": {
+      const result = await coachUpdateMacrosCommand({
+        calories: typeof args.calories === "number" ? args.calories : undefined,
+        protein_g:
+          typeof args.protein_g === "number" ? args.protein_g : undefined,
+        carbs_g: typeof args.carbs_g === "number" ? args.carbs_g : undefined,
+        fat_g: typeof args.fat_g === "number" ? args.fat_g : undefined,
+        protein_pct:
+          typeof args.protein_pct === "number" ? args.protein_pct : undefined,
+        carbs_pct:
+          typeof args.carbs_pct === "number" ? args.carbs_pct : undefined,
+        fat_pct: typeof args.fat_pct === "number" ? args.fat_pct : undefined,
+      });
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return {
+        result: `${result.message} Tell the client macros are updated.`,
+        dashboardMutated: true,
+      };
+    }
+    case "update_water_goal": {
+      const result = await coachUpdateWaterGoalCommand({
+        water_goal_ml: Number(args.water_goal_ml),
+      });
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return {
+        result: `${result.message} Tell the client the water goal is saved.`,
+        dashboardMutated: true,
+      };
+    }
+    case "update_profile_settings": {
+      if (
+        args.full_name === undefined &&
+        args.phone === undefined &&
+        args.goal === undefined &&
+        args.preferred_locale === undefined &&
+        args.unit_system === undefined
+      ) {
+        return {
+          result:
+            "Error: Provide at least one of full_name, phone, goal, preferred_locale, unit_system.",
+        };
+      }
+      const result = await coachUpdateProfileSettingsCommand({
+        full_name:
+          typeof args.full_name === "string" ? args.full_name : undefined,
+        phone: typeof args.phone === "string" ? args.phone : undefined,
+        goal: typeof args.goal === "string" ? args.goal : undefined,
+        preferred_locale:
+          typeof args.preferred_locale === "string"
+            ? args.preferred_locale
+            : undefined,
+        unit_system:
+          typeof args.unit_system === "string" ? args.unit_system : undefined,
+      });
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return {
+        result: `${result.message} Tell the client profile settings are saved.`,
+        dashboardMutated: true,
+      };
+    }
+    case "navigate_to": {
+      const resolved = resolveCoachNavigatePath(String(args.page ?? ""));
+      if ("error" in resolved) return { result: `Error: ${resolved.error}` };
+      return {
+        result: `Opening ${resolved.href} for the client now.`,
+        navigate: resolved.href,
+      };
+    }
+    case "list_today_workouts": {
+      const result = await coachListTodayWorkoutsCommand(
+        typeof args.date === "string" ? args.date : undefined
+      );
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return { result: result.text };
+    }
+    case "start_workout": {
+      const result = await coachStartWorkoutCommand({
+        date: typeof args.date === "string" ? args.date : undefined,
+        scheduled_workout_id:
+          typeof args.scheduled_workout_id === "string"
+            ? args.scheduled_workout_id
+            : undefined,
+      });
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return {
+        result: `${result.message} Tell the client the workout is opening.`,
+        navigate: result.navigate,
+        dashboardMutated: true,
+      };
+    }
+    case "list_my_cardio": {
+      const result = await coachListMyCardioCommand();
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return { result: result.text };
+    }
+    case "list_today_cardio": {
+      const result = await coachListTodayCardioCommand(
+        typeof args.date === "string" ? args.date : undefined
+      );
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return { result: result.text };
+    }
+    case "add_cardio": {
+      const result = await coachAddCardioCommand({
+        title: String(args.title ?? ""),
+        description:
+          typeof args.description === "string" ? args.description : undefined,
+        duration_minutes:
+          typeof args.duration_minutes === "number"
+            ? args.duration_minutes
+            : undefined,
+        youtube_url:
+          typeof args.youtube_url === "string" ? args.youtube_url : undefined,
+      });
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return {
+        result: `${result.message} Tell the client it's saved.`,
+        dashboardMutated: true,
+      };
+    }
+    case "schedule_cardio": {
+      const resolved = await resolveCardioForCoach({
+        cardio_id:
+          typeof args.cardio_id === "string" ? args.cardio_id : undefined,
+        cardio_name:
+          typeof args.cardio_name === "string" ? args.cardio_name : undefined,
+      });
+      if ("error" in resolved) return { result: `Error: ${resolved.error}` };
+      const weeks =
+        typeof args.weeks === "number" && args.weeks > 0
+          ? Math.round(args.weeks)
+          : 4;
+      const weekdays = Array.isArray(args.weekdays)
+        ? args.weekdays
+            .map(Number)
+            .filter((n) => Number.isFinite(n) && n >= 0 && n <= 6)
+        : [1, 3, 5];
+      const startMode =
+        args.start_mode === "next_week" ? "next_week" : "now";
+      const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const daysLabel = weekdays
+        .map((d) => weekdayLabels[d] ?? String(d))
+        .join(", ");
+      const pendingAction = createPendingAction(
+        "schedule_cardio",
+        `Schedule “${resolved.title}”`,
+        `Places this cardio on ${daysLabel} for ${weeks} week(s) (${startMode}).`,
+        {
+          cardioId: resolved.id,
+          title: resolved.title,
+          weeks,
+          weekdays,
+          startMode,
+        },
+        { confirmLabel: "Schedule cardio" }
+      );
+      return {
+        result:
+          "Confirm card shown for cardio schedule. Not scheduled until they confirm.",
+        pendingAction,
+      };
+    }
+    case "delete_cardio": {
+      const resolved = await resolveCardioForCoach({
+        cardio_id:
+          typeof args.cardio_id === "string" ? args.cardio_id : undefined,
+        cardio_name:
+          typeof args.cardio_name === "string" ? args.cardio_name : undefined,
+      });
+      if ("error" in resolved) return { result: `Error: ${resolved.error}` };
+      const pendingAction = createPendingAction(
+        "delete_cardio",
+        `Delete cardio “${resolved.title}”`,
+        "Permanently removes this cardio from your library.",
+        { cardioId: resolved.id, title: resolved.title },
+        { confirmLabel: "Delete cardio" }
+      );
+      return {
+        result:
+          "Confirm card shown for cardio delete. Not deleted until they confirm.",
+        pendingAction,
+      };
+    }
+    case "clear_cardio_schedule": {
+      const clearAll = args.clear_all === true;
+      let cardioId: string | undefined;
+      let title = "all cardio";
+      if (!clearAll) {
+        const resolved = await resolveCardioForCoach({
+          cardio_id:
+            typeof args.cardio_id === "string" ? args.cardio_id : undefined,
+          cardio_name:
+            typeof args.cardio_name === "string" ? args.cardio_name : undefined,
+        });
+        if ("error" in resolved) {
+          return {
+            result: `Error: ${resolved.error} Or set clear_all=true.`,
+          };
+        }
+        cardioId = resolved.id;
+        title = resolved.title;
+      }
+      const pendingAction = createPendingAction(
+        "clear_cardio_schedule",
+        clearAll ? "Clear all upcoming cardio" : `Clear schedule for “${title}”`,
+        "Removes upcoming calendar cardio sessions from today onward.",
+        { cardioId: cardioId ?? null, clearAll, title },
+        { confirmLabel: "Clear schedule" }
+      );
+      return {
+        result:
+          "Confirm card shown for clearing cardio schedule. Not cleared until they confirm.",
+        pendingAction,
+      };
+    }
+    case "start_cardio": {
+      const result = await coachStartCardioCommand({
+        date: typeof args.date === "string" ? args.date : undefined,
+        cardio_id:
+          typeof args.cardio_id === "string" ? args.cardio_id : undefined,
+        cardio_name:
+          typeof args.cardio_name === "string" ? args.cardio_name : undefined,
+      });
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return {
+        result: `${result.message} Tell the client cardio is opening.`,
+        navigate: result.navigate,
       };
     }
     case "schedule_workout_plan": {

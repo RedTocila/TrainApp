@@ -9,7 +9,11 @@ export type CoachActionKind =
   | "clear_nutrition_schedule"
   | "assign_workout_plan"
   | "assign_nutrition_plan"
-  | "update_health_lifestyle";
+  | "update_health_lifestyle"
+  | "delete_habit"
+  | "delete_cardio"
+  | "schedule_cardio"
+  | "clear_cardio_schedule";
 
 export type CoachPendingAction = {
   id: string;
@@ -51,4 +55,8 @@ export const SERIOUS_ACTION_KINDS = new Set<CoachActionKind>([
   "assign_workout_plan",
   "assign_nutrition_plan",
   "update_health_lifestyle",
+  "delete_habit",
+  "delete_cardio",
+  "schedule_cardio",
+  "clear_cardio_schedule",
 ]);
