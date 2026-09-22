@@ -7,6 +7,7 @@ import type {
   AiGeneratedHiitPlan,
   AiGeneratedWorkoutDay,
   AiGeneratedWorkoutPlan,
+  AiWorkoutDay,
   AiWorkoutExercise,
 } from "@/lib/ai/plan-builder-types";
 import type { WorkoutRequirements } from "@/lib/ai/workout-requirements";
@@ -198,10 +199,12 @@ export function repairStrengthSessionDuration(
   };
 }
 
-export function enforceDurationOnWorkoutDay(
-  day: AiGeneratedWorkoutDay,
+export function enforceDurationOnWorkoutDay<
+  T extends AiWorkoutDay | AiGeneratedWorkoutDay,
+>(
+  day: T,
   requirements: WorkoutRequirements
-): DurationEnforceResult<AiGeneratedWorkoutDay> {
+): DurationEnforceResult<T> {
   if (requirements.durationMinutes == null) {
     const minutes = estimateStrengthSessionMinutes(day.exercises);
     return { value: day, repairs: [], estimatedMinutes: minutes };
