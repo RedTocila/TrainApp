@@ -71,6 +71,7 @@ export async function runCoachChatWithTools(
   planPreview?: ChatPlanPreview;
   richBlocks?: CoachChatRichBlock[];
   pendingActions?: CoachPendingAction[];
+  dashboardMutated?: boolean;
 }> {
   const mode = options?.mode ?? "ask";
   const tools = getCoachChatToolsForMode(mode);
@@ -79,6 +80,7 @@ export async function runCoachChatWithTools(
   let planPreview: ChatPlanPreview | undefined;
   const richBlocks: CoachChatRichBlock[] = [];
   const pendingActions: CoachPendingAction[] = [];
+  let dashboardMutated = false;
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     if (options?.signal?.aborted) {
@@ -147,6 +149,7 @@ export async function runCoachChatWithTools(
           planPreview: preview,
           richBlocks: blocks,
           pendingAction,
+          dashboardMutated: mutated,
         } = await executeCoachChatTool(
           toolCall.name,
           toolCall.arguments,
@@ -157,6 +160,7 @@ export async function runCoachChatWithTools(
         if (preview) planPreview = preview;
         if (blocks?.length) richBlocks.push(...blocks);
         if (pendingAction) pendingActions.push(pendingAction);
+        if (mutated) dashboardMutated = true;
 
         conversation.push({
           role: "tool",
@@ -191,6 +195,7 @@ export async function runCoachChatWithTools(
       planPreview,
       richBlocks: richBlocks.length > 0 ? richBlocks : undefined,
       pendingActions: pendingActions.length > 0 ? pendingActions : undefined,
+      dashboardMutated: dashboardMutated || undefined,
     };
   }
 
@@ -199,5 +204,6 @@ export async function runCoachChatWithTools(
     planPreview,
     richBlocks: richBlocks.length > 0 ? richBlocks : undefined,
     pendingActions: pendingActions.length > 0 ? pendingActions : undefined,
+    dashboardMutated: dashboardMutated || undefined,
   };
 }

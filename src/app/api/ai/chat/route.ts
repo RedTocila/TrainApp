@@ -165,6 +165,9 @@ export async function POST(request: Request) {
               enqueue({ pendingAction: action });
             }
           }
+          if (result.dashboardMutated) {
+            enqueue({ dashboardRefresh: true });
+          }
         } else {
           for await (const chunk of streamChatCompletion(chatMessages, {
             maxTokens: 900,

@@ -396,10 +396,23 @@ const ASK_TOOL_NAMES = new Set([
   "list_my_workouts",
   "list_upcoming_workout_schedule",
   "list_my_nutrition_plans",
+  "list_today_habits",
 ]);
 
+/** Immediate logging — same as tapping buttons on the dashboard (no Confirm card). */
+export const COACH_SOFT_ACT_TOOL_NAMES = new Set([
+  "log_meal",
+  "log_weight",
+  "log_water",
+  "complete_habit",
+]);
+
+export function isSoftActTool(name: string): boolean {
+  return COACH_SOFT_ACT_TOOL_NAMES.has(name);
+}
+
 export function isAskModeTool(name: string): boolean {
-  return ASK_TOOL_NAMES.has(name);
+  return ASK_TOOL_NAMES.has(name) || isSoftActTool(name);
 }
 
 export function getCoachChatToolsForMode(
@@ -462,6 +475,7 @@ export async function executeCoachChatTool(
   planPreview?: ChatPlanPreview;
   richBlocks?: CoachChatRichBlock[];
   pendingAction?: CoachPendingAction;
+  dashboardMutated?: boolean;
 }> {
   onEvent?.({ type: "tool_start", name });
 
@@ -469,7 +483,7 @@ export async function executeCoachChatTool(
     onEvent?.({ type: "tool_done", name });
     return {
       result:
-        "Blocked: Ask mode is read-only. Tell the client to switch to Act mode (control next to the paperclip) to log, schedule, build, or delete.",
+        "Blocked: Ask mode cannot run this action. Tell the client to switch to Act mode (control next to the paperclip) to schedule, build, delete, or change programs.",
     };
   }
 
@@ -480,16 +494,13 @@ export async function executeCoachChatTool(
 
   if (COACH_COMMAND_TOOL_NAMES.has(name)) {
     try {
-      const { result, pendingAction } = await executeCoachCommandTool(
-        name,
-        argsJson,
-        profile
-      );
+      const { result, pendingAction, dashboardMutated } =
+        await executeCoachCommandTool(name, argsJson, profile);
       if (pendingAction) {
         onEvent?.({ type: "pending_action", action: pendingAction });
       }
       onEvent?.({ type: "tool_done", name });
-      return { result, pendingAction };
+      return { result, pendingAction, dashboardMutated };
     } catch (error) {
       onEvent?.({ type: "tool_done", name });
       const msg = error instanceof Error ? error.message : "Command failed";

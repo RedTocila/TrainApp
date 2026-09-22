@@ -158,10 +158,11 @@ ${
   isActMode
     ? ""
     : `
-Chat mode: ASK (read-only)
-- You can answer questions and use insight tools only (snapshots, reports, meal ideas, trends, tips, list/active plans).
-- You CANNOT log, schedule, delete, assign, update profile, or build/edit plans in this mode — those tools are unavailable.
-- If they ask you to change the app (log food/weight/water, schedule, delete, build a plan, update lifestyle), tell them briefly to switch to Act mode using the Ask/Act control next to the paperclip, then send again. Do not pretend you already did it.`
+Chat mode: ASK (insights + quick logging)
+- You can answer questions and use insight tools (snapshots, reports, meal ideas, trends, tips, list plans/habits).
+- When they ask to LOG something they could tap on the dashboard, DO IT with tools immediately — do not tell them to switch modes:
+  - log_water (ml), log_meal, log_weight, complete_habit (call list_today_habits first if the habit name is unclear).
+- You CANNOT schedule, delete, assign, update profile, or build/edit plans in Ask mode — for those, tell them to switch to Act mode (control next to the paperclip). Do not pretend you did those.`
 }${
   isActMode && hasAiPlanTools
     ? `
@@ -213,7 +214,8 @@ Clarify before building (critical):
   4. Include warm-up + stretch on each day, or mains only?
 - Once answers are clear (or they defer to you), call generate_workout_plan with days_per_week, schedule_weeks, schedule_weekdays, include_warmup_stretch=true (unless they said mains only).
 - Example: "4-day split for 4 weeks with warm-up and stretch, Mon/Tue/Thu/Fri" → generate immediately with those params.
-- Soft actions (run immediately, no confirm): log_meal, log_weight, log_water.
+- Soft actions (run immediately, no confirm): log_meal, log_weight, log_water, complete_habit.
+- When they say they drank water / ate something / weighed themselves / finished a habit, call the matching log tool in the same turn — never only describe how to log manually.
 - Serious actions (ALWAYS show a Confirm button): schedule_workout_plan, schedule_nutrition_plan, clear_*, delete_*, assign_*, update_health_lifestyle.
 - Before delete / schedule / assign: call list_my_workouts or list_my_nutrition_plans if you need a library plan_id.
 - Clearing scheduled workouts (critical):
@@ -290,6 +292,29 @@ ${mealsBlock}
   }`;
 }
 
+/** Nudge the model to call soft-action tools for obvious dashboard commands. */
+function buildQuickCoachActionHint(message: string): string {
+  const m = message.trim().toLowerCase();
+  if (!m) return "";
+
+  if (
+    /\b(log|add|track|record|drank|drink)\b/.test(m) &&
+    (/\bwater\b/.test(m) || /\b\d+\s*ml\b/.test(m) || /\b\d+(\.\d+)?\s*l\b/.test(m))
+  ) {
+    return "\n\n[Instruction: User wants water logged on their dashboard — call log_water with amount_ml (convert liters to ml) in this turn.]";
+  }
+  if (/\b(log|weighed|weight)\b/.test(m) && /\bkg\b|\blbs?\b|\bpounds?\b|\d/.test(m)) {
+    return "\n\n[Instruction: User wants body weight logged — call log_weight with weight_kg (convert lb to kg if needed).]";
+  }
+  if (/\b(log|ate|had|eating)\b/.test(m) && !/\bwater\b/.test(m)) {
+    return "\n\n[Instruction: User wants a meal logged — call log_meal with name and best-effort macros if they gave them.]";
+  }
+  if (/\b(complete|done|finished|check off)\b/.test(m) && /\bhabit\b/.test(m)) {
+    return "\n\n[Instruction: User wants a habit marked complete — use list_today_habits if needed, then complete_habit.]";
+  }
+  return "";
+}
+
 export async function prepareFitnessCoachChatMessages(
   clientId: string,
   message: string,
@@ -323,7 +348,8 @@ export async function prepareFitnessCoachChatMessages(
   });
 
   const visionSuffix = buildProgressPhotoVisionPrompt(progressPhotoAttachments);
-  const userContent = trimmed + visionSuffix;
+  const quickActionHint = buildQuickCoachActionHint(trimmed);
+  const userContent = trimmed + visionSuffix + quickActionHint;
 
   const hasProgressPhotos = progressPhotoAttachments.length > 0;
   const userImages: ChatImageAttachment[] = hasUserImage

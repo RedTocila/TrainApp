@@ -2,6 +2,8 @@ import type OpenAI from "openai";
 import { createPendingAction } from "@/lib/ai/coach-pending-actions";
 import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import {
+  coachCompleteHabitCommand,
+  coachListTodayHabitsCommand,
   coachLogMealCommand,
   coachLogWaterCommand,
   coachLogWeightCommand,
@@ -25,6 +27,8 @@ export const COMMAND_TOOL_STATUS_LABELS: Record<string, string> = {
   log_meal: "Logging meal…",
   log_weight: "Logging weight…",
   log_water: "Logging water…",
+  list_today_habits: "Loading today's habits…",
+  complete_habit: "Marking habit complete…",
   schedule_workout_plan: "Preparing workout schedule…",
   schedule_nutrition_plan: "Preparing nutrition schedule…",
   clear_workout_schedule: "Preparing to clear workout schedule…",
@@ -112,7 +116,7 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
     function: {
       name: "log_water",
       description:
-        "Immediately add water intake in ml (e.g. 250, 500). Soft action — no confirm button.",
+        "Immediately add water intake in ml (e.g. 250, 500). Soft action — no confirm button. Call when they say they drank water, logged water, or give an amount in ml/L.",
       parameters: {
         type: "object",
         properties: {
@@ -120,6 +124,34 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
           date: { type: "string", description: "YYYY-MM-DD, default today" },
         },
         required: ["amount_ml"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_today_habits",
+      description:
+        "List habits scheduled for today with completion status. Call before complete_habit when the habit name is ambiguous.",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "complete_habit",
+      description:
+        "Mark a scheduled habit complete for today (same as checking it off on the dashboard). Soft action — no confirm button.",
+      parameters: {
+        type: "object",
+        properties: {
+          habit_id: { type: "string", description: "From list_today_habits" },
+          habit_name: {
+            type: "string",
+            description: "Partial title match if id unknown",
+          },
+        },
         additionalProperties: false,
       },
     },
@@ -382,6 +414,7 @@ export async function executeCoachCommandTool(
 ): Promise<{
   result: string;
   pendingAction?: CoachPendingAction;
+  dashboardMutated?: boolean;
 }> {
   const args = parseToolArgs(argsJson);
 
@@ -432,7 +465,10 @@ export async function executeCoachCommandTool(
         date: typeof args.date === "string" ? args.date : undefined,
       });
       if ("error" in result) return { result: `Error: ${result.error}` };
-      return { result: `${result.message} Tell the client it's logged.` };
+      return {
+        result: `${result.message} Tell the client it's logged.`,
+        dashboardMutated: true,
+      };
     }
     case "log_weight": {
       const result = await coachLogWeightCommand({
@@ -440,7 +476,10 @@ export async function executeCoachCommandTool(
         date: typeof args.date === "string" ? args.date : undefined,
       });
       if ("error" in result) return { result: `Error: ${result.error}` };
-      return { result: `${result.message} Tell the client it's saved.` };
+      return {
+        result: `${result.message} Tell the client it's saved.`,
+        dashboardMutated: true,
+      };
     }
     case "log_water": {
       const result = await coachLogWaterCommand({
@@ -448,7 +487,28 @@ export async function executeCoachCommandTool(
         date: typeof args.date === "string" ? args.date : undefined,
       });
       if ("error" in result) return { result: `Error: ${result.error}` };
-      return { result: `${result.message} Tell the client it's saved.` };
+      return {
+        result: `${result.message} Tell the client it's saved.`,
+        dashboardMutated: true,
+      };
+    }
+    case "list_today_habits": {
+      const result = await coachListTodayHabitsCommand();
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return { result: result.text };
+    }
+    case "complete_habit": {
+      const result = await coachCompleteHabitCommand({
+        habit_id:
+          typeof args.habit_id === "string" ? args.habit_id : undefined,
+        habit_name:
+          typeof args.habit_name === "string" ? args.habit_name : undefined,
+      });
+      if ("error" in result) return { result: `Error: ${result.error}` };
+      return {
+        result: `${result.message} Tell the client it's checked off.`,
+        dashboardMutated: true,
+      };
     }
     case "schedule_workout_plan": {
       const planId = String(args.plan_id ?? "");

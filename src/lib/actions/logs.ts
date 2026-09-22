@@ -55,6 +55,8 @@ export async function upsertDailyLog(
     if (error) return { error: formatDbError(error.message) };
   }
 
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/day/nutrition");
   return { success: true };
 }
 

@@ -26,6 +26,7 @@ import { ChatCommandInput } from "@/components/chat-command-input";
 import { ChatPlanPreviewCard } from "@/components/chat-plan-preview";
 import { ChatActionConfirmCard } from "@/components/chat-action-confirm";
 import { ChatRichBlocks } from "@/components/chat-rich-blocks";
+import { DASHBOARD_PULL_REFRESH_EVENT } from "@/components/dashboard-sync";
 import type { ChatPlanPreview, CoachChatMode } from "@/lib/ai/coach-chat-tools";
 import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
@@ -237,10 +238,13 @@ const ChatBubble = memo(function ChatBubble({
         {message.role === "assistant" && message.toolStatus && (
           <p
             className={cn(
-              "text-xs text-muted-foreground",
+              "flex items-center gap-2 text-xs text-muted-foreground",
               message.content.trim() ? "mt-2" : ""
             )}
           >
+            {!message.content.trim() ? (
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+            ) : null}
             {message.toolStatus}
           </p>
         )}
@@ -515,7 +519,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingWebSearch, setPendingWebSearch] = useState(false);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
-  const [chatMode, setChatMode] = useState<CoachChatMode>("ask");
+  const [chatMode, setChatMode] = useState<CoachChatMode>("act");
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const sendMessageRef = useRef<(text: string) => Promise<void>>(async () => {});
@@ -646,8 +650,13 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               toolStatus?: string | null;
               richBlocks?: CoachChatRichBlock[];
               pendingAction?: CoachPendingAction;
+              dashboardRefresh?: boolean;
             };
             if (parsed.error) throw new Error(parsed.error);
+            if (parsed.dashboardRefresh) {
+              window.dispatchEvent(new Event(DASHBOARD_PULL_REFRESH_EVENT));
+              continue;
+            }
             if (parsed.meta?.searchedWeb !== undefined) {
               setPendingWebSearch(parsed.meta.searchedWeb);
               continue;
@@ -831,6 +840,26 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
 
   const canSend = Boolean((input.trim() || attachmentPreviewUrl) && !isStreaming && canChat);
 
+  const lastMessage = messages[messages.length - 1];
+  const showThinkingPlaceholder =
+    isStreaming &&
+    (lastMessage?.role !== "assistant" ||
+      (!lastMessage.content.trim() &&
+        !lastMessage.toolStatus &&
+        !lastMessage.planPreview &&
+        !(lastMessage.richBlocks?.length ?? 0) &&
+        !(lastMessage.pendingActions?.length ?? 0)));
+
+  const thinkingRow = showThinkingPlaceholder ? (
+    <div className="flex gap-3">
+      <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
+      <div className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-3.5 py-2.5 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        {pendingWebSearch ? ai.searching : ai.thinking}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", !embedded && "min-h-[calc(100dvh-14rem)] gap-4")}>
       {embedded ? (
@@ -873,17 +902,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               />
             ))}
 
-            {isStreaming &&
-              (messages[messages.length - 1]?.role !== "assistant" ||
-                !messages[messages.length - 1]?.content?.trim()) && (
-              <div className="flex gap-3">
-                <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
-                <div className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-3.5 py-2.5 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {pendingWebSearch ? ai.searching : ai.thinking}
-                </div>
-              </div>
-            )}
+            {thinkingRow}
           </div>
 
           <div className="relative min-w-0 shrink-0 bg-background px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2">
@@ -956,17 +975,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               />
             ))}
 
-            {isStreaming &&
-              (messages[messages.length - 1]?.role !== "assistant" ||
-                !messages[messages.length - 1]?.content?.trim()) && (
-              <div className="flex gap-3">
-                <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
-                <div className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-3.5 py-2.5 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {pendingWebSearch ? ai.searching : ai.thinking}
-                </div>
-              </div>
-            )}
+            {thinkingRow}
           </div>
 
           <div className="min-w-0 border-t border-border/50 bg-card p-4 shadow-[0_100dvh_0_0_var(--card)]">

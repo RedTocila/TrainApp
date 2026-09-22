@@ -9,6 +9,10 @@ import { logCustomMeal } from "@/lib/actions/daily-meals";
 import { upsertBodyWeightLog } from "@/lib/actions/weight-logs";
 import { addWater } from "@/lib/actions/logs";
 import {
+  getHabitsWithCompletions,
+  toggleHabitCompletion,
+} from "@/lib/actions/habits";
+import {
   assignPersonalWorkoutPlan,
   clearUpcomingWorkoutSchedule,
   deletePersonalWorkoutPlan,
@@ -201,6 +205,77 @@ export async function coachLogWeightCommand(input: {
   return {
     success: true as const,
     message: `Logged ${weight} kg for ${date}.`,
+  };
+}
+
+/** Habits scheduled for today (for coach chat). */
+export async function coachListTodayHabitsCommand() {
+  const auth = await requireUser();
+  if ("error" in auth) return { error: auth.error };
+
+  const date = todayKey();
+  const habits = await getHabitsWithCompletions(auth.userId, date);
+  if (habits.length === 0) {
+    return { text: "No habits scheduled for today." };
+  }
+  const lines = habits.map(
+    (h) =>
+      `- ${h.title} id=${h.id} status=${h.status} completed=${h.completed}`
+  );
+  return { text: lines.join("\n") };
+}
+
+/** Soft: mark a habit complete for today. */
+export async function coachCompleteHabitCommand(input: {
+  habit_id?: string;
+  habit_name?: string;
+}) {
+  const auth = await requireUser();
+  if ("error" in auth) return { error: auth.error };
+
+  const date = todayKey();
+  const habits = await getHabitsWithCompletions(auth.userId, date);
+  if (habits.length === 0) {
+    return { error: "No habits scheduled for today" };
+  }
+
+  let habitId = input.habit_id?.trim() || "";
+  if (!habitId && input.habit_name?.trim()) {
+    const q = input.habit_name.trim().toLowerCase();
+    const matches = habits.filter((h) => h.title.toLowerCase().includes(q));
+    if (matches.length === 1) {
+      habitId = matches[0]!.id;
+    } else if (matches.length > 1) {
+      return {
+        error: `Multiple habits match "${input.habit_name}". Call list_today_habits and use habit_id.`,
+      };
+    } else {
+      return { error: `No habit matching "${input.habit_name}" today.` };
+    }
+  }
+
+  if (!habitId) {
+    return { error: "Provide habit_id or habit_name" };
+  }
+
+  const habit = habits.find((h) => h.id === habitId);
+  if (!habit) {
+    return { error: "Habit not found for today. Call list_today_habits." };
+  }
+  if (habit.completed) {
+    return {
+      success: true as const,
+      message: `"${habit.title}" was already marked complete for ${date}.`,
+    };
+  }
+
+  const result = await toggleHabitCompletion(habitId, date);
+  if ("error" in result && result.error) {
+    return { error: result.error };
+  }
+  return {
+    success: true as const,
+    message: `Marked "${habit.title}" complete for ${date}.`,
   };
 }
 
