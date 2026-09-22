@@ -19,6 +19,11 @@ import {
   generateNutritionPlanForChat,
   generateWorkoutPlanForChat,
   summarizeActivePlans,
+  removeWorkoutExerciseForChat,
+  addWorkoutExerciseForChat,
+  replaceWorkoutExerciseForChat,
+  adjustWorkoutDifficultyForChat,
+  SurgicalEditError,
 } from "@/lib/ai/coach-chat-plans";
 import type {
   AiGeneratedNutritionPlan,
@@ -27,6 +32,11 @@ import type {
 import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import type { AiWeeklyFullProgram } from "@/lib/ai/generate-weekly-full-program";
 import { generateWeeklyFullProgramFromProfile } from "@/lib/ai/generate-weekly-full-program";
+import {
+  formatConflictToolResult,
+  WorkoutRequirementConflictError,
+} from "@/lib/ai/workout-requirements";
+import type { SurgicalEditResult } from "@/lib/ai/workout-surgical-edits";
 import { getLimitExceededMessage } from "@/lib/subscription-messages";
 import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
@@ -71,6 +81,10 @@ const PLAN_TOOLS = new Set([
   "generate_nutrition_plan",
   "edit_workout_plan",
   "edit_nutrition_plan",
+  "remove_workout_exercise",
+  "add_workout_exercise",
+  "replace_workout_exercise",
+  "adjust_workout_difficulty",
 ]);
 
 export const TOOL_STATUS_LABELS: Record<string, string> = {
@@ -79,6 +93,10 @@ export const TOOL_STATUS_LABELS: Record<string, string> = {
   generate_nutrition_plan: "Building nutrition plan…",
   edit_workout_plan: "Updating workout plan…",
   edit_nutrition_plan: "Updating nutrition plan…",
+  remove_workout_exercise: "Removing exercise…",
+  add_workout_exercise: "Adding exercise…",
+  replace_workout_exercise: "Replacing exercise…",
+  adjust_workout_difficulty: "Adjusting difficulty…",
   show_today_snapshot: "Loading today's snapshot…",
   show_weekly_report: "Generating weekly report…",
   show_meal_ideas: "Finding meal ideas…",
@@ -166,7 +184,7 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "edit_workout_plan",
       description:
-        "Modify the client's current active workout plan (swap exercises, reduce volume, etc.). To turn a 1-day plan into a multi-day split for scheduling, prefer generate_workout_plan with days_per_week instead.",
+        "FULL regenerate of the client's active workout plan from free-text instructions. Prefer remove_workout_exercise / add_workout_exercise / replace_workout_exercise / adjust_workout_difficulty for single-exercise or difficulty tweaks — those preserve the rest of the plan. Use this only for broad redesigns (new split, many simultaneous changes).",
       parameters: {
         type: "object",
         properties: {
@@ -176,6 +194,116 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           },
         },
         required: ["instructions"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "remove_workout_exercise",
+      description:
+        "Remove ONE exercise from the active strength workout plan without regenerating the rest. Use for 'remove exercise 3', 'remove squats', etc. day_number and exercise_number are 1-based.",
+      parameters: {
+        type: "object",
+        properties: {
+          day_number: {
+            type: "number",
+            description: "1-based training day (default 1).",
+          },
+          exercise_number: {
+            type: "number",
+            description: "1-based exercise index on that day (preferred when they say 'exercise 3').",
+          },
+          exercise_name: {
+            type: "string",
+            description: "Exercise name to remove if they named it instead of a number.",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_workout_exercise",
+      description:
+        "Add ONE exercise to a day on the active strength plan. Provide exercise_name (e.g. push-ups) and/or target_muscle (e.g. shoulders). Respects equipment constraints.",
+      parameters: {
+        type: "object",
+        properties: {
+          day_number: {
+            type: "number",
+            description: "1-based training day (default 1).",
+          },
+          exercise_name: {
+            type: "string",
+            description: "Library exercise to add (e.g. 'push-ups', 'dumbbell row').",
+          },
+          target_muscle: {
+            type: "string",
+            description:
+              "If no exact exercise_name, pick a suitable move for this muscle (chest, back, glutes, shoulders, arms, core, legs).",
+          },
+          sets: { type: "number" },
+          reps: { type: "string" },
+          rest_seconds: { type: "number" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "replace_workout_exercise",
+      description:
+        "Replace ONE exercise on the active strength plan, keeping sets/reps/rest. Use for 'replace exercise 3', 'replace lunges', 'swap squats'. If replacement_name is omitted, pick a similar allowed alternative (same muscle when possible).",
+      parameters: {
+        type: "object",
+        properties: {
+          day_number: {
+            type: "number",
+            description: "1-based training day (default 1).",
+          },
+          exercise_number: {
+            type: "number",
+            description: "1-based exercise index to replace.",
+          },
+          exercise_name: {
+            type: "string",
+            description: "Name of the exercise to replace if not using exercise_number.",
+          },
+          replacement_name: {
+            type: "string",
+            description: "Optional exact replacement library name. Omit to auto-pick a similar move.",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "adjust_workout_difficulty",
+      description:
+        "Make the active strength plan harder or easier WITHOUT changing exercises (adjusts sets/reps/rest). Use for 'make it harder', 'make it easier', 'keep the same exercises but harder'.",
+      parameters: {
+        type: "object",
+        properties: {
+          direction: {
+            type: "string",
+            enum: ["harder", "easier"],
+            description: "harder = more sets / lower reps / more rest; easier = opposite.",
+          },
+          day_number: {
+            type: "number",
+            description: "Optional 1-based day to adjust; omit to adjust all days.",
+          },
+        },
+        required: ["direction"],
         additionalProperties: false,
       },
     },
@@ -266,6 +394,7 @@ const ASK_TOOL_NAMES = new Set([
   "show_weight_trend",
   "show_coaching_tips",
   "list_my_workouts",
+  "list_upcoming_workout_schedule",
   "list_my_nutrition_plans",
 ]);
 
@@ -369,6 +498,25 @@ export async function executeCoachChatTool(
   }
 
   const args = parseToolArgs(argsJson);
+
+  const emitSurgicalPreview = (
+    result: SurgicalEditResult,
+    scheduleArgs: Record<string, unknown>
+  ) => {
+    const dayCount = result.plan.days.length;
+    const schedule = buildWorkoutScheduleIntent(scheduleArgs, dayCount);
+    const preview: ChatPlanPreview = {
+      type: "workout",
+      plan: result.plan,
+      schedule,
+    };
+    onEvent?.({ type: "plan_preview", preview });
+    onEvent?.({ type: "tool_done", name });
+    return {
+      result: `${result.summary} Preview ready — Apply saves changes and schedules ${schedule.weeks} week(s).`,
+      planPreview: preview,
+    };
+  };
 
   try {
     switch (name) {
@@ -475,6 +623,79 @@ export async function executeCoachChatTool(
           planPreview: preview,
         };
       }
+      case "remove_workout_exercise": {
+        const result = await removeWorkoutExerciseForChat(profile, {
+          dayNumber:
+            typeof args.day_number === "number" ? args.day_number : undefined,
+          exerciseNumber:
+            typeof args.exercise_number === "number"
+              ? args.exercise_number
+              : undefined,
+          exerciseName:
+            typeof args.exercise_name === "string"
+              ? args.exercise_name
+              : undefined,
+        });
+        return emitSurgicalPreview(result, args);
+      }
+      case "add_workout_exercise": {
+        const result = await addWorkoutExerciseForChat(profile, {
+          dayNumber:
+            typeof args.day_number === "number" ? args.day_number : undefined,
+          exerciseName:
+            typeof args.exercise_name === "string"
+              ? args.exercise_name
+              : undefined,
+          targetMuscle:
+            typeof args.target_muscle === "string"
+              ? args.target_muscle
+              : undefined,
+          sets: typeof args.sets === "number" ? args.sets : undefined,
+          reps: typeof args.reps === "string" ? args.reps : undefined,
+          restSeconds:
+            typeof args.rest_seconds === "number"
+              ? args.rest_seconds
+              : undefined,
+        });
+        return emitSurgicalPreview(result, args);
+      }
+      case "replace_workout_exercise": {
+        const result = await replaceWorkoutExerciseForChat(profile, {
+          dayNumber:
+            typeof args.day_number === "number" ? args.day_number : undefined,
+          exerciseNumber:
+            typeof args.exercise_number === "number"
+              ? args.exercise_number
+              : undefined,
+          exerciseName:
+            typeof args.exercise_name === "string"
+              ? args.exercise_name
+              : undefined,
+          replacementName:
+            typeof args.replacement_name === "string"
+              ? args.replacement_name
+              : undefined,
+        });
+        return emitSurgicalPreview(result, args);
+      }
+      case "adjust_workout_difficulty": {
+        const direction =
+          args.direction === "easier" || args.direction === "harder"
+            ? args.direction
+            : null;
+        if (!direction) {
+          onEvent?.({ type: "tool_done", name });
+          return {
+            result: "direction must be 'harder' or 'easier'.",
+          };
+        }
+        const result = await adjustWorkoutDifficultyForChat(
+          profile,
+          direction,
+          typeof args.day_number === "number" ? args.day_number : undefined
+        );
+        return emitSurgicalPreview(result, args);
+      }
       case "edit_nutrition_plan": {
         const instructions = String(args.instructions ?? "").trim();
         if (!instructions) {
@@ -550,6 +771,12 @@ export async function executeCoachChatTool(
     }
   } catch (error) {
     onEvent?.({ type: "tool_done", name });
+    if (error instanceof WorkoutRequirementConflictError) {
+      return { result: formatConflictToolResult(error) };
+    }
+    if (error instanceof SurgicalEditError) {
+      return { result: error.message };
+    }
     const msg = error instanceof Error ? error.message : "Tool execution failed";
     return { result: `Error: ${msg}` };
   }

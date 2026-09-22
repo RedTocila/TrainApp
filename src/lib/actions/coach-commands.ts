@@ -10,9 +10,10 @@ import { upsertBodyWeightLog } from "@/lib/actions/weight-logs";
 import { addWater } from "@/lib/actions/logs";
 import {
   assignPersonalWorkoutPlan,
-  clearPlanSchedule,
+  clearUpcomingWorkoutSchedule,
   deletePersonalWorkoutPlan,
   getPersonalWorkoutPlans,
+  getUpcomingWorkoutScheduleSummary,
   scheduleWorkoutSeries,
 } from "@/lib/actions/user-workouts";
 import {
@@ -62,16 +63,29 @@ async function requireUser() {
   return { supabase, userId: user.id };
 }
 
+function isOneOffCalendarPlan(description: string | null | undefined): boolean {
+  return (description ?? "").toLowerCase().includes("one-off session");
+}
+
 export async function listCoachWorkoutPlans(userId: string) {
   const plans = await getPersonalWorkoutPlans();
   // getPersonalWorkoutPlans uses session user — ignore passed id mismatch
   void userId;
-  return plans.map((p) => ({
-    id: p.id,
-    title: p.title,
-    kind: p.kind ?? "strength",
-    description: p.description ?? null,
-  }));
+  const library = plans.filter((p) => !isOneOffCalendarPlan(p.description));
+  const oneOffCount = plans.length - library.length;
+  return {
+    plans: library.map((p) => ({
+      id: p.id,
+      title: p.title,
+      kind: p.kind ?? "strength",
+      description: p.description ?? null,
+    })),
+    oneOffCount,
+  };
+}
+
+export async function summarizeCoachUpcomingWorkoutSchedule() {
+  return getUpcomingWorkoutScheduleSummary();
 }
 
 export async function listCoachNutritionPlans() {
@@ -319,10 +333,28 @@ export async function confirmCoachPendingAction(
       }
       case "clear_workout_schedule": {
         const planId = asString(payload.planId);
-        if (!planId) return { error: "Missing workout plan" };
-        const result = await clearPlanSchedule(planId);
-        if (result?.error) return { error: result.error };
-        return { success: true, message: "Workout schedule cleared." };
+        const clearAll = payload.clearAll === true;
+        const weekdays = asNumberArray(payload.weekdays);
+        const kinds = Array.isArray(payload.kinds)
+          ? payload.kinds.map(String).filter(Boolean)
+          : [];
+        const result = await clearUpcomingWorkoutSchedule({
+          planId,
+          clearAll,
+          weekdays,
+          kinds,
+        });
+        if ("error" in result) return { error: result.error };
+        const removed = result.removed;
+        return {
+          success: true,
+          message:
+            removed < 0
+              ? "Workout schedule cleared."
+              : removed === 0
+                ? "Nothing matched — schedule unchanged."
+                : `Cleared ${removed} upcoming workout session(s).`,
+        };
       }
       case "clear_nutrition_schedule": {
         const planId = asString(payload.planId);

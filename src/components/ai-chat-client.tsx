@@ -10,6 +10,7 @@ import {
   Mic,
   MicOff,
   Paperclip,
+  Square,
   UserRound,
   X,
   Zap,
@@ -287,7 +288,9 @@ function ChatCommandBar({
   disabled,
   canSend,
   isStreaming,
+  onStopStreaming,
   sendAriaLabel,
+  stopAriaLabel,
   attachAriaLabel,
   removeAttachmentAriaLabel,
   attachmentPreviewUrl,
@@ -300,7 +303,6 @@ function ChatCommandBar({
   modeAskAria,
   modeActAria,
   onVoiceError,
-  onVoiceSend,
 }: {
   input: string;
   onInputChange: (value: string) => void;
@@ -310,7 +312,9 @@ function ChatCommandBar({
   disabled: boolean;
   canSend: boolean;
   isStreaming: boolean;
+  onStopStreaming: () => void;
   sendAriaLabel: string;
+  stopAriaLabel: string;
   attachAriaLabel: string;
   removeAttachmentAriaLabel: string;
   attachmentPreviewUrl: string | null;
@@ -323,7 +327,6 @@ function ChatCommandBar({
   modeAskAria: string;
   modeActAria: string;
   onVoiceError: (message: string) => void;
-  onVoiceSend: (text: string) => void;
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
@@ -336,8 +339,9 @@ function ChatCommandBar({
     value: input,
     onChange: onInputChange,
     onError: onVoiceError,
-    onComplete: onVoiceSend,
-    enabled: !disabled,
+    enabled: !disabled && !isStreaming,
+    permissionMessage: ai.voicePermission,
+    unsupportedMessage: ai.voiceUnsupported,
   });
 
   const voiceAria =
@@ -349,7 +353,9 @@ function ChatCommandBar({
 
   const hasDraft = Boolean(input.trim() || attachmentPreviewUrl);
   const showMicAction =
-    voice.isActive || voice.isBusy || (!hasDraft && !isStreaming);
+    !isStreaming &&
+    (voice.isActive || voice.isBusy || !hasDraft);
+  const composerLocked = disabled || isStreaming || voice.isBusy;
 
   return (
     <form onSubmit={onSubmit} className="min-w-0 w-full space-y-2">
@@ -365,7 +371,7 @@ function ChatCommandBar({
             <button
               type="button"
               onClick={onAttachmentClear}
-              disabled={disabled}
+              disabled={composerLocked}
               aria-label={removeAttachmentAriaLabel}
               className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -383,7 +389,7 @@ function ChatCommandBar({
         <button
           type="button"
           onClick={() => onChatModeChange(isAct ? "ask" : "act")}
-          disabled={disabled || voice.isActive || voice.isBusy}
+          disabled={composerLocked || voice.isActive}
           aria-label={isAct ? modeActAria : modeAskAria}
           title={isAct ? modeActAria : modeAskAria}
           className={cn(
@@ -414,7 +420,7 @@ function ChatCommandBar({
                   ? ai.voiceTranscribing
                   : placeholder
           }
-          disabled={disabled || voice.isBusy}
+          disabled={composerLocked}
           onMultilineChange={setIsMultiline}
           className="chat-command-input-wrap col-start-2 row-start-1 min-w-0 self-center"
         />
@@ -423,7 +429,7 @@ function ChatCommandBar({
           type="file"
           accept="image/*"
           className="hidden"
-          disabled={disabled || voice.isActive || voice.isBusy}
+          disabled={composerLocked || voice.isActive}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) onAttachSelect(file);
@@ -433,7 +439,7 @@ function ChatCommandBar({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          disabled={disabled || voice.isActive || voice.isBusy}
+          disabled={composerLocked || voice.isActive}
           aria-label={attachAriaLabel}
           className={cn(
             "col-start-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45",
@@ -442,7 +448,20 @@ function ChatCommandBar({
         >
           <Paperclip className="h-4 w-4" strokeWidth={2} />
         </button>
-        {showMicAction ? (
+        {isStreaming ? (
+          <button
+            type="button"
+            onClick={onStopStreaming}
+            aria-label={stopAriaLabel}
+            title={stopAriaLabel}
+            className={cn(
+              "col-start-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity hover:opacity-90",
+              isMultiline && "mb-0.5"
+            )}
+          >
+            <Square className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
+          </button>
+        ) : showMicAction ? (
           <button
             type="button"
             onClick={voice.toggle}
@@ -476,11 +495,7 @@ function ChatCommandBar({
               canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
             )}
           >
-            {isStreaming ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-            )}
+            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
           </button>
         )}
       </div>
@@ -726,13 +741,20 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
       }
     } catch (err) {
       if (controller.signal.aborted) {
-        // Drop the optimistic user bubble if the request was cancelled.
+        // Keep the user message and any partial reply; clear in-progress analysis UI.
         setMessages((prev) => {
-          const last = prev[prev.length - 1];
-          if (last?.role === "user" && last.content === messageContent) {
-            return prev.slice(0, -1);
-          }
-          return prev;
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last?.role !== "assistant") return next;
+          const hasBody =
+            Boolean(last.content?.trim()) ||
+            Boolean(last.planPreview) ||
+            Boolean(last.richBlocks?.length) ||
+            Boolean(last.pendingActions?.length) ||
+            Boolean(last.sources?.length);
+          if (!hasBody) return next.slice(0, -1);
+          next[next.length - 1] = { ...last, toolStatus: undefined };
+          return next;
         });
         return;
       }
@@ -763,6 +785,10 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   };
 
   sendMessageRef.current = sendMessage;
+
+  const stopStreaming = () => {
+    abortRef.current?.abort();
+  };
 
   // Auto-send FAQ / suggestion prompts after chat is ready.
   useEffect(() => {
@@ -868,10 +894,12 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               onKeyDown={handleKeyDown}
               onSubmit={handleSubmit}
               placeholder={canChat ? ai.placeholder : ai.readMeRequiredPlaceholder}
-              disabled={isStreaming || !canChat}
+              disabled={!canChat}
               canSend={canSend}
               isStreaming={isStreaming}
+              onStopStreaming={stopStreaming}
               sendAriaLabel={platform.aria.sendMessage}
+              stopAriaLabel={ai.stopGeneratingAria}
               attachAriaLabel={platform.aria.attachFile}
               removeAttachmentAriaLabel={platform.aria.removeAttachment}
               attachmentPreviewUrl={attachmentPreviewUrl}
@@ -884,7 +912,6 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeAskAria={ai.modeAskAria}
               modeActAria={ai.modeActAria}
               onVoiceError={setError}
-              onVoiceSend={(text) => void sendMessage(text)}
             />
           </div>
         </div>
@@ -950,10 +977,12 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               onKeyDown={handleKeyDown}
               onSubmit={handleSubmit}
               placeholder={canChat ? ai.placeholder : ai.readMeRequiredPlaceholder}
-              disabled={isStreaming || !canChat}
+              disabled={!canChat}
               canSend={canSend}
               isStreaming={isStreaming}
+              onStopStreaming={stopStreaming}
               sendAriaLabel={platform.aria.sendMessage}
+              stopAriaLabel={ai.stopGeneratingAria}
               attachAriaLabel={platform.aria.attachFile}
               removeAttachmentAriaLabel={platform.aria.removeAttachment}
               attachmentPreviewUrl={attachmentPreviewUrl}
@@ -966,7 +995,6 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeAskAria={ai.modeAskAria}
               modeActAria={ai.modeActAria}
               onVoiceError={setError}
-              onVoiceSend={(text) => void sendMessage(text)}
             />
           </div>
         </CardContent>

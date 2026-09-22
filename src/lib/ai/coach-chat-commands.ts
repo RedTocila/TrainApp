@@ -10,6 +10,7 @@ import {
   listCoachWorkoutPlans,
   resolveNutritionPlanLabel,
   resolveWorkoutPlanLabel,
+  summarizeCoachUpcomingWorkoutSchedule,
 } from "@/lib/actions/coach-commands";
 import {
   INTAKE_MULTI_SELECT_KEYS,
@@ -19,6 +20,7 @@ import type { Profile } from "@/lib/types";
 
 export const COMMAND_TOOL_STATUS_LABELS: Record<string, string> = {
   list_my_workouts: "Loading your workouts…",
+  list_upcoming_workout_schedule: "Checking your calendar…",
   list_my_nutrition_plans: "Loading your meal plans…",
   log_meal: "Logging meal…",
   log_weight: "Logging weight…",
@@ -40,7 +42,16 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
     function: {
       name: "list_my_workouts",
       description:
-        "List the client's personal workout plans with ids and titles. Call before scheduling, deleting, assigning, or clearing a schedule when you need an id.",
+        "List the client's LIBRARY workout plans (ids + titles). Excludes one-off calendar day sessions. Call before scheduling, deleting, or assigning a library plan. For clearing the calendar, prefer list_upcoming_workout_schedule.",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_upcoming_workout_schedule",
+      description:
+        "Stacked summary of upcoming scheduled workouts (totals by weekday/type, date range). NEVER dump individual dates to the client. Call when they ask to clear/delete scheduled workouts or what's on their calendar.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   },
@@ -165,11 +176,32 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
     function: {
       name: "clear_workout_schedule",
       description:
-        "Propose clearing upcoming scheduled sessions for a workout plan. SERIOUS — needs Confirm.",
+        "Propose clearing upcoming calendar sessions. SERIOUS — one Confirm card. Prefer stacked scopes: clear_all, weekdays, and/or kinds. Use plan_id only for a library plan. If the request is ambiguous, call list_upcoming_workout_schedule and ASK which scope first — do NOT invent dozens of confirms.",
       parameters: {
         type: "object",
-        properties: { plan_id: { type: "string" } },
-        required: ["plan_id"],
+        properties: {
+          plan_id: {
+            type: "string",
+            description: "Optional library plan id — clears only that plan's upcoming sessions",
+          },
+          clear_all: {
+            type: "boolean",
+            description: "Clear every upcoming scheduled workout",
+          },
+          weekdays: {
+            type: "array",
+            items: { type: "number" },
+            description: "0=Sun … 6=Sat — clear only those weekdays",
+          },
+          kinds: {
+            type: "array",
+            items: {
+              type: "string",
+              enum: ["warmup", "stretch", "strength", "hiit"],
+            },
+            description: "Optional session kinds to clear",
+          },
+        },
         additionalProperties: false,
       },
     },
@@ -355,15 +387,28 @@ export async function executeCoachCommandTool(
 
   switch (name) {
     case "list_my_workouts": {
-      const plans = await listCoachWorkoutPlans(profile.id);
-      if (!plans.length) {
+      const { plans, oneOffCount } = await listCoachWorkoutPlans(profile.id);
+      if (!plans.length && oneOffCount === 0) {
         return { result: "No personal workout plans yet." };
       }
-      return {
-        result: plans
-          .map((p) => `- ${p.title} [${p.kind}] id=${p.id}`)
-          .join("\n"),
-      };
+      const lines = plans.map((p) => `- ${p.title} [${p.kind}] id=${p.id}`);
+      if (oneOffCount > 0) {
+        lines.push(
+          `- (+ ${oneOffCount} one-off calendar day sessions hidden — use list_upcoming_workout_schedule / clear_workout_schedule, do not list or delete them one-by-one)`
+        );
+      }
+      if (!plans.length) {
+        return {
+          result:
+            lines.join("\n") ||
+            "Only one-off calendar sessions exist. Use list_upcoming_workout_schedule.",
+        };
+      }
+      return { result: lines.join("\n") };
+    }
+    case "list_upcoming_workout_schedule": {
+      const summary = await summarizeCoachUpcomingWorkoutSchedule();
+      return { result: summary.text };
     }
     case "list_my_nutrition_plans": {
       const plans = await listCoachNutritionPlans();
@@ -477,18 +522,72 @@ export async function executeCoachCommandTool(
       };
     }
     case "clear_workout_schedule": {
-      const planId = String(args.plan_id ?? "");
-      const meta = await resolveWorkoutPlanLabel(planId);
-      if (!meta) return { result: "Workout plan not found." };
+      const planId =
+        typeof args.plan_id === "string" && args.plan_id.trim()
+          ? args.plan_id.trim()
+          : null;
+      const clearAll = args.clear_all === true;
+      const weekdays = Array.isArray(args.weekdays)
+        ? args.weekdays
+            .map(Number)
+            .filter((n) => Number.isFinite(n) && n >= 0 && n <= 6)
+        : [];
+      const kinds = Array.isArray(args.kinds)
+        ? args.kinds
+            .map(String)
+            .map((k) => k.toLowerCase())
+            .filter((k) =>
+              ["warmup", "stretch", "strength", "hiit"].includes(k)
+            )
+        : [];
+
+      if (!planId && !clearAll && weekdays.length === 0 && kinds.length === 0) {
+        return {
+          result:
+            "Ambiguous clear. Call list_upcoming_workout_schedule, then ASK which scope (all upcoming, weekdays, kinds, or one library plan_id). Do not list every session.",
+        };
+      }
+
+      let title = "Clear upcoming workouts";
+      let summary = "Removes matching upcoming calendar sessions. Past sessions stay.";
+
+      if (planId) {
+        const meta = await resolveWorkoutPlanLabel(planId);
+        if (!meta) return { result: "Workout plan not found." };
+        title = `Clear schedule for “${meta.title}”`;
+        summary = `Removes upcoming calendar sessions for this library workout${
+          weekdays.length ? ` on ${weekdayNames(weekdays)}` : ""
+        }${kinds.length ? ` (${kinds.join(", ")})` : ""}. Past sessions stay.`;
+      } else if (clearAll && weekdays.length === 0 && kinds.length === 0) {
+        const schedule = await summarizeCoachUpcomingWorkoutSchedule();
+        title = "Clear all upcoming workouts";
+        summary =
+          schedule.total > 0
+            ? `Removes all ${schedule.total} upcoming calendar sessions. Past sessions stay.`
+            : "No upcoming sessions found — confirm does nothing.";
+      } else {
+        const parts: string[] = [];
+        if (weekdays.length) parts.push(weekdayNames(weekdays));
+        if (kinds.length) parts.push(kinds.join("/"));
+        title = `Clear upcoming (${parts.join(" · ") || "filtered"})`;
+        summary = `Removes upcoming sessions matching ${parts.join(" + ") || "the filter"}. Past sessions stay.`;
+      }
+
       const pendingAction = createPendingAction(
         "clear_workout_schedule",
-        `Clear schedule for “${meta.title}”`,
-        "Removes upcoming calendar sessions for this workout. Past sessions stay.",
-        { planId },
+        title,
+        summary,
+        {
+          planId,
+          clearAll,
+          weekdays,
+          kinds,
+        },
         { confirmLabel: "Clear schedule" }
       );
       return {
-        result: "Confirm card shown. Wait for the client to confirm before claiming it's cleared.",
+        result:
+          "Confirm card shown (one stacked clear). Wait for the client to confirm — do NOT claim it's cleared yet. Do not paste the full session list.",
         pendingAction,
       };
     }

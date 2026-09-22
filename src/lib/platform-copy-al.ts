@@ -27,6 +27,16 @@ export const platformCopyAl = {
     healthLifestyleLockedHint:
       "Profili është i ruajtur. Përditësoje kur të ndryshojë rutina ose qëllimet.",
     buildingWorkoutProgram: "Po ndërtohet programi yt 4-javor i stërvitjes…",
+    personalizingProfile: "Po personalizohet profili yt…",
+    calculatingMacros: "Po llogariten makrot e tua ditore…",
+    savingTakeAMoment: "Zakonisht zgjat disa sekonda.",
+    saveFailed: "Nuk u ruajt tani. Provo përsëri.",
+    dailyTargetsTitle: "Objektivat e tua ditore",
+    aiPersonalizedTargets: "Të personalizuara me AI",
+    estimatedTargets: "Të vlerësuara",
+    workoutReadyTitle: "Programi i stërvitjes gati",
+    workoutReadyDetail: (title: string, daysPerWeek: number, sessions: number) =>
+      `“${title}” · ${daysPerWeek} ditë/javë · ${sessions} seanca për 4 javë`,
     workoutProgramReady: (title: string, daysPerWeek: number, sessions: number) =>
       `Stërvitja gati: “${title}” · ${daysPerWeek} ditë/javë · ${sessions} seanca të planifikuara për 4 javë.`,
     workoutProgramFailed:
@@ -972,6 +982,7 @@ export const platformCopyAl = {
     voiceUnsupported: "Hyrja me zë nuk mbështetet në këtë shfletues.",
     voicePermission: "Duhet leja e mikrofonit për hyrjen me zë.",
     voiceFailed: "Nuk e kuptova — provo përsëri.",
+    stopGeneratingAria: "Ndalo përgjigjen",
     imageOnlyPrompt: "Çfarë mund të më thuash për këtë foto?",
     medicalDisclaimer:
       "Nuk jap këshilla mjekësore. Për ato, konsultohu me mjekun, jo me mua.",

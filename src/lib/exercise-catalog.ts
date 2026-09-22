@@ -1,7 +1,20 @@
 import catalog from "@/data/exercise-catalog.json";
 import type { ExerciseGender } from "@/lib/exercise-gif";
 import { toExerciseGifProxyUrl } from "@/lib/exercise-gif-proxy";
-import { EXERCISE_NAME_ALIASES } from "@/lib/exercise-name-aliases";
+import {
+  BODYWEIGHT_EXERCISE_ALIASES,
+  EXERCISE_NAME_ALIASES,
+} from "@/lib/exercise-name-aliases";
+import {
+  CATALOG_EQUIPMENT,
+  exerciseAllowedByConstraint,
+  type EquipmentConstraint,
+} from "@/lib/ai/equipment-taxonomy";
+
+export type CanonicalizeOptions = {
+  /** When set, only match exercises allowed by this equipment constraint. */
+  equipment?: EquipmentConstraint | null;
+};
 
 export interface CatalogExerciseGifs {
   male?: string;
@@ -201,7 +214,11 @@ function scoreCatalogNameMatch(query: string, catalogName: string): number {
   return Math.max(0, Math.min(1, score));
 }
 
-function equipmentPreferenceScore(catalogName: string, query: string): number {
+function equipmentPreferenceScore(
+  catalogName: string,
+  query: string,
+  preferBodyweight = false
+): number {
   const queryTokens = tokenizeExerciseName(query);
   const catalogTokens = tokenizeExerciseName(catalogName);
   const queryEquipment = extractEquipmentTokens(queryTokens);
@@ -215,12 +232,66 @@ function equipmentPreferenceScore(catalogName: string, query: string): number {
     return matches / queryEquipment.size;
   }
 
+  if (preferBodyweight) {
+    if (
+      catalogEquipment.size === 0 ||
+      (catalogEquipment.size === 1 && catalogEquipment.has("bodyweight"))
+    ) {
+      return 0.2;
+    }
+    if (catalogEquipment.has("barbell")) return -0.2;
+    if (catalogEquipment.has("cable")) return -0.15;
+    if (catalogEquipment.has("dumbbell")) return -0.1;
+    return 0;
+  }
+
   if (catalogEquipment.has("band")) return -0.25;
   if (catalogEquipment.has("cable")) return 0.05;
   if (catalogEquipment.has("dumbbell")) return 0.08;
   if (catalogEquipment.has("barbell")) return 0.12;
   if (catalogEquipment.size === 0) return 0.1;
   return 0;
+}
+
+function prefersBodyweightMatching(
+  equipment?: EquipmentConstraint | null
+): boolean {
+  if (!equipment?.allowedTags) return false;
+  return (
+    equipment.allowedTags.size === 1 &&
+    equipment.allowedTags.has(CATALOG_EQUIPMENT.BODY_WEIGHT)
+  );
+}
+
+function resolveAliasTarget(
+  normalizedQuery: string,
+  equipment?: EquipmentConstraint | null
+): string | undefined {
+  const bodyweightAlias = BODYWEIGHT_EXERCISE_ALIASES[normalizedQuery];
+  const gymAlias = EXERCISE_NAME_ALIASES[normalizedQuery];
+
+  if (prefersBodyweightMatching(equipment) && bodyweightAlias) {
+    return bodyweightAlias;
+  }
+
+  if (gymAlias && equipment?.allowedTags) {
+    const gymTarget = catalogByName.get(normalizeExerciseName(gymAlias));
+    if (gymTarget && exerciseAllowedByConstraint(gymTarget, equipment)) {
+      return gymAlias;
+    }
+    if (bodyweightAlias) return bodyweightAlias;
+    return undefined;
+  }
+
+  return gymAlias;
+}
+
+function isAllowedExercise(
+  exercise: CatalogExercise,
+  equipment?: EquipmentConstraint | null
+): boolean {
+  if (!equipment?.allowedTags) return true;
+  return exerciseAllowedByConstraint(exercise, equipment);
 }
 
 const catalogByName = new Map<string, CatalogExercise>();
@@ -232,28 +303,36 @@ export function getCatalogExercises(): CatalogExercise[] {
   return data.exercises;
 }
 
-export function findCatalogExercise(name: string): CatalogExercise | null {
+export function findCatalogExercise(
+  name: string,
+  options?: CanonicalizeOptions
+): CatalogExercise | null {
   const trimmed = name.trim();
   if (!trimmed) return null;
 
+  const equipment = options?.equipment ?? null;
+  const preferBw = prefersBodyweightMatching(equipment);
   const normalized = normalizeExerciseName(trimmed);
-  const aliasTarget = EXERCISE_NAME_ALIASES[normalized];
+
+  const aliasTarget = resolveAliasTarget(normalized, equipment);
   if (aliasTarget) {
     const aliased = catalogByName.get(normalizeExerciseName(aliasTarget));
-    if (aliased) return aliased;
+    if (aliased && isAllowedExercise(aliased, equipment)) return aliased;
   }
 
   const exact = catalogByName.get(normalized);
-  if (exact) return exact;
+  if (exact && isAllowedExercise(exact, equipment)) return exact;
 
   let best: CatalogExercise | null = null;
   let bestScore = 0.55;
 
   for (const [catalogName, exercise] of catalogByName) {
+    if (!isAllowedExercise(exercise, equipment)) continue;
     const score = scoreCatalogNameMatch(trimmed, catalogName);
     if (score <= 0) continue;
 
-    const adjusted = score + equipmentPreferenceScore(catalogName, trimmed);
+    const adjusted =
+      score + equipmentPreferenceScore(catalogName, trimmed, preferBw);
     if (adjusted > bestScore) {
       bestScore = adjusted;
       best = exercise;
@@ -266,25 +345,35 @@ export function findCatalogExercise(name: string): CatalogExercise | null {
 /**
  * Rewrite an AI / free-form exercise name to the nearest catalog canonical name
  * so GIF / video demos resolve. Falls back to the original if nothing matches.
+ * When `options.equipment` is set, never remaps to a disallowed equipment exercise.
  */
-export function canonicalizeAiExerciseName(name: string): string {
+export function canonicalizeAiExerciseName(
+  name: string,
+  options?: CanonicalizeOptions
+): string {
   const trimmed = name.trim();
   if (!trimmed) return trimmed;
 
-  const direct = findCatalogExercise(trimmed);
+  const equipment = options?.equipment ?? null;
+  const preferBw = prefersBodyweightMatching(equipment);
+
+  const direct = findCatalogExercise(trimmed, options);
   if (direct) return direct.name;
 
   // Last resort: pick the top search hit when tokens overlap enough.
   const tokens = tokenizeExerciseName(trimmed).slice(0, 4);
   if (tokens.length === 0) return trimmed;
 
-  const candidates = searchCatalogExercises({ query: tokens.join(" ") }).slice(0, 25);
+  const candidates = searchCatalogExercises({
+    query: tokens.join(" "),
+    equipmentConstraint: equipment,
+  }).slice(0, 40);
   let best: CatalogExercise | null = null;
   let bestScore = 0.72;
   for (const exercise of candidates) {
     const score =
       scoreCatalogNameMatch(trimmed, exercise.name) +
-      equipmentPreferenceScore(exercise.name, trimmed);
+      equipmentPreferenceScore(exercise.name, trimmed, preferBw);
     if (score > bestScore) {
       bestScore = score;
       best = exercise;
@@ -337,15 +426,22 @@ export function searchCatalogExercises({
   category,
   muscle,
   equipment,
+  equipmentConstraint,
 }: {
   query?: string;
   category?: string;
   muscle?: string;
+  /** Exact catalog equipment tag (legacy single-tag filter). */
   equipment?: string;
+  /** Full equipment constraint allowlist (preferred for AI generation). */
+  equipmentConstraint?: EquipmentConstraint | null;
 }): CatalogExercise[] {
   const q = query.trim().toLowerCase();
 
   return data.exercises.filter((ex) => {
+    if (equipmentConstraint?.allowedTags) {
+      if (!exerciseAllowedByConstraint(ex, equipmentConstraint)) return false;
+    }
     if (category && ex.category !== category && !ex.body_parts.includes(category)) {
       return false;
     }

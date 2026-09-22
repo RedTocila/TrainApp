@@ -5,6 +5,46 @@ import { buildPlanTextLanguageRule } from "@/lib/ai/language-instructions";
 import { buildCatalogExerciseNameRule } from "@/lib/ai/catalog-exercise-prompt";
 import { withPlanMedicalDisclaimer } from "@/lib/ai/plan-medical-disclaimer";
 import { enrichExercisesWithDemoVideos } from "@/lib/ai/exercise-video-search";
+import {
+  assertNoRequirementConflicts,
+  buildRequirementsPromptBlock,
+  resolveWorkoutRequirements,
+  type WorkoutRequirements,
+} from "@/lib/ai/workout-requirements";
+import {
+  buildWorkoutCandidatePool,
+  type WorkoutCandidatePool,
+} from "@/lib/ai/workout-candidate-pool";
+import {
+  enforceRequirementsOnHiitPlan,
+  enforceRequirementsOnWorkoutDay,
+  enforceRequirementsOnWorkoutPlan,
+  summarizeRequirementRepairs,
+} from "@/lib/ai/workout-requirements-enforce";
+import {
+  enforceEquipmentOnHiitPlan,
+  enforceEquipmentOnWorkoutDay,
+  enforceEquipmentOnWorkoutPlan,
+  summarizeEquipmentEnforcement,
+} from "@/lib/ai/workout-equipment-enforce";
+import {
+  enforceCandidatePoolOnHiitPlan,
+  enforceCandidatePoolOnWorkoutDay,
+  enforceCandidatePoolOnWorkoutPlan,
+  summarizeCandidatePoolRepairs,
+} from "@/lib/ai/workout-candidate-pool-enforce";
+import {
+  enforceDurationOnHiitPlan,
+  enforceDurationOnWorkoutDay,
+  enforceDurationOnWorkoutPlan,
+  summarizeDurationRepairs,
+  buildDurationPromptHint,
+} from "@/lib/ai/workout-duration-enforce";
+import {
+  loadExerciseVarietyContext,
+  buildVarietyPromptHint,
+  type VarietyContext,
+} from "@/lib/ai/workout-variety";
 import type {
   AiGeneratedHiitPlan,
   AiGeneratedWorkoutDay,
@@ -19,12 +59,143 @@ import {
   STARTER_PROGRAM_WEEKS,
   buildOnboardingProgramPreferences,
   daysPerWeekFromIntake,
-  equipmentConstraintFromIntake,
   experienceConstraintFromIntake,
 } from "@/lib/intake-starter-program";
 import { profileToResponses } from "@/lib/intake-questionnaire";
 
 export { inferAiWorkoutKind } from "@/lib/ai/infer-workout-kind";
+export {
+  WorkoutRequirementConflictError,
+  resolveWorkoutRequirements,
+  detectRequirementConflicts,
+} from "@/lib/ai/workout-requirements";
+export { buildWorkoutCandidatePool } from "@/lib/ai/workout-candidate-pool";
+
+type GenerationContext = {
+  requirements: WorkoutRequirements;
+  pool: WorkoutCandidatePool;
+  variety: VarietyContext;
+};
+
+function buildPhase5PromptHints(ctx: GenerationContext): string {
+  const varietyHint = buildVarietyPromptHint(
+    ctx.variety,
+    ctx.requirements.varietyLevel
+  );
+  const durationHint = buildDurationPromptHint(
+    ctx.requirements.durationMinutes
+  );
+  return [varietyHint, durationHint].filter(Boolean).join("\n");
+}
+
+async function prepareGenerationContext(
+  profile: Profile,
+  preferences?: string | null
+): Promise<GenerationContext> {
+  const requirements = resolveWorkoutRequirements(profile, preferences);
+  assertNoRequirementConflicts(requirements);
+  const variety = await loadExerciseVarietyContext(profile.id);
+  const pool = buildWorkoutCandidatePool(requirements, { variety });
+
+  if (pool.candidates.length === 0) {
+    throw new Error(
+      "No exercises in the library match your equipment and filters. Try relaxing equipment or focus constraints."
+    );
+  }
+
+  console.info("[workout-requirements:resolved]", {
+    equipment: requirements.equipment.label,
+    focus: requirements.focus,
+    durationMinutes: requirements.durationMinutes,
+    difficulty: requirements.difficulty,
+    exerciseCount: requirements.exerciseCount,
+    required: requirements.requiredExercises.map(
+      (r) => r.catalogName ?? r.query
+    ),
+    excludedFamilies: requirements.excludedFamilies,
+    location: requirements.location,
+    varietyLevel: requirements.varietyLevel,
+    varietyTrackedNames: variety.trackedNames,
+    candidatePoolSize: pool.candidates.length,
+  });
+
+  return { requirements, pool, variety };
+}
+
+function enforceStrengthPlan(
+  plan: AiGeneratedWorkoutPlan,
+  ctx: GenerationContext
+): AiGeneratedWorkoutPlan {
+  const { requirements, pool } = ctx;
+  const equipment = requirements.equipment;
+
+  const eq = enforceEquipmentOnWorkoutPlan(plan, equipment);
+  summarizeEquipmentEnforcement(equipment, eq.violations, eq.repairs);
+
+  const poolEnforced = enforceCandidatePoolOnWorkoutPlan(
+    eq.value,
+    pool,
+    equipment
+  );
+  summarizeCandidatePoolRepairs(poolEnforced.repairs, poolEnforced.dropped);
+
+  const req = enforceRequirementsOnWorkoutPlan(poolEnforced.value, requirements);
+  summarizeRequirementRepairs(req.repairs);
+
+  const dur = enforceDurationOnWorkoutPlan(req.value, requirements);
+  summarizeDurationRepairs(dur.repairs);
+  return dur.value;
+}
+
+function enforceStrengthDay(
+  day: AiGeneratedWorkoutDay,
+  ctx: GenerationContext
+): AiGeneratedWorkoutDay {
+  const { requirements, pool } = ctx;
+  const equipment = requirements.equipment;
+
+  const eq = enforceEquipmentOnWorkoutDay(day, equipment);
+  summarizeEquipmentEnforcement(equipment, eq.violations, eq.repairs);
+
+  const poolEnforced = enforceCandidatePoolOnWorkoutDay(
+    eq.value,
+    pool,
+    equipment
+  );
+  summarizeCandidatePoolRepairs(poolEnforced.repairs, poolEnforced.dropped);
+
+  const req = enforceRequirementsOnWorkoutDay(poolEnforced.value, requirements);
+  summarizeRequirementRepairs(req.repairs);
+
+  const dur = enforceDurationOnWorkoutDay(req.value, requirements);
+  summarizeDurationRepairs(dur.repairs);
+  return dur.value;
+}
+
+function enforceHiitPlan(
+  plan: AiGeneratedHiitPlan,
+  ctx: GenerationContext
+): AiGeneratedHiitPlan {
+  const { requirements, pool } = ctx;
+  const equipment = requirements.equipment;
+
+  const eq = enforceEquipmentOnHiitPlan(plan, equipment);
+  summarizeEquipmentEnforcement(equipment, eq.violations, eq.repairs);
+
+  const poolEnforced = enforceCandidatePoolOnHiitPlan(
+    eq.value,
+    pool,
+    equipment
+  );
+  summarizeCandidatePoolRepairs(poolEnforced.repairs, poolEnforced.dropped);
+
+  const req = enforceRequirementsOnHiitPlan(poolEnforced.value, requirements);
+  summarizeRequirementRepairs(req.repairs);
+
+  const dur = enforceDurationOnHiitPlan(req.value, requirements);
+  summarizeDurationRepairs(dur.repairs);
+  return dur.value;
+}
 
 export type WorkoutPlanGenerationOptions = {
   /** Exact number of training days the weekly template must include. */
@@ -83,16 +254,52 @@ function normalizeWorkoutPlan(
 
 async function attachDemoVideosToPlan(
   plan: AiGeneratedWorkoutPlan,
-  gender?: string | null
+  gender?: string | null,
+  equipment?: WorkoutRequirements["equipment"] | null
 ): Promise<AiGeneratedWorkoutPlan> {
   const days = await Promise.all(
     plan.days.map(async (day) => ({
       ...day,
-      exercises: await enrichExercisesWithDemoVideos(day.exercises, gender),
+      exercises: await enrichExercisesWithDemoVideos(
+        day.exercises,
+        gender,
+        equipment
+      ),
     }))
   );
 
   return { ...plan, days };
+}
+
+async function attachDemoVideosToHiit(
+  config: HiitConfig,
+  gender?: string | null,
+  equipment?: WorkoutRequirements["equipment"] | null
+): Promise<HiitConfig> {
+  const exercises = await enrichExercisesWithDemoVideos(
+    config.exercises.map((ex) => ({
+      name: ex.name,
+      image_url: ex.image_url ?? undefined,
+      video_url: ex.video_url ?? undefined,
+      work_seconds: ex.work_seconds,
+      rest_seconds: ex.rest_seconds,
+      notes: ex.notes ?? undefined,
+    })),
+    gender,
+    equipment
+  );
+
+  return {
+    ...config,
+    exercises: exercises.map((ex) => ({
+      name: ex.name,
+      work_seconds: ex.work_seconds,
+      rest_seconds: ex.rest_seconds,
+      notes: ex.notes ?? null,
+      image_url: ex.image_url ?? null,
+      video_url: ex.video_url ?? null,
+    })),
+  };
 }
 
 async function generateStrengthWorkoutPlanFromProfile(
@@ -100,6 +307,9 @@ async function generateStrengthWorkoutPlanFromProfile(
   preferences?: string,
   options?: WorkoutPlanGenerationOptions
 ): Promise<AiGeneratedWorkoutPlan> {
+  const ctx = await prepareGenerationContext(profile, preferences);
+  const { requirements, pool } = ctx;
+  const equipment = requirements.equipment;
   const intake = buildIntakeContextForAi(profile, preferences);
   const targetDays = options?.targetDaysPerWeek;
   const daysRule = targetDays
@@ -111,8 +321,7 @@ async function generateStrengthWorkoutPlanFromProfile(
 ONBOARDING CONSTRAINTS (mandatory):
 - This weekly template will be scheduled across ${STARTER_PROGRAM_WEEKS} weeks on the client's calendar.
 - ${experienceConstraintFromIntake(profileToResponses(profile))}
-- ${equipmentConstraintFromIntake(profileToResponses(profile))}
-- Keep sessions 40–70 minutes. Prefer catalog exercise names that match available equipment.
+- Keep sessions 40–70 minutes.
 `
     : "";
 
@@ -121,6 +330,9 @@ ONBOARDING CONSTRAINTS (mandatory):
 CLIENT PROFILE:
 ${intake}
 
+${buildRequirementsPromptBlock(requirements)}
+${buildPhase5PromptHints(ctx)}
+
 Rules:
 - ALWAYS return a complete plan. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - This is NOT a HIIT / interval timer workout. Use classic sets × reps with rest between sets.
@@ -128,9 +340,9 @@ Rules:
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match volume and split to goal, age, schedule, and recovery capacity.
 ${trainingGoalRulesForAi(profile.goal)}
-${buildCatalogExerciseNameRule()}
+${buildCatalogExerciseNameRule(equipment, pool)}
 ${daysRule}
-- 4–8 exercises per session.
+- 4–8 exercises per session unless STRUCTURED REQUIREMENTS specify an exact count.
 - Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.
 - Description and coach_notes must explicitly mention why this plan is safe and appropriate for this specific profile.
 - End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
@@ -161,9 +373,16 @@ Respond with ONLY valid JSON:
 
   const raw = await runTextPrompt(prompt, { maxTokens: 2500, json: true });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutPlan;
+  const normalized = normalizeWorkoutPlan(
+    parsed,
+    profile.preferred_locale,
+    targetDays
+  );
+  const enforced = enforceStrengthPlan(normalized, ctx);
   const plan = await attachDemoVideosToPlan(
-    normalizeWorkoutPlan(parsed, profile.preferred_locale, targetDays),
-    profile.gender
+    enforced,
+    profile.gender,
+    equipment
   );
 
   if (plan.days.length === 0) {
@@ -171,35 +390,6 @@ Respond with ONLY valid JSON:
   }
 
   return plan;
-}
-
-async function attachDemoVideosToHiit(
-  config: HiitConfig,
-  gender?: string | null
-): Promise<HiitConfig> {
-  const exercises = await enrichExercisesWithDemoVideos(
-    config.exercises.map((ex) => ({
-      name: ex.name,
-      image_url: ex.image_url ?? undefined,
-      video_url: ex.video_url ?? undefined,
-      work_seconds: ex.work_seconds,
-      rest_seconds: ex.rest_seconds,
-      notes: ex.notes ?? undefined,
-    })),
-    gender
-  );
-
-  return {
-    ...config,
-    exercises: exercises.map((ex) => ({
-      name: ex.name,
-      work_seconds: ex.work_seconds,
-      rest_seconds: ex.rest_seconds,
-      notes: ex.notes ?? null,
-      image_url: ex.image_url ?? null,
-      video_url: ex.video_url ?? null,
-    })),
-  };
 }
 
 function normalizeAiHiitPlan(
@@ -245,6 +435,9 @@ export async function generateHiitPlanFromProfile(
   profile: Profile,
   preferences?: string
 ): Promise<AiGeneratedHiitPlan> {
+  const ctx = await prepareGenerationContext(profile, preferences);
+  const { requirements, pool } = ctx;
+  const equipment = requirements.equipment;
   const intake = buildIntakeContextForAi(profile, preferences);
   const sessionRequest =
     preferences?.trim() ||
@@ -258,6 +451,9 @@ ${intake}
 SESSION REQUEST:
 ${sessionRequest}
 
+${buildRequirementsPromptBlock(requirements)}
+${buildPhase5PromptHints(ctx)}
+
 Rules:
 - ALWAYS return a complete session. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - This is a HIIT interval workout — NOT traditional sets × reps strength training.
@@ -266,8 +462,8 @@ Rules:
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match intensity and duration to fitness level and schedule (typically ~15–35 minutes total).
 ${trainingGoalRulesForAi(profile.goal)}
-${buildCatalogExerciseNameRule()}
-- 4–8 exercises with clear library names (see rule above).
+${buildCatalogExerciseNameRule(equipment, pool)}
+- 4–8 exercises with clear library names (see rule above) unless STRUCTURED REQUIREMENTS specify an exact count.
 - work_seconds usually 20–45; rest_seconds between moves usually 10–30.
 - rounds usually 2–5; cycles usually 1–2.
 - prepare_seconds 5–15; round_rest_seconds 45–120; cycle_rest_seconds 60–180 when cycles > 1.
@@ -305,9 +501,15 @@ Respond with ONLY valid JSON:
     throw new Error("AI did not return a valid HIIT workout. Try again.");
   }
 
+  const enforced = enforceHiitPlan(normalized, ctx);
+
   return {
-    ...normalized,
-    config: await attachDemoVideosToHiit(normalized.config, profile.gender),
+    ...enforced,
+    config: await attachDemoVideosToHiit(
+      enforced.config,
+      profile.gender,
+      equipment
+    ),
   };
 }
 
@@ -407,6 +609,9 @@ export async function generateFullTrainingDayFromProfile(
   profile: Profile,
   prompt: string
 ): Promise<AiDayProgramResult> {
+  const ctx = await prepareGenerationContext(profile, prompt);
+  const { requirements, pool } = ctx;
+  const equipment = requirements.equipment;
   const intake = buildIntakeContextForAi(profile, prompt);
   const mainKind = inferAiMainWorkoutKind(prompt);
   const sessionRequest =
@@ -447,6 +652,9 @@ ${intake}
 DAY REQUEST:
 ${sessionRequest}
 
+${buildRequirementsPromptBlock(requirements)}
+${buildPhase5PromptHints(ctx)}
+
 Rules:
 - ALWAYS return a complete day with all three parts. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - Always return all three parts: warmup, main, stretch.
@@ -461,7 +669,7 @@ Rules:
 - Stretching: 4–6 gentle stretches matched to muscles used in main, ~5–10 min. work_seconds 20–40, rest 5–15, rounds 1.
 - Main: 4–8 exercises. Respect injuries. Match the day request (push/pull/legs/full body/etc.).
 ${trainingGoalRulesForAi(profile.goal)}
-${buildCatalogExerciseNameRule()}
+${buildCatalogExerciseNameRule(equipment, pool)}
 - Titles should be clear (e.g. "Upper warm-up", "Upper Push", "Upper stretch").
 - coach_notes must mention at least one concrete personalization tied to profile constraints or health/lifestyle data.
 - End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
@@ -543,6 +751,9 @@ Respond with ONLY valid JSON:
     throw new Error("AI did not return a valid stretching session. Try again.");
   }
 
+  const warmupEnforced = enforceHiitPlan(warmupNorm, ctx);
+  const stretchEnforced = enforceHiitPlan(stretchNorm, ctx);
+
   const mainRaw = parsed.main ?? {};
   let main: AiDayProgramResult["main"];
 
@@ -563,11 +774,16 @@ Respond with ONLY valid JSON:
     if (!hiit?.config.exercises.length) {
       throw new Error("AI did not return a valid main HIIT workout. Try again.");
     }
+    const mainEnforced = enforceHiitPlan(hiit, ctx);
     main = {
       kind: "hiit",
       plan: {
-        ...hiit,
-        config: await attachDemoVideosToHiit(hiit.config, profile.gender),
+        ...mainEnforced,
+        config: await attachDemoVideosToHiit(
+          mainEnforced.config,
+          profile.gender,
+          equipment
+        ),
       },
     };
   } else {
@@ -582,13 +798,15 @@ Respond with ONLY valid JSON:
     if (!workout.exercises.length) {
       throw new Error("AI did not return a valid main workout. Try again.");
     }
+    const mainEnforced = enforceStrengthDay(workout, ctx);
     main = {
       kind: "strength",
       workout: {
-        ...workout,
+        ...mainEnforced,
         exercises: await enrichExercisesWithDemoVideos(
-          workout.exercises,
-          profile.gender
+          mainEnforced.exercises,
+          profile.gender,
+          equipment
         ),
       },
     };
@@ -596,13 +814,21 @@ Respond with ONLY valid JSON:
 
   return {
     warmup: {
-      ...warmupNorm,
-      config: await attachDemoVideosToHiit(warmupNorm.config, profile.gender),
+      ...warmupEnforced,
+      config: await attachDemoVideosToHiit(
+        warmupEnforced.config,
+        profile.gender,
+        equipment
+      ),
     },
     main,
     stretch: {
-      ...stretchNorm,
-      config: await attachDemoVideosToHiit(stretchNorm.config, profile.gender),
+      ...stretchEnforced,
+      config: await attachDemoVideosToHiit(
+        stretchEnforced.config,
+        profile.gender,
+        equipment
+      ),
     },
   };
 }
@@ -611,6 +837,9 @@ async function generateStrengthWorkoutDayFromProfile(
   profile: Profile,
   prompt: string
 ): Promise<AiGeneratedWorkoutDay> {
+  const ctx = await prepareGenerationContext(profile, prompt);
+  const { requirements, pool } = ctx;
+  const equipment = requirements.equipment;
   const intake = buildIntakeContextForAi(profile, prompt);
   const sessionRequest =
     prompt.trim() ||
@@ -624,6 +853,9 @@ ${intake}
 SESSION REQUEST:
 ${sessionRequest}
 
+${buildRequirementsPromptBlock(requirements)}
+${buildPhase5PromptHints(ctx)}
+
 Rules:
 - ALWAYS return a complete session. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - Return exactly ONE session — not a weekly plan or split.
@@ -632,8 +864,8 @@ Rules:
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Match volume to goal, age, schedule, and recovery capacity.
 ${trainingGoalRulesForAi(profile.goal)}
-${buildCatalogExerciseNameRule()}
-- 4–8 exercises per session.
+${buildCatalogExerciseNameRule(equipment, pool)}
+- 4–8 exercises per session unless STRUCTURED REQUIREMENTS specify an exact count.
 - Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.
 - coach_notes must include at least one line about how this session is adjusted for the client's profile.
 - End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
@@ -659,9 +891,14 @@ Respond with ONLY valid JSON:
   const raw = await runTextPrompt(aiPrompt, { maxTokens: 1800, json: true });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutDay;
   const normalized = normalizeWorkoutDay(parsed, profile.preferred_locale);
+  const enforced = enforceStrengthDay(normalized, ctx);
   const workout = {
-    ...normalized,
-    exercises: await enrichExercisesWithDemoVideos(normalized.exercises, profile.gender),
+    ...enforced,
+    exercises: await enrichExercisesWithDemoVideos(
+      enforced.exercises,
+      profile.gender,
+      equipment
+    ),
   };
 
   if (workout.exercises.length === 0) {
@@ -676,6 +913,9 @@ async function generateExtraIntervalSessionFromProfile(
   prompt: string,
   kind: "warmup" | "stretch"
 ): Promise<AiGeneratedHiitPlan> {
+  const ctx = await prepareGenerationContext(profile, prompt);
+  const { requirements, pool } = ctx;
+  const equipment = requirements.equipment;
   const intake = buildIntakeContextForAi(profile, prompt);
   const isWarmup = kind === "warmup";
   const sessionRequest =
@@ -694,6 +934,9 @@ ${intake}
 SESSION REQUEST:
 ${sessionRequest}
 
+${buildRequirementsPromptBlock(requirements)}
+${buildPhase5PromptHints(ctx)}
+
 Rules:
 - ALWAYS return a complete session. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - This runs on an interval timer (work seconds / rest seconds) — NOT sets × reps strength training.
@@ -705,7 +948,7 @@ Rules:
       : "Focus on stretching and mobility: gentle holds/movements for recovery. Avoid high-intensity work."
   }
 - Respect injuries — choose safe alternatives when needed.
-${buildCatalogExerciseNameRule()}
+${buildCatalogExerciseNameRule(equipment, pool)}
 - 4–7 exercises with clear library names (see rule above).
 - ${
     isWarmup
@@ -763,9 +1006,15 @@ Respond with ONLY valid JSON:
     );
   }
 
+  const enforced = enforceHiitPlan(normalized, ctx);
+
   return {
-    ...normalized,
-    config: await attachDemoVideosToHiit(normalized.config, profile.gender),
+    ...enforced,
+    config: await attachDemoVideosToHiit(
+      enforced.config,
+      profile.gender,
+      equipment
+    ),
   };
 }
 

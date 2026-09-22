@@ -27,6 +27,16 @@ export const platformCopyEn = {
     healthLifestyleLockedHint:
       "Profile locked in. Update anytime if your routine or goals change.",
     buildingWorkoutProgram: "Building your 4-week workout program…",
+    personalizingProfile: "Personalizing your profile…",
+    calculatingMacros: "Calculating your daily macros…",
+    savingTakeAMoment: "This usually takes a few seconds.",
+    saveFailed: "Couldn’t save right now. Please try again.",
+    dailyTargetsTitle: "Your daily targets",
+    aiPersonalizedTargets: "AI-personalized",
+    estimatedTargets: "Estimated",
+    workoutReadyTitle: "Workout program ready",
+    workoutReadyDetail: (title: string, daysPerWeek: number, sessions: number) =>
+      `“${title}” · ${daysPerWeek} days/week · ${sessions} sessions over 4 weeks`,
     workoutProgramReady: (title: string, daysPerWeek: number, sessions: number) =>
       `Workout ready: “${title}” · ${daysPerWeek} days/week · ${sessions} sessions scheduled over 4 weeks.`,
     workoutProgramFailed:
@@ -960,6 +970,7 @@ export const platformCopyEn = {
     voiceUnsupported: "Voice input isn't supported in this browser.",
     voicePermission: "Microphone permission is required for voice input.",
     voiceFailed: "Couldn't catch that — try again.",
+    stopGeneratingAria: "Stop answering",
     imageOnlyPrompt: "What can you tell me about this image?",
     medicalDisclaimer:
       "I can't give medical advice. For that consult with a doctor, not me.",

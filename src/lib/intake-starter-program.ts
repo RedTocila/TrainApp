@@ -5,6 +5,7 @@ import {
   TRAINING_DAYS_OPTIONS,
   type IntakeOption,
 } from "@/lib/intake-questionnaire";
+import { equipmentConstraintFromIntakeAccess } from "@/lib/ai/equipment-taxonomy";
 
 /** Starter programs stay in a practical 3–4 sessions/week band. */
 export const STARTER_PROGRAM_WEEKS = 4;
@@ -47,24 +48,9 @@ export function weekdaysForSessionCount(daysPerWeek: number): number[] {
   return [1, 3, 5]; // Mon Wed Fri
 }
 
+/** Prompt text for equipment — backed by the shared taxonomy allowlist. */
 export function equipmentConstraintFromIntake(responses: IntakeResponses): string {
-  const equipment = responses.equipment_access ?? [];
-  const has = (v: string) => equipment.includes(v);
-
-  if (has("full_gym")) {
-    return "Client has full gym access — use barbells, machines, cables, and free weights as appropriate.";
-  }
-  if (has("home_dumbbells")) {
-    return "Home workout with dumbbells/weights only — no machines or barbells. Prefer dumbbell, band, and bodyweight variations.";
-  }
-  if (has("outdoor")) {
-    return "Outdoor / park setting — bodyweight, benches, and simple outdoor-friendly moves only. No gym machines.";
-  }
-  if (has("bodyweight") || equipment.length === 0) {
-    return "Bodyweight / no-equipment home workout — only exercises that need zero gym equipment.";
-  }
-  const labels = optionLabels(EQUIPMENT_OPTIONS, equipment);
-  return `Only use equipment the client listed: ${labels.join(", ") || "bodyweight"}.`;
+  return equipmentConstraintFromIntakeAccess(responses.equipment_access).promptRule;
 }
 
 export function experienceConstraintFromIntake(responses: IntakeResponses): string {

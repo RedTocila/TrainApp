@@ -830,7 +830,7 @@ const MACRO_COLORS = {
   fat: "#fbbf24",
 } as const;
 
-function MacroDonut({
+export function MacroDonut({
   macros,
 }: {
   macros: { calories: number; protein: number; carbs: number; fat: number };

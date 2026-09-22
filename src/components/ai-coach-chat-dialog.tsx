@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { DialogPortal } from "@/components/dialog-portal";
 import { AiChatClientLazy } from "@/components/ai-chat-client-lazy";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
@@ -125,7 +125,17 @@ export function AiCoachChatDialog() {
           className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]"
           style={{ backgroundColor: opaqueBg }}
         >
-          <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={closeChat}
+              aria-label={platform.common.back}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
             <AiCoachAvatar size="sm" className="h-9 w-9 shrink-0" />
             <div className="min-w-0">
               <h2 id="ai-coach-chat-title" className="text-base font-bold">
@@ -133,25 +143,13 @@ export function AiCoachChatDialog() {
               </h2>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-0.5">
-            <button
-              type="button"
-              onClick={openReadMe}
-              className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              {ai.readMeButton}
-            </button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0"
-              onClick={closeChat}
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <button
+            type="button"
+            onClick={openReadMe}
+            className="shrink-0 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            {ai.readMeButton}
+          </button>
         </div>
         <div
           className="flex min-h-0 flex-1 flex-col"

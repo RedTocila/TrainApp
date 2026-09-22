@@ -17,6 +17,10 @@ import {
 import type { RevenuePeriod } from "@/lib/actions/admin-stats";
 import type { MailAudience } from "@/lib/mail-presets";
 import type { BillingInterval, SoldSubscriptionPlanId } from "@/lib/subscription-plans";
+import {
+  formatConflictToolResult,
+  WorkoutRequirementConflictError,
+} from "@/lib/ai/workout-requirements";
 
 export type AdminChatToolEvent =
   | { type: "tool_start"; name: string }
@@ -416,6 +420,12 @@ export async function executeAdminChatTool(
     return JSON.stringify(result);
   } catch (error) {
     onEvent?.({ type: "tool_done", name });
+    if (error instanceof WorkoutRequirementConflictError) {
+      return JSON.stringify({
+        error: formatConflictToolResult(error),
+        conflicts: error.conflicts,
+      });
+    }
     const message = error instanceof Error ? error.message : "Tool failed";
     return JSON.stringify({ error: message });
   }

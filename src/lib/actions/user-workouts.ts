@@ -362,6 +362,202 @@ export async function clearPlanSchedule(planId: string) {
   return { success: true };
 }
 
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+function isOneOffCalendarPlan(description: string | null | undefined): boolean {
+  return (description ?? "").toLowerCase().includes("one-off session");
+}
+
+function planKindFromJoin(
+  plans: { kind?: string | null } | { kind?: string | null }[] | null | undefined
+): string {
+  const row = Array.isArray(plans) ? plans[0] : plans;
+  return (row?.kind as string | null) ?? "strength";
+}
+
+/** Compact stacked view of upcoming calendar sessions (not one row per date). */
+export async function getUpcomingWorkoutScheduleSummary(): Promise<{
+  total: number;
+  text: string;
+}> {
+  const { supabase, userId } = await requireUserId();
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data, error } = await supabase
+    .from("scheduled_workouts")
+    .select(
+      "id, scheduled_date, plan_id, workout_plans(id, title, kind, description)"
+    )
+    .eq("client_id", userId)
+    .gte("scheduled_date", today)
+    .order("scheduled_date");
+
+  if (error) {
+    return { total: 0, text: `Could not load schedule: ${error.message}` };
+  }
+
+  const rows = data ?? [];
+  if (rows.length === 0) {
+    return { total: 0, text: "No upcoming scheduled workouts." };
+  }
+
+  const byWeekday = new Map<number, number>();
+  const byKind = new Map<string, number>();
+  const byTitle = new Map<string, number>();
+  const libraryByPlan = new Map<
+    string,
+    { title: string; kind: string; count: number }
+  >();
+  let oneOffCount = 0;
+  let from = rows[0]!.scheduled_date as string;
+  let to = rows[0]!.scheduled_date as string;
+
+  for (const row of rows) {
+    const date = row.scheduled_date as string;
+    if (date < from) from = date;
+    if (date > to) to = date;
+    const dow = new Date(date + "T12:00:00").getDay();
+    byWeekday.set(dow, (byWeekday.get(dow) ?? 0) + 1);
+
+    const plan = Array.isArray(row.workout_plans)
+      ? row.workout_plans[0]
+      : row.workout_plans;
+    const kind = (plan?.kind as string | null) ?? "strength";
+    const title = (plan?.title as string | null) ?? "Workout";
+    const description = plan?.description as string | null;
+    byKind.set(kind, (byKind.get(kind) ?? 0) + 1);
+    byTitle.set(title, (byTitle.get(title) ?? 0) + 1);
+
+    if (isOneOffCalendarPlan(description)) {
+      oneOffCount += 1;
+    } else if (row.plan_id) {
+      const existing = libraryByPlan.get(row.plan_id as string);
+      if (existing) existing.count += 1;
+      else {
+        libraryByPlan.set(row.plan_id as string, {
+          title,
+          kind,
+          count: 1,
+        });
+      }
+    }
+  }
+
+  const weekdayLine = [...byWeekday.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([d, n]) => `${WEEKDAY_SHORT[d]}×${n}`)
+    .join(", ");
+  const kindLine = [...byKind.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, n]) => `${k}×${n}`)
+    .join(", ");
+  const topTitles = [...byTitle.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([t, n]) => (n > 1 ? `"${t}"×${n}` : `"${t}"`))
+    .join(", ");
+
+  const libraryLines = [...libraryByPlan.entries()]
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 8)
+    .map(
+      ([id, p]) =>
+        `- Library “${p.title}” [${p.kind}] id=${id} · ${p.count} upcoming`
+    );
+
+  const lines = [
+    "Upcoming workouts (STACKED — do NOT list individual dates to the client):",
+    `- Total: ${rows.length} sessions · ${from} → ${to}`,
+    `- Weekdays: ${weekdayLine}`,
+    `- Types: ${kindLine}`,
+    oneOffCount > 0
+      ? `- Calendar one-offs (AI day sessions): ${oneOffCount} — clear with clear_workout_schedule, never delete one-by-one`
+      : null,
+    libraryLines.length
+      ? `Library plans with schedule:\n${libraryLines.join("\n")}`
+      : "- No multi-use library plans on the calendar (mostly one-off day sessions).",
+    topTitles ? `- Top titles: ${topTitles}` : null,
+    "If they want to clear: ask which — all upcoming, specific weekdays (0=Sun…6=Sat), kinds (warmup/stretch/strength/hiit), or one library plan_id. Then call clear_workout_schedule once with that scope.",
+  ].filter(Boolean);
+
+  return { total: rows.length, text: lines.join("\n") };
+}
+
+/** Clear upcoming sessions by stacked scope (all / plan / weekdays / kinds). */
+export async function clearUpcomingWorkoutSchedule(options: {
+  planId?: string | null;
+  clearAll?: boolean;
+  weekdays?: number[];
+  kinds?: string[];
+}): Promise<{ success: true; removed: number } | { error: string }> {
+  const { supabase, userId } = await requireUserId();
+  const today = new Date().toISOString().split("T")[0];
+  const planId = options.planId?.trim() || null;
+  const weekdays = (options.weekdays ?? []).filter(
+    (n) => Number.isFinite(n) && n >= 0 && n <= 6
+  );
+  const kinds = (options.kinds ?? [])
+    .map((k) => String(k).toLowerCase())
+    .filter(Boolean);
+  const clearAll = options.clearAll === true;
+
+  if (!planId && !clearAll && weekdays.length === 0 && kinds.length === 0) {
+    return {
+      error:
+        "Specify clear_all, plan_id, weekdays, and/or kinds before clearing.",
+    };
+  }
+
+  if (planId && !weekdays.length && !kinds.length && !clearAll) {
+    const result = await clearPlanSchedule(planId);
+    if (result.error) return { error: result.error };
+    return { success: true, removed: -1 };
+  }
+
+  const { data, error } = await supabase
+    .from("scheduled_workouts")
+    .select("id, scheduled_date, plan_id, workout_plans(kind)")
+    .eq("client_id", userId)
+    .gte("scheduled_date", today);
+
+  if (error) return { error: error.message };
+
+  let rows = data ?? [];
+  if (planId) {
+    rows = rows.filter((row) => row.plan_id === planId);
+  }
+  if (weekdays.length > 0) {
+    const set = new Set(weekdays);
+    rows = rows.filter((row) =>
+      set.has(new Date(`${row.scheduled_date}T12:00:00`).getDay())
+    );
+  }
+  if (kinds.length > 0) {
+    const set = new Set(kinds);
+    rows = rows.filter((row) =>
+      set.has(planKindFromJoin(row.workout_plans).toLowerCase())
+    );
+  }
+
+  const ids = rows.map((row) => row.id as string);
+  if (ids.length === 0) {
+    return { success: true, removed: 0 };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("scheduled_workouts")
+    .delete()
+    .in("id", ids)
+    .eq("client_id", userId);
+
+  if (deleteError) return { error: deleteError.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/workout");
+  if (planId) revalidatePath(`/dashboard/workout/${planId}/edit`);
+  return { success: true, removed: ids.length };
+}
+
 export async function replacePlanSchedule({
   startDate,
   weekdays,

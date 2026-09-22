@@ -11,6 +11,17 @@ import type {
 } from "@/lib/ai/plan-builder-types";
 import type { WorkoutPlanKind } from "@/lib/hiit";
 import type { Profile } from "@/lib/types";
+import {
+  addWorkoutExercise,
+  adjustWorkoutDifficulty,
+  removeWorkoutExercise,
+  replaceWorkoutExercise,
+  SurgicalEditError,
+  type SurgicalEditResult,
+} from "@/lib/ai/workout-surgical-edits";
+import { enrichExercisesWithDemoVideos } from "@/lib/ai/exercise-video-search";
+import { resolveEquipmentConstraint } from "@/lib/ai/equipment-taxonomy";
+
 
 type WorkoutDayRow = {
   day_index: number;
@@ -192,6 +203,113 @@ export async function editWorkoutPlanForChat(
     `${context}CHANGES REQUESTED:\n${instructions.trim()}\n\nReturn a complete updated workout plan.`
   );
 }
+
+async function attachDemosToStrengthPlan(
+  plan: AiGeneratedWorkoutPlan,
+  profile: Profile,
+  preferencesHint?: string | null
+): Promise<AiGeneratedWorkoutPlan> {
+  const equipment = resolveEquipmentConstraint(profile, preferencesHint);
+  const days = await Promise.all(
+    plan.days.map(async (day) => ({
+      ...day,
+      exercises: await enrichExercisesWithDemoVideos(
+        day.exercises,
+        profile.gender,
+        equipment
+      ),
+    }))
+  );
+  return { ...plan, days };
+}
+
+function requireStrengthPlan(
+  plan: AiGeneratedWorkoutPlan | null
+): AiGeneratedWorkoutPlan {
+  if (!plan) {
+    throw new SurgicalEditError(
+      "no_plan",
+      "No active workout plan assigned. Generate a workout plan first, then edit it."
+    );
+  }
+  return plan;
+}
+
+export async function removeWorkoutExerciseForChat(
+  profile: Profile,
+  options: {
+    dayNumber?: number | null;
+    exerciseNumber?: number | null;
+    exerciseName?: string | null;
+  }
+): Promise<SurgicalEditResult> {
+  const current = requireStrengthPlan(await loadActiveWorkoutPlan(profile.id));
+  const result = removeWorkoutExercise(current, options);
+  return {
+    ...result,
+    plan: await attachDemosToStrengthPlan(result.plan, profile),
+  };
+}
+
+export async function addWorkoutExerciseForChat(
+  profile: Profile,
+  options: {
+    dayNumber?: number | null;
+    exerciseName?: string | null;
+    targetMuscle?: string | null;
+    sets?: number | null;
+    reps?: string | null;
+    restSeconds?: number | null;
+  }
+): Promise<SurgicalEditResult> {
+  const current = requireStrengthPlan(await loadActiveWorkoutPlan(profile.id));
+  const result = addWorkoutExercise(current, profile, options);
+  return {
+    ...result,
+    plan: await attachDemosToStrengthPlan(
+      result.plan,
+      profile,
+      options.exerciseName ?? options.targetMuscle
+    ),
+  };
+}
+
+export async function replaceWorkoutExerciseForChat(
+  profile: Profile,
+  options: {
+    dayNumber?: number | null;
+    exerciseNumber?: number | null;
+    exerciseName?: string | null;
+    replacementName?: string | null;
+  }
+): Promise<SurgicalEditResult> {
+  const current = requireStrengthPlan(await loadActiveWorkoutPlan(profile.id));
+  const result = replaceWorkoutExercise(current, profile, options);
+  return {
+    ...result,
+    plan: await attachDemosToStrengthPlan(
+      result.plan,
+      profile,
+      options.replacementName ?? options.exerciseName
+    ),
+  };
+}
+
+export async function adjustWorkoutDifficultyForChat(
+  profile: Profile,
+  direction: "harder" | "easier",
+  dayNumber?: number | null
+): Promise<SurgicalEditResult> {
+  const current = requireStrengthPlan(await loadActiveWorkoutPlan(profile.id));
+  const result = adjustWorkoutDifficulty(current, direction, { dayNumber });
+  return {
+    ...result,
+    plan: await attachDemosToStrengthPlan(result.plan, profile),
+  };
+}
+
+export { SurgicalEditError };
+
 
 export async function editNutritionPlanForChat(
   profile: Profile,
