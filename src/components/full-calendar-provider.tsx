@@ -41,6 +41,7 @@ export function FullCalendarProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [hasCalendar, setHasCalendar] = useState(false);
   const calendarDataRef = useRef<CalendarData | null>(null);
+  const pendingOpenRef = useRef(false);
 
   const registerCalendarData = useCallback((data: CalendarData | null) => {
     calendarDataRef.current = data;
@@ -48,15 +49,28 @@ export function FullCalendarProvider({ children }: { children: ReactNode }) {
       const next = data !== null;
       return current === next ? current : next;
     });
+    if (data && pendingOpenRef.current) {
+      pendingOpenRef.current = false;
+      setOpen(true);
+    }
+  }, []);
+
+  const openCalendar = useCallback(() => {
+    if (calendarDataRef.current) {
+      setOpen(true);
+      return;
+    }
+    // Dashboard home hasn't mounted yet — open once calendar data registers.
+    pendingOpenRef.current = true;
   }, []);
 
   const value = useMemo(
     () => ({
-      openCalendar: () => setOpen(true),
+      openCalendar,
       hasCalendar,
       registerCalendarData,
     }),
-    [hasCalendar, registerCalendarData]
+    [openCalendar, hasCalendar, registerCalendarData]
   );
 
   const calendarData = calendarDataRef.current;

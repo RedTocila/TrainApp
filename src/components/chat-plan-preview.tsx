@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Check, ChevronDown, Dumbbell, Loader2, Salad, Zap } from "lucide-react";
 import { applyChatPlanPreviewAction } from "@/lib/actions/ai-plan-builder";
@@ -8,6 +8,8 @@ import type { ChatPlanPreview } from "@/lib/ai/coach-chat-tools";
 import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import { slotLabel } from "@/lib/meal-slots";
 import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
+import { useAiCoachChat } from "@/components/ai-coach-chat-context";
+import { useFullCalendar } from "@/components/full-calendar-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { hiitSummaryLabel } from "@/lib/hiit";
@@ -35,6 +37,9 @@ export function ChatPlanPreviewCard({
   onApplied?: () => void;
   gender?: string | null;
 }) {
+  const router = useRouter();
+  const { closeChat } = useAiCoachChat();
+  const { openCalendar, hasCalendar } = useFullCalendar();
   const [error, setError] = useState<string | null>(null);
   const [localApplied, setLocalApplied] = useState(false);
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
@@ -73,6 +78,17 @@ export function ChatPlanPreviewCard({
       setScheduledCount(result.scheduledCount);
       onApplied?.();
     });
+  };
+
+  const handleOpenCalendar = () => {
+    closeChat();
+    if (hasCalendar) {
+      openCalendar();
+      return;
+    }
+    // Not on dashboard home yet — go there and open once calendar data mounts.
+    openCalendar();
+    router.push("/dashboard");
   };
 
   const title = isWeeklyFull
@@ -325,12 +341,13 @@ export function ChatPlanPreviewCard({
                 )}
               </Button>
             )}
-            <Link
-              href={isNutrition ? "/dashboard/nutrition" : "/dashboard/workout"}
+            <button
+              type="button"
+              onClick={handleOpenCalendar}
               className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline"
             >
               Open calendar
-            </Link>
+            </button>
           </div>
         </div>
       </div>
