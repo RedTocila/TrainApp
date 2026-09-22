@@ -86,21 +86,16 @@ export function AiWorkoutPlanBuilder({
           <AiPlanProfileSummary profile={profile} />
 
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Dumbbell className="h-4 w-4 text-primary" />
                 Build workout plan
               </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Describe what you want — mention HIIT/intervals or a normal fitness plan with
-                sets &amp; reps. AI picks the right builder from your text.
-              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               {!intakeComplete && (
                 <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200/90">
-                  For best results, complete your health profile first. AI will still generate
-                  with whatever info you have.
+                  For best results, complete your health profile first.
                 </p>
               )}
 
@@ -128,42 +123,51 @@ export function AiWorkoutPlanBuilder({
                     )}
                   </span>
                 </div>
-                <Textarea
-                  id="workout-preferences"
-                  rows={4}
-                  placeholder={
-                    detectedKind === "hiit"
-                      ? "e.g. HIIT ~20 min, low impact, bodyweight only…"
-                      : "e.g. Full body fitness, home gym, 45 min, 4 days — or write “HIIT” for intervals…"
-                  }
-                  value={preferences}
-                  onChange={(e) => setPreferences(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Tip: write “HIIT”, “tabata”, or “intervals” for a timer session; otherwise you get
-                  a sets &amp; reps plan.
-                </p>
+                <div className="relative">
+                  <Textarea
+                    id="workout-preferences"
+                    rows={5}
+                    placeholder={
+                      detectedKind === "hiit"
+                        ? "e.g. HIIT ~20 min, low impact, bodyweight only…"
+                        : "e.g. Full body fitness, home gym, 45 min, 4 days…"
+                    }
+                    value={preferences}
+                    onChange={(e) => setPreferences(e.target.value)}
+                    className="min-h-[7.5rem] resize-y pb-12 pr-14"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGenerate}
+                    disabled={isPending}
+                    aria-label={
+                      plan
+                        ? detectedKind === "hiit"
+                          ? "Regenerate HIIT workout"
+                          : "Regenerate workout plan"
+                        : detectedKind === "hiit"
+                          ? "Generate HIIT workout"
+                          : "Generate workout plan"
+                    }
+                    title={
+                      plan
+                        ? detectedKind === "hiit"
+                          ? "Regenerate HIIT workout"
+                          : "Regenerate workout plan"
+                        : detectedKind === "hiit"
+                          ? "Generate HIIT workout"
+                          : "Generate workout plan"
+                    }
+                    className="absolute bottom-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.35)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {isPending && !plan ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" strokeWidth={2.25} />
+                    )}
+                  </button>
+                </div>
               </div>
-
-              <Button className="w-full" onClick={handleGenerate} disabled={isPending}>
-                {isPending && !plan ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Building your {detectedKind === "hiit" ? "HIIT" : "workout"}…
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    {plan
-                      ? detectedKind === "hiit"
-                        ? "Regenerate HIIT workout"
-                        : "Regenerate workout plan"
-                      : detectedKind === "hiit"
-                        ? "Generate HIIT workout"
-                        : "Generate workout plan"}
-                  </>
-                )}
-              </Button>
 
               {error && <p className="text-sm text-red-400">{error}</p>}
             </CardContent>

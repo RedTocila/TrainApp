@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   ArrowLeft,
   Check,
@@ -45,6 +45,7 @@ import { markReminderDone } from "@/lib/reminder-events";
 import { formatElapsedClock } from "@/lib/workout-duration";
 import type { ScheduledCardio } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { SessionBusyOverlay } from "@/components/workout-session-ui";
 
 function useElapsedMs(state: CardioTimerState | null) {
   const [now, setNow] = useState(() => Date.now());
@@ -76,6 +77,8 @@ export function ActiveCardioClient({
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isFinishing, setIsFinishing] = useState(false);
+  const finishLockRef = useRef(false);
   const elapsedMs = useElapsedMs(timer);
   const elapsedSeconds = Math.floor(elapsedMs / 1000);
 
@@ -122,7 +125,8 @@ export function ActiveCardioClient({
     router.push("/dashboard");
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    if (finishLockRef.current || isFinishing) return;
     setError(null);
     if (!canComplete) {
       if (minSeconds != null) {
@@ -134,13 +138,17 @@ export function ActiveCardioClient({
       return;
     }
 
-    startTransition(async () => {
+    finishLockRef.current = true;
+    setIsFinishing(true);
+    try {
       const result = await completeScheduleTask(clientId, dateKey, taskId, {
         elapsedSeconds,
         plannedMinutes,
       });
       if (result.error) {
         setError(formatUserError(result.error));
+        finishLockRef.current = false;
+        setIsFinishing(false);
         return;
       }
 
@@ -175,8 +183,12 @@ export function ActiveCardioClient({
       patchDashboard({ dateKey, taskId, completed: true });
       clearCardioTimerState(dateKey, cardioId);
       notifySync();
-      router.push("/dashboard");
-    });
+      router.replace("/dashboard");
+    } catch (err) {
+      setError(formatUserError(err));
+      finishLockRef.current = false;
+      setIsFinishing(false);
+    }
   };
 
   if (initiallyCompleted && !isStarted) {
@@ -397,14 +409,16 @@ export function ActiveCardioClient({
                 size="lg"
                 className="w-full"
                 onClick={handleFinish}
-                disabled={isPending || !canComplete}
+                disabled={isPending || isFinishing || !canComplete}
               >
-                {isPending ? (
+                {isFinishing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Check className="h-4 w-4" />
+                  <>
+                    <Check className="h-4 w-4" />
+                    {platform.cardio.finish}
+                  </>
                 )}
-                {isPending ? platform.cardio.finishing : platform.cardio.finish}
               </Button>
             </div>
 
@@ -436,7 +450,7 @@ export function ActiveCardioClient({
               variant="ghost"
               size="sm"
               className="w-full text-muted-foreground"
-              disabled={isPending}
+              disabled={isPending || isFinishing}
               onClick={handleDiscard}
             >
               {platform.cardio.discardSession}
@@ -444,6 +458,9 @@ export function ActiveCardioClient({
           </>
         )}
       </div>
+      {isFinishing ? (
+        <SessionBusyOverlay label={platform.cardio.finishing} />
+      ) : null}
     </div>
   );
 }

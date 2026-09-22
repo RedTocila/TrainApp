@@ -96,8 +96,46 @@ function looksLikeRawApiDump(text: string): boolean {
   );
 }
 
+function looksLikeAiError(lower: string): boolean {
+  return (
+    lower.includes("anthropic") ||
+    lower.includes("openai") ||
+    lower.includes("ai coach") ||
+    lower.includes("ai request") ||
+    lower.includes("ai chat") ||
+    lower.includes("ai vision") ||
+    lower.includes("ai is") ||
+    lower.includes("not_found_error") ||
+    lower.includes("insufficient_quota") ||
+    lower.includes("model:") ||
+    (lower.includes("model") && lower.includes("not_found")) ||
+    looksLikeRawApiDump(lower)
+  );
+}
+
 function humanizeAiMessage(message: string): string {
   const lower = message.toLowerCase();
+
+  // Generic connectivity — used by auth, Supabase, and AI alike.
+  if (
+    lower.includes("network") ||
+    lower.includes("fetch failed") ||
+    lower.includes("failed to fetch") ||
+    lower.includes("enotfound") ||
+    lower.includes("econnrefused") ||
+    lower.includes("econnreset") ||
+    lower.includes("err_internet_disconnected") ||
+    lower.includes("load failed") ||
+    lower.includes("offline")
+  ) {
+    return "Couldn't reach the server. Check your connection and try again.";
+  }
+
+  if (lower.includes("timeout") || lower.includes("timed out")) {
+    return "The request timed out. Check your connection and try again.";
+  }
+
+  const aiContext = looksLikeAiError(lower);
 
   if (
     lower.includes("not_found_error") ||
@@ -108,10 +146,11 @@ function humanizeAiMessage(message: string): string {
   }
 
   if (
-    lower.includes("invalid_api_key") ||
-    lower.includes("authentication") ||
-    lower.includes("unauthorized") ||
-    lower.includes("401")
+    aiContext &&
+    (lower.includes("invalid_api_key") ||
+      lower.includes("authentication") ||
+      lower.includes("unauthorized") ||
+      lower.includes("401"))
   ) {
     return "AI is not configured correctly. Please try again later.";
   }
@@ -121,28 +160,23 @@ function humanizeAiMessage(message: string): string {
     lower.includes("too many requests") ||
     lower.includes("429")
   ) {
-    return "AI is busy right now. Please wait a moment and try again.";
+    return aiContext
+      ? "AI is busy right now. Please wait a moment and try again."
+      : "Too many requests. Please wait a moment and try again.";
   }
 
   if (
     lower.includes("insufficient_quota") ||
-    lower.includes("billing") ||
-    lower.includes("credit")
+    (aiContext && (lower.includes("billing") || lower.includes("credit")))
   ) {
     return "AI usage limit reached. Please try again later.";
   }
 
-  if (lower.includes("timeout") || lower.includes("timed out") || lower.includes("econnreset")) {
-    return "The AI request timed out. Please try again.";
-  }
-
-  if (lower.includes("network") || lower.includes("fetch failed") || lower.includes("enotfound")) {
-    return "Could not reach AI right now. Check your connection and try again.";
-  }
-
   // Never show JSON / status-code dumps to users.
   if (looksLikeRawApiDump(message) || /^\d{3}\b/.test(message.trim()) || message.trim().startsWith("{")) {
-    return "Something went wrong with AI. Please try again.";
+    return aiContext
+      ? "Something went wrong with AI. Please try again."
+      : "Something went wrong. Please try again.";
   }
 
   // Keep short, readable app messages; truncate runaway provider text (don't hide it).

@@ -1735,9 +1735,6 @@ export async function completeWorkoutSession(
     .single();
 
   if (!session) return { error: "Session not found" };
-  if (session.status !== "in_progress") {
-    return { error: "Workout already finished" };
-  }
 
   let planKind: import("@/lib/hiit").WorkoutPlanKind = "strength";
   if (session.plan_id) {
@@ -1750,11 +1747,32 @@ export async function completeWorkoutSession(
     planKind = normalizeWorkoutPlanKind(plan?.kind);
   }
 
+  // Idempotent: double-taps / remounts after a successful save should not error.
+  if (session.status === "completed") {
+    const scheduledDate =
+      session.scheduled_date ?? new Date().toISOString().split("T")[0]!;
+    const { taskId } = await resolveWorkoutTaskIdForSession(userId, session);
+    const nextWorkout = await getNextDayFlowWorkout(scheduledDate, planKind);
+    return {
+      success: true as const,
+      scheduledDate,
+      sessionId,
+      taskId,
+      planKind,
+      nextWorkout,
+    };
+  }
+
+  if (session.status !== "in_progress") {
+    return { error: "Workout already finished" };
+  }
+
   const { data: exercises } = await admin
     .from("workout_session_exercises")
     .select("id, workout_session_sets(id, reps, weight_kg)")
     .eq("session_id", sessionId);
 
+  const setIdsToComplete: string[] = [];
   for (const exercise of exercises ?? []) {
     const sets = (exercise.workout_session_sets as {
       id: string;
@@ -1764,13 +1782,16 @@ export async function completeWorkoutSession(
 
     for (const set of sets) {
       const hasData = set.reps != null || set.weight_kg != null;
-      if (hasData) {
-        await admin
-          .from("workout_session_sets")
-          .update({ completed: true })
-          .eq("id", set.id);
-      }
+      if (hasData) setIdsToComplete.push(set.id);
     }
+  }
+
+  if (setIdsToComplete.length > 0) {
+    const { error: setsError } = await admin
+      .from("workout_session_sets")
+      .update({ completed: true })
+      .in("id", setIdsToComplete);
+    if (setsError) return { error: setsError.message };
   }
 
   const completedAt = new Date().toISOString();

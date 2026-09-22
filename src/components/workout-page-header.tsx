@@ -12,7 +12,8 @@ export function WorkoutPageHeader({ title }: { title: string }) {
     pathname === "/dashboard/workout" ||
     pathname.startsWith("/dashboard/workout/exercises") ||
     pathname.startsWith("/dashboard/workout/folder") ||
-    pathname.startsWith("/dashboard/workout/workouts");
+    pathname.startsWith("/dashboard/workout/workouts") ||
+    pathname === "/dashboard/workout/plans";
 
   return (
     <ProgramsPageHeader

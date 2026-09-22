@@ -42,9 +42,12 @@ export function WorkoutDayChip({
 export function WorkoutCategoryIcon({
   category,
   size = "md",
+  variant = "chip",
 }: {
   category: WorkoutCategory;
   size?: "sm" | "md" | "lg";
+  /** `well` matches AI HelpTile circular icon wells. */
+  variant?: "chip" | "well";
 }) {
   const style = getWorkoutCategoryStyle(category);
   const Icon = style.icon;
@@ -55,10 +58,11 @@ export function WorkoutCategoryIcon({
   return (
     <span
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-2xl border-2",
+        "flex shrink-0 items-center justify-center",
         sizeClass,
-        style.chip,
-        style.chipText
+        variant === "well"
+          ? cn("rounded-full", style.iconBg, style.iconText)
+          : cn("rounded-2xl border-2", style.chip, style.chipText)
       )}
       title={style.label}
       aria-label={style.label}

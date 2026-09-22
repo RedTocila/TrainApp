@@ -81,11 +81,14 @@ export function WorkoutCategoryFilter({
   selected,
   onSelectedChange,
   className,
+  /** Soft edge fade when more chips are off-screen. Off inside drawers (wrong surface color). */
+  edgeFade = true,
 }: {
   workouts: PersonalWorkoutListItem[];
   selected: WorkoutCategoryFilter;
   onSelectedChange: (category: WorkoutCategoryFilter) => void;
   className?: string;
+  edgeFade?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -122,10 +125,10 @@ export function WorkoutCategoryFilter({
 
   return (
     <div className={cn("relative -mx-1", className)}>
-      {canScrollRight && (
+      {edgeFade && canScrollRight ? (
         <>
           <div
-            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent"
+            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-card/90 via-card/40 to-transparent"
             aria-hidden
           />
           <button
@@ -137,13 +140,13 @@ export function WorkoutCategoryFilter({
             <ChevronRight className="h-4 w-4" />
           </button>
         </>
-      )}
+      ) : null}
 
       <div
         ref={scrollRef}
         className={cn(
           "flex gap-0.5 overflow-x-auto py-1 pl-1",
-          canScrollRight ? "pr-6 sm:pr-10" : "pr-1",
+          edgeFade && canScrollRight ? "pr-6 sm:pr-10" : "pr-1",
           "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory"
         )}
         role="tablist"

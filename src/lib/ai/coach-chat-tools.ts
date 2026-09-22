@@ -395,6 +395,7 @@ const ASK_TOOL_NAMES = new Set([
   "show_weight_trend",
   "show_coaching_tips",
   "list_my_workouts",
+  "list_my_week_plans",
   "list_upcoming_workout_schedule",
   "list_my_nutrition_plans",
   "list_today_habits",

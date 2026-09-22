@@ -215,3 +215,18 @@ export function SessionSideIconButton({
     </button>
   );
 }
+
+/** Blocks the session UI while save / navigation finishes — prevents stacked CTAs. */
+export function SessionBusyOverlay({ label }: { label: string }) {
+  return (
+    <div
+      className="fixed inset-0 z-[300] flex flex-col items-center justify-center gap-3 bg-background/85 px-6 backdrop-blur-sm"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-sm font-semibold text-foreground">{label}</p>
+    </div>
+  );
+}

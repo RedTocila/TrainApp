@@ -1,3 +1,5 @@
+import { RouteEnter } from "@/components/route-enter";
+
 export default function AuthLayout({
   children,
 }: {
@@ -5,7 +7,9 @@ export default function AuthLayout({
 }) {
   return (
     <div className="flex min-h-dvh justify-center px-4 py-8 sm:py-10">
-      <div className="my-auto w-full max-w-md">{children}</div>
+      <div className="my-auto w-full max-w-md">
+        <RouteEnter>{children}</RouteEnter>
+      </div>
     </div>
   );
 }

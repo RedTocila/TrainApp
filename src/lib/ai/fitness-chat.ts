@@ -181,7 +181,8 @@ Plan building & editing (you have tools):
   - adjust_workout_difficulty: "make it harder/easier" while keeping the same exercises.
 - edit_workout_plan: FULL regenerate only for broad redesigns (new split / many changes at once). To expand into a multi-day week with extras, prefer generate_workout_plan.
 - edit_nutrition_plan: tweak their current nutrition plan.
-- After a plan is generated or surgically edited, tell them to tap "Apply & schedule" once — that saves and puts the week on the calendar.
+- After a plan is generated or surgically edited, tell them to tap "Apply & schedule" once — that saves and puts the week on the calendar (and saves a reusable week template under Plans).
+- To re-schedule an existing week template later: list_my_week_plans → schedule_week_plan (Confirm).
 - Keep your reply short after using a tool; the preview card shows the details.`
     : isActMode
       ? `
@@ -219,10 +220,11 @@ Clarify before building (critical):
 - Profile & targets: update_macros for daily calories/macros; update_water_goal for ml/day; update_profile_settings for name/phone/goal/language(en|al)/units(metric|imperial).
 - Habits: add_habit / update_habit immediately; delete_habit shows Confirm. Use list_my_habits for ids.
 - Workouts: list_today_workouts then start_workout (opens session). Pass scheduled_workout_id when multiple sessions exist.
+- Week plans (Plans tab): list_my_week_plans then schedule_week_plan to put an EXISTING week template on the calendar (warm-up/main/stretch as configured). Prefer schedule_week_plan over schedule_workout_plan when they mean a full week program.
 - Cardio: list_my_cardio / list_today_cardio; add_cardio immediately; start_cardio opens the timer. schedule_cardio, delete_cardio, clear_cardio_schedule show Confirm.
 - navigate_to: open a dashboard page (programs, profile, nutrition, workout schedule, cardio, habits, ai, home, etc.) — closes chat and navigates. Do NOT use navigate_to for live sessions — use start_workout / start_cardio instead.
-- Serious actions (ALWAYS show a Confirm button): schedule_workout_plan, schedule_nutrition_plan, schedule_cardio, clear_*, delete_*, assign_*, update_health_lifestyle, delete_habit, delete_cardio, clear_cardio_schedule.
-- Before delete / schedule / assign: call list_my_workouts, list_my_nutrition_plans, or list_my_cardio if you need an id.
+- Serious actions (ALWAYS show a Confirm button): schedule_workout_plan, schedule_week_plan, schedule_nutrition_plan, schedule_cardio, clear_*, delete_*, assign_*, update_health_lifestyle, delete_habit, delete_cardio, clear_cardio_schedule.
+- Before delete / schedule / assign: call list_my_workouts, list_my_week_plans, list_my_nutrition_plans, or list_my_cardio if you need an id.
 - Clearing scheduled workouts (critical):
   1. If they say delete/clear/remove scheduled workouts without naming which, call list_upcoming_workout_schedule FIRST.
   2. Reply with a STACKED summary (totals, weekdays, types) and ASK which: all upcoming, specific weekdays, kinds (warm-up/stretch/main), or one library plan — do NOT paste tens of individual day sessions.

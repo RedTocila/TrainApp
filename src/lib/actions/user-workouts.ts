@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { ensureManualPlanCreation, ensurePlanMutationAccess } from "@/lib/actions/usage-limits";
 import { generateRecurringScheduleDates, inferScheduleFromSessions } from "@/lib/schedule-utils";
-import { WORKOUT_DAY_WITH_EXERCISES, WORKOUT_PLAN_LIST_COLUMNS } from "@/lib/db-selects";
+import { WORKOUT_DAY_WITH_EXERCISES, WORKOUT_PLAN_LIST_COLUMNS, WORKOUT_PLAN_WEEK_LIST_COLUMNS } from "@/lib/db-selects";
 import { isExtraWorkoutKind, isMainWorkoutKind } from "@/lib/hiit";
 import { UNCATEGORIZED_FOLDER_ID } from "@/lib/workout-folders";
 import type { ScheduledWorkout, WorkoutDay, Exercise } from "@/lib/types";
@@ -23,6 +23,28 @@ async function requireMutationAdmin() {
   const access = await ensurePlanMutationAccess();
   if ("error" in access) throw new Error(access.error);
   return { admin: access.admin, userId: access.userId };
+}
+
+/** Wipe every scheduled workout on the given dates for this client. */
+async function clearScheduledWorkoutsOnDates(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  userId: string,
+  dateKeys: string[]
+) {
+  if (dateKeys.length === 0) return;
+  const unique = [...new Set(dateKeys)];
+  // PostgREST `.in()` stays reliable in modest chunks.
+  const chunkSize = 100;
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const chunk = unique.slice(i, i + chunkSize);
+    const { error } = await admin
+      .from("scheduled_workouts")
+      .delete()
+      .eq("client_id", userId)
+      .in("scheduled_date", chunk);
+    if (error) throw new Error(error.message);
+  }
 }
 
 export async function createPersonalWorkoutPlan(
@@ -131,6 +153,7 @@ export async function getPersonalWorkoutPlans(folderId?: string) {
     ...plan,
     kind: ((plan.kind as string | null) ?? "strength") as import("@/lib/hiit").WorkoutPlanKind,
     hiit_config: plan.hiit_config ?? null,
+    week_config: null,
   }));
 }
 
@@ -160,6 +183,7 @@ export async function getPersonalWorkoutPlanWithDetails(planId: string) {
       ...plan,
       kind: ((plan.kind as string | null) ?? "strength") as import("@/lib/hiit").WorkoutPlanKind,
       hiit_config: plan.hiit_config ?? null,
+      week_config: null,
     },
     days: days ?? [],
   };
@@ -177,6 +201,7 @@ export async function deletePersonalWorkoutPlan(planId: string) {
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard/workout");
+  revalidatePath("/dashboard/workout/plans");
   return { success: true };
 }
 
@@ -285,6 +310,15 @@ export async function scheduleWorkoutSeries({
     return { error: "No dates to schedule. Check your day and week selections." };
   }
 
+  // Replace anything already on these calendar days.
+  try {
+    await clearScheduledWorkoutsOnDates(admin, userId, dates);
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Could not clear existing schedule",
+    };
+  }
+
   const rows = dates.map((scheduledDate) => ({
     client_id: userId,
     scheduled_date: scheduledDate,
@@ -293,30 +327,9 @@ export async function scheduleWorkoutSeries({
   }));
 
   for (const row of rows) {
-    const { data: existing } = await admin
-      .from("scheduled_workouts")
-      .select("id")
-      .eq("client_id", userId)
-      .eq("scheduled_date", row.scheduled_date)
-      .eq("plan_id", planId)
-      .eq("day_id", dayId)
-      .maybeSingle();
-
-    if (existing) continue;
-
-    const { data: siblings } = await admin
-      .from("scheduled_workouts")
-      .select("order_index")
-      .eq("client_id", userId)
-      .eq("scheduled_date", row.scheduled_date)
-      .order("order_index", { ascending: false })
-      .limit(1);
-
-    const orderIndex = (siblings?.[0]?.order_index ?? -1) + 1;
-
     const { error: insertError } = await admin.from("scheduled_workouts").insert({
       ...row,
-      order_index: orderIndex,
+      order_index: 0,
     });
 
     if (insertError) return { error: insertError.message };
@@ -1006,7 +1019,9 @@ export async function getPersonalWorkoutsWithSchedules(
   folderId?: string
 ): Promise<PersonalWorkoutListItem[]> {
   const { supabase, userId } = await requireUserId();
-  const plans = await getPersonalWorkoutPlans(folderId);
+  const plans = (await getPersonalWorkoutPlans(folderId)).filter(
+    (plan) => plan.kind === "strength" || plan.kind === "hiit"
+  );
   if (plans.length === 0) return [];
 
   const today = new Date().toISOString().split("T")[0];
@@ -1066,6 +1081,660 @@ export async function getPersonalWorkoutsWithSchedules(
       scheduleSummary,
     };
   });
+}
+
+export interface PersonalWeekPlanListItem {
+  id: string;
+  title: string;
+  description: string | null;
+  createdAt: string | null;
+  config: import("@/lib/week-plan").WeekPlanConfig;
+}
+
+export async function getPersonalWeekPlans(): Promise<PersonalWeekPlanListItem[]> {
+  const { supabase, userId } = await requireUserId();
+  const { normalizeWeekPlanConfig } = await import("@/lib/week-plan");
+
+  const { data } = await supabase
+    .from("workout_plans")
+    .select(WORKOUT_PLAN_WEEK_LIST_COLUMNS)
+    .eq("created_by", userId)
+    .eq("is_personal", true)
+    .eq("kind", "week")
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).flatMap((plan) => {
+    const config = normalizeWeekPlanConfig(plan.week_config);
+    if (!config) return [];
+    return [
+      {
+        id: plan.id as string,
+        title: (plan.title as string) || "Week plan",
+        description: (plan.description as string | null) ?? null,
+        createdAt: (plan.created_at as string | null) ?? null,
+        config,
+      },
+    ];
+  });
+}
+
+export type WeekPlanBuilderWorkoutOption = {
+  planId: string;
+  title: string;
+  kind: "strength" | "hiit";
+  days: { dayId: string; title: string; dayIndex: number }[];
+};
+
+export type WeekPlanBuilderExtraOption = {
+  planId: string;
+  title: string;
+  kind: "warmup" | "stretch";
+};
+
+/** Workouts + extras available when building a week plan manually. */
+export async function getWeekPlanBuilderOptions(): Promise<{
+  workouts: WeekPlanBuilderWorkoutOption[];
+  warmups: WeekPlanBuilderExtraOption[];
+  stretches: WeekPlanBuilderExtraOption[];
+}> {
+  const { supabase, userId } = await requireUserId();
+  const plans = await getPersonalWorkoutPlans();
+  const mains = plans.filter(
+    (p) => p.kind === "strength" || p.kind === "hiit"
+  );
+  const warmups = plans
+    .filter((p) => p.kind === "warmup")
+    .map((p) => ({
+      planId: p.id as string,
+      title: (p.title as string) || "Warm-up",
+      kind: "warmup" as const,
+    }));
+  const stretches = plans
+    .filter((p) => p.kind === "stretch")
+    .map((p) => ({
+      planId: p.id as string,
+      title: (p.title as string) || "Stretching",
+      kind: "stretch" as const,
+    }));
+
+  if (mains.length === 0) {
+    return { workouts: [], warmups, stretches };
+  }
+
+  const { data: days } = await supabase
+    .from("workout_days")
+    .select("id, plan_id, day_index, title")
+    .in(
+      "plan_id",
+      mains.map((p) => p.id)
+    )
+    .order("day_index");
+
+  const daysByPlan = new Map<
+    string,
+    { dayId: string; title: string; dayIndex: number }[]
+  >();
+  for (const day of days ?? []) {
+    const list = daysByPlan.get(day.plan_id) ?? [];
+    list.push({
+      dayId: day.id as string,
+      title: (day.title as string) || `Day ${(day.day_index as number) + 1}`,
+      dayIndex: day.day_index as number,
+    });
+    daysByPlan.set(day.plan_id, list);
+  }
+
+  const workouts: WeekPlanBuilderWorkoutOption[] = mains.flatMap((plan) => {
+    const planDays = daysByPlan.get(plan.id) ?? [];
+    if (planDays.length === 0) return [];
+    return [
+      {
+        planId: plan.id as string,
+        title: (plan.title as string) || "Workout",
+        kind: plan.kind === "hiit" ? "hiit" : "strength",
+        days: planDays,
+      },
+    ];
+  });
+
+  return { workouts, warmups, stretches };
+}
+
+type WeekPlanAdmin = Extract<
+  Awaited<ReturnType<typeof ensureManualPlanCreation>>,
+  { admin: unknown }
+>["admin"];
+
+async function buildWeekConfigFromInput(
+  admin: WeekPlanAdmin,
+  userId: string,
+  days: {
+    weekday: number;
+    mainPlanId: string;
+    mainDayId: string;
+    focus?: string;
+    warmupPlanId?: string | null;
+    stretchPlanId?: string | null;
+  }[]
+): Promise<
+  | { error: string }
+  | { week_config: import("@/lib/week-plan").WeekPlanConfig }
+> {
+  if (!days?.length) {
+    return { error: "Add at least one training day" };
+  }
+
+  const weekDays: import("@/lib/week-plan").WeekPlanDayConfig[] = [];
+  const usedWeekdays = new Set<number>();
+
+  for (const day of days) {
+    const weekday = Math.round(Number(day.weekday));
+    if (!Number.isFinite(weekday) || weekday < 0 || weekday > 6) {
+      return { error: "Invalid weekday" };
+    }
+    if (usedWeekdays.has(weekday)) {
+      return { error: "Each weekday can only be used once" };
+    }
+    usedWeekdays.add(weekday);
+
+    const mainPlanId = day.mainPlanId?.trim();
+    const mainDayId = day.mainDayId?.trim();
+    if (!mainPlanId || !mainDayId) {
+      return { error: "Pick a workout for each training day" };
+    }
+
+    const { data: plan } = await admin
+      .from("workout_plans")
+      .select("id, title, kind")
+      .eq("id", mainPlanId)
+      .eq("created_by", userId)
+      .eq("is_personal", true)
+      .maybeSingle();
+    if (!plan || (plan.kind !== "strength" && plan.kind !== "hiit")) {
+      return { error: "Workout not found" };
+    }
+
+    const { data: dayRow } = await admin
+      .from("workout_days")
+      .select("id, title")
+      .eq("id", mainDayId)
+      .eq("plan_id", mainPlanId)
+      .maybeSingle();
+    if (!dayRow) return { error: "Workout day not found" };
+
+    let warmupPlanId: string | null = null;
+    let stretchPlanId: string | null = null;
+
+    if (day.warmupPlanId) {
+      const { data: w } = await admin
+        .from("workout_plans")
+        .select("id")
+        .eq("id", day.warmupPlanId)
+        .eq("created_by", userId)
+        .eq("kind", "warmup")
+        .maybeSingle();
+      if (!w) return { error: "Warm-up not found" };
+      warmupPlanId = w.id as string;
+    }
+    if (day.stretchPlanId) {
+      const { data: s } = await admin
+        .from("workout_plans")
+        .select("id")
+        .eq("id", day.stretchPlanId)
+        .eq("created_by", userId)
+        .eq("kind", "stretch")
+        .maybeSingle();
+      if (!s) return { error: "Stretch not found" };
+      stretchPlanId = s.id as string;
+    }
+
+    weekDays.push({
+      focus:
+        day.focus?.trim() ||
+        (dayRow.title as string) ||
+        (plan.title as string) ||
+        "Training",
+      weekday,
+      mainPlanId,
+      mainDayId,
+      warmupPlanId,
+      stretchPlanId,
+    });
+  }
+
+  weekDays.sort((a, b) => a.weekday - b.weekday);
+
+  return {
+    week_config: {
+      includeExtras: weekDays.some((d) => d.warmupPlanId || d.stretchPlanId),
+      days: weekDays,
+    },
+  };
+}
+
+/** Create a reusable week template from existing library workouts. */
+export async function createPersonalWeekPlan(input: {
+  title: string;
+  description?: string;
+  days: {
+    weekday: number;
+    mainPlanId: string;
+    mainDayId: string;
+    focus?: string;
+    warmupPlanId?: string | null;
+    stretchPlanId?: string | null;
+  }[];
+}) {
+  const access = await ensureManualPlanCreation();
+  if ("error" in access) return { error: access.error };
+  const { admin, userId } = access;
+
+  const title = input.title.trim();
+  if (!title) return { error: "Title is required" };
+
+  const built = await buildWeekConfigFromInput(admin, userId, input.days);
+  if ("error" in built) return { error: built.error };
+
+  const { data: weekPlan, error } = await admin
+    .from("workout_plans")
+    .insert({
+      title,
+      description: input.description?.trim() || null,
+      created_by: userId,
+      is_personal: true,
+      folder_id: null,
+      kind: "week",
+      week_config: built.week_config,
+    })
+    .select("id")
+    .single();
+
+  if (error || !weekPlan) {
+    return { error: error?.message ?? "Could not create week plan" };
+  }
+
+  revalidatePath("/dashboard/workout/plans");
+  revalidatePath("/dashboard/workout");
+  return { success: true as const, id: weekPlan.id as string };
+}
+
+export async function getPersonalWeekPlan(
+  planId: string
+): Promise<PersonalWeekPlanListItem | null> {
+  const { supabase, userId } = await requireUserId();
+  const { normalizeWeekPlanConfig } = await import("@/lib/week-plan");
+
+  const { data: plan } = await supabase
+    .from("workout_plans")
+    .select(WORKOUT_PLAN_WEEK_LIST_COLUMNS)
+    .eq("id", planId)
+    .eq("created_by", userId)
+    .eq("is_personal", true)
+    .eq("kind", "week")
+    .maybeSingle();
+
+  if (!plan) return null;
+  const config = normalizeWeekPlanConfig(plan.week_config);
+  if (!config) return null;
+
+  return {
+    id: plan.id as string,
+    title: (plan.title as string) || "Week plan",
+    description: (plan.description as string | null) ?? null,
+    createdAt: (plan.created_at as string | null) ?? null,
+    config,
+  };
+}
+
+export type WeekPlanPreviewExercise = {
+  id: string;
+  name: string;
+  sets: number;
+  reps: string;
+  notes: string | null;
+  image_url?: string | null;
+  video_url?: string | null;
+};
+
+export type WeekPlanPreviewWorkout = {
+  weekday: number;
+  focus: string;
+  planId: string;
+  dayId: string;
+  planTitle: string;
+  planKind: string;
+  dayTitle: string;
+  exercises: WeekPlanPreviewExercise[];
+};
+
+/** Week template + resolved workouts/exercises for preview. */
+export async function getWeekPlanPreview(planId: string): Promise<{
+  plan: PersonalWeekPlanListItem;
+  workouts: WeekPlanPreviewWorkout[];
+} | null> {
+  const weekPlan = await getPersonalWeekPlan(planId);
+  if (!weekPlan) return null;
+
+  const { supabase, userId } = await requireUserId();
+  const { isIntervalPlan, normalizeHiitConfig } = await import("@/lib/hiit");
+
+  const planIds = [
+    ...new Set(weekPlan.config.days.map((d) => d.mainPlanId).filter(Boolean)),
+  ];
+  if (planIds.length === 0) {
+    return { plan: weekPlan, workouts: [] };
+  }
+
+  const [{ data: plans }, { data: days }] = await Promise.all([
+    supabase
+      .from("workout_plans")
+      .select(WORKOUT_PLAN_LIST_COLUMNS)
+      .in("id", planIds)
+      .eq("created_by", userId)
+      .eq("is_personal", true),
+    supabase
+      .from("workout_days")
+      .select(WORKOUT_DAY_WITH_EXERCISES)
+      .in("plan_id", planIds)
+      .order("day_index"),
+  ]);
+
+  const planById = new Map((plans ?? []).map((p) => [p.id as string, p]));
+  const daysByPlan = new Map<string, typeof days>();
+  for (const day of days ?? []) {
+    const list = daysByPlan.get(day.plan_id as string) ?? [];
+    list.push(day);
+    daysByPlan.set(day.plan_id as string, list);
+  }
+
+  const workouts: WeekPlanPreviewWorkout[] = weekPlan.config.days
+    .slice()
+    .sort((a, b) => a.weekday - b.weekday)
+    .flatMap((day) => {
+      const plan = planById.get(day.mainPlanId);
+      if (!plan) return [];
+      const planDays = daysByPlan.get(day.mainPlanId) ?? [];
+      const workoutDay =
+        planDays.find((d) => d.id === day.mainDayId) ?? planDays[0] ?? null;
+
+      let exercises: WeekPlanPreviewExercise[] = [];
+      if (isIntervalPlan(plan)) {
+        const config = normalizeHiitConfig(plan.hiit_config);
+        exercises = (config?.exercises ?? []).map((ex, index) => ({
+          id: `hiit-${day.mainPlanId}-${index}`,
+          name: ex.name,
+          sets: 1,
+          reps: `${ex.work_seconds}s`,
+          notes: ex.notes ?? null,
+          image_url: ex.image_url ?? null,
+          video_url: ex.video_url ?? null,
+        }));
+      } else {
+        const raw = (workoutDay?.exercises ?? []) as {
+          id: string;
+          name: string;
+          sets: number;
+          reps: string;
+          notes: string | null;
+          image_url?: string | null;
+          video_url?: string | null;
+          order_index?: number | null;
+        }[];
+        exercises = raw
+          .slice()
+          .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+          .map((ex) => ({
+            id: ex.id,
+            name: ex.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            notes: ex.notes,
+            image_url: ex.image_url,
+            video_url: ex.video_url,
+          }));
+      }
+
+      return [
+        {
+          weekday: day.weekday,
+          focus: day.focus,
+          planId: day.mainPlanId,
+          dayId: (workoutDay?.id as string) || day.mainDayId,
+          planTitle: (plan.title as string) || day.focus,
+          planKind: ((plan.kind as string | null) ?? "strength") as string,
+          dayTitle:
+            (workoutDay?.title as string) ||
+            (plan.title as string) ||
+            day.focus,
+          exercises,
+        },
+      ];
+    });
+
+  return { plan: weekPlan, workouts };
+}
+
+/** Update an existing week template. */
+export async function updatePersonalWeekPlan(input: {
+  planId: string;
+  title: string;
+  description?: string;
+  days: {
+    weekday: number;
+    mainPlanId: string;
+    mainDayId: string;
+    focus?: string;
+    warmupPlanId?: string | null;
+    stretchPlanId?: string | null;
+  }[];
+}) {
+  const access = await ensureManualPlanCreation();
+  if ("error" in access) return { error: access.error };
+  const { admin, userId } = access;
+
+  const planId = input.planId?.trim();
+  if (!planId) return { error: "Plan not found" };
+
+  const title = input.title.trim();
+  if (!title) return { error: "Title is required" };
+
+  const { data: existing } = await admin
+    .from("workout_plans")
+    .select("id")
+    .eq("id", planId)
+    .eq("created_by", userId)
+    .eq("is_personal", true)
+    .eq("kind", "week")
+    .maybeSingle();
+  if (!existing) return { error: "Week plan not found" };
+
+  const built = await buildWeekConfigFromInput(admin, userId, input.days);
+  if ("error" in built) return { error: built.error };
+
+  const week_config = {
+    ...built.week_config,
+    lastScheduledAt: null,
+    scheduledUntil: null,
+    scheduledStartDate: null,
+    scheduledWeeks: null,
+  };
+
+  const { error } = await admin
+    .from("workout_plans")
+    .update({
+      title,
+      description: input.description?.trim() || null,
+      week_config,
+    })
+    .eq("id", planId)
+    .eq("created_by", userId);
+
+  if (error) {
+    return { error: error.message ?? "Could not update week plan" };
+  }
+
+  revalidatePath("/dashboard/workout/plans");
+  revalidatePath(`/dashboard/workout/plans/${planId}/edit`);
+  revalidatePath("/dashboard/workout");
+  return { success: true as const, id: planId };
+}
+
+/** Schedule an existing week template for N weeks onto the calendar. */
+export async function schedulePersonalWeekPlan(input: {
+  weekPlanId: string;
+  weeks: number;
+  startDate?: string;
+}) {
+  const access = await ensureManualPlanCreation();
+  if ("error" in access) return { error: access.error };
+  const { admin, userId } = access;
+  const { normalizeWeekPlanConfig } = await import("@/lib/week-plan");
+
+  const { data: plan } = await admin
+    .from("workout_plans")
+    .select("id, title, kind, week_config")
+    .eq("id", input.weekPlanId)
+    .eq("created_by", userId)
+    .eq("is_personal", true)
+    .eq("kind", "week")
+    .maybeSingle();
+
+  if (!plan) return { error: "Week plan not found" };
+  const config = normalizeWeekPlanConfig(plan.week_config);
+  if (!config?.days.length) return { error: "Week plan has no training days" };
+
+  const weeks = Math.min(52, Math.max(1, Math.round(input.weeks) || 4));
+  const startDate =
+    input.startDate?.trim() ||
+    config.scheduledStartDate ||
+    new Date().toISOString().split("T")[0]!;
+  const anchor = new Date(startDate + "T12:00:00");
+
+  const uniqueWeekdays = [
+    ...new Set(config.days.map((d) => d.weekday).filter((d) => d >= 0 && d <= 6)),
+  ];
+  const targetDates = new Set<string>();
+  for (const weekday of uniqueWeekdays) {
+    for (const d of generateRecurringScheduleDates(anchor, [weekday], weeks)) {
+      targetDates.add(d);
+    }
+  }
+
+  // Also clear any leftover dates from a previous schedule of this plan.
+  const datesToClear = new Set(targetDates);
+  if (config.scheduledStartDate && config.scheduledWeeks) {
+    const prevAnchor = new Date(config.scheduledStartDate + "T12:00:00");
+    for (const weekday of uniqueWeekdays) {
+      for (const d of generateRecurringScheduleDates(
+        prevAnchor,
+        [weekday],
+        config.scheduledWeeks
+      )) {
+        datesToClear.add(d);
+      }
+    }
+  }
+
+  if (datesToClear.size > 0) {
+    try {
+      await clearScheduledWorkoutsOnDates(admin, userId, [...datesToClear]);
+    } catch (e) {
+      return {
+        error:
+          e instanceof Error ? e.message : "Could not clear existing schedule",
+      };
+    }
+  }
+
+  let scheduledCount = 0;
+  for (const day of config.days) {
+    const dates = generateRecurringScheduleDates(anchor, [day.weekday], weeks);
+    for (const dateKey of dates) {
+      const refs: { planId: string; dayId: string }[] = [];
+      if (config.includeExtras && day.warmupPlanId) {
+        const { data: wDay } = await admin
+          .from("workout_days")
+          .select("id")
+          .eq("plan_id", day.warmupPlanId)
+          .order("day_index")
+          .limit(1)
+          .maybeSingle();
+        if (wDay?.id) {
+          refs.push({ planId: day.warmupPlanId, dayId: wDay.id as string });
+        }
+      }
+      refs.push({ planId: day.mainPlanId, dayId: day.mainDayId });
+      if (config.includeExtras && day.stretchPlanId) {
+        const { data: sDay } = await admin
+          .from("workout_days")
+          .select("id")
+          .eq("plan_id", day.stretchPlanId)
+          .order("day_index")
+          .limit(1)
+          .maybeSingle();
+        if (sDay?.id) {
+          refs.push({ planId: day.stretchPlanId, dayId: sDay.id as string });
+        }
+      }
+
+      for (const ref of refs) {
+        const result = await addWorkoutToDay(dateKey, ref.planId, ref.dayId);
+        if (result?.error) {
+          return {
+            error: `Scheduled partially, then failed on ${dateKey}: ${result.error}`,
+          };
+        }
+        scheduledCount += 1;
+      }
+    }
+  }
+
+  // Mark this template as currently scheduled; clear the flag on siblings.
+  const scheduledAt = new Date().toISOString();
+  const scheduledUntil =
+    [...targetDates].sort().at(-1) ?? startDate;
+  const { data: siblingPlans } = await admin
+    .from("workout_plans")
+    .select("id, week_config")
+    .eq("created_by", userId)
+    .eq("is_personal", true)
+    .eq("kind", "week");
+
+  for (const sibling of siblingPlans ?? []) {
+    const siblingConfig = normalizeWeekPlanConfig(sibling.week_config);
+    if (!siblingConfig) continue;
+    const isThis = sibling.id === plan.id;
+    const nextConfig = isThis
+      ? {
+          ...siblingConfig,
+          lastScheduledAt: scheduledAt,
+          scheduledUntil,
+          scheduledStartDate: startDate,
+          scheduledWeeks: weeks,
+        }
+      : siblingConfig.lastScheduledAt ||
+          siblingConfig.scheduledUntil ||
+          siblingConfig.scheduledWeeks
+        ? {
+            ...siblingConfig,
+            lastScheduledAt: null,
+            scheduledUntil: null,
+            scheduledStartDate: null,
+            scheduledWeeks: null,
+          }
+        : null;
+    if (!nextConfig) continue;
+    await admin
+      .from("workout_plans")
+      .update({ week_config: nextConfig })
+      .eq("id", sibling.id)
+      .eq("created_by", userId);
+  }
+
+  revalidatePath("/dashboard/workout");
+  revalidatePath("/dashboard/workout/schedule");
+  revalidatePath("/dashboard/workout/plans");
+  return { success: true as const, count: scheduledCount, weeks };
 }
 
 export interface PersonalExerciseLibraryItem {

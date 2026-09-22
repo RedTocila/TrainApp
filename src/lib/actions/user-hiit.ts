@@ -12,6 +12,7 @@ import {
 import { WORKOUT_PLAN_LIST_COLUMNS } from "@/lib/db-selects";
 import { UNCATEGORIZED_FOLDER_ID } from "@/lib/workout-folders";
 import { assignPersonalWorkoutPlan } from "@/lib/actions/user-workouts";
+import { fingerprintHiitConfig } from "@/lib/workout-content-fingerprint";
 
 export async function savePersonalHiitPlan(input: {
   planId?: string;
@@ -68,6 +69,41 @@ export async function savePersonalHiitPlan(input: {
   let planId = input.planId ?? null;
 
   if (!planId) {
+    // Reuse an existing personal plan with the same kind + exercise content.
+    const fingerprint = fingerprintHiitConfig(planKind, config);
+    if (fingerprint) {
+      const { data: candidates } = await admin
+        .from("workout_plans")
+        .select("id, hiit_config")
+        .eq("created_by", userId)
+        .eq("is_personal", true)
+        .eq("kind", planKind)
+        .order("created_at", { ascending: false })
+        .limit(80);
+
+      for (const row of candidates ?? []) {
+        const existingFp = fingerprintHiitConfig(
+          planKind,
+          normalizeHiitConfig(row.hiit_config)
+        );
+        if (existingFp && existingFp === fingerprint) {
+          const { data: day } = await admin
+            .from("workout_days")
+            .select("id")
+            .eq("plan_id", row.id)
+            .order("day_index")
+            .limit(1)
+            .maybeSingle();
+          if (day?.id) {
+            if (input.assign === true) {
+              await assignPersonalWorkoutPlan(row.id as string);
+            }
+            return { data: { id: row.id as string, dayId: day.id as string } };
+          }
+        }
+      }
+    }
+
     const { data, error } = await admin
       .from("workout_plans")
       .insert({

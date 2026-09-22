@@ -659,6 +659,7 @@ Rules:
 - ALWAYS return a complete day with all three parts. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
 - Always return all three parts: warmup, main, stretch.
 - Warm-up and stretching use interval timers (work_seconds / rest_seconds) — NOT sets × reps.
+- Do not copy generic templates — warm-up and stretch must match THIS day's main muscles and feel distinct.
 - Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, injuries, medications/supplements, allergies, or condition notes when present.
 - Main workout kind for this day must be "${mainKind}" (${
     mainKind === "hiit"

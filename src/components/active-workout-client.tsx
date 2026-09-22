@@ -53,7 +53,9 @@ import {
 } from "@/lib/workout-duration";
 import { markReminderDone } from "@/lib/reminder-events";
 import { clearWorkoutTimerState } from "@/lib/workout-timer-storage";
+import { formatUserError } from "@/lib/format-user-error";
 import {
+  SessionBusyOverlay,
   SessionCircleButton,
   SessionMediaStage,
   SessionSideIconButton,
@@ -587,6 +589,8 @@ export function ActiveWorkoutClient({
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isFinishing, setIsFinishing] = useState(false);
+  const finishLockRef = useRef(false);
   const [exercises, setExercises] = useState(initialExercises);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLoadingExercises, setIsLoadingExercises] = useState(
@@ -756,14 +760,19 @@ export function ActiveWorkoutClient({
     void leaveWorkout();
   };
 
-  const handleFinishWorkout = () => {
+  const handleFinishWorkout = async () => {
+    if (finishLockRef.current || isFinishing || isContinuing) return;
+    finishLockRef.current = true;
     setError(null);
-    startTransition(async () => {
-      leaveHandledRef.current = true;
+    setIsFinishing(true);
+    leaveHandledRef.current = true;
+    try {
       const result = await completeWorkoutSession(session.id, null);
       if (result.error) {
         leaveHandledRef.current = false;
         setError(result.error);
+        finishLockRef.current = false;
+        setIsFinishing(false);
         return;
       }
       clearWorkoutTimerState(session.id);
@@ -785,10 +794,16 @@ export function ActiveWorkoutClient({
         planKind: result.planKind ?? planKind,
         nextWorkout: result.nextWorkout ?? null,
       });
-      if (flow === "done") {
-        router.refresh();
+      if (flow === "stretch_offer") {
+        finishLockRef.current = false;
+        setIsFinishing(false);
       }
-    });
+    } catch (err) {
+      leaveHandledRef.current = false;
+      setError(formatUserError(err));
+      finishLockRef.current = false;
+      setIsFinishing(false);
+    }
   };
 
   const headerTitle =
@@ -970,21 +985,23 @@ export function ActiveWorkoutClient({
           <Button
             size="lg"
             className="h-12 w-full rounded-full text-base font-bold"
-            disabled={isPending || isContinuing}
+            disabled={isPending || isFinishing || isContinuing}
             onClick={handleFinishWorkout}
           >
-            {isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {isFinishing || isContinuing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Check className="mr-2 h-4 w-4" />
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                {coachLabels.actuallyFinish}
+              </>
             )}
-            {isPending ? platform.common.saving : coachLabels.actuallyFinish}
           </Button>
           <Button
             type="button"
             variant="ghost"
             className="w-full text-muted-foreground"
-            disabled={isPending || isGivingUp}
+            disabled={isPending || isFinishing || isGivingUp}
             onClick={handleDiscardWorkout}
           >
             {platform.workout.discardWorkout}
@@ -992,6 +1009,9 @@ export function ActiveWorkoutClient({
         </div>
       ) : null}
 
+      {isFinishing || isContinuing ? (
+        <SessionBusyOverlay label={platform.common.saving} />
+      ) : null}
       {giveUpDialog}
       {StretchOfferDialog}
     </div>

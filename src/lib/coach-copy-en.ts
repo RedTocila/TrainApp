@@ -79,6 +79,18 @@ export const coachCopyEn = {
     confirm: "Yeah, clear it",
     cancel: "Keep the schedule",
   },
+  scheduleWeekPlan: (title: string, weeks: number) => ({
+    title: "Replace your calendar?",
+    message: `Scheduling "${title}" for ${weeks} week${weeks === 1 ? "" : "s"} clears whatever is already booked on those days, then lays this plan down. Coach Alex says commit — or don't. Proceed?`,
+    confirm: "Yeah, schedule it",
+    cancel: "Not yet",
+  }),
+  updateWeekPlanSchedule: (title: string, weeks: number) => ({
+    title: "Update the schedule?",
+    message: `Change "${title}" to ${weeks} week${weeks === 1 ? "" : "s"} — extra weeks get added, cut weeks get cleared off the calendar. Coach Alex is watching. Save it?`,
+    confirm: "Yeah, save it",
+    cancel: "Not yet",
+  }),
   clearNutritionSchedule: {
     title: "Clear the meal schedule?",
     message:

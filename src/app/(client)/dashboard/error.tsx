@@ -4,6 +4,16 @@ import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 import { ClientErrorFallback } from "@/components/client-error-fallback";
 
+function userFacingMessage(error: Error & { digest?: string }) {
+  const staleClient =
+    error.name === "UnrecognizedActionError" ||
+    error.message.includes("UnrecognizedActionError");
+  if (staleClient) {
+    return "The app was updated. Reload the page, then try again.";
+  }
+  return "Something went wrong on this page. Try again, or head back and continue from there.";
+}
+
 export default function DashboardError({
   error,
   reset,
@@ -22,15 +32,15 @@ export default function DashboardError({
 
   return (
     <ClientErrorFallback
-      title="This section couldn't load"
-      message={
-        staleClient
-          ? "The app was updated. Reload the page, then try logging your meal again."
-          : process.env.NODE_ENV !== "production" && error.message
-            ? error.message
-            : "Something went wrong while loading this page. You can try again or go back."
-      }
-      onRetry={() => reset()}
+      title="Couldn't open this page"
+      message={userFacingMessage(error)}
+      onRetry={() => {
+        if (staleClient) {
+          window.location.reload();
+          return;
+        }
+        reset();
+      }}
       onBack={() => {
         if (window.history.length > 1) {
           window.history.back();

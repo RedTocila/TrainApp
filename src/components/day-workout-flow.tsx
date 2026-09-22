@@ -32,11 +32,10 @@ async function startNextSession(
     scheduledWorkoutId: next.scheduledWorkoutId,
   });
   if (result && "sessionId" in result && result.sessionId) {
-    router.push(`/dashboard/workout/session/${result.sessionId}`);
+    router.replace(`/dashboard/workout/session/${result.sessionId}`);
     return;
   }
-  router.push("/dashboard");
-  router.refresh();
+  router.replace("/dashboard");
 }
 
 async function skipStretchSession(
@@ -50,8 +49,7 @@ async function skipStretchSession(
     scheduledWorkoutId: next.scheduledWorkoutId,
     dayTitle: next.dayTitle,
   });
-  router.push("/dashboard");
-  router.refresh();
+  router.replace("/dashboard");
 }
 
 /**
@@ -93,7 +91,7 @@ export function useDayWorkoutFlowContinue() {
         return "stretch_offer" as const;
       }
 
-      router.push("/dashboard");
+      router.replace("/dashboard");
       return "done" as const;
     },
     [router, startNext]
@@ -107,8 +105,7 @@ export function useDayWorkoutFlowContinue() {
         await skipStretchSession(next, router);
         return;
       }
-      router.push("/dashboard");
-      router.refresh();
+      router.replace("/dashboard");
     });
   }, [router, stretchOffer]);
 
@@ -188,7 +185,7 @@ export function AutoContinueDayFlow({ next }: { next: DayFlowNextWorkout }) {
         scheduledWorkoutId: next.scheduledWorkoutId,
       });
       if (result && "sessionId" in result && result.sessionId) {
-        router.push(`/dashboard/workout/session/${result.sessionId}`);
+        router.replace(`/dashboard/workout/session/${result.sessionId}`);
         return;
       }
       startedRef.current = false;
@@ -218,8 +215,7 @@ export function AutoContinueDayFlow({ next }: { next: DayFlowNextWorkout }) {
             variant="ghost"
             disabled={isPending}
             onClick={() => {
-              router.push("/dashboard");
-              router.refresh();
+              router.replace("/dashboard");
             }}
           >
             {platform.common.cancel}
@@ -272,8 +268,14 @@ function StretchOfferOverlay({
         </CardHeader>
         <CardContent className="flex flex-col gap-2 pb-5">
           <Button className="w-full" disabled={busy} onClick={onAccept}>
-            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {platform.workout.doStretch}
+            {busy ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {platform.common.saving}
+              </>
+            ) : (
+              platform.workout.doStretch
+            )}
           </Button>
           <Button
             variant="ghost"
@@ -281,7 +283,7 @@ function StretchOfferOverlay({
             disabled={busy}
             onClick={onSkip}
           >
-            {platform.workout.skipStretch}
+            {busy ? platform.common.saving : platform.workout.skipStretch}
           </Button>
         </CardContent>
       </Card>

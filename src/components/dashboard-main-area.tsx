@@ -9,6 +9,8 @@ import { WorkoutPageChromeProvider } from "@/components/workout-page-chrome-cont
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { TrainSectionShell } from "@/components/train-section-shell";
 import { scrollDashboardMainToTop } from "@/components/dashboard-main-reset";
+import { cn } from "@/lib/utils";
+import { hidesDashboardChrome } from "@/lib/train-nav";
 
 export function DashboardMainArea({
   children,
@@ -20,6 +22,9 @@ export function DashboardMainArea({
   const isNavigating = pendingHref !== null || routeLoadingCount > 0;
   const showPendingSkeleton =
     pendingHref !== null && routeLoadingCount === 0;
+  const fadeOnly = hidesDashboardChrome(
+    showPendingSkeleton && pendingHref ? pendingHref : pathname
+  );
 
   useEffect(() => {
     if (!isNavigating) return;
@@ -33,11 +38,17 @@ export function DashboardMainArea({
         <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
           <TrainSectionShell>
             {showPendingSkeleton ? (
-              <div className="page-enter" key={`skeleton-${pendingHref}`}>
+              <div
+                className={cn("page-enter", fadeOnly && "page-enter--fade")}
+                key={`skeleton-${pendingHref}`}
+              >
                 <DashboardPageSkeleton href={pendingHref} />
               </div>
             ) : (
-              <div className="page-enter" key={pathname}>
+              <div
+                className={cn("page-enter", fadeOnly && "page-enter--fade")}
+                key={pathname}
+              >
                 {children}
               </div>
             )}

@@ -7,7 +7,8 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 
 /**
  * Kept for call-site compatibility. Route enter motion is handled by
- * `.page-enter` in dashboard/admin shells (CSS-only, one animation).
+ * `.page-enter` in dashboard/admin/auth shells (CSS-only, one animation).
+ * Do not wrap again here — nested enters would double-animate.
  */
 export function PageTransition({ children }: { children: ReactNode }) {
   return <>{children}</>;

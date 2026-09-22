@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { DialogPortal } from "@/components/dialog-portal";
 import { AiChatClientLazy } from "@/components/ai-chat-client-lazy";
@@ -18,6 +18,8 @@ import { useVisualViewportFrame } from "@/hooks/use-visual-viewport-frame";
  */
 const OPAQUE_DARK = "#121214";
 const OPAQUE_LIGHT = "#f4f4f5";
+/** Keep in sync with `--duration-page` in globals.css */
+const PAGE_MS = 320;
 
 function useOpaqueChatBg(): string {
   const [bg, setBg] = useState(OPAQUE_DARK);
@@ -51,23 +53,55 @@ export function AiCoachChatDialog() {
   } = useAiCoachChat();
   const platform = usePlatformCopy();
   const ai = platform.ai;
+  const [present, setPresent] = useState(isOpen);
   const [entered, setEntered] = useState(false);
-  const frame = useVisualViewportFrame(isOpen);
+  const openRef = useRef(isOpen);
+  const frame = useVisualViewportFrame(present);
   const opaqueBg = useOpaqueChatBg();
 
-  useLockBodyScroll(isOpen);
-
   useEffect(() => {
-    if (!isOpen) {
-      setEntered(false);
-      return;
-    }
-    const id = requestAnimationFrame(() => setEntered(true));
-    return () => cancelAnimationFrame(id);
+    openRef.current = isOpen;
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    let cancelled = false;
+    let raf1 = 0;
+    let raf2 = 0;
+    let timeoutId = 0;
+
+    if (isOpen) {
+      raf1 = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        setPresent(true);
+        setEntered(false);
+        raf2 = window.requestAnimationFrame(() => {
+          if (cancelled || !openRef.current) return;
+          setEntered(true);
+        });
+      });
+    } else {
+      raf1 = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+        setEntered(false);
+      });
+      timeoutId = window.setTimeout(() => {
+        if (cancelled || openRef.current) return;
+        setPresent(false);
+      }, PAGE_MS);
+    }
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      window.clearTimeout(timeoutId);
+    };
+  }, [isOpen]);
+
+  useLockBodyScroll(present);
+
+  useEffect(() => {
+    if (!present || !isOpen) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -80,23 +114,25 @@ export function AiCoachChatDialog() {
     return () => {
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [isOpen, closeChat, readMeOpen, closeReadMe]);
+  }, [present, isOpen, closeChat, readMeOpen, closeReadMe]);
 
-  if (!isOpen) return null;
+  if (!present) return null;
 
   return (
-    <DialogPortal open={isOpen}>
+    <DialogPortal open={present}>
       {/* Full-screen opaque backdrop — covers whatever is behind the chat. */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 z-[110]"
+        data-open={entered ? "true" : "false"}
+        className="overlay-fullscreen pointer-events-none fixed inset-0 z-[110]"
         style={{ backgroundColor: opaqueBg }}
       />
       {/* Only when the keyboard is open: paint the band under the visual viewport. */}
       {frame.keyboardOpen ? (
         <div
           aria-hidden
-          className="pointer-events-none fixed inset-x-0 z-[110]"
+          data-open={entered ? "true" : "false"}
+          className="overlay-fullscreen pointer-events-none fixed inset-x-0 z-[110]"
           style={{
             top: frame.underlayTop,
             height: frame.underlayHeight,
@@ -108,9 +144,8 @@ export function AiCoachChatDialog() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-coach-chat-title"
-        className={`fixed inset-x-0 z-[111] flex flex-col overflow-hidden transition-transform duration-150 ease-out ${
-          entered ? "translate-y-0" : "translate-y-1"
-        }`}
+        data-open={entered ? "true" : "false"}
+        className="overlay-chat-page fixed inset-x-0 z-[111] flex flex-col overflow-hidden"
         style={{
           top: frame.offsetTop,
           height: frame.height,

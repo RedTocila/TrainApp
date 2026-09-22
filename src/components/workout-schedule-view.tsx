@@ -157,17 +157,6 @@ export function WorkoutScheduleView() {
         })}
       </div>
 
-      <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-primary" />
-          {platform.workout.workoutPlan}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-orange-500" />
-          {platform.cardio.title}
-        </span>
-      </div>
-
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, index) => (

@@ -31,7 +31,7 @@ import {
   DASHBOARD_PROGRESS_PHOTOS_PATH,
 } from "@/lib/dashboard-day-routes";
 import { cn } from "@/lib/utils";
-import { isActiveWorkoutSessionPath, isTrainPath } from "@/lib/train-nav";
+import { hidesDashboardChrome, isTrainPath } from "@/lib/train-nav";
 
 const headerSurface =
   "rounded-full border border-border/70 bg-card/90 shadow-sm backdrop-blur-md dark:border-border/50 dark:bg-card/75";
@@ -191,11 +191,11 @@ export function DashboardMobileChrome() {
   const pathname = usePathname();
   const { pendingHref } = useDashboardNavPending();
   const chromePath = pendingHref ?? pathname;
-  const isSession = isActiveWorkoutSessionPath(chromePath);
-  const showTrainTabs = isTrainPath(chromePath) && !isSession;
+  const isImmersive = hidesDashboardChrome(chromePath);
+  const showTrainTabs = isTrainPath(chromePath) && !isImmersive;
   const showCalendar = chromePath === "/dashboard";
 
-  if (isSession) return null;
+  if (isImmersive) return null;
 
   return (
     <div className="mobile-top-safe sticky top-0 z-50 shrink-0 bg-background lg:hidden">

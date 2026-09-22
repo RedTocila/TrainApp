@@ -150,6 +150,7 @@ export interface WorkoutPlan {
   trainer_label?: string | null;
   kind?: import("@/lib/hiit").WorkoutPlanKind;
   hiit_config?: HiitConfig | null;
+  week_config?: import("@/lib/week-plan").WeekPlanConfig | null;
   created_at: string;
 }
 

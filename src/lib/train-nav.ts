@@ -27,9 +27,27 @@ export function isActiveWorkoutSessionPath(pathname: string) {
   );
 }
 
+/** Dedicated create/edit/preview plan flow — fullscreen without app chrome. */
+export function isWeekPlanBuilderPath(pathname: string) {
+  const path = pathOnly(pathname);
+  // /plans/new, /plans/:id, /plans/:id/edit — not /plans itself
+  return (
+    path === "/dashboard/workout/plans/new" ||
+    path.startsWith("/dashboard/workout/plans/new/") ||
+    /^\/dashboard\/workout\/plans\/[^/]+(\/edit)?$/.test(path)
+  );
+}
+
+/** Hide logo / train tabs / bottom nav for immersive pages. */
+export function hidesDashboardChrome(pathname: string) {
+  return (
+    isActiveWorkoutSessionPath(pathname) || isWeekPlanBuilderPath(pathname)
+  );
+}
+
 /** Active workout sessions are opened from Home — don't highlight Programs. */
 export function isProgramsNavActive(pathname: string) {
-  return isTrainPath(pathname) && !isActiveWorkoutSessionPath(pathname);
+  return isTrainPath(pathname) && !hidesDashboardChrome(pathname);
 }
 
 export function isHomeNavActive(pathname: string) {

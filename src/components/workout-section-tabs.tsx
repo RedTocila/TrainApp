@@ -6,7 +6,7 @@ import { usePlatformCopy } from "@/components/locale-provider";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { CompactSubLink } from "@/components/programs/compact-nav";
 
-function isProgramsSection(path: string) {
+function isPlansSection(path: string) {
   if (path.startsWith("/dashboard/workout/cardio")) return false;
   if (path.startsWith("/dashboard/workout/schedule")) return false;
   if (path.startsWith("/dashboard/workout/session")) return false;
@@ -15,6 +15,7 @@ function isProgramsSection(path: string) {
     path.startsWith("/dashboard/workout/exercises") ||
     path.startsWith("/dashboard/workout/folder") ||
     path.startsWith("/dashboard/workout/workouts") ||
+    path.startsWith("/dashboard/workout/plans") ||
     path.startsWith("/dashboard/workout/new") ||
     /^\/dashboard\/workout\/[^/]+/.test(path)
   );
@@ -35,12 +36,11 @@ export function WorkoutSectionTabs({ className }: { className?: string }) {
       isActive: (path: string) => path.startsWith("/dashboard/workout/schedule"),
     },
     {
-      href: "/dashboard/workout",
+      href: "/dashboard/workout/plans",
       label: platform.nav.programs,
       icon: LayoutGrid,
-      exactMatch: true,
       activeClass: "bg-primary/15 text-primary",
-      isActive: isProgramsSection,
+      isActive: isPlansSection,
     },
     {
       href: "/dashboard/workout/cardio",
@@ -63,7 +63,9 @@ export function WorkoutSectionTabs({ className }: { className?: string }) {
             active={tab.isActive(activePath)}
             activeClass={tab.activeClass}
             onNavigateStart={setPendingHref}
-            exactMatch={"exactMatch" in tab ? tab.exactMatch : false}
+            exactMatch={
+              "exactMatch" in tab ? Boolean(tab.exactMatch) : false
+            }
           />
         ))}
       </div>

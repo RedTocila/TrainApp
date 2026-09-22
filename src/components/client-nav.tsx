@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import {
-  Dumbbell,
-  Home,
+  CalendarDays,
+  House,
   Trophy,
-  User,
+  UserRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,7 @@ import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { getHasLivePublishedChallenge } from "@/lib/actions/challenges";
 import {
-  isActiveWorkoutSessionPath,
+  hidesDashboardChrome,
   isHomeNavActive,
   isProgramsNavActive,
 } from "@/lib/train-nav";
@@ -29,18 +29,40 @@ import {
 const mobileNavLinkClass =
   "pressable relative z-[1] flex h-full min-w-0 flex-1 items-center justify-center touch-manipulation select-none [-webkit-tap-highlight-color:transparent] transition-[transform,opacity,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 active:opacity-90";
 
+function NavGlyph({
+  icon: Icon,
+  active,
+  className,
+}: {
+  icon: LucideIcon;
+  active: boolean;
+  className?: string;
+}) {
+  return (
+    <Icon
+      className={className}
+      fill={active ? "currentColor" : "none"}
+      fillOpacity={active ? 0.22 : 0}
+      strokeWidth={1.75}
+      aria-hidden
+    />
+  );
+}
+
 function NavIconWithDot({
   icon: Icon,
+  active,
   showDot,
   className,
 }: {
   icon: LucideIcon;
+  active: boolean;
   showDot: boolean;
   className?: string;
 }) {
   return (
     <span className="relative z-[1] inline-flex">
-      <Icon className={className} />
+      <NavGlyph icon={Icon} active={active} className={className} />
       {showDot ? (
         <span
           aria-hidden
@@ -62,7 +84,7 @@ export function ClientNav({
   const platform = usePlatformCopy();
   const reduceMotion = useReducedMotion();
   const activePath = pendingHref ?? pathname;
-  const hideNav = isActiveWorkoutSessionPath(activePath);
+  const hideNav = hidesDashboardChrome(activePath);
   const hideMobileChrome = hideNav || alexChatOpen;
   const programsActive = isProgramsNavActive(activePath);
   const homeActive = isHomeNavActive(activePath);
@@ -119,13 +141,13 @@ export function ClientNav({
     {
       href: "/dashboard",
       label: platform.nav.home,
-      icon: Home,
+      icon: House,
       active: homeActive,
     },
     {
       href: "/dashboard/workout/schedule",
       label: platform.nav.programs,
-      icon: Dumbbell,
+      icon: CalendarDays,
       active: programsActive,
       tapSlop: 16,
     },
@@ -142,7 +164,7 @@ export function ClientNav({
     {
       href: "/dashboard/profile",
       label: platform.nav.profile,
-      icon: User,
+      icon: UserRound,
       active:
         activePath === "/dashboard/profile" ||
         activePath.startsWith("/dashboard/profile/"),
@@ -177,9 +199,18 @@ export function ClientNav({
               className={sidebarLinkClass(item.active)}
             >
               {item.showDot ? (
-                <NavIconWithDot icon={item.icon} showDot className="h-4 w-4" />
+                <NavIconWithDot
+                  icon={item.icon}
+                  active={item.active}
+                  showDot
+                  className="h-4 w-4"
+                />
               ) : (
-                <item.icon className="h-4 w-4" />
+                <NavGlyph
+                  icon={item.icon}
+                  active={item.active}
+                  className="h-4 w-4"
+                />
               )}
               {item.label}
             </InstantNavLink>
@@ -231,11 +262,16 @@ export function ClientNav({
                   {item.showDot ? (
                     <NavIconWithDot
                       icon={item.icon}
+                      active={item.active}
                       showDot
                       className={cn("h-6 w-6", liveChallengeActive && "animate-pulse")}
                     />
                   ) : (
-                    <item.icon className="relative z-[1] h-6 w-6" />
+                    <NavGlyph
+                      icon={item.icon}
+                      active={item.active}
+                      className="relative z-[1] h-6 w-6"
+                    />
                   )}
                 </InstantNavLink>
               ))}

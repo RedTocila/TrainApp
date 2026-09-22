@@ -20,7 +20,7 @@
   --duration-press: 140ms;
   --duration-fast: 180ms;
   --duration-normal: 240ms;
-  --duration-page: 280ms;
+  --duration-page: 320ms;
   --duration-drawer: 320ms;
 }
 
@@ -131,8 +131,19 @@ body {
   }
 }
 
-/* Soft page enter — opacity only (avoids transform containing-block breaking position:fixed) */
+/* Soft page enter — rise + fade. End state clears transform so fixed children stay viewport-fixed. */
 @keyframes rutina-page-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes rutina-page-enter-fade {
   from {
     opacity: 0;
   }
@@ -145,8 +156,14 @@ body {
   animation: rutina-page-enter var(--duration-page) var(--ease-out-premium) both;
 }
 
+/* Immersive / fixed-fullscreen routes — opacity only (avoids transform containing block). */
+.page-enter--fade {
+  animation-name: rutina-page-enter-fade;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .page-enter {
+  .page-enter,
+  .page-enter--fade {
     animation: none;
   }
 }
@@ -417,6 +434,16 @@ body:has(.dashboard-shell) {
   border: 2px solid rgb(var(--primary-rgb));
   pointer-events: none;
   animation: chat-voice-ring 1.4s ease-out infinite;
+}
+
+.chat-voice-active--ask::before,
+.chat-voice-active--ask::after {
+  border-color: rgb(16, 185, 129);
+}
+
+.chat-voice-active--act::before,
+.chat-voice-active--act::after {
+  border-color: rgb(220, 38, 38);
 }
 
 .chat-voice-active::after {
@@ -746,18 +773,35 @@ html.light .red-glow {
   opacity: 1;
 }
 
+/* Full-screen coach chat — short rise + fade (page open, not bottom sheet). */
+.overlay-chat-page {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transition:
+    transform var(--duration-page) var(--ease-out-premium),
+    opacity var(--duration-page) var(--ease-out-premium);
+  will-change: transform, opacity;
+}
+
+.overlay-chat-page[data-open="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .overlay-backdrop,
   .overlay-sheet,
   .overlay-center,
-  .overlay-fullscreen {
+  .overlay-fullscreen,
+  .overlay-chat-page {
     transition: none;
   }
 
   .overlay-backdrop,
   .overlay-sheet,
   .overlay-center,
-  .overlay-fullscreen {
+  .overlay-fullscreen,
+  .overlay-chat-page {
     opacity: 1;
     transform: none;
   }

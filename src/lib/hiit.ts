@@ -1,4 +1,9 @@
-export type WorkoutPlanKind = "strength" | "hiit" | "warmup" | "stretch";
+export type WorkoutPlanKind =
+  | "strength"
+  | "hiit"
+  | "warmup"
+  | "stretch"
+  | "week";
 
 /** Warmup / stretching — can sit on a day next to a main workout. */
 export function isExtraWorkoutKind(
@@ -7,8 +12,14 @@ export function isExtraWorkoutKind(
   return kind === "warmup" || kind === "stretch";
 }
 
+/** Full-week template (not a single session). */
+export function isWeekPlanKind(kind: string | null | undefined): boolean {
+  return kind === "week";
+}
+
 export function isMainWorkoutKind(kind: string | null | undefined): boolean {
-  return !isExtraWorkoutKind(kind);
+  if (isExtraWorkoutKind(kind) || isWeekPlanKind(kind)) return false;
+  return true;
 }
 
 /** True when every main (strength/HIIT) session is done — extras do not block. */
@@ -83,7 +94,14 @@ export function pickWorkoutAfterKind<
 export function normalizeWorkoutPlanKind(
   kind: string | null | undefined
 ): WorkoutPlanKind {
-  if (kind === "hiit" || kind === "warmup" || kind === "stretch") return kind;
+  if (
+    kind === "hiit" ||
+    kind === "warmup" ||
+    kind === "stretch" ||
+    kind === "week"
+  ) {
+    return kind;
+  }
   return "strength";
 }
 

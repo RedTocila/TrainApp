@@ -4,6 +4,7 @@ export type CoachActionKind =
   | "delete_workout_plan"
   | "delete_nutrition_plan"
   | "schedule_workout_plan"
+  | "schedule_week_plan"
   | "schedule_nutrition_plan"
   | "clear_workout_schedule"
   | "clear_nutrition_schedule"
@@ -49,6 +50,7 @@ export const SERIOUS_ACTION_KINDS = new Set<CoachActionKind>([
   "delete_workout_plan",
   "delete_nutrition_plan",
   "schedule_workout_plan",
+  "schedule_week_plan",
   "schedule_nutrition_plan",
   "clear_workout_schedule",
   "clear_nutrition_schedule",

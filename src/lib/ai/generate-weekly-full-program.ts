@@ -5,6 +5,10 @@ import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { parseJsonObject } from "@/lib/ai/parse-json";
 import { runTextPrompt } from "@/lib/ai/providers";
 import type { Profile } from "@/lib/types";
+import {
+  fingerprintHiitConfig,
+  fingerprintStrengthExercises,
+} from "@/lib/workout-content-fingerprint";
 
 /** One training day in a weekly template: main + optional warm-up / stretch. */
 export type AiWeeklyFullDay = AiDayProgramResult & {
@@ -144,8 +148,8 @@ async function buildDaysInParallel(
         `This is day focus "${focus}" of a ${focuses.length}-day weekly split.`,
         `Build a complete training day for: ${focus}.`,
         includeExtras
-          ? "Include warm-up, main workout, and stretching matched to this focus."
-          : "Main workout is the priority; still return warm-up and stretch sections (they may be used).",
+          ? "Include warm-up, main workout, and stretching matched to this focus. Exercises must be unique to this focus — do not reuse the same warm-up/stretch list from other days."
+          : "Main workout is the priority; still return warm-up and stretch sections (they may be used). Keep exercises specific to this focus.",
         preferences?.trim() ? `Extra instructions: ${preferences.trim()}` : "",
       ]
         .filter(Boolean)
@@ -155,5 +159,68 @@ async function buildDaysInParallel(
       return { ...program, focus };
     })
   );
-  return results;
+  return dedupeWeeklyDaySessions(profile, results, preferences, includeExtras);
+}
+
+function sessionFingerprints(day: AiWeeklyFullDay): string[] {
+  const fps: string[] = [];
+  const warmup = fingerprintHiitConfig("warmup", day.warmup.config);
+  const stretch = fingerprintHiitConfig("stretch", day.stretch.config);
+  if (warmup) fps.push(`warmup:${warmup}`);
+  if (stretch) fps.push(`stretch:${stretch}`);
+  if (day.main.kind === "hiit") {
+    const hiit = fingerprintHiitConfig("hiit", day.main.plan.config);
+    if (hiit) fps.push(`hiit:${hiit}`);
+  } else {
+    const strength = fingerprintStrengthExercises(day.main.workout.exercises);
+    if (strength) fps.push(`strength:${strength}`);
+  }
+  return fps;
+}
+
+/** Regenerate any day whose warm-up / main / stretch matches another day. */
+async function dedupeWeeklyDaySessions(
+  profile: Profile,
+  days: AiWeeklyFullDay[],
+  preferences: string | undefined,
+  includeExtras: boolean
+): Promise<AiWeeklyFullDay[]> {
+  const out = [...days];
+  const seen = new Set<string>();
+
+  for (let i = 0; i < out.length; i++) {
+    const fps = sessionFingerprints(out[i]!);
+    const clash = fps.some((fp) => seen.has(fp));
+    if (!clash) {
+      for (const fp of fps) seen.add(fp);
+      continue;
+    }
+
+    const focus = out[i]!.focus;
+    const prompt = [
+      `This is day focus "${focus}" of a ${out.length}-day weekly split.`,
+      `Build a complete training day for: ${focus}.`,
+      "CRITICAL: Do NOT reuse exercises from other days. Pick a clearly different warm-up, main, and stretch for this focus.",
+      includeExtras
+        ? "Include warm-up, main workout, and stretching matched to this focus."
+        : "Main workout is the priority; still return warm-up and stretch sections.",
+      preferences?.trim() ? `Extra instructions: ${preferences.trim()}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    try {
+      const regenerated = await generateFullTrainingDayFromProfile(
+        profile,
+        prompt
+      );
+      out[i] = { ...regenerated, focus };
+    } catch {
+      // Keep original if regen fails — save-time dedupe still prevents library spam.
+    }
+
+    for (const fp of sessionFingerprints(out[i]!)) seen.add(fp);
+  }
+
+  return out;
 }

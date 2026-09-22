@@ -8,7 +8,7 @@ import { BuildWorkoutButton } from "@/components/build-workout-button";
 import { WorkoutPageHeader } from "@/components/workout-page-header";
 import { WorkoutCategoryIcon } from "@/components/programs/workout-day-chip";
 import { WorkoutCategoryFilter as WorkoutCategoryFilterBar } from "@/components/programs/workout-color-legend";
-import { PersonalWorkoutListCard } from "@/components/programs/personal-workout-list-card";
+import { PersonalWorkoutListCard, collectPlanExercises } from "@/components/programs/personal-workout-list-card";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { useCoachCopy } from "@/components/locale-provider";
 import {
@@ -33,12 +33,18 @@ export function AllWorkoutsPage({
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
+  // Muscle maps need exercises — hide empty shells from a bad seed / draft.
+  const workoutsWithExercises = useMemo(
+    () => workouts.filter((item) => collectPlanExercises(item).length > 0),
+    [workouts]
+  );
+
   const filteredWorkouts = useMemo(
     () =>
-      workouts.filter(({ plan, days }) =>
+      workoutsWithExercises.filter(({ plan, days }) =>
         workoutMatchesCategory(plan.title, days, categoryFilter, plan.kind)
       ),
-    [workouts, categoryFilter]
+    [workoutsWithExercises, categoryFilter]
   );
 
   const handleDelete = (planId: string, title: string) => {
@@ -53,7 +59,7 @@ export function AllWorkoutsPage({
     });
   };
 
-  if (workouts.length === 0) {
+  if (workoutsWithExercises.length === 0) {
     return (
       <>
         <WorkoutPageHeader title="Workouts" />
@@ -72,7 +78,7 @@ export function AllWorkoutsPage({
       <WorkoutPageHeader title="Workouts" />
 
       <WorkoutCategoryFilterBar
-        workouts={workouts}
+        workouts={workoutsWithExercises}
         selected={categoryFilter}
         onSelectedChange={setCategoryFilter}
       />

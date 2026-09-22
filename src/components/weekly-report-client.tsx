@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useEffect, useRef, useTransition, useState } from "react";
 import {
   AlertTriangle,
   Loader2,
@@ -16,6 +16,7 @@ import {
   PremiumSurfaceHeader,
 } from "@/components/premium-surface";
 import { Button } from "@/components/ui/button";
+import { formatDateKey } from "@/lib/utils";
 
 type ReportRow = {
   period_start: string;
@@ -29,10 +30,38 @@ type ReportRow = {
   recommendations: string[];
 };
 
+function isCurrentWeekReport(report: ReportRow | null): boolean {
+  if (!report) return false;
+  return report.period_end === formatDateKey(new Date());
+}
+
+function toReportRow(result: {
+  period_start: string;
+  period_end: string;
+  scores: { training: number; nutrition: number; consistency: number };
+  summary: string;
+  highlights: string[];
+  concerns: string[];
+  recommendations: string[];
+}): ReportRow {
+  return {
+    period_start: result.period_start,
+    period_end: result.period_end,
+    training_score: result.scores.training,
+    nutrition_score: result.scores.nutrition,
+    consistency_score: result.scores.consistency,
+    summary: result.summary,
+    highlights: result.highlights,
+    concerns: result.concerns,
+    recommendations: result.recommendations,
+  };
+}
+
 export function WeeklyReportClient({ initialReport }: { initialReport: ReportRow | null }) {
   const [report, setReport] = useState<ReportRow | null>(initialReport);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const autoStarted = useRef(false);
 
   const generate = () => {
     setError(null);
@@ -42,19 +71,20 @@ export function WeeklyReportClient({ initialReport }: { initialReport: ReportRow
         setError(result.error);
         return;
       }
-      setReport({
-        period_start: result.period_start,
-        period_end: result.period_end,
-        training_score: result.scores.training,
-        nutrition_score: result.scores.nutrition,
-        consistency_score: result.scores.consistency,
-        summary: result.summary,
-        highlights: result.highlights,
-        concerns: result.concerns,
-        recommendations: result.recommendations,
-      });
+      setReport(toReportRow(result));
     });
   };
+
+  useEffect(() => {
+    if (autoStarted.current) return;
+    if (isCurrentWeekReport(initialReport)) return;
+    autoStarted.current = true;
+    generate();
+    // Start once on open when there is no fresh report for today.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only auto-generate
+  }, []);
+
+  const showLoading = isPending && !report;
 
   return (
     <div className="space-y-4">
@@ -71,14 +101,26 @@ export function WeeklyReportClient({ initialReport }: { initialReport: ReportRow
         ) : (
           <>
             <Sparkles className="mr-2 h-4 w-4" />
-            Generate report
+            {report ? "Refresh report" : "Generate report"}
           </>
         )}
       </Button>
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
-      {!report ? (
+      {showLoading ? (
+        <PremiumSurface accent="cyan" rounded="3xl" className="p-8">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan-500/15 text-cyan-400">
+              <Loader2 className="h-7 w-7 animate-spin" />
+            </span>
+            <p className="text-sm font-medium">Generating your weekly report…</p>
+            <p className="text-xs text-muted-foreground">
+              Pulling in training, nutrition, and consistency
+            </p>
+          </div>
+        </PremiumSurface>
+      ) : !report ? (
         <PremiumSurface accent="cyan" rounded="3xl" className="p-8">
           <div className="flex flex-col items-center gap-3 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan-500/15 text-cyan-400">

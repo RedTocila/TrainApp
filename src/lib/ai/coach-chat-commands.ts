@@ -21,10 +21,12 @@ import {
   coachUpdateWaterGoalCommand,
   getWorkoutPlanDaysSummary,
   listCoachNutritionPlans,
+  listCoachWeekPlans,
   listCoachWorkoutPlans,
   resolveCardioForCoach,
   resolveHabitForCoach,
   resolveNutritionPlanLabel,
+  resolveWeekPlanLabel,
   resolveWorkoutPlanLabel,
   summarizeCoachUpcomingWorkoutSchedule,
 } from "@/lib/actions/coach-commands";
@@ -37,6 +39,7 @@ import type { Profile } from "@/lib/types";
 
 export const COMMAND_TOOL_STATUS_LABELS: Record<string, string> = {
   list_my_workouts: "Loading your workouts…",
+  list_my_week_plans: "Loading your week plans…",
   list_upcoming_workout_schedule: "Checking your calendar…",
   list_my_nutrition_plans: "Loading your meal plans…",
   log_meal: "Logging meal…",
@@ -62,6 +65,7 @@ export const COMMAND_TOOL_STATUS_LABELS: Record<string, string> = {
   start_workout: "Starting workout…",
   start_cardio: "Starting cardio…",
   schedule_workout_plan: "Preparing workout schedule…",
+  schedule_week_plan: "Preparing week plan schedule…",
   schedule_nutrition_plan: "Preparing nutrition schedule…",
   clear_workout_schedule: "Preparing to clear workout schedule…",
   clear_nutrition_schedule: "Preparing to clear nutrition schedule…",
@@ -78,7 +82,16 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
     function: {
       name: "list_my_workouts",
       description:
-        "List the client's LIBRARY workout plans (ids + titles). Excludes one-off calendar day sessions. Call before scheduling, deleting, or assigning a library plan. For clearing the calendar, prefer list_upcoming_workout_schedule.",
+        "List the client's LIBRARY strength/HIIT workout plans (ids + titles). Excludes week templates, warm-ups, stretches, and one-off calendar sessions. Call before scheduling/deleting/assigning a single library plan. For full-week templates use list_my_week_plans. For clearing the calendar, prefer list_upcoming_workout_schedule.",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_my_week_plans",
+      description:
+        "List saved WEEK templates (kind=week) with ids, training-day count, weekdays, and whether currently scheduled. Use before schedule_week_plan when they want to put an existing week program back on the calendar. Prefer this over list_my_workouts for 'my week plan' / 'schedule my program for N weeks'.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   },
@@ -505,7 +518,7 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
     function: {
       name: "schedule_workout_plan",
       description:
-        "Propose scheduling an EXISTING saved workout plan onto the calendar for several weeks. SERIOUS — Confirm button required. The plan must already have enough training days: scheduling places one plan day per weekday. If they want Mon/Tue/Thu/Fri (4 days), the plan needs 4 days — call generate_workout_plan with days_per_week=4 first, wait for Apply, then schedule. Call list_my_workouts first if you lack plan_id.",
+        "Propose scheduling an EXISTING saved strength/HIIT library plan onto the calendar for several weeks. SERIOUS — Confirm button required. Do NOT use for week templates (kind=week) — use schedule_week_plan instead. The plan must already have enough training days: scheduling places one plan day per weekday. If they want Mon/Tue/Thu/Fri (4 days), the plan needs 4 days — call generate_workout_plan with days_per_week=4 first, wait for Apply, then schedule. Call list_my_workouts first if you lack plan_id.",
       parameters: {
         type: "object",
         properties: {
@@ -520,6 +533,27 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
           start_date: { type: "string", description: "YYYY-MM-DD, default today" },
         },
         required: ["plan_id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "schedule_week_plan",
+      description:
+        "Propose scheduling an EXISTING saved week template (Plans tab) onto the calendar for N weeks — places each day's main (+ warm-up/stretch if configured) on its weekdays. SERIOUS — Confirm required. Call list_my_week_plans first for week_plan_id. Prefer this when they say 'schedule my week plan', 'put my program back on the calendar', or name a week template.",
+      parameters: {
+        type: "object",
+        properties: {
+          week_plan_id: { type: "string", description: "Id from list_my_week_plans" },
+          weeks: { type: "number", description: "1–52, default 4" },
+          start_date: {
+            type: "string",
+            description: "YYYY-MM-DD anchor, default today",
+          },
+        },
+        required: ["week_plan_id"],
         additionalProperties: false,
       },
     },
@@ -601,7 +635,7 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
     function: {
       name: "delete_workout_plan",
       description:
-        "Propose permanently deleting a personal workout plan. SERIOUS — needs Confirm. Call list_my_workouts first.",
+        "Propose permanently deleting a personal workout or week plan. SERIOUS — needs Confirm. Call list_my_workouts or list_my_week_plans first.",
       parameters: {
         type: "object",
         properties: { plan_id: { type: "string" } },
@@ -779,10 +813,34 @@ export async function executeCoachCommandTool(
         return {
           result:
             lines.join("\n") ||
-            "Only one-off calendar sessions exist. Use list_upcoming_workout_schedule.",
+            "Only one-off calendar sessions exist. Use list_upcoming_workout_schedule. For full-week templates call list_my_week_plans.",
         };
       }
-      return { result: lines.join("\n") };
+      return {
+        result:
+          lines.join("\n") +
+          "\n(Week templates are separate — call list_my_week_plans to schedule a full week program.)",
+      };
+    }
+    case "list_my_week_plans": {
+      const plans = await listCoachWeekPlans();
+      if (!plans.length) {
+        return {
+          result:
+            "No week plans yet. Generate one with generate_workout_plan (multi-day + warm-up/stretch) and have them tap Apply — or they can build one under Dashboard → Programs / Plans.",
+        };
+      }
+      return {
+        result: plans
+          .map((p) => {
+            const extras = p.includeExtras ? "warm-up+stretch" : "mains only";
+            const sched = p.scheduled
+              ? `scheduled${p.scheduledWeeks ? ` (${p.scheduledWeeks}w)` : ""}`
+              : "not scheduled";
+            return `- ${p.title} id=${p.id} · ${p.dayCount} day(s) · ${extras} · ${sched} · ${p.dayLabels}`;
+          })
+          .join("\n"),
+      };
     }
     case "list_upcoming_workout_schedule": {
       const summary = await summarizeCoachUpcomingWorkoutSchedule();
@@ -1155,6 +1213,40 @@ export async function executeCoachCommandTool(
       const planId = String(args.plan_id ?? "");
       const meta = await resolveWorkoutPlanLabel(planId);
       if (!meta) return { result: "Workout plan not found. Call list_my_workouts." };
+
+      // Week templates must use the week scheduler (warm-up/stretch + fixed weekdays).
+      if (meta.kind === "week") {
+        const weeks =
+          typeof args.weeks === "number" && args.weeks > 0
+            ? Math.round(args.weeks)
+            : 4;
+        const startDate =
+          typeof args.start_date === "string" ? args.start_date : undefined;
+        const weekMeta = await resolveWeekPlanLabel(planId);
+        if (!weekMeta || weekMeta.dayCount < 1) {
+          return {
+            result:
+              "Blocked: this week plan has no training days. Build or regenerate it first.",
+          };
+        }
+        const pendingAction = createPendingAction(
+          "schedule_week_plan",
+          `Schedule week “${weekMeta.title}”`,
+          `${weekMeta.dayCount} training day(s)${
+            weekMeta.includeExtras ? " · warm-up + stretch" : " · mains only"
+          } · ${weeks} week(s)${
+            startDate ? ` · from ${startDate}` : " · starting today"
+          } · ${weekMeta.dayLabels}`,
+          { weekPlanId: planId, weeks, startDate },
+          { confirmLabel: "Confirm schedule" }
+        );
+        return {
+          result:
+            "This is a week template — schedule preview ready via schedule_week_plan. Tell the client to tap Confirm — do NOT say it is already scheduled.",
+          pendingAction,
+        };
+      }
+
       const weeks =
         typeof args.weeks === "number" && args.weeks > 0 ? Math.round(args.weeks) : 4;
       const weekdays = Array.isArray(args.weekdays)
@@ -1173,7 +1265,7 @@ export async function executeCoachCommandTool(
       if (meta.dayCount < 1) {
         return {
           result:
-            "Blocked: this workout has no days to schedule. Generate a new plan with generate_workout_plan first.",
+            "Blocked: this workout has no days to schedule. Generate a new plan with generate_workout_plan first — or if they meant a week template, call list_my_week_plans then schedule_week_plan.",
         };
       }
 
@@ -1191,6 +1283,43 @@ export async function executeCoachCommandTool(
       return {
         result:
           "Schedule preview is ready. Tell the client to tap Confirm — do NOT say it is already scheduled.",
+        pendingAction,
+      };
+    }
+    case "schedule_week_plan": {
+      const weekPlanId = String(args.week_plan_id ?? args.plan_id ?? "");
+      const meta = await resolveWeekPlanLabel(weekPlanId);
+      if (!meta) {
+        return {
+          result:
+            "Week plan not found. Call list_my_week_plans first — or generate a new week with generate_workout_plan and have them Apply.",
+        };
+      }
+      if (meta.dayCount < 1) {
+        return {
+          result: "Blocked: this week plan has no training days configured.",
+        };
+      }
+      const weeks =
+        typeof args.weeks === "number" && args.weeks > 0
+          ? Math.round(args.weeks)
+          : 4;
+      const startDate =
+        typeof args.start_date === "string" ? args.start_date : undefined;
+      const pendingAction = createPendingAction(
+        "schedule_week_plan",
+        `Schedule week “${meta.title}”`,
+        `${meta.dayCount} training day(s)${
+          meta.includeExtras ? " · warm-up + stretch" : " · mains only"
+        } · ${weeks} week(s)${
+          startDate ? ` · from ${startDate}` : " · starting today"
+        } · ${meta.dayLabels}`,
+        { weekPlanId, weeks, startDate },
+        { confirmLabel: "Confirm schedule" }
+      );
+      return {
+        result:
+          "Week plan schedule preview ready. Tell the client to tap Confirm — do NOT say it is already scheduled.",
         pendingAction,
       };
     }
@@ -1344,6 +1473,12 @@ export async function executeCoachCommandTool(
       const planId = String(args.plan_id ?? "");
       const meta = await resolveWorkoutPlanLabel(planId);
       if (!meta) return { result: "Workout plan not found." };
+      if (meta.kind === "week") {
+        return {
+          result:
+            "Blocked: week templates can't be set as the active single workout. Use schedule_week_plan to put the week on the calendar, or assign a strength/HIIT library plan from list_my_workouts.",
+        };
+      }
       const pendingAction = createPendingAction(
         "assign_workout_plan",
         `Make “${meta.title}” active`,

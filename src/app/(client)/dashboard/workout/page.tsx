@@ -3,6 +3,7 @@ import {
   getPersonalWorkoutsWithSchedules,
   getWorkoutFoldersForMove,
 } from "@/lib/actions/user-workouts";
+import { cleanupBrokenExampleDayWorkouts } from "@/lib/actions/example-week-plan";
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import { AllWorkoutsPage } from "@/components/all-workouts-page";
 import { ScrollToHash } from "@/components/scroll-to-hash";
@@ -10,6 +11,8 @@ import { PageTransition } from "@/components/page-transition";
 
 export default async function WorkoutPage() {
   await requireClient();
+  // Drop empty leftover example shells (no exercises → no muscle map).
+  await cleanupBrokenExampleDayWorkouts();
 
   const [workouts, folders, profile] = await Promise.all([
     getPersonalWorkoutsWithSchedules(),

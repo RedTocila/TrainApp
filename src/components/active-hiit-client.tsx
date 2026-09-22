@@ -4,7 +4,6 @@ import {
   useEffect,
   useRef,
   useState,
-  useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -67,6 +66,7 @@ import { Button } from "@/components/ui/button";
 import type { WorkoutSession } from "@/lib/types";
 import { cn, formatDateKey } from "@/lib/utils";
 import {
+  SessionBusyOverlay,
   SessionCircleButton,
   SessionMediaStage,
   SessionSideIconButton,
@@ -117,7 +117,10 @@ export function ActiveHiitClient({
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [busy, setBusy] = useState<
+    "idle" | "saving" | "skipping" | "starting" | "leaving"
+  >("idle");
+  const busyLockRef = useRef(false);
   const advancingRef = useRef(false);
   const lastTickSecondRef = useRef<number | null>(null);
   const lastPhaseSoundRef = useRef<number | null>(null);
@@ -153,6 +156,13 @@ export function ActiveHiitClient({
     isWarmup && continuesToMain
       ? platform.workout.finishWarmupBannerBody
       : "Great work";
+  const isBusy = busy !== "idle" || isContinuing;
+  const busyLabel =
+    busy === "skipping"
+      ? platform.common.saving
+      : busy === "starting"
+        ? platform.workout.startWorkout
+        : platform.common.saving;
 
   const phaseIndex = timer?.phaseIndex ?? 0;
   const phase: HiitPhase =
@@ -243,11 +253,14 @@ export function ActiveHiitClient({
     playHiitTick(secondsLeft);
   }, [hydrated, timer, remainingMs, isDone]);
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    if (busyLockRef.current) return;
+    busyLockRef.current = true;
     setError(null);
+    setBusy("starting");
     unlockHiitAudio();
     playHiitStart();
-    startTransition(async () => {
+    try {
       if (!session.started_at) {
         const result = await beginWorkoutSession(session.id);
         if (result && "error" in result && result.error) {
@@ -260,7 +273,12 @@ export function ActiveHiitClient({
       lastTickSecondRef.current = null;
       lastPhaseSoundRef.current = 0;
       setTimer(startHiitTimer(session.id, first.durationSeconds * 1000, hash));
-    });
+    } catch (err) {
+      setError(formatUserError(err));
+    } finally {
+      busyLockRef.current = false;
+      setBusy("idle");
+    }
   };
 
   const handlePause = () => {
@@ -274,7 +292,7 @@ export function ActiveHiitClient({
   };
 
   const handleSkip = () => {
-    if (!timer || isDone) return;
+    if (!timer || isDone || isBusy) return;
     goToPhase(timer.phaseIndex + 1);
   };
 
@@ -286,21 +304,27 @@ export function ActiveHiitClient({
   };
 
   const handleReset = () => {
+    if (isBusy) return;
     resetHiitTimer(session.id);
     lastTickSecondRef.current = null;
     lastPhaseSoundRef.current = null;
     setTimer(null);
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    if (busyLockRef.current) return;
+    busyLockRef.current = true;
     setError(null);
+    setBusy("saving");
     if (timer?.status === "running") {
       setTimer(pauseHiitTimer(session.id));
     }
-    startTransition(async () => {
+    try {
       const result = await completeWorkoutSession(session.id);
       if (result && "error" in result && result.error) {
         setError(formatUserError(result.error));
+        busyLockRef.current = false;
+        setBusy("idle");
         return;
       }
       clearHiitTimerState(session.id);
@@ -324,40 +348,60 @@ export function ActiveHiitClient({
         planKind: "planKind" in result ? result.planKind : planKind,
         nextWorkout: "nextWorkout" in result ? result.nextWorkout : null,
       });
-      if (flow === "done") {
-        router.refresh();
+      // Stay busy until route unmounts for continue/home; unlock for stretch offer.
+      if (flow === "stretch_offer") {
+        busyLockRef.current = false;
+        setBusy("idle");
       }
-    });
+    } catch (err) {
+      setError(formatUserError(err));
+      busyLockRef.current = false;
+      setBusy("idle");
+    }
   };
 
-  const handleSkipToMain = () => {
+  const handleSkipToMain = async () => {
+    if (busyLockRef.current) return;
+    busyLockRef.current = true;
     setError(null);
-    startTransition(async () => {
+    setBusy("skipping");
+    try {
       const result = await skipDayFlowSession(session.id);
       if (result && "error" in result && result.error) {
         setError(formatUserError(result.error));
+        busyLockRef.current = false;
+        setBusy("idle");
         return;
       }
       clearHiitTimerState(session.id);
       notifySync();
       if (result && "sessionId" in result && result.sessionId) {
-        router.push(`/dashboard/workout/session/${result.sessionId}`);
+        router.replace(`/dashboard/workout/session/${result.sessionId}`);
         return;
       }
-      router.push("/dashboard");
-      router.refresh();
-    });
+      router.replace("/dashboard");
+    } catch (err) {
+      setError(formatUserError(err));
+      busyLockRef.current = false;
+      setBusy("idle");
+    }
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    if (busyLockRef.current) return;
+    busyLockRef.current = true;
     setError(null);
-    startTransition(async () => {
+    setBusy("leaving");
+    try {
       await cancelWorkoutSession(session.id);
       clearHiitTimerState(session.id);
       notifySync();
-      router.push("/dashboard");
-      router.refresh();
-    });
+      router.replace("/dashboard");
+    } catch (err) {
+      setError(formatUserError(err));
+      busyLockRef.current = false;
+      setBusy("idle");
+    }
   };
 
   if (!hydrated) {
@@ -445,7 +489,7 @@ export function ActiveHiitClient({
         <SessionTopBar
           title={headerTitle}
           onBack={handleCancel}
-          backDisabled={isPending}
+          backDisabled={isBusy}
           trailing={
             isDone ? (
               <div
@@ -458,8 +502,8 @@ export function ActiveHiitClient({
               <SessionCircleButton
                 label={playLabel}
                 onClick={isIdle ? handleStart : isRunning ? handlePause : handleResume}
-                disabled={isIdle && isPending}
-                busy={isIdle && isPending}
+                disabled={isIdle && isBusy}
+                busy={busy === "starting"}
               >
                 {isRunning ? (
                   <Pause className="h-5 w-5 fill-current" />
@@ -491,7 +535,7 @@ export function ActiveHiitClient({
               <SessionSideIconButton
                 label="Reset"
                 onClick={handleReset}
-                disabled={isIdle || isPending}
+                disabled={isIdle || isBusy}
               >
                 <RotateCcw className="h-4 w-4" />
               </SessionSideIconButton>
@@ -600,7 +644,7 @@ export function ActiveHiitClient({
               variant="secondary"
               size="lg"
               className="h-11 shrink-0 gap-1.5 rounded-full px-4 text-sm font-semibold"
-              disabled={isPending}
+              disabled={isBusy}
               onClick={handleSkip}
             >
               <SkipForward className="h-4 w-4" />
@@ -610,18 +654,15 @@ export function ActiveHiitClient({
               type="button"
               size="lg"
               className="h-11 min-w-0 flex-1 gap-2 rounded-full text-sm font-black uppercase tracking-wide"
-              disabled={isPending || isContinuing}
+              disabled={isBusy}
               onClick={handleComplete}
             >
-              {isPending || isContinuing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving…
-                </>
+              {isBusy ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
               ) : (
                 <>
-                  <Check className="h-4 w-4" strokeWidth={2.5} />
-                  {finishCtaLabel}
+                  <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                  <span className="truncate">{finishCtaLabel}</span>
                 </>
               )}
             </Button>
@@ -631,18 +672,15 @@ export function ActiveHiitClient({
             type="button"
             size="lg"
             className="h-11 w-full shrink-0 gap-2 rounded-full text-sm font-black uppercase tracking-wide"
-            disabled={isPending || isContinuing}
+            disabled={isBusy}
             onClick={handleComplete}
           >
-            {isPending || isContinuing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Saving…
-              </>
+            {isBusy ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
             ) : (
               <>
-                <Check className="h-4 w-4" strokeWidth={2.5} />
-                {finishCtaLabel}
+                <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                <span className="truncate">{finishCtaLabel}</span>
               </>
             )}
           </Button>
@@ -653,21 +691,24 @@ export function ActiveHiitClient({
             variant="secondary"
             size="lg"
             className="h-10 w-full shrink-0 gap-2 rounded-full text-sm font-semibold"
-            disabled={isPending}
+            disabled={isBusy}
             onClick={handleSkipToMain}
           >
-            {isPending ? (
+            {busy === "skipping" ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <SkipForward className="h-4 w-4" />
+              <>
+                <SkipForward className="h-4 w-4" />
+                {skipLabel}
+              </>
             )}
-            {skipLabel}
           </Button>
         ) : null}
         {error ? (
           <p className={cn("text-center text-sm text-destructive")}>{error}</p>
         ) : null}
       </div>
+      {isBusy ? <SessionBusyOverlay label={busyLabel} /> : null}
       {StretchOfferDialog}
     </div>
   );

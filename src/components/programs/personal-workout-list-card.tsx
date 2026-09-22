@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-function collectPlanExercises(
+export function collectPlanExercises(
   item: PersonalWorkoutListItem
 ): { name: string }[] {
   const fromDays = item.days.flatMap((day) =>
@@ -153,7 +153,7 @@ export function PersonalWorkoutListCard({
                 onClick={() => onDelete(plan.id, plan.title)}
                 aria-label={`Delete ${plan.title}`}
               >
-                <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                <Trash2 className="h-3.5 w-3.5 text-red-500" />
               </Button>
             </div>
           </div>

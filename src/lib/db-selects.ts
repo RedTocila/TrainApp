@@ -31,6 +31,10 @@ export const NOTIFICATION_COLUMNS =
 export const WORKOUT_PLAN_LIST_COLUMNS =
   "id, title, description, created_by, is_personal, folder_id, trainer_label, kind, hiit_config, created_at";
 
+/** Extended list columns when week templates are needed. */
+export const WORKOUT_PLAN_WEEK_LIST_COLUMNS =
+  "id, title, description, created_by, is_personal, folder_id, trainer_label, kind, hiit_config, week_config, created_at";
+
 export const NUTRITION_PLAN_LIST_COLUMNS =
   "id, title, description, target_calories, target_protein, target_carbs, target_fat, created_by, is_personal, folder_id, trainer_label, created_at";
 

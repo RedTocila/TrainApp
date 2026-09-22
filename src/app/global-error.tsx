@@ -12,26 +12,26 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
+    console.error("[GlobalError]", error.name, error.message, error.digest);
     Sentry.captureException(error);
   }, [error]);
 
-  const isServerError = Boolean(error.digest);
-  const staleClient = error.name === "UnrecognizedActionError";
+  const staleClient =
+    error.name === "UnrecognizedActionError" ||
+    error.message.includes("UnrecognizedActionError");
 
   return (
     <html lang="en">
       <body className="premium-gradient min-h-screen antialiased">
         <ClientErrorFallback
-          title="This page couldn't load"
+          title="Couldn't open this page"
           message={
-            isServerError
-              ? "A server error occurred. Reload and try again."
-              : staleClient
-                ? "The app was updated. Reload the page and try again."
-                : "Reload to try again, or go back to the dashboard."
+            staleClient
+              ? "The app was updated. Reload the page and try again."
+              : "Something went wrong. Reload to try again, or go back home."
           }
           onRetry={() => {
-            if (staleClient || isServerError) {
+            if (staleClient || error.digest) {
               window.location.reload();
               return;
             }

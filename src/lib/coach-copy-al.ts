@@ -79,6 +79,18 @@ export const coachCopyAl = {
     confirm: "Po, pastroje",
     cancel: "Mbaje orarin",
   },
+  scheduleWeekPlan: (title: string, weeks: number) => ({
+    title: "Të zëvendësohet kalendari?",
+    message: `Planifikimi i "${title}" për ${weeks} javë heq çdo gjë të planifikuar në ato ditë, pastaj vendos këtë plan. Coach Alex thotë: vendose — ose jo. Vazhdon?`,
+    confirm: "Po, planifikoje",
+    cancel: "Jo ende",
+  }),
+  updateWeekPlanSchedule: (title: string, weeks: number) => ({
+    title: "Të përditësohet orari?",
+    message: `Ndrysho "${title}" në ${weeks} javë — javët shtesë shtohen, javët e hequra pastrohen nga kalendari. Coach Alex po shikon. Ta ruajmë?`,
+    confirm: "Po, ruaje",
+    cancel: "Jo ende",
+  }),
   clearNutritionSchedule: {
     title: "Të pastrohet orari i vakteve?",
     message:

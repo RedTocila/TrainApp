@@ -34,10 +34,16 @@ import {
   assignPersonalWorkoutPlan,
   clearUpcomingWorkoutSchedule,
   deletePersonalWorkoutPlan,
+  getPersonalWeekPlans,
   getPersonalWorkoutPlans,
   getUpcomingWorkoutScheduleSummary,
+  schedulePersonalWeekPlan,
   scheduleWorkoutSeries,
 } from "@/lib/actions/user-workouts";
+import {
+  isWeekPlanScheduleActive,
+  normalizeWeekPlanConfig,
+} from "@/lib/week-plan";
 import {
   assignPersonalNutritionPlan,
   deletePersonalNutritionPlan,
@@ -89,12 +95,19 @@ function isOneOffCalendarPlan(description: string | null | undefined): boolean {
   return (description ?? "").toLowerCase().includes("one-off session");
 }
 
+const LIBRARY_WORKOUT_KINDS = new Set(["strength", "hiit"]);
+
 export async function listCoachWorkoutPlans(userId: string) {
   const plans = await getPersonalWorkoutPlans();
   // getPersonalWorkoutPlans uses session user — ignore passed id mismatch
   void userId;
-  const library = plans.filter((p) => !isOneOffCalendarPlan(p.description));
-  const oneOffCount = plans.length - library.length;
+  const nonOneOff = plans.filter((p) => !isOneOffCalendarPlan(p.description));
+  const oneOffCount = plans.length - nonOneOff.length;
+  // Week templates + warm-up/stretch extras live elsewhere — keep this list for
+  // single/multi-day strength & HIIT library plans only.
+  const library = nonOneOff.filter((p) =>
+    LIBRARY_WORKOUT_KINDS.has(p.kind ?? "strength")
+  );
   return {
     plans: library.map((p) => ({
       id: p.id,
@@ -104,6 +117,33 @@ export async function listCoachWorkoutPlans(userId: string) {
     })),
     oneOffCount,
   };
+}
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export async function listCoachWeekPlans() {
+  const plans = await getPersonalWeekPlans();
+  return plans.map((p) => {
+    const weekdays = [
+      ...new Set(p.config.days.map((d) => d.weekday).filter((d) => d >= 0 && d <= 6)),
+    ].sort((a, b) => a - b);
+    const dayLabels = p.config.days
+      .map((d) => {
+        const wd = WEEKDAY_SHORT[d.weekday] ?? "?";
+        return `${wd}: ${d.focus}`;
+      })
+      .join("; ");
+    return {
+      id: p.id,
+      title: p.title,
+      dayCount: p.config.days.length,
+      includeExtras: p.config.includeExtras,
+      weekdays,
+      dayLabels,
+      scheduled: isWeekPlanScheduleActive(p.config),
+      scheduledWeeks: p.config.scheduledWeeks ?? null,
+    };
+  });
 }
 
 export async function summarizeCoachUpcomingWorkoutSchedule() {
@@ -121,19 +161,36 @@ export async function listCoachNutritionPlans() {
 
 export async function resolveWorkoutPlanLabel(
   planId: string
-): Promise<{ id: string; title: string; dayCount: number } | null> {
+): Promise<{
+  id: string;
+  title: string;
+  dayCount: number;
+  kind: string;
+} | null> {
   const auth = await requireUser();
   if ("error" in auth) return null;
 
   const admin = createAdminClient();
   const { data: plan } = await admin
     .from("workout_plans")
-    .select("id, title")
+    .select("id, title, kind, week_config")
     .eq("id", planId)
     .eq("created_by", auth.userId)
     .eq("is_personal", true)
     .maybeSingle();
   if (!plan) return null;
+
+  const kind = ((plan.kind as string | null) ?? "strength") as string;
+  if (kind === "week") {
+    const config = normalizeWeekPlanConfig(plan.week_config);
+    return {
+      id: plan.id as string,
+      title: (plan.title as string) || "Week plan",
+      dayCount: config?.days.length ?? 0,
+      kind,
+    };
+  }
+
   const { data: days } = await admin
     .from("workout_days")
     .select("id")
@@ -142,6 +199,50 @@ export async function resolveWorkoutPlanLabel(
     id: plan.id as string,
     title: (plan.title as string) || "Workout",
     dayCount: days?.length ?? 0,
+    kind,
+  };
+}
+
+export async function resolveWeekPlanLabel(
+  weekPlanId: string
+): Promise<{
+  id: string;
+  title: string;
+  dayCount: number;
+  includeExtras: boolean;
+  weekdays: number[];
+  dayLabels: string;
+} | null> {
+  const auth = await requireUser();
+  if ("error" in auth) return null;
+
+  const admin = createAdminClient();
+  const { data: plan } = await admin
+    .from("workout_plans")
+    .select("id, title, kind, week_config")
+    .eq("id", weekPlanId)
+    .eq("created_by", auth.userId)
+    .eq("is_personal", true)
+    .eq("kind", "week")
+    .maybeSingle();
+  if (!plan) return null;
+
+  const config = normalizeWeekPlanConfig(plan.week_config);
+  if (!config?.days.length) return null;
+
+  const weekdays = [
+    ...new Set(config.days.map((d) => d.weekday).filter((d) => d >= 0 && d <= 6)),
+  ].sort((a, b) => a - b);
+
+  return {
+    id: plan.id as string,
+    title: (plan.title as string) || "Week plan",
+    dayCount: config.days.length,
+    includeExtras: config.includeExtras,
+    weekdays,
+    dayLabels: config.days
+      .map((d) => `${WEEKDAY_SHORT[d.weekday] ?? "?"}: ${d.focus}`)
+      .join("; "),
   };
 }
 
@@ -902,12 +1003,27 @@ export async function scheduleWorkoutPlanDays(input: {
   const admin = createAdminClient();
   const { data: plan } = await admin
     .from("workout_plans")
-    .select("id, is_personal, created_by")
+    .select("id, is_personal, created_by, kind, week_config")
     .eq("id", input.planId)
     .maybeSingle();
 
   if (!plan || !(plan.is_personal && plan.created_by === auth.userId)) {
     return { error: "Workout plan not found" };
+  }
+
+  // Week templates schedule via week_config (mains + optional warm-up/stretch).
+  const kind = ((plan.kind as string | null) ?? "strength") as string;
+  if (kind === "week") {
+    const result = await schedulePersonalWeekPlan({
+      weekPlanId: input.planId,
+      weeks: input.weeks,
+      startDate: input.startDate,
+    });
+    if ("error" in result && result.error) return { error: result.error };
+    return {
+      success: true as const,
+      count: "count" in result ? result.count : 0,
+    };
   }
 
   const { data: days } = await admin
@@ -1062,6 +1178,24 @@ export async function confirmCoachPendingAction(
           message: `Scheduled ${count} workout session(s) over ${weeks} week(s).`,
         };
       }
+      case "schedule_week_plan": {
+        const weekPlanId =
+          asString(payload.weekPlanId) ?? asString(payload.planId);
+        if (!weekPlanId) return { error: "Missing week plan" };
+        const weeks = asNumber(payload.weeks) ?? 4;
+        const startDate = asString(payload.startDate) ?? undefined;
+        const result = await schedulePersonalWeekPlan({
+          weekPlanId,
+          weeks,
+          startDate,
+        });
+        if ("error" in result && result.error) return { error: result.error };
+        const count = "count" in result ? result.count : 0;
+        return {
+          success: true,
+          message: `Scheduled week plan — ${count} session(s) over ${weeks} week(s).`,
+        };
+      }
       case "schedule_nutrition_plan": {
         const planId = asString(payload.planId);
         if (!planId) return { error: "Missing nutrition plan" };
@@ -1177,6 +1311,21 @@ export async function confirmCoachPendingAction(
 /** Used by tools to load day titles when describing a schedule preview. */
 export async function getWorkoutPlanDaysSummary(planId: string) {
   const admin = createAdminClient();
+  const { data: plan } = await admin
+    .from("workout_plans")
+    .select("id, kind, week_config")
+    .eq("id", planId)
+    .maybeSingle();
+
+  if (plan && ((plan.kind as string | null) ?? "strength") === "week") {
+    const config = normalizeWeekPlanConfig(plan.week_config);
+    return (config?.days ?? []).map((d, i) => ({
+      id: `week-day-${i}`,
+      title: `${WEEKDAY_SHORT[d.weekday] ?? "Day"}: ${d.focus}`,
+      exercises: 0,
+    }));
+  }
+
   const { data: days } = await admin
     .from("workout_days")
     .select("id, title, day_index, exercises(id)")

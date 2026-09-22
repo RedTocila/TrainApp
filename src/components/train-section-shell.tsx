@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
-import { isActiveWorkoutSessionPath, isTrainPath } from "@/lib/train-nav";
+import { hidesDashboardChrome, isTrainPath } from "@/lib/train-nav";
 import { TrainSectionTabs } from "@/components/train-section-tabs";
 
 export function TrainSectionShell({ children }: { children: React.ReactNode }) {
@@ -10,7 +10,7 @@ export function TrainSectionShell({ children }: { children: React.ReactNode }) {
   const { pendingHref } = useDashboardNavPending();
   const chromePath = pendingHref ?? pathname;
 
-  if (!isTrainPath(chromePath) || isActiveWorkoutSessionPath(chromePath)) {
+  if (!isTrainPath(chromePath) || hidesDashboardChrome(chromePath)) {
     return children;
   }
 

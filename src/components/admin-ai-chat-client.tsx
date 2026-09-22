@@ -153,13 +153,24 @@ export function AdminAiChatClient() {
   const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
   const isStreamingRef = useRef(false);
   isStreamingRef.current = isStreaming;
   const [isMultiline, setIsMultiline] = useState(false);
 
+  const handleMessagesScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distanceFromBottom <= 96;
+  };
+
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    if (!stickToBottomRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight });
   }, [messages, isStreaming]);
 
   useEffect(() => {
@@ -174,6 +185,7 @@ export function AdminAiChatClient() {
 
     setError(null);
     setInput("");
+    stickToBottomRef.current = true;
     const userMessage: ChatMessage = { role: "user", content: trimmed };
     const history = messages;
     setMessages((prev) => [...prev, userMessage]);
@@ -313,6 +325,7 @@ export function AdminAiChatClient() {
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
       <div
         ref={scrollRef}
+        onScroll={handleMessagesScroll}
         className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain p-4 [-webkit-overflow-scrolling:touch]"
       >
         {messages.length === 0 ? (

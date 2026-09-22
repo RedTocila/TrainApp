@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Library } from "lucide-react";
+import { CalendarRange, LayoutGrid, Library } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { useInstantNavigate } from "@/components/use-instant-navigate";
@@ -36,44 +36,52 @@ function ToggleLink({
       onClick={handleClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
+        "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold transition-colors touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
         active
           ? "bg-background text-foreground shadow-sm"
           : "text-muted-foreground hover:text-foreground"
       )}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span>{label}</span>
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
 
-/** Programs ↔ Exercises switch under the Programs section tab. */
+/** Plans · Workouts · Exercises under the Plans section tab. */
 export function ProgramsExercisesToggle({ className }: { className?: string }) {
   const pathname = usePathname();
   const platform = usePlatformCopy();
   const { pendingHref, setPendingHref } = useDashboardNavPending();
   const activePath = pendingHref ?? pathname;
 
-  const onPrograms =
+  const onPlans = activePath.startsWith("/dashboard/workout/plans");
+  const onWorkouts =
     activePath === "/dashboard/workout" ||
     activePath.startsWith("/dashboard/workout/folder") ||
     activePath.startsWith("/dashboard/workout/workouts");
   const onExercises = activePath.startsWith("/dashboard/workout/exercises");
 
-  if (!onPrograms && !onExercises) return null;
+  if (!onPlans && !onWorkouts && !onExercises) return null;
 
   return (
     <div
       className={cn("flex gap-1 rounded-xl bg-secondary/50 p-1", className)}
       role="tablist"
-      aria-label={platform.nav.programs}
+      aria-label={platform.nav.plans}
     >
       <ToggleLink
+        href="/dashboard/workout/plans"
+        label={platform.workout.plansTile}
+        icon={CalendarRange}
+        active={onPlans}
+        onNavigateStart={setPendingHref}
+      />
+      <ToggleLink
         href="/dashboard/workout"
-        label={platform.nav.programs}
+        label={platform.workout.workoutsTile}
         icon={LayoutGrid}
-        active={onPrograms}
+        active={onWorkouts}
         onNavigateStart={setPendingHref}
         exactMatch
       />

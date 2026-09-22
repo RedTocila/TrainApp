@@ -360,6 +360,9 @@ function ChatCommandBar({
     !isStreaming &&
     (voice.isActive || voice.isBusy || !hasDraft);
   const composerLocked = disabled || isStreaming || voice.isBusy;
+  const actionBtnTone = isAct
+    ? "bg-red-600 text-white shadow-[0_0_14px_rgba(220,38,38,0.4)]"
+    : "bg-emerald-500 text-white shadow-[0_0_14px_rgba(16,185,129,0.4)]";
 
   return (
     <form onSubmit={onSubmit} className="min-w-0 w-full space-y-2">
@@ -478,7 +481,8 @@ function ChatCommandBar({
             aria-label={stopAriaLabel}
             title={stopAriaLabel}
             className={cn(
-              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity hover:opacity-90",
+              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-90",
+              actionBtnTone,
               isMultiline && "mb-0.5"
             )}
           >
@@ -492,9 +496,11 @@ function ChatCommandBar({
             aria-label={voiceAria}
             title={voiceAria}
             className={cn(
-              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity",
+              actionBtnTone,
               isMultiline && "mb-0.5",
-              voice.isActive && "chat-voice-active",
+              voice.isActive &&
+                (isAct ? "chat-voice-active chat-voice-active--act" : "chat-voice-active chat-voice-active--ask"),
               disabled || voice.isBusy
                 ? "cursor-not-allowed opacity-45"
                 : "hover:opacity-90"
@@ -517,7 +523,8 @@ function ChatCommandBar({
             disabled={!canSend}
             aria-label={sendAriaLabel}
             className={cn(
-              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.4)] transition-opacity",
+              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity",
+              actionBtnTone,
               isMultiline && "mb-0.5",
               canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
             )}
@@ -543,8 +550,9 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingWebSearch, setPendingWebSearch] = useState(false);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
-  const [chatMode, setChatMode] = useState<CoachChatMode>("act");
+  const [chatMode, setChatMode] = useState<CoachChatMode>("ask");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
   const sendMessageRef = useRef<(text: string) => Promise<void>>(async () => {});
   const autoSendingRef = useRef(false);
@@ -570,8 +578,18 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     setAttachmentPreviewUrl(null);
   };
 
+  const handleMessagesScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distanceFromBottom <= 96;
+  };
+
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    if (!stickToBottomRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight });
   }, [messages, isStreaming]);
 
   // Only abort in-flight requests when the chat dialog closes — not on remount.
@@ -589,6 +607,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
 
     setError(null);
     setInput("");
+    stickToBottomRef.current = true;
     const image: ChatImageAttachment | undefined = attachment ?? undefined;
     const messageContent = trimmed || (image ? ai.imageOnlyPrompt : "");
     const userMessage: ChatMessage = {
@@ -906,6 +925,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
           <div
             ref={scrollRef}
+            onScroll={handleMessagesScroll}
             className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain p-4 [-webkit-overflow-scrolling:touch]"
           >
             {messages.length === 0 && (
@@ -979,6 +999,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
         <CardContent className="flex min-h-0 flex-1 flex-col p-0">
           <div
             ref={scrollRef}
+            onScroll={handleMessagesScroll}
             className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
           >
             {messages.length === 0 && (
