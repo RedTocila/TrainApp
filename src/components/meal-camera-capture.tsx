@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImageIcon, Loader2, ScanBarcode } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { GALLERY_IMAGE_ACCEPT } from "@/lib/pick-gallery-image";
+import { isNativeApp } from "@/lib/native-app";
+import { pickNativeImage } from "@/lib/native-camera";
+import { pickGalleryImage } from "@/lib/pick-gallery-image";
 import { cn } from "@/lib/utils";
 
 type CaptureMode = "photo" | "barcode";
@@ -37,7 +39,6 @@ export function MealCameraCapture({
   );
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [pickingGallery, setPickingGallery] = useState(false);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   onBarcodeRef.current = onBarcode;
 
@@ -186,11 +187,28 @@ export function MealCameraCapture({
     );
   };
 
-  const handleGalleryChange = (fileList: FileList | null) => {
-    const file = fileList?.[0];
-    if (galleryInputRef.current) galleryInputRef.current.value = "";
-    setPickingGallery(false);
-    if (file) onCapture(file);
+  const handlePickGallery = async () => {
+    if (disabled || pickingGallery) return;
+    setPickingGallery(true);
+    try {
+      try {
+        const native = await pickNativeImage({ source: "gallery" });
+        if (native) {
+          onCapture(native);
+          return;
+        }
+        // On native, cancel/null must not fall through to the web file picker
+        // (that sheet includes Take Photo and reopens the camera).
+        if (isNativeApp()) return;
+      } catch {
+        if (isNativeApp()) return;
+      }
+
+      const file = await pickGalleryImage();
+      if (file) onCapture(file);
+    } finally {
+      setPickingGallery(false);
+    }
   };
 
   return (
@@ -239,32 +257,15 @@ export function MealCameraCapture({
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-16">
         <div className="pointer-events-auto mx-auto grid max-w-md grid-cols-3 items-end gap-2 px-6">
-          <label
+          <button
+            type="button"
+            disabled={disabled || pickingGallery}
+            onClick={() => void handlePickGallery()}
             className={cn(
               "relative flex cursor-pointer flex-col items-center gap-1.5 rounded-2xl px-2 py-2 text-xs font-semibold text-white/90 transition-colors hover:bg-white/10",
               disabled && "pointer-events-none opacity-50"
             )}
           >
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept={GALLERY_IMAGE_ACCEPT}
-              // Visible to the a11y tree but not painted — `hidden`/`sr-only` clip
-              // patterns are unreliable for iOS Safari file inputs.
-              className="pointer-events-none absolute h-px w-px opacity-0"
-              disabled={disabled}
-              // Never set capture — that forces camera / the system chooser path.
-              onClick={() => setPickingGallery(true)}
-              onChange={(e) => handleGalleryChange(e.target.files)}
-              onBlur={() => {
-                // iOS dismisses without change — clear spinner after sheet closes.
-                window.setTimeout(() => {
-                  if (!galleryInputRef.current?.files?.length) {
-                    setPickingGallery(false);
-                  }
-                }, 900);
-              }}
-            />
             <span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-black/40 backdrop-blur-md">
               {pickingGallery ? (
                 <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.75} />
@@ -273,7 +274,7 @@ export function MealCameraCapture({
               )}
             </span>
             {platform.mealLog.fromGallery}
-          </label>
+          </button>
 
           <button
             type="button"

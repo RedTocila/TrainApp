@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { Pause, Play } from "lucide-react";
 import {
   extractYoutubeId,
@@ -90,7 +97,6 @@ function loadYoutubeApi(): Promise<void> {
       document.head.appendChild(script);
     }
 
-    // API may already be mid-load with a ready callback queue.
     const poll = window.setInterval(() => {
       if (window.YT?.Player) {
         window.clearInterval(poll);
@@ -102,9 +108,12 @@ function loadYoutubeApi(): Promise<void> {
   return youtubeApiPromise;
 }
 
-function canHoverFinePointer(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const total = Math.floor(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 export function ExerciseVideoPlayer({
@@ -121,46 +130,33 @@ export function ExerciseVideoPlayer({
 
   const mountRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
-  const hideTimerRef = useRef<number | null>(null);
+  const progressTrackRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(paused);
   const userPausedRef = useRef(false);
   const onErrorRef = useRef(onError);
+  const seekingRef = useRef(false);
 
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [showPlayButton, setShowPlayButton] = useState(!autoplay);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   pausedRef.current = paused;
   onErrorRef.current = onError;
-
-  const clearHideTimer = useCallback(() => {
-    if (hideTimerRef.current != null) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-  }, []);
-
-  const scheduleMobileHide = useCallback(() => {
-    clearHideTimer();
-    if (canHoverFinePointer()) return;
-    hideTimerRef.current = window.setTimeout(() => {
-      setShowPlayButton(false);
-    }, 1800);
-  }, [clearHideTimer]);
 
   useEffect(() => {
     if (!videoId || !mountRef.current) return;
 
     let cancelled = false;
     const host = mountRef.current;
-    // YT.Player replaces the mount node; keep a stable child to target.
     const target = document.createElement("div");
-    target.className = "absolute inset-0 h-full w-full";
+    target.className = "h-full w-full";
     host.replaceChildren(target);
     userPausedRef.current = false;
-    setShowPlayButton(!autoplay);
     setPlaying(false);
     setReady(false);
+    setCurrentTime(0);
+    setDuration(0);
 
     void loadYoutubeApi().then(() => {
       if (cancelled || !window.YT?.Player) return;
@@ -172,7 +168,6 @@ export function ExerciseVideoPlayer({
         host: "https://www.youtube-nocookie.com",
         playerVars: {
           autoplay: autoplay ? 1 : 0,
-          // Always start muted — browsers also require mute for autoplay.
           mute: 1,
           controls: 0,
           disablekb: 1,
@@ -190,10 +185,15 @@ export function ExerciseVideoPlayer({
             if (cancelled) return;
             playerRef.current = event.target;
             setReady(true);
+            try {
+              const d = event.target.getDuration();
+              if (Number.isFinite(d) && d > 0) setDuration(d);
+            } catch {
+              // Duration may be 0 until playback starts.
+            }
             event.target.mute();
             if (pausedRef.current) {
               event.target.pauseVideo();
-              setShowPlayButton(true);
               return;
             }
             if (autoplay) {
@@ -204,13 +204,17 @@ export function ExerciseVideoPlayer({
             if (cancelled || !window.YT?.PlayerState) return;
             const { PLAYING, PAUSED, ENDED, BUFFERING } = window.YT.PlayerState;
             if (event.data === PLAYING) {
-              // Honor external workout pause even if YT tries to play.
               if (pausedRef.current) {
                 event.target.pauseVideo();
                 return;
               }
               setPlaying(true);
-              setShowPlayButton(false);
+              try {
+                const d = event.target.getDuration();
+                if (Number.isFinite(d) && d > 0) setDuration(d);
+              } catch {
+                // ignore
+              }
               return;
             }
             if (event.data === BUFFERING) {
@@ -219,7 +223,18 @@ export function ExerciseVideoPlayer({
             }
             if (event.data === PAUSED || event.data === ENDED) {
               setPlaying(false);
-              setShowPlayButton(true);
+              if (event.data === ENDED) {
+                // Avoid YouTube end-screen titles / related cards.
+                try {
+                  const d = event.target.getDuration();
+                  setCurrentTime(d > 0 ? d : 0);
+                  event.target.seekTo(0, true);
+                  event.target.pauseVideo();
+                  setCurrentTime(0);
+                } catch {
+                  // ignore
+                }
+              }
             }
           },
           onError: () => {
@@ -234,7 +249,6 @@ export function ExerciseVideoPlayer({
 
     return () => {
       cancelled = true;
-      clearHideTimer();
       try {
         playerRef.current?.destroy();
       } catch {
@@ -244,9 +258,8 @@ export function ExerciseVideoPlayer({
       setReady(false);
       setPlaying(false);
     };
-    // Recreate only when the video identity changes — play/pause is handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- autoplay/paused applied in separate effect
-  }, [videoId, startSeconds, clearHideTimer]);
+  }, [videoId, startSeconds]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -255,7 +268,6 @@ export function ExerciseVideoPlayer({
       if (paused) {
         player.pauseVideo();
         setPlaying(false);
-        setShowPlayButton(true);
       } else if (autoplay && !userPausedRef.current) {
         player.mute();
         player.playVideo();
@@ -264,6 +276,76 @@ export function ExerciseVideoPlayer({
       // Ignore transient API errors during teardown.
     }
   }, [paused, ready, autoplay]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const tick = () => {
+      const player = playerRef.current;
+      if (!player || seekingRef.current) return;
+      try {
+        const t = player.getCurrentTime();
+        const d = player.getDuration();
+        if (Number.isFinite(t)) setCurrentTime(t);
+        if (Number.isFinite(d) && d > 0) setDuration(d);
+      } catch {
+        // ignore
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [ready]);
+
+  const seekFromClientX = useCallback((clientX: number) => {
+    const track = progressTrackRef.current;
+    const player = playerRef.current;
+    if (!track || !player || !ready) return;
+    const rect = track.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const d =
+      duration > 0
+        ? duration
+        : (() => {
+            try {
+              return player.getDuration();
+            } catch {
+              return 0;
+            }
+          })();
+    if (!(d > 0)) return;
+    const next = ratio * d;
+    setCurrentTime(next);
+    try {
+      player.seekTo(next, true);
+    } catch {
+      // ignore
+    }
+  }, [duration, ready]);
+
+  const onProgressPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!ready || paused) return;
+    event.preventDefault();
+    event.stopPropagation();
+    seekingRef.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    seekFromClientX(event.clientX);
+  };
+
+  const onProgressPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!seekingRef.current) return;
+    seekFromClientX(event.clientX);
+  };
+
+  const onProgressPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!seekingRef.current) return;
+    seekingRef.current = false;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+  };
 
   if (!videoId) return null;
 
@@ -274,63 +356,41 @@ export function ExerciseVideoPlayer({
     if (playing) {
       userPausedRef.current = true;
       player.pauseVideo();
-      setShowPlayButton(true);
+      setPlaying(false);
     } else {
       userPausedRef.current = false;
       player.playVideo();
-      setShowPlayButton(false);
+      setPlaying(true);
     }
   };
 
-  const onShellClick = () => {
-    if (paused) return;
-    if (playing) {
-      // Tap while playing reveals our pause control briefly (mobile) or toggles (desktop).
-      if (canHoverFinePointer()) {
-        togglePlay();
-        return;
-      }
-      if (!showPlayButton) {
-        setShowPlayButton(true);
-        scheduleMobileHide();
-        return;
-      }
-      togglePlay();
-      return;
-    }
-    togglePlay();
-  };
-
-  const showPoster = !playing;
+  const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0;
+  const showPoster = !playing && currentTime < 0.35;
 
   return (
     <div
       className={cn(
-        "overflow-hidden bg-black",
-        fill
-          ? "h-full w-full"
-          : "rounded-lg border border-border bg-muted"
+        "flex flex-col bg-black",
+        fill ? "h-full w-full" : "overflow-hidden rounded-lg border border-border"
       )}
     >
       <div
         className={cn(
-          "relative cursor-pointer",
-          fill ? "h-full w-full" : "aspect-video w-full"
+          "relative min-h-0 flex-1 overflow-hidden bg-black",
+          fill ? "w-full" : "aspect-video w-full"
         )}
-        onClick={onShellClick}
         role="group"
         aria-label={`${title} demo video`}
       >
         {/*
-          Full-size iframe so the video frame matches the stage without crop/zoom.
-          Overlay below still blocks residual YouTube chrome from receiving input.
+          Scale + crop the iframe so YouTube title, logo, and end-screen chrome
+          sit outside the visible frame. pointer-events none + cover block clicks.
         */}
         <div
           ref={mountRef}
           className={cn(
-            "absolute inset-0 h-full w-full overflow-hidden",
-            "[&_iframe]:pointer-events-none [&_iframe]:absolute [&_iframe]:inset-0",
-            "[&_iframe]:h-full [&_iframe]:w-full"
+            "pointer-events-none absolute left-1/2 top-1/2 h-[135%] w-[135%] -translate-x-1/2 -translate-y-1/2 overflow-hidden",
+            "[&_iframe]:pointer-events-none [&_iframe]:h-full [&_iframe]:w-full"
           )}
         />
 
@@ -344,22 +404,14 @@ export function ExerciseVideoPlayer({
           />
         ) : null}
 
-        {/* Blocks YouTube’s residual chrome from receiving input */}
         <div className="absolute inset-0 z-[2]" aria-hidden />
 
-        <div
-          className={cn(
-            "absolute inset-0 z-[4] flex items-center justify-center transition-opacity duration-150",
-            showPlayButton
-              ? "pointer-events-auto opacity-100"
-              : "pointer-events-none opacity-0"
-          )}
-        >
+        <div className="absolute inset-0 z-[4] flex items-center justify-center">
           <button
             type="button"
             onClick={togglePlay}
-            disabled={paused}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition hover:bg-black/70 disabled:opacity-50"
+            disabled={paused || !ready}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/75 disabled:opacity-40"
             aria-label={playing ? "Pause video" : "Play video"}
           >
             {playing ? (
@@ -368,6 +420,54 @@ export function ExerciseVideoPlayer({
               <Play className="h-6 w-6 fill-current pl-0.5" />
             )}
           </button>
+        </div>
+      </div>
+
+      <div className="shrink-0 bg-black px-3 pb-3 pt-2">
+        <div
+          ref={progressTrackRef}
+          role="slider"
+          tabIndex={ready && !paused ? 0 : -1}
+          aria-label="Video progress"
+          aria-valuemin={0}
+          aria-valuemax={Math.max(1, Math.floor(duration))}
+          aria-valuenow={Math.floor(currentTime)}
+          aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+          className={cn(
+            "group relative h-1.5 w-full cursor-pointer rounded-full bg-white/20",
+            (!ready || paused) && "pointer-events-none opacity-50"
+          )}
+          onPointerDown={onProgressPointerDown}
+          onPointerMove={onProgressPointerMove}
+          onPointerUp={onProgressPointerUp}
+          onPointerCancel={onProgressPointerUp}
+          onKeyDown={(event) => {
+            if (!ready || paused || duration <= 0) return;
+            const player = playerRef.current;
+            if (!player) return;
+            let next = currentTime;
+            if (event.key === "ArrowRight") next = Math.min(duration, currentTime + 5);
+            else if (event.key === "ArrowLeft") next = Math.max(0, currentTime - 5);
+            else if (event.key === "Home") next = 0;
+            else if (event.key === "End") next = duration;
+            else return;
+            event.preventDefault();
+            setCurrentTime(next);
+            try {
+              player.seekTo(next, true);
+            } catch {
+              // ignore
+            }
+          }}
+        >
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-white transition-[width] duration-75"
+            style={{ width: `${progress * 100}%` }}
+          />
+          <div
+            className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100"
+            style={{ left: `${progress * 100}%` }}
+          />
         </div>
       </div>
     </div>

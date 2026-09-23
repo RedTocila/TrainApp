@@ -4,8 +4,9 @@ import { useRef } from "react";
 import { Camera, ImageIcon, ImagePlus } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { isNativeApp } from "@/lib/native-app";
 import { pickNativeImage } from "@/lib/native-camera";
-import { GALLERY_IMAGE_ACCEPT } from "@/lib/pick-gallery-image";
+import { pickGalleryImage } from "@/lib/pick-gallery-image";
 import { cn } from "@/lib/utils";
 
 type ImageSourceButtonsProps = {
@@ -40,12 +41,10 @@ export function ImageSourceButtons({
   const resolvedZoneLabel =
     zoneLabel ?? (cameraOnly ? resolvedCameraLabel : platform.mealLog.addMealPhoto);
   const cameraRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
 
-  const handleChange = (file: File | undefined) => {
+  const handleCameraChange = (file: File | undefined) => {
     if (file) onSelect(file);
     resetInput(cameraRef.current);
-    resetInput(galleryRef.current);
   };
 
   const openCamera = async () => {
@@ -55,8 +54,9 @@ export function ImageSourceButtons({
         onSelect(native);
         return;
       }
+      if (isNativeApp()) return;
     } catch {
-      // Fall back to file input if the user cancels or the plugin fails.
+      if (isNativeApp()) return;
     }
     cameraRef.current?.click();
   };
@@ -68,10 +68,14 @@ export function ImageSourceButtons({
         onSelect(native);
         return;
       }
+      // Native cancel/null must not fall through — the web picker includes Take Photo.
+      if (isNativeApp()) return;
     } catch {
-      // Fall back to file input if the user cancels or the plugin fails.
+      if (isNativeApp()) return;
     }
-    galleryRef.current?.click();
+
+    const file = await pickGalleryImage();
+    if (file) onSelect(file);
   };
 
   const cameraInput = (
@@ -82,18 +86,7 @@ export function ImageSourceButtons({
       capture="environment"
       className="pointer-events-none absolute h-px w-px opacity-0"
       disabled={disabled}
-      onChange={(e) => handleChange(e.target.files?.[0])}
-    />
-  );
-
-  const galleryInput = cameraOnly ? null : (
-    <input
-      ref={galleryRef}
-      type="file"
-      accept={GALLERY_IMAGE_ACCEPT}
-      className="pointer-events-none absolute h-px w-px opacity-0"
-      disabled={disabled}
-      onChange={(e) => handleChange(e.target.files?.[0])}
+      onChange={(e) => handleCameraChange(e.target.files?.[0])}
     />
   );
 
@@ -113,7 +106,6 @@ export function ImageSourceButtons({
         )}
       >
         {cameraInput}
-        {galleryInput}
         <button
           type="button"
           disabled={disabled}
@@ -150,7 +142,6 @@ export function ImageSourceButtons({
     return (
       <>
         {cameraInput}
-        {galleryInput}
         <button
           type="button"
           disabled={disabled}
@@ -178,7 +169,6 @@ export function ImageSourceButtons({
     return (
       <>
         {cameraInput}
-        {galleryInput}
         <Button
           type="button"
           variant="outline"
@@ -202,7 +192,6 @@ export function ImageSourceButtons({
     return (
       <div className={cn("flex items-center justify-center gap-1.5", className)}>
         {cameraInput}
-        {galleryInput}
         <Button
           type="button"
           variant="outline"
@@ -235,7 +224,6 @@ export function ImageSourceButtons({
     return (
       <>
         {cameraInput}
-        {galleryInput}
         <Button
           type="button"
           variant="outline"
@@ -258,7 +246,6 @@ export function ImageSourceButtons({
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>
       {cameraInput}
-      {galleryInput}
       <Button
         type="button"
         variant="outline"

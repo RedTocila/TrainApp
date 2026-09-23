@@ -6,7 +6,7 @@ import { usePlatformCopy } from "@/components/locale-provider";
 import { analyzeMealPhotoAction, refineMealPhotoAction } from "@/lib/actions/ai-meal";
 import { lookupBarcodeProductAction } from "@/lib/actions/barcode-product";
 import { isActionError, runServerAction } from "@/lib/run-server-action";
-import { compressImageFile, fileToDataUrl } from "@/lib/image-compress";
+import { compressImageFile, fileToDataUrl, isLikelyImageFile } from "@/lib/image-compress";
 import { type MealFormData } from "@/lib/meal-utils";
 import type { MealAnalysisResult } from "@/lib/ai/types";
 import { MealAnalysisSummary } from "@/components/meal-analysis-summary";
@@ -120,7 +120,7 @@ export function MealPhotoLogStep({
     setAlexRoast(null);
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
+    if (!isLikelyImageFile(file)) {
       onError(platform.mealLog.chooseImage);
       return;
     }

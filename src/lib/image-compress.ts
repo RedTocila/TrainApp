@@ -4,6 +4,70 @@ export type CompressImageOptions = {
   quality?: number;
 };
 
+const IMAGE_EXT_MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+  gif: "image/gif",
+};
+
+/** Gallery picks often arrive with an empty MIME type — accept by extension too. */
+export function isLikelyImageFile(file: File): boolean {
+  if (file.type.startsWith("image/")) return true;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return ext in IMAGE_EXT_MIME;
+}
+
+function withInferredImageType(file: File): File {
+  if (file.type.startsWith("image/")) return file;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const mime = IMAGE_EXT_MIME[ext];
+  if (!mime) return file;
+  return new File([file], file.name, { type: mime });
+}
+
+type DecodedImage = {
+  width: number;
+  height: number;
+  draw: (ctx: CanvasRenderingContext2D, width: number, height: number) => void;
+  close: () => void;
+};
+
+async function decodeImageFile(file: File): Promise<DecodedImage> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    return {
+      width: bitmap.width,
+      height: bitmap.height,
+      draw: (ctx, width, height) => ctx.drawImage(bitmap, 0, 0, width, height),
+      close: () => bitmap.close(),
+    };
+  } catch {
+    // Fallback when createImageBitmap rejects (empty MIME / some HEIC paths).
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error("Could not decode image"));
+        el.src = url;
+      });
+      return {
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        draw: (ctx, width, height) => ctx.drawImage(img, 0, 0, width, height),
+        close: () => URL.revokeObjectURL(url),
+      };
+    } catch (error) {
+      URL.revokeObjectURL(url);
+      throw error;
+    }
+  }
+}
+
 /**
  * Resize and compress a photo in the browser before upload (WebP, ~70% quality).
  */
@@ -15,26 +79,27 @@ export async function compressImageFile(
   const maxHeight = options.maxHeight ?? 1600;
   const quality = options.quality ?? 0.72;
 
-  if (!file.type.startsWith("image/")) {
+  if (!isLikelyImageFile(file)) {
     throw new Error("Please choose an image file");
   }
 
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxWidth / bitmap.width, maxHeight / bitmap.height);
-  const width = Math.max(1, Math.round(bitmap.width * scale));
-  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const source = withInferredImageType(file);
+  const decoded = await decodeImageFile(source);
+  const scale = Math.min(1, maxWidth / decoded.width, maxHeight / decoded.height);
+  const width = Math.max(1, Math.round(decoded.width * scale));
+  const height = Math.max(1, Math.round(decoded.height * scale));
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    bitmap.close();
+    decoded.close();
     throw new Error("Could not process image");
   }
 
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
+  decoded.draw(ctx, width, height);
+  decoded.close();
 
   const mimeType = supportsWebp() ? "image/webp" : "image/jpeg";
   const extension = mimeType === "image/webp" ? "webp" : "jpg";
