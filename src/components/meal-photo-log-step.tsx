@@ -6,7 +6,13 @@ import { usePlatformCopy } from "@/components/locale-provider";
 import { analyzeMealPhotoAction, refineMealPhotoAction } from "@/lib/actions/ai-meal";
 import { lookupBarcodeProductAction } from "@/lib/actions/barcode-product";
 import { isActionError, runServerAction } from "@/lib/run-server-action";
-import { compressImageFile, fileToDataUrl, isLikelyImageFile } from "@/lib/image-compress";
+import {
+  compressImageFile,
+  fileToDataUrl,
+  isHeicLikeFile,
+  isLikelyImageFile,
+  isUsableImageFile,
+} from "@/lib/image-compress";
 import { type MealFormData } from "@/lib/meal-utils";
 import type { MealAnalysisResult } from "@/lib/ai/types";
 import { MealAnalysisSummary } from "@/components/meal-analysis-summary";
@@ -37,6 +43,7 @@ export function MealPhotoLogStep({
   form,
   onFormChange,
   onError,
+  error = null,
   onReadyChange,
   onPhotoDataUrlChange,
   confidence,
@@ -46,6 +53,7 @@ export function MealPhotoLogStep({
   form: MealFormData;
   onFormChange: (form: MealFormData) => void;
   onError: (message: string | null) => void;
+  error?: string | null;
   onReadyChange?: (ready: boolean) => void;
   onPhotoDataUrlChange?: (dataUrl: string | null) => void;
   confidence: number | null;
@@ -125,6 +133,11 @@ export function MealPhotoLogStep({
       return;
     }
 
+    if (!isUsableImageFile(file)) {
+      onError(platform.mealLog.galleryPhotoUnavailable);
+      return;
+    }
+
     // Invalidate any in-flight analysis from a previous pick.
     analyzeGenRef.current += 1;
     setPhaseWithReady("compressing");
@@ -138,8 +151,13 @@ export function MealPhotoLogStep({
       setPreviewUrl(dataUrl);
       onPhotoDataUrlChange?.(dataUrl);
       analyzeDataUrl(dataUrl);
-    } catch {
-      onError(platform.mealLog.processFailed);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (message === "HEIC_UNSUPPORTED" || isHeicLikeFile(file)) {
+        onError(platform.mealLog.heicUnsupported);
+      } else {
+        onError(platform.mealLog.processFailed);
+      }
       setPhaseWithReady("capture");
     }
   };
@@ -308,6 +326,8 @@ export function MealPhotoLogStep({
         <MealCameraCapture
           onCapture={(file) => void handleFile(file)}
           onBarcode={handleBarcode}
+          onPickError={onError}
+          error={error}
           disabled={isPending || isSaving}
           className="absolute inset-0"
         />

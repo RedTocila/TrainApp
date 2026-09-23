@@ -1348,6 +1348,14 @@ export const platformCopyAl = {
     goBack: "Kthehu",
     chooseImage: "Zgjidhni një skedar fotoje",
     processFailed: "Fotoja nuk u përpunua. Provoni një tjetër.",
+    heicUnsupported:
+      "Ky format (HEIC) nuk analizohet këtu. Hapeni në Photos dhe eksportoni si JPEG, ose bëni një Snapshot të ri.",
+    galleryPhotoUnavailable:
+      "Kjo foto nuk është ende në këtë pajisje (shpesh iCloud). Hapeni në Photos që të shkarkohet, pastaj provo përsëri — ose bëj Snapshot.",
+    galleryPickFailed:
+      "Fotoja nga galeria nuk u hap. Provo përsëri ose bëj Snapshot.",
+    galleryTip:
+      "Këshillë: përdor foto të shkarkuar plotësisht në telefon. Fotot vetëm në cloud ose HEIC mund të mos analizohen.",
     takePhotoFirst: "Bëni ose zgjidhni një foto fillimisht",
     readFailed: "Fotoja nuk u lexua",
     uploadTooLarge:

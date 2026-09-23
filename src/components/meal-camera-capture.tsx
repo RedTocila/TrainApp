@@ -13,6 +13,8 @@ type CaptureMode = "photo" | "barcode";
 type MealCameraCaptureProps = {
   onCapture: (file: File) => void;
   onBarcode: (code: string) => void;
+  onPickError?: (message: string) => void;
+  error?: string | null;
   disabled?: boolean;
   className?: string;
 };
@@ -21,9 +23,21 @@ function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
+function isUserCancelledPick(err: unknown): boolean {
+  const message =
+    err instanceof Error
+      ? err.message
+      : typeof err === "string"
+        ? err
+        : String(err ?? "");
+  return /cancel/i.test(message);
+}
+
 export function MealCameraCapture({
   onCapture,
   onBarcode,
+  onPickError,
+  error = null,
   disabled = false,
   className,
 }: MealCameraCaptureProps) {
@@ -197,8 +211,10 @@ export function MealCameraCapture({
         try {
           const native = await pickNativeImage({ source: "gallery" });
           if (native) onCapture(native);
-        } catch {
-          // User cancelled or plugin failed.
+        } catch (err) {
+          if (!isUserCancelledPick(err)) {
+            onPickError?.(platform.mealLog.galleryPickFailed);
+          }
         } finally {
           setPickingGallery(false);
         }
@@ -211,6 +227,9 @@ export function MealCameraCapture({
     void pickGalleryImage()
       .then((file) => {
         if (file) onCapture(file);
+      })
+      .catch(() => {
+        onPickError?.(platform.mealLog.galleryPickFailed);
       })
       .finally(() => {
         setPickingGallery(false);
@@ -262,6 +281,23 @@ export function MealCameraCapture({
       ) : null}
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-16">
+        {error || mode === "photo" ? (
+          <div className="pointer-events-none mx-auto mb-3 max-w-md space-y-2 px-5">
+            {error ? (
+              <p
+                role="alert"
+                className="rounded-xl border border-red-400/40 bg-red-950/80 px-3 py-2 text-center text-xs font-medium leading-snug text-red-100 backdrop-blur-md"
+              >
+                {error}
+              </p>
+            ) : mode === "photo" ? (
+              <p className="rounded-xl border border-white/15 bg-black/55 px-3 py-2 text-center text-[11px] leading-snug text-white/75 backdrop-blur-md">
+                {platform.mealLog.galleryTip}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="pointer-events-auto mx-auto grid max-w-md grid-cols-3 items-end gap-2 px-6">
           <button
             type="button"

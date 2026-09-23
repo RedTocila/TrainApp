@@ -104,18 +104,32 @@ export async function pickGalleryImage(): Promise<File | null> {
     };
 
     // Safari often skips the cancel event when dismissing the sheet.
-    // Wait long enough that a slow change event still wins the race.
+    // After focus returns, poll for the file — iCloud “Optimize Storage”
+    // photos can take several seconds to download before `change` fires.
+    // A short single timeout used to resolve null and drop the pick.
     const onWindowFocus = () => {
       if (settled) return;
       if (focusTimer !== undefined) window.clearTimeout(focusTimer);
-      focusTimer = window.setTimeout(() => {
+
+      const startedAt = Date.now();
+      const maxWaitMs = 20_000;
+      const intervalMs = 250;
+
+      const poll = () => {
         if (settled) return;
         if (input.files?.length) {
           finish(input.files[0] ?? null);
           return;
         }
-        finish(null);
-      }, 1500);
+        if (Date.now() - startedAt >= maxWaitMs) {
+          finish(null);
+          return;
+        }
+        focusTimer = window.setTimeout(poll, intervalMs);
+      };
+
+      // Brief delay so a synchronous change event can win first.
+      focusTimer = window.setTimeout(poll, 400);
     };
 
     input.addEventListener("change", onChange);

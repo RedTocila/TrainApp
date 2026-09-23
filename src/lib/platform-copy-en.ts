@@ -1337,6 +1337,13 @@ export const platformCopyEn = {
     goBack: "Go back",
     chooseImage: "Please choose an image file",
     processFailed: "Could not process that photo. Try another image.",
+    heicUnsupported:
+      "This photo format (HEIC) can’t be analyzed here. Open it in Photos and share/export as JPEG, or take a new Snapshot.",
+    galleryPhotoUnavailable:
+      "That photo isn’t available on this device yet (often iCloud). Open it in Photos so it downloads, then try again — or take a Snapshot.",
+    galleryPickFailed: "Could not open that gallery photo. Try again or take a Snapshot.",
+    galleryTip:
+      "Gallery tip: use a photo fully downloaded on this phone. Cloud-only or HEIC library photos may not analyze.",
     takePhotoFirst: "Take or choose a photo first",
     readFailed: "Could not read the photo",
     uploadTooLarge:

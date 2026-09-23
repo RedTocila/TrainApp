@@ -545,6 +545,7 @@ export function LogMealDialog({
                 form={form}
                 onFormChange={setForm}
                 onError={setError}
+                error={error}
                 onReadyChange={setPhotoReady}
                 onPhotoDataUrlChange={setMealPhotoDataUrl}
                 confidence={aiConfidence}

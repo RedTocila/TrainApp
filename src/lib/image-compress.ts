@@ -24,6 +24,19 @@ export function isLikelyImageFile(file: File): boolean {
   return false;
 }
 
+/** HEIC/HEIF — common for older iPhone library photos; many browsers cannot decode. */
+export function isHeicLikeFile(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (type.includes("heic") || type.includes("heif")) return true;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return ext === "heic" || ext === "heif";
+}
+
+/** iCloud stubs / failed downloads often arrive as empty or tiny files. */
+export function isUsableImageFile(file: File): boolean {
+  return file.size >= 512;
+}
+
 function withInferredImageType(file: File): File {
   if (file.type.startsWith("image/")) return file;
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -89,7 +102,15 @@ export async function compressImageFile(
   }
 
   const source = withInferredImageType(file);
-  const decoded = await decodeImageFile(source);
+  let decoded: DecodedImage;
+  try {
+    decoded = await decodeImageFile(source);
+  } catch (error) {
+    if (isHeicLikeFile(source)) {
+      throw new Error("HEIC_UNSUPPORTED");
+    }
+    throw error;
+  }
   const scale = Math.min(1, maxWidth / decoded.width, maxHeight / decoded.height);
   const width = Math.max(1, Math.round(decoded.width * scale));
   const height = Math.max(1, Math.round(decoded.height * scale));
