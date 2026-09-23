@@ -47,35 +47,41 @@ export function ImageSourceButtons({
     resetInput(cameraRef.current);
   };
 
-  const openCamera = async () => {
-    try {
-      const native = await pickNativeImage({ source: "camera" });
-      if (native) {
-        onSelect(native);
-        return;
-      }
-      if (isNativeApp()) return;
-    } catch {
-      if (isNativeApp()) return;
+  const openCamera = () => {
+    if (isNativeApp()) {
+      void (async () => {
+        try {
+          const native = await pickNativeImage({ source: "camera" });
+          if (native) {
+            onSelect(native);
+            return;
+          }
+        } catch {
+          // User cancelled or plugin failed.
+        }
+      })();
+      return;
     }
     cameraRef.current?.click();
   };
 
-  const openGallery = async () => {
-    try {
-      const native = await pickNativeImage({ source: "gallery" });
-      if (native) {
-        onSelect(native);
-        return;
-      }
-      // Native cancel/null must not fall through — the web picker includes Take Photo.
-      if (isNativeApp()) return;
-    } catch {
-      if (isNativeApp()) return;
+  const openGallery = () => {
+    if (isNativeApp()) {
+      void (async () => {
+        try {
+          const native = await pickNativeImage({ source: "gallery" });
+          if (native) onSelect(native);
+        } catch {
+          // User cancelled or plugin failed.
+        }
+      })();
+      return;
     }
 
-    const file = await pickGalleryImage();
-    if (file) onSelect(file);
+    // Web: keep picker open inside the originating click (no await first).
+    void pickGalleryImage().then((file) => {
+      if (file) onSelect(file);
+    });
   };
 
   const cameraInput = (

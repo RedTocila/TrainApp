@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { addDays, addWeeks, format, startOfWeek } from "date-fns";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,11 +16,15 @@ import { getScheduledCardioInRange } from "@/lib/actions/user-cardio";
 import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
 import { formatLocalized } from "@/lib/date-locale";
 import { isExtraWorkoutKind, normalizeWorkoutPlanKind } from "@/lib/hiit";
+import { scrollElementIntoHorizontalView } from "@/lib/scroll-horizontal";
 import type { ScheduledCardio, ScheduledWorkout } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const WEEKS_BACK = 2;
 const WEEKS_FORWARD = 10;
+const SWIPE_DISTANCE = 56;
+const SWIPE_VELOCITY = 420;
+const EASE = [0.22, 1, 0.36, 1] as const;
 
 type DayPlan = {
   dateKey: string;
@@ -47,10 +52,14 @@ function sessionTypeLabel(
 export function WorkoutScheduleView() {
   const platform = usePlatformCopy();
   const locale = useLocale();
+  const reduceMotion = useReducedMotion();
   const [weekOffset, setWeekOffset] = useState(WEEKS_BACK);
   const [loading, setLoading] = useState(true);
   const [workouts, setWorkouts] = useState<ScheduledWorkout[]>([]);
   const [cardios, setCardios] = useState<ScheduledCardio[]>([]);
+  const directionRef = useRef(0);
+  const weekChipRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const weekStripRef = useRef<HTMLDivElement>(null);
 
   const weekStarts = useMemo(() => {
     const origin = weekMonday(new Date());
@@ -66,6 +75,13 @@ export function WorkoutScheduleView() {
     addDays(weekStarts[weekStarts.length - 1], 6),
     "yyyy-MM-dd"
   );
+
+  const goToWeek = (next: number) => {
+    const clamped = Math.min(weekStarts.length - 1, Math.max(0, next));
+    if (clamped === weekOffset) return;
+    directionRef.current = clamped > weekOffset ? 1 : -1;
+    setWeekOffset(clamped);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +103,16 @@ export function WorkoutScheduleView() {
     };
   }, [rangeFrom, rangeTo]);
 
+  useEffect(() => {
+    const chip = weekChipRefs.current[weekOffset];
+    if (!chip) return;
+    scrollElementIntoHorizontalView(chip, {
+      behavior: reduceMotion ? "auto" : "smooth",
+      inline: "center",
+      scroller: weekStripRef.current,
+    });
+  }, [weekOffset, reduceMotion]);
+
   const days: DayPlan[] = useMemo(() => {
     return Array.from({ length: 7 }, (_, index) => {
       const date = addDays(selectedMonday, index);
@@ -103,6 +129,21 @@ export function WorkoutScheduleView() {
   const weekLabel = formatLocalized(selectedMonday, "MMM d", locale);
   const rangeLabel = `${formatLocalized(selectedMonday, "MMM d", locale)} – ${formatLocalized(selectedSunday, "MMM d", locale)}`;
 
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: reduceMotion ? 0 : direction > 0 ? 56 : -56,
+      opacity: reduceMotion ? 1 : 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      x: reduceMotion ? 0 : direction > 0 ? -40 : 40,
+      opacity: reduceMotion ? 1 : 0,
+    }),
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2">
@@ -112,14 +153,26 @@ export function WorkoutScheduleView() {
           variant="outline"
           className="h-9 w-9 shrink-0"
           disabled={weekOffset <= 0}
-          onClick={() => setWeekOffset((value) => Math.max(0, value - 1))}
+          onClick={() => goToWeek(weekOffset - 1)}
           aria-label={platform.workout.previous}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <div className="min-w-0 flex-1 text-center">
-          <p className="text-base font-black tracking-tight">{weekLabel}</p>
-          <p className="truncate text-xs text-muted-foreground">{rangeLabel}</p>
+        <div className="relative min-w-0 flex-1 overflow-hidden text-center">
+          <AnimatePresence mode="wait" custom={directionRef.current} initial={false}>
+            <motion.div
+              key={weekOffset}
+              custom={directionRef.current}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              variants={slideVariants}
+              transition={{ duration: reduceMotion ? 0.01 : 0.28, ease: EASE }}
+            >
+              <p className="text-base font-black tracking-tight">{weekLabel}</p>
+              <p className="truncate text-xs text-muted-foreground">{rangeLabel}</p>
+            </motion.div>
+          </AnimatePresence>
         </div>
         <Button
           type="button"
@@ -127,184 +180,229 @@ export function WorkoutScheduleView() {
           variant="outline"
           className="h-9 w-9 shrink-0"
           disabled={weekOffset >= weekStarts.length - 1}
-          onClick={() =>
-            setWeekOffset((value) => Math.min(weekStarts.length - 1, value + 1))
-          }
+          onClick={() => goToWeek(weekOffset + 1)}
           aria-label={platform.common.next}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        ref={weekStripRef}
+        data-horizontal-scroll
+        className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {weekStarts.map((weekStart, index) => {
           const label = formatLocalized(weekStart, "MMM d", locale);
+          const selected = index === weekOffset;
           return (
             <button
               key={index}
+              ref={(node) => {
+                weekChipRefs.current[index] = node;
+              }}
               type="button"
-              onClick={() => setWeekOffset(index)}
+              onClick={() => goToWeek(index)}
               className={cn(
-                "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
-                index === weekOffset
-                  ? "bg-primary text-primary-foreground"
+                "relative shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                selected
+                  ? "text-primary-foreground"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
             >
-              {label}
+              {selected && !reduceMotion ? (
+                <motion.span
+                  layoutId="schedule-week-pill"
+                  className="absolute inset-0 rounded-full bg-primary"
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                />
+              ) : selected ? (
+                <span className="absolute inset-0 rounded-full bg-primary" />
+              ) : null}
+              <span className="relative z-[1]">{label}</span>
             </button>
           );
         })}
       </div>
 
-      {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-14 animate-pulse rounded-xl bg-secondary/50"
-            />
-          ))}
-        </div>
-      ) : (
-        <ul className="space-y-2">
-          {days.map((day) => {
-            const isToday =
-              format(day.date, "yyyy-MM-dd") ===
-              format(new Date(), "yyyy-MM-dd");
-            const empty =
-              day.workouts.length === 0 && day.cardios.length === 0;
-            return (
-              <li
-                key={day.dateKey}
-                className={cn(
-                  "rounded-2xl border px-3 py-3 sm:px-4",
-                  isToday
-                    ? "border-primary/55 bg-primary/10 shadow-[0_0_0_1px_rgba(var(--primary-rgb),0.25)]"
-                    : "border-border/50 bg-secondary/25"
-                )}
-              >
-                <div className="mb-2.5 flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <p
+      <div className="touch-pan-y">
+        <AnimatePresence mode="wait" custom={directionRef.current} initial={false}>
+          <motion.div
+            key={weekOffset}
+            custom={directionRef.current}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            variants={slideVariants}
+            transition={{ duration: reduceMotion ? 0.01 : 0.32, ease: EASE }}
+            drag={reduceMotion ? false : "x"}
+            dragDirectionLock
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.18}
+            onDragEnd={(_, info) => {
+              const { offset, velocity } = info;
+              if (offset.x < -SWIPE_DISTANCE || velocity.x < -SWIPE_VELOCITY) {
+                goToWeek(weekOffset + 1);
+                return;
+              }
+              if (offset.x > SWIPE_DISTANCE || velocity.x > SWIPE_VELOCITY) {
+                goToWeek(weekOffset - 1);
+              }
+            }}
+          >
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-14 animate-pulse rounded-xl bg-secondary/50"
+                  />
+                ))}
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {days.map((day) => {
+                  const isToday =
+                    format(day.date, "yyyy-MM-dd") ===
+                    format(new Date(), "yyyy-MM-dd");
+                  const empty =
+                    day.workouts.length === 0 && day.cardios.length === 0;
+                  return (
+                    <li
+                      key={day.dateKey}
                       className={cn(
-                        "text-sm font-black",
-                        isToday ? "text-primary" : "text-foreground"
+                        "rounded-2xl border px-3 py-3 sm:px-4",
+                        isToday
+                          ? "border-primary/55 bg-primary/10 shadow-[0_0_0_1px_rgba(var(--primary-rgb),0.25)]"
+                          : "border-border/50 bg-secondary/25"
                       )}
                     >
-                      {formatLocalized(day.date, "EEEE", locale)}
-                    </p>
-                    {isToday ? (
-                      <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
-                        {platform.calendar.today}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p
-                    className={cn(
-                      "text-xs tabular-nums",
-                      isToday ? "font-semibold text-primary/80" : "text-muted-foreground"
-                    )}
-                  >
-                    {formatLocalized(day.date, "MMM d", locale)}
-                  </p>
-                </div>
-
-                {empty ? (
-                  <p className="text-xs text-muted-foreground/80">
-                    {platform.workout.scheduleRestDay}
-                  </p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {day.workouts.map((workout) => {
-                      const kind = normalizeWorkoutPlanKind(
-                        workout.workout_plans?.kind
-                      );
-                      const exerciseCount =
-                        workout.workout_days?.exercises?.length ?? 0;
-                      const title =
-                        workout.workout_days?.title ??
-                        workout.workout_plans?.title ??
-                        platform.workout.workoutPlan;
-                      const extra = isExtraWorkoutKind(kind);
-                      const meta = [
-                        sessionTypeLabel(kind, platform),
-                        exerciseCount > 0
-                          ? platform.common.exercises(exerciseCount)
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ");
-                      return (
-                        <li key={workout.id}>
-                          <Link
-                            href={`/dashboard/workout/${workout.plan_id}`}
+                      <div className="mb-2.5 flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <p
                             className={cn(
-                              "flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/50 py-2.5 pl-2.5 pr-3 transition-colors hover:bg-secondary/70 active:scale-[0.99]",
-                              "border-l-[3px]",
-                              extra
-                                ? "border-l-muted-foreground/45"
-                                : "border-l-primary"
+                              "text-sm font-black",
+                              isToday ? "text-primary" : "text-foreground"
                             )}
                           >
-                            <Dumbbell
-                              className={cn(
-                                "h-4 w-4 shrink-0",
-                                extra
-                                  ? "text-muted-foreground"
-                                  : "text-primary"
-                              )}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold leading-snug">
-                                {title}
-                              </p>
-                              {meta ? (
-                                <p className="truncate text-xs text-muted-foreground">
-                                  {meta}
-                                </p>
-                              ) : null}
-                            </div>
-                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-                          </Link>
-                        </li>
-                      );
-                    })}
-                    {day.cardios.map((cardio) => {
-                      const duration =
-                        cardio.client_cardio?.duration_minutes != null
-                          ? `${cardio.client_cardio.duration_minutes} min`
-                          : null;
-                      return (
-                        <li key={cardio.id}>
-                          <Link
-                            href={`/dashboard/workout/cardio/session?date=${encodeURIComponent(day.dateKey)}&cardioId=${encodeURIComponent(cardio.cardio_id)}`}
-                            className="flex items-center gap-3 rounded-xl border border-border/60 border-l-[3px] border-l-orange-500 bg-secondary/50 py-2.5 pl-2.5 pr-3 transition-colors hover:bg-secondary/70 active:scale-[0.99]"
-                          >
-                            <HeartPulse className="h-4 w-4 shrink-0 text-orange-400" />
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold leading-snug">
-                                {cardio.client_cardio?.title ??
-                                  platform.cardio.title}
-                              </p>
-                              {duration ? (
-                                <p className="truncate text-xs text-muted-foreground">
-                                  {duration}
-                                </p>
-                              ) : null}
-                            </div>
-                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                            {formatLocalized(day.date, "EEEE", locale)}
+                          </p>
+                          {isToday ? (
+                            <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+                              {platform.calendar.today}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p
+                          className={cn(
+                            "text-xs tabular-nums",
+                            isToday
+                              ? "font-semibold text-primary/80"
+                              : "text-muted-foreground"
+                          )}
+                        >
+                          {formatLocalized(day.date, "MMM d", locale)}
+                        </p>
+                      </div>
+
+                      {empty ? (
+                        <p className="text-xs text-muted-foreground/80">
+                          {platform.workout.scheduleRestDay}
+                        </p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {day.workouts.map((workout) => {
+                            const kind = normalizeWorkoutPlanKind(
+                              workout.workout_plans?.kind
+                            );
+                            const exerciseCount =
+                              workout.workout_days?.exercises?.length ?? 0;
+                            const title =
+                              workout.workout_days?.title ??
+                              workout.workout_plans?.title ??
+                              platform.workout.workoutPlan;
+                            const extra = isExtraWorkoutKind(kind);
+                            const meta = [
+                              sessionTypeLabel(kind, platform),
+                              exerciseCount > 0
+                                ? platform.common.exercises(exerciseCount)
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ");
+                            return (
+                              <li key={workout.id}>
+                                <Link
+                                  href={`/dashboard/workout/${workout.plan_id}`}
+                                  className={cn(
+                                    "flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/50 py-2.5 pl-2.5 pr-3 transition-colors hover:bg-secondary/70 active:scale-[0.99]",
+                                    "border-l-[3px]",
+                                    extra
+                                      ? "border-l-muted-foreground/45"
+                                      : "border-l-primary"
+                                  )}
+                                >
+                                  <Dumbbell
+                                    className={cn(
+                                      "h-4 w-4 shrink-0",
+                                      extra
+                                        ? "text-muted-foreground"
+                                        : "text-primary"
+                                    )}
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold leading-snug">
+                                      {title}
+                                    </p>
+                                    {meta ? (
+                                      <p className="truncate text-xs text-muted-foreground">
+                                        {meta}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+                                </Link>
+                              </li>
+                            );
+                          })}
+                          {day.cardios.map((cardio) => {
+                            const duration =
+                              cardio.client_cardio?.duration_minutes != null
+                                ? `${cardio.client_cardio.duration_minutes} min`
+                                : null;
+                            return (
+                              <li key={cardio.id}>
+                                <Link
+                                  href={`/dashboard/workout/cardio/session?date=${encodeURIComponent(day.dateKey)}&cardioId=${encodeURIComponent(cardio.cardio_id)}`}
+                                  className="flex items-center gap-3 rounded-xl border border-border/60 border-l-[3px] border-l-orange-500 bg-secondary/50 py-2.5 pl-2.5 pr-3 transition-colors hover:bg-secondary/70 active:scale-[0.99]"
+                                >
+                                  <HeartPulse className="h-4 w-4 shrink-0 text-orange-400" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold leading-snug">
+                                      {cardio.client_cardio?.title ??
+                                        platform.cardio.title}
+                                    </p>
+                                    {duration ? (
+                                      <p className="truncate text-xs text-muted-foreground">
+                                        {duration}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

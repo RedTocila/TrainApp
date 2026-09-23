@@ -105,26 +105,31 @@ export function ProgressPhotoCameraCapture({
     );
   };
 
-  const handlePickGallery = async () => {
+  const handlePickGallery = () => {
     if (disabled || pickingGallery) return;
     setPickingGallery(true);
-    try {
-      try {
-        const native = await pickNativeImage({ source: "gallery" });
-        if (native) {
-          onCapture(native);
-          return;
-        }
-        if (isNativeApp()) return;
-      } catch {
-        if (isNativeApp()) return;
-      }
 
-      const file = await pickGalleryImage();
-      if (file) onCapture(file);
-    } finally {
-      setPickingGallery(false);
+    if (isNativeApp()) {
+      void (async () => {
+        try {
+          const native = await pickNativeImage({ source: "gallery" });
+          if (native) onCapture(native);
+        } catch {
+          // User cancelled or plugin failed.
+        } finally {
+          setPickingGallery(false);
+        }
+      })();
+      return;
     }
+
+    void pickGalleryImage()
+      .then((file) => {
+        if (file) onCapture(file);
+      })
+      .finally(() => {
+        setPickingGallery(false);
+      });
   };
 
   return (

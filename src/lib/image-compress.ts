@@ -18,15 +18,17 @@ const IMAGE_EXT_MIME: Record<string, string> = {
 export function isLikelyImageFile(file: File): boolean {
   if (file.type.startsWith("image/")) return true;
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  return ext in IMAGE_EXT_MIME;
+  if (ext in IMAGE_EXT_MIME) return true;
+  // iOS Photos sometimes yields opaque names with an empty type.
+  if (!file.type && file.size > 0) return true;
+  return false;
 }
 
 function withInferredImageType(file: File): File {
   if (file.type.startsWith("image/")) return file;
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  const mime = IMAGE_EXT_MIME[ext];
-  if (!mime) return file;
-  return new File([file], file.name, { type: mime });
+  const mime = IMAGE_EXT_MIME[ext] ?? "image/jpeg";
+  return new File([file], file.name || `photo.${ext || "jpg"}`, { type: mime });
 }
 
 type DecodedImage = {
@@ -55,6 +57,9 @@ async function decodeImageFile(file: File): Promise<DecodedImage> {
         el.onerror = () => reject(new Error("Could not decode image"));
         el.src = url;
       });
+      if (!img.naturalWidth || !img.naturalHeight) {
+        throw new Error("Could not decode image");
+      }
       return {
         width: img.naturalWidth,
         height: img.naturalHeight,

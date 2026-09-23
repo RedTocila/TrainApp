@@ -187,28 +187,34 @@ export function MealCameraCapture({
     );
   };
 
-  const handlePickGallery = async () => {
+  const handlePickGallery = () => {
     if (disabled || pickingGallery) return;
     setPickingGallery(true);
-    try {
-      try {
-        const native = await pickNativeImage({ source: "gallery" });
-        if (native) {
-          onCapture(native);
-          return;
-        }
-        // On native, cancel/null must not fall through to the web file picker
-        // (that sheet includes Take Photo and reopens the camera).
-        if (isNativeApp()) return;
-      } catch {
-        if (isNativeApp()) return;
-      }
 
-      const file = await pickGalleryImage();
-      if (file) onCapture(file);
-    } finally {
-      setPickingGallery(false);
+    // Native shell: Capacitor Photos picker (async is fine).
+    if (isNativeApp()) {
+      void (async () => {
+        try {
+          const native = await pickNativeImage({ source: "gallery" });
+          if (native) onCapture(native);
+        } catch {
+          // User cancelled or plugin failed.
+        } finally {
+          setPickingGallery(false);
+        }
+      })();
+      return;
     }
+
+    // Web: open the file picker in THIS click turn — any await beforehand
+    // drops user-activation and Safari/Chrome ignore input.click().
+    void pickGalleryImage()
+      .then((file) => {
+        if (file) onCapture(file);
+      })
+      .finally(() => {
+        setPickingGallery(false);
+      });
   };
 
   return (
