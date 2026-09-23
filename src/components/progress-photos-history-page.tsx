@@ -42,6 +42,7 @@ import {
   ProgressPhotoReadMeProvider,
   useProgressPhotoReadMe,
 } from "@/components/progress-photo-read-me-context";
+import { useRegisterProgressPhotosPageChrome } from "@/components/progress-photos-page-chrome-context";
 import { DashboardStatusIcon } from "@/components/section-completed-badge";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
@@ -320,12 +321,7 @@ function TimelineRow({
   const photoPoses = getProgressPhotoPoses(locale);
 
   return (
-    <div
-      className={cn(
-        "space-y-3",
-        row.isUpcoming && "border-t border-border pt-8"
-      )}
-    >
+    <div className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {row.isUpcoming ? (
@@ -387,9 +383,13 @@ function ProgressPhotosHistoryPageInner({
 }: {
   clientId: string;
 }) {
-  const { canUploadPhotos, ensureCanUpload } = useProgressPhotoReadMe();
+  const { canUploadPhotos, ensureCanUpload, openReadMe } = useProgressPhotoReadMe();
   const coachCopy = useCoachCopy();
   const platform = usePlatformCopy();
+
+  useRegisterProgressPhotosPageChrome(
+    useMemo(() => ({ onOpenReadMe: openReadMe }), [openReadMe])
+  );
   const cachedSets = getProgressPhotosSetsCache(clientId);
   const [sets, setSets] = useState<ProgressPhotoSet[]>(cachedSets ?? []);
   const [urlsByMonth, setUrlsByMonth] = useState<Map<string, PoseUrls>>(() => {
@@ -619,31 +619,27 @@ function ProgressPhotosHistoryPageInner({
   return (
     <>
       <DashboardDayDetailShell>
-        <div className="hidden lg:block">
-          <Link href="/dashboard" className="inline-flex items-center gap-2">
+        <div className="hidden items-center justify-between gap-3 lg:flex">
+          <Link href="/dashboard" className="inline-flex min-w-0 items-center gap-2">
             <ImageIcon className="h-6 w-6 shrink-0 text-primary" />
-            <h1 className="text-xl font-black tracking-tight sm:text-2xl">
+            <h1 className="truncate text-xl font-black tracking-tight sm:text-2xl">
               {platform.photos.title}
             </h1>
           </Link>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">{platform.photos.previousMonths}</p>
           <ProgressPhotoReadMeButton />
         </div>
+        <p className="text-sm text-muted-foreground">{platform.photos.previousMonths}</p>
 
         <div className="space-y-8">
           {timelineRows
-            .filter((row) => !row.isUpcoming)
+            .filter((row) => row.isUpcoming)
             .map((row) => (
               <TimelineRow
-                key={`${row.monthKey}-${row.canUpload || row.canModify ? "active" : "logged"}`}
+                key="next-check-in"
                 row={row}
                 urls={urlsByMonth.get(row.monthKey) ?? EMPTY_URLS}
                 uploadingPose={
-                  (row.canUpload || row.canModify) && uploadingMonth === row.monthKey
-                    ? uploadingPose
-                    : null
+                  uploadingMonth === row.monthKey ? uploadingPose : null
                 }
                 canUploadPhotos={canUploadPhotos}
                 onRequireReadMe={ensureCanUpload}
@@ -662,14 +658,16 @@ function ProgressPhotosHistoryPageInner({
               />
             ))}
           {timelineRows
-            .filter((row) => row.isUpcoming)
+            .filter((row) => !row.isUpcoming)
             .map((row) => (
               <TimelineRow
-                key="next-check-in"
+                key={`${row.monthKey}-${row.canUpload || row.canModify ? "active" : "logged"}`}
                 row={row}
                 urls={urlsByMonth.get(row.monthKey) ?? EMPTY_URLS}
                 uploadingPose={
-                  uploadingMonth === row.monthKey ? uploadingPose : null
+                  (row.canUpload || row.canModify) && uploadingMonth === row.monthKey
+                    ? uploadingPose
+                    : null
                 }
                 canUploadPhotos={canUploadPhotos}
                 onRequireReadMe={ensureCanUpload}

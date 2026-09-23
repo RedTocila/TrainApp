@@ -270,47 +270,61 @@ export function ProfileSettings({
               <Label htmlFor="daily_macros">{platform.settings.dailyMacros}</Label>
               <div
                 id="daily_macros"
-                className="relative w-full rounded-lg border border-border bg-secondary px-3 py-2.5"
+                className="relative w-full rounded-xl border border-border bg-secondary/80 p-3.5"
               >
                 <button
                   type="button"
                   onClick={() => setCalorieEditOpen(true)}
                   aria-label={platform.settings.editCalories}
-                  className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full transition-opacity hover:opacity-90"
+                  className="absolute right-2.5 top-2.5 inline-flex h-9 w-9 items-center justify-center rounded-full transition-opacity hover:opacity-90"
                   style={{ backgroundColor: accentSwatch }}
                 >
-                  <Pencil className="h-3.5 w-3.5 text-white" />
+                  <Pencil className="h-4 w-4 text-white" />
                 </button>
-                <div className="pr-9">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <Flame className="h-3.5 w-3.5 text-orange-400" />
-                    <span className="text-sm font-semibold">{macros.calories} kcal</span>
-                    <span className="text-xs text-muted-foreground">
-                      {platform.settings.macroSplitHint} {splitLabel}
+                <div className="pr-11">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500/15">
+                      <Flame className="h-4 w-4 text-orange-400" />
+                    </span>
+                    <span className="text-lg font-bold tabular-nums tracking-tight">
+                      {macros.calories}
+                      <span className="ml-1 text-sm font-semibold text-muted-foreground">
+                        kcal
+                      </span>
                     </span>
                   </div>
-                  <div className="mt-1.5 grid grid-cols-3 gap-2 text-xs">
-                    <div>
-                      <p className="flex items-center gap-1 text-rose-400">
-                        <Beef className="h-3 w-3" />
-                        {platform.ai.protein}
-                      </p>
-                      <p className="font-semibold">{macros.protein}g</p>
-                    </div>
-                    <div>
-                      <p className="flex items-center gap-1 text-amber-400">
-                        <Wheat className="h-3 w-3" />
-                        {platform.ai.carbs}
-                      </p>
-                      <p className="font-semibold">{macros.carbs}g</p>
-                    </div>
-                    <div>
-                      <p className="flex items-center gap-1 text-sky-400">
-                        <Droplet className="h-3 w-3" />
-                        {platform.ai.fat}
-                      </p>
-                      <p className="font-semibold">{macros.fat}g</p>
-                    </div>
+                  <p className="mt-1 pl-10 text-[11px] font-medium text-muted-foreground">
+                    {platform.settings.macroSplitHint} {splitLabel}
+                  </p>
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/60 pt-3">
+                  <div className="rounded-lg bg-background/40 px-2 py-2 text-center">
+                    <p className="flex items-center justify-center gap-1 text-[11px] font-semibold text-rose-400">
+                      <Beef className="h-3 w-3" />
+                      {platform.ai.protein}
+                    </p>
+                    <p className="mt-0.5 text-sm font-bold tabular-nums">
+                      {macros.protein}g
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-background/40 px-2 py-2 text-center">
+                    <p className="flex items-center justify-center gap-1 text-[11px] font-semibold text-amber-400">
+                      <Wheat className="h-3 w-3" />
+                      {platform.ai.carbs}
+                    </p>
+                    <p className="mt-0.5 text-sm font-bold tabular-nums">
+                      {macros.carbs}g
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-background/40 px-2 py-2 text-center">
+                    <p className="flex items-center justify-center gap-1 text-[11px] font-semibold text-sky-400">
+                      <Droplet className="h-3 w-3" />
+                      {platform.ai.fat}
+                    </p>
+                    <p className="mt-0.5 text-sm font-bold tabular-nums">
+                      {macros.fat}g
+                    </p>
                   </div>
                 </div>
               </div>

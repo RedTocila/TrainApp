@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Apple,
   ArrowLeft,
+  BookOpen,
   Camera,
   ClipboardList,
   Dumbbell,
@@ -20,6 +21,7 @@ import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { useNutritionPageChromeActions } from "@/components/nutrition-page-chrome-context";
 import { useWorkoutPageChromeActions } from "@/components/workout-page-chrome-context";
+import { useProgressPhotosPageChromeActions } from "@/components/progress-photos-page-chrome-context";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import { DashboardWorkoutPlusMenu } from "@/components/dashboard-workout-plus-menu";
 import { DashboardStatusCheck, DashboardStatusIcon } from "@/components/section-completed-badge";
@@ -56,6 +58,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
   const platform = usePlatformCopy();
   const nutritionActions = useNutritionPageChromeActions();
   const workoutActions = useWorkoutPageChromeActions();
+  const progressPhotosActions = useProgressPhotosPageChromeActions();
   const isNutritionPage = chromePath === DASHBOARD_DAY_NUTRITION_PATH;
   const isWorkoutPage = chromePath === DASHBOARD_DAY_WORKOUT_PATH;
   const isProgressPhotosPage = chromePath === DASHBOARD_PROGRESS_PHOTOS_PATH;
@@ -157,6 +160,17 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
             />
           ) : null}
         </div>
+      ) : isProgressPhotosPage && progressPhotosActions?.onOpenReadMe ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="!h-8 shrink-0 gap-1.5 rounded-full px-3 text-xs font-semibold"
+          onClick={progressPhotosActions.onOpenReadMe}
+        >
+          <BookOpen className="h-3.5 w-3.5" aria-hidden />
+          {platform.photos.readMeButton}
+        </Button>
       ) : !isProgressPhotosPage &&
         !isWorkoutPage &&
         !isCardioSession ? (

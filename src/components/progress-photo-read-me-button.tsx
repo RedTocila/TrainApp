@@ -21,7 +21,11 @@ export function ProgressPhotoReadMeButton({
       type="button"
       variant="outline"
       size="sm"
-      className={cn("h-8 gap-1.5 text-xs font-semibold", buttonClassName, className)}
+      className={cn(
+        "!h-8 gap-1.5 rounded-full px-3 text-xs font-semibold",
+        buttonClassName,
+        className
+      )}
       onClick={(event) => {
         event.stopPropagation();
         event.preventDefault();

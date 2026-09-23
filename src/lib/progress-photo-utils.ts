@@ -273,7 +273,7 @@ export type ProgressPhotoTimelineRow = {
   isComplete: boolean;
 };
 
-/** Logged months (newest first), optional active cycle, plus one empty next check-in row. */
+/** Next check-in first, then in-progress cycle, then logged months (newest first). */
 export function getProgressPhotoTimelineRows(
   sets: ProgressPhotoSetLike[],
   now = new Date(),
@@ -342,5 +342,5 @@ export function getProgressPhotoTimelineRows(
     isComplete: false,
   };
 
-  return [...loggedRows, ...(activeRow ? [activeRow] : []), nextRow];
+  return [nextRow, ...(activeRow ? [activeRow] : []), ...loggedRows];
 }
