@@ -1,8 +1,19 @@
 -- Apple IAP fields on subscription_orders (PokPay remains for web)
 
 alter table public.subscription_orders
-  add column if not exists payment_provider text not null default 'pokpay'
-    check (payment_provider in ('pokpay', 'apple'));
+  add column if not exists payment_provider text not null default 'pokpay';
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'subscription_orders_payment_provider_check'
+  ) then
+    alter table public.subscription_orders
+      add constraint subscription_orders_payment_provider_check
+      check (payment_provider in ('pokpay', 'apple'));
+  end if;
+end $$;
 
 alter table public.subscription_orders
   add column if not exists apple_transaction_id text;

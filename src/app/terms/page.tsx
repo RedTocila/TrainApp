@@ -95,8 +95,14 @@ export default function TermsPage() {
             Prices are displayed in EUR and may exclude applicable taxes.
           </li>
           <li>
-            Payments are processed by PokPay. We do not store full payment card
-            numbers on our servers.
+            On the website and Android, payments are processed by PokPay. We do
+            not store full payment card numbers on our servers.
+          </li>
+          <li>
+            On the iOS app, subscriptions are purchased through Apple In-App
+            Purchase and billed by Apple to your Apple ID. Apple&apos;s terms
+            and refund policies apply to those purchases. Manage or cancel in
+            Settings → Apple ID → Subscriptions.
           </li>
           <li>
             Unless canceled, recurring subscriptions renew automatically at the

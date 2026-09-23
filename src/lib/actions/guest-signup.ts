@@ -335,18 +335,31 @@ async function prepareGuestPendingOrder(
     /** When false, skip promotional discounts (Apple sets the store price). */
     applyOffers?: boolean;
   }
-) {
+): Promise<
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      admin: ReturnType<typeof createAdminClient>;
+      plan: NonNullable<ReturnType<typeof getPlan>>;
+      price: NonNullable<ReturnType<typeof getPlanPrice>>;
+      pendingSignupId: string;
+      localOrderId: string;
+      finalAmountCents: number;
+      offerDiscountCents: number;
+      offerBadge: string | null;
+    }
+> {
   const plan = getPlan(planId);
-  if (!plan) return { error: "Invalid plan" };
+  if (!plan) return { ok: false, error: "Invalid plan" };
   if (planId !== "ai" && planId !== "elite") {
-    return { error: "That plan is no longer available. Choose AI Pro or Elite." };
+    return { ok: false, error: "That plan is no longer available. Choose AI Pro or Elite." };
   }
   if (interval !== "monthly" && interval !== "annual") {
-    return { error: "Invalid billing interval" };
+    return { ok: false, error: "Invalid billing interval" };
   }
 
   const price = getPlanPrice(planId, interval);
-  if (!price) return { error: "Invalid plan" };
+  if (!price) return { ok: false, error: "Invalid plan" };
   const admin = createAdminClient();
   let offerDiscountCents = 0;
   let offerBadge: string | null = null;
@@ -367,7 +380,7 @@ async function prepareGuestPendingOrder(
   const finalAmountCents = Math.max(0, price.amountCents - offerDiscountCents);
 
   const pending = await upsertPendingSignup(signup);
-  if ("error" in pending) return pending;
+  if ("error" in pending) return { ok: false, error: pending.error };
 
   const { data: orderRow, error: insertError } = await admin
     .from("subscription_orders")
@@ -388,10 +401,11 @@ async function prepareGuestPendingOrder(
     .single();
 
   if (insertError || !orderRow) {
-    return { error: insertError?.message ?? "Could not start checkout" };
+    return { ok: false, error: insertError?.message ?? "Could not start checkout" };
   }
 
   return {
+    ok: true,
     admin,
     plan,
     price,
@@ -411,7 +425,7 @@ export async function createGuestCheckoutOrder(
   const prepared = await prepareGuestPendingOrder(signup, planId, interval, {
     paymentProvider: "pokpay",
   });
-  if ("error" in prepared) return prepared;
+  if (!prepared.ok) return { error: prepared.error };
 
   const baseUrl = getAppBaseUrl();
   const isProd = process.env.VERCEL_ENV === "production";
@@ -483,13 +497,10 @@ export async function createGuestAppleCheckoutOrder(
     paymentProvider: "apple",
     applyOffers: false,
   });
-  if ("error" in prepared) return prepared;
+  if (!prepared.ok) return { error: prepared.error };
 
   const { getIapProductId } = await import("@/lib/iap/products");
-  const productId = getIapProductId(
-    planId as "ai" | "elite",
-    interval
-  );
+  const productId = getIapProductId(planId as "ai" | "elite", interval);
 
   return {
     localOrderId: prepared.localOrderId,

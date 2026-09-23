@@ -205,14 +205,13 @@ export function TrialCheckoutClient({
           ) : (
             <PokPayAddCard
               locale={locale}
-              onSuccess={handleSuccess}
-              onError={handleError}
-              disabled={isPending}
-              submitLabel={
+              buttonTitle={
                 isPending
                   ? platform.trialCheckout.starting
                   : platform.trialCheckout.submitCard
               }
+              onSuccess={handleSuccess}
+              onError={handleError}
             />
           )}
         </div>

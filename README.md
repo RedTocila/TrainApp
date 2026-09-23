@@ -58,10 +58,31 @@ CAP_SERVER_URL=https://your-preview.vercel.app npx cap sync
 
 **App ID:** `al.rutina.app`
 
-**Before store submit:**
-1. Install **Xcode** (Mac App Store) and **Android Studio** + JDK
-2. Replace `TEAMID` in `public/.well-known/apple-app-site-association` with your Apple Team ID
-3. Replace the SHA-256 fingerprint in `public/.well-known/assetlinks.json` after creating a Play signing key
-4. Set app icons in Xcode / Android Studio (defaults are Capacitor placeholders)
-5. Apple Developer + Google Play accounts, then archive/upload from Xcode / Play Console
-6. Review PokPay vs Apple IAP rules if you sell digital subscriptions in the iOS app
+### Payments
+
+| Surface | Processor |
+|---------|-----------|
+| Website | **PokPay** |
+| Android Capacitor shell | **PokPay** (for now) |
+| iOS Capacitor shell | **Apple In-App Purchase** |
+
+iOS auto-renewable product IDs (create exactly in App Store Connect):
+
+- `al.rutina.app.ai.monthly`
+- `al.rutina.app.ai.annual`
+- `al.rutina.app.elite.monthly`
+- `al.rutina.app.elite.annual`
+
+Set `APPLE_APP_APPLE_ID` in Vercel (numeric App Store Connect Apple ID) so production receipts verify.
+
+Apply migration `supabase/migrations/20260923_apple_iap_orders.sql`.
+
+**Before App Store submit:**
+1. Install **Xcode** (Mac App Store)
+2. `npx cap sync ios` then `npx cap open ios`
+3. Signing & Capabilities → set your **Team**, add **In-App Purchase**
+4. Replace `TEAMID` in `public/.well-known/apple-app-site-association` with your Apple Team ID
+5. Create the four subscription products + (optional) free-trial introductory offer for AI Pro
+6. Set `APPLE_APP_APPLE_ID` in production env
+7. Archive → upload → TestFlight → App Review
+8. Android / Play: replace SHA-256 in `public/.well-known/assetlinks.json` when you create a signing key

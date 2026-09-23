@@ -57,26 +57,16 @@ export async function purchaseIapSubscription(args: {
     appAccountToken: args.appAccountToken,
   });
 
-  const signedTransaction =
-    (transaction as { jwsRepresentation?: string }).jwsRepresentation ??
-    (transaction as { signedTransactionJWT?: string }).signedTransactionJWT ??
-    (transaction as { receipt?: string }).receipt ??
-    "";
-
+  const signedTransaction = transaction.jwsRepresentation ?? "";
   if (!signedTransaction) {
     throw new Error(
-      "Apple did not return a signed transaction. Update @capgo/native-purchases or check StoreKit setup."
+      "Apple did not return a signed transaction (jwsRepresentation). Check StoreKit / plugin version."
     );
   }
 
-  const transactionId =
-    (transaction as { transactionId?: string }).transactionId ??
-    (transaction as { id?: string }).id ??
-    "";
-
   return {
     productId: args.productId,
-    transactionId: String(transactionId),
+    transactionId: transaction.transactionId,
     signedTransaction,
   };
 }

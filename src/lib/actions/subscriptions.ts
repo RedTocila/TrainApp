@@ -189,6 +189,7 @@ export async function createCheckoutOrder(
       currency_code: CHECKOUT_CURRENCY,
       status: "pending",
       order_kind: "subscription",
+      payment_provider: "pokpay",
       invitee_discount_cents: inviteeDiscountCents,
       referral_credits_applied_cents: creditsToApply,
     })
