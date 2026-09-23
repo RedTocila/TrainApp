@@ -55,8 +55,10 @@ export function AiCoachChatDialog() {
   const ai = platform.ai;
   const [present, setPresent] = useState(isOpen);
   const [entered, setEntered] = useState(false);
+  /** After close animation, hide visually but keep chat mounted for thread persistence. */
+  const [surfaceVisible, setSurfaceVisible] = useState(isOpen);
   const openRef = useRef(isOpen);
-  const frame = useVisualViewportFrame(present);
+  const frame = useVisualViewportFrame(isOpen);
   const opaqueBg = useOpaqueChatBg();
 
   useEffect(() => {
@@ -70,6 +72,7 @@ export function AiCoachChatDialog() {
     let timeoutId = 0;
 
     if (isOpen) {
+      setSurfaceVisible(true);
       raf1 = window.requestAnimationFrame(() => {
         if (cancelled) return;
         setPresent(true);
@@ -86,7 +89,7 @@ export function AiCoachChatDialog() {
       });
       timeoutId = window.setTimeout(() => {
         if (cancelled || openRef.current) return;
-        setPresent(false);
+        setSurfaceVisible(false);
       }, PAGE_MS);
     }
 
@@ -98,10 +101,10 @@ export function AiCoachChatDialog() {
     };
   }, [isOpen]);
 
-  useLockBodyScroll(present);
+  useLockBodyScroll(isOpen);
 
   useEffect(() => {
-    if (!present || !isOpen) return;
+    if (!isOpen) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -114,7 +117,7 @@ export function AiCoachChatDialog() {
     return () => {
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [present, isOpen, closeChat, readMeOpen, closeReadMe]);
+  }, [isOpen, closeChat, readMeOpen, closeReadMe]);
 
   if (!present) return null;
 
@@ -125,7 +128,10 @@ export function AiCoachChatDialog() {
         aria-hidden
         data-open={entered ? "true" : "false"}
         className="overlay-fullscreen pointer-events-none fixed inset-0 z-[110]"
-        style={{ backgroundColor: opaqueBg }}
+        style={{
+          backgroundColor: opaqueBg,
+          visibility: surfaceVisible ? "visible" : "hidden",
+        }}
       />
       {/* Only when the keyboard is open: paint the band under the visual viewport. */}
       {frame.keyboardOpen ? (
@@ -137,12 +143,14 @@ export function AiCoachChatDialog() {
             top: frame.underlayTop,
             height: frame.underlayHeight,
             backgroundColor: opaqueBg,
+            visibility: surfaceVisible ? "visible" : "hidden",
           }}
         />
       ) : null}
       <div
         role="dialog"
-        aria-modal="true"
+        aria-modal={isOpen}
+        aria-hidden={!isOpen}
         aria-labelledby="ai-coach-chat-title"
         data-open={entered ? "true" : "false"}
         className="overlay-chat-page fixed inset-x-0 z-[111] flex flex-col overflow-hidden"
@@ -150,6 +158,8 @@ export function AiCoachChatDialog() {
           top: frame.offsetTop,
           height: frame.height,
           backgroundColor: opaqueBg,
+          visibility: surfaceVisible ? "visible" : "hidden",
+          pointerEvents: isOpen ? "auto" : "none",
           // Soft skirt under the sheet for iOS keyboard / accessory chrome.
           boxShadow: frame.keyboardOpen
             ? `0 ${Math.max(frame.keyboardBand, 120)}px 0 0 ${opaqueBg}`

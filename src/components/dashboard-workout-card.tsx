@@ -4,7 +4,7 @@ import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-
 import { Check, ChevronRight, Clock, Dumbbell, Flame, Layers, List, Play, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { addDays, startOfDay } from "date-fns";
+import { addDays } from "date-fns";
 import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
 import { useDashboardDateFetch } from "@/components/dashboard-date-loading";
 import { useDashboardSync } from "@/components/dashboard-sync";
@@ -19,6 +19,7 @@ import {
 import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { WorkoutDifficultyInsightButton } from "@/components/workout-difficulty-insight-button";
 import { dashboard, DashboardEmptyState } from "@/components/dashboard-ui";
+import { DASHBOARD_NAV_GLASS_CLASS } from "@/components/ai-coach-fab";
 import {
   estimateWorkoutCaloriesKcal,
   estimateWorkoutDurationSeconds,
@@ -804,19 +805,6 @@ export function DashboardWorkoutCard({
     !allWorkoutsComplete &&
     dayRelation(dateKey) === "past";
 
-  const trainedDaysLastWeek = useMemo(() => {
-    const dates = new Set<string>();
-    const from = startOfDay(addDays(selectedDate, -6));
-    const to = startOfDay(selectedDate);
-    for (const entry of schedule?.scheduledWorkouts ?? []) {
-      if (!entry.workout_days || !entry.scheduled_date) continue;
-      const key = entry.scheduled_date;
-      const day = startOfDay(new Date(`${key}T12:00:00`));
-      if (day >= from && day <= to) dates.add(key);
-    }
-    return dates.size;
-  }, [schedule?.scheduledWorkouts, selectedDate]);
-
   if (variant === "hero") {
     const mainWorkout =
       workoutsForDay.find(
@@ -830,8 +818,6 @@ export function DashboardWorkoutCard({
       workout?.exercises.reduce((sum, exercise) => sum + exercise.sets, 0) ?? 0;
     const exerciseCount = workout?.exercises.length ?? 0;
     const dayLabel = formatLocalized(selectedDate, "EEEE", locale);
-    const undertrained =
-      workoutsForDay.length === 0 && trainedDaysLastWeek <= 2;
     const durationSeconds = workout
       ? estimateWorkoutDurationSeconds(
           workout.exercises.map((exercise) => ({
@@ -1078,9 +1064,11 @@ export function DashboardWorkoutCard({
                       type="button"
                       onClick={() => setAddWorkoutOpen(true)}
                       className={buttonVariants({
-                        variant: undertrained ? "default" : "secondary",
-                        className:
-                          "h-12 w-full rounded-full text-sm font-black uppercase",
+                        variant: "ghost",
+                        className: cn(
+                          DASHBOARD_NAV_GLASS_CLASS,
+                          "h-12 w-full rounded-full text-sm font-black uppercase text-foreground shadow-none"
+                        ),
                       })}
                     >
                       <Dumbbell className="h-4 w-4" />

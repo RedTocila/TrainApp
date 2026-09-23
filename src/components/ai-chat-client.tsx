@@ -577,6 +577,8 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const canChatRef = useRef(canChat);
   const chatModeRef = useRef(chatMode);
   const pendingNavigateRef = useRef<string | null>(null);
+  /** Only clear when New is clicked — not when remounting with an already-bumped token. */
+  const lastHandledResetRef = useRef(chatResetToken);
   isStreamingRef.current = isStreaming;
   canChatRef.current = canChat;
   chatModeRef.current = chatMode;
@@ -609,9 +611,10 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     el.scrollTo({ top: el.scrollHeight });
   }, [messages, isStreaming]);
 
-  // New chat — clear local UI without remounting (avoids aborting via Strict Mode).
+  // New chat — clear only when the token actually advances (not on remount).
   useEffect(() => {
-    if (chatResetToken === 0) return;
+    if (chatResetToken === lastHandledResetRef.current) return;
+    lastHandledResetRef.current = chatResetToken;
     abortRef.current?.abort();
     abortRef.current = null;
     autoSendingRef.current = false;

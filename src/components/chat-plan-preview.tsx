@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition, type ReactNode } from "react";
-import { Check, ChevronDown, Dumbbell, Loader2, Salad, Zap } from "lucide-react";
+import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { applyChatPlanPreviewAction } from "@/lib/actions/ai-plan-builder";
 import type { ChatPlanPreview } from "@/lib/ai/coach-chat-tools";
 import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
@@ -138,22 +138,14 @@ export function ChatPlanPreviewCard({
     : null;
 
   return (
-    <div className="mt-3 rounded-xl border border-primary/30 bg-background/80 p-3">
-      <div className="flex items-start gap-2">
-        {hiitPlan ? (
-          <Zap className="mt-0.5 h-4 w-4 shrink-0 text-fuchsia-400" />
-        ) : isWorkout || isWeeklyFull ? (
-          <Dumbbell className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        ) : (
-          <Salad className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        )}
-        <div className="min-w-0 flex-1">
+    <div className="mt-3 rounded-xl border border-primary/30 bg-background/80 p-3 text-center">
+      <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
             {typeLabel}
           </p>
           <p className="mt-0.5 font-semibold leading-snug">{title}</p>
 
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <div className="mt-1.5 flex flex-wrap justify-center gap-1">
             {hiitPlan && hiitMins != null ? (
               <>
                 <MetaChip>~{hiitMins} min</MetaChip>
@@ -216,12 +208,12 @@ export function ChatPlanPreviewCard({
 
           {!isApplied || showMoves ? (
             hiitPlan ? (
-              <div className="mt-2">
+              <div className="mt-2 text-left">
                 {isApplied ? (
                   <button
                     type="button"
                     onClick={() => setShowMoves(false)}
-                    className="mb-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                    className="mb-1.5 w-full text-center text-[11px] font-medium text-muted-foreground hover:text-foreground"
                   >
                     Hide moves
                   </button>
@@ -251,7 +243,7 @@ export function ChatPlanPreviewCard({
                 </ul>
               </div>
             ) : weeklyProgram ? (
-              <div className="mt-2 space-y-1">
+              <div className="mt-2 space-y-1 text-left">
                 {weeklyProgram.days.map((day, i) => {
                   const mainLabel =
                     day.main.kind === "strength"
@@ -335,7 +327,7 @@ export function ChatPlanPreviewCard({
                 })}
               </div>
             ) : strengthPlan ? (
-              <div className="mt-2 space-y-1">
+              <div className="mt-2 space-y-1 text-left">
                 {strengthPlan.days.map((day, i) => (
                   <div
                     key={i}
@@ -394,7 +386,7 @@ export function ChatPlanPreviewCard({
                 ))}
               </div>
             ) : isNutrition ? (
-              <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+              <ul className="mt-2 space-y-0.5 text-left text-xs text-muted-foreground">
                 {preview.plan.meals.map((meal, i) => (
                   <li key={i}>
                     <span className="font-medium text-foreground">
@@ -460,7 +452,6 @@ export function ChatPlanPreviewCard({
               </>
             )}
           </div>
-        </div>
       </div>
     </div>
   );
