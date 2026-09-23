@@ -1171,12 +1171,22 @@ export const platformCopyEn = {
     includes: "You're unlocking",
     secureBadge: "Locked & secure",
     cardsBadge: "Card or wallet — your call",
+    appleBadge: "App Store billing",
     preparing: "Getting your spot ready…",
     primaryCta: "I'm in — let's start",
+    applePrimaryCta: "Subscribe with Apple",
     pokPaySubmitLabel: "Starting Transformation",
     checkoutErrorTitle: "Hmm. That didn't work.",
     tryAgain: "Try again",
     processorNote: "Handled securely by PokPay.",
+    appleProcessorNote: "Payment is charged through your Apple ID. Manage or cancel anytime in Settings → Apple ID → Subscriptions.",
+    applePriceNote:
+      "On iPhone, App Store sets the final price. Referral credits apply on the website.",
+    appleManageCta: "Manage Apple subscription",
+    appleManageTitle: "Manage in App Store?",
+    appleManageMessage:
+      "Apple handles billing for this plan. We'll open subscription settings, and mark access as canceled in RUTINA at period end.",
+    appleManageConfirm: "Open Apple settings",
     completePurchase: "Ready to train for real?",
     orderLabel: "Your request",
     whatNextTitle: "What happens next",
@@ -1291,13 +1301,19 @@ export const platformCopyEn = {
     title: "Start your AI Pro free trial",
     subtitle: (days: number) =>
       `Add a card to unlock ${days} days free. You won't be charged today.`,
+    appleTitle: "Start AI Pro with Apple",
+    appleSubtitle: (days: number) =>
+      `Subscribe with Apple. If a free trial is configured in App Store Connect, you get ${days} days before billing.`,
     chargeLater: (price: string, per: string, days: number) =>
       `${price}/${per} starts after ${days} days if you don't cancel.`,
     cancelAnytime: "Cancel anytime during the trial — no charge.",
     secureBlurb: "Card details are secured by PokPay. We never store your full card number.",
+    appleSecureBlurb:
+      "Billing is handled by Apple. Cancel anytime in Settings → Apple ID → Subscriptions.",
     submitCard: "Start free trial",
     starting: "Starting your trial…",
     todayTotal: "€0 today",
+    appleTodayTotal: "App Store price",
   },
   bmi: {
     title: "BMI",
@@ -1336,18 +1352,16 @@ export const platformCopyEn = {
     nameRequired: "Meal name is required",
     goBack: "Go back",
     chooseImage: "Please choose an image file",
-    processFailed: "Could not process that photo. Try another image.",
+    processFailed: "Couldn’t use that photo. Try another one.",
     heicUnsupported:
-      "This photo format (HEIC) can’t be analyzed here. Open it in Photos and share/export as JPEG, or take a new Snapshot.",
+      "This photo format isn’t supported. Try another photo or take a new one.",
     galleryPhotoUnavailable:
-      "That photo isn’t available on this device yet (often iCloud). Open it in Photos so it downloads, then try again — or take a Snapshot.",
-    galleryPickFailed: "Could not open that gallery photo. Try again or take a Snapshot.",
-    galleryTip:
-      "Gallery tip: use a photo fully downloaded on this phone. Cloud-only or HEIC library photos may not analyze.",
+      "This photo isn’t on your phone yet. Open it in Photos to download, then try again.",
+    galleryPickFailed: "Couldn’t open that photo. Try again or take a new one.",
     takePhotoFirst: "Take or choose a photo first",
     readFailed: "Could not read the photo",
     uploadTooLarge:
-      "Upload failed — the photo may be too large. Try again or use a smaller image.",
+      "That photo is too large. Try a smaller one.",
     mealPreview: "Meal preview",
     takePhoto: "Take photo",
     fromGallery: "From gallery",

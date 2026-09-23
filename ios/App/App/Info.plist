@@ -41,6 +41,8 @@
 	<string>RUTINA needs photo access to upload meal and progress photos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>RUTINA may save photos you take in the app.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

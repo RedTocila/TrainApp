@@ -20,8 +20,10 @@ import {
 import {
   completeGuestCheckoutAndSignIn,
   createGuestCheckoutOrder,
+  createGuestAppleCheckoutOrder,
   type GuestSignupPayload,
 } from "@/lib/actions/guest-signup";
+import { completeGuestAppleCheckout } from "@/lib/actions/iap";
 import { BrandWordmark } from "@/components/app-logo";
 import { AuthCardShell } from "@/components/auth-card-shell";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppleIapCheckout } from "@/components/apple-iap-checkout";
 import { PokPayGuestCheckout } from "@/components/pokpay-guest-checkout";
 import {
   calculateMacrosFromIntakeResponses,
@@ -38,12 +41,13 @@ import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
 import { loadCheckoutReferralCode, saveCheckoutReferralCode } from "@/lib/referral-storage";
 import { formatUserError } from "@/lib/format-user-error";
 import { cn } from "@/lib/utils";
-import { useLocale } from "@/components/locale-provider";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { getCurrencyPrice } from "@/lib/checkout-i18n";
 import { OfferBanner } from "@/components/offer-banner";
 import type { SubscriptionOffer } from "@/lib/subscription-offers";
 import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import { getPlanPrice, type BillingInterval } from "@/lib/subscription-plans";
+import { shouldUseAppleIap } from "@/lib/native-iap";
 
 type PackagePlan = "ai" | "elite";
 type SignupDraft = GuestSignupPayload;
@@ -86,6 +90,8 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
   const router = useRouter();
   const searchParams = useSearchParams();
   const locale = useLocale();
+  const platform = usePlatformCopy();
+  const useAppleIap = shouldUseAppleIap();
   const [error, setError] = useState<string | null>(null);
   const [intakeJson, setIntakeJson] = useState<string | null>(null);
   const [macroTargets, setMacroTargets] = useState<MacroTargets | null>(null);
@@ -97,6 +103,8 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
   const [signupDraft, setSignupDraft] = useState<SignupDraft | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [localOrderId, setLocalOrderId] = useState<string | null>(null);
+  const [appleProductId, setAppleProductId] = useState<string | null>(null);
+  const [appleAccountToken, setAppleAccountToken] = useState<string | null>(null);
   const [checkoutStarted, setCheckoutStarted] = useState(false);
   const [paymentPending, setPaymentPending] = useState(false);
   const [referralCode, setReferralCode] = useState("");
@@ -170,6 +178,24 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
     setIsPending(true);
     setError(null);
     try {
+      if (useAppleIap) {
+        const result = await createGuestAppleCheckoutOrder(
+          signupDraft,
+          selectedPlan,
+          billingInterval
+        );
+        if ("error" in result) {
+          setError(result.error ?? "Could not start checkout. Please try again.");
+          return;
+        }
+        setOrderId(null);
+        setLocalOrderId(result.localOrderId);
+        setAppleProductId(result.productId);
+        setAppleAccountToken(result.appAccountToken);
+        setCheckoutStarted(true);
+        return;
+      }
+
       const result = await createGuestCheckoutOrder(signupDraft, selectedPlan, billingInterval);
       if ("error" in result) {
         setError(result.error ?? "Could not start checkout. Please try again.");
@@ -188,7 +214,11 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
 
   const backHref = intakeJson ? "/get-started" : "/";
 
-  if (checkoutStarted && orderId && localOrderId) {
+  if (
+    checkoutStarted &&
+    localOrderId &&
+    (orderId || (useAppleIap && appleProductId && appleAccountToken))
+  ) {
     return (
       <AuthCardShell backHref={backHref}>
       <Card className="w-full">
@@ -203,8 +233,13 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Selected package</p>
             {(() => {
               const basePrice = getPlanPrice(selectedPlan, billingInterval);
-              const bestOffer = pickBestOffer(offers, selectedPlan, billingInterval);
-              const discountedAmountCents = applyOfferDiscount(basePrice.amountCents, bestOffer);
+              const bestOffer = useAppleIap
+                ? null
+                : pickBestOffer(offers, selectedPlan, billingInterval);
+              const discountedAmountCents = applyOfferDiscount(
+                basePrice.amountCents,
+                bestOffer
+              );
               const displayPrice = getCurrencyPrice({ amountEurCents: discountedAmountCents });
               return (
                 <p className="mt-1 text-base font-bold text-foreground">
@@ -221,7 +256,35 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
                 Finalizing your account...
               </p>
             </div>
-          ) : (
+          ) : useAppleIap && appleProductId && appleAccountToken ? (
+            <AppleIapCheckout
+              productId={appleProductId}
+              appAccountToken={appleAccountToken}
+              fallbackPriceLabel={getPlanPrice(selectedPlan, billingInterval).label}
+              ctaLabel={platform.checkoutFlow.applePrimaryCta}
+              preparingLabel={platform.checkoutFlow.preparing}
+              processorNote={platform.checkoutFlow.appleProcessorNote}
+              onError={setError}
+              onPurchased={async (purchase) => {
+                setError(null);
+                setPaymentPending(true);
+                try {
+                  const result = await completeGuestAppleCheckout({
+                    localOrderId,
+                    productId: purchase.productId,
+                    signedTransaction: purchase.signedTransaction,
+                  });
+                  if ("error" in result) {
+                    setError(result.error ?? "Could not complete signup after payment.");
+                    return;
+                  }
+                  finishSignup("client");
+                } finally {
+                  setPaymentPending(false);
+                }
+              }}
+            />
+          ) : orderId ? (
             <PokPayGuestCheckout
               orderId={orderId}
               locale={locale}
@@ -250,7 +313,7 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
                 setError(message);
               }}
             />
-          )}
+          ) : null}
           {error && <p className="text-red-400">{error}</p>}
           <Button
             type="button"
@@ -260,6 +323,8 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
               setCheckoutStarted(false);
               setOrderId(null);
               setLocalOrderId(null);
+              setAppleProductId(null);
+              setAppleAccountToken(null);
               setError(null);
             }}
           >

@@ -326,10 +326,15 @@ function revalidateJoinPaths() {
 }
 
 /** Start PokPay checkout for a not-yet-created account. */
-export async function createGuestCheckoutOrder(
+async function prepareGuestPendingOrder(
   signup: GuestSignupPayload,
   planId: SubscriptionPlanId,
-  interval: BillingInterval
+  interval: BillingInterval,
+  options: {
+    paymentProvider: "pokpay" | "apple";
+    /** When false, skip promotional discounts (Apple sets the store price). */
+    applyOffers?: boolean;
+  }
 ) {
   const plan = getPlan(planId);
   if (!plan) return { error: "Invalid plan" };
@@ -345,31 +350,24 @@ export async function createGuestCheckoutOrder(
   const admin = createAdminClient();
   let offerDiscountCents = 0;
   let offerBadge: string | null = null;
-  try {
-    const { data: offers } = await admin
-      .from("subscription_offers")
-      .select("*")
-      .eq("active", true);
-    const bestOffer = pickBestOffer((offers as any[]) ?? [], planId, interval);
-    const discounted = applyOfferDiscount(price.amountCents, bestOffer);
-    offerDiscountCents = Math.max(0, price.amountCents - discounted);
-    offerBadge = bestOffer?.badge_text ?? null;
-  } catch {
-    // Offers table may not exist yet; proceed with list price.
+  if (options.applyOffers !== false) {
+    try {
+      const { data: offers } = await admin
+        .from("subscription_offers")
+        .select("*")
+        .eq("active", true);
+      const bestOffer = pickBestOffer((offers as any[]) ?? [], planId, interval);
+      const discounted = applyOfferDiscount(price.amountCents, bestOffer);
+      offerDiscountCents = Math.max(0, price.amountCents - discounted);
+      offerBadge = bestOffer?.badge_text ?? null;
+    } catch {
+      // Offers table may not exist yet; proceed with list price.
+    }
   }
   const finalAmountCents = Math.max(0, price.amountCents - offerDiscountCents);
 
   const pending = await upsertPendingSignup(signup);
   if ("error" in pending) return pending;
-
-  const baseUrl = getAppBaseUrl();
-  const isProd = process.env.VERCEL_ENV === "production";
-  if (isProd && baseUrl.includes("localhost")) {
-    return {
-      error:
-        "Checkout is not configured for production. Set APP_URL to your live domain in Vercel Environment Variables.",
-    };
-  }
 
   const { data: orderRow, error: insertError } = await admin
     .from("subscription_orders")
@@ -382,6 +380,7 @@ export async function createGuestCheckoutOrder(
       currency_code: CHECKOUT_CURRENCY,
       status: "pending",
       order_kind: "subscription",
+      payment_provider: options.paymentProvider,
       invitee_discount_cents: 0,
       referral_credits_applied_cents: 0,
     })
@@ -392,58 +391,126 @@ export async function createGuestCheckoutOrder(
     return { error: insertError?.message ?? "Could not start checkout" };
   }
 
+  return {
+    admin,
+    plan,
+    price,
+    pendingSignupId: pending.pendingSignupId,
+    localOrderId: orderRow.id,
+    finalAmountCents,
+    offerDiscountCents,
+    offerBadge,
+  };
+}
+
+export async function createGuestCheckoutOrder(
+  signup: GuestSignupPayload,
+  planId: SubscriptionPlanId,
+  interval: BillingInterval
+) {
+  const prepared = await prepareGuestPendingOrder(signup, planId, interval, {
+    paymentProvider: "pokpay",
+  });
+  if ("error" in prepared) return prepared;
+
+  const baseUrl = getAppBaseUrl();
+  const isProd = process.env.VERCEL_ENV === "production";
+  if (isProd && baseUrl.includes("localhost")) {
+    return {
+      error:
+        "Checkout is not configured for production. Set APP_URL to your live domain in Vercel Environment Variables.",
+    };
+  }
+
   try {
-    const redirectUrl = `${baseUrl}/join/checkout/success?localOrderId=${orderRow.id}`;
+    const redirectUrl = `${baseUrl}/join/checkout/success?localOrderId=${prepared.localOrderId}`;
     const failRedirectUrl = `${baseUrl}/join/checkout?plan=${planId}&interval=${interval}`;
     const webhookUrl = `${baseUrl}/api/payments/pokpay/webhook`;
     const products: PokPaySdkOrderProduct[] = [
       {
-        name: `${plan.name} · ${interval === "monthly" ? "Monthly" : "Annual"}`,
+        name: `${prepared.plan.name} · ${interval === "monthly" ? "Monthly" : "Annual"}`,
         quantity: 1,
-        price: finalAmountCents,
+        price: prepared.finalAmountCents,
       },
     ];
     const sdkOrder = await createSdkOrder({
-      amountCents: finalAmountCents,
+      amountCents: prepared.finalAmountCents,
       currencyCode: CHECKOUT_CURRENCY,
       redirectUrl,
       failRedirectUrl,
       webhookUrl,
-      description: `${plan.name} subscription`,
-      merchantCustomReference: orderRow.id,
+      description: `${prepared.plan.name} subscription`,
+      merchantCustomReference: prepared.localOrderId,
       products,
     });
 
-    await admin
+    await prepared.admin
       .from("subscription_orders")
       .update({ pokpay_order_id: sdkOrder.id })
-      .eq("id", orderRow.id);
+      .eq("id", prepared.localOrderId);
 
     return {
-      localOrderId: orderRow.id,
+      localOrderId: prepared.localOrderId,
       orderId: sdkOrder.id,
-      pendingSignupId: pending.pendingSignupId,
-      amountCents: price.amountCents,
-      finalAmountCents,
+      pendingSignupId: prepared.pendingSignupId,
+      amountCents: prepared.price.amountCents,
+      finalAmountCents: prepared.finalAmountCents,
       planId,
       interval,
-      planName: plan.name,
-      priceLabel: price.label,
-      offerDiscountCents,
-      offerBadge,
+      planName: prepared.plan.name,
+      priceLabel: prepared.price.label,
+      offerDiscountCents: prepared.offerDiscountCents,
+      offerBadge: prepared.offerBadge,
     };
   } catch (err) {
-    await admin
+    await prepared.admin
       .from("subscription_orders")
       .update({ status: "failed" })
-      .eq("id", orderRow.id);
+      .eq("id", prepared.localOrderId);
     return {
       error: err instanceof Error ? err.message : "Payment provider unavailable",
     };
   }
 }
 
-async function completePaidGuestOrder(localOrderId: string): Promise<
+/** Guest signup checkout via App Store IAP (no PokPay order). */
+export async function createGuestAppleCheckoutOrder(
+  signup: GuestSignupPayload,
+  planId: SubscriptionPlanId,
+  interval: BillingInterval
+) {
+  const prepared = await prepareGuestPendingOrder(signup, planId, interval, {
+    paymentProvider: "apple",
+    applyOffers: false,
+  });
+  if ("error" in prepared) return prepared;
+
+  const { getIapProductId } = await import("@/lib/iap/products");
+  const productId = getIapProductId(
+    planId as "ai" | "elite",
+    interval
+  );
+
+  return {
+    localOrderId: prepared.localOrderId,
+    productId,
+    appAccountToken: prepared.pendingSignupId,
+    pendingSignupId: prepared.pendingSignupId,
+    amountCents: prepared.price.amountCents,
+    planId,
+    interval,
+    planName: prepared.plan.name,
+    priceLabel: prepared.price.label,
+  };
+}
+
+async function completePaidGuestOrder(
+  localOrderId: string,
+  options?: {
+    appleExpiresDateMs?: number | null;
+    appleOriginalTransactionId?: string | null;
+  }
+): Promise<
   | { success: true; email: string; password: string; alreadyCompleted?: boolean }
   | { error: string }
 > {
@@ -451,7 +518,7 @@ async function completePaidGuestOrder(localOrderId: string): Promise<
   const { data: order } = await admin
     .from("subscription_orders")
     .select(
-      "id, user_id, pending_signup_id, plan, billing_interval, status, pokpay_order_id, amount_cents, referral_credits_applied_cents"
+      "id, user_id, pending_signup_id, plan, billing_interval, status, pokpay_order_id, amount_cents, referral_credits_applied_cents, payment_provider, apple_transaction_id, apple_original_transaction_id"
     )
     .eq("id", localOrderId)
     .maybeSingle();
@@ -477,19 +544,26 @@ async function completePaidGuestOrder(localOrderId: string): Promise<
     return { error: "Order already completed. Please sign in." };
   }
 
-  if (!order.pokpay_order_id) {
-    return { error: "Payment not started" };
-  }
+  const isApple =
+    order.payment_provider === "apple" || Boolean(order.apple_transaction_id);
 
-  try {
-    const sdkOrder = await getSdkOrder(order.pokpay_order_id);
-    if (!isSdkOrderPaid(sdkOrder)) {
-      return { error: "Payment not completed yet" };
+  if (!isApple) {
+    if (!order.pokpay_order_id) {
+      return { error: "Payment not started" };
     }
-  } catch (err) {
-    return {
-      error: err instanceof Error ? err.message : "Could not verify payment",
-    };
+
+    try {
+      const sdkOrder = await getSdkOrder(order.pokpay_order_id);
+      if (!isSdkOrderPaid(sdkOrder)) {
+        return { error: "Payment not completed yet" };
+      }
+    } catch (err) {
+      return {
+        error: err instanceof Error ? err.message : "Could not verify payment",
+      };
+    }
+  } else if (!order.apple_transaction_id) {
+    return { error: "Apple payment not verified yet" };
   }
 
   let userId = order.user_id as string | null;
@@ -508,17 +582,23 @@ async function completePaidGuestOrder(localOrderId: string): Promise<
 
   const now = new Date();
   const { addBillingPeriod } = await import("@/lib/subscription");
-  const expiresAt = addBillingPeriod(now, order.billing_interval as BillingInterval);
+  const expiresAt = options?.appleExpiresDateMs
+    ? new Date(options.appleExpiresDateMs)
+    : addBillingPeriod(now, order.billing_interval as BillingInterval);
 
-  await admin
-    .from("profiles")
-    .update({
-      subscription_plan: order.plan,
-      subscription_status: "active",
-      subscription_interval: order.billing_interval,
-      subscription_expires_at: expiresAt.toISOString(),
-    })
-    .eq("id", userId);
+  const profileUpdate: Record<string, unknown> = {
+    subscription_plan: order.plan,
+    subscription_status: "active",
+    subscription_interval: order.billing_interval,
+    subscription_expires_at: expiresAt.toISOString(),
+  };
+  const appleOriginal =
+    options?.appleOriginalTransactionId ?? order.apple_original_transaction_id;
+  if (appleOriginal) {
+    profileUpdate.apple_original_transaction_id = appleOriginal;
+  }
+
+  await admin.from("profiles").update(profileUpdate).eq("id", userId);
 
   await admin
     .from("subscription_orders")
@@ -546,6 +626,27 @@ async function completePaidGuestOrder(localOrderId: string): Promise<
   }
 
   return { success: true, email, password };
+}
+
+/**
+ * Finish guest signup after Apple IAP was verified and transaction ids written on the order.
+ */
+export async function completeGuestOrderAfterApplePayment(args: {
+  localOrderId: string;
+  expiresDateMs: number | null;
+  originalTransactionId: string;
+}) {
+  const result = await completePaidGuestOrder(args.localOrderId, {
+    appleExpiresDateMs: args.expiresDateMs,
+    appleOriginalTransactionId: args.originalTransactionId,
+  });
+  if ("error" in result) return result;
+
+  const signedIn = await signInCreatedUser(result.email, result.password);
+  if ("error" in signedIn) return signedIn;
+
+  revalidateJoinPaths();
+  return { success: true as const };
 }
 
 /** Confirm guest payment, create account, and establish a session. */

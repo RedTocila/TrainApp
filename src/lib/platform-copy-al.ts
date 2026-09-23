@@ -1183,12 +1183,23 @@ export const platformCopyAl = {
     includes: "Po hap",
     secureBadge: "I sigurt & i mbyllur",
     cardsBadge: "Kartë ose wallet — si të duash",
+    appleBadge: "Faturim App Store",
     preparing: "Po përgatisim vendin tënd…",
     primaryCta: "Jam brenda — le të fillojmë",
+    applePrimaryCta: "Abonohu me Apple",
     pokPaySubmitLabel: "Nisim Transformimin",
     checkoutErrorTitle: "Hmm. Nuk shkoi.",
     tryAgain: "Provo përsëri",
     processorNote: "Përpunohet në mënyrë të sigurt nga PokPay.",
+    appleProcessorNote:
+      "Pagesa merret nga Apple ID. Menaxho ose anulo te Settings → Apple ID → Subscriptions.",
+    applePriceNote:
+      "Në iPhone, çmimin e cakton App Store. Kreditë e referral vlejnë në website.",
+    appleManageCta: "Menaxho abonimin Apple",
+    appleManageTitle: "Të hapim App Store?",
+    appleManageMessage:
+      "Apple menaxhon faturimin. Hapim cilësimet e abonimit dhe shënojmë anulimin në RUTINA në fund të periudhës.",
+    appleManageConfirm: "Hap cilësimet Apple",
     completePurchase: "Gati për stërvitje serioze?",
     orderLabel: "Kërkesa jote",
     whatNextTitle: "Çfarë ndodh më pas",
@@ -1302,13 +1313,19 @@ export const platformCopyAl = {
     title: "Fillo provën falas AI Pro",
     subtitle: (days: number) =>
       `Shto një kartë për të hapur ${days} ditë falas. Sot nuk ngarkohesh.`,
+    appleTitle: "Fillo AI Pro me Apple",
+    appleSubtitle: (days: number) =>
+      `Abonohu me Apple. Nëse prova falas është konfiguruar në App Store Connect, ke ${days} ditë para faturimit.`,
     chargeLater: (price: string, per: string, days: number) =>
       `${price}/${per} fillon pas ${days} ditëve nëse nuk e anulon.`,
     cancelAnytime: "Anulo kur të duash gjatë provës — pa pagesë.",
     secureBlurb: "Detajet e kartës sigurohen nga PokPay. Ne nuk ruajmë numrin e plotë.",
+    appleSecureBlurb:
+      "Faturimi bëhet nga Apple. Anulo te Settings → Apple ID → Subscriptions.",
     submitCard: "Fillo provën falas",
     starting: "Po nisim provën…",
     todayTotal: "€0 sot",
+    appleTodayTotal: "Çmimi i App Store",
   },
   bmi: {
     title: "BMI",
@@ -1347,19 +1364,15 @@ export const platformCopyAl = {
     nameRequired: "Emri i vaktit është i detyrueshëm",
     goBack: "Kthehu",
     chooseImage: "Zgjidhni një skedar fotoje",
-    processFailed: "Fotoja nuk u përpunua. Provoni një tjetër.",
+    processFailed: "Fotoja nuk u përdor. Provo një tjetër.",
     heicUnsupported:
-      "Ky format (HEIC) nuk analizohet këtu. Hapeni në Photos dhe eksportoni si JPEG, ose bëni një Snapshot të ri.",
+      "Ky format fotoje nuk mbështetet. Provo një foto tjetër ose bëj një të re.",
     galleryPhotoUnavailable:
-      "Kjo foto nuk është ende në këtë pajisje (shpesh iCloud). Hapeni në Photos që të shkarkohet, pastaj provo përsëri — ose bëj Snapshot.",
-    galleryPickFailed:
-      "Fotoja nga galeria nuk u hap. Provo përsëri ose bëj Snapshot.",
-    galleryTip:
-      "Këshillë: përdor foto të shkarkuar plotësisht në telefon. Fotot vetëm në cloud ose HEIC mund të mos analizohen.",
+      "Kjo foto nuk është ende në telefon. Hapeni në Photos që të shkarkohet, pastaj provo përsëri.",
+    galleryPickFailed: "Fotoja nuk u hap. Provo përsëri ose bëj një të re.",
     takePhotoFirst: "Bëni ose zgjidhni një foto fillimisht",
     readFailed: "Fotoja nuk u lexua",
-    uploadTooLarge:
-      "Ngarkimi dështoi — fotoja mund të jetë shumë e madhe. Provoni përsëri ose përdorni një më të vogël.",
+    uploadTooLarge: "Fotoja është shumë e madhe. Provo një më të vogël.",
     mealPreview: "Parapamje e vaktit",
     takePhoto: "Bëj foto",
     fromGallery: "Nga galeria",

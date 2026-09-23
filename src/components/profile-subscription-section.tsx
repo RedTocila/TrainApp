@@ -104,7 +104,11 @@ export function ProfileSubscriptionSection({
                 ? coachLabels.levelUp
                 : coachLabels.pickAPlan}
           </Link>
-          {plan && (isActive || onTrial) ? <ProfileSubscriptionActions /> : null}
+          {plan && (isActive || onTrial) ? (
+            <ProfileSubscriptionActions
+              billedViaApple={Boolean(profile.apple_original_transaction_id)}
+            />
+          ) : null}
         </div>
       </CardContent>
     </Card>

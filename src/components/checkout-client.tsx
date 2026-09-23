@@ -4,7 +4,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import type { PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
 import { CreditCard, Lock, Loader2, ShieldCheck } from "lucide-react";
+import { AppleIapCheckout } from "@/components/apple-iap-checkout";
 import { PokPayGuestCheckout } from "@/components/pokpay-guest-checkout";
+import {
+  completeAppleCheckoutPurchase,
+  createAppleCheckoutOrder,
+} from "@/lib/actions/iap";
 import { createCheckoutOrder } from "@/lib/actions/subscriptions";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
 import {
@@ -18,6 +23,7 @@ import {
   clearCheckoutReferralCode,
   loadCheckoutReferralCode,
 } from "@/lib/referral-storage";
+import { shouldUseAppleIap } from "@/lib/native-iap";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,13 +74,18 @@ export function CheckoutClient({
 }) {
   const platform = usePlatformCopy();
   const router = useRouter();
+  const useAppleIap = shouldUseAppleIap();
   const [checkoutStarted, setCheckoutStarted] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [localOrderId, setLocalOrderId] = useState<string | null>(null);
+  const [appleProductId, setAppleProductId] = useState<string | null>(null);
+  const [appleAccountToken, setAppleAccountToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [referralCode, setReferralCode] = useState("");
-  const [useCredits, setUseCredits] = useState(referral.creditBalanceCents > 0);
+  const [useCredits, setUseCredits] = useState(
+    !useAppleIap && referral.creditBalanceCents > 0
+  );
 
   useEffect(() => {
     const saved = loadCheckoutReferralCode();
@@ -83,15 +94,17 @@ export function CheckoutClient({
 
   const plan = getPlan(planId);
   const price = displayPrice;
-  const inviteeDiscount = referral.canApplyInviteeDiscount
-    ? referral.inviteeDiscountCents
-    : 0;
-  const creditsPreview = useCredits
-    ? Math.min(
-        referral.creditBalanceCents,
-        Math.max(0, (price?.amountCents ?? 0) - inviteeDiscount)
-      )
-    : 0;
+  const inviteeDiscount =
+    !useAppleIap && referral.canApplyInviteeDiscount
+      ? referral.inviteeDiscountCents
+      : 0;
+  const creditsPreview =
+    !useAppleIap && useCredits
+      ? Math.min(
+          referral.creditBalanceCents,
+          Math.max(0, (price?.amountCents ?? 0) - inviteeDiscount)
+        )
+      : 0;
   const payableCents = Math.max(
     0,
     (price?.amountCents ?? 0) - inviteeDiscount - creditsPreview
@@ -101,6 +114,24 @@ export function CheckoutClient({
     setError(null);
 
     startTransition(async () => {
+      if (useAppleIap) {
+        const result = await createAppleCheckoutOrder(planId, interval, {
+          referralCode: referral.canApplyCode ? referralCode : undefined,
+        });
+        if ("error" in result && result.error) {
+          setError(result.error);
+          return;
+        }
+        clearCheckoutReferralCode();
+        if ("localOrderId" in result && result.localOrderId && result.productId) {
+          setLocalOrderId(result.localOrderId);
+          setAppleProductId(result.productId);
+          setAppleAccountToken(result.appAccountToken);
+          setCheckoutStarted(true);
+        }
+        return;
+      }
+
       const result = await createCheckoutOrder(planId, interval, {
         useCredits,
         referralCode: referral.canApplyCode ? referralCode : undefined,
@@ -219,7 +250,9 @@ export function CheckoutClient({
             </div>
             <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
               <CreditCard className="h-4 w-4 text-primary" />
-              {platform.checkoutFlow.cardsBadge}
+              {useAppleIap
+                ? platform.checkoutFlow.appleBadge
+                : platform.checkoutFlow.cardsBadge}
             </div>
           </div>
         </div>
@@ -242,7 +275,7 @@ export function CheckoutClient({
                 </div>
               ) : null}
 
-              {referral.creditBalanceCents > 0 ? (
+              {!useAppleIap && referral.creditBalanceCents > 0 ? (
                 <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
                   <input
                     type="checkbox"
@@ -261,14 +294,22 @@ export function CheckoutClient({
                 </label>
               ) : null}
 
+              {useAppleIap ? (
+                <p className="text-xs text-muted-foreground">
+                  {platform.checkoutFlow.applePriceNote}
+                </p>
+              ) : null}
+
               <Button className="w-full" onClick={startCheckout} disabled={isPending}>
                 {isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     {platform.checkoutFlow.preparing}
                   </>
-                ) : payableCents === 0 ? (
+                ) : payableCents === 0 && !useAppleIap ? (
                   platform.referral.payWithCredits
+                ) : useAppleIap ? (
+                  platform.checkoutFlow.applePrimaryCta
                 ) : (
                   platform.checkoutFlow.primaryCta
                 )}
@@ -276,7 +317,10 @@ export function CheckoutClient({
             </div>
           )}
 
-          {checkoutStarted && isPending && !orderId && (
+          {checkoutStarted &&
+            isPending &&
+            !orderId &&
+            !(useAppleIap && appleProductId) && (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 py-10 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
               {platform.checkoutFlow.preparing}
@@ -297,6 +341,8 @@ export function CheckoutClient({
                   if (checkoutStarted) {
                     setCheckoutStarted(false);
                     setOrderId(null);
+                    setAppleProductId(null);
+                    setAppleAccountToken(null);
                   }
                 }}
               >
@@ -305,7 +351,36 @@ export function CheckoutClient({
             </div>
           )}
 
-          {checkoutStarted && orderId && !error && (
+          {checkoutStarted &&
+            useAppleIap &&
+            appleProductId &&
+            appleAccountToken &&
+            localOrderId &&
+            !error && (
+              <AppleIapCheckout
+                productId={appleProductId}
+                appAccountToken={appleAccountToken}
+                fallbackPriceLabel={price?.label}
+                ctaLabel={platform.checkoutFlow.applePrimaryCta}
+                preparingLabel={platform.checkoutFlow.preparing}
+                processorNote={platform.checkoutFlow.appleProcessorNote}
+                onError={setError}
+                onPurchased={async (purchase) => {
+                  const result = await completeAppleCheckoutPurchase({
+                    localOrderId,
+                    productId: purchase.productId,
+                    signedTransaction: purchase.signedTransaction,
+                  });
+                  if ("error" in result && result.error) {
+                    setError(result.error);
+                    return;
+                  }
+                  handleSuccess();
+                }}
+              />
+            )}
+
+          {checkoutStarted && orderId && !useAppleIap && !error && (
             <PokPayGuestCheckout
               orderId={orderId}
               locale={locale}
@@ -316,7 +391,7 @@ export function CheckoutClient({
             />
           )}
 
-          {checkoutStarted ? (
+          {checkoutStarted && !useAppleIap ? (
             <p className="text-center text-xs text-muted-foreground">
               {platform.checkoutFlow.processorNote}
             </p>
