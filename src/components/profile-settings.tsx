@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Beef, Droplet, Flame, Pencil, Wheat } from "lucide-react";
+import { Beef, Droplet, Flame, Loader2, Pencil, Save, Wheat } from "lucide-react";
 import { CHECKOUT_LOCALES } from "@/lib/checkout-i18n";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
 import { updateCalorieTarget, updateProfile, updatePassword } from "@/lib/actions/profile";
@@ -361,9 +361,21 @@ export function ProfileSettings({
             {profileSuccess && (
               <p className="text-sm text-green-400">{platform.settings.profileUpdated}</p>
             )}
-            <Button type="submit" disabled={isProfilePending}>
-              {isProfilePending ? platform.settings.saving : platform.settings.saveChanges}
-            </Button>
+            <div className="flex justify-center pt-4">
+              <Button type="submit" disabled={isProfilePending}>
+                {isProfilePending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {platform.settings.saving}
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    {platform.settings.saveChanges}
+                  </>
+                )}
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -410,7 +422,12 @@ export function ProfileSettings({
             {passwordSuccess && (
               <p className="text-sm text-green-400">{platform.settings.passwordUpdated}</p>
             )}
-            <Button type="submit" variant="secondary" disabled={isPasswordPending}>
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={isPasswordPending}
+              className="w-full"
+            >
               {isPasswordPending ? platform.settings.updating : platform.settings.updatePassword}
             </Button>
           </form>

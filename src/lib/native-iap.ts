@@ -57,16 +57,23 @@ export async function purchaseIapSubscription(args: {
     appAccountToken: args.appAccountToken,
   });
 
-  const signedTransaction = transaction.jwsRepresentation ?? "";
+  const signedTransaction = transaction.jwsRepresentation?.trim() ?? "";
   if (!signedTransaction) {
     throw new Error(
       "Apple did not return a signed transaction (jwsRepresentation). Check StoreKit / plugin version."
     );
   }
 
+  const transactionId = transaction.transactionId?.trim() ?? "";
+  if (!transactionId) {
+    throw new Error(
+      "Apple did not return a transaction id. Check StoreKit / plugin version."
+    );
+  }
+
   return {
     productId: args.productId,
-    transactionId: transaction.transactionId,
+    transactionId,
     signedTransaction,
   };
 }

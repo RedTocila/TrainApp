@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Hammer, Sparkles } from "lucide-react";
+import { ArrowLeft, Hammer, Sparkles } from "lucide-react";
 import { AppOverlay } from "@/components/app-overlay";
 import { AddNutritionWizard } from "@/components/add-nutrition-wizard";
+import { AiBuildPromptPanel } from "@/components/ai-build-prompt-panel";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { UNCATEGORIZED_NUTRITION_FOLDER_ID } from "@/lib/nutrition-folders";
 import { cn } from "@/lib/utils";
+
+type PickerStep = "method" | "ai";
 
 export function BuildNutritionButton({
   className,
@@ -22,7 +25,15 @@ export function BuildNutritionButton({
   const platform = usePlatformCopy();
   const router = useRouter();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [step, setStep] = useState<PickerStep>("method");
   const [wizardOpen, setWizardOpen] = useState(false);
+
+  useEffect(() => {
+    if (!pickerOpen) {
+      const frame = window.requestAnimationFrame(() => setStep("method"));
+      return () => window.cancelAnimationFrame(frame);
+    }
+  }, [pickerOpen]);
 
   const closePicker = () => setPickerOpen(false);
 
@@ -32,10 +43,7 @@ export function BuildNutritionButton({
       label: platform.nutrition.buildWithAi,
       icon: Sparkles,
       accent: "text-emerald-400",
-      onSelect: () => {
-        closePicker();
-        router.push("/dashboard/ai/plans/nutrition");
-      },
+      onSelect: () => setStep("ai"),
     },
     {
       id: "manual" as const,
@@ -70,30 +78,58 @@ export function BuildNutritionButton({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={platform.nutrition.buildCta}
-          className="relative z-10 w-full max-w-sm px-4"
+          aria-label={
+            step === "ai"
+              ? platform.nutrition.buildWithAi
+              : platform.nutrition.buildCta
+          }
+          className={cn(
+            "relative z-10 w-full px-4",
+            step === "ai" ? "max-w-md" : "max-w-sm"
+          )}
         >
-          <div className="grid grid-cols-2 gap-8">
-            {options.map((option) => {
-              const Icon = option.icon;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={option.onSelect}
-                  className="flex flex-col items-center gap-3 transition-transform duration-200 active:scale-95"
-                >
-                  <Icon
-                    className={cn("h-12 w-12", option.accent)}
-                    strokeWidth={1.75}
-                  />
-                  <span className="text-center text-sm font-bold leading-tight text-foreground">
-                    {option.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {step === "ai" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setStep("method")}
+                className="mb-8 flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                {platform.common.back}
+              </button>
+              <AiBuildPromptPanel
+                placeholder={platform.nutrition.aiBuildPlaceholder}
+                buildPrompt={(focus) =>
+                  `Build me a nutrition / meal plan. Preferences: ${focus}`
+                }
+                onSubmitted={closePicker}
+                accent="emerald"
+              />
+            </>
+          ) : (
+            <div className="grid grid-cols-2 gap-8">
+              {options.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={option.onSelect}
+                    className="flex flex-col items-center gap-3 transition-transform duration-200 active:scale-95"
+                  >
+                    <Icon
+                      className={cn("h-12 w-12", option.accent)}
+                      strokeWidth={1.75}
+                    />
+                    <span className="text-center text-sm font-bold leading-tight text-foreground">
+                      {option.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </AppOverlay>
 

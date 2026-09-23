@@ -13,6 +13,7 @@ import {
   completeAppleCheckoutPurchase,
   createAppleCheckoutOrder,
 } from "@/lib/actions/iap";
+import { applyReferralCode } from "@/lib/actions/referrals";
 import { startAiProTrialWithCard } from "@/lib/actions/trial-subscription";
 import { FREE_TRIAL_DAYS } from "@/lib/subscription";
 import type { BillingInterval, PlanPrice } from "@/lib/subscription-plans";
@@ -42,6 +43,7 @@ export function TrialCheckoutClient({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [referralCode, setReferralCode] = useState("");
+  const [referralHydrated, setReferralHydrated] = useState(!canApplyReferralCode);
   const [appleReady, setAppleReady] = useState<{
     localOrderId: string;
     productId: string;
@@ -49,17 +51,23 @@ export function TrialCheckoutClient({
   } | null>(null);
 
   useEffect(() => {
+    if (!canApplyReferralCode) {
+      setReferralHydrated(true);
+      return;
+    }
     const saved = loadCheckoutReferralCode();
-    if (saved && canApplyReferralCode) setReferralCode(saved);
+    if (saved) setReferralCode(saved);
+    setReferralHydrated(true);
   }, [canApplyReferralCode]);
 
+  // Create the Apple order after referral storage has hydrated. Referral linking is
+  // applied again at purchase time with the latest code (see onPurchased).
   useEffect(() => {
-    if (!useAppleIap || appleReady) return;
+    if (!useAppleIap || !referralHydrated) return;
     let cancelled = false;
+    setAppleReady(null);
     startTransition(async () => {
-      const result = await createAppleCheckoutOrder("ai", interval, {
-        referralCode: canApplyReferralCode ? referralCode || undefined : undefined,
-      });
+      const result = await createAppleCheckoutOrder("ai", interval);
       if (cancelled) return;
       if ("error" in result && result.error) {
         setError(result.error);
@@ -76,9 +84,7 @@ export function TrialCheckoutClient({
     return () => {
       cancelled = true;
     };
-    // Intentionally once when entering Apple trial checkout
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [useAppleIap, interval]);
+  }, [useAppleIap, interval, referralHydrated, startTransition]);
 
   const handleSuccess = (payload: AddCardData) => {
     setError(null);
@@ -133,8 +139,7 @@ export function TrialCheckoutClient({
             <div className="min-w-0">
               <p className="font-black">{PLATFORM_AI_PRO_NAME}</p>
               <p className="text-sm text-muted-foreground">
-                {displayPrice.label}
-                {perLabel}
+                {displayPrice.label}/{perLabel}
               </p>
             </div>
           </div>
@@ -160,7 +165,6 @@ export function TrialCheckoutClient({
                 placeholder={platform.referral.codePlaceholder}
                 autoCapitalize="off"
                 autoCorrect="off"
-                disabled={useAppleIap && Boolean(appleReady)}
               />
             </div>
           ) : null}
@@ -182,6 +186,17 @@ export function TrialCheckoutClient({
                 processorNote={platform.checkoutFlow.appleProcessorNote}
                 onError={setError}
                 onPurchased={async (purchase) => {
+                  if (canApplyReferralCode && referralCode.trim()) {
+                    const applied = await applyReferralCode(referralCode.trim());
+                    if ("error" in applied && applied.error) {
+                      // Non-blocking for already-referred users; surface other errors.
+                      const msg = applied.error.toLowerCase();
+                      if (!msg.includes("already")) {
+                        setError(applied.error);
+                        return;
+                      }
+                    }
+                  }
                   const result = await completeAppleCheckoutPurchase({
                     localOrderId: appleReady.localOrderId,
                     productId: purchase.productId,

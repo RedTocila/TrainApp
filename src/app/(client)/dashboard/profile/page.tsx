@@ -39,10 +39,7 @@ export default async function ProfilePage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
               <UserRound className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <h1 className="text-lg font-black">{platform.profile.title}</h1>
-              <p className="text-xs text-muted-foreground">{platform.profile.subtitle}</p>
-            </div>
+            <h1 className="text-lg font-black leading-none">{platform.profile.title}</h1>
           </div>
           <Card
             className={cn(

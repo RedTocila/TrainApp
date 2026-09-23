@@ -4,6 +4,7 @@ import { useEffect, useRef, type KeyboardEvent } from "react";
 
 /** Matches .chat-command-editable min-height (2.25rem). */
 const SINGLE_LINE_HEIGHT_PX = 36;
+const LINE_HEIGHT_REM = 1.25;
 
 interface ChatCommandInputProps {
   value: string;
@@ -14,6 +15,8 @@ interface ChatCommandInputProps {
   onMultilineChange?: (multiline: boolean) => void;
   /** Overrides default grid placement (Alex bar: mode | input | attach | mic/send). */
   className?: string;
+  /** Fixed minimum visible lines (e.g. AI Build = 5). */
+  minLines?: number;
 }
 
 function placeCaretAtEnd(el: HTMLElement) {
@@ -34,9 +37,14 @@ export function ChatCommandInput({
   disabled,
   onMultilineChange,
   className,
+  minLines,
 }: ChatCommandInputProps) {
   const editableRef = useRef<HTMLDivElement>(null);
   const lastValueRef = useRef(value);
+  const minHeightPx =
+    minLines && minLines > 1
+      ? Math.round(minLines * LINE_HEIGHT_REM * 16)
+      : null;
 
   useEffect(() => {
     const el = editableRef.current;
@@ -54,8 +62,14 @@ export function ChatCommandInput({
   }, [value]);
 
   useEffect(() => {
+    if (!onMultilineChange) return;
+    if (minLines && minLines > 1) {
+      onMultilineChange(true);
+      return;
+    }
+
     const el = editableRef.current;
-    if (!el || !onMultilineChange) return;
+    if (!el) return;
 
     const syncMultiline = () => {
       const hasExplicitBreak = el.innerText.includes("\n");
@@ -67,7 +81,7 @@ export function ChatCommandInput({
     const observer = new ResizeObserver(syncMultiline);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [onMultilineChange, value]);
+  }, [onMultilineChange, value, minLines]);
 
   return (
     <div
@@ -87,7 +101,7 @@ export function ChatCommandInput({
           const text = e.currentTarget.innerText.replace(/\n$/, "");
           lastValueRef.current = text;
           onChange(text);
-          if (onMultilineChange) {
+          if (onMultilineChange && !(minLines && minLines > 1)) {
             const el = e.currentTarget;
             const hasExplicitBreak = el.innerText.includes("\n");
             const wrapped = el.scrollHeight > SINGLE_LINE_HEIGHT_PX + 1;
@@ -97,6 +111,7 @@ export function ChatCommandInput({
         onKeyDown={(e) => onKeyDown(e as unknown as KeyboardEvent<HTMLTextAreaElement>)}
         data-placeholder={placeholder}
         className="chat-command-editable"
+        style={minHeightPx ? { minHeight: minHeightPx } : undefined}
       />
     </div>
   );

@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Dumbbell, Hammer, Sparkles, Zap } from "lucide-react";
 import { AppOverlay } from "@/components/app-overlay";
 import { AddWorkoutWizard } from "@/components/add-workout-wizard";
+import { AiBuildPromptPanel } from "@/components/ai-build-prompt-panel";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { CreateWorkoutType } from "@/components/workout-type-chooser";
 import { Button } from "@/components/ui/button";
 import { UNCATEGORIZED_FOLDER_ID } from "@/lib/workout-folders";
 import { cn } from "@/lib/utils";
 
-type PickerStep = "method" | "manual";
+type PickerStep = "method" | "manual" | "ai";
 
 export function BuildWorkoutButton({
   className,
@@ -50,10 +51,7 @@ export function BuildWorkoutButton({
       label: platform.workout.buildWithAi,
       icon: Sparkles,
       accent: "text-primary",
-      onSelect: () => {
-        closePicker();
-        router.push("/dashboard/ai/plans/workout");
-      },
+      onSelect: () => setStep("ai"),
     },
     {
       id: "manual" as const,
@@ -81,8 +79,6 @@ export function BuildWorkoutButton({
     },
   ];
 
-  const options = step === "method" ? methodOptions : manualOptions;
-
   return (
     <>
       <Button
@@ -104,10 +100,17 @@ export function BuildWorkoutButton({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={platform.workout.buildCta}
-          className="relative z-10 w-full max-w-sm px-4"
+          aria-label={
+            step === "ai"
+              ? platform.workout.buildWithAi
+              : platform.workout.buildCta
+          }
+          className={cn(
+            "relative z-10 w-full px-4",
+            step === "ai" ? "max-w-md" : "max-w-sm"
+          )}
         >
-          {step === "manual" ? (
+          {step !== "method" ? (
             <button
               type="button"
               onClick={() => setStep("method")}
@@ -118,32 +121,47 @@ export function BuildWorkoutButton({
             </button>
           ) : null}
 
-          <div
-            className={cn(
-              "grid gap-8",
-              options.length === 2 ? "grid-cols-2" : "grid-cols-3"
-            )}
-          >
-            {options.map((option) => {
-              const Icon = option.icon;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={option.onSelect}
-                  className="flex flex-col items-center gap-3 transition-transform duration-200 active:scale-95"
-                >
-                  <Icon
-                    className={cn("h-12 w-12", option.accent)}
-                    strokeWidth={1.75}
-                  />
-                  <span className="text-center text-sm font-bold leading-tight text-foreground">
-                    {option.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {step === "ai" ? (
+            <AiBuildPromptPanel
+              placeholder={platform.workout.aiFullDayPlaceholder}
+              buildPrompt={(focus) =>
+                `Build me a workout plan. Focus: ${focus}`
+              }
+              onSubmitted={closePicker}
+              accent="violet"
+            />
+          ) : (
+            <div
+              className={cn(
+                "grid gap-8",
+                (step === "method" ? methodOptions : manualOptions).length === 2
+                  ? "grid-cols-2"
+                  : "grid-cols-3"
+              )}
+            >
+              {(step === "method" ? methodOptions : manualOptions).map(
+                (option) => {
+                  const Icon = option.icon;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={option.onSelect}
+                      className="flex flex-col items-center gap-3 transition-transform duration-200 active:scale-95"
+                    >
+                      <Icon
+                        className={cn("h-12 w-12", option.accent)}
+                        strokeWidth={1.75}
+                      />
+                      <span className="text-center text-sm font-bold leading-tight text-foreground">
+                        {option.label}
+                      </span>
+                    </button>
+                  );
+                }
+              )}
+            </div>
+          )}
         </div>
       </AppOverlay>
 

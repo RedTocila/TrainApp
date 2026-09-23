@@ -352,6 +352,8 @@ export const platformCopyEn = {
     buildCta: "BUILD",
     buildWithAi: "AI Build",
     buildManually: "Build manually",
+    aiBuildPlaceholder:
+      "e.g. high protein, Mediterranean, 3 meals + snacks…",
     logMeal: "Log meal",
     viewDietPlan: "Diet plan",
     seeWhatWentWrong: "What went wrong",
@@ -1462,7 +1464,9 @@ export const platformCopyEn = {
     },
   },
   classes: {
-    comingSoon: "Coming Soon.",
+    comingSoon: "Coming soon",
+    comingSoonBanner:
+      "Live classes and challenges are launching soon — stay tuned.",
     upgradeDescription:
       "Upgrade to Elite to join live training classes, community challenges, and group coaching.",
     upgradeDescriptionShort:

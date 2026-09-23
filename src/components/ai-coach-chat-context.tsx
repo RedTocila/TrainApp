@@ -13,18 +13,26 @@ import {
   acknowledgeCoachReadMe,
   getReadMeAcknowledgments,
 } from "@/lib/actions/read-me-acks";
+import type { CoachChatMode } from "@/lib/ai/coach-chat-tools";
 import { clearCoachChatCache } from "@/lib/coach-chat-cache";
 import {
   hasCoachReadMeAcknowledged,
   setCoachReadMeAcknowledged,
 } from "@/lib/coach-read-me-storage";
 
+export type OpenAiCoachChatOptions = {
+  /** Force Ask/Act before an auto-sent prompt (e.g. AI Build → Act). */
+  mode?: CoachChatMode;
+};
+
 type AiCoachChatContextValue = {
   isOpen: boolean;
-  openChat: (prompt?: string) => void;
+  openChat: (prompt?: string, options?: OpenAiCoachChatOptions) => void;
   closeChat: () => void;
   pendingPrompt: string | null;
   consumePendingPrompt: () => string | null;
+  pendingMode: CoachChatMode | null;
+  consumePendingMode: () => CoachChatMode | null;
   readMeOpen: boolean;
   openReadMe: () => void;
   closeReadMe: () => void;
@@ -43,6 +51,8 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const pendingPromptRef = useRef<string | null>(null);
+  const [pendingMode, setPendingMode] = useState<CoachChatMode | null>(null);
+  const pendingModeRef = useRef<CoachChatMode | null>(null);
   const [readMeOpen, setReadMeOpen] = useState(false);
   const [hasAcknowledgedReadMe, setHasAcknowledgedReadMe] = useState(false);
   const [readMeHydrated, setReadMeHydrated] = useState(false);
@@ -90,12 +100,18 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
     }
   }, [isOpen, readMeHydrated, hasAcknowledgedReadMe]);
 
-  const openChat = useCallback((prompt?: string) => {
-    const trimmed = prompt?.trim() || null;
-    pendingPromptRef.current = trimmed;
-    setPendingPrompt(trimmed);
-    setIsOpen(true);
-  }, []);
+  const openChat = useCallback(
+    (prompt?: string, options?: OpenAiCoachChatOptions) => {
+      const trimmed = prompt?.trim() || null;
+      pendingPromptRef.current = trimmed;
+      setPendingPrompt(trimmed);
+      const mode = options?.mode ?? null;
+      pendingModeRef.current = mode;
+      setPendingMode(mode);
+      setIsOpen(true);
+    },
+    []
+  );
 
   const closeChat = useCallback(() => {
     if (!hasAcknowledgedReadMe) {
@@ -103,6 +119,8 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
     }
     pendingPromptRef.current = null;
     setPendingPrompt(null);
+    pendingModeRef.current = null;
+    setPendingMode(null);
     setIsOpen(false);
   }, [hasAcknowledgedReadMe]);
 
@@ -110,6 +128,13 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
     const next = pendingPromptRef.current;
     pendingPromptRef.current = null;
     setPendingPrompt(null);
+    return next;
+  }, []);
+
+  const consumePendingMode = useCallback(() => {
+    const next = pendingModeRef.current;
+    pendingModeRef.current = null;
+    setPendingMode(null);
     return next;
   }, []);
 
@@ -139,6 +164,8 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
         closeChat,
         pendingPrompt,
         consumePendingPrompt,
+        pendingMode,
+        consumePendingMode,
         readMeOpen,
         openReadMe,
         closeReadMe,

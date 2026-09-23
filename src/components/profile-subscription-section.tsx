@@ -19,6 +19,7 @@ import {
 } from "@/lib/subscription";
 import { buildPricingHref } from "@/lib/pricing-nav";
 import type { Profile } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export function ProfileSubscriptionSection({
   profile,
@@ -38,6 +39,7 @@ export function ProfileSubscriptionSection({
   const isActive = profile.subscription_status === "active";
   const isCanceled = profile.subscription_status === "canceled";
   const hasAccess = isSubscriptionActive(profile);
+  const showGiveUp = Boolean(plan && (isActive || onTrial));
 
   return (
     <Card>
@@ -93,10 +95,19 @@ export function ProfileSubscriptionSection({
         ) : (
           <p className="text-sm text-muted-foreground">{coachLabels.noSubscription}</p>
         )}
-        <div className="flex flex-wrap gap-2">
+        <div
+          className={cn(
+            "grid gap-2",
+            showGiveUp ? "grid-cols-2" : "grid-cols-1"
+          )}
+        >
           <Link
             href={buildPricingHref("/dashboard/profile")}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
+            className={buttonVariants({
+              variant: "outline",
+              size: "sm",
+              className: "w-full",
+            })}
           >
             {onTrial
               ? coachLabels.keepAiPro
@@ -104,7 +115,7 @@ export function ProfileSubscriptionSection({
                 ? coachLabels.levelUp
                 : coachLabels.pickAPlan}
           </Link>
-          {plan && (isActive || onTrial) ? (
+          {showGiveUp ? (
             <ProfileSubscriptionActions
               billedViaApple={Boolean(profile.apple_original_transaction_id)}
             />

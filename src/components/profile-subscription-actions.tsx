@@ -8,7 +8,6 @@ import { SarcasticGiveUpDialog } from "@/components/sarcastic-give-up-dialog";
 import { Button } from "@/components/ui/button";
 import {
   openAppleSubscriptionManagement,
-  shouldUseAppleIap,
 } from "@/lib/native-iap";
 
 export function ProfileSubscriptionActions({
@@ -24,7 +23,8 @@ export function ProfileSubscriptionActions({
   const [giveUpOpen, setGiveUpOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const appleManaged = billedViaApple || shouldUseAppleIap();
+  // Only Apple-billed subscriptions should open App Store management — not every iOS user.
+  const appleManaged = billedViaApple;
 
   const handleGiveUp = () => {
     setError(null);
@@ -59,11 +59,11 @@ export function ProfileSubscriptionActions({
         variant="outline"
         size="sm"
         onClick={() => setGiveUpOpen(true)}
-        className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-400"
+        className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-400"
       >
         {appleManaged ? platform.checkoutFlow.appleManageCta : coachLabels.giveUpOnPlan}
       </Button>
-      {error && <p className="w-full text-sm text-red-400">{error}</p>}
+      {error && <p className="col-span-2 w-full text-sm text-red-400">{error}</p>}
       <SarcasticGiveUpDialog
         open={giveUpOpen}
         onClose={() => setGiveUpOpen(false)}

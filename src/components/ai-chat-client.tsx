@@ -552,6 +552,8 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     isOpen,
     pendingPrompt,
     consumePendingPrompt,
+    pendingMode,
+    consumePendingMode,
     closeChat,
     chatResetToken,
     openReadMe,
@@ -900,7 +902,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     abortRef.current?.abort();
   };
 
-  // Auto-send FAQ / suggestion prompts after chat is ready.
+  // Auto-send FAQ / suggestion / AI Build prompts after chat is ready.
   useEffect(() => {
     if (!isOpen || !canChat || !pendingPrompt || isStreaming || autoSendingRef.current) {
       return;
@@ -913,6 +915,11 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
           return;
         }
         autoSendingRef.current = true;
+        const mode = consumePendingMode();
+        if (mode) {
+          chatModeRef.current = mode;
+          setChatMode(mode);
+        }
         // Consume only when we are about to send, so Strict Mode cleanup
         // clearing the timer cannot lose the prompt.
         const toSend = consumePendingPrompt() ?? prompt;
@@ -925,7 +932,24 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     }, 50);
 
     return () => window.clearTimeout(timer);
-  }, [isOpen, canChat, pendingPrompt, isStreaming, consumePendingPrompt]);
+  }, [
+    isOpen,
+    canChat,
+    pendingPrompt,
+    isStreaming,
+    consumePendingPrompt,
+    consumePendingMode,
+  ]);
+
+  // Apply Ask/Act from openChat(..., { mode }) when opening without a prompt.
+  useEffect(() => {
+    if (!isOpen || !pendingMode || pendingPrompt) return;
+    const mode = consumePendingMode();
+    if (mode) {
+      chatModeRef.current = mode;
+      setChatMode(mode);
+    }
+  }, [isOpen, pendingMode, pendingPrompt, consumePendingMode]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

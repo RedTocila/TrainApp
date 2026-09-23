@@ -356,6 +356,8 @@ export const platformCopyAl = {
     buildCta: "NDËRTO",
     buildWithAi: "Ndërto me AI",
     buildManually: "Ndërto vetë",
+    aiBuildPlaceholder:
+      "p.sh. proteinë e lartë, Mesdhetare, 3 vakte + snacks…",
     logMeal: "Regjistro vakt",
     viewDietPlan: "Plani ushqimor",
     seeWhatWentWrong: "Çfarë shkoi keq",
@@ -1473,7 +1475,9 @@ export const platformCopyAl = {
     },
   },
   classes: {
-    comingSoon: "Së shpejti.",
+    comingSoon: "Së shpejti",
+    comingSoonBanner:
+      "Klasat live dhe sfidat po vijnë së shpejti — qëndroni të lidhur.",
     upgradeDescription:
       "Përmirëso në Elite për klasa trajnimi live, sfida komuniteti dhe coaching në grup.",
     upgradeDescriptionShort:

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowLeft, Check, Library, Plus, Sparkles, type LucideIcon } from "lucide-react";
 import { AppOverlay } from "@/components/app-overlay";
 import { AddWorkoutToDayAiPanel } from "@/components/add-workout-to-day-ai-panel";
@@ -77,7 +77,6 @@ export function AddWorkoutToDayDialog({
   const [loading, setLoading] = useState(false);
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [aiFooter, setAiFooter] = useState<ReactNode>(null);
   const initialScheduledRef = useRef<Set<string>>(new Set());
   const planIdByDayIdRef = useRef<Map<string, string>>(new Map());
   const libraryDirtyRef = useRef(false);
@@ -99,7 +98,6 @@ export function AddWorkoutToDayDialog({
       setWizardOpen(false);
       setWizardType(null);
       setError(null);
-      setAiFooter(null);
       setSelectedDayIds(new Set());
       initialScheduledRef.current = new Set();
       planIdByDayIdRef.current = new Map();
@@ -281,7 +279,6 @@ export function AddWorkoutToDayDialog({
                 type="button"
                 onClick={() => {
                   setError(null);
-                  setAiFooter(null);
                   setMode(null);
                 }}
                 className="flex shrink-0 items-center gap-1.5 self-start text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -291,8 +288,13 @@ export function AddWorkoutToDayDialog({
               </button>
 
               <div
-                className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
-                data-scroll-lock-scrollable
+                className={cn(
+                  "min-h-0 flex-1",
+                  mode === "ai"
+                    ? "overflow-visible"
+                    : "overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]"
+                )}
+                data-scroll-lock-scrollable={mode === "library" ? true : undefined}
               >
                 {mode === "library" ? (
                   loading ? (
@@ -371,21 +373,13 @@ export function AddWorkoutToDayDialog({
                 ) : (
                   <AddWorkoutToDayAiPanel
                     dateKey={dateKey}
-                    onFooterChange={setAiFooter}
-                    onAdded={() => {
-                      onClose();
-                      onAdded?.();
-                    }}
+                    onAdded={onClose}
                   />
                 )}
                 {error ? (
                   <p className="mt-3 text-sm text-red-400">{error}</p>
                 ) : null}
               </div>
-
-              {mode === "ai" && aiFooter ? (
-                <div className="shrink-0 pt-1">{aiFooter}</div>
-              ) : null}
             </div>
           )}
         </div>

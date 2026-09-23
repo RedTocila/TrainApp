@@ -201,6 +201,10 @@ export async function completeAppleCheckoutPurchase(input: CompleteApplePurchase
     return { error: "Product mismatch for this Apple purchase." };
   }
 
+  if (!verified.transactionId.trim()) {
+    return { error: "Apple transaction is missing a transaction id." };
+  }
+
   const parsed = parseIapProductId(verified.productId);
   if (!parsed) return { error: "Unknown Apple product." };
   if (parsed.planId !== order.plan || parsed.interval !== order.billing_interval) {
@@ -282,6 +286,10 @@ export async function completeGuestAppleCheckout(input: {
 
   if (verified.productId !== input.productId) {
     return { error: "Product mismatch for this Apple purchase." };
+  }
+
+  if (!verified.transactionId.trim()) {
+    return { error: "Apple transaction is missing a transaction id." };
   }
 
   const parsed = parseIapProductId(verified.productId);
