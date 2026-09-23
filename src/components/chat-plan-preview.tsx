@@ -1,16 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { Check, ChevronDown, Dumbbell, Loader2, Salad, Zap } from "lucide-react";
 import { applyChatPlanPreviewAction } from "@/lib/actions/ai-plan-builder";
 import type { ChatPlanPreview } from "@/lib/ai/coach-chat-tools";
 import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import { slotLabel } from "@/lib/meal-slots";
 import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
-import { useAiCoachChat } from "@/components/ai-coach-chat-context";
-import { useFullCalendar } from "@/components/full-calendar-provider";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { estimateHiitDurationSeconds, hiitSummaryLabel } from "@/lib/hiit";
 
@@ -46,13 +44,11 @@ export function ChatPlanPreviewCard({
   onApplied?: () => void;
   gender?: string | null;
 }) {
-  const router = useRouter();
-  const { closeChat } = useAiCoachChat();
-  const { openCalendar, hasCalendar } = useFullCalendar();
   const [error, setError] = useState<string | null>(null);
   const [localApplied, setLocalApplied] = useState(false);
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [applyProgress, setApplyProgress] = useState(0);
   const [openDay, setOpenDay] = useState(0);
   const [showAbout, setShowAbout] = useState(false);
   const [showMoves, setShowMoves] = useState(true);
@@ -66,8 +62,28 @@ export function ChatPlanPreviewCard({
   const scheduleLabel = describeSchedule(preview);
   const isApplied = applied || localApplied;
 
+  useEffect(() => {
+    if (!isPending) {
+      if (localApplied) setApplyProgress(100);
+      else setApplyProgress(0);
+      return;
+    }
+
+    setApplyProgress(10);
+    const id = window.setInterval(() => {
+      setApplyProgress((p) => {
+        if (p >= 92) return p;
+        const step = p < 35 ? 7 : p < 65 ? 4 : 1.5;
+        return Math.min(92, p + step);
+      });
+    }, 320);
+
+    return () => window.clearInterval(id);
+  }, [isPending, localApplied]);
+
   const handleApply = () => {
     setError(null);
+    setApplyProgress(8);
     startTransition(async () => {
       try {
         const result =
@@ -83,15 +99,18 @@ export function ChatPlanPreviewCard({
                 preview.schedule ?? { weeks: 4, weekdays: [] }
               );
         if ("error" in result) {
+          setApplyProgress(0);
           setError(result.error);
           return;
         }
+        setApplyProgress(100);
         setLocalApplied(true);
         setScheduledCount(result.scheduledCount);
         setShowMoves(false);
         setShowAbout(false);
         onApplied?.();
       } catch (err) {
+        setApplyProgress(0);
         setError(
           err instanceof Error
             ? err.message
@@ -99,17 +118,6 @@ export function ChatPlanPreviewCard({
         );
       }
     });
-  };
-
-  const handleOpenCalendar = () => {
-    closeChat();
-    if (hasCalendar) {
-      openCalendar();
-      return;
-    }
-    // Not on dashboard home yet — go there and open once calendar data mounts.
-    openCalendar();
-    router.push("/dashboard");
   };
 
   const title = isWeeklyFull ? preview.program.title : preview.plan.title;
@@ -409,7 +417,7 @@ export function ChatPlanPreviewCard({
 
           {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-col items-center gap-2">
             {isApplied ? (
               <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-400">
                 <Check className="h-3.5 w-3.5" />
@@ -419,31 +427,38 @@ export function ChatPlanPreviewCard({
                   : null}
               </span>
             ) : (
-              <Button
-                size="sm"
-                className="h-8"
-                disabled={isPending}
-                onClick={handleApply}
-              >
+              <>
+                <Button
+                  size="sm"
+                  className="h-9 min-w-[11rem] px-5"
+                  disabled={isPending}
+                  onClick={handleApply}
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Applying… {Math.round(applyProgress)}%
+                    </>
+                  ) : scheduleLabel ? (
+                    "Apply & schedule"
+                  ) : (
+                    "Apply to my program"
+                  )}
+                </Button>
                 {isPending ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Applying…
-                  </>
+                  <div className="w-full max-w-[14rem] space-y-1">
+                    <Progress value={applyProgress} className="h-1.5" />
+                    <p className="text-center text-[10px] font-medium text-muted-foreground">
+                      Saving & scheduling…
+                    </p>
+                  </div>
                 ) : scheduleLabel ? (
-                  "Apply & schedule"
-                ) : (
-                  "Apply to my program"
-                )}
-              </Button>
+                  <p className="text-center text-[11px] font-medium text-muted-foreground">
+                    {scheduleLabel}
+                  </p>
+                ) : null}
+              </>
             )}
-            <button
-              type="button"
-              onClick={handleOpenCalendar}
-              className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline"
-            >
-              Open calendar
-            </button>
           </div>
         </div>
       </div>

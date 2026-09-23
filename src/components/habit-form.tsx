@@ -221,17 +221,6 @@ export function HabitForm({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border pt-4">
-        {habit && onDelete ? (
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full justify-start text-red-400 hover:bg-red-500/10 hover:text-red-400"
-            disabled={isPending}
-            onClick={onDelete}
-          >
-            {platform.aria.removeHabit}
-          </Button>
-        ) : null}
         <Button
           className="w-full"
           disabled={isPending || !title.trim() || weekdays.length === 0}
@@ -239,6 +228,17 @@ export function HabitForm({
         >
           {isPending ? platform.common.saving : habit ? platform.settings.saveChanges : platform.habits.addHabit}
         </Button>
+        {habit && onDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full justify-center text-red-400 hover:bg-red-500/10 hover:text-red-400"
+            disabled={isPending}
+            onClick={onDelete}
+          >
+            {platform.aria.removeHabit}
+          </Button>
+        ) : null}
       </div>
     </div>
   );
