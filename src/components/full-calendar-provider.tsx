@@ -39,30 +39,39 @@ const FullCalendarContext = createContext<FullCalendarContextValue | null>(null)
 export function FullCalendarProvider({ children }: { children: ReactNode }) {
   const { selectedDate, setSelectedDate } = useSelectedDate();
   const [open, setOpen] = useState(false);
+  const [hasOpened, setHasOpened] = useState(false);
   const [hasCalendar, setHasCalendar] = useState(false);
-  const calendarDataRef = useRef<CalendarData | null>(null);
+  const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
   const pendingOpenRef = useRef(false);
 
+  // Warm the dialog chunk while the user is on the dashboard.
+  useEffect(() => {
+    if (!hasCalendar) return;
+    void import("@/components/full-calendar-dialog");
+  }, [hasCalendar]);
+
   const registerCalendarData = useCallback((data: CalendarData | null) => {
-    calendarDataRef.current = data;
+    setCalendarData(data);
     setHasCalendar((current) => {
       const next = data !== null;
       return current === next ? current : next;
     });
     if (data && pendingOpenRef.current) {
       pendingOpenRef.current = false;
+      setHasOpened(true);
       setOpen(true);
     }
   }, []);
 
   const openCalendar = useCallback(() => {
-    if (calendarDataRef.current) {
+    if (calendarData) {
+      setHasOpened(true);
       setOpen(true);
       return;
     }
     // Dashboard home hasn't mounted yet — open once calendar data registers.
     pendingOpenRef.current = true;
-  }, []);
+  }, [calendarData]);
 
   const value = useMemo(
     () => ({
@@ -73,12 +82,10 @@ export function FullCalendarProvider({ children }: { children: ReactNode }) {
     [openCalendar, hasCalendar, registerCalendarData]
   );
 
-  const calendarData = calendarDataRef.current;
-
   return (
     <FullCalendarContext.Provider value={value}>
       {children}
-      {open && calendarData && (
+      {hasOpened && calendarData ? (
         <FullCalendarDialog
           open={open}
           onClose={() => setOpen(false)}
@@ -87,7 +94,7 @@ export function FullCalendarProvider({ children }: { children: ReactNode }) {
           schedule={calendarData.schedule}
           enrichment={calendarData.enrichment}
         />
-      )}
+      ) : null}
     </FullCalendarContext.Provider>
   );
 }

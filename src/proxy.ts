@@ -39,6 +39,13 @@ export async function proxy(request: NextRequest) {
     return missingSupabaseEnvResponse();
   }
 
+  // Server Actions must receive an RSC payload (`text/x-component`).
+  // Redirecting them to login/dashboard returns HTML and surfaces:
+  // "An unexpected response was received from the server."
+  const isServerAction =
+    request.method === "POST" &&
+    Boolean(request.headers.get("next-action"));
+
   const { supabase, user, supabaseResponse } = await updateSession(request);
   if (!supabase) {
     return missingSupabaseEnvResponse();
@@ -57,10 +64,12 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!user && isResetPasswordPage) {
+    if (isServerAction) return supabaseResponse;
     return NextResponse.redirect(new URL("/forgot-password", request.url));
   }
 
   if (!user && (isAdminRoute || isDashboardRoute)) {
+    if (isServerAction) return supabaseResponse;
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -71,12 +80,14 @@ export async function proxy(request: NextRequest) {
     }
 
     if (isAuthPage) {
+      if (isServerAction) return supabaseResponse;
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
     if (path === "/") {
       // Keep the landing page static/fast; if logged in, go straight to dashboard.
       // Admin access is enforced by server-side route guards.
+      if (isServerAction) return supabaseResponse;
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
@@ -88,6 +99,7 @@ export async function proxy(request: NextRequest) {
         .eq("id", user.id)
         .single();
       if (profile?.role !== "admin") {
+        if (isServerAction) return supabaseResponse;
         return NextResponse.redirect(new URL("/dashboard", request.url));
       }
     }

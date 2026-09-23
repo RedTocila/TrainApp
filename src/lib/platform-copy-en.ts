@@ -1036,6 +1036,8 @@ export const platformCopyEn = {
     medicalDisclaimer:
       "I can't give medical advice. For that consult with a doctor, not me.",
     readMeButton: "Read me",
+    newChat: "New",
+    newChatAria: "Start a new chat",
     readMeTitle: "Before you chat with me",
     readMeBody: [
       "I'm sarcastic and direct. I'll call out excuses, roast bad habits, and push you hard — that's the point.",
@@ -1212,9 +1214,6 @@ export const platformCopyEn = {
     missed: "Missed",
     upcomingActive: "Upcoming / active",
     preAccount: "Pre-account",
-    completionFailed: "Failed",
-    completionSuccess: "Success",
-    completionNeutral: "Future / pre-account",
     completionLow: "Under 60%",
     completionMid: "60–80%",
     completionHigh: "80–100%",

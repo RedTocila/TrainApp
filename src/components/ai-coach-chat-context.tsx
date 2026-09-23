@@ -13,6 +13,7 @@ import {
   acknowledgeCoachReadMe,
   getReadMeAcknowledgments,
 } from "@/lib/actions/read-me-acks";
+import { clearCoachChatCache } from "@/lib/coach-chat-cache";
 import {
   hasCoachReadMeAcknowledged,
   setCoachReadMeAcknowledged,
@@ -31,6 +32,9 @@ type AiCoachChatContextValue = {
   readMeHydrated: boolean;
   acknowledgeReadMe: () => void;
   canChat: boolean;
+  /** Bumped by startNewChat so the chat client can reset without remounting. */
+  chatResetToken: number;
+  startNewChat: () => void;
 };
 
 const AiCoachChatContext = createContext<AiCoachChatContextValue | null>(null);
@@ -42,6 +46,7 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
   const [readMeOpen, setReadMeOpen] = useState(false);
   const [hasAcknowledgedReadMe, setHasAcknowledgedReadMe] = useState(false);
   const [readMeHydrated, setReadMeHydrated] = useState(false);
+  const [chatResetToken, setChatResetToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +126,11 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
 
   const canChat = readMeHydrated && hasAcknowledgedReadMe;
 
+  const startNewChat = useCallback(() => {
+    clearCoachChatCache();
+    setChatResetToken((n) => n + 1);
+  }, []);
+
   return (
     <AiCoachChatContext.Provider
       value={{
@@ -136,6 +146,8 @@ export function AiCoachChatProvider({ children }: { children: ReactNode }) {
         readMeHydrated,
         acknowledgeReadMe,
         canChat,
+        chatResetToken,
+        startNewChat,
       }}
     >
       {children}

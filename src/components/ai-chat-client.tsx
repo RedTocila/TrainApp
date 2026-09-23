@@ -30,6 +30,11 @@ import { DASHBOARD_PULL_REFRESH_EVENT } from "@/components/dashboard-sync";
 import type { ChatPlanPreview, CoachChatMode } from "@/lib/ai/coach-chat-tools";
 import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
+import {
+  clearCoachChatCache,
+  getCachedCoachChat,
+  setCachedCoachChat,
+} from "@/lib/coach-chat-cache";
 import { useVoiceDictation } from "@/hooks/use-voice-dictation";
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
@@ -360,9 +365,10 @@ function ChatCommandBar({
     !isStreaming &&
     (voice.isActive || voice.isBusy || !hasDraft);
   const composerLocked = disabled || isStreaming || voice.isBusy;
+  // Match Cursor-style Ask greens: dark forest pill + solid mint send.
   const actionBtnTone = isAct
     ? "bg-red-600 text-white shadow-[0_0_14px_rgba(220,38,38,0.4)]"
-    : "bg-emerald-500 text-white shadow-[0_0_14px_rgba(16,185,129,0.4)]";
+    : "bg-[#48A868] text-zinc-950 shadow-[0_0_14px_rgba(72,168,104,0.35)]";
 
   return (
     <form onSubmit={onSubmit} className="min-w-0 w-full space-y-2">
@@ -407,7 +413,7 @@ function ChatCommandBar({
             isMultiline && "mb-0.5",
             isAct
               ? "bg-primary/15 text-primary hover:bg-primary/20"
-              : "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20"
+              : "bg-[#1B3326] text-[#62C471] hover:bg-[#243d30]"
           )}
         >
           {isAct ? (
@@ -541,16 +547,27 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const platform = usePlatformCopy();
   const ai = platform.ai;
-  const { canChat, isOpen, pendingPrompt, consumePendingPrompt, closeChat } =
-    useAiCoachChat();
+  const {
+    canChat,
+    isOpen,
+    pendingPrompt,
+    consumePendingPrompt,
+    closeChat,
+    chatResetToken,
+    openReadMe,
+  } = useAiCoachChat();
   const starterPrompts = [...ai.starterPrompts];
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    () => getCachedCoachChat()?.messages ?? []
+  );
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingWebSearch, setPendingWebSearch] = useState(false);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
-  const [chatMode, setChatMode] = useState<CoachChatMode>("ask");
+  const [chatMode, setChatMode] = useState<CoachChatMode>(
+    () => getCachedCoachChat()?.chatMode ?? "ask"
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
@@ -591,6 +608,28 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight });
   }, [messages, isStreaming]);
+
+  // New chat — clear local UI without remounting (avoids aborting via Strict Mode).
+  useEffect(() => {
+    if (chatResetToken === 0) return;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    autoSendingRef.current = false;
+    clearCoachChatCache();
+    setMessages([]);
+    setInput("");
+    setError(null);
+    setIsStreaming(false);
+    setPendingWebSearch(false);
+    setAttachmentPreviewUrl(null);
+    setChatMode("ask");
+    stickToBottomRef.current = true;
+  }, [chatResetToken]);
+
+  // Persist thread so reopen within the TTL restores the conversation.
+  useEffect(() => {
+    setCachedCoachChat({ messages, chatMode });
+  }, [messages, chatMode]);
 
   // Only abort in-flight requests when the chat dialog closes — not on remount.
   useEffect(() => {
@@ -931,7 +970,16 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             {messages.length === 0 && (
               <div className="space-y-4 py-4 text-center">
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
-                <p className="font-bold">{ai.askAlex}</p>
+                <div>
+                  <p className="font-bold">{ai.askAlex}</p>
+                  <button
+                    type="button"
+                    onClick={openReadMe}
+                    className="mt-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
+                  >
+                    {ai.readMeButton}
+                  </button>
+                </div>
                 <div className="flex flex-wrap justify-center gap-2">
                   {starterPrompts.map((prompt) => (
                     <button
@@ -1005,7 +1053,16 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             {messages.length === 0 && (
               <div className="space-y-4 py-4 text-center">
                 <AiCoachAvatar size="lg" className="mx-auto h-16 w-16" />
-                <p className="font-bold">{ai.askAlex}</p>
+                <div>
+                  <p className="font-bold">{ai.askAlex}</p>
+                  <button
+                    type="button"
+                    onClick={openReadMe}
+                    className="mt-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-500/20 dark:text-amber-300"
+                  >
+                    {ai.readMeButton}
+                  </button>
+                </div>
                 <div className="flex flex-wrap justify-center gap-2">
                   {starterPrompts.map((prompt) => (
                     <button

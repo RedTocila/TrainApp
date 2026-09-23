@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Dumbbell,
   Gift,
+  HeartPulse,
   ImageIcon,
 } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
@@ -31,7 +32,11 @@ import {
   DASHBOARD_PROGRESS_PHOTOS_PATH,
 } from "@/lib/dashboard-day-routes";
 import { cn } from "@/lib/utils";
-import { hidesDashboardChrome, isTrainPath } from "@/lib/train-nav";
+import {
+  hidesDashboardChrome,
+  isCardioSessionPath,
+  showsTrainSectionTabs,
+} from "@/lib/train-nav";
 
 const headerSurface =
   "rounded-full border border-border/70 bg-card/90 shadow-sm backdrop-blur-md dark:border-border/50 dark:bg-card/75";
@@ -54,6 +59,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
   const isNutritionPage = chromePath === DASHBOARD_DAY_NUTRITION_PATH;
   const isWorkoutPage = chromePath === DASHBOARD_DAY_WORKOUT_PATH;
   const isProgressPhotosPage = chromePath === DASHBOARD_PROGRESS_PHOTOS_PATH;
+  const isCardioSession = isCardioSessionPath(chromePath);
 
   return (
     <div
@@ -61,7 +67,25 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
         "flex min-h-[var(--control-height)] items-center justify-between gap-2 px-3 py-1.5 sm:px-4 sm:py-2"
       )}
     >
-      {isNutritionPage ? (
+      {isCardioSession ? (
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <InstantNavLink
+            href="/dashboard"
+            exactMatch
+            onNavigateStart={setPendingHref}
+            aria-label={platform.common.back}
+            className="inline-flex h-[var(--control-height)] w-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary/80"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden />
+          </InstantNavLink>
+          <div className="flex min-w-0 items-center gap-2">
+            <HeartPulse className="h-6 w-6 shrink-0 text-orange-400" aria-hidden />
+            <span className="truncate text-xl font-black tracking-tight">
+              {platform.cardio.title}
+            </span>
+          </div>
+        </div>
+      ) : isNutritionPage ? (
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <InstantNavLink
             href="/dashboard"
@@ -133,7 +157,9 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
             />
           ) : null}
         </div>
-      ) : !isProgressPhotosPage && !isWorkoutPage ? (
+      ) : !isProgressPhotosPage &&
+        !isWorkoutPage &&
+        !isCardioSession ? (
         isNutritionPage && nutritionActions ? (
           <div className={cn(headerSurface, "flex shrink-0 items-center gap-1.5 p-1.5")}>
             {nutritionActions.onLogMeal ? (
@@ -192,7 +218,7 @@ export function DashboardMobileChrome() {
   const { pendingHref } = useDashboardNavPending();
   const chromePath = pendingHref ?? pathname;
   const isImmersive = hidesDashboardChrome(chromePath);
-  const showTrainTabs = isTrainPath(chromePath) && !isImmersive;
+  const showTrainTabs = showsTrainSectionTabs(chromePath);
   const showCalendar = chromePath === "/dashboard";
 
   if (isImmersive) return null;

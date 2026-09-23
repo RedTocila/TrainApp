@@ -21,7 +21,7 @@ import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { getHasLivePublishedChallenge } from "@/lib/actions/challenges";
 import {
-  hidesDashboardChrome,
+  hidesDashboardBottomNav,
   isHomeNavActive,
   isProgramsNavActive,
 } from "@/lib/train-nav";
@@ -84,7 +84,7 @@ export function ClientNav({
   const platform = usePlatformCopy();
   const reduceMotion = useReducedMotion();
   const activePath = pendingHref ?? pathname;
-  const hideNav = hidesDashboardChrome(activePath);
+  const hideNav = hidesDashboardBottomNav(activePath);
   const hideMobileChrome = hideNav || alexChatOpen;
   const programsActive = isProgramsNavActive(activePath);
   const homeActive = isHomeNavActive(activePath);

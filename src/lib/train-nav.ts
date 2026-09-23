@@ -18,30 +18,33 @@ export function isTrainPath(pathname: string) {
   );
 }
 
-/** Full-screen session UIs — hide train tabs + bottom nav (workout + cardio). */
+/** Full-screen workout session UIs — hide train tabs + bottom nav. */
 export function isActiveWorkoutSessionPath(pathname: string) {
   const path = pathOnly(pathname);
-  return (
-    /^\/dashboard\/workout\/session\/[^/]+$/.test(path) ||
-    path === "/dashboard/workout/cardio/session"
-  );
+  return /^\/dashboard\/workout\/session\/[^/]+$/.test(path);
 }
 
-/** Dedicated create/edit/preview plan flow — fullscreen without app chrome. */
-export function isWeekPlanBuilderPath(pathname: string) {
-  const path = pathOnly(pathname);
-  // /plans/new, /plans/:id, /plans/:id/edit — not /plans itself
-  return (
-    path === "/dashboard/workout/plans/new" ||
-    path.startsWith("/dashboard/workout/plans/new/") ||
-    /^\/dashboard\/workout\/plans\/[^/]+(\/edit)?$/.test(path)
-  );
+/** Live cardio session — custom Cardio header, no Workout/Nutrition toggle. */
+export function isCardioSessionPath(pathname: string) {
+  return pathOnly(pathname) === "/dashboard/workout/cardio/session";
 }
 
 /** Hide logo / train tabs / bottom nav for immersive pages. */
 export function hidesDashboardChrome(pathname: string) {
+  return isActiveWorkoutSessionPath(pathname);
+}
+
+/** Bottom nav only — cardio session keeps the Cardio header, hides the dock. */
+export function hidesDashboardBottomNav(pathname: string) {
+  return hidesDashboardChrome(pathname) || isCardioSessionPath(pathname);
+}
+
+/** Workout/Nutrition segment — hidden on cardio session (uses its own header). */
+export function showsTrainSectionTabs(pathname: string) {
   return (
-    isActiveWorkoutSessionPath(pathname) || isWeekPlanBuilderPath(pathname)
+    isTrainPath(pathname) &&
+    !hidesDashboardChrome(pathname) &&
+    !isCardioSessionPath(pathname)
   );
 }
 

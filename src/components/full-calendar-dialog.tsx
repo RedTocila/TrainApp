@@ -16,7 +16,7 @@ import {
   subMonths,
 } from "date-fns";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { CalendarDayDot } from "@/components/calendar-day-card";
@@ -25,6 +25,12 @@ import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { fetchFullCalendarMonthSlice } from "@/lib/actions/full-calendar-month";
 import { formatLocalized } from "@/lib/date-locale";
+import {
+  getCachedFullCalendarMonth,
+  hasCachedFullCalendarMonth,
+  listCachedFullCalendarMonths,
+  setCachedFullCalendarMonth,
+} from "@/lib/full-calendar-cache";
 import {
   mergeCalendarEnrichment,
   mergeCalendarSchedule,
@@ -47,12 +53,29 @@ interface FullCalendarDialogProps {
   enrichment: DashboardEnrichmentData;
 }
 
-function monthRangeKeys(viewMonth: Date): { from: string; to: string; cacheKey: string } {
+function monthRangeKeys(viewMonth: Date): {
+  from: string;
+  to: string;
+  cacheKey: string;
+} {
   const start = startOfWeek(startOfMonth(viewMonth));
   const end = endOfWeek(endOfMonth(viewMonth));
   const from = format(start, "yyyy-MM-dd");
   const to = format(end, "yyyy-MM-dd");
   return { from, to, cacheKey: `${from}:${to}` };
+}
+
+function applyCachedSlices(
+  schedule: ClientSchedule,
+  enrichment: DashboardEnrichmentData
+): { schedule: ClientSchedule; enrichment: DashboardEnrichmentData } {
+  let nextSchedule = schedule;
+  let nextEnrichment = enrichment;
+  for (const slice of listCachedFullCalendarMonths()) {
+    nextEnrichment = mergeCalendarEnrichment(nextEnrichment, slice.enrichment);
+    nextSchedule = mergeCalendarSchedule(nextSchedule, slice.scheduleSlice);
+  }
+  return { schedule: nextSchedule, enrichment: nextEnrichment };
 }
 
 export function FullCalendarDialog({
@@ -70,9 +93,11 @@ export function FullCalendarDialog({
   const [now, setNow] = useState(() => new Date());
   const [schedule, setSchedule] = useState(initialSchedule);
   const [enrichment, setEnrichment] = useState(initialEnrichment);
+  /** Only spin when navigating into a month we have never loaded. */
   const [loadingMonth, setLoadingMonth] = useState(false);
   const loadedRangesRef = useRef<Set<string>>(new Set());
-  const inflightRef = useRef<string | null>(null);
+  const inflightRef = useRef<Map<string, Promise<void>>>(new Map());
+  const loadingKeyRef = useRef<string | null>(null);
   const wasOpenRef = useRef(false);
 
   const activeFrom = useMemo(() => {
@@ -92,14 +117,17 @@ export function FullCalendarDialog({
     return () => clearInterval(id);
   }, []);
 
-  // Seed from dashboard data only when the dialog opens (not on every enrichment tick).
+  // Seed from dashboard + any cached month slices when the dialog opens.
   useEffect(() => {
     if (open && !wasOpenRef.current) {
       setViewMonth(startOfMonth(selectedDate));
-      setSchedule(initialSchedule);
-      setEnrichment(initialEnrichment);
-      loadedRangesRef.current = new Set();
-      inflightRef.current = null;
+      const seeded = applyCachedSlices(initialSchedule, initialEnrichment);
+      setSchedule(seeded.schedule);
+      setEnrichment(seeded.enrichment);
+      loadedRangesRef.current = new Set(
+        listCachedFullCalendarMonths().map((s) => `${s.from}:${s.to}`)
+      );
+      setLoadingMonth(false);
     }
     wasOpenRef.current = open;
   }, [open, selectedDate, initialSchedule, initialEnrichment]);
@@ -115,58 +143,125 @@ export function FullCalendarDialog({
     };
   }, [open, onClose]);
 
-  // Lazy-load completions + schedule for the visible month grid.
+  const loadMonth = useCallback(
+    (month: Date, opts: { showSpinner: boolean; preferCache: boolean }) => {
+      const { from, to, cacheKey } = monthRangeKeys(month);
+
+      if (opts.preferCache) {
+        const cached = getCachedFullCalendarMonth(cacheKey);
+        if (cached) {
+          loadedRangesRef.current.add(cacheKey);
+          setEnrichment((prev) =>
+            mergeCalendarEnrichment(prev, cached.enrichment)
+          );
+          setSchedule((prev) =>
+            mergeCalendarSchedule(prev, cached.scheduleSlice)
+          );
+          return Promise.resolve();
+        }
+      }
+
+      if (loadedRangesRef.current.has(cacheKey)) {
+        return Promise.resolve();
+      }
+
+      const existing = inflightRef.current.get(cacheKey);
+      if (existing) return existing;
+
+      if (opts.showSpinner) {
+        loadingKeyRef.current = cacheKey;
+        setLoadingMonth(true);
+      }
+
+      const timezoneOffsetMinutes = new Date().getTimezoneOffset();
+      const request = fetchFullCalendarMonthSlice(
+        from,
+        to,
+        timezoneOffsetMinutes
+      )
+        .then((result) => {
+          if ("error" in result) {
+            console.error("[full-calendar]", result.error);
+            return;
+          }
+          setCachedFullCalendarMonth(cacheKey, result);
+          loadedRangesRef.current.add(cacheKey);
+          setEnrichment((prev) =>
+            mergeCalendarEnrichment(prev, result.enrichment)
+          );
+          setSchedule((prev) =>
+            mergeCalendarSchedule(prev, result.scheduleSlice)
+          );
+        })
+        .catch((err) => {
+          console.error("[full-calendar]", err);
+        })
+        .finally(() => {
+          inflightRef.current.delete(cacheKey);
+          if (loadingKeyRef.current === cacheKey) {
+            loadingKeyRef.current = null;
+            setLoadingMonth(false);
+          }
+        });
+
+      inflightRef.current.set(cacheKey, request);
+      return request;
+    },
+    []
+  );
+
+  // Current month: open instantly from seed/cache; refresh quietly in background.
+  // Other months: use cache if present, otherwise fetch (with a light spinner).
   useEffect(() => {
     if (!open) return;
 
-    const { from, to, cacheKey } = monthRangeKeys(viewMonth);
-    if (loadedRangesRef.current.has(cacheKey)) {
-      setLoadingMonth(false);
-      return;
+    const { cacheKey } = monthRangeKeys(viewMonth);
+    const cached = hasCachedFullCalendarMonth(cacheKey);
+    const alreadyLoaded = loadedRangesRef.current.has(cacheKey);
+
+    if (cached && !alreadyLoaded) {
+      void loadMonth(viewMonth, { showSpinner: false, preferCache: true });
+    } else if (!alreadyLoaded && !cached) {
+      // First paint already has dashboard ±14d data — don't block the UI.
+      const isOpeningMonth = isSameMonth(viewMonth, selectedDate);
+      void loadMonth(viewMonth, {
+        showSpinner: !isOpeningMonth,
+        preferCache: false,
+      });
     }
 
-    let cancelled = false;
-    inflightRef.current = cacheKey;
-    setLoadingMonth(true);
+    // Warm neighbors so back/forth feels instant.
+    const prev = subMonths(viewMonth, 1);
+    const next = addMonths(viewMonth, 1);
+    const warm = window.setTimeout(() => {
+      void loadMonth(prev, { showSpinner: false, preferCache: true });
+      void loadMonth(next, { showSpinner: false, preferCache: true });
+    }, 150);
 
-    const timezoneOffsetMinutes = new Date().getTimezoneOffset();
-    void fetchFullCalendarMonthSlice(from, to, timezoneOffsetMinutes)
-      .then((result) => {
-        if (cancelled) return;
-        if ("error" in result) {
-          console.error("[full-calendar]", result.error);
-          return;
-        }
-        loadedRangesRef.current.add(cacheKey);
-        setEnrichment((prev) => mergeCalendarEnrichment(prev, result.enrichment));
-        setSchedule((prev) => mergeCalendarSchedule(prev, result.scheduleSlice));
-      })
-      .catch((err) => {
-        if (!cancelled) console.error("[full-calendar]", err);
-      })
-      .finally(() => {
-        if (inflightRef.current === cacheKey) {
-          inflightRef.current = null;
-        }
-        if (!cancelled) {
-          setLoadingMonth(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-      // Allow a remount (Strict Mode) to start a fresh request for the same month.
-      if (inflightRef.current === cacheKey) {
-        inflightRef.current = null;
-      }
-    };
-  }, [open, viewMonth]);
+    return () => window.clearTimeout(warm);
+  }, [open, viewMonth, selectedDate, loadMonth]);
 
   const monthDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(viewMonth));
     const end = endOfWeek(endOfMonth(viewMonth));
     return eachDayOfInterval({ start, end });
   }, [viewMonth]);
+
+  const dayCells = useMemo(() => {
+    return monthDays.map((day) => {
+      const rawTasks = enrichTasksForDate(day, schedule, enrichment, now);
+      const beforeActive = activeFrom ? isBefore(day, activeFrom) : false;
+      const tasks = beforeActive ? [] : rawTasks;
+      return {
+        day,
+        tasks,
+        dayStatus: getCalendarDayStatus(tasks, day, now),
+        beforeActive,
+        selected: isSameDay(day, selectedDate),
+        inMonth: isSameMonth(day, viewMonth),
+      };
+    });
+  }, [monthDays, schedule, enrichment, now, activeFrom, selectedDate, viewMonth]);
 
   const selectedDayTasks = useMemo(() => {
     const raw = enrichTasksForDate(selectedDate, schedule, enrichment, now);
@@ -203,7 +298,7 @@ export function FullCalendarDialog({
             <Button
               variant="outline"
               size="icon"
-              disabled={!canGoPrev || loadingMonth}
+              disabled={!canGoPrev}
               onClick={() =>
                 setViewMonth((m) => {
                   const prev = subMonths(m, 1);
@@ -229,38 +324,12 @@ export function FullCalendarDialog({
             <Button
               variant="outline"
               size="icon"
-              disabled={!canGoNext || loadingMonth}
+              disabled={!canGoNext}
               onClick={() => setViewMonth((m) => addMonths(m, 1))}
               aria-label={platform.calendar.nextMonth}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
-          </div>
-
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-red-500" />{" "}
-              {platform.calendar.completionFailed}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-green-500" />{" "}
-              {platform.calendar.completionSuccess}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-muted-foreground/30" />{" "}
-              {platform.calendar.completionNeutral}
-            </span>
-          </div>
-
-          <div className="mb-2 grid grid-cols-7 gap-1.5">
-            {weekdays.map((day) => (
-              <div
-                key={day}
-                className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
-              >
-                {day}
-              </div>
-            ))}
           </div>
 
           <div
@@ -269,15 +338,8 @@ export function FullCalendarDialog({
               loadingMonth && "opacity-60"
             )}
           >
-            {monthDays.map((day) => {
-              const rawTasks = enrichTasksForDate(day, schedule, enrichment, now);
-              const beforeActive = activeFrom ? isBefore(day, activeFrom) : false;
-              const tasks = beforeActive ? [] : rawTasks;
-              const dayStatus = getCalendarDayStatus(tasks, day, now);
-              const selected = isSameDay(day, selectedDate);
-              const inMonth = isSameMonth(day, viewMonth);
-
-              return (
+            {dayCells.map(
+              ({ day, tasks, dayStatus, beforeActive, selected, inMonth }) => (
                 <div
                   key={day.toISOString()}
                   className={cn(!inMonth && "opacity-35")}
@@ -294,8 +356,8 @@ export function FullCalendarDialog({
                     }}
                   />
                 </div>
-              );
-            })}
+              )
+            )}
           </div>
 
           <div className="mt-6 rounded-xl border border-border bg-secondary/40 p-4">
@@ -314,10 +376,7 @@ export function FullCalendarDialog({
               </p>
             </div>
             {beforeAccount ? null : (
-              <DayTasksList
-                tasks={selectedDayTasks}
-                onTaskClick={onClose}
-              />
+              <DayTasksList tasks={selectedDayTasks} onTaskClick={onClose} />
             )}
           </div>
         </div>

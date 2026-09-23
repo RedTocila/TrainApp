@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, SquarePen } from "lucide-react";
 import { DialogPortal } from "@/components/dialog-portal";
 import { AiChatClientLazy } from "@/components/ai-chat-client-lazy";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
@@ -46,10 +46,10 @@ export function AiCoachChatDialog() {
     isOpen,
     closeChat,
     readMeOpen,
-    openReadMe,
     closeReadMe,
     hasAcknowledgedReadMe,
     acknowledgeReadMe,
+    startNewChat,
   } = useAiCoachChat();
   const platform = usePlatformCopy();
   const ai = platform.ai;
@@ -157,7 +157,7 @@ export function AiCoachChatDialog() {
         }}
       >
         <div
-          className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]"
+          className="flex shrink-0 items-center justify-between gap-3 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))]"
           style={{ backgroundColor: opaqueBg }}
         >
           <div className="flex min-w-0 items-center gap-2">
@@ -178,13 +178,17 @@ export function AiCoachChatDialog() {
               </h2>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={openReadMe}
-            className="shrink-0 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            {ai.readMeButton}
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={startNewChat}
+              aria-label={ai.newChatAria}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <SquarePen className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+              {ai.newChat}
+            </button>
+          </div>
         </div>
         <div
           className="flex min-h-0 flex-1 flex-col"

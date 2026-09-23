@@ -1048,6 +1048,8 @@ export const platformCopyAl = {
     medicalDisclaimer:
       "Nuk jap këshilla mjekësore. Për ato, konsultohu me mjekun, jo me mua.",
     readMeButton: "Lexomë",
+    newChat: "I ri",
+    newChatAria: "Fillo një chat të ri",
     readMeTitle: "Para se të bisedosh me mua",
     readMeBody: [
       "Jam sarkastik dhe i drejtpërdrejtë. Do t'i godas shpëtimin, zakonet e dobëta dhe do të të shtyj fort — kjo është ideja.",
@@ -1224,9 +1226,6 @@ export const platformCopyAl = {
     missed: "E humbur",
     upcomingActive: "E ardhshme / aktive",
     preAccount: "Para llogarisë",
-    completionFailed: "Dështuar",
-    completionSuccess: "Sukses",
-    completionNeutral: "E ardhme / para llogarisë",
     completionLow: "Nën 60%",
     completionMid: "60–80%",
     completionHigh: "80–100%",

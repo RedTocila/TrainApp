@@ -121,7 +121,7 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "generate_workout_plan",
       description:
-        "Generate a full weekly workout program and attach calendar schedule settings. Prefer include_warmup_stretch=true for a complete week (warm-up + main + stretch each training day). Set days_per_week, schedule_weeks, schedule_weekdays. If the request is missing days/week, weekdays, or length, do NOT call this yet — ask clarifying questions first.",
+        "Generate a full weekly workout program and attach calendar schedule settings. Prefer include_warmup_stretch=true for a complete week (warm-up + main + stretch each training day). Set days_per_week and schedule_weeks (default 4). Pass schedule_weekdays only when the user named days; if omitted, the system auto-picks a solid spread (e.g. 3→Mon/Wed/Fri) — then tell the user which days were chosen so they can change them.",
       parameters: {
         type: "object",
         properties: {
@@ -133,7 +133,7 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           days_per_week: {
             type: "number",
             description:
-              "Exact number of distinct training days in the week (1–6). e.g. 4 for Mon/Tue/Thu/Fri.",
+              "Exact number of distinct training days in the week (1–6). e.g. 4 for Mon/Tue/Thu/Fri. If they did not say, pick 3 or 4 from their profile/goal.",
           },
           include_warmup_stretch: {
             type: "boolean",
@@ -143,13 +143,13 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           schedule_weeks: {
             type: "number",
             description:
-              "How many weeks to repeat the weekly template on the calendar (1–52). Default 4.",
+              "How many weeks to repeat the weekly template on the calendar (1–52). Default 4 if they did not say.",
           },
           schedule_weekdays: {
             type: "array",
             items: { type: "number" },
             description:
-              "JS weekdays Sun=0…Sat=6. Mon/Tue/Thu/Fri = [1,2,4,5]. Length should match days_per_week.",
+              "JS weekdays Sun=0…Sat=6. Only set when the user named days (e.g. Mon/Tue/Thu/Fri = [1,2,4,5]). If omitted, auto-defaults by day count: 2→Mon/Thu, 3→Mon/Wed/Fri, 4→Mon/Tue/Thu/Fri, 5→Mon–Fri.",
           },
           workout_kind: {
             type: "string",
@@ -451,6 +451,15 @@ function defaultWeekdaysForDayCount(dayCount: number): number[] {
   return [1];
 }
 
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+function formatScheduleWeekdays(weekdays: number[]): string {
+  return weekdays
+    .map((d) => WEEKDAY_SHORT[d] ?? "?")
+    .filter(Boolean)
+    .join("/");
+}
+
 function buildWorkoutScheduleIntent(
   args: Record<string, unknown>,
   dayCount: number
@@ -468,6 +477,10 @@ function buildWorkoutScheduleIntent(
     weeks,
     weekdays: fromArgs.length > 0 ? fromArgs : defaultWeekdaysForDayCount(Math.max(1, dayCount)),
   };
+}
+
+function scheduleSummaryLine(schedule: ChatPlanScheduleIntent): string {
+  return `${formatScheduleWeekdays(schedule.weekdays)} for ${schedule.weeks} week${schedule.weeks === 1 ? "" : "s"}`;
 }
 
 export async function executeCoachChatTool(
@@ -534,7 +547,7 @@ export async function executeCoachChatTool(
     onEvent?.({ type: "plan_preview", preview });
     onEvent?.({ type: "tool_done", name });
     return {
-      result: `${result.summary} Preview ready — Apply saves changes and schedules ${schedule.weeks} week(s).`,
+      result: `${result.summary} Schedule: ${scheduleSummaryLine(schedule)}. Preview ready — Apply saves changes and schedules. Tell the client the weekdays and that they can change them.`,
       planPreview: preview,
     };
   };
@@ -581,7 +594,7 @@ export async function executeCoachChatTool(
           const sessionsPerWeek =
             program.days.length * (program.includeExtras ? 3 : 1);
           return {
-            result: `Generated weekly program "${program.title}" with ${program.days.length} training days (warm-up + main + stretch each). Preview ready — Apply saves and schedules ~${sessionsPerWeek * schedule.weeks} calendar sessions over ${schedule.weeks} week(s).`,
+            result: `Generated weekly program "${program.title}" with ${program.days.length} training days (warm-up + main + stretch each). Schedule: ${scheduleSummaryLine(schedule)}. Preview ready — Apply saves and schedules ~${sessionsPerWeek * schedule.weeks} calendar sessions. Tell the client these weekdays were chosen (or used their named days) and they can ask to change them.`,
             planPreview: preview,
           };
         }
@@ -599,12 +612,12 @@ export async function executeCoachChatTool(
         onEvent?.({ type: "tool_done", name });
         if (isAiHiitPlan(plan)) {
           return {
-            result: `Generated HIIT workout "${plan.title}". Preview ready — Apply saves it and schedules ${schedule.weeks} week(s) on the calendar.`,
+            result: `Generated HIIT workout "${plan.title}". Schedule: ${scheduleSummaryLine(schedule)}. Preview ready — Apply saves it and schedules on the calendar. Tell the client the chosen days and that they can change them.`,
             planPreview: preview,
           };
         }
         return {
-          result: `Generated workout plan "${plan.title}" with ${plan.days.length} training day(s). Preview ready — Apply saves and schedules ~${schedule.weekdays.length * schedule.weeks} sessions (${schedule.weeks} weeks).`,
+          result: `Generated workout plan "${plan.title}" with ${plan.days.length} training day(s). Schedule: ${scheduleSummaryLine(schedule)}. Preview ready — Apply saves and schedules ~${schedule.weekdays.length * schedule.weeks} sessions. Tell the client the chosen weekdays and that they can change them.`,
           planPreview: preview,
         };
       }
@@ -640,7 +653,7 @@ export async function executeCoachChatTool(
         onEvent?.({ type: "plan_preview", preview });
         onEvent?.({ type: "tool_done", name });
         return {
-          result: `Updated workout plan "${plan.title}". Apply saves changes and schedules ${schedule.weeks} week(s) on the calendar.`,
+          result: `Updated workout plan "${plan.title}". Schedule: ${scheduleSummaryLine(schedule)}. Preview ready — Apply saves changes and schedules on the calendar. Tell the client the weekdays and that they can change them.`,
           planPreview: preview,
         };
       }
