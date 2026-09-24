@@ -15,7 +15,13 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { CalendarDayDot } from "@/components/calendar-day-card";
@@ -477,7 +483,7 @@ export function FullCalendarDialog({
         aria-label={platform.calendar.fullCalendarTitle}
         className="bg-background"
       >
-        <header className="flex shrink-0 items-center gap-2 border-b border-border/60 px-3 pb-3 pt-[max(0.75rem,var(--safe-area-top))]">
+        <header className="flex shrink-0 items-center gap-2 px-3 pb-3 pt-[max(0.75rem,var(--safe-area-top))]">
           <Button
             type="button"
             variant="ghost"
@@ -488,6 +494,7 @@ export function FullCalendarDialog({
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
+          <CalendarDays className="h-5 w-5 shrink-0 text-primary" aria-hidden />
           <h2 className="min-w-0 flex-1 truncate text-lg font-black leading-tight">
             {platform.calendar.fullCalendarTitle}
           </h2>

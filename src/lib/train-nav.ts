@@ -62,6 +62,21 @@ export function isHomeNavActive(pathname: string) {
   );
 }
 
+/** Full calendar entry — only on the 5 primary navbar destinations. */
+export function showsFullCalendarNav(pathname: string) {
+  const path = pathOnly(pathname);
+  if (isHomeNavActive(path) && !isActiveWorkoutSessionPath(path)) return true;
+  if (isProgramsNavActive(path)) return true;
+  if (path === "/dashboard/classes" || path.startsWith("/dashboard/classes/")) {
+    return true;
+  }
+  if (path === "/dashboard/profile" || path.startsWith("/dashboard/profile/")) {
+    return true;
+  }
+  if (path === "/dashboard/ai" || path.startsWith("/dashboard/ai/")) return true;
+  return false;
+}
+
 export function isTrainTabActive(pathname: string, href: string) {
   const path = pathOnly(pathname);
   // Workout tab covers My workout, Programs, Exercises, Cardio, etc.

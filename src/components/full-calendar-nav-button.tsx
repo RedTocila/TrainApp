@@ -1,16 +1,27 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { CalendarDays } from "lucide-react";
+import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { useFullCalendar } from "@/components/full-calendar-provider";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { showsFullCalendarNav } from "@/lib/train-nav";
 import { cn } from "@/lib/utils";
+
+function useShowFullCalendarNav() {
+  const pathname = usePathname();
+  const { pendingHref } = useDashboardNavPending();
+  const { hasCalendar } = useFullCalendar();
+  return hasCalendar && showsFullCalendarNav(pendingHref ?? pathname);
+}
 
 export function FullCalendarNavButton({ className }: { className?: string }) {
   const platform = usePlatformCopy();
-  const { openCalendar, hasCalendar } = useFullCalendar();
+  const { openCalendar } = useFullCalendar();
+  const visible = useShowFullCalendarNav();
 
-  if (!hasCalendar) return null;
+  if (!visible) return null;
 
   return (
     <Button
@@ -31,9 +42,10 @@ export function FullCalendarNavButton({ className }: { className?: string }) {
 
 export function FullCalendarOpenButton({ className }: { className?: string }) {
   const platform = usePlatformCopy();
-  const { openCalendar, hasCalendar } = useFullCalendar();
+  const { openCalendar } = useFullCalendar();
+  const visible = useShowFullCalendarNav();
 
-  if (!hasCalendar) return null;
+  if (!visible) return null;
 
   return (
     <Button

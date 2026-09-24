@@ -24,11 +24,17 @@ type SpeechRecognitionEventLike = {
 
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
+type DictationMode = "speech" | "record" | "hybrid" | null;
+
 export type VoiceDictationStatus =
   | "idle"
   | "listening"
   | "recording"
   | "transcribing";
+
+/** Server interim fallback when browser speech isn't usable. */
+const INTERIM_TRANSCRIBE_MS = 700;
+const INTERIM_MIN_BYTES = 900;
 
 function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
   if (typeof window === "undefined") return null;
@@ -47,8 +53,8 @@ function whisperLang(locale: string): string | undefined {
   return locale === "al" ? "sq" : "en";
 }
 
-/** Chrome Web Speech rarely understands Albanian; use Whisper instead. */
-function preferWhisper(locale: string): boolean {
+/** Albanian: live browser speech + accurate server final. */
+function needsServerFinal(locale: string): boolean {
   return locale === "al";
 }
 
@@ -109,11 +115,6 @@ function micErrorMessage(
   return unsupportedCopy;
 }
 
-/**
- * Ensure mic permission via getUserMedia before SpeechRecognition.
- * Web Speech often reports not-allowed even when the OS mic toggle is on;
- * unlocking the device mic first (and falling back to MediaRecorder) fixes most cases.
- */
 async function ensureMicStream(): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
@@ -125,6 +126,36 @@ async function ensureMicStream(): Promise<MediaStream> {
       autoGainControl: true,
     },
   });
+}
+
+async function requestTranscript(
+  blob: Blob,
+  locale: string
+): Promise<string> {
+  const form = new FormData();
+  const type = blob.type || "audio/webm";
+  const ext = type.includes("mp4")
+    ? "m4a"
+    : type.includes("ogg")
+      ? "ogg"
+      : "webm";
+  form.append("audio", blob, `voice.${ext}`);
+  const lang = whisperLang(locale);
+  if (lang) form.append("language", lang);
+
+  const response = await fetch("/api/ai/transcribe", {
+    method: "POST",
+    body: form,
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | { text?: string; error?: string }
+    | null;
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Transcription failed");
+  }
+  const text = payload?.text?.trim();
+  if (!text) throw new Error("Couldn't catch that — try again.");
+  return text;
 }
 
 export function useVoiceDictation({
@@ -147,11 +178,12 @@ export function useVoiceDictation({
   const [status, setStatus] = useState<VoiceDictationStatus>("idle");
   const valueRef = useRef(value);
   const baseRef = useRef(value);
+  const speechLiveFinalRef = useRef("");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const modeRef = useRef<"speech" | "record" | null>(null);
+  const modeRef = useRef<DictationMode>(null);
   const stopRequestedRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRafRef = useRef<number | null>(null);
@@ -160,6 +192,11 @@ export function useVoiceDictation({
   const revealRafRef = useRef<number | null>(null);
   const onChangeRef = useRef(onChange);
   const speechFailedRef = useRef(false);
+  const liveSpeechOkRef = useRef(false);
+  const interimTimerRef = useRef<number | null>(null);
+  const interimInFlightRef = useRef(false);
+  const lastInterimBytesRef = useRef(0);
+  const recorderMimeRef = useRef("audio/webm");
 
   valueRef.current = value;
   onChangeRef.current = onChange;
@@ -223,6 +260,13 @@ export function useVoiceDictation({
     [revealTick]
   );
 
+  const stopInterimTimer = useCallback(() => {
+    if (interimTimerRef.current != null) {
+      window.clearInterval(interimTimerRef.current);
+      interimTimerRef.current = null;
+    }
+  }, []);
+
   const cleanupAnalyser = useCallback(() => {
     if (analyserRafRef.current != null) {
       cancelAnimationFrame(analyserRafRef.current);
@@ -235,14 +279,18 @@ export function useVoiceDictation({
   }, []);
 
   const cleanupMedia = useCallback(() => {
+    stopInterimTimer();
     cleanupAnalyser();
     mediaRecorderRef.current = null;
     chunksRef.current = [];
+    lastInterimBytesRef.current = 0;
+    interimInFlightRef.current = false;
+    liveSpeechOkRef.current = false;
     if (mediaStreamRef.current) {
       for (const track of mediaStreamRef.current.getTracks()) track.stop();
       mediaStreamRef.current = null;
     }
-  }, [cleanupAnalyser]);
+  }, [cleanupAnalyser, stopInterimTimer]);
 
   const stopSpeech = useCallback(() => {
     const recognition = recognitionRef.current;
@@ -267,41 +315,69 @@ export function useVoiceDictation({
       stopRequestedRef.current = true;
       stopReveal();
       stopSpeech();
+      stopInterimTimer();
       if (mediaRecorderRef.current?.state === "recording") {
         mediaRecorderRef.current.stop();
       }
       cleanupMedia();
     };
-  }, [cleanupMedia, stopReveal, stopSpeech]);
+  }, [cleanupMedia, stopInterimTimer, stopReveal, stopSpeech]);
 
-  const transcribeBlob = useCallback(
+  const buildRecordingBlob = useCallback(() => {
+    return new Blob(chunksRef.current, {
+      type: recorderMimeRef.current || "audio/webm",
+    });
+  }, []);
+
+  const runInterimTranscribe = useCallback(async () => {
+    if (liveSpeechOkRef.current) return;
+    if (interimInFlightRef.current) return;
+    if (
+      (modeRef.current !== "record" && modeRef.current !== "hybrid") ||
+      stopRequestedRef.current
+    ) {
+      return;
+    }
+    if (chunksRef.current.length === 0) return;
+
+    const blob = buildRecordingBlob();
+    if (blob.size < INTERIM_MIN_BYTES) return;
+    if (blob.size - lastInterimBytesRef.current < 500) return;
+
+    interimInFlightRef.current = true;
+    lastInterimBytesRef.current = blob.size;
+    try {
+      const text = await requestTranscript(blob, locale);
+      if (
+        (modeRef.current === "record" || modeRef.current === "hybrid") &&
+        !stopRequestedRef.current &&
+        !liveSpeechOkRef.current &&
+        text.trim()
+      ) {
+        revealToward(joinText(baseRef.current, text));
+      }
+    } catch {
+      /* final pass still runs on stop */
+    } finally {
+      interimInFlightRef.current = false;
+    }
+  }, [buildRecordingBlob, locale, revealToward]);
+
+  const startServerInterimPolling = useCallback(() => {
+    stopInterimTimer();
+    interimTimerRef.current = window.setInterval(() => {
+      void runInterimTranscribe();
+    }, INTERIM_TRANSCRIBE_MS);
+    window.setTimeout(() => {
+      void runInterimTranscribe();
+    }, 450);
+  }, [runInterimTranscribe, stopInterimTimer]);
+
+  const transcribeFinalBlob = useCallback(
     async (blob: Blob) => {
       setStatus("transcribing");
       try {
-        const form = new FormData();
-        const type = blob.type || "audio/webm";
-        const ext = type.includes("mp4")
-          ? "m4a"
-          : type.includes("ogg")
-            ? "ogg"
-            : "webm";
-        form.append("audio", blob, `voice.${ext}`);
-        const lang = whisperLang(locale);
-        if (lang) form.append("language", lang);
-
-        const response = await fetch("/api/ai/transcribe", {
-          method: "POST",
-          body: form,
-        });
-        const payload = (await response.json().catch(() => null)) as
-          | { text?: string; error?: string }
-          | null;
-        if (!response.ok) {
-          throw new Error(payload?.error ?? "Transcription failed");
-        }
-        const text = payload?.text?.trim();
-        if (!text) throw new Error("Couldn't catch that — try again.");
-        // Fill the composer only — user taps Send manually.
+        const text = await requestTranscript(blob, locale);
         flushReveal(joinText(baseRef.current, text));
       } catch (error) {
         onError(error instanceof Error ? error.message : "Transcription failed");
@@ -314,99 +390,122 @@ export function useVoiceDictation({
     [cleanupMedia, flushReveal, locale, onError]
   );
 
-  const startRecording = useCallback(
-    async (existingStream?: MediaStream) => {
+  const startRecorder = useCallback(
+    async (stream: MediaStream, mode: "record" | "hybrid") => {
       if (typeof MediaRecorder === "undefined") {
         onError(unsupportedMessage);
-        return;
+        return false;
       }
 
-      try {
-        const stream = existingStream ?? (await ensureMicStream());
-        // If we received a stream from a prior unlock, don't stop it until recorder ends.
-        mediaStreamRef.current = stream;
-        const mimeType = pickRecorderMimeType();
-        const recorder = mimeType
-          ? new MediaRecorder(stream, { mimeType })
-          : new MediaRecorder(stream);
-        mediaRecorderRef.current = recorder;
-        chunksRef.current = [];
-        baseRef.current = valueRef.current;
-        modeRef.current = "record";
-        stopRequestedRef.current = false;
+      const mimeType = pickRecorderMimeType();
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      recorderMimeRef.current = recorder.mimeType || mimeType || "audio/webm";
+      chunksRef.current = [];
+      lastInterimBytesRef.current = 0;
+      interimInFlightRef.current = false;
 
-        recorder.ondataavailable = (event) => {
-          if (event.data.size > 0) chunksRef.current.push(event.data);
-        };
-        recorder.onerror = () => {
-          onError("Couldn't record audio.");
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onerror = () => {
+        onError("Couldn't record audio.");
+        setStatus("idle");
+        modeRef.current = null;
+        stopSpeech();
+        cleanupMedia();
+      };
+      recorder.onstop = () => {
+        stopInterimTimer();
+        cleanupAnalyser();
+        const blob = buildRecordingBlob();
+        if (!stopRequestedRef.current || blob.size < 200) {
           setStatus("idle");
           modeRef.current = null;
           cleanupMedia();
-        };
-        recorder.onstop = () => {
-          cleanupAnalyser();
-          const blob = new Blob(chunksRef.current, {
-            type: recorder.mimeType || mimeType || "audio/webm",
-          });
-          if (!stopRequestedRef.current || blob.size < 200) {
-            setStatus("idle");
-            modeRef.current = null;
-            cleanupMedia();
-            if (stopRequestedRef.current && blob.size < 200) {
-              onError("Recording was too short.");
-            }
-            return;
+          if (stopRequestedRef.current && blob.size < 200) {
+            onError("Recording was too short.");
           }
-          void transcribeBlob(blob);
-        };
+          return;
+        }
+        void transcribeFinalBlob(blob);
+      };
 
-        recorder.start(250);
+      recorder.start(250);
+      modeRef.current = mode;
+      if (mode === "hybrid") {
+        setStatus("listening");
+      } else {
         setStatus("recording");
-      } catch (error) {
-        onError(
-          micErrorMessage(error, permissionMessage, unsupportedMessage)
-        );
-        setStatus("idle");
-        modeRef.current = null;
-        cleanupMedia();
+        startServerInterimPolling();
       }
+      return true;
     },
     [
+      buildRecordingBlob,
       cleanupAnalyser,
       cleanupMedia,
       onError,
-      permissionMessage,
-      transcribeBlob,
+      startServerInterimPolling,
+      stopInterimTimer,
+      stopSpeech,
+      transcribeFinalBlob,
       unsupportedMessage,
     ]
   );
 
-  const startSpeech = useCallback(
-    async (unlockedStream?: MediaStream) => {
-      const Ctor = getSpeechRecognitionCtor();
-      if (!Ctor || speechFailedRef.current) {
-        void startRecording(unlockedStream);
-        return;
-      }
+  const startRecorderFallback = useCallback(
+    (stream?: MediaStream) => {
+      void (async () => {
+        try {
+          const s = stream ?? (await ensureMicStream());
+          baseRef.current = valueRef.current;
+          revealTargetRef.current = valueRef.current;
+          revealShownRef.current = valueRef.current;
+          speechLiveFinalRef.current = "";
+          stopRequestedRef.current = false;
+          await startRecorder(s, "record");
+        } catch (error) {
+          onError(
+            micErrorMessage(error, permissionMessage, unsupportedMessage)
+          );
+        }
+      })();
+    },
+    [onError, permissionMessage, startRecorder, unsupportedMessage]
+  );
 
-      // Release the unlock stream — SpeechRecognition uses its own mic path.
+  const startSpeechOnly = useCallback(
+    async (unlockedStream?: MediaStream) => {
       if (unlockedStream) {
         for (const track of unlockedStream.getTracks()) track.stop();
       }
+
+      const Ctor = getSpeechRecognitionCtor();
+      if (!Ctor || speechFailedRef.current) {
+        startRecorderFallback();
+        return;
+      }
+
+      baseRef.current = valueRef.current;
+      revealTargetRef.current = valueRef.current;
+      revealShownRef.current = valueRef.current;
+      speechLiveFinalRef.current = "";
+      modeRef.current = "speech";
+      stopRequestedRef.current = false;
+      liveSpeechOkRef.current = false;
 
       const recognition = new Ctor();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = speechLang(locale);
       recognitionRef.current = recognition;
-      baseRef.current = valueRef.current;
-      revealTargetRef.current = valueRef.current;
-      revealShownRef.current = valueRef.current;
-      modeRef.current = "speech";
-      stopRequestedRef.current = false;
 
       recognition.onresult = (event) => {
+        liveSpeechOkRef.current = true;
         let finalChunk = "";
         let interimChunk = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -416,36 +515,33 @@ export function useVoiceDictation({
           else interimChunk += piece;
         }
         if (finalChunk.trim()) {
-          baseRef.current = joinText(baseRef.current, finalChunk);
+          speechLiveFinalRef.current = joinText(
+            speechLiveFinalRef.current,
+            finalChunk
+          );
         }
-        revealToward(joinText(baseRef.current, interimChunk));
+        revealToward(
+          joinText(
+            baseRef.current,
+            joinText(speechLiveFinalRef.current, interimChunk)
+          )
+        );
       };
 
       recognition.onerror = (event) => {
         if (
           event.error === "not-allowed" ||
-          event.error === "service-not-allowed"
-        ) {
-          // Speech API denied ≠ mic denied. Fall back to MediaRecorder + Whisper.
-          speechFailedRef.current = true;
-          stopSpeech();
-          modeRef.current = null;
-          void startRecording();
-          return;
-        }
-        if (
+          event.error === "service-not-allowed" ||
           event.error === "network" ||
           event.error === "language-not-supported"
         ) {
           speechFailedRef.current = true;
           stopSpeech();
           modeRef.current = null;
-          void startRecording();
+          startRecorderFallback();
           return;
         }
-        if (event.error === "no-speech") {
-          return;
-        }
+        if (event.error === "no-speech") return;
         if (event.error !== "aborted") {
           onError("Couldn't hear that — try again.");
         }
@@ -475,16 +571,133 @@ export function useVoiceDictation({
       } catch {
         speechFailedRef.current = true;
         stopSpeech();
-        void startRecording();
+        startRecorderFallback();
       }
     },
-    [locale, onError, revealToward, startRecording, stopSpeech]
+    [locale, onError, revealToward, startRecorderFallback, stopSpeech]
+  );
+
+  const startHybridAlbanian = useCallback(
+    async (stream: MediaStream) => {
+      baseRef.current = valueRef.current;
+      revealTargetRef.current = valueRef.current;
+      revealShownRef.current = valueRef.current;
+      speechLiveFinalRef.current = "";
+      stopRequestedRef.current = false;
+      liveSpeechOkRef.current = false;
+
+      const recorderOk = await startRecorder(stream, "hybrid");
+      if (!recorderOk) return;
+
+      const Ctor = getSpeechRecognitionCtor();
+      if (!Ctor || speechFailedRef.current) {
+        modeRef.current = "record";
+        setStatus("recording");
+        startServerInterimPolling();
+        return;
+      }
+
+      const recognition = new Ctor();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = speechLang(locale);
+      recognitionRef.current = recognition;
+
+      recognition.onresult = (event) => {
+        liveSpeechOkRef.current = true;
+        stopInterimTimer();
+
+        let finalChunk = "";
+        let interimChunk = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          const piece = result[0]?.transcript ?? "";
+          if (result.isFinal) finalChunk += piece;
+          else interimChunk += piece;
+        }
+        if (finalChunk.trim()) {
+          speechLiveFinalRef.current = joinText(
+            speechLiveFinalRef.current,
+            finalChunk
+          );
+        }
+        // Same immediate reveal path as English.
+        revealToward(
+          joinText(
+            baseRef.current,
+            joinText(speechLiveFinalRef.current, interimChunk)
+          )
+        );
+      };
+
+      recognition.onerror = (event) => {
+        if (
+          event.error === "not-allowed" ||
+          event.error === "service-not-allowed" ||
+          event.error === "network" ||
+          event.error === "language-not-supported"
+        ) {
+          speechFailedRef.current = true;
+          liveSpeechOkRef.current = false;
+          stopSpeech();
+          if (modeRef.current === "hybrid" || modeRef.current === "record") {
+            modeRef.current = "record";
+            setStatus("recording");
+            startServerInterimPolling();
+          }
+          return;
+        }
+        if (event.error === "no-speech") return;
+        liveSpeechOkRef.current = false;
+      };
+
+      recognition.onend = () => {
+        if (stopRequestedRef.current) {
+          recognitionRef.current = null;
+          return;
+        }
+        if (modeRef.current !== "hybrid" && modeRef.current !== "record") {
+          return;
+        }
+        try {
+          recognition.start();
+        } catch {
+          recognitionRef.current = null;
+          liveSpeechOkRef.current = false;
+          if (modeRef.current === "hybrid") {
+            modeRef.current = "record";
+            setStatus("recording");
+            startServerInterimPolling();
+          }
+        }
+      };
+
+      try {
+        recognition.start();
+        setStatus("listening");
+      } catch {
+        speechFailedRef.current = true;
+        stopSpeech();
+        modeRef.current = "record";
+        setStatus("recording");
+        startServerInterimPolling();
+      }
+    },
+    [
+      locale,
+      revealToward,
+      startRecorder,
+      startServerInterimPolling,
+      stopInterimTimer,
+      stopSpeech,
+    ]
   );
 
   const stop = useCallback(() => {
     stopRequestedRef.current = true;
-    if (modeRef.current === "speech") {
-      // Finalize whatever we heard into the input — do not auto-send.
+    const mode = modeRef.current;
+
+    if (mode === "speech") {
       const text = (revealTargetRef.current || valueRef.current).trim();
       stopSpeech();
       setStatus("idle");
@@ -492,7 +705,10 @@ export function useVoiceDictation({
       if (text) flushReveal(text);
       return;
     }
-    if (modeRef.current === "record") {
+
+    if (mode === "hybrid" || mode === "record") {
+      stopInterimTimer();
+      stopSpeech();
       const recorder = mediaRecorderRef.current;
       if (recorder && recorder.state !== "inactive") {
         recorder.stop();
@@ -502,7 +718,7 @@ export function useVoiceDictation({
         cleanupMedia();
       }
     }
-  }, [cleanupMedia, flushReveal, stopSpeech]);
+  }, [cleanupMedia, flushReveal, stopInterimTimer, stopSpeech]);
 
   const toggle = useCallback(() => {
     if (!enabled) return;
@@ -513,7 +729,6 @@ export function useVoiceDictation({
     if (status === "transcribing") return;
 
     void (async () => {
-      // Unlock real mic permission first — fixes false "give access" from Web Speech.
       let stream: MediaStream | undefined;
       try {
         stream = await ensureMicStream();
@@ -524,14 +739,15 @@ export function useVoiceDictation({
         return;
       }
 
-      if (
-        !preferWhisper(locale) &&
-        getSpeechRecognitionCtor() &&
-        !speechFailedRef.current
-      ) {
-        await startSpeech(stream);
+      if (needsServerFinal(locale)) {
+        await startHybridAlbanian(stream);
+        return;
+      }
+
+      if (getSpeechRecognitionCtor() && !speechFailedRef.current) {
+        await startSpeechOnly(stream);
       } else {
-        await startRecording(stream);
+        startRecorderFallback(stream);
       }
     })();
   }, [
@@ -539,8 +755,9 @@ export function useVoiceDictation({
     locale,
     onError,
     permissionMessage,
-    startRecording,
-    startSpeech,
+    startHybridAlbanian,
+    startRecorderFallback,
+    startSpeechOnly,
     status,
     stop,
     unsupportedMessage,
