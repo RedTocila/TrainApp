@@ -89,7 +89,7 @@ function DashboardMobileHeaderBar() {
           </div>
         </div>
       ) : isNutritionPage ? (
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <InstantNavLink
             href="/dashboard"
             exactMatch
@@ -99,11 +99,18 @@ function DashboardMobileHeaderBar() {
           >
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </InstantNavLink>
-          <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2"
+            aria-label={platform.dashboard.nutrition}
+          >
             <Apple className="h-6 w-6 shrink-0 text-emerald-400" />
-            <span className="truncate text-xl font-black tracking-tight">
-              {platform.dashboard.nutrition}
-            </span>
+            {/* Full title only when action buttons aren't crowding the header. */}
+            {!nutritionActions?.onLogMeal && !nutritionActions?.showDietPlan ? (
+              <span className="whitespace-nowrap text-xl font-black tracking-tight">
+                {platform.dashboard.nutrition}
+              </span>
+            ) : null}
             {nutritionActions?.status === "completed" ? (
               <DashboardStatusCheck aria-label={platform.aria.completed} />
             ) : nutritionActions?.status === "over" ? (

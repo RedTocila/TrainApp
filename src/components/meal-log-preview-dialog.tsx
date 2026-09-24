@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { Check, CheckCircle2, Target, Trash2 } from "lucide-react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
@@ -140,14 +139,12 @@ export function MealLogPreviewDialog({
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-4" data-scroll-lock-scrollable>
           {photoUrl ? (
-            <div className="mb-4 overflow-hidden rounded-xl border border-border bg-secondary/30">
-              <Image
+            <div className="relative mb-4 mx-auto aspect-[3/4] w-full max-w-sm shrink-0 overflow-hidden rounded-2xl border border-border bg-secondary/30">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={photoUrl}
                 alt={meal.name}
-                width={1200}
-                height={1200}
-                className="mx-auto h-auto max-h-[min(60vh,28rem)] w-full object-contain"
-                unoptimized
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
           ) : null}

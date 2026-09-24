@@ -37,15 +37,25 @@ function mealIcon(index: number) {
 function MealListAvatar({
   meal,
   index,
+  edge = false,
 }: {
   meal: DailyMealLog;
   index: number;
+  /** Flush-left full-height thumb — bigger image without growing the card. */
+  edge?: boolean;
 }) {
   const Icon = mealIcon(index);
 
   if (meal.photo_url) {
     return (
-      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-secondary/80">
+      <div
+        className={cn(
+          "relative shrink-0 overflow-hidden bg-secondary/80",
+          edge
+            ? "w-[4.75rem] self-stretch rounded-none"
+            : "size-14 rounded-xl"
+        )}
+      >
         <Image
           src={meal.photo_url}
           alt={meal.name}
@@ -58,7 +68,14 @@ function MealListAvatar({
   }
 
   return (
-    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary/80">
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-center bg-secondary/80",
+        edge
+          ? "w-[4.75rem] self-stretch rounded-none"
+          : "size-14 rounded-xl"
+      )}
+    >
       <Icon className="h-5 w-5 text-primary" />
     </div>
   );
@@ -139,6 +156,7 @@ export function RecentMealsList({
                 <div
                   className={cn(
                     dashboard.listRow,
+                    "overflow-hidden p-0",
                     interactive && dashboard.tileInteractive
                   )}
                 >
@@ -146,7 +164,7 @@ export function RecentMealsList({
                     role={interactive ? "button" : undefined}
                     tabIndex={interactive ? 0 : undefined}
                     className={cn(
-                      "flex min-w-0 flex-1 items-center gap-3 text-left",
+                      "flex min-w-0 flex-1 items-stretch text-left",
                       interactive && "cursor-pointer"
                     )}
                     onClick={interactive ? () => onSelect?.(meal) : undefined}
@@ -164,24 +182,29 @@ export function RecentMealsList({
                       interactive ? platform.aria.mealInsights(meal.name) : undefined
                     }
                   >
-                    <MealListAvatar meal={meal} index={index} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-sm font-semibold">{meal.name}</span>
-                        {loggedTime ? (
-                          <span className="shrink-0 text-xs text-muted-foreground">
-                            {loggedTime}
+                    <MealListAvatar meal={meal} index={index} edge />
+                    <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-sm font-semibold">
+                            {meal.name}
                           </span>
-                        ) : null}
+                          {loggedTime ? (
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {loggedTime}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-1 flex items-center gap-1 text-sm font-bold tabular-nums">
+                          <Flame className="h-3.5 w-3.5 text-orange-400" />
+                          {Math.round(meal.calories)}{" "}
+                          {platform.nutrition.caloriesUnit}
+                        </p>
                       </div>
-                      <p className="mt-1 flex items-center gap-1 text-sm font-bold tabular-nums">
-                        <Flame className="h-3.5 w-3.5 text-orange-400" />
-                        {Math.round(meal.calories)} {platform.nutrition.caloriesUnit}
-                      </p>
+                      {interactive ? (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      ) : null}
                     </div>
-                    {interactive ? (
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    ) : null}
                   </div>
                   {onDelete && (
                     <Button
