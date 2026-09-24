@@ -1,17 +1,6 @@
-import { requireClient } from "@/lib/actions/auth";
-import { WorkoutPageHeader } from "@/components/workout-page-header";
-import { WorkoutScheduleView } from "@/components/workout-schedule-view";
-import { PageTransition } from "@/components/page-transition";
+import { redirect } from "next/navigation";
 
-export default async function WorkoutSchedulePage() {
-  await requireClient();
-
-  return (
-    <PageTransition>
-      <div className="mx-auto max-w-3xl space-y-4">
-        <WorkoutPageHeader title="My schedule" />
-        <WorkoutScheduleView />
-      </div>
-    </PageTransition>
-  );
+/** Schedule moved into the full calendar — keep URL for old links. */
+export default function WorkoutSchedulePage() {
+  redirect("/dashboard/workout/plans");
 }

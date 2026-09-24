@@ -1,25 +1,26 @@
 "use client";
 
 import { CalendarDays } from "lucide-react";
-import { usePathname } from "next/navigation";
 import { useFullCalendar } from "@/components/full-calendar-provider";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function FullCalendarNavButton({ className }: { className?: string }) {
-  const pathname = usePathname();
   const platform = usePlatformCopy();
   const { openCalendar, hasCalendar } = useFullCalendar();
 
-  if (pathname !== "/dashboard" || !hasCalendar) return null;
+  if (!hasCalendar) return null;
 
   return (
     <Button
       type="button"
       variant="outline"
       size="icon"
-      className={cn("h-[var(--control-height)] w-[var(--control-height)] shrink-0 rounded-full sm:h-[var(--control-height)] sm:w-[var(--control-height)]", className)}
+      className={cn(
+        "h-[var(--control-height)] w-[var(--control-height)] shrink-0 rounded-full sm:h-[var(--control-height)] sm:w-[var(--control-height)]",
+        className
+      )}
       onClick={openCalendar}
       aria-label={platform.calendar.fullCalendar}
     >
@@ -29,11 +30,10 @@ export function FullCalendarNavButton({ className }: { className?: string }) {
 }
 
 export function FullCalendarOpenButton({ className }: { className?: string }) {
-  const pathname = usePathname();
   const platform = usePlatformCopy();
   const { openCalendar, hasCalendar } = useFullCalendar();
 
-  if (pathname !== "/dashboard" || !hasCalendar) return null;
+  if (!hasCalendar) return null;
 
   return (
     <Button

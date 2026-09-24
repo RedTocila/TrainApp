@@ -11,9 +11,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns";
 import { useSelectedDate } from "@/components/date-provider";
+import { fetchFullCalendarMonthSlice } from "@/lib/actions/full-calendar-month";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import type { DashboardEnrichmentData } from "@/lib/dashboard-task-enrichment";
+import { mergeCalendarSchedule } from "@/lib/full-calendar-merge";
 
 const FullCalendarDialog = dynamic(
   () =>
@@ -36,27 +39,55 @@ interface FullCalendarContextValue {
 
 const FullCalendarContext = createContext<FullCalendarContextValue | null>(null);
 
+const EMPTY_ENRICHMENT: DashboardEnrichmentData = {
+  completionsByDate: {},
+  waterByDate: {},
+  mealsByDate: {},
+  workoutCompletedDates: [],
+};
+
+const EMPTY_SCHEDULE: ClientSchedule = {
+  workoutAssignment: null,
+  nutritionAssignment: null,
+  waterGoalMl: 2500,
+};
+
+async function bootstrapCalendarData(): Promise<CalendarData | null> {
+  const now = new Date();
+  const from = format(startOfWeek(startOfMonth(now)), "yyyy-MM-dd");
+  const to = format(endOfWeek(endOfMonth(now)), "yyyy-MM-dd");
+  const result = await fetchFullCalendarMonthSlice(
+    from,
+    to,
+    now.getTimezoneOffset()
+  );
+  if ("error" in result) return null;
+  return {
+    schedule: mergeCalendarSchedule(EMPTY_SCHEDULE, result.scheduleSlice),
+    enrichment: result.enrichment,
+  };
+}
+
 export function FullCalendarProvider({ children }: { children: ReactNode }) {
   const { selectedDate, setSelectedDate } = useSelectedDate();
   const [open, setOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
-  const [hasCalendar, setHasCalendar] = useState(false);
   const [calendarData, setCalendarData] = useState<CalendarData | null>(null);
+  const [bootstrapping, setBootstrapping] = useState(false);
   const pendingOpenRef = useRef(false);
+  const calendarDataRef = useRef(calendarData);
+  calendarDataRef.current = calendarData;
 
-  // Warm the dialog chunk while the user is on the dashboard.
+  // Warm the dialog chunk once.
   useEffect(() => {
-    if (!hasCalendar) return;
     void import("@/components/full-calendar-dialog");
-  }, [hasCalendar]);
+  }, []);
 
   const registerCalendarData = useCallback((data: CalendarData | null) => {
+    // Ignore null clears from home unmount — keep last known data for other tabs.
+    if (data === null) return;
     setCalendarData(data);
-    setHasCalendar((current) => {
-      const next = data !== null;
-      return current === next ? current : next;
-    });
-    if (data && pendingOpenRef.current) {
+    if (pendingOpenRef.current) {
       pendingOpenRef.current = false;
       setHasOpened(true);
       setOpen(true);
@@ -64,22 +95,37 @@ export function FullCalendarProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openCalendar = useCallback(() => {
-    if (calendarData) {
+    if (calendarDataRef.current) {
       setHasOpened(true);
       setOpen(true);
       return;
     }
-    // Dashboard home hasn't mounted yet — open once calendar data registers.
     pendingOpenRef.current = true;
-  }, [calendarData]);
+    if (bootstrapping) return;
+    setBootstrapping(true);
+    void bootstrapCalendarData()
+      .then((data) => {
+        if (!data) {
+          pendingOpenRef.current = false;
+          return;
+        }
+        setCalendarData(data);
+        if (pendingOpenRef.current) {
+          pendingOpenRef.current = false;
+          setHasOpened(true);
+          setOpen(true);
+        }
+      })
+      .finally(() => setBootstrapping(false));
+  }, [bootstrapping]);
 
   const value = useMemo(
     () => ({
       openCalendar,
-      hasCalendar,
+      hasCalendar: true,
       registerCalendarData,
     }),
-    [openCalendar, hasCalendar, registerCalendarData]
+    [openCalendar, registerCalendarData]
   );
 
   return (
@@ -117,6 +163,5 @@ export function useRegisterDashboardCalendar(
 
   useEffect(() => {
     registerCalendarData({ schedule, enrichment });
-    return () => registerCalendarData(null);
   }, [schedule, serialized, registerCalendarData]);
 }

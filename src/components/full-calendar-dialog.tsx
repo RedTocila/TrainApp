@@ -15,9 +15,8 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppDrawerHeader } from "@/components/app-dialog";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { CalendarDayDot } from "@/components/calendar-day-card";
 import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
@@ -47,9 +46,9 @@ import { cn } from "@/lib/utils";
 
 /** Month grid slide — keep in sync with touch settle timing below. */
 const MONTH_SLIDE_MS = 280;
-const MONTH_SWIPE_THRESHOLD_PX = 56;
-const MONTH_SWIPE_VELOCITY = 0.4;
-const MONTH_AXIS_LOCK_PX = 10;
+const MONTH_SWIPE_THRESHOLD_PX = 48;
+const MONTH_SWIPE_VELOCITY = 0.35;
+const MONTH_AXIS_LOCK_PX = 8;
 
 interface FullCalendarDialogProps {
   open: boolean;
@@ -288,11 +287,17 @@ export function FullCalendarDialog({
   const canGoNext = true;
 
   const monthSlideRef = useRef<HTMLDivElement>(null);
+  const [monthSlideMounted, setMonthSlideMounted] = useState(false);
   const monthAnimatingRef = useRef(false);
   const canGoPrevRef = useRef(canGoPrev);
   const earliestMonthRef = useRef(earliestMonth);
   canGoPrevRef.current = canGoPrev;
   earliestMonthRef.current = earliestMonth;
+
+  const setMonthSlideNode = useCallback((node: HTMLDivElement | null) => {
+    monthSlideRef.current = node;
+    setMonthSlideMounted(Boolean(node));
+  }, []);
 
   const prefersReducedMotion = useCallback(() => {
     if (typeof window === "undefined") return false;
@@ -355,7 +360,7 @@ export function FullCalendarDialog({
     [applyMonthDelta, prefersReducedMotion, setMonthOffset]
   );
 
-  // Horizontal swipe on the month grid (vertical scroll / pull-to-dismiss stay intact).
+  // Horizontal swipe between months (fullscreen page — no drawer pull conflict).
   useEffect(() => {
     if (!open || viewMode !== "month") return;
     const root = monthSlideRef.current;
@@ -400,7 +405,8 @@ export function FullCalendarDialog({
         if (Math.abs(dx) < MONTH_AXIS_LOCK_PX && Math.abs(dy) < MONTH_AXIS_LOCK_PX) {
           return;
         }
-        touch.axis = Math.abs(dx) > Math.abs(dy) * 1.15 ? "h" : "v";
+        // Prefer horizontal when movement is clearly sideways.
+        touch.axis = Math.abs(dx) >= Math.abs(dy) ? "h" : "v";
         if (touch.axis === "v") {
           touch.active = false;
           return;
@@ -419,7 +425,7 @@ export function FullCalendarDialog({
       setMonthOffset(resisted, false);
     };
 
-    const onTouchEnd = () => {
+    const finishSwipe = () => {
       if (!touch.active) return;
       const wasHorizontal = touch.axis === "h";
       touch.active = false;
@@ -448,140 +454,166 @@ export function FullCalendarDialog({
       }, MONTH_SLIDE_MS + 20);
     };
 
-    root.addEventListener("touchstart", onTouchStart, { passive: true });
-    root.addEventListener("touchmove", onTouchMove, { passive: false });
-    root.addEventListener("touchend", onTouchEnd);
-    root.addEventListener("touchcancel", onTouchEnd);
+    // Capture phase so month swipe wins over nested controls / scroll parents.
+    root.addEventListener("touchstart", onTouchStart, { passive: true, capture: true });
+    root.addEventListener("touchmove", onTouchMove, { passive: false, capture: true });
+    root.addEventListener("touchend", finishSwipe, { capture: true });
+    root.addEventListener("touchcancel", finishSwipe, { capture: true });
 
     return () => {
-      root.removeEventListener("touchstart", onTouchStart);
-      root.removeEventListener("touchmove", onTouchMove);
-      root.removeEventListener("touchend", onTouchEnd);
-      root.removeEventListener("touchcancel", onTouchEnd);
+      root.removeEventListener("touchstart", onTouchStart, true);
+      root.removeEventListener("touchmove", onTouchMove, true);
+      root.removeEventListener("touchend", finishSwipe, true);
+      root.removeEventListener("touchcancel", finishSwipe, true);
     };
-  }, [open, viewMode, navigateMonth, setMonthOffset]);
+  }, [open, viewMode, monthSlideMounted, navigateMonth, setMonthOffset]);
 
-  // Keep mounted while open=false so AppOverlay can play exit / swipe-dismiss animation.
+  // Keep mounted while open=false so AppOverlay can play exit animation.
   return (
-    <AppOverlay open={open} onClose={onClose}>
+    <AppOverlay open={open} onClose={onClose} fullscreen>
       <AppOverlayPanel
-        maxWidth="max-w-4xl"
+        fullscreen
+        showHandle={false}
         aria-label={platform.calendar.fullCalendarTitle}
-        className="max-h-[92%]"
+        className="bg-background"
       >
-        <AppDrawerHeader title={platform.calendar.fullCalendarTitle} />
+        <header className="flex shrink-0 items-center gap-2 border-b border-border/60 px-3 pb-3 pt-[max(0.75rem,var(--safe-area-top))]">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={onClose}
+            aria-label={platform.calendar.closeCalendar}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h2 className="min-w-0 flex-1 truncate text-lg font-black leading-tight">
+            {platform.calendar.fullCalendarTitle}
+          </h2>
+        </header>
 
-        <div className="overflow-y-auto px-5 pt-5 pb-4">
-          <SegmentedToggle
-            value={viewMode}
-            onChange={setViewMode}
-            aria-label={platform.calendar.viewModeAria}
-            className="mb-5"
-            options={[
-              { value: "month", label: platform.calendar.viewMonth },
-              { value: "weeks", label: platform.calendar.viewWeeks },
-            ]}
-          />
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4 pb-[max(1rem,var(--safe-area-bottom))]"
+          data-scroll-lock-scrollable
+        >
+          <div className="mx-auto w-full max-w-4xl">
+            <SegmentedToggle
+              value={viewMode}
+              onChange={setViewMode}
+              aria-label={platform.calendar.viewModeAria}
+              className="mb-5"
+              options={[
+                { value: "month", label: platform.calendar.viewMonth },
+                { value: "weeks", label: platform.calendar.viewWeeks },
+              ]}
+            />
 
-          {viewMode === "weeks" ? (
-            <WorkoutScheduleView onNavigate={onClose} />
-          ) : (
-            <>
-              <div className="overflow-hidden">
-                <div
-                  ref={monthSlideRef}
-                  className="touch-pan-y will-change-transform"
-                >
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      disabled={!canGoPrev}
-                      onClick={() => navigateMonth(-1)}
-                      aria-label={platform.calendar.previousMonth}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base font-black tracking-tight">
-                        {formatLocalized(viewMonth, "MMMM yyyy", locale)}
-                      </h3>
-                      {loadingMonth ? (
-                        <Loader2
-                          className="h-4 w-4 animate-spin text-muted-foreground"
-                          aria-label={platform.common.loading}
-                        />
-                      ) : null}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      disabled={!canGoNext}
-                      onClick={() => navigateMonth(1)}
-                      aria-label={platform.calendar.nextMonth}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-
+            {viewMode === "weeks" ? (
+              <WorkoutScheduleView
+                onNavigate={onClose}
+                schedule={schedule}
+                enrichment={enrichment}
+              />
+            ) : (
+              <>
+                <div className="overflow-hidden">
                   <div
-                    className={cn(
-                      "grid grid-cols-7 gap-1.5 transition-opacity",
-                      loadingMonth && "opacity-60"
-                    )}
+                    ref={setMonthSlideNode}
+                    className="touch-pan-y will-change-transform"
+                    style={{ touchAction: "pan-y" }}
                   >
-                    {dayCells.map(
-                      ({
-                        day,
-                        tasks,
-                        dayStatus,
-                        beforeActive,
-                        selected,
-                        inMonth,
-                      }) => (
-                        <div
-                          key={day.toISOString()}
-                          className={cn(!inMonth && "opacity-35")}
-                        >
-                          <CalendarDayDot
-                            date={day}
-                            tasks={tasks}
-                            dayStatus={dayStatus}
-                            inactive={beforeActive}
-                            now={now}
-                            selected={selected}
-                            onSelect={() => {
-                              onSelectDate(day);
-                            }}
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        disabled={!canGoPrev}
+                        onClick={() => navigateMonth(-1)}
+                        aria-label={platform.calendar.previousMonth}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-black tracking-tight">
+                          {formatLocalized(viewMonth, "MMMM yyyy", locale)}
+                        </h3>
+                        {loadingMonth ? (
+                          <Loader2
+                            className="h-4 w-4 animate-spin text-muted-foreground"
+                            aria-label={platform.common.loading}
                           />
-                        </div>
-                      )
-                    )}
+                        ) : null}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        disabled={!canGoNext}
+                        onClick={() => navigateMonth(1)}
+                        aria-label={platform.calendar.nextMonth}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div
+                      className={cn(
+                        "grid grid-cols-7 gap-1.5 transition-opacity",
+                        loadingMonth && "opacity-60"
+                      )}
+                    >
+                      {dayCells.map(
+                        ({
+                          day,
+                          tasks,
+                          dayStatus,
+                          beforeActive,
+                          selected,
+                          inMonth,
+                        }) => (
+                          <div
+                            key={day.toISOString()}
+                            className={cn(!inMonth && "opacity-35")}
+                          >
+                            <CalendarDayDot
+                              date={day}
+                              tasks={tasks}
+                              dayStatus={dayStatus}
+                              inactive={beforeActive}
+                              now={now}
+                              selected={selected}
+                              onSelect={() => {
+                                onSelectDate(day);
+                              }}
+                            />
+                          </div>
+                        )
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-6 rounded-xl border border-border bg-secondary/40 p-4">
-                <div className="mb-3">
-                  <p className="text-sm font-bold">
-                    {formatLocalized(selectedDate, "EEEE, MMMM d", locale)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {beforeAccount
-                      ? platform.calendar.noActivityYet
-                      : platform.calendar.daySummary(
-                          active.length,
-                          completed.length,
-                          missed.length
-                        )}
-                  </p>
+                <div className="mt-6 rounded-xl border border-border bg-secondary/40 p-4">
+                  <div className="mb-3">
+                    <p className="text-sm font-bold">
+                      {formatLocalized(selectedDate, "EEEE, MMMM d", locale)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {beforeAccount
+                        ? platform.calendar.noActivityYet
+                        : platform.calendar.daySummary(
+                            active.length,
+                            completed.length,
+                            missed.length
+                          )}
+                    </p>
+                  </div>
+                  {beforeAccount ? null : (
+                    <DayTasksList tasks={selectedDayTasks} onTaskClick={onClose} />
+                  )}
                 </div>
-                {beforeAccount ? null : (
-                  <DayTasksList tasks={selectedDayTasks} onTaskClick={onClose} />
-                )}
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </AppOverlayPanel>
     </AppOverlay>

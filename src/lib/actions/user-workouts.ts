@@ -1824,7 +1824,7 @@ export async function schedulePersonalWeekPlan(input: {
   }
 
   revalidatePath("/dashboard/workout");
-  revalidatePath("/dashboard/workout/schedule");
+  revalidatePath("/dashboard/workout/plans");
   revalidatePath("/dashboard/workout/plans");
   return { success: true as const, count: scheduledCount, weeks };
 }

@@ -126,7 +126,7 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "generate_workout_plan",
       description:
-        "Generate a single WORKOUT or a full-week PLAN. WORKOUT (one session: push/pull/leg day, one HIIT): days_per_week=1, include_warmup_stretch=false — saves under Workouts. PLAN (the word plan/program/week/split, or N training days): ALWAYS a full week schedule with 2–6 DISTINCT training days on weekdays — days_per_week=2–6, include_warmup_stretch=true — saves under Plans. Never treat 'plan' / 'workout plan' as one workout. Never split one session across weekdays. For weeks, set schedule_weeks (default 4); pass schedule_weekdays only when they named days, else omit for auto-pick.",
+        "Generate a single WORKOUT or a full-week PLAN. WORKOUT (one session: push/pull/leg/chest day, or just \"push\" / \"a workout\"): days_per_week=1, include_warmup_stretch=false — saves under Workouts with ALL exercises in that one day. PLAN (\"plan\"/\"workout plan\"/week/split/PPL/N-day week): days_per_week=2–6 DISTINCT focuses (Push, Pull, Legs…), include_warmup_stretch=true — saves under Plans. NEVER split one push session into Mon=bench, Tue=OHP, etc. NEVER use profile training-days to invent a week unless they asked for a plan/week/split.",
       parameters: {
         type: "object",
         properties: {
@@ -582,33 +582,33 @@ export async function executeCoachChatTool(
           .filter((s): s is string => Boolean(s?.trim()))
           .join("\n");
         const weekPlan = looksLikeWeekPlanRequest(shapeText);
-        const singleSession =
-          looksLikeSingleSessionRequest(shapeText) && !weekPlan;
+        const singleSession = looksLikeSingleSessionRequest(shapeText);
         let daysPerWeek =
           typeof args.days_per_week === "number" && args.days_per_week > 0
             ? Math.min(6, Math.max(1, Math.round(args.days_per_week)))
             : undefined;
-        // Hard guard: "push day" / one session must not become a multi-day Plans week.
-        if (singleSession) {
+
+        // Hard rules — never invent a Plans week from profile day count alone.
+        // Workout = one session; Plan = only when week/split/"plan" language is clear.
+        if (singleSession || !weekPlan) {
           daysPerWeek = 1;
-        } else if (weekPlan && (daysPerWeek == null || daysPerWeek < 2)) {
-          // "plan" / "workout plan" must never collapse to 1 workout.
+        } else if (daysPerWeek == null || daysPerWeek < 2) {
           daysPerWeek = Math.max(
             2,
             daysPerWeekFromIntake(profile.intake_responses ?? {})
           );
         }
+
         const includeExtras = singleSession
           ? false
-          : args.include_warmup_stretch === false
+          : !weekPlan
             ? false
-            : args.include_warmup_stretch === true ||
-              weekPlan ||
-              (daysPerWeek != null && daysPerWeek >= 2 && workoutKind !== "hiit");
+            : args.include_warmup_stretch === false
+              ? false
+              : args.include_warmup_stretch === true || weekPlan;
 
-        // Multi-day weekly program → Plans tab (single-day workouts + week template).
-        // Always use this path for 2+ training days (with or without warm-up/stretch).
-        if (workoutKind !== "hiit" && (daysPerWeek ?? 0) >= 2 && !singleSession) {
+        // Multi-day weekly program → Plans tab only when week intent is clear.
+        if (workoutKind !== "hiit" && weekPlan && (daysPerWeek ?? 0) >= 2) {
           const program = await generateWeeklyFullProgramFromProfile(profile, {
             daysPerWeek: daysPerWeek ?? 4,
             preferences,

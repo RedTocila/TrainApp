@@ -97,38 +97,79 @@ function looksLikeNutritionPlanOnly(text: string): boolean {
 }
 
 /**
+ * One named focus session (Workouts tab) — push/pull/leg/chest day, etc.
+ * Does NOT match multi-focus splits like push/pull/legs.
+ */
+export function looksLikeNamedFocusSession(preferences?: string): boolean {
+  const text = normalizePreferenceText(preferences);
+  if (!text.trim()) return false;
+  if (/\bpush[\s/]+pull[\s/]+legs?\b|\bppl\b/i.test(text)) return false;
+  if (countDistinctFocusNames(text) >= 2) return false;
+
+  return /\b(push(\s*(day|workout|session|focus))?|pull(\s*(day|workout|session|focus))?|legs?(\s*(day|workout|session|focus))?|upper(\s*body)?(\s*(day|workout|session|focus))?|lower(\s*body)?(\s*(day|workout|session|focus))?|chest(\s*(day|workout|session|&?\s*tris?))?|back(\s*(day|workout|session|&?\s*bis?))?|arms?(\s*(day|workout|session))?|shoulders?(\s*(day|workout|session))?|full[\s-]?body(\s*(day|workout|session))?|dite\s+(push|pull|kembesh|krahesh|gjoksi|shpine))\b/i.test(
+    text
+  );
+}
+
+/** How many distinct day-focus names appear (push / pull / legs / …). */
+function countDistinctFocusNames(text: string): number {
+  const patterns = [
+    /\bpush\b/i,
+    /\bpull\b/i,
+    /\blegs?\b/i,
+    /\bupper(\s*body)?\b/i,
+    /\blower(\s*body)?\b/i,
+    /\bchest\b/i,
+    /\bback\b/i,
+    /\barms?\b/i,
+    /\bshoulders?\b/i,
+  ];
+  let count = 0;
+  for (const re of patterns) {
+    if (re.test(text)) count += 1;
+  }
+  return count;
+}
+
+/**
+ * Clear multi-day WEEK split language (Plans tab).
+ * Deliberately excludes bare "program" / "training days" — those alone used to
+ * turn a "push day" into a fake 4-day plan via profile day count.
+ */
+function hasExplicitMultiDaySplit(text: string): boolean {
+  return /\b(\d+\s*[\-]?\s*(day|days)\s+(week|split|program|routine|plan)|full\s+week|weekly\s+(plan|program|split|routine|schedule)|week\s+(plan|program|template|schedule|split)|days?\s+per\s+week|\d+\s+training\s+days|ppl\b|push[\s/]+pull[\s/]+legs?|split\s+(week|routine|program)|hypertrophy\s+split|training\s+week|stervitje\s+javor|plan\s+javor)\b/i.test(
+    text
+  );
+}
+
+/**
  * True when the request means a full WEEK schedule under Plans
  * (multiple training days on a calendar), not one library workout.
  * The word "plan" / "workout plan" counts as a week unless it's clearly
- * a single session ("push day") or a nutrition/meal plan.
+ * a single named focus session ("push day") without split language.
  */
 export function looksLikeWeekPlanRequest(preferences?: string): boolean {
   const text = normalizePreferenceText(preferences);
   if (!text.trim() || looksLikeNutritionPlanOnly(text)) return false;
 
-  // Named focus day without week language → single session, not a plan.
-  const hasDayFocus =
-    /\b(push\s*day|pull\s*day|leg\s*day|legs?\s*day|upper(\s*body)?(\s*day)?|lower(\s*body)?(\s*day)?|chest\s*day|back\s*day|arm\s*day|shoulder\s*day|dite\s+push|dite\s+pull|dite\s+kembesh)\b/i.test(
-      text
-    );
-  const hasStrongWeekLanguage =
-    /\b(\d+\s*[\-]?\s*(day|days)\s+(week|split|program|routine|plan)|full\s+week|weekly\s+(plan|program|split|routine|schedule)|week\s+(plan|program|template|schedule)|training\s+days|days?\s+per\s+week|ppl\b|push[\s/]+pull[\s/]+legs|program|split\s+(week|routine)|stervitje\s+javor|plan\s+javor)\b/i.test(
-      text
-    );
-  if (hasDayFocus && !hasStrongWeekLanguage) return false;
+  const namedFocus = looksLikeNamedFocusSession(text);
+  const multiDay = hasExplicitMultiDaySplit(text);
 
-  if (hasStrongWeekLanguage) return true;
+  // "push day" / "chest workout" wins over weak "plan" wording unless they
+  // clearly asked for a multi-day split (PPL, 4-day week, etc.).
+  if (namedFocus && !multiDay) return false;
+  if (multiDay) return true;
 
-  // Noun "plan" / "workout plan" / "make me a plan" → full week schedule.
+  // Noun "plan"/"program" / "workout plan" / "make me a plan" → full week schedule.
   // Avoid the verb "I plan to…" (no article / create verb before plan).
-  return /\b((workout|training|strength|hypertrophy|gym)\s+plans?|(make|build|create|generate|give|design|need|want)\s+(me\s+)?(a\s+|nje\s+)?(new\s+)?(workout\s+|training\s+)?plans?|(a|my|new|full|nje)\s+(workout\s+|training\s+)?plans?)\b/i.test(
+  return /\b((workout|training|strength|hypertrophy|gym)\s+(plans?|programs?)|(make|build|create|generate|give|design|need|want)\s+(me\s+)?(a\s+|nje\s+)?(new\s+)?(workout\s+|training\s+)?(plans?|programs?)|(a|my|new|full|nje)\s+(workout\s+|training\s+)?(plans?|programs?))\b/i.test(
     text
   );
 }
 
 /**
  * True when preferences clearly mean ONE workout session (Workouts tab),
- * not a multi-day week plan (Plans tab). Explicit week/program/"plan" language wins.
+ * not a multi-day week plan (Plans tab). Explicit week/split language wins.
  */
 export function looksLikeSingleSessionRequest(preferences?: string): boolean {
   const text = normalizePreferenceText(preferences);
@@ -136,7 +177,9 @@ export function looksLikeSingleSessionRequest(preferences?: string): boolean {
 
   if (looksLikeWeekPlanRequest(text)) return false;
 
-  return /\b(push\s*day|pull\s*day|leg\s*day|legs?\s*day|upper(\s*body)?(\s*day)?|lower(\s*body)?(\s*day)?|chest\s*day|back\s*day|arm\s*day|shoulder\s*day|a\s+(workout|session)|one\s+(workout|session)|single\s+(workout|session)|hiit\s+(session|workout)|tabata\s+(session|workout)|dite\s+push|dite\s+pull|dite\s+kembesh)\b/i.test(
+  if (looksLikeNamedFocusSession(text)) return true;
+
+  return /\b(a\s+(workout|session)|one\s+(workout|session)|single\s+(workout|session)|make\s+(me\s+)?(a\s+)?workout|build\s+(me\s+)?(a\s+)?workout|hiit\s+(session|workout)|tabata\s+(session|workout)|nje\s+stervitje)\b/i.test(
     text
   );
 }

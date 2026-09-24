@@ -51,7 +51,7 @@ const headerActionsGroup = "flex items-center gap-1.5";
 const headerTextButton =
   "h-[var(--control-height)] shrink-0 rounded-full px-4 text-sm font-semibold shadow-sm";
 
-function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
+function DashboardMobileHeaderBar() {
   const pathname = usePathname();
   const { pendingHref, setPendingHref } = useDashboardNavPending();
   const chromePath = pendingHref ?? pathname;
@@ -148,6 +148,7 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
       workoutActions &&
       (workoutActions.showStart || workoutActions.showEdit) ? (
         <div className="flex shrink-0 items-center gap-1.5">
+          <FullCalendarNavButton className={headerIconButton} />
           {workoutActions.showEdit && workoutActions.onEdit ? (
             <DashboardWorkoutPlusMenu nav onEdit={workoutActions.onEdit} />
           ) : null}
@@ -161,44 +162,50 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
           ) : null}
         </div>
       ) : isProgressPhotosPage && progressPhotosActions?.onOpenReadMe ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="!h-8 shrink-0 gap-1.5 rounded-full px-3 text-xs font-semibold"
-          onClick={progressPhotosActions.onOpenReadMe}
-        >
-          <BookOpen className="h-3.5 w-3.5" aria-hidden />
-          {platform.photos.readMeButton}
-        </Button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <FullCalendarNavButton className={headerIconButton} />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="!h-8 shrink-0 gap-1.5 rounded-full px-3 text-xs font-semibold"
+            onClick={progressPhotosActions.onOpenReadMe}
+          >
+            <BookOpen className="h-3.5 w-3.5" aria-hidden />
+            {platform.photos.readMeButton}
+          </Button>
+        </div>
       ) : !isProgressPhotosPage &&
         !isWorkoutPage &&
         !isCardioSession ? (
         isNutritionPage && nutritionActions ? (
-          <div className={cn(headerSurface, "flex shrink-0 items-center gap-1.5 p-1.5")}>
-            {nutritionActions.onLogMeal ? (
-              <Button
-                type="button"
-                size="sm"
-                className={headerTextButton}
-                onClick={nutritionActions.onLogMeal}
-              >
-                <Camera className="h-3.5 w-3.5" />
-                {platform.nutrition.logMeal}
-              </Button>
-            ) : null}
-            {nutritionActions.showDietPlan ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className={cn(headerTextButton, "max-[380px]:hidden")}
-                onClick={nutritionActions.onDietPlan}
-              >
-                <ClipboardList className="h-3.5 w-3.5" />
-                {platform.nutrition.viewDietPlan}
-              </Button>
-            ) : null}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <FullCalendarNavButton className={headerIconButton} />
+            <div className={cn(headerSurface, "flex shrink-0 items-center gap-1.5 p-1.5")}>
+              {nutritionActions.onLogMeal ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className={headerTextButton}
+                  onClick={nutritionActions.onLogMeal}
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  {platform.nutrition.logMeal}
+                </Button>
+              ) : null}
+              {nutritionActions.showDietPlan ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className={cn(headerTextButton, "max-[380px]:hidden")}
+                  onClick={nutritionActions.onDietPlan}
+                >
+                  <ClipboardList className="h-3.5 w-3.5" />
+                  {platform.nutrition.viewDietPlan}
+                </Button>
+              ) : null}
+            </div>
           </div>
         ) : (
           <div className={headerActionsGroup}>
@@ -216,11 +223,11 @@ function DashboardMobileHeaderBar({ showCalendar }: { showCalendar: boolean }) {
                 className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background"
               />
             </Link>
-            {showCalendar ? (
-              <FullCalendarNavButton className={headerIconButton} />
-            ) : null}
+            <FullCalendarNavButton className={headerIconButton} />
           </div>
         )
+      ) : !isCardioSession ? (
+        <FullCalendarNavButton className={headerIconButton} />
       ) : null}
     </div>
   );
@@ -233,13 +240,12 @@ export function DashboardMobileChrome() {
   const chromePath = pendingHref ?? pathname;
   const isImmersive = hidesDashboardChrome(chromePath);
   const showTrainTabs = showsTrainSectionTabs(chromePath);
-  const showCalendar = chromePath === "/dashboard";
 
   if (isImmersive) return null;
 
   return (
     <div className="mobile-top-safe sticky top-0 z-50 shrink-0 bg-background lg:hidden">
-      <DashboardMobileHeaderBar showCalendar={showCalendar} />
+      <DashboardMobileHeaderBar />
       {showTrainTabs ? (
         <div className="px-3 pb-2 sm:px-4">
           <TrainSectionTabs className="mb-0" />

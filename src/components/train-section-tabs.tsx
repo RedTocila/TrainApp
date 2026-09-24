@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { isTrainTabActive, trainTabs } from "@/lib/train-nav";
 
 const tabConfig = {
-  "/dashboard/workout/schedule": {
+  "/dashboard/workout/plans": {
     icon: Dumbbell,
     activeClass: "bg-primary/20 text-primary",
   },
@@ -26,7 +26,7 @@ export function TrainSectionTabs({ className }: { className?: string }) {
   const activePath = pendingHref ?? pathname;
 
   const labels = {
-    "/dashboard/workout/schedule": platform.trainTabs.workout,
+    "/dashboard/workout/plans": platform.trainTabs.workout,
     "/dashboard/nutrition": platform.trainTabs.nutrition,
   } as const;
 

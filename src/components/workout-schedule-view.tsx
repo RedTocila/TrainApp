@@ -1,24 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { addDays, addWeeks, format, startOfWeek } from "date-fns";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { addDays, addWeeks, format, isToday, startOfWeek } from "date-fns";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Dumbbell,
-  HeartPulse,
-} from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { DayTasksList, groupTasksByStatus } from "@/components/day-tasks-list";
 import { Button } from "@/components/ui/button";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
-import { getScheduledCardioInRange } from "@/lib/actions/user-cardio";
-import { getScheduledWorkoutsInRange } from "@/lib/actions/user-workouts";
+import { fetchFullCalendarMonthSlice } from "@/lib/actions/full-calendar-month";
+import type { ClientSchedule } from "@/lib/daily-tasks";
+import {
+  enrichTasksForDate,
+  type DashboardEnrichmentData,
+} from "@/lib/dashboard-task-enrichment";
 import { formatLocalized } from "@/lib/date-locale";
-import { isExtraWorkoutKind, normalizeWorkoutPlanKind } from "@/lib/hiit";
+import {
+  mergeCalendarEnrichment,
+  mergeCalendarSchedule,
+} from "@/lib/full-calendar-merge";
 import { scrollElementIntoHorizontalView } from "@/lib/scroll-horizontal";
-import type { ScheduledCardio, ScheduledWorkout } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { formatDateKey, cn } from "@/lib/utils";
 
 const WEEKS_BACK = 2;
 const WEEKS_FORWARD = 10;
@@ -26,45 +27,37 @@ const SWIPE_DISTANCE = 56;
 const SWIPE_VELOCITY = 420;
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-type DayPlan = {
-  dateKey: string;
-  date: Date;
-  workouts: ScheduledWorkout[];
-  cardios: ScheduledCardio[];
-};
-
 function weekMonday(date: Date) {
   return startOfWeek(date, { weekStartsOn: 1 });
 }
 
-function sessionTypeLabel(
-  kind: string | null | undefined,
-  platform: ReturnType<typeof usePlatformCopy>
-) {
-  const normalized = normalizeWorkoutPlanKind(kind);
-  if (normalized === "warmup") return platform.workout.sessionTypeWarmup;
-  if (normalized === "stretch") return platform.workout.sessionTypeStretch;
-  if (normalized === "hiit") return "HIIT";
-  return platform.workout.sessionTypeMain;
+function todayKey() {
+  return formatDateKey(new Date());
 }
 
-/** Weekly schedule of planned workouts + cardio (page body). */
+/** Weekly schedule: workout / nutrition / cardio / water / habits (no warm-up or stretch). */
 export function WorkoutScheduleView({
   onNavigate,
+  schedule: initialSchedule,
+  enrichment: initialEnrichment,
 }: {
-  /** Called when the user opens a workout/cardio session (e.g. close an overlay). */
+  /** Called when the user opens a task (e.g. close an overlay). */
   onNavigate?: () => void;
-} = {}) {
+  schedule: ClientSchedule;
+  enrichment: DashboardEnrichmentData;
+}) {
   const platform = usePlatformCopy();
   const locale = useLocale();
   const reduceMotion = useReducedMotion();
   const [weekOffset, setWeekOffset] = useState(WEEKS_BACK);
   const [loading, setLoading] = useState(true);
-  const [workouts, setWorkouts] = useState<ScheduledWorkout[]>([]);
-  const [cardios, setCardios] = useState<ScheduledCardio[]>([]);
+  const [schedule, setSchedule] = useState(initialSchedule);
+  const [enrichment, setEnrichment] = useState(initialEnrichment);
+  const [openDateKey, setOpenDateKey] = useState<string | null>(() => todayKey());
   const directionRef = useRef(0);
   const weekChipRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const weekStripRef = useRef<HTMLDivElement>(null);
+  const loadedRangeRef = useRef<string | null>(null);
 
   const weekStarts = useMemo(() => {
     const origin = weekMonday(new Date());
@@ -81,28 +74,71 @@ export function WorkoutScheduleView({
     "yyyy-MM-dd"
   );
 
-  const goToWeek = (next: number) => {
-    const clamped = Math.min(weekStarts.length - 1, Math.max(0, next));
-    if (clamped === weekOffset) return;
-    directionRef.current = clamped > weekOffset ? 1 : -1;
-    setWeekOffset(clamped);
-  };
+  const goToWeek = useCallback(
+    (next: number) => {
+      const clamped = Math.min(weekStarts.length - 1, Math.max(0, next));
+      if (clamped === weekOffset) return;
+      directionRef.current = clamped > weekOffset ? 1 : -1;
+      setWeekOffset(clamped);
+    },
+    [weekOffset, weekStarts.length]
+  );
+
+  // Seed from parent when it updates (month loads in the calendar).
+  useEffect(() => {
+    setSchedule((prev) => ({
+      ...initialSchedule,
+      scheduledWorkouts: [
+        ...new Map(
+          [
+            ...(prev.scheduledWorkouts ?? []),
+            ...(initialSchedule.scheduledWorkouts ?? []),
+          ].map((w) => [w.id, w])
+        ).values(),
+      ],
+      scheduledNutritionDays: [
+        ...new Map(
+          [
+            ...(prev.scheduledNutritionDays ?? []),
+            ...(initialSchedule.scheduledNutritionDays ?? []),
+          ].map((n) => [n.id, n])
+        ).values(),
+      ],
+      scheduledCardioByDate: {
+        ...(prev.scheduledCardioByDate ?? {}),
+        ...(initialSchedule.scheduledCardioByDate ?? {}),
+      },
+      habitsByDate: {
+        ...(prev.habitsByDate ?? {}),
+        ...(initialSchedule.habitsByDate ?? {}),
+      },
+    }));
+    setEnrichment((prev) => mergeCalendarEnrichment(prev, initialEnrichment));
+  }, [initialSchedule, initialEnrichment]);
 
   useEffect(() => {
+    const cacheKey = `${rangeFrom}:${rangeTo}`;
+    if (loadedRangeRef.current === cacheKey) {
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
-    void Promise.all([
-      getScheduledWorkoutsInRange(rangeFrom, rangeTo),
-      getScheduledCardioInRange(rangeFrom, rangeTo),
-    ])
-      .then(([nextWorkouts, nextCardios]) => {
-        if (cancelled) return;
-        setWorkouts(nextWorkouts);
-        setCardios(nextCardios);
+    const timezoneOffsetMinutes = new Date().getTimezoneOffset();
+    void fetchFullCalendarMonthSlice(rangeFrom, rangeTo, timezoneOffsetMinutes)
+      .then((result) => {
+        if (cancelled || "error" in result) return;
+        loadedRangeRef.current = cacheKey;
+        setSchedule((prev) => mergeCalendarSchedule(prev, result.scheduleSlice));
+        setEnrichment((prev) =>
+          mergeCalendarEnrichment(prev, result.enrichment)
+        );
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
     return () => {
       cancelled = true;
     };
@@ -118,18 +154,24 @@ export function WorkoutScheduleView({
     });
   }, [weekOffset, reduceMotion]);
 
-  const days: DayPlan[] = useMemo(() => {
+  // When changing weeks, only today stays open (if it's in this week).
+  useEffect(() => {
+    const today = todayKey();
+    const inWeek = Array.from({ length: 7 }, (_, i) =>
+      formatDateKey(addDays(selectedMonday, i))
+    ).includes(today);
+    setOpenDateKey(inWeek ? today : null);
+  }, [selectedMonday]);
+
+  const days = useMemo(() => {
+    const now = new Date();
     return Array.from({ length: 7 }, (_, index) => {
       const date = addDays(selectedMonday, index);
-      const dateKey = format(date, "yyyy-MM-dd");
-      return {
-        dateKey,
-        date,
-        workouts: workouts.filter((item) => item.scheduled_date === dateKey),
-        cardios: cardios.filter((item) => item.scheduled_date === dateKey),
-      };
+      const dateKey = formatDateKey(date);
+      const tasks = enrichTasksForDate(date, schedule, enrichment, now);
+      return { dateKey, date, tasks };
     });
-  }, [selectedMonday, workouts, cardios]);
+  }, [selectedMonday, schedule, enrichment]);
 
   const weekLabel = formatLocalized(selectedMonday, "MMM d", locale);
   const rangeLabel = `${formatLocalized(selectedMonday, "MMM d", locale)} – ${formatLocalized(selectedSunday, "MMM d", locale)}`;
@@ -147,6 +189,10 @@ export function WorkoutScheduleView({
       x: reduceMotion ? 0 : direction > 0 ? -40 : 40,
       opacity: reduceMotion ? 1 : 0,
     }),
+  };
+
+  const toggleDay = (dateKey: string) => {
+    setOpenDateKey((current) => (current === dateKey ? null : dateKey));
   };
 
   return (
@@ -267,141 +313,98 @@ export function WorkoutScheduleView({
             ) : (
               <ul className="space-y-2">
                 {days.map((day) => {
-                  const isToday =
-                    format(day.date, "yyyy-MM-dd") ===
-                    format(new Date(), "yyyy-MM-dd");
-                  const empty =
-                    day.workouts.length === 0 && day.cardios.length === 0;
+                  const dayIsToday = isToday(day.date);
+                  const open = openDateKey === day.dateKey;
+                  const { completed } = groupTasksByStatus(day.tasks);
+                  const taskCount = day.tasks.length;
+                  const summary =
+                    taskCount === 0
+                      ? platform.workout.scheduleRestDay
+                      : platform.common.completedCount(
+                          completed.length,
+                          taskCount
+                        );
+
                   return (
                     <li
                       key={day.dateKey}
                       className={cn(
-                        "rounded-2xl border px-3 py-3 sm:px-4",
-                        isToday
+                        "overflow-hidden rounded-2xl border",
+                        dayIsToday
                           ? "border-primary/55 bg-primary/10 shadow-[0_0_0_1px_rgba(var(--primary-rgb),0.25)]"
                           : "border-border/50 bg-secondary/25"
                       )}
                     >
-                      <div className="mb-2.5 flex items-center justify-between gap-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <p
-                            className={cn(
-                              "text-sm font-black",
-                              isToday ? "text-primary" : "text-foreground"
-                            )}
-                          >
-                            {formatLocalized(day.date, "EEEE", locale)}
-                          </p>
-                          {isToday ? (
-                            <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
-                              {platform.calendar.today}
+                      <button
+                        type="button"
+                        onClick={() => toggleDay(day.dateKey)}
+                        aria-expanded={open}
+                        aria-controls={`week-day-${day.dateKey}`}
+                        className="flex w-full items-center gap-2 px-3 py-3 text-left sm:px-4"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p
+                              className={cn(
+                                "text-sm font-black",
+                                dayIsToday ? "text-primary" : "text-foreground"
+                              )}
+                            >
+                              {formatLocalized(day.date, "EEEE", locale)}
+                            </p>
+                            {dayIsToday ? (
+                              <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+                                {platform.calendar.today}
+                              </span>
+                            ) : null}
+                            <span
+                              className={cn(
+                                "text-xs tabular-nums",
+                                dayIsToday
+                                  ? "font-semibold text-primary/80"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {formatLocalized(day.date, "MMM d", locale)}
                             </span>
-                          ) : null}
+                          </div>
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {summary}
+                          </p>
                         </div>
-                        <p
+                        <ChevronDown
                           className={cn(
-                            "text-xs tabular-nums",
-                            isToday
-                              ? "font-semibold text-primary/80"
-                              : "text-muted-foreground"
+                            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                            open && "rotate-180"
                           )}
-                        >
-                          {formatLocalized(day.date, "MMM d", locale)}
-                        </p>
-                      </div>
+                          aria-hidden
+                        />
+                      </button>
 
-                      {empty ? (
-                        <p className="text-xs text-muted-foreground/80">
-                          {platform.workout.scheduleRestDay}
-                        </p>
-                      ) : (
-                        <ul className="space-y-1.5">
-                          {day.workouts.map((workout) => {
-                            const kind = normalizeWorkoutPlanKind(
-                              workout.workout_plans?.kind
-                            );
-                            const exerciseCount =
-                              workout.workout_days?.exercises?.length ?? 0;
-                            const title =
-                              workout.workout_days?.title ??
-                              workout.workout_plans?.title ??
-                              platform.workout.workoutPlan;
-                            const extra = isExtraWorkoutKind(kind);
-                            const meta = [
-                              sessionTypeLabel(kind, platform),
-                              exerciseCount > 0
-                                ? platform.common.exercises(exerciseCount)
-                                : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ");
-                            return (
-                              <li key={workout.id}>
-                                <Link
-                                  href={`/dashboard/workout/${workout.plan_id}`}
-                                  onClick={onNavigate}
-                                  className={cn(
-                                    "flex items-center gap-3 rounded-xl border border-border/60 bg-secondary/50 py-2.5 pl-2.5 pr-3 transition-colors hover:bg-secondary/70 active:scale-[0.99]",
-                                    "border-l-[3px]",
-                                    extra
-                                      ? "border-l-muted-foreground/45"
-                                      : "border-l-primary"
-                                  )}
-                                >
-                                  <Dumbbell
-                                    className={cn(
-                                      "h-4 w-4 shrink-0",
-                                      extra
-                                        ? "text-muted-foreground"
-                                        : "text-primary"
-                                    )}
-                                  />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-semibold leading-snug">
-                                      {title}
-                                    </p>
-                                    {meta ? (
-                                      <p className="truncate text-xs text-muted-foreground">
-                                        {meta}
-                                      </p>
-                                    ) : null}
-                                  </div>
-                                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-                                </Link>
-                              </li>
-                            );
-                          })}
-                          {day.cardios.map((cardio) => {
-                            const duration =
-                              cardio.client_cardio?.duration_minutes != null
-                                ? `${cardio.client_cardio.duration_minutes} min`
-                                : null;
-                            return (
-                              <li key={cardio.id}>
-                                <Link
-                                  href={`/dashboard/workout/cardio/session?date=${encodeURIComponent(day.dateKey)}&cardioId=${encodeURIComponent(cardio.cardio_id)}`}
-                                  onClick={onNavigate}
-                                  className="flex items-center gap-3 rounded-xl border border-border/60 border-l-[3px] border-l-orange-500 bg-secondary/50 py-2.5 pl-2.5 pr-3 transition-colors hover:bg-secondary/70 active:scale-[0.99]"
-                                >
-                                  <HeartPulse className="h-4 w-4 shrink-0 text-orange-400" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-semibold leading-snug">
-                                      {cardio.client_cardio?.title ??
-                                        platform.cardio.title}
-                                    </p>
-                                    {duration ? (
-                                      <p className="truncate text-xs text-muted-foreground">
-                                        {duration}
-                                      </p>
-                                    ) : null}
-                                  </div>
-                                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-                                </Link>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
+                      {open ? (
+                        <div
+                          id={`week-day-${day.dateKey}`}
+                          className="border-t border-border/50 px-3 pb-3 pt-2 sm:px-4"
+                        >
+                          {taskCount === 0 ? (
+                            <p className="text-xs text-muted-foreground/80">
+                              {platform.workout.scheduleRestDay}
+                            </p>
+                          ) : (
+                            <DayTasksList
+                              tasks={day.tasks}
+                              macroTargets={schedule.macroTargets}
+                              dailyMeals={
+                                enrichment.mealsByDate[day.dateKey] ?? []
+                              }
+                              waterMl={enrichment.waterByDate[day.dateKey] ?? 0}
+                              waterGoalMl={schedule.waterGoalMl ?? 2500}
+                              dateKey={day.dateKey}
+                              onTaskClick={onNavigate}
+                            />
+                          )}
+                        </div>
+                      ) : null}
                     </li>
                   );
                 })}

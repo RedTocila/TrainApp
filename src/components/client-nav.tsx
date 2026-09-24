@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { AiCoachFab, DASHBOARD_NAV_GLASS_CLASS } from "@/components/ai-coach-fab";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { AppLogo } from "@/components/app-logo";
+import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
 import { SignOutButton } from "@/components/sign-out-button";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
@@ -103,7 +104,7 @@ export function ClientNav({
   const prefetchRoutes = useMemo(
     () => [
       "/dashboard",
-      "/dashboard/workout/schedule",
+      "/dashboard/workout/plans",
       "/dashboard/nutrition",
       "/dashboard/ai",
       "/dashboard/classes",
@@ -145,7 +146,7 @@ export function ClientNav({
       active: homeActive,
     },
     {
-      href: "/dashboard/workout/schedule",
+      href: "/dashboard/workout/plans",
       label: platform.nav.programs,
       icon: CalendarDays,
       active: programsActive,
@@ -188,6 +189,7 @@ export function ClientNav({
               <AppLogo href="/dashboard" />
               <p className="mt-1 text-sm text-muted-foreground">{platform.nav.welcome(fullName)}</p>
             </div>
+            <FullCalendarNavButton className="h-9 w-9 shrink-0 rounded-full" />
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-4">

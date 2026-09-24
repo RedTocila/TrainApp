@@ -1,14 +1,13 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { CalendarDays, HeartPulse, LayoutGrid } from "lucide-react";
+import { HeartPulse, LayoutGrid } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { CompactSubLink } from "@/components/programs/compact-nav";
 
 function isPlansSection(path: string) {
   if (path.startsWith("/dashboard/workout/cardio")) return false;
-  if (path.startsWith("/dashboard/workout/schedule")) return false;
   if (path.startsWith("/dashboard/workout/session")) return false;
   return (
     path === "/dashboard/workout" ||
@@ -28,13 +27,6 @@ export function WorkoutSectionTabs({ className }: { className?: string }) {
   const activePath = pendingHref ?? pathname;
 
   const tabs = [
-    {
-      href: "/dashboard/workout/schedule",
-      label: platform.workout.myWorkout,
-      icon: CalendarDays,
-      activeClass: "bg-emerald-500/15 text-emerald-300",
-      isActive: (path: string) => path.startsWith("/dashboard/workout/schedule"),
-    },
     {
       href: "/dashboard/workout/plans",
       label: platform.nav.programs,

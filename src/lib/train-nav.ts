@@ -1,5 +1,5 @@
 export const trainTabs = [
-  { href: "/dashboard/workout/schedule", label: "Workout" },
+  { href: "/dashboard/workout/plans", label: "Workout" },
   { href: "/dashboard/nutrition", label: "Nutrition" },
 ] as const;
 
