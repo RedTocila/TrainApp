@@ -5,6 +5,25 @@ export const runtime = "nodejs";
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 
+/** Prefer GPT-4o Transcribe (better Albanian); override via OPENAI_TRANSCRIBE_MODEL. */
+const PRIMARY_MODEL =
+  process.env.OPENAI_TRANSCRIBE_MODEL?.trim() || "gpt-4o-transcribe";
+const FALLBACK_MODEL = "whisper-1";
+
+function isGptTranscribeModel(model: string): boolean {
+  return model.startsWith("gpt-4o-transcribe") || model.startsWith("gpt-transcribe");
+}
+
+function languagePrompt(language: string | undefined): string | undefined {
+  if (language === "sq") {
+    return "Transcribe in Albanian (shqip). Keep fitness terms natural in Albanian.";
+  }
+  if (language === "en") {
+    return "Transcribe in English. Keep fitness coaching phrasing natural.";
+  }
+  return undefined;
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -46,25 +65,43 @@ export async function POST(request: Request) {
   try {
     const client = getOpenAIClient();
     const extension = pickExtension(audio.type, audio.name);
-    const file = new File([audio], `voice.${extension}`, {
-      type: audio.type || "audio/webm",
-    });
+    const makeFile = () =>
+      new File([audio], `voice.${extension}`, {
+        type: audio.type || "audio/webm",
+      });
 
-    const result = await client.audio.transcriptions.create({
-      file,
-      model: "whisper-1",
-      ...(language ? { language } : {}),
-    });
+    const prompt = languagePrompt(language);
+    const models = [PRIMARY_MODEL];
+    if (PRIMARY_MODEL !== FALLBACK_MODEL) models.push(FALLBACK_MODEL);
 
-    const text = (result.text ?? "").trim();
-    if (!text) {
-      return Response.json(
-        { error: "Couldn't catch that — try again." },
-        { status: 422 }
-      );
+    let lastError: unknown = null;
+    for (const model of models) {
+      try {
+        const result = await client.audio.transcriptions.create({
+          file: makeFile(),
+          model,
+          ...(language ? { language } : {}),
+          ...(prompt ? { prompt } : {}),
+          ...(isGptTranscribeModel(model)
+            ? { response_format: "json" as const }
+            : {}),
+        });
+
+        const text = (result.text ?? "").trim();
+        if (!text) {
+          lastError = new Error("empty transcript");
+          continue;
+        }
+
+        return Response.json({ text });
+      } catch (error) {
+        lastError = error;
+      }
     }
 
-    return Response.json({ text });
+    const msg =
+      lastError instanceof Error ? lastError.message : "Transcription failed";
+    return Response.json({ error: msg }, { status: 500 });
   } catch (error) {
     const msg =
       error instanceof Error ? error.message : "Transcription failed";
