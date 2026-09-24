@@ -147,7 +147,7 @@ export function ActiveHiitClient({
   const finishCtaLabel =
     isWarmup && continuesToMain
       ? platform.workout.finishWarmupNextMain
-      : "Complete workout";
+      : "Complete";
   const doneBannerTitle =
     isWarmup && continuesToMain
       ? platform.workout.finishWarmupBannerTitle

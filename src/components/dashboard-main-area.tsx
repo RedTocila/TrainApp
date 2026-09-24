@@ -11,7 +11,7 @@ import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { TrainSectionShell } from "@/components/train-section-shell";
 import { scrollDashboardMainToTop } from "@/components/dashboard-main-reset";
 import { cn } from "@/lib/utils";
-import { hidesDashboardChrome } from "@/lib/train-nav";
+import { hidesDashboardChrome, isCardioSessionPath } from "@/lib/train-nav";
 
 export function DashboardMainArea({
   children,
@@ -23,9 +23,10 @@ export function DashboardMainArea({
   const isNavigating = pendingHref !== null || routeLoadingCount > 0;
   const showPendingSkeleton =
     pendingHref !== null && routeLoadingCount === 0;
-  const fadeOnly = hidesDashboardChrome(
-    showPendingSkeleton && pendingHref ? pendingHref : pathname
-  );
+  const chromePath =
+    showPendingSkeleton && pendingHref ? pendingHref : pathname;
+  const fadeOnly = hidesDashboardChrome(chromePath);
+  const isCardioSession = isCardioSessionPath(chromePath);
 
   useEffect(() => {
     if (!isNavigating) return;
@@ -37,7 +38,16 @@ export function DashboardMainArea({
       <WorkoutPageChromeProvider>
         <ProgressPhotosPageChromeProvider>
           <DashboardMobileChrome />
-          <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
+          <div
+            className={cn(
+              "px-3 sm:px-4 md:px-6",
+              isCardioSession
+                ? "py-2 sm:py-2 md:py-3"
+                : fadeOnly
+                  ? "pb-3 pt-0 sm:pb-4 md:pb-6"
+                  : "py-3 sm:py-4 md:py-6"
+            )}
+          >
             <TrainSectionShell>
               {showPendingSkeleton ? (
                 <div

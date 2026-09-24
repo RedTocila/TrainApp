@@ -5,6 +5,20 @@ import { formatUserError } from "@/lib/format-user-error";
 
 type AnthropicImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
+/**
+ * Routing tier for cost vs quality:
+ * - cheap: OpenAI mini first (chat, meals, short tasks), Anthropic fallback
+ * - quality: Anthropic Sonnet first (plans, reports), OpenAI fallback
+ */
+export type AiRouteTier = "cheap" | "quality";
+
+type PromptOptions = {
+  maxTokens?: number;
+  json?: boolean;
+  /** Defaults to cheap for text/chat; quality for long plan/report jobs. */
+  tier?: AiRouteTier;
+};
+
 function getTurnImages(message: ChatTurn): ChatImageAttachment[] {
   if (message.images?.length) return message.images;
   if (message.image) return [message.image];
@@ -62,15 +76,40 @@ function toAnthropicMessage(
   return { role: "user", content: parts };
 }
 
-export function getConfiguredProviders(): AiProvider[] {
+function hasProvider(provider: AiProvider): boolean {
+  if (provider === "openai") return Boolean(process.env.OPENAI_API_KEY);
+  return Boolean(process.env.ANTHROPIC_API_KEY);
+}
+
+/**
+ * Ordered provider list. Tier overrides AI_MEAL_PROVIDER when both keys exist.
+ * AI_MEAL_PROVIDER still sets default order when tier is omitted (legacy).
+ */
+export function getConfiguredProviders(tier?: AiRouteTier): AiProvider[] {
+  const openaiOk = hasProvider("openai");
+  const anthropicOk = hasProvider("anthropic");
+
+  if (tier === "cheap") {
+    return [
+      ...(openaiOk ? (["openai"] as const) : []),
+      ...(anthropicOk ? (["anthropic"] as const) : []),
+    ];
+  }
+  if (tier === "quality") {
+    return [
+      ...(anthropicOk ? (["anthropic"] as const) : []),
+      ...(openaiOk ? (["openai"] as const) : []),
+    ];
+  }
+
   const preferred = (process.env.AI_MEAL_PROVIDER ?? "openai") as AiProvider;
   const other: AiProvider = preferred === "openai" ? "anthropic" : "openai";
   const providers: AiProvider[] = [];
 
-  if (preferred === "openai" && process.env.OPENAI_API_KEY) providers.push("openai");
-  if (preferred === "anthropic" && process.env.ANTHROPIC_API_KEY) providers.push("anthropic");
-  if (other === "openai" && process.env.OPENAI_API_KEY) providers.push("openai");
-  if (other === "anthropic" && process.env.ANTHROPIC_API_KEY) providers.push("anthropic");
+  if (preferred === "openai" && openaiOk) providers.push("openai");
+  if (preferred === "anthropic" && anthropicOk) providers.push("anthropic");
+  if (other === "openai" && openaiOk) providers.push("openai");
+  if (other === "anthropic" && anthropicOk) providers.push("anthropic");
 
   return [...new Set(providers)];
 }
@@ -95,9 +134,10 @@ export function getAnthropicClient(): Anthropic {
 
 export async function runTextPrompt(
   prompt: string,
-  options?: { maxTokens?: number; json?: boolean }
+  options?: PromptOptions
 ): Promise<string> {
-  const providers = getConfiguredProviders();
+  const tier = options?.tier ?? "cheap";
+  const providers = getConfiguredProviders(tier);
   if (providers.length === 0) {
     throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
   }
@@ -141,9 +181,10 @@ export async function runTextPrompt(
 
 export async function runChatCompletion(
   messages: ChatTurn[],
-  options?: { maxTokens?: number }
+  options?: { maxTokens?: number; tier?: AiRouteTier }
 ): Promise<string> {
-  const providers = getConfiguredProviders();
+  const tier = options?.tier ?? "cheap";
+  const providers = getConfiguredProviders(tier);
   if (providers.length === 0) {
     throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
   }
@@ -190,9 +231,10 @@ export async function runChatCompletion(
 
 export async function* streamChatCompletion(
   messages: ChatTurn[],
-  options?: { maxTokens?: number; signal?: AbortSignal }
+  options?: { maxTokens?: number; signal?: AbortSignal; tier?: AiRouteTier }
 ): AsyncGenerator<string> {
-  const providers = getConfiguredProviders();
+  const tier = options?.tier ?? "cheap";
+  const providers = getConfiguredProviders(tier);
   if (providers.length === 0) {
     throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
   }
@@ -254,9 +296,11 @@ export async function runVisionPrompt(
   prompt: string,
   imageBase64: string,
   mimeType: string,
-  options?: { maxTokens?: number; imageDetail?: "low" | "high" | "auto" }
+  options?: { maxTokens?: number; imageDetail?: "low" | "high" | "auto"; tier?: AiRouteTier }
 ): Promise<string> {
-  const providers = getConfiguredProviders();
+  // Vision stays on OpenAI gpt-4o by default (cheap tier); Anthropic is fallback.
+  const tier = options?.tier ?? "cheap";
+  const providers = getConfiguredProviders(tier);
   if (providers.length === 0) {
     throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
   }

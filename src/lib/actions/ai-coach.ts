@@ -110,7 +110,7 @@ Respond with ONLY JSON:
   "concerns": ["what slowed progress"],
   "recommendations": ["actionable next steps"]
 }`,
-        { maxTokens: 900, json: true }
+        { maxTokens: 900, json: true, tier: "quality" }
       );
       const parsed = parseJsonObject<{
         summary?: string;

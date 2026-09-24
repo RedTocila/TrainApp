@@ -3,6 +3,10 @@ import { summarizeActivePlans } from "@/lib/ai/coach-chat-plans";
 import { buildCoachingPriorityRules } from "@/lib/ai/daily-progress-context";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import {
+  looksLikeSingleSessionRequest,
+  looksLikeWeekPlanRequest,
+} from "@/lib/ai/infer-workout-kind";
+import {
   buildProgressPhotoVisionPrompt,
   loadProgressPhotosForChat,
 } from "@/lib/ai/progress-photo-chat-images";
@@ -176,18 +180,19 @@ CRITICAL — Workout vs Plan (pick the right shape before calling generate_worko
   → days_per_week=1, include_warmup_stretch=false, workout_kind strength or hiit as appropriate.
   → Title like "Push Day". Put ALL exercises in that one day — NEVER split one session's lifts across Mon/Tue/Thu/Fri.
   → Apply saves under Workouts, not Plans.
-- PLAN / WEEK (Plans tab) = a weekly template that assigns DISTINCT workouts to weekdays. Examples: "4-day split", "PPL week", "build me a program", "3 training days per week", "hypertrophy week".
-  → days_per_week = number of distinct training days (2–6), include_warmup_stretch=true (unless they want mains only).
+- PLAN (Plans tab) = a FULL WEEK schedule with DISTINCT workouts on training weekdays (warm-up + main + stretch unless they want mains only). Examples: "make me a plan", "workout plan", "training plan", "build me a program", "4-day split", "PPL week", "3 training days per week", "hypertrophy week".
+  → If they say plan / workout plan / program / week / split → ALWAYS a week schedule. NEVER days_per_week=1. NEVER create only one workout.
+  → days_per_week = number of distinct training days (2–6; use what they said, else profile training days, else 3–4), include_warmup_stretch=true (unless they want mains only).
   → Each day is a full workout focus (e.g. Upper Push, Pull, Legs) with 4–8 exercises — NOT one exercise per weekday.
-  → Apply saves a week template under Plans.
-- Never turn a single-session request into a multi-day plan by inventing weekdays from their profile. Profile training-days only apply when they asked for a week/program/split.
+  → Apply saves a week template under Plans (and single-day workouts under Workouts).
+- Never turn a single-session request into a multi-day plan by inventing weekdays from their profile. Profile training-days only apply when they asked for a plan/week/program/split.
 
 Workout format mapping (workout_kind — sets/reps vs interval timer only):
   - "strength" (sets × reps, default): strength, hypertrophy, powerlifting, calisthenics, functional, kettlebell, bodybuilding, weekly splits, or sets-and-reps sessions.
   - "hiit" (interval timer): HIIT, Tabata, timed circuits, EMOM, AMRAP, for-time / metcon / CrossFit WOD.
   - Warm-up / stretch / mobility / yoga / pilates alone → those session kinds (not a multi-day week). Pure cardio → point them at Cardio.
-- For WEEK plans: set schedule_weeks (default 4) and schedule_weekdays only when they named days; if omitted, the tool picks defaults — tell them which days. Never generate a 1-day week when they asked for multiple training days.
-- After generating a WEEK, state the schedule plainly. After a single WORKOUT, say it saved as a workout (they can schedule it later) — do not invent a full week schedule unless they asked.
+- For WEEK / PLAN requests: set schedule_weeks (default 4) and schedule_weekdays only when they named days; if omitted, the tool picks defaults — tell them which days. Never generate a 1-day week when they asked for a plan or multiple training days.
+- After generating a WEEK/PLAN, state the schedule plainly. After a single WORKOUT, say it saved as a workout (they can schedule it later) — do not invent a full week schedule unless they asked for a plan/week/program.
 - Surgical workout edits (prefer these over full regenerate when possible):
   - remove_workout_exercise: "remove exercise 3", "remove squats" (day_number + exercise_number are 1-based).
   - add_workout_exercise: "add push-ups", "add one shoulder exercise".
@@ -221,18 +226,18 @@ Chat mode: ACT (manage platform)
 - Prefer doing actions via tools over telling them to navigate the UI manually.
 
 Clarify before building:
-- Prefer building over endless questions — but FIRST decide Workout vs Plan (see above). Do not auto-upgrade a single session into a week.
-- Single-session requests ("push day", "leg day", "a HIIT workout"): days_per_week=1, include_warmup_stretch=false. Do NOT use profile training-days to invent a week.
-- Week/program requests without weekdays: call generate_workout_plan with smart week defaults — do NOT block waiting for Mon/Wed/Fri answers.
-- Week defaults when they asked for a week/program/split and omitted details:
-  1. days_per_week — what they said, else their profile training days, else 3–4.
+- Prefer building over endless questions — but FIRST decide Workout vs Plan (see above). Do not auto-upgrade a single session into a week — and do not downgrade "plan" into one workout.
+- Single-session requests ("push day", "leg day", "a HIIT workout", "make me a workout"): days_per_week=1, include_warmup_stretch=false. Do NOT use profile training-days to invent a week.
+- Plan / week / program requests (including just "make me a plan" or "workout plan") without weekdays: call generate_workout_plan with days_per_week=2–6 and include_warmup_stretch=true — do NOT block waiting for Mon/Wed/Fri answers, and NEVER use days_per_week=1.
+- Week defaults when they asked for a plan/week/program/split and omitted details:
+  1. days_per_week — what they said, else their profile training days, else 3–4 (always ≥2 for a plan).
   2. schedule_weekdays — OMIT so the tool picks: 2→Mon/Thu, 3→Mon/Wed/Fri, 4→Mon/Tue/Thu/Fri, 5→Mon–Fri. Tell them the chosen days.
   3. schedule_weeks — default 4 if they did not say.
   4. include_warmup_stretch — true unless they want mains only.
 - Only ask 1 short clarifying question when truly vague (e.g. "make me something" with no goal and unclear if one workout vs a week) OR when weekdays/days conflict.
 - If they named days ("Mon Tue Fri"), that implies a WEEK plan — pass schedule_weekdays and generate immediately.
-- Example: "build me a push day" → days_per_week=1, include_warmup_stretch=false (one workout, many exercises).
-- Example: "build me a 3-day week" with no weekdays → days_per_week=3, include_warmup_stretch=true, omit schedule_weekdays, then say "Mon/Wed/Fri for 4 weeks — change anytime."
+- Example: "build me a push day" / "make me a workout" → days_per_week=1, include_warmup_stretch=false (one workout, many exercises).
+- Example: "make me a plan" / "workout plan" / "build me a 3-day week" → days_per_week=3–4 (or what they said), include_warmup_stretch=true, omit schedule_weekdays, then say "Mon/Wed/Fri for 4 weeks — change anytime."
 - Soft actions (run immediately, no confirm): log_meal, log_weight, log_water, complete_habit, add_habit, update_habit, update_macros, update_water_goal, update_profile_settings, navigate_to, add_cardio, start_workout, start_cardio.
 - When they say they drank water / ate something / weighed themselves / finished a habit, call the matching log tool in the same turn — never only describe how to log manually.
 - Profile & targets: update_macros for daily calories/macros; update_water_goal for ml/day; update_profile_settings for name/phone/goal/language(en|al)/units(metric|imperial).
@@ -336,6 +341,20 @@ function buildQuickCoachActionHint(message: string): string {
   }
   if (/\b(complete|done|finished|check off)\b/.test(m) && /\bhabit\b/.test(m)) {
     return "\n\n[Instruction: User wants a habit marked complete — use list_today_habits if needed, then complete_habit.]";
+  }
+
+  // Plan vs single workout — must run before the model picks days_per_week.
+  const nutritionPlan =
+    /\b(nutrition|meal|diet|food)\s+plan\b|\bmeal\s+plan\b|\bplan\s+(nutrition|ushqim|meal|diet)\b/i.test(
+      m
+    );
+  if (!nutritionPlan) {
+    if (looksLikeWeekPlanRequest(m)) {
+      return "\n\n[Instruction: User asked for a PLAN = full week training schedule under Plans (multiple distinct workout days), NOT one workout. Call generate_workout_plan with days_per_week=2–6 (their count, else profile training days, else 3–4), include_warmup_stretch=true. Never use days_per_week=1 for \"plan\".]";
+    }
+    if (looksLikeSingleSessionRequest(m)) {
+      return "\n\n[Instruction: User asked for ONE workout/session — call generate_workout_plan with days_per_week=1, include_warmup_stretch=false. Do not expand into a week.]";
+    }
   }
   return "";
 }

@@ -812,7 +812,7 @@ export function ActiveWorkoutClient({
     platform.workout.fallbackTitle;
 
   return (
-    <div className="mx-auto flex min-h-[calc(100dvh-2rem)] max-w-lg flex-col gap-4 pb-[max(1rem,var(--safe-area-bottom))] pt-2">
+    <div className="mx-auto flex min-h-[calc(100dvh-2rem)] max-w-lg flex-col gap-4 pb-[max(1rem,var(--safe-area-bottom))] pt-[max(0.5rem,var(--safe-area-top))] lg:pt-2">
       <SessionTopBar
         title={headerTitle}
         subtitle={

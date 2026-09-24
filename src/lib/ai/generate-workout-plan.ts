@@ -371,7 +371,7 @@ Respond with ONLY valid JSON:
   "coach_notes": ["2-4 short coaching tips for this client", "not-a-doctor disclaimer"]
 }`;
 
-  const raw = await runTextPrompt(prompt, { maxTokens: 2500, json: true });
+  const raw = await runTextPrompt(prompt, { maxTokens: 2500, json: true, tier: "quality" });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutPlan;
   const normalized = normalizeWorkoutPlan(
     parsed,
@@ -494,7 +494,7 @@ Respond with ONLY valid JSON:
   "coach_notes": ["2-4 short coaching tips for this HIIT session", "not-a-doctor disclaimer"]
 }`;
 
-  const raw = await runTextPrompt(prompt, { maxTokens: 2000, json: true });
+  const raw = await runTextPrompt(prompt, { maxTokens: 2000, json: true, tier: "quality" });
   const parsed = parseJsonObject(raw) as Parameters<typeof normalizeAiHiitPlan>[0];
   const normalized = normalizeAiHiitPlan(parsed, profile.preferred_locale);
   if (!normalized) {
@@ -711,7 +711,7 @@ Respond with ONLY valid JSON:
   "coach_notes": ["1-2 short tips for the whole day", "not-a-doctor disclaimer"]
 }`;
 
-  const raw = await runTextPrompt(aiPrompt, { maxTokens: 3200, json: true });
+  const raw = await runTextPrompt(aiPrompt, { maxTokens: 3200, json: true, tier: "quality" });
   const parsed = parseJsonObject(raw) as {
     warmup?: Parameters<typeof normalizeAiHiitPlan>[0];
     stretch?: Parameters<typeof normalizeAiHiitPlan>[0];
@@ -889,7 +889,7 @@ Respond with ONLY valid JSON:
   "coach_notes": ["1-3 short coaching tips for this session", "not-a-doctor disclaimer"]
 }`;
 
-  const raw = await runTextPrompt(aiPrompt, { maxTokens: 1800, json: true });
+  const raw = await runTextPrompt(aiPrompt, { maxTokens: 1800, json: true, tier: "quality" });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutDay;
   const normalized = normalizeWorkoutDay(parsed, profile.preferred_locale);
   const enforced = enforceStrengthDay(normalized, ctx);
@@ -985,7 +985,7 @@ Respond with ONLY valid JSON:
   "coach_notes": ["1-2 short tips", "not-a-doctor disclaimer"]
 }`;
 
-  const raw = await runTextPrompt(aiPrompt, { maxTokens: 1600, json: true });
+  const raw = await runTextPrompt(aiPrompt, { maxTokens: 1600, json: true, tier: "quality" });
   const parsed = parseJsonObject(raw) as Parameters<typeof normalizeAiHiitPlan>[0];
   const normalized = normalizeAiHiitPlan(
     {

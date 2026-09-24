@@ -400,6 +400,8 @@ export const platformCopyAl = {
       }. Më thuaj shkurt çfarë shkoi keq dhe si ta rregulloj herën tjetër.`,
     dayOverageAskAlex: (summary: string) =>
       `Sot kalova makrot (${summary}). Më thuaj shkurt çfarë shkoi keq dhe çfarë të ndryshoj nesër.`,
+    statusAskAlex: (params: { title: string; message: string }) =>
+      `Statusi im i ushqimit sot është "${params.title}". Shënimi i coach-it: ${params.message} Më thuaj shkurt si të kthehem në objektiv sot.`,
     overageExplanation: (params: {
       meal: string;
       amount: number;
@@ -1232,6 +1234,9 @@ export const platformCopyAl = {
     fullCalendar: "Kalendari i plotë",
     fullCalendarTitle: "Kalendari i plotë",
     tapDayHint: "Trokit një ditë për të parë detyrat më poshtë",
+    viewMonth: "Muaji",
+    viewWeeks: "Javët",
+    viewModeAria: "Pamja e kalendarit",
     closeCalendar: "Mbyll kalendarin",
     previousMonth: "Muaji i kaluar",
     nextMonth: "Muaji i ardhshëm",

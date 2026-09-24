@@ -76,22 +76,65 @@ export function inferAiMainWorkoutKind(
   return "hiit";
 }
 
-/**
- * True when preferences clearly mean ONE workout session (Workouts tab),
- * not a multi-day week plan (Plans tab). Explicit week/program language wins.
- */
-export function looksLikeSingleSessionRequest(preferences?: string): boolean {
-  const text = (preferences ?? "")
+function normalizePreferenceText(preferences?: string): string {
+  return (preferences ?? "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{M}/gu, "");
-  if (!text.trim()) return false;
+}
 
-  const wantsWeek =
-    /\b(\d+\s*[\-]?\s*(day|days)\s+(week|split|program|routine)|full\s+week|weekly\s+(plan|program|split)|week\s+plan|training\s+days|days?\s+per\s+week|ppl\b|push[\s/]+pull[\s/]+legs|program|split\s+(week|routine)|stervitje\s+javor|plan\s+javor)\b/i.test(
+/** Nutrition / meal plans are not workout week templates. */
+function looksLikeNutritionPlanOnly(text: string): boolean {
+  if (
+    !/\b(nutrition|meal|diet|food|macro|kalor|ushqim)\b/i.test(text) &&
+    !/\b(plan|program)\s+(nutrition|meal|diet|ushqimi)\b/i.test(text)
+  ) {
+    return false;
+  }
+  return !/\b(workout|training|stervit|strength|gym|hypertrophy|hiit|split)\b/i.test(
+    text
+  );
+}
+
+/**
+ * True when the request means a full WEEK schedule under Plans
+ * (multiple training days on a calendar), not one library workout.
+ * The word "plan" / "workout plan" counts as a week unless it's clearly
+ * a single session ("push day") or a nutrition/meal plan.
+ */
+export function looksLikeWeekPlanRequest(preferences?: string): boolean {
+  const text = normalizePreferenceText(preferences);
+  if (!text.trim() || looksLikeNutritionPlanOnly(text)) return false;
+
+  // Named focus day without week language → single session, not a plan.
+  const hasDayFocus =
+    /\b(push\s*day|pull\s*day|leg\s*day|legs?\s*day|upper(\s*body)?(\s*day)?|lower(\s*body)?(\s*day)?|chest\s*day|back\s*day|arm\s*day|shoulder\s*day|dite\s+push|dite\s+pull|dite\s+kembesh)\b/i.test(
       text
     );
-  if (wantsWeek) return false;
+  const hasStrongWeekLanguage =
+    /\b(\d+\s*[\-]?\s*(day|days)\s+(week|split|program|routine|plan)|full\s+week|weekly\s+(plan|program|split|routine|schedule)|week\s+(plan|program|template|schedule)|training\s+days|days?\s+per\s+week|ppl\b|push[\s/]+pull[\s/]+legs|program|split\s+(week|routine)|stervitje\s+javor|plan\s+javor)\b/i.test(
+      text
+    );
+  if (hasDayFocus && !hasStrongWeekLanguage) return false;
+
+  if (hasStrongWeekLanguage) return true;
+
+  // Noun "plan" / "workout plan" / "make me a plan" → full week schedule.
+  // Avoid the verb "I plan to…" (no article / create verb before plan).
+  return /\b((workout|training|strength|hypertrophy|gym)\s+plans?|(make|build|create|generate|give|design|need|want)\s+(me\s+)?(a\s+|nje\s+)?(new\s+)?(workout\s+|training\s+)?plans?|(a|my|new|full|nje)\s+(workout\s+|training\s+)?plans?)\b/i.test(
+    text
+  );
+}
+
+/**
+ * True when preferences clearly mean ONE workout session (Workouts tab),
+ * not a multi-day week plan (Plans tab). Explicit week/program/"plan" language wins.
+ */
+export function looksLikeSingleSessionRequest(preferences?: string): boolean {
+  const text = normalizePreferenceText(preferences);
+  if (!text.trim()) return false;
+
+  if (looksLikeWeekPlanRequest(text)) return false;
 
   return /\b(push\s*day|pull\s*day|leg\s*day|legs?\s*day|upper(\s*body)?(\s*day)?|lower(\s*body)?(\s*day)?|chest\s*day|back\s*day|arm\s*day|shoulder\s*day|a\s+(workout|session)|one\s+(workout|session)|single\s+(workout|session)|hiit\s+(session|workout)|tabata\s+(session|workout)|dite\s+push|dite\s+pull|dite\s+kembesh)\b/i.test(
     text

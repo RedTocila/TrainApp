@@ -24,7 +24,7 @@ import type {
 } from "@/lib/ai/plan-builder-types";
 import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import { saveWorkoutDay } from "@/lib/actions/plans";
-import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan, addWorkoutToDay, getPersonalWorkoutPlanWithDetails } from "@/lib/actions/user-workouts";
+import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan, addWorkoutToDay, getPersonalWorkoutPlanWithDetails, createPersonalWeekPlan } from "@/lib/actions/user-workouts";
 import { savePersonalHiitPlan } from "@/lib/actions/user-hiit";
 import { scheduleWorkoutPlanDays } from "@/lib/actions/coach-commands";
 import { scheduleNutritionSeries } from "@/lib/actions/user-nutrition-schedule";
@@ -510,6 +510,11 @@ export async function applyAiWorkoutPlanAction(
 
   if (!plan.days?.length) return { error: "No workout days to apply" };
 
+  // Multi-day splits belong under Plans (week template + single-day workouts).
+  if (plan.days.length >= 2) {
+    return applyMultiDayStrengthAsWeekPlan(plan);
+  }
+
   const planFp = fingerprintStrengthPlan(
     plan.title,
     plan.days.map((d) => ({ title: d.title, exercises: d.exercises }))
@@ -578,6 +583,70 @@ export async function applyAiWorkoutPlanAction(
   revalidatePath("/dashboard/ai/plans/workout");
   revalidatePath("/dashboard");
   return { planId };
+}
+
+/** Save a multi-day split as single-day Workouts + a Plans week template. */
+async function applyMultiDayStrengthAsWeekPlan(
+  plan: AiGeneratedWorkoutPlan
+): Promise<{ planId: string } | { error: string }> {
+  const access = await requireAiPlanBuilder();
+  if (!access.success) return { error: access.error };
+
+  const weekdays = defaultWeekdaysForCount(plan.days.length);
+  const dayRefs: {
+    weekday: number;
+    mainPlanId: string;
+    mainDayId: string;
+    focus: string;
+  }[] = [];
+
+  for (let i = 0; i < plan.days.length; i++) {
+    const day = plan.days[i]!;
+    const title = day.title?.trim() || `Day ${i + 1}`;
+    const created = await createPersonalWorkoutPlan(
+      title,
+      plan.description?.trim() || `Part of ${plan.title} · AI Coach`
+    );
+    if (created.error || !created.data) {
+      return { error: created.error ?? `Could not create workout for ${title}` };
+    }
+    const dayPlanId = created.data.id as string;
+    const saved = await saveWorkoutDay(dayPlanId, 0, title, day.exercises);
+    if (saved.error) return { error: saved.error };
+
+    const details = await getPersonalWorkoutPlanWithDetails(dayPlanId);
+    const dayId = details.days[0]?.id;
+    if (!dayId) return { error: `Missing day after saving ${title}` };
+
+    dayRefs.push({
+      weekday: weekdays[i] ?? weekdays[weekdays.length - 1] ?? 1,
+      mainPlanId: dayPlanId,
+      mainDayId: dayId as string,
+      focus: title,
+    });
+  }
+
+  const week = await createPersonalWeekPlan({
+    title: plan.title,
+    description:
+      plan.description?.trim() ||
+      `AI Coach · ${plan.days.length} training days`,
+    days: dayRefs,
+  });
+  if ("error" in week || !("id" in week) || !week.id) {
+    return {
+      error:
+        ("error" in week ? week.error : null) ?? "Could not create week plan",
+    };
+  }
+
+  await consumeAiPlanApply(access.profile, "workout");
+
+  revalidatePath("/dashboard/workout");
+  revalidatePath("/dashboard/workout/plans");
+  revalidatePath("/dashboard/ai/plans/workout");
+  revalidatePath("/dashboard");
+  return { planId: week.id };
 }
 
 export async function applyAiNutritionPlanAction(
@@ -691,12 +760,16 @@ export async function applyChatPlanPreviewAction(
   }
 
   if (type === "workout") {
-    const result = await applyAiWorkoutPlanAction(plan as AiWorkoutPlanResult);
+    const workoutPlan = plan as AiWorkoutPlanResult;
+    const result = await applyAiWorkoutPlanAction(workoutPlan);
     if ("error" in result) return result;
+
+    const isMultiDay =
+      !isAiHiitPlan(workoutPlan) && workoutPlan.days.length >= 2;
 
     let scheduledCount = 0;
     const weeks = schedule?.weeks ?? 4;
-    if (schedule) {
+    if (schedule && !isMultiDay) {
       const scheduled = await scheduleWorkoutPlanDays({
         planId: result.planId,
         weeks,
@@ -713,7 +786,9 @@ export async function applyChatPlanPreviewAction(
 
     return {
       planId: result.planId,
-      editPath: `/dashboard/workout/${result.planId}/edit`,
+      editPath: isMultiDay
+        ? "/dashboard/workout/plans"
+        : `/dashboard/workout/${result.planId}/edit`,
       scheduledCount,
       weeks,
     };
@@ -780,78 +855,6 @@ export async function applyWeeklyFullProgramAction(
   if ("error" in createAccess) return { error: createAccess.error };
   const { admin, userId } = createAccess;
 
-  // Build a library multi-day plan from mains (strength days only for edit UI).
-  const strengthDays = program.days.flatMap((d) => {
-    if (d.main.kind !== "strength") return [];
-    return [
-      {
-        title: d.focus || d.main.workout.title,
-        exercises: d.main.workout.exercises,
-      },
-    ];
-  });
-
-  let libraryPlanId: string | null = null;
-  if (strengthDays.length > 0) {
-    const programFp = fingerprintStrengthPlan(program.title, strengthDays);
-    if (programFp) {
-      const { data: candidates } = await admin
-        .from("workout_plans")
-        .select("id")
-        .eq("created_by", userId)
-        .eq("is_personal", true)
-        .eq("kind", "strength")
-        .order("created_at", { ascending: false })
-        .limit(40);
-      for (const row of candidates ?? []) {
-        const details = await getPersonalWorkoutPlanWithDetails(row.id as string);
-        if (!details.plan || details.days.length !== strengthDays.length) {
-          continue;
-        }
-        const existingFp = fingerprintStrengthPlan(
-          String(details.plan.title ?? ""),
-          details.days.map((d) => ({
-            title: String(d.title ?? ""),
-            exercises: (
-              (d.exercises as {
-                name: string;
-                sets: number | null;
-                reps: string | null;
-                rest_seconds: number | null;
-                order_index?: number | null;
-              }[]) ?? []
-            )
-              .slice()
-              .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
-          }))
-        );
-        if (existingFp && existingFp === programFp) {
-          libraryPlanId = row.id as string;
-          break;
-        }
-      }
-    }
-
-    if (!libraryPlanId) {
-      const created = await createPersonalWorkoutPlan(
-        program.title,
-        program.description || `AI Coach · ${program.days.length} days/week`
-      );
-      if (created.error || !created.data) {
-        return { error: created.error ?? "Could not create workout plan" };
-      }
-      const planId = created.data.id;
-      libraryPlanId = planId;
-      for (let i = 0; i < strengthDays.length; i++) {
-        const day = strengthDays[i]!;
-        const saved = await saveWorkoutDay(planId, i, day.title, day.exercises);
-        if (saved.error) return { error: saved.error };
-      }
-      const assigned = await assignPersonalWorkoutPlan(planId);
-      if (assigned.error) return { error: assigned.error };
-    }
-  }
-
   const weeks = Math.min(52, Math.max(1, Math.round(schedule.weeks) || 4));
   const weekdays =
     schedule.weekdays.length > 0
@@ -886,7 +889,8 @@ export async function applyWeeklyFullProgramAction(
       : ["strength", "hiit"]
   );
 
-  // Create each unique day template once, then reuse across all weeks.
+  // Create each unique day template once (single-day Workouts), then reuse
+  // across weeks. The week template below is what appears under Plans.
   type SlotRef = { planId: string; dayId: string };
   type PreparedSlot = {
     warmup?: SlotRef;
@@ -894,10 +898,6 @@ export async function applyWeeklyFullProgramAction(
     stretch?: SlotRef;
   };
 
-  const libraryDays = libraryPlanId
-    ? (await getPersonalWorkoutPlanWithDetails(libraryPlanId)).days
-    : [];
-  let libraryDayCursor = 0;
   const prepared: PreparedSlot[] = [];
 
   for (let i = 0; i < slotCount; i++) {
@@ -922,20 +922,14 @@ export async function applyWeeklyFullProgramAction(
       slot.warmup = { planId: warmup.data.id, dayId: warmup.data.dayId };
     }
 
-    if (dayProgram.main.kind === "strength" && libraryPlanId) {
-      const libDay = libraryDays[libraryDayCursor++];
-      if (!libDay?.id) {
-        return { error: "Library workout day missing for main session" };
-      }
-      slot.main = { planId: libraryPlanId, dayId: libDay.id as string };
-    } else if (dayProgram.main.kind === "hiit") {
+    if (dayProgram.main.kind === "hiit") {
       const hiit = await savePersonalHiitPlan({
         title: dayProgram.main.plan.title,
         description:
           dayProgram.main.plan.description?.trim() ||
           "AI Coach · HIIT · weekly template",
         config: dayProgram.main.plan.config,
-        assign: !libraryPlanId,
+        assign: true,
         kind: "hiit",
       });
       if (hiit.error || !hiit.data) {
@@ -943,7 +937,6 @@ export async function applyWeeklyFullProgramAction(
       }
       slot.main = { planId: hiit.data.id, dayId: hiit.data.dayId };
     }
-    // Strength without multi-day library is filled in the next pass.
 
     if (program.includeExtras) {
       const stretch = await savePersonalHiitPlan({
@@ -964,10 +957,10 @@ export async function applyWeeklyFullProgramAction(
     prepared.push(slot);
   }
 
-  // Fix strength-without-library mains: create templates without scheduling.
+  // Create single-day strength mains for each training day.
   for (let i = 0; i < slotCount; i++) {
     const dayProgram = program.days[i]!;
-    if (dayProgram.main.kind !== "strength" || libraryPlanId) continue;
+    if (dayProgram.main.kind !== "strength") continue;
     if (prepared[i]!.main.planId) continue;
 
     const workout = dayProgram.main.workout;
@@ -1178,12 +1171,10 @@ export async function applyWeeklyFullProgramAction(
   revalidatePath("/dashboard/ai/plans/workout");
 
   return {
-    planId: weekPlanId ?? libraryPlanId ?? prepared[0]?.main.planId ?? "calendar",
+    planId: weekPlanId ?? prepared[0]?.main.planId ?? "calendar",
     editPath: weekPlanId
       ? "/dashboard/workout/plans"
-      : libraryPlanId
-        ? `/dashboard/workout/${libraryPlanId}/edit`
-        : "/dashboard/workout",
+      : "/dashboard/workout",
     scheduledCount,
   };
 }

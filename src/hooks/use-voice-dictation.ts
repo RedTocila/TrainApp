@@ -47,6 +47,11 @@ function whisperLang(locale: string): string | undefined {
   return locale === "al" ? "sq" : "en";
 }
 
+/** Chrome Web Speech rarely understands Albanian; use Whisper instead. */
+function preferWhisper(locale: string): boolean {
+  return locale === "al";
+}
+
 function pickRecorderMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
   const candidates = [
@@ -519,7 +524,11 @@ export function useVoiceDictation({
         return;
       }
 
-      if (getSpeechRecognitionCtor() && !speechFailedRef.current) {
+      if (
+        !preferWhisper(locale) &&
+        getSpeechRecognitionCtor() &&
+        !speechFailedRef.current
+      ) {
         await startSpeech(stream);
       } else {
         await startRecording(stream);
@@ -527,6 +536,7 @@ export function useVoiceDictation({
     })();
   }, [
     enabled,
+    locale,
     onError,
     permissionMessage,
     startRecording,

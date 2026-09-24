@@ -78,6 +78,10 @@ export async function runCoachChatWithTools(
   const tools = getCoachChatToolsForMode(mode);
   const client = getOpenAIClient();
   const conversation = messages.map(toOpenAIMessage);
+  const latestUserMessage = [...messages]
+    .reverse()
+    .find((m) => m.role === "user")
+    ?.content;
   let planPreview: ChatPlanPreview | undefined;
   const richBlocks: CoachChatRichBlock[] = [];
   const pendingActions: CoachPendingAction[] = [];
@@ -158,7 +162,8 @@ export async function runCoachChatWithTools(
           toolCall.arguments,
           profile,
           onEvent,
-          mode
+          mode,
+          latestUserMessage
         );
         if (preview) planPreview = preview;
         if (blocks?.length) richBlocks.push(...blocks);

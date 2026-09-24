@@ -82,7 +82,7 @@ Rules:
 - Match the client's goal and available days. No explanations.
 
 Respond with ONLY JSON: { "title": "plan name", "description": "1 sentence", "focuses": ["...", "..."], "coach_notes": ["tip"] }`,
-        { maxTokens: 400, json: true }
+        { maxTokens: 400, json: true, tier: "quality" }
       );
       const parsed = parseJsonObject<{
         title?: string;

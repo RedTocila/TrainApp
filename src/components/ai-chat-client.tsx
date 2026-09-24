@@ -398,7 +398,9 @@ function ChatCommandBar({
           "chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 border border-border/70 bg-secondary/60 p-1.5 pl-2 shadow-sm backdrop-blur-sm transition-[border-radius,box-shadow,border-color] duration-200",
           isMultiline ? "rounded-2xl items-end" : "rounded-full",
           voice.isActive
-            ? "overflow-visible border-primary/50 shadow-[0_0_0_1px_rgba(var(--primary-rgb),0.18),0_0_18px_rgba(var(--primary-rgb),0.22)]"
+            ? isAct
+              ? "overflow-visible border-red-500/50 shadow-[0_0_0_1px_rgba(220,38,38,0.18),0_0_18px_rgba(220,38,38,0.22)]"
+              : "overflow-visible border-emerald-500/50 shadow-[0_0_0_1px_rgba(16,185,129,0.18),0_0_18px_rgba(16,185,129,0.22)]"
             : "overflow-hidden"
         )}
       >
@@ -446,7 +448,10 @@ function ChatCommandBar({
           />
           {voice.isActive ? (
             <span
-              className="chat-voice-bars pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-primary"
+              className={cn(
+                "chat-voice-bars pointer-events-none absolute right-1 top-1/2 -translate-y-1/2",
+                isAct ? "text-red-500" : "text-emerald-500"
+              )}
               aria-hidden
             >
               <span />

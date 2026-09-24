@@ -211,11 +211,12 @@ export function MealAnalysisSummary({
   return (
     <div className="space-y-4">
       {imageUrl && (
-        <div className="overflow-hidden rounded-2xl border border-border bg-secondary/20">
+        <div className="relative mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-secondary/20">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageUrl}
             alt={platform.mealLog.mealPreview}
-            className="mx-auto h-auto max-h-[min(60vh,28rem)] w-full object-contain"
+            className="absolute inset-0 h-full w-full object-cover"
           />
         </div>
       )}

@@ -136,7 +136,7 @@ Respond with ONLY valid JSON:
   "coach_notes": ["2-4 practical nutrition tips", "not-a-doctor disclaimer"]
 }`;
 
-  const raw = await runTextPrompt(prompt, { maxTokens: 2800, json: true });
+  const raw = await runTextPrompt(prompt, { maxTokens: 2800, json: true, tier: "quality" });
   const parsed = parseJsonObject(raw) as unknown as AiGeneratedNutritionPlan;
   return normalizeNutritionPlan(parsed, profile.preferred_locale);
 }

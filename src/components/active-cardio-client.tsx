@@ -212,7 +212,14 @@ export function ActiveCardioClient({
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-5rem)] max-w-2xl flex-col gap-3 overflow-hidden pb-[max(0.5rem,var(--safe-area-bottom))] lg:h-[calc(100dvh-3rem)]">
+    <div
+      className={cn(
+        "mx-auto flex max-w-2xl flex-col gap-2 overflow-hidden",
+        // Mobile chrome (safe area + Cardio header + py) + main-area padding.
+        "h-[calc(100dvh-var(--dashboard-mobile-header-height)-2rem)] max-h-[calc(100dvh-var(--dashboard-mobile-header-height)-2rem)]",
+        "pb-[max(0.25rem,var(--safe-area-bottom))] lg:h-[calc(100dvh-3rem)] lg:max-h-[calc(100dvh-3rem)]"
+      )}
+    >
       <div className="hidden shrink-0 lg:block">
         <Link href="/dashboard">
           <Button variant="ghost" size="sm" className="-ml-2 h-9 w-fit px-2">
@@ -224,23 +231,23 @@ export function ActiveCardioClient({
 
       {hydrated ? (
         <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-orange-500/25 bg-gradient-to-b from-orange-500/15 via-orange-500/[0.06] to-transparent">
-          <CardContent className="flex min-h-0 flex-1 flex-col gap-4 px-4 py-4">
-            <div className="flex min-w-0 shrink-0 items-center gap-3">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 py-3 sm:gap-3 sm:px-4 sm:py-4">
+            <div className="flex min-w-0 shrink-0 items-center gap-2.5">
               <div
                 className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10",
                   iconBg
                 )}
               >
-                <Icon className={cn("h-5 w-5", iconAccent)} />
+                <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", iconAccent)} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-400">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-orange-400 sm:text-[11px]">
                   {isStarted
                     ? platform.cardio.stillGoing
                     : platform.cardio.readyToStart}
                 </p>
-                <h1 className="truncate text-xl font-black leading-tight">
+                <h1 className="truncate text-lg font-black leading-tight sm:text-xl">
                   {cardioDisplayTitle ?? platform.cardio.title}
                 </h1>
               </div>
@@ -260,10 +267,10 @@ export function ActiveCardioClient({
               ) : null}
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4">
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2.5 sm:gap-3">
               <div
                 className={cn(
-                  "relative flex aspect-square w-[min(100%,13.5rem)] max-h-[min(42vh,15rem)] items-center justify-center rounded-full border-2 sm:w-[min(100%,15rem)]",
+                  "relative flex aspect-square w-[min(100%,11.5rem)] max-h-[min(34vh,12.5rem)] items-center justify-center rounded-full border-2 sm:w-[min(100%,14rem)] sm:max-h-[min(40vh,15rem)]",
                   isRunning
                     ? "border-orange-400/50 shadow-[0_0_40px_-8px_rgba(251,146,60,0.45)]"
                     : "border-orange-500/30"
@@ -306,8 +313,8 @@ export function ActiveCardioClient({
                     className="absolute inset-2 rounded-full border border-dashed border-orange-500/20"
                   />
                 )}
-                <div className="relative z-10 flex flex-col items-center gap-1 px-3 text-center">
-                  <p className="font-mono text-4xl font-black tabular-nums tracking-tighter sm:text-5xl">
+                <div className="relative z-10 flex flex-col items-center gap-0.5 px-3 text-center">
+                  <p className="font-mono text-3xl font-black tabular-nums tracking-tighter sm:text-5xl">
                     {formatElapsedClock(elapsedSeconds)}
                   </p>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -322,7 +329,7 @@ export function ActiveCardioClient({
 
               {plannedSeconds != null ? (
                 <div className="grid w-full max-w-sm shrink-0 grid-cols-2 gap-2 text-center">
-                  <div className="rounded-xl border border-border/60 bg-background/50 px-3 py-2">
+                  <div className="rounded-xl border border-border/60 bg-background/50 px-2.5 py-1.5 sm:px-3 sm:py-2">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                       {platform.cardio.planned}
                     </p>
@@ -330,7 +337,7 @@ export function ActiveCardioClient({
                       {formatElapsedClock(plannedSeconds)}
                     </p>
                   </div>
-                  <div className="rounded-xl border border-border/60 bg-background/50 px-3 py-2">
+                  <div className="rounded-xl border border-border/60 bg-background/50 px-2.5 py-1.5 sm:px-3 sm:py-2">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                       {elapsedSeconds >= plannedSeconds
                         ? platform.cardio.overtime
@@ -356,7 +363,7 @@ export function ActiveCardioClient({
       )}
 
       {cardio?.youtube_url ? (
-        <div className="max-h-36 shrink-0 overflow-hidden">
+        <div className="max-h-28 min-h-0 shrink overflow-hidden sm:max-h-36">
           <ExerciseVideoPlayer
             videoUrl={cardio.youtube_url}
             title={cardioDisplayTitle ?? cardio.title}
@@ -368,7 +375,7 @@ export function ActiveCardioClient({
         <p className="shrink-0 text-sm text-red-400">{error}</p>
       ) : null}
 
-      <div className="shrink-0 space-y-2">
+      <div className="shrink-0 space-y-1.5">
         {!isStarted ? (
           <StartWorkoutLoadingShell isLoading={false} className="w-full">
             <Button size="lg" className="w-full" onClick={handleStart}>

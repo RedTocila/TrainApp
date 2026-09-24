@@ -396,6 +396,8 @@ export const platformCopyEn = {
       }. Tell me briefly what went wrong and how to fix it next time.`,
     dayOverageAskAlex: (summary: string) =>
       `Today I went over my macros (${summary}). Tell me briefly what went wrong and what I should change tomorrow.`,
+    statusAskAlex: (params: { title: string; message: string }) =>
+      `My nutrition day status is "${params.title}". Coach note: ${params.message} Tell me briefly how to get back on track today.`,
     overageExplanation: (params: {
       meal: string;
       amount: number;
@@ -1219,6 +1221,9 @@ export const platformCopyEn = {
     fullCalendar: "Full calendar",
     fullCalendarTitle: "Full calendar",
     tapDayHint: "Tap a day to see its tasks below",
+    viewMonth: "Month",
+    viewWeeks: "Weeks",
+    viewModeAria: "Calendar view",
     closeCalendar: "Close calendar",
     previousMonth: "Previous month",
     nextMonth: "Next month",

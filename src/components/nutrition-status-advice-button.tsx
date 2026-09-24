@@ -94,19 +94,34 @@ export function NutritionStatusAdviceButton({
   const showOverageInsights = status === "too_much";
 
   const dayChatPrompt = useMemo(() => {
-    if (!showOverageInsights || insights.length === 0) return undefined;
-    const summary = insights
-      .map((insight) => {
-        const nutrient = nutrientShortName(platform, insight.nutrient);
-        const amount =
-          insight.amountFromMeal > 0
-            ? ` ~${insight.amountFromMeal}${nutrientUnit(insight.nutrient)}`
-            : "";
-        return `${nutrient}: ${insight.culpritMealName}${amount}`;
-      })
-      .join("; ");
-    return platform.nutrition.dayOverageAskAlex(summary);
-  }, [insights, platform, showOverageInsights]);
+    if (showOverageInsights && insights.length > 0) {
+      const summary = insights
+        .map((insight) => {
+          const nutrient = nutrientShortName(platform, insight.nutrient);
+          const amount =
+            insight.amountFromMeal > 0
+              ? ` ~${insight.amountFromMeal}${nutrientUnit(insight.nutrient)}`
+              : "";
+          return `${nutrient}: ${insight.culpritMealName}${amount}`;
+        })
+        .join("; ");
+      return platform.nutrition.dayOverageAskAlex(summary);
+    }
+    if (status !== "good") {
+      return platform.nutrition.statusAskAlex({
+        title: advice.title,
+        message: advice.message,
+      });
+    }
+    return undefined;
+  }, [
+    advice.message,
+    advice.title,
+    insights,
+    platform,
+    showOverageInsights,
+    status,
+  ]);
 
   useEffect(() => {
     if (!open || !showOverageInsights) return;
@@ -227,7 +242,7 @@ export function NutritionStatusAdviceButton({
             titleClassName={styles.title}
             howToFixLabel={platform.nutrition.howToFix}
             chatPrompt={dayChatPrompt}
-            showHowToFix={status !== "good"}
+            showHowToFix={status !== "good" && Boolean(dayChatPrompt)}
             closeAriaLabel={platform.aria.close}
             onClose={() => setOpen(false)}
           />

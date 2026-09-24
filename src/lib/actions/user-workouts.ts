@@ -1055,32 +1055,35 @@ export async function getPersonalWorkoutsWithSchedules(
     sessionsByPlan.set(row.plan_id, list);
   }
 
-  return plans.map((plan) => {
-    const planDays = daysByPlan.get(plan.id) ?? [];
-    const sessions = sessionsByPlan.get(plan.id) ?? [];
-    const nextSession = sessions[0] ?? null;
-    const upcomingCount = sessions.length;
+  return plans
+    .map((plan) => {
+      const planDays = daysByPlan.get(plan.id) ?? [];
+      const sessions = sessionsByPlan.get(plan.id) ?? [];
+      const nextSession = sessions[0] ?? null;
+      const upcomingCount = sessions.length;
 
-    let scheduleSummary = "Not scheduled";
-    if (nextSession) {
-      const nextLabel = new Date(nextSession + "T12:00:00").toLocaleDateString(
-        "en-US",
-        { weekday: "short", month: "short", day: "numeric" }
-      );
-      scheduleSummary =
-        upcomingCount === 1
-          ? `Next: ${nextLabel}`
-          : `Next: ${nextLabel} · ${upcomingCount} sessions`;
-    }
+      let scheduleSummary = "Not scheduled";
+      if (nextSession) {
+        const nextLabel = new Date(nextSession + "T12:00:00").toLocaleDateString(
+          "en-US",
+          { weekday: "short", month: "short", day: "numeric" }
+        );
+        scheduleSummary =
+          upcomingCount === 1
+            ? `Next: ${nextLabel}`
+            : `Next: ${nextLabel} · ${upcomingCount} sessions`;
+      }
 
-    return {
-      plan,
-      days: planDays,
-      nextSession,
-      upcomingCount,
-      scheduleSummary,
-    };
-  });
+      return {
+        plan,
+        days: planDays,
+        nextSession,
+        upcomingCount,
+        scheduleSummary,
+      };
+    })
+    // Multi-day groups belong under Plans (week templates), not Workouts.
+    .filter((item) => item.days.length <= 1);
 }
 
 export interface PersonalWeekPlanListItem {
@@ -1094,6 +1097,9 @@ export interface PersonalWeekPlanListItem {
 export async function getPersonalWeekPlans(): Promise<PersonalWeekPlanListItem[]> {
   const { supabase, userId } = await requireUserId();
   const { normalizeWeekPlanConfig } = await import("@/lib/week-plan");
+
+  // Legacy multi-day strength blobs → week templates under Plans.
+  await promoteOrphanMultiDayStrengthPlans();
 
   const { data } = await supabase
     .from("workout_plans")
@@ -1116,6 +1122,92 @@ export async function getPersonalWeekPlans(): Promise<PersonalWeekPlanListItem[]
       },
     ];
   });
+}
+
+/**
+ * Convert legacy multi-day strength plans (old "Hypertrophy Split" style) into
+ * Plans week templates so they no longer need to live on the Workouts list.
+ */
+async function promoteOrphanMultiDayStrengthPlans(): Promise<void> {
+  const access = await ensureManualPlanCreation().catch(() => null);
+  if (!access || "error" in access) return;
+  const { admin, userId } = access;
+
+  const { data: strengthPlans } = await admin
+    .from("workout_plans")
+    .select("id, title, description")
+    .eq("created_by", userId)
+    .eq("is_personal", true)
+    .eq("kind", "strength");
+  if (!strengthPlans?.length) return;
+
+  const { data: weekPlans } = await admin
+    .from("workout_plans")
+    .select("id, title, week_config")
+    .eq("created_by", userId)
+    .eq("is_personal", true)
+    .eq("kind", "week");
+
+  const referencedPlanIds = new Set<string>();
+  const weekTitles = new Set<string>();
+  for (const week of weekPlans ?? []) {
+    weekTitles.add(String(week.title ?? "").trim().toLowerCase());
+    const config = (await import("@/lib/week-plan")).normalizeWeekPlanConfig(
+      week.week_config
+    );
+    for (const day of config?.days ?? []) {
+      referencedPlanIds.add(day.mainPlanId);
+    }
+  }
+
+  const defaultWeekdays = (count: number) => {
+    if (count >= 5) return [1, 2, 3, 4, 5];
+    if (count >= 4) return [1, 2, 4, 5];
+    if (count === 3) return [1, 3, 5];
+    if (count === 2) return [1, 4];
+    return [1];
+  };
+
+  for (const plan of strengthPlans) {
+    const planId = plan.id as string;
+    if (referencedPlanIds.has(planId)) continue;
+
+    const { data: days } = await admin
+      .from("workout_days")
+      .select("id, day_index, title")
+      .eq("plan_id", planId)
+      .order("day_index");
+    if (!days || days.length < 2) continue;
+
+    const title = String(plan.title ?? "Week plan").trim() || "Week plan";
+    if (weekTitles.has(title.toLowerCase())) continue;
+
+    const weekdays = defaultWeekdays(days.length);
+    const week_config = {
+      includeExtras: false,
+      days: days.map((day, i) => ({
+        focus: String(day.title ?? `Day ${i + 1}`),
+        weekday: weekdays[i] ?? weekdays[weekdays.length - 1] ?? 1,
+        mainPlanId: planId,
+        mainDayId: day.id as string,
+        warmupPlanId: null,
+        stretchPlanId: null,
+      })),
+    };
+
+    await admin.from("workout_plans").insert({
+      title,
+      description:
+        (plan.description as string | null) ||
+        `Migrated from multi-day workout · ${days.length} training days`,
+      created_by: userId,
+      is_personal: true,
+      folder_id: null,
+      kind: "week",
+      week_config,
+    });
+    weekTitles.add(title.toLowerCase());
+  }
 }
 
 export type WeekPlanBuilderWorkoutOption = {

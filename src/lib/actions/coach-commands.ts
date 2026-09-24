@@ -35,7 +35,7 @@ import {
   clearUpcomingWorkoutSchedule,
   deletePersonalWorkoutPlan,
   getPersonalWeekPlans,
-  getPersonalWorkoutPlans,
+  getPersonalWorkoutsWithSchedules,
   getUpcomingWorkoutScheduleSummary,
   schedulePersonalWeekPlan,
   scheduleWorkoutSeries,
@@ -95,25 +95,21 @@ function isOneOffCalendarPlan(description: string | null | undefined): boolean {
   return (description ?? "").toLowerCase().includes("one-off session");
 }
 
-const LIBRARY_WORKOUT_KINDS = new Set(["strength", "hiit"]);
-
 export async function listCoachWorkoutPlans(userId: string) {
-  const plans = await getPersonalWorkoutPlans();
-  // getPersonalWorkoutPlans uses session user — ignore passed id mismatch
+  // Prefer the same single-day filter as the Workouts tab.
+  const withSchedules = await getPersonalWorkoutsWithSchedules();
   void userId;
-  const nonOneOff = plans.filter((p) => !isOneOffCalendarPlan(p.description));
-  const oneOffCount = plans.length - nonOneOff.length;
-  // Week templates + warm-up/stretch extras live elsewhere — keep this list for
-  // single/multi-day strength & HIIT library plans only.
-  const library = nonOneOff.filter((p) =>
-    LIBRARY_WORKOUT_KINDS.has(p.kind ?? "strength")
+  const nonOneOff = withSchedules.filter(
+    (item) => !isOneOffCalendarPlan(item.plan.description)
   );
+  const oneOffCount = withSchedules.length - nonOneOff.length;
   return {
-    plans: library.map((p) => ({
-      id: p.id,
-      title: p.title,
-      kind: p.kind ?? "strength",
-      description: p.description ?? null,
+    plans: nonOneOff.map(({ plan, days }) => ({
+      id: plan.id,
+      title: plan.title,
+      kind: plan.kind ?? "strength",
+      description: plan.description ?? null,
+      dayCount: days.length,
     })),
     oneOffCount,
   };
