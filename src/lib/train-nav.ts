@@ -62,17 +62,27 @@ export function isHomeNavActive(pathname: string) {
   );
 }
 
-/** Full calendar entry — only on the 5 primary navbar destinations. */
+/** Full calendar entry — only on primary bottom-nav destinations (not nested pages). */
 export function showsFullCalendarNav(pathname: string) {
   const path = pathOnly(pathname);
-  if (isHomeNavActive(path) && !isActiveWorkoutSessionPath(path)) return true;
-  if (isProgramsNavActive(path)) return true;
+  // Home tab
+  if (path === "/dashboard") return true;
+  // Programs tab (plans hub only — not nutrition, cardio, exercises, day detail, etc.)
+  if (
+    path === "/dashboard/workout/plans" ||
+    path.startsWith("/dashboard/workout/plans/")
+  ) {
+    return true;
+  }
+  // Classes tab
   if (path === "/dashboard/classes" || path.startsWith("/dashboard/classes/")) {
     return true;
   }
+  // Profile tab
   if (path === "/dashboard/profile" || path.startsWith("/dashboard/profile/")) {
     return true;
   }
+  // Alex / AI tab
   if (path === "/dashboard/ai" || path.startsWith("/dashboard/ai/")) return true;
   return false;
 }
