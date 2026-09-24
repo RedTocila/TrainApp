@@ -10,18 +10,67 @@ const PRIMARY_MODEL =
   process.env.OPENAI_TRANSCRIBE_MODEL?.trim() || "gpt-4o-transcribe";
 const FALLBACK_MODEL = "whisper-1";
 
+/** Languages gpt-4o-transcribe accepts as `language` (ISO-639-1). Albanian `sq` is rejected. */
+const GPT_TRANSCRIBE_LANGUAGE_CODES = new Set([
+  "en",
+  "es",
+  "fr",
+  "de",
+  "it",
+  "pt",
+  "nl",
+  "ja",
+  "ko",
+  "zh",
+  "ru",
+  "ar",
+  "hi",
+  "tr",
+  "pl",
+  "sv",
+  "da",
+  "no",
+  "fi",
+  "uk",
+  "cs",
+  "ro",
+  "hu",
+  "el",
+  "he",
+  "th",
+  "vi",
+  "id",
+  "ms",
+  "tl",
+]);
+
 function isGptTranscribeModel(model: string): boolean {
-  return model.startsWith("gpt-4o-transcribe") || model.startsWith("gpt-transcribe");
+  return (
+    model.startsWith("gpt-4o-transcribe") || model.startsWith("gpt-transcribe")
+  );
 }
 
 function languagePrompt(language: string | undefined): string | undefined {
   if (language === "sq") {
-    return "Transcribe in Albanian (shqip). Keep fitness terms natural in Albanian.";
+    return "The audio is spoken in Albanian (shqip). Transcribe ONLY in Albanian. Keep fitness and coaching terms natural in Albanian — do not translate to English.";
   }
   if (language === "en") {
     return "Transcribe in English. Keep fitness coaching phrasing natural.";
   }
   return undefined;
+}
+
+/** API `language` field — omit unsupported codes (e.g. sq on gpt-4o-transcribe). */
+function apiLanguageForModel(
+  model: string,
+  language: string | undefined
+): string | undefined {
+  if (!language) return undefined;
+  if (isGptTranscribeModel(model)) {
+    return GPT_TRANSCRIBE_LANGUAGE_CODES.has(language) ? language : undefined;
+  }
+  // whisper-1 accepts Albanian as sq
+  return language;
 }
 
 export async function POST(request: Request) {
@@ -65,8 +114,10 @@ export async function POST(request: Request) {
   try {
     const client = getOpenAIClient();
     const extension = pickExtension(audio.type, audio.name);
+    // Buffer once so model fallback can re-upload the same bytes.
+    const bytes = await audio.arrayBuffer();
     const makeFile = () =>
-      new File([audio], `voice.${extension}`, {
+      new File([bytes], `voice.${extension}`, {
         type: audio.type || "audio/webm",
       });
 
@@ -77,10 +128,11 @@ export async function POST(request: Request) {
     let lastError: unknown = null;
     for (const model of models) {
       try {
+        const apiLanguage = apiLanguageForModel(model, language);
         const result = await client.audio.transcriptions.create({
           file: makeFile(),
           model,
-          ...(language ? { language } : {}),
+          ...(apiLanguage ? { language: apiLanguage } : {}),
           ...(prompt ? { prompt } : {}),
           ...(isGptTranscribeModel(model)
             ? { response_format: "json" as const }
