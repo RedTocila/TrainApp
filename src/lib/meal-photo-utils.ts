@@ -12,8 +12,11 @@ export function isMealPhotoExpired(
   expiresAt: string | null | undefined,
   now: Date = new Date()
 ): boolean {
-  if (!expiresAt) return true;
-  return new Date(expiresAt) <= now;
+  // Missing expiry: keep showing (legacy rows / partial writes). Only hide when past.
+  if (!expiresAt) return false;
+  const expires = new Date(expiresAt);
+  if (Number.isNaN(expires.getTime())) return false;
+  return expires <= now;
 }
 
 export function mealPhotoStoragePath(

@@ -143,9 +143,11 @@ export function MealPhotoLogStep({
     setPhaseWithReady("compressing");
     try {
       const compressed = await compressImageFile(file, {
-        maxWidth: 1920,
-        maxHeight: 1920,
-        quality: 0.88,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        quality: 0.72,
+        // Keep storage + server-action payloads small (~350KB).
+        maxBytes: 350_000,
       });
       const dataUrl = await fileToDataUrl(compressed);
       setPreviewUrl(dataUrl);

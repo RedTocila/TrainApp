@@ -2,6 +2,8 @@ export type CompressImageOptions = {
   maxWidth?: number;
   maxHeight?: number;
   quality?: number;
+  /** Stop when file is at or under this size (bytes). Defaults to no target. */
+  maxBytes?: number;
 };
 
 const IMAGE_EXT_MIME: Record<string, string> = {
@@ -88,6 +90,7 @@ async function decodeImageFile(file: File): Promise<DecodedImage> {
 
 /**
  * Resize and compress a photo in the browser before upload (WebP, ~70% quality).
+ * Optionally steps quality down until under `maxBytes`.
  */
 export async function compressImageFile(
   file: File,
@@ -95,7 +98,8 @@ export async function compressImageFile(
 ): Promise<File> {
   const maxWidth = options.maxWidth ?? 1280;
   const maxHeight = options.maxHeight ?? 1600;
-  const quality = options.quality ?? 0.72;
+  let quality = options.quality ?? 0.72;
+  const maxBytes = options.maxBytes;
 
   if (!isLikelyImageFile(file)) {
     throw new Error("Please choose an image file");
@@ -129,16 +133,47 @@ export async function compressImageFile(
 
   const mimeType = supportsWebp() ? "image/webp" : "image/jpeg";
   const extension = mimeType === "image/webp" ? "webp" : "jpg";
-
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (result) => (result ? resolve(result) : reject(new Error("Compression failed"))),
-      mimeType,
-      quality
-    );
-  });
-
   const baseName = file.name.replace(/\.[^.]+$/, "") || "progress";
+
+  const encode = (q: number) =>
+    new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (result) =>
+          result ? resolve(result) : reject(new Error("Compression failed")),
+        mimeType,
+        q
+      );
+    });
+
+  let blob = await encode(quality);
+  if (maxBytes != null && maxBytes > 0) {
+    while (blob.size > maxBytes && quality > 0.42) {
+      quality = Math.max(0.42, quality - 0.1);
+      blob = await encode(quality);
+    }
+    // Still too large — shrink canvas once more.
+    if (blob.size > maxBytes) {
+      const shrink = 0.75;
+      const w2 = Math.max(1, Math.round(width * shrink));
+      const h2 = Math.max(1, Math.round(height * shrink));
+      const canvas2 = document.createElement("canvas");
+      canvas2.width = w2;
+      canvas2.height = h2;
+      const ctx2 = canvas2.getContext("2d");
+      if (ctx2) {
+        ctx2.drawImage(canvas, 0, 0, w2, h2);
+        blob = await new Promise<Blob>((resolve, reject) => {
+          canvas2.toBlob(
+            (result) =>
+              result ? resolve(result) : reject(new Error("Compression failed")),
+            mimeType,
+            0.55
+          );
+        });
+      }
+    }
+  }
+
   return new File([blob], `${baseName}.${extension}`, { type: mimeType });
 }
 

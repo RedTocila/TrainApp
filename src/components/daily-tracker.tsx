@@ -118,7 +118,7 @@ export function DailyTracker({
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
   const { patchDashboard, notifySync } = useDashboardSync();
   const dateKey = formatDateKey(date);
-  const mealsWithPhotos = useMealsWithPhotoUrls(dailyMeals);
+  const mealsWithPhotos = useMealsWithPhotoUrls(clientId, dailyMeals);
 
   useEffect(() => {
     router.prefetch(DASHBOARD_DAY_NUTRITION_PATH);
@@ -263,16 +263,9 @@ export function DailyTracker({
     });
   };
 
-  const handleLogged = (preview?: MealFormData) => {
+  const handleLogged = (_preview?: MealFormData) => {
+    // Log directly — skip the "Meal logged" summary drawer.
     refreshMeals();
-    if (!preview) return;
-    try {
-      setPreviewVariant("new");
-      setPreviewMeal(preview);
-      setPreviewOpen(true);
-    } catch {
-      setPreviewOpen(false);
-    }
   };
 
   const handleSelectMeal = (meal: DailyMealLog) => {
