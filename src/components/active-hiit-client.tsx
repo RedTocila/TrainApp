@@ -237,7 +237,13 @@ export function ActiveHiitClient({
     if (advancingRef.current) return;
     advancingRef.current = true;
     goToPhase(timer.phaseIndex + 1);
-    advancingRef.current = false;
+    const unlock = window.setTimeout(() => {
+      advancingRef.current = false;
+    }, 0);
+    return () => {
+      window.clearTimeout(unlock);
+      advancingRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- advance on phase expiry only
   }, [hydrated, timer, remainingMs]);
 

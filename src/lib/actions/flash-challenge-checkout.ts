@@ -295,6 +295,20 @@ async function completeFlashChallengeEntryOrder(order: {
   }
 
   const admin = createAdminClient();
+  const { releaseReferralCreditsForOrder } = await import("@/lib/actions/referrals");
+
+  async function abandonWithCreditRelease(message: string) {
+    await releaseReferralCreditsForOrder(admin, {
+      userId: order.user_id,
+      orderId: order.id,
+    });
+    await admin
+      .from("subscription_orders")
+      .update({ status: "failed" })
+      .eq("id", order.id)
+      .eq("status", "pending");
+    return { error: message };
+  }
 
   if (order.pokpay_order_id) {
     const sdkOrder = await getSdkOrder(order.pokpay_order_id);
@@ -311,7 +325,7 @@ async function completeFlashChallengeEntryOrder(order: {
 
   const challengeId = metadata.challenge_id;
   const action = metadata.action ?? "join";
-  if (!challengeId) return { error: "Invalid order metadata" };
+  if (!challengeId) return abandonWithCreditRelease("Invalid order metadata");
 
   const { data: challengeRow } = await admin
     .from("challenges")
@@ -319,14 +333,13 @@ async function completeFlashChallengeEntryOrder(order: {
     .eq("id", challengeId)
     .maybeSingle();
 
-  if (!challengeRow) return { error: "Challenge not found" };
+  if (!challengeRow) return abandonWithCreditRelease("Challenge not found");
   const challenge = rowToChallenge(challengeRow);
 
   if (getChallengeStatus(challenge) === "ended") {
-    return { error: "This challenge has ended." };
+    return abandonWithCreditRelease("This challenge has ended.");
   }
 
-  // Re-check capacity for paid joins so races cannot overfill the challenge.
   if (action === "join") {
     const { data: existingParticipant } = await admin
       .from("challenge_participants")
@@ -340,7 +353,7 @@ async function completeFlashChallengeEntryOrder(order: {
       if (typeof max === "number" && max > 0) {
         const count = await countChallengeParticipants(admin, challengeId);
         if (count >= max) {
-          return { error: "This challenge is full." };
+          return abandonWithCreditRelease("This challenge is full.");
         }
       }
     }
@@ -348,32 +361,7 @@ async function completeFlashChallengeEntryOrder(order: {
 
   const paidAt = new Date().toISOString();
 
-  // Claim order before mutating participants / credits (webhook + success race).
-  const { data: claimed, error: claimError } = await admin
-    .from("subscription_orders")
-    .update({ status: "completed", completed_at: paidAt })
-    .eq("id", order.id)
-    .eq("status", "pending")
-    .select("id")
-    .maybeSingle();
-
-  if (claimError) return { error: claimError.message };
-  if (!claimed) {
-    const { data: existing } = await admin
-      .from("subscription_orders")
-      .select("status")
-      .eq("id", order.id)
-      .maybeSingle();
-    if (existing?.status === "completed") {
-      return {
-        success: true,
-        alreadyCompleted: true as const,
-        challengeSlug: metadata.challenge_slug ?? challenge.slug,
-      };
-    }
-    return { error: "Order could not be completed" };
-  }
-
+  // Participant mutations before claim so failures can release credits cleanly.
   if (action === "confirm") {
     const { data: participant } = await admin
       .from("challenge_participants")
@@ -383,7 +371,7 @@ async function completeFlashChallengeEntryOrder(order: {
       .maybeSingle();
 
     if (!participant) {
-      return { error: "Participant record not found." };
+      return abandonWithCreditRelease("Participant record not found.");
     }
 
     await admin
@@ -426,7 +414,7 @@ async function completeFlashChallengeEntryOrder(order: {
             .eq("challenge_id", challengeId)
             .eq("user_id", order.user_id);
         } else {
-          return { error: insertError.message };
+          return abandonWithCreditRelease(insertError.message);
         }
       }
 
@@ -436,6 +424,31 @@ async function completeFlashChallengeEntryOrder(order: {
         .eq("challenge_id", challengeId)
         .eq("user_id", order.user_id);
     }
+  }
+
+  const { data: claimed, error: claimError } = await admin
+    .from("subscription_orders")
+    .update({ status: "completed", completed_at: paidAt })
+    .eq("id", order.id)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+
+  if (claimError) return { error: claimError.message };
+  if (!claimed) {
+    const { data: existing } = await admin
+      .from("subscription_orders")
+      .select("status")
+      .eq("id", order.id)
+      .maybeSingle();
+    if (existing?.status === "completed") {
+      return {
+        success: true,
+        alreadyCompleted: true as const,
+        challengeSlug: metadata.challenge_slug ?? challenge.slug,
+      };
+    }
+    return { error: "Order could not be completed" };
   }
 
   const creditsApplied = order.referral_credits_applied_cents ?? 0;

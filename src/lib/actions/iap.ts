@@ -45,6 +45,19 @@ async function activateFromVerifiedApple(args: {
     return { error: "This Apple subscription has already expired." };
   }
 
+  const { error: profileError } = await args.admin
+    .from("profiles")
+    .update({
+      subscription_plan: args.plan,
+      subscription_status: "active",
+      subscription_interval: args.billingInterval,
+      subscription_expires_at: expiresAt.toISOString(),
+      apple_original_transaction_id: args.originalTransactionId,
+    })
+    .eq("id", args.userId);
+
+  if (profileError) return { error: profileError.message };
+
   const { data: claimed, error: claimError } = await args.admin
     .from("subscription_orders")
     .update({
@@ -72,19 +85,6 @@ async function activateFromVerifiedApple(args: {
     }
     return { error: "Order could not be completed" };
   }
-
-  const { error: profileError } = await args.admin
-    .from("profiles")
-    .update({
-      subscription_plan: args.plan,
-      subscription_status: "active",
-      subscription_interval: args.billingInterval,
-      subscription_expires_at: expiresAt.toISOString(),
-      apple_original_transaction_id: args.originalTransactionId,
-    })
-    .eq("id", args.userId);
-
-  if (profileError) return { error: profileError.message };
 
   const {
     settleReferralCreditsSpend,

@@ -292,15 +292,26 @@ export async function coachLogMealCommand(input: {
     : "snack") as MealType;
 
   const date = input.date?.trim() || todayKey(input.timezoneOffsetMinutes);
+  const calories = Math.max(0, Math.round(input.calories ?? 0));
+  const protein = Math.max(0, Math.round(input.protein ?? 0));
+  const carbs = Math.max(0, Math.round(input.carbs ?? 0));
+  const fat = Math.max(0, Math.round(input.fat ?? 0));
+  if (calories <= 0 && protein <= 0 && carbs <= 0 && fat <= 0) {
+    return {
+      error:
+        "Provide meal macros (calories and/or protein/carbs/fat). Refusing to log a zero-calorie meal.",
+    };
+  }
+
   const result = await logCustomMeal(auth.userId, date, {
     meal_type: mealType,
     name,
     description: input.description?.trim() || "",
     macros: {
-      calories: Math.max(0, Math.round(input.calories ?? 0)),
-      protein: Math.max(0, Math.round(input.protein ?? 0)),
-      carbs: Math.max(0, Math.round(input.carbs ?? 0)),
-      fat: Math.max(0, Math.round(input.fat ?? 0)),
+      calories,
+      protein,
+      carbs,
+      fat,
     },
     ingredients: [],
   });

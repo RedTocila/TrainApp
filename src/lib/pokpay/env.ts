@@ -14,10 +14,13 @@ export function getPokPayServerEnv(): PokPayEnv {
  * Client-side PokPay environment.
  *
  * IMPORTANT: client bundles can only read `NEXT_PUBLIC_*`.
+ * When unset, default to production (safer for the live app SDK) rather than staging.
  */
 export function getPokPayClientEnv(): PokPayEnv {
   const raw = (process.env.NEXT_PUBLIC_POKPAY_ENV ?? "").toLowerCase();
-  return raw === "production" ? "production" : "staging";
+  if (raw === "staging") return "staging";
+  if (raw === "production") return "production";
+  return "production";
 }
 
 /** Shared secret embedded in PokPay webhook URLs when configured. */

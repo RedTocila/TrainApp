@@ -52,7 +52,19 @@ export async function upsertDailyLog(
       carbs: updates.carbs ?? 0,
       fat: updates.fat ?? 0,
     });
-    if (error) return { error: formatDbError(error.message) };
+    if (error) {
+      // Concurrent water/macro insert — retry as update.
+      if (error.code === "23505") {
+        const { error: updateError } = await admin
+          .from("daily_logs")
+          .update(updates)
+          .eq("client_id", clientId)
+          .eq("date", date);
+        if (updateError) return { error: formatDbError(updateError.message) };
+      } else {
+        return { error: formatDbError(error.message) };
+      }
+    }
   }
 
   revalidatePath("/dashboard");

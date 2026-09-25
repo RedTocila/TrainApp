@@ -19,7 +19,7 @@ export type ActiveSeriesMembership = {
 };
 
 const SERIES_CHALLENGE_SELECT =
-  "id, slug, title, scheduled_at, duration_months, duration_days, registration_closes_at, is_transformation, is_flash, max_participants";
+  "id, slug, title, scheduled_at, duration_months, duration_days, registration_closes_at, is_transformation, is_flash, max_participants, current_phase";
 
 type ChallengeRow = Pick<
   Challenge,
@@ -37,6 +37,7 @@ type SeriesChallengeRow = {
   is_transformation?: boolean;
   is_flash?: boolean;
   max_participants?: number | null;
+  current_phase?: number | null;
 };
 
 function matchesSeries(
@@ -56,6 +57,7 @@ function rowToSeriesChallenge(row: SeriesChallengeRow): Challenge {
     is_transformation: isTransformationChallenge(row),
     is_flash: isFlashChallenge(row),
     registration_closes_at: row.registration_closes_at ?? null,
+    current_phase: typeof row.current_phase === "number" ? row.current_phase : 0,
     slug: row.slug,
   } as Challenge;
 }

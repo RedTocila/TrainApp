@@ -25,7 +25,10 @@ import type { DailyMealLog, Meal, MealType } from "@/lib/types";
 async function syncDailyMacros(clientId: string, date: string) {
   const meals = await getDailyMealLogs(clientId, date);
   const totals = sumMealMacros(meals);
-  await upsertDailyLog(clientId, date, totals);
+  const result = await upsertDailyLog(clientId, date, totals);
+  if (result && "error" in result && result.error) {
+    console.error("[syncDailyMacros]", clientId, date, result.error);
+  }
 }
 
 async function insertMealLogWithSlot(

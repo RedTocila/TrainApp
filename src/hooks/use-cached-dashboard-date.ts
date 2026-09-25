@@ -35,7 +35,7 @@ export function useCachedDashboardDate<T>({
   trackGlobalLoading?: boolean;
   /** Skip network when seed/cache already satisfies the view (e.g. enrichment range). */
   skipFetch?: boolean;
-}): { data: T | null; isRevalidating: boolean } {
+}): { data: T | null; isRevalidating: boolean; error: boolean } {
   const ctx = useContext(DashboardDateLoadingContext);
   const markLoading = trackGlobalLoading ? ctx?.markLoading : undefined;
   const cacheKey = dashboardDayCacheKey(clientId, namespace, dateKey);
@@ -51,12 +51,14 @@ export function useCachedDashboardDate<T>({
 
   const [data, setData] = useState<T | null>(readCache);
   const [isRevalidating, setIsRevalidating] = useState(false);
+  const [error, setError] = useState(false);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
 
   useLayoutEffect(() => {
     const next = readCache();
     setData((prev) => (Object.is(prev, next) ? prev : next));
+    setError(false);
   }, [dateKey, readCache]);
 
   useEffect(() => {
@@ -79,13 +81,34 @@ export function useCachedDashboardDate<T>({
       unregister();
     };
     setIsRevalidating(true);
+    setError(false);
 
-    void fetcherRef
-      .current()
+    let promise: Promise<T>;
+    try {
+      promise = fetcherRef.current();
+    } catch {
+      if (!cancelled) {
+        setError(true);
+        setIsRevalidating(false);
+      }
+      safeUnregister();
+      return () => {
+        cancelled = true;
+        safeUnregister();
+      };
+    }
+
+    void promise
       .then((result) => {
         if (cancelled) return;
         setDashboardDayCache(cacheKey, result);
         setData(result);
+        setError(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Leave prior cache/seed for this date; do not write a failed load.
+        setError(true);
       })
       .finally(() => {
         if (!cancelled) setIsRevalidating(false);
@@ -99,5 +122,5 @@ export function useCachedDashboardDate<T>({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- depsKey encodes refresh triggers
   }, [cacheKey, dateKey, depsKey, markLoading, skipFetch, seed, trackGlobalLoading]);
 
-  return { data, isRevalidating };
+  return { data, isRevalidating, error };
 }

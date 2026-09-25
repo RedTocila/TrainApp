@@ -77,6 +77,7 @@ export async function uploadProgressPhotoWithAiReview(input: {
 
   const saveResult = await saveProgressPhotoPath(clientId, monthKey, pose, path);
   if (saveResult.error) {
+    await supabase.storage.from(STORAGE_BUCKETS.progressPhotos).remove([path]);
     return { status: "error", message: saveResult.error };
   }
 

@@ -239,7 +239,10 @@ export function getPlannedMealSlots(
     } else if (options.length === 0) {
       status = "upcoming";
     } else {
-      status = "due";
+      const phase = getMealSlotPhase(slot, dateKey, now);
+      if (phase === "missed") status = "missed";
+      else if (phase === "upcoming") status = "upcoming";
+      else status = "due";
     }
 
     return { slot, label, meal, options, loggedMeal: slotLog, timeWindow, status };

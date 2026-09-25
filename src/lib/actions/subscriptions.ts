@@ -59,7 +59,22 @@ async function completeSubscriptionOrder(
   const now = new Date();
   const expiresAt = addBillingPeriod(now, args.billingInterval);
 
-  // Claim the order first so success-page + webhook cannot double-settle.
+  // Activate profile before claiming the order so a failed profile write does not
+  // leave a completed order with no entitlement (and stuck reserved credits).
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({
+      subscription_plan: args.plan,
+      subscription_status: "active",
+      subscription_interval: args.billingInterval,
+      subscription_expires_at: expiresAt.toISOString(),
+    })
+    .eq("id", args.userId);
+
+  if (profileError) {
+    return { error: profileError.message };
+  }
+
   const orderUpdate: Record<string, unknown> = {
     status: "completed",
     completed_at: now.toISOString(),
@@ -89,20 +104,6 @@ async function completeSubscriptionOrder(
       return { success: true, alreadyCompleted: true };
     }
     return { error: "Order could not be completed" };
-  }
-
-  const { error: profileError } = await admin
-    .from("profiles")
-    .update({
-      subscription_plan: args.plan,
-      subscription_status: "active",
-      subscription_interval: args.billingInterval,
-      subscription_expires_at: expiresAt.toISOString(),
-    })
-    .eq("id", args.userId);
-
-  if (profileError) {
-    return { error: profileError.message };
   }
 
   const { settleReferralCreditsSpend, grantInviterCreditForSubscription, spendDescriptionForOrder } =

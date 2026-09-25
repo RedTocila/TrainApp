@@ -234,13 +234,16 @@ export function isChallengeAtCapacity(
 }
 
 export function getChallengeStatus(challenge: Challenge, now = new Date()): ChallengeStatus {
+  const end = getChallengeEndDate(challenge);
+  // Calendar window closed — never treat as upcoming/live (unblocks one-active joins).
+  if (now > end) return "ended";
+
   // All challenge types stay upcoming until an admin manually starts them.
   if (getChallengePhase(challenge) === 0) {
     return "upcoming";
   }
 
   const start = new Date(challenge.scheduled_at);
-  const end = getChallengeEndDate(challenge);
 
   if (now < start) return "upcoming";
   if (now >= start && now <= end) return "live";

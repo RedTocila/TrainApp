@@ -52,7 +52,15 @@ import {
   formatWorkoutDurationShort,
 } from "@/lib/workout-duration";
 import { markReminderDone } from "@/lib/reminder-events";
-import { clearWorkoutTimerState } from "@/lib/workout-timer-storage";
+import {
+  clearWorkoutTimerState,
+  getWorkoutElapsedMs,
+  getWorkoutTimerState,
+  pauseWorkoutTimer,
+  resumeWorkoutTimer,
+  startWorkoutTimer,
+  type WorkoutTimerState,
+} from "@/lib/workout-timer-storage";
 import { formatUserError } from "@/lib/format-user-error";
 import {
   SessionBusyOverlay,
@@ -69,99 +77,123 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function useElapsedSeconds(
-  baseSeconds: number,
-  runningSinceMs: number | null
-) {
+function useWorkoutTimer(sessionId: string, isStarted: boolean) {
+  const [timer, setTimer] = useState<WorkoutTimerState | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (runningSinceMs == null) return;
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, [runningSinceMs]);
-
-  const live =
-    runningSinceMs == null
-      ? 0
-      : Math.max(0, Math.floor((now - runningSinceMs) / 1000));
-  return baseSeconds + live;
-}
-
-function useWorkoutTimer(isStarted: boolean) {
-  const [baseSeconds, setBaseSeconds] = useState(0);
-  const [runningSinceMs, setRunningSinceMs] = useState<number | null>(null);
-  const [paused, setPaused] = useState(false);
-
-  useEffect(() => {
     if (!isStarted) {
-      setBaseSeconds(0);
-      setRunningSinceMs(null);
-      setPaused(false);
+      setTimer(null);
       return;
     }
-    setBaseSeconds(0);
-    setPaused(false);
-    setRunningSinceMs(Date.now());
-  }, [isStarted]);
+    const existing = getWorkoutTimerState(sessionId);
+    if (
+      existing &&
+      (existing.status === "running" || existing.status === "paused")
+    ) {
+      setTimer(existing);
+      setNow(Date.now());
+      return;
+    }
+    setTimer(startWorkoutTimer(sessionId));
+    setNow(Date.now());
+  }, [isStarted, sessionId]);
+
+  useEffect(() => {
+    if (!timer || timer.status !== "running") return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [timer]);
+
+  const elapsedSeconds = Math.floor(getWorkoutElapsedMs(timer, now) / 1000);
+  const paused = timer?.status === "paused";
 
   const resetTimer = () => {
-    setBaseSeconds(0);
-    setPaused(false);
-    setRunningSinceMs(Date.now());
+    clearWorkoutTimerState(sessionId);
+    setTimer(startWorkoutTimer(sessionId));
+    setNow(Date.now());
   };
 
   const togglePause = () => {
     if (paused) {
-      setRunningSinceMs(Date.now());
-      setPaused(false);
-      return;
+      setTimer(resumeWorkoutTimer(sessionId));
+    } else {
+      setTimer(pauseWorkoutTimer(sessionId));
     }
-    setRunningSinceMs((since) => {
-      if (since != null) {
-        setBaseSeconds(
-          (base) => base + Math.max(0, Math.floor((Date.now() - since) / 1000))
-        );
-      }
-      return null;
-    });
-    setPaused(true);
+    setNow(Date.now());
   };
 
-  return { baseSeconds, runningSinceMs, paused, resetTimer, togglePause };
+  return { elapsedSeconds, paused, resetTimer, togglePause };
 }
 
+/** Rest countdown via wall-clock deadline (avoids setInterval remaining-1 drift). */
 function useRestCountdown(restSeconds: number | null, workoutPaused: boolean) {
-  const [remaining, setRemaining] = useState<number | null>(null);
+  const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
+  const [frozenRemainingMs, setFrozenRemainingMs] = useState<number | null>(
+    null
+  );
   const [running, setRunning] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (!running || workoutPaused || remaining == null) return;
-    if (remaining <= 0) {
-      setRunning(false);
+    if (!running) return;
+    if (workoutPaused) {
+      if (deadlineMs != null) {
+        setFrozenRemainingMs(Math.max(0, deadlineMs - Date.now()));
+        setDeadlineMs(null);
+      }
       return;
     }
-    const id = window.setInterval(() => {
-      setRemaining((prev) => {
-        if (prev == null || prev <= 1) {
-          setRunning(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    if (deadlineMs == null && frozenRemainingMs != null) {
+      setDeadlineMs(Date.now() + frozenRemainingMs);
+      setFrozenRemainingMs(null);
+    }
+  }, [running, workoutPaused, deadlineMs, frozenRemainingMs]);
+
+  useEffect(() => {
+    if (!running || workoutPaused || deadlineMs == null) return;
+    const tick = () => {
+      const left = deadlineMs - Date.now();
+      setNow(Date.now());
+      if (left <= 0) {
+        setRunning(false);
+        setDeadlineMs(null);
+        setFrozenRemainingMs(0);
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [running, remaining, workoutPaused]);
+  }, [running, workoutPaused, deadlineMs]);
+
+  const remainingMs =
+    deadlineMs != null
+      ? Math.max(0, deadlineMs - now)
+      : frozenRemainingMs;
+
+  const remaining =
+    remainingMs == null ? null : Math.ceil(remainingMs / 1000);
 
   const start = (seconds?: number | null) => {
     const secs = Math.max(0, Math.floor(seconds ?? restSeconds ?? 90));
-    setRemaining(secs);
-    setRunning(secs > 0);
+    if (secs <= 0) {
+      setRunning(false);
+      setDeadlineMs(null);
+      setFrozenRemainingMs(0);
+      return;
+    }
+    setFrozenRemainingMs(null);
+    setDeadlineMs(Date.now() + secs * 1000);
+    setNow(Date.now());
+    setRunning(true);
   };
 
   const reset = () => {
     setRunning(false);
-    setRemaining(restSeconds != null ? Math.max(0, restSeconds) : null);
+    setDeadlineMs(null);
+    setFrozenRemainingMs(
+      restSeconds != null ? Math.max(0, restSeconds) * 1000 : null
+    );
   };
 
   return {
@@ -607,13 +639,11 @@ export function ActiveWorkoutClient({
     useSarcasticConfirm();
   const isStarted = session.started_at != null;
   const {
-    baseSeconds,
-    runningSinceMs,
+    elapsedSeconds,
     paused: workoutPaused,
     resetTimer,
     togglePause,
-  } = useWorkoutTimer(isStarted);
-  const elapsedSeconds = useElapsedSeconds(baseSeconds, runningSinceMs);
+  } = useWorkoutTimer(session.id, isStarted);
   const exerciseGender = resolveProfileGender(gender);
   const leaveHandledRef = useRef(false);
 

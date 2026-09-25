@@ -115,11 +115,10 @@ export function ProfileSubscriptionSection({
                 ? coachLabels.levelUp
                 : coachLabels.pickAPlan}
           </Link>
-          {showGiveUp ? (
-            <ProfileSubscriptionActions
-              billedViaApple={Boolean(profile.apple_original_transaction_id)}
-            />
-          ) : null}
+          <ProfileSubscriptionActions
+            billedViaApple={Boolean(profile.apple_original_transaction_id)}
+            showCancel={showGiveUp}
+          />
         </div>
       </CardContent>
     </Card>
