@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Dumbbell } from "lucide-react";
 import { deletePersonalWorkoutPlan } from "@/lib/actions/user-workouts";
 import type { PersonalWorkoutListItem, WorkoutPickItem } from "@/lib/actions/user-workouts";
@@ -32,17 +32,33 @@ export function FolderWorkoutsPage({
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [items, setItems] = useState(workouts);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
+
+  useEffect(() => {
+    setItems(workouts);
+  }, [workouts]);
 
   const handleDelete = (planId: string, title: string) => {
     confirmGiveUp({
       ...coachCopy.deleteWorkoutPlan(title),
-      onConfirm: () => {
-        startTransition(async () => {
-          await deletePersonalWorkoutPlan(planId);
+      onConfirm: async () => {
+        const previous = items;
+        setDeletingId(planId);
+        setItems((current) => current.filter((item) => item.plan.id !== planId));
+        try {
+          const result = await deletePersonalWorkoutPlan(planId);
+          if (result && "error" in result && result.error) {
+            setItems(previous);
+            return;
+          }
           router.refresh();
-        });
+        } catch {
+          setItems(previous);
+        } finally {
+          setDeletingId(null);
+        }
       },
     });
   };
@@ -64,7 +80,7 @@ export function FolderWorkoutsPage({
           <div>
             <h1 className="text-lg font-black">{folderName}</h1>
             <p className="text-xs text-muted-foreground">
-              {platform.workout.programsCount(workouts.length)}
+              {platform.workout.programsCount(items.length)}
             </p>
           </div>
         </div>
@@ -75,7 +91,7 @@ export function FolderWorkoutsPage({
         />
       </div>
 
-      {workouts.length === 0 ? (
+      {items.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12">
             <Dumbbell className="h-10 w-10 text-muted-foreground" />
@@ -89,13 +105,13 @@ export function FolderWorkoutsPage({
         </Card>
       ) : (
         <ul className="space-y-3">
-          {workouts.map((item) => (
+          {items.map((item) => (
             <li key={item.plan.id}>
               <PersonalWorkoutListCard
                 item={item}
                 folders={folders}
                 gender={gender}
-                deleting={isPending}
+                deleting={deletingId === item.plan.id}
                 onDelete={handleDelete}
               />
             </li>

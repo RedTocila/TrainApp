@@ -46,8 +46,10 @@ export function ChatPlanPreviewCard({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [localApplied, setLocalApplied] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(false);
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [pendingMode, setPendingMode] = useState<"apply" | "save" | null>(null);
   const [applyProgress, setApplyProgress] = useState(0);
   const [openDay, setOpenDay] = useState(0);
   const [showAbout, setShowAbout] = useState(false);
@@ -61,6 +63,11 @@ export function ChatPlanPreviewCard({
   const weeklyProgram = isWeeklyFull ? preview.program : null;
   const scheduleLabel = describeSchedule(preview);
   const isApplied = applied || localApplied;
+  const canSaveWithoutSchedule = isWeeklyFull || isWorkout;
+  const saveLabel =
+    isWeeklyFull || (strengthPlan && strengthPlan.days.length >= 2)
+      ? "Save to Plans"
+      : "Save workout";
 
   useEffect(() => {
     if (!isPending) {
@@ -81,40 +88,50 @@ export function ChatPlanPreviewCard({
     return () => window.clearInterval(id);
   }, [isPending, localApplied]);
 
-  const handleApply = () => {
+  const runApply = (scheduleToCalendar: boolean) => {
     setError(null);
     setApplyProgress(8);
+    setPendingMode(scheduleToCalendar ? "apply" : "save");
     startTransition(async () => {
       try {
+        const options = { scheduleToCalendar };
         const result =
           preview.type === "weekly_full"
             ? await applyChatPlanPreviewAction(
                 "weekly_full",
                 preview.program,
-                preview.schedule
+                preview.schedule,
+                options
               )
             : await applyChatPlanPreviewAction(
                 preview.type,
                 preview.plan,
-                preview.schedule ?? { weeks: 4, weekdays: [] }
+                preview.schedule ?? { weeks: 4, weekdays: [] },
+                options
               );
         if ("error" in result) {
           setApplyProgress(0);
+          setPendingMode(null);
           setError(result.error);
           return;
         }
         setApplyProgress(100);
         setLocalApplied(true);
+        setSavedOnly(!scheduleToCalendar);
         setScheduledCount(result.scheduledCount);
         setShowMoves(false);
         setShowAbout(false);
+        setPendingMode(null);
         onApplied?.();
       } catch (err) {
         setApplyProgress(0);
+        setPendingMode(null);
         setError(
           err instanceof Error
             ? err.message
-            : "Could not apply plan — try again or refresh the page."
+            : scheduleToCalendar
+              ? "Could not apply plan — try again or refresh the page."
+              : "Could not save plan — try again or refresh the page."
         );
       }
     });
@@ -413,10 +430,12 @@ export function ChatPlanPreviewCard({
             {isApplied ? (
               <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-400">
                 <Check className="h-3.5 w-3.5" />
-                Applied
+                {savedOnly ? "Saved" : "Applied"}
                 {scheduledCount != null && scheduledCount > 0
                   ? ` · ${scheduledCount} scheduled`
-                  : null}
+                  : savedOnly
+                    ? " · not scheduled"
+                    : null}
               </span>
             ) : (
               <>
@@ -424,9 +443,9 @@ export function ChatPlanPreviewCard({
                   size="sm"
                   className="h-9 min-w-[11rem] px-5"
                   disabled={isPending}
-                  onClick={handleApply}
+                  onClick={() => runApply(true)}
                 >
-                  {isPending ? (
+                  {isPending && pendingMode === "apply" ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       Applying… {Math.round(applyProgress)}%
@@ -437,11 +456,31 @@ export function ChatPlanPreviewCard({
                     "Apply to my program"
                   )}
                 </Button>
+                {canSaveWithoutSchedule ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 min-w-[11rem] px-5"
+                    disabled={isPending}
+                    onClick={() => runApply(false)}
+                  >
+                    {isPending && pendingMode === "save" ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Saving… {Math.round(applyProgress)}%
+                      </>
+                    ) : (
+                      saveLabel
+                    )}
+                  </Button>
+                ) : null}
                 {isPending ? (
                   <div className="w-full max-w-[14rem] space-y-1">
                     <Progress value={applyProgress} className="h-1.5" />
                     <p className="text-center text-[10px] font-medium text-muted-foreground">
-                      Saving & scheduling…
+                      {pendingMode === "save"
+                        ? "Saving to library…"
+                        : "Saving & scheduling…"}
                     </p>
                   </div>
                 ) : scheduleLabel ? (

@@ -728,16 +728,21 @@ export async function applyAiNutritionPlanAction(
 }
 
 /** Apply a plan preview from AI coach chat (same as plan builder apply).
- * When the preview includes schedule intent, also places it on the calendar.
+ * When the preview includes schedule intent and `scheduleToCalendar` is not
+ * false, also places it on the calendar. Pass `scheduleToCalendar: false` to
+ * save to Plans/Workouts only.
  */
 export async function applyChatPlanPreviewAction(
   type: "workout" | "nutrition" | "weekly_full",
   plan: AiWorkoutPlanResult | AiGeneratedNutritionPlan | AiWeeklyFullProgram,
-  schedule?: { weeks: number; weekdays: number[]; startDate?: string } | null
+  schedule?: { weeks: number; weekdays: number[]; startDate?: string } | null,
+  options?: { scheduleToCalendar?: boolean }
 ): Promise<
   | { planId: string; editPath: string; scheduledCount: number; weeks: number }
   | { error: string }
 > {
+  const scheduleToCalendar = options?.scheduleToCalendar !== false;
+
   if (type === "weekly_full") {
     const program = plan as AiWeeklyFullProgram;
     const weeks = schedule?.weeks ?? 4;
@@ -745,11 +750,15 @@ export async function applyChatPlanPreviewAction(
       schedule?.weekdays && schedule.weekdays.length > 0
         ? schedule.weekdays
         : defaultWeekdaysForCount(program.days.length);
-    const result = await applyWeeklyFullProgramAction(program, {
-      weeks,
-      weekdays,
-      startDate: schedule?.startDate,
-    });
+    const result = await applyWeeklyFullProgramAction(
+      program,
+      {
+        weeks,
+        weekdays,
+        startDate: schedule?.startDate,
+      },
+      { scheduleToCalendar }
+    );
     if ("error" in result) return result;
     return {
       planId: result.planId,
@@ -769,7 +778,7 @@ export async function applyChatPlanPreviewAction(
 
     let scheduledCount = 0;
     const weeks = schedule?.weeks ?? 4;
-    if (schedule && !isMultiDay) {
+    if (scheduleToCalendar && schedule && !isMultiDay) {
       const scheduled = await scheduleWorkoutPlanDays({
         planId: result.planId,
         weeks,
@@ -799,7 +808,7 @@ export async function applyChatPlanPreviewAction(
 
   let scheduledCount = 0;
   const weeks = schedule?.weeks ?? 4;
-  if (schedule) {
+  if (scheduleToCalendar && schedule) {
     const startDate =
       schedule.startDate?.trim() || new Date().toISOString().split("T")[0];
     const weekdays =
@@ -833,16 +842,18 @@ function defaultWeekdaysForCount(dayCount: number): number[] {
 }
 
 /**
- * Saves mains as a multi-day program, then schedules warm-up + main + stretch
- * (or main only) on each weekday for N weeks.
+ * Saves mains as a multi-day program (Plans tab), and optionally schedules
+ * warm-up + main + stretch (or main only) on each weekday for N weeks.
  */
 export async function applyWeeklyFullProgramAction(
   program: AiWeeklyFullProgram,
-  schedule: { weeks: number; weekdays: number[]; startDate?: string }
+  schedule: { weeks: number; weekdays: number[]; startDate?: string },
+  options?: { scheduleToCalendar?: boolean }
 ): Promise<
   | { planId: string; editPath: string; scheduledCount: number }
   | { error: string }
 > {
+  const scheduleToCalendar = options?.scheduleToCalendar !== false;
   const access = await requireAiPlanBuilder();
   if (!access.success) return { error: access.error };
 
@@ -868,26 +879,28 @@ export async function applyWeeklyFullProgramAction(
   const uniqueWeekdays = [...new Set(weekdays)];
   const slotCount = Math.min(program.days.length, uniqueWeekdays.length);
 
-  const targetDates = new Set<string>();
-  for (let i = 0; i < slotCount; i++) {
-    const dates = generateRecurringScheduleDates(
-      anchor,
-      [uniqueWeekdays[i]!],
-      weeks
-    );
-    for (const d of dates) targetDates.add(d);
-  }
+  if (scheduleToCalendar) {
+    const targetDates = new Set<string>();
+    for (let i = 0; i < slotCount; i++) {
+      const dates = generateRecurringScheduleDates(
+        anchor,
+        [uniqueWeekdays[i]!],
+        weeks
+      );
+      for (const d of dates) targetDates.add(d);
+    }
 
-  // Clear prior warm-up / main / stretch on those dates so re-Apply after a
-  // partial failure (or a previous program) doesn't hit "already has a warm-up".
-  await clearScheduledWorkoutKindsOnDates(
-    admin,
-    userId,
-    [...targetDates],
-    program.includeExtras
-      ? ["warmup", "stretch", "strength", "hiit"]
-      : ["strength", "hiit"]
-  );
+    // Clear prior warm-up / main / stretch on those dates so re-Apply after a
+    // partial failure (or a previous program) doesn't hit "already has a warm-up".
+    await clearScheduledWorkoutKindsOnDates(
+      admin,
+      userId,
+      [...targetDates],
+      program.includeExtras
+        ? ["warmup", "stretch", "strength", "hiit"]
+        : ["strength", "hiit"]
+    );
+  }
 
   // Create each unique day template once (single-day Workouts), then reuse
   // across weeks. The week template below is what appears under Plans.
@@ -1067,32 +1080,34 @@ export async function applyWeeklyFullProgramAction(
 
   let scheduledCount = 0;
 
-  for (let i = 0; i < slotCount; i++) {
-    const slot = prepared[i]!;
-    const weekday = uniqueWeekdays[i]!;
-    const dates = generateRecurringScheduleDates(anchor, [weekday], weeks);
+  if (scheduleToCalendar) {
+    for (let i = 0; i < slotCount; i++) {
+      const slot = prepared[i]!;
+      const weekday = uniqueWeekdays[i]!;
+      const dates = generateRecurringScheduleDates(anchor, [weekday], weeks);
 
-    for (const dateKey of dates) {
-      const refs: SlotRef[] = [];
-      if (slot.warmup) refs.push(slot.warmup);
-      refs.push(slot.main);
-      if (slot.stretch) refs.push(slot.stretch);
+      for (const dateKey of dates) {
+        const refs: SlotRef[] = [];
+        if (slot.warmup) refs.push(slot.warmup);
+        refs.push(slot.main);
+        if (slot.stretch) refs.push(slot.stretch);
 
-      for (const ref of refs) {
-        if (!ref.planId || !ref.dayId) {
-          return { error: "Missing workout template while scheduling" };
+        for (const ref of refs) {
+          if (!ref.planId || !ref.dayId) {
+            return { error: "Missing workout template while scheduling" };
+          }
+          const scheduled = await addWorkoutToDay(
+            dateKey,
+            ref.planId,
+            ref.dayId
+          );
+          if (scheduled.error) {
+            return {
+              error: `Scheduled partially, then failed on ${dateKey}: ${scheduled.error}`,
+            };
+          }
+          scheduledCount += 1;
         }
-        const scheduled = await addWorkoutToDay(
-          dateKey,
-          ref.planId,
-          ref.dayId
-        );
-        if (scheduled.error) {
-          return {
-            error: `Scheduled partially, then failed on ${dateKey}: ${scheduled.error}`,
-          };
-        }
-        scheduledCount += 1;
       }
     }
   }

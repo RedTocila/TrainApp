@@ -191,17 +191,86 @@ export async function getPersonalWorkoutPlanWithDetails(planId: string) {
 
 export async function deletePersonalWorkoutPlan(planId: string) {
   const { admin, userId } = await requireMutationAdmin();
+  const { normalizeWeekPlanConfig } = await import("@/lib/week-plan");
 
-  const { error } = await admin
+  const { data: plan, error: loadError } = await admin
     .from("workout_plans")
-    .delete()
+    .select("id, kind, week_config")
+    .eq("id", planId)
+    .eq("created_by", userId)
+    .eq("is_personal", true)
+    .maybeSingle();
+
+  if (loadError) return { error: loadError.message };
+  if (!plan) return { error: "Plan not found" };
+
+  // Child day plans linked from a week template — delete after the week wrapper
+  // so promoteOrphanMultiDayStrengthPlans can't resurrect the same plan.
+  const childPlanIds = new Set<string>();
+  if (plan.kind === "week") {
+    const config = normalizeWeekPlanConfig(plan.week_config);
+    for (const day of config?.days ?? []) {
+      if (day.mainPlanId) childPlanIds.add(day.mainPlanId);
+      if (day.warmupPlanId) childPlanIds.add(day.warmupPlanId);
+      if (day.stretchPlanId) childPlanIds.add(day.stretchPlanId);
+    }
+  }
+
+  // Clear FKs that default to RESTRICT and would block delete.
+  await admin
+    .from("plan_requests")
+    .update({ delivered_workout_plan_id: null })
+    .eq("delivered_workout_plan_id", planId);
+
+  const { error: deleteError, count } = await admin
+    .from("workout_plans")
+    .delete({ count: "exact" })
     .eq("id", planId)
     .eq("created_by", userId)
     .eq("is_personal", true);
 
-  if (error) return { error: error.message };
+  if (deleteError) return { error: deleteError.message };
+  if (!count) return { error: "Plan could not be deleted" };
+
+  if (childPlanIds.size > 0) {
+    // Keep children still used by another personal week plan.
+    const { data: otherWeeks } = await admin
+      .from("workout_plans")
+      .select("id, week_config")
+      .eq("created_by", userId)
+      .eq("is_personal", true)
+      .eq("kind", "week")
+      .neq("id", planId);
+
+    const stillUsed = new Set<string>();
+    for (const week of otherWeeks ?? []) {
+      const config = normalizeWeekPlanConfig(week.week_config);
+      for (const day of config?.days ?? []) {
+        if (day.mainPlanId) stillUsed.add(day.mainPlanId);
+        if (day.warmupPlanId) stillUsed.add(day.warmupPlanId);
+        if (day.stretchPlanId) stillUsed.add(day.stretchPlanId);
+      }
+    }
+
+    const orphanIds = [...childPlanIds].filter((id) => !stillUsed.has(id));
+    if (orphanIds.length > 0) {
+      await admin
+        .from("plan_requests")
+        .update({ delivered_workout_plan_id: null })
+        .in("delivered_workout_plan_id", orphanIds);
+
+      await admin
+        .from("workout_plans")
+        .delete()
+        .in("id", orphanIds)
+        .eq("created_by", userId)
+        .eq("is_personal", true);
+    }
+  }
+
   revalidatePath("/dashboard/workout");
   revalidatePath("/dashboard/workout/plans");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { deletePersonalWorkoutPlan } from "@/lib/actions/user-workouts";
 import type { PersonalWorkoutListItem } from "@/lib/actions/user-workouts";
@@ -29,14 +29,19 @@ export function AllWorkoutsPage({
 }) {
   const coachCopy = useCoachCopy();
   const router = useRouter();
+  const [items, setItems] = useState(workouts);
   const [categoryFilter, setCategoryFilter] = useState<WorkoutCategoryFilterId>("all");
-  const [isPending, startTransition] = useTransition();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
+
+  useEffect(() => {
+    setItems(workouts);
+  }, [workouts]);
 
   // Muscle maps need exercises — hide empty shells from a bad seed / draft.
   const workoutsWithExercises = useMemo(
-    () => workouts.filter((item) => collectPlanExercises(item).length > 0),
-    [workouts]
+    () => items.filter((item) => collectPlanExercises(item).length > 0),
+    [items]
   );
 
   const filteredWorkouts = useMemo(
@@ -50,11 +55,22 @@ export function AllWorkoutsPage({
   const handleDelete = (planId: string, title: string) => {
     confirmGiveUp({
       ...coachCopy.deleteWorkoutPlan(title),
-      onConfirm: () => {
-        startTransition(async () => {
-          await deletePersonalWorkoutPlan(planId);
+      onConfirm: async () => {
+        const previous = items;
+        setDeletingId(planId);
+        setItems((current) => current.filter((item) => item.plan.id !== planId));
+        try {
+          const result = await deletePersonalWorkoutPlan(planId);
+          if (result && "error" in result && result.error) {
+            setItems(previous);
+            return;
+          }
           router.refresh();
-        });
+        } catch {
+          setItems(previous);
+        } finally {
+          setDeletingId(null);
+        }
       },
     });
   };
@@ -69,6 +85,7 @@ export function AllWorkoutsPage({
             <BuildWorkoutButton />
           </div>
         </Card>
+        {giveUpDialog}
       </>
     );
   }
@@ -103,7 +120,7 @@ export function AllWorkoutsPage({
                 item={item}
                 folders={folders}
                 gender={gender}
-                deleting={isPending}
+                deleting={deletingId === item.plan.id}
                 onDelete={handleDelete}
               />
             </li>

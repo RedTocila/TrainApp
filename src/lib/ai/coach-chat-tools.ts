@@ -33,6 +33,7 @@ import { isAiHiitPlan } from "@/lib/ai/plan-builder-types";
 import type { AiWeeklyFullProgram } from "@/lib/ai/generate-weekly-full-program";
 import { generateWeeklyFullProgramFromProfile } from "@/lib/ai/generate-weekly-full-program";
 import {
+  isAmbiguousWorkoutVsPlanRequest,
   looksLikeSingleSessionRequest,
   looksLikeWeekPlanRequest,
 } from "@/lib/ai/infer-workout-kind";
@@ -126,7 +127,7 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "generate_workout_plan",
       description:
-        "Generate a single WORKOUT or a full-week PLAN. WORKOUT (one session: push/pull/leg/chest day, or just \"push\" / \"a workout\"): days_per_week=1, include_warmup_stretch=false — saves under Workouts with ALL exercises in that one day. PLAN (\"plan\"/\"workout plan\"/week/split/PPL/N-day week): days_per_week=2–6 DISTINCT focuses (Push, Pull, Legs…), include_warmup_stretch=true — saves under Plans. NEVER split one push session into Mon=bench, Tue=OHP, etc. NEVER use profile training-days to invent a week unless they asked for a plan/week/split.",
+        "Generate a single WORKOUT or a full-week PLAN. Only call when the shape is clear. WORKOUT (one session: push/pull/leg/chest day, \"one workout for today\"): days_per_week=1, include_warmup_stretch=false — saves under Workouts. PLAN (\"plan\"/\"workout plan\"/week/split/PPL/N-day week): days_per_week=2–6 DISTINCT focuses, include_warmup_stretch=true — saves under Plans. If they only said \"make me a workout\" / \"build me a workout\" with no focus day and no plan/week wording, DO NOT call this tool — ask whether they want one session or a full week first. NEVER split one push session into Mon=bench, Tue=OHP, etc. NEVER use profile training-days to invent a week unless they asked for a plan/week/split.",
       parameters: {
         type: "object",
         properties: {
@@ -583,6 +584,19 @@ export async function executeCoachChatTool(
           .join("\n");
         const weekPlan = looksLikeWeekPlanRequest(shapeText);
         const singleSession = looksLikeSingleSessionRequest(shapeText);
+        const ambiguous =
+          !weekPlan &&
+          !singleSession &&
+          isAmbiguousWorkoutVsPlanRequest(shapeText);
+
+        if (ambiguous) {
+          onEvent?.({ type: "tool_done", name });
+          return {
+            result:
+              "Blocked: request is ambiguous (\"workout\" could mean one session or a full week). Do NOT guess. Ask the client one plain question: one training session for today, or a full week with several training days? Then call generate_workout_plan again after they answer.",
+          };
+        }
+
         let daysPerWeek =
           typeof args.days_per_week === "number" && args.days_per_week > 0
             ? Math.min(6, Math.max(1, Math.round(args.days_per_week)))

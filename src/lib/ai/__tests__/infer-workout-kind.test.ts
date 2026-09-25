@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  isAmbiguousWorkoutVsPlanRequest,
   looksLikeNamedFocusSession,
   looksLikeSingleSessionRequest,
   looksLikeWeekPlanRequest,
@@ -34,12 +35,18 @@ describe("looksLikeWeekPlanRequest", () => {
 });
 
 describe("looksLikeSingleSessionRequest", () => {
-  it("detects one-session requests", () => {
+  it("detects clear one-session requests", () => {
     assert.equal(looksLikeSingleSessionRequest("push day"), true);
     assert.equal(looksLikeSingleSessionRequest("push"), true);
-    assert.equal(looksLikeSingleSessionRequest("make me a workout"), true);
+    assert.equal(looksLikeSingleSessionRequest("one workout for today"), true);
     assert.equal(looksLikeSingleSessionRequest("HIIT session"), true);
     assert.equal(looksLikeSingleSessionRequest("chest workout"), true);
+  });
+
+  it("does not treat bare make-me-a-workout as a clear single session", () => {
+    assert.equal(looksLikeSingleSessionRequest("make me a workout"), false);
+    assert.equal(looksLikeSingleSessionRequest("build me a workout"), false);
+    assert.equal(looksLikeSingleSessionRequest("I need a workout"), false);
   });
 
   it("yields to plan / week language", () => {
@@ -47,6 +54,28 @@ describe("looksLikeSingleSessionRequest", () => {
     assert.equal(looksLikeSingleSessionRequest("workout plan"), false);
     assert.equal(looksLikeSingleSessionRequest("3 day week program"), false);
     assert.equal(looksLikeSingleSessionRequest("push/pull/legs"), false);
+  });
+});
+
+describe("isAmbiguousWorkoutVsPlanRequest", () => {
+  it("flags vague workout asks", () => {
+    assert.equal(isAmbiguousWorkoutVsPlanRequest("make me a workout"), true);
+    assert.equal(isAmbiguousWorkoutVsPlanRequest("build me a workout"), true);
+    assert.equal(isAmbiguousWorkoutVsPlanRequest("I need a workout"), true);
+    assert.equal(isAmbiguousWorkoutVsPlanRequest("give me a workout"), true);
+    assert.equal(isAmbiguousWorkoutVsPlanRequest("create a new workout"), true);
+  });
+
+  it("does not flag clear plan or focus-day asks", () => {
+    assert.equal(isAmbiguousWorkoutVsPlanRequest("make me a plan"), false);
+    assert.equal(isAmbiguousWorkoutVsPlanRequest("workout plan"), false);
+    assert.equal(isAmbiguousWorkoutVsPlanRequest("push day"), false);
+    assert.equal(isAmbiguousWorkoutVsPlanRequest("leg workout"), false);
+    assert.equal(
+      isAmbiguousWorkoutVsPlanRequest("one workout for today"),
+      false
+    );
+    assert.equal(isAmbiguousWorkoutVsPlanRequest("HIIT session"), false);
   });
 });
 

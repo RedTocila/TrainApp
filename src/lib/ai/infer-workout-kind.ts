@@ -170,16 +170,45 @@ export function looksLikeWeekPlanRequest(preferences?: string): boolean {
 /**
  * True when preferences clearly mean ONE workout session (Workouts tab),
  * not a multi-day week plan (Plans tab). Explicit week/split language wins.
+ * Bare "make me a workout" is NOT treated as clear — users often mean a week.
  */
 export function looksLikeSingleSessionRequest(preferences?: string): boolean {
   const text = normalizePreferenceText(preferences);
   if (!text.trim()) return false;
 
   if (looksLikeWeekPlanRequest(text)) return false;
+  if (isAmbiguousWorkoutVsPlanRequest(text)) return false;
 
   if (looksLikeNamedFocusSession(text)) return true;
 
-  return /\b(a\s+(workout|session)|one\s+(workout|session)|single\s+(workout|session)|make\s+(me\s+)?(a\s+)?workout|build\s+(me\s+)?(a\s+)?workout|hiit\s+(session|workout)|tabata\s+(session|workout)|nje\s+stervitje)\b/i.test(
+  return /\b(one\s+(workout|session)|single\s+(workout|session)|a\s+session|today'?s\s+(workout|session)|(workout|session)\s+for\s+today|hiit\s+session|tabata\s+session|nje\s+seance)\b/i.test(
+    text
+  );
+}
+
+/**
+ * Vague "make me a workout" style asks — clients often mean a full week plan.
+ * Ask one clarifying question instead of guessing Workout vs Plan.
+ */
+export function isAmbiguousWorkoutVsPlanRequest(
+  preferences?: string
+): boolean {
+  const text = normalizePreferenceText(preferences);
+  if (!text.trim() || looksLikeNutritionPlanOnly(text)) return false;
+
+  // Already clear either way.
+  if (looksLikeWeekPlanRequest(text)) return false;
+  if (looksLikeNamedFocusSession(text)) return false;
+  if (
+    /\b(one\s+(workout|session)|single\s+(workout|session)|a\s+session|today'?s\s+(workout|session)|(workout|session)\s+for\s+today|hiit\s+session|tabata\s+session|nje\s+seance)\b/i.test(
+      text
+    )
+  ) {
+    return false;
+  }
+
+  // Create/want a workout without naming a focus, day count, or "plan/week".
+  return /\b((make|build|create|generate|give|design|need|want)\s+(me\s+)?(a\s+|nje\s+)?(new\s+)?(workout|session|stervitje)|(a|nje)\s+(new\s+)?(workout|session|stervitje)|workout\s+please|stervitje\s+te\s+lutem)\b/i.test(
     text
   );
 }

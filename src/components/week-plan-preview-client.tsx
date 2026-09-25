@@ -131,12 +131,11 @@ export function WeekPlanPreviewClient({
       message: copy.message,
       confirmLabel: copy.confirm,
       cancelLabel: copy.cancel,
-      onConfirm: () => {
-        startTransition(async () => {
-          await deletePersonalWorkoutPlan(plan.id);
-          router.push("/dashboard/workout/plans");
-          router.refresh();
-        });
+      onConfirm: async () => {
+        const result = await deletePersonalWorkoutPlan(plan.id);
+        if (result && "error" in result && result.error) return;
+        router.push("/dashboard/workout/plans");
+        router.refresh();
       },
     });
   };

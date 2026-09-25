@@ -509,9 +509,13 @@ export function WeekPlansPage({
   const platform = usePlatformCopy();
   const coachCopy = useCoachCopy();
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [items, setItems] = useState(plans);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
+
+  useEffect(() => {
+    setItems(plans);
+  }, [plans]);
 
   const handleDelete = (planId: string, title: string) => {
     const copy = coachCopy.deleteWorkoutPlan(title);
@@ -520,18 +524,27 @@ export function WeekPlansPage({
       message: copy.message,
       confirmLabel: copy.confirm,
       cancelLabel: copy.cancel,
-      onConfirm: () => {
+      onConfirm: async () => {
+        const previous = items;
         setDeletingId(planId);
-        startTransition(async () => {
-          await deletePersonalWorkoutPlan(planId);
-          setDeletingId(null);
+        setItems((current) => current.filter((plan) => plan.id !== planId));
+        try {
+          const result = await deletePersonalWorkoutPlan(planId);
+          if (result && "error" in result && result.error) {
+            setItems(previous);
+            return;
+          }
           router.refresh();
-        });
+        } catch {
+          setItems(previous);
+        } finally {
+          setDeletingId(null);
+        }
       },
     });
   };
 
-  if (plans.length === 0) {
+  if (items.length === 0) {
     return (
       <>
         <PremiumSurface accent="primary">
@@ -559,12 +572,12 @@ export function WeekPlansPage({
     <>
       <CreatePlanButton />
       <div className="space-y-3">
-        {plans.map((plan) => (
+        {items.map((plan) => (
           <WeekPlanCard
             key={plan.id}
             plan={plan}
             isScheduled={isWeekPlanScheduleActive(plan.config)}
-            deleting={isPending && deletingId === plan.id}
+            deleting={deletingId === plan.id}
             onDelete={handleDelete}
           />
         ))}
