@@ -13,6 +13,7 @@ import {
   tokenizeGuestCard,
   type PokPayAddCardPayload,
 } from "@/lib/pokpay/client";
+import { withPokPayWebhookSecret } from "@/lib/pokpay/env";
 import {
   buildFreeTrialGrant,
   FREE_TRIAL_PLAN_ID,
@@ -189,7 +190,7 @@ export async function chargeEndedAiProTrials(): Promise<{
           plan: FREE_TRIAL_PLAN_ID,
           billing_interval: interval,
           amount_cents: price.amountCents,
-          currency: CHECKOUT_CURRENCY,
+          currency_code: CHECKOUT_CURRENCY,
           status: "pending",
           order_kind: "trial_conversion",
         })
@@ -207,7 +208,9 @@ export async function chargeEndedAiProTrials(): Promise<{
         currencyCode: CHECKOUT_CURRENCY,
         redirectUrl: `${baseUrl}/dashboard/pricing`,
         failRedirectUrl: `${baseUrl}/dashboard/pricing`,
-        webhookUrl: `${baseUrl}/api/payments/pokpay/webhook`,
+        webhookUrl: withPokPayWebhookSecret(
+          `${baseUrl}/api/payments/pokpay/webhook`
+        ),
         merchantCustomReference: order.id,
         description: `${planName} after free trial (${interval})`,
         products: [

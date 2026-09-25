@@ -347,16 +347,24 @@ export async function guestConfirmSdkOrder(params: {
 }
 
 export function isSdkOrderPaid(order: PokPaySdkOrder): boolean {
-  if (order.capturedAmount != null && order.capturedAmount >= order.amount) {
-    return true;
+  if (order.capturedAmount != null && order.amount != null) {
+    if (order.capturedAmount >= order.amount && order.capturedAmount > 0) {
+      return true;
+    }
   }
-  const status = order.status?.toLowerCase() ?? "";
-  return (
-    status.includes("capture") ||
-    status.includes("paid") ||
-    status.includes("complete") ||
-    status.includes("success")
-  );
+  const status = (order.status ?? "").trim().toLowerCase();
+  // Exact-ish paid statuses only — avoid false positives from "incomplete" etc.
+  const paid = new Set([
+    "captured",
+    "capture",
+    "paid",
+    "completed",
+    "complete",
+    "success",
+    "successful",
+    "succeeded",
+  ]);
+  return paid.has(status);
 }
 
 export function pokpayPublicEnv(): "production" | "staging" {

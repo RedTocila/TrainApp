@@ -393,7 +393,13 @@ export function ActiveHiitClient({
     setError(null);
     setBusy("leaving");
     try {
-      await cancelWorkoutSession(session.id);
+      const result = await cancelWorkoutSession(session.id);
+      if (result.error) {
+        setError(formatUserError(result.error));
+        busyLockRef.current = false;
+        setBusy("idle");
+        return;
+      }
       clearHiitTimerState(session.id);
       notifySync();
       router.replace("/dashboard");

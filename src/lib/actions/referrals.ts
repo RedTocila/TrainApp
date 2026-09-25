@@ -225,7 +225,46 @@ export async function getCheckoutReferralState(userId: string): Promise<{
   };
 }
 
-/** Deduct credits after a successful order that reserved them. */
+/** Atomically reserve credits when creating a pending checkout order. */
+export async function reserveReferralCreditsForOrder(
+  admin: AdminClient,
+  args: {
+    userId: string;
+    orderId: string;
+    amountCents: number;
+    description: string;
+  }
+): Promise<{ reserved: number } | { error: string }> {
+  if (args.amountCents <= 0) return { reserved: 0 };
+
+  const { data, error } = await admin.rpc("reserve_referral_credits", {
+    p_user_id: args.userId,
+    p_order_id: args.orderId,
+    p_amount_cents: args.amountCents,
+    p_description: args.description,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+  return { reserved: typeof data === "number" ? data : args.amountCents };
+}
+
+/** Restore credits if checkout fails after a reserve. */
+export async function releaseReferralCreditsForOrder(
+  admin: AdminClient,
+  args: { userId: string; orderId: string }
+): Promise<void> {
+  await admin.rpc("release_referral_credits", {
+    p_user_id: args.userId,
+    p_order_id: args.orderId,
+  });
+}
+
+/**
+ * After successful payment: book money_saved for credits already reserved.
+ * Falls back to legacy deduct-on-complete when no reserve row exists (older orders).
+ */
 export async function settleReferralCreditsSpend(
   admin: AdminClient,
   args: {
@@ -235,8 +274,32 @@ export async function settleReferralCreditsSpend(
     description: string;
   }
 ): Promise<void> {
-  if (args.amountCents <= 0) return;
+  if (args.amountCents <= 0) {
+    await admin
+      .from("subscription_orders")
+      .update({ referral_credits_settled_at: new Date().toISOString() })
+      .eq("id", args.orderId)
+      .is("referral_credits_settled_at", null);
+    return;
+  }
 
+  const { data: existingSpend } = await admin
+    .from("referral_credit_transactions")
+    .select("id, amount_cents")
+    .eq("order_id", args.orderId)
+    .eq("type", "spend")
+    .maybeSingle();
+
+  if (existingSpend) {
+    await admin.rpc("finalize_referral_credit_spend", {
+      p_user_id: args.userId,
+      p_order_id: args.orderId,
+      p_description: args.description,
+    });
+    return;
+  }
+
+  // Legacy path: order applied credits without a prior reserve.
   const { data: profile } = await admin
     .from("profiles")
     .select("referral_credit_balance_cents, referral_money_saved_cents")
@@ -247,7 +310,29 @@ export async function settleReferralCreditsSpend(
 
   const balance = profile.referral_credit_balance_cents ?? 0;
   const spend = Math.min(balance, args.amountCents);
-  if (spend <= 0) return;
+  if (spend <= 0) {
+    await admin
+      .from("subscription_orders")
+      .update({ referral_credits_settled_at: new Date().toISOString() })
+      .eq("id", args.orderId)
+      .is("referral_credits_settled_at", null);
+    return;
+  }
+
+  const { data: inserted, error: insertError } = await admin
+    .from("referral_credit_transactions")
+    .insert({
+      user_id: args.userId,
+      order_id: args.orderId,
+      amount_cents: -spend,
+      type: "spend",
+      description: args.description,
+    })
+    .select("id")
+    .maybeSingle();
+
+  // Unique index → another completer already settled this order.
+  if (insertError || !inserted) return;
 
   await admin
     .from("profiles")
@@ -256,15 +341,14 @@ export async function settleReferralCreditsSpend(
       referral_money_saved_cents:
         (profile.referral_money_saved_cents ?? 0) + spend,
     })
-    .eq("id", args.userId);
+    .eq("id", args.userId)
+    .gte("referral_credit_balance_cents", spend);
 
-  await admin.from("referral_credit_transactions").insert({
-    user_id: args.userId,
-    order_id: args.orderId,
-    amount_cents: -spend,
-    type: "spend",
-    description: args.description,
-  });
+  await admin
+    .from("subscription_orders")
+    .update({ referral_credits_settled_at: new Date().toISOString() })
+    .eq("id", args.orderId)
+    .is("referral_credits_settled_at", null);
 }
 
 /** Grant inviter €10 when invitee completes first paid subscription. Idempotent. */
@@ -294,6 +378,37 @@ export async function grantInviterCreditForSubscription(
   const locale = parseCheckoutLocale(referrer.preferred_locale);
   const now = new Date().toISOString();
 
+  // Claim the referral row first so concurrent completions cannot double-grant.
+  const { data: claimed } = await admin
+    .from("referrals")
+    .update({
+      status: "qualified",
+      qualifying_order_id: args.orderId,
+      credit_granted_cents: INVITER_CREDIT_CENTS,
+      credit_granted_at: now,
+      qualified_at: now,
+    })
+    .eq("id", referral.id)
+    .or("credit_granted_cents.is.null,credit_granted_cents.eq.0")
+    .select("id")
+    .maybeSingle();
+
+  if (!claimed) return;
+
+  const { error: txError } = await admin.from("referral_credit_transactions").insert({
+    user_id: referral.referrer_id,
+    referral_id: referral.id,
+    order_id: args.orderId,
+    amount_cents: INVITER_CREDIT_CENTS,
+    type: "earn",
+    description: referralEarnDescription(locale),
+  });
+
+  if (txError) {
+    // Unique order earn index — credit already granted via this order.
+    return;
+  }
+
   await admin
     .from("profiles")
     .update({
@@ -303,26 +418,6 @@ export async function grantInviterCreditForSubscription(
         (referrer.referral_credits_earned_cents ?? 0) + INVITER_CREDIT_CENTS,
     })
     .eq("id", referral.referrer_id);
-
-  await admin
-    .from("referrals")
-    .update({
-      status: "qualified",
-      qualifying_order_id: args.orderId,
-      credit_granted_cents: INVITER_CREDIT_CENTS,
-      credit_granted_at: now,
-      qualified_at: now,
-    })
-    .eq("id", referral.id);
-
-  await admin.from("referral_credit_transactions").insert({
-    user_id: referral.referrer_id,
-    referral_id: referral.id,
-    order_id: args.orderId,
-    amount_cents: INVITER_CREDIT_CENTS,
-    type: "earn",
-    description: referralEarnDescription(locale),
-  });
 }
 
 export async function spendDescriptionForOrder(

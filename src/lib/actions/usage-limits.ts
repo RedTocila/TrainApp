@@ -26,6 +26,16 @@ async function getUsageCount(userId: string, counterKey: string): Promise<number
 
 async function incrementUsageCount(userId: string, counterKey: string): Promise<number> {
   const admin = createAdminClient();
+  const { data, error } = await admin.rpc("increment_usage_counter", {
+    p_user_id: userId,
+    p_counter_key: counterKey,
+  });
+
+  if (!error && typeof data === "number") {
+    return data;
+  }
+
+  // Fallback if migration not applied yet.
   const current = await getUsageCount(userId, counterKey);
   const next = current + 1;
 
@@ -42,7 +52,8 @@ async function incrementUsageCount(userId: string, counterKey: string): Promise<
     .from("user_usage_counters")
     .update({ count: next, updated_at: new Date().toISOString() })
     .eq("user_id", userId)
-    .eq("counter_key", counterKey);
+    .eq("counter_key", counterKey)
+    .eq("count", current);
 
   return next;
 }

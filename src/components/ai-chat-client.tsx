@@ -683,6 +683,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
           message: messageContent,
           history,
           mode: chatModeRef.current,
+          timezoneOffsetMinutes: new Date().getTimezoneOffset(),
           ...(image ? { image } : {}),
         }),
         signal: controller.signal,

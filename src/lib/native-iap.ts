@@ -84,8 +84,40 @@ export async function openAppleSubscriptionManagement() {
   await NativePurchases.manageSubscriptions();
 }
 
-export async function restoreApplePurchases() {
-  if (!shouldUseAppleIap()) return;
-  const { NativePurchases } = await getNativePurchases();
+export async function restoreApplePurchases(): Promise<{
+  restored: number;
+  error?: string;
+}> {
+  if (!shouldUseAppleIap()) return { restored: 0 };
+  const { NativePurchases, PURCHASE_TYPE } = await getNativePurchases();
   await NativePurchases.restorePurchases();
+
+  const { purchases } = await NativePurchases.getPurchases({
+    productType: PURCHASE_TYPE.SUBS,
+    onlyCurrentEntitlements: true,
+  });
+
+  const { syncAppleEntitlementFromSignedTransaction } = await import(
+    "@/lib/actions/iap"
+  );
+
+  let restored = 0;
+  let lastError: string | undefined;
+  for (const purchase of purchases ?? []) {
+    const jws = purchase.jwsRepresentation?.trim();
+    if (!jws) continue;
+    const result = await syncAppleEntitlementFromSignedTransaction({
+      signedTransaction: jws,
+    });
+    if ("error" in result && result.error) {
+      lastError = result.error;
+      continue;
+    }
+    restored += 1;
+  }
+
+  if (restored === 0 && lastError) {
+    return { restored: 0, error: lastError };
+  }
+  return { restored };
 }

@@ -26,6 +26,7 @@ import {
   type PokPayAddCardPayload,
   type PokPaySdkOrderProduct,
 } from "@/lib/pokpay/client";
+import { withPokPayWebhookSecret } from "@/lib/pokpay/env";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
@@ -439,7 +440,9 @@ export async function createGuestCheckoutOrder(
   try {
     const redirectUrl = `${baseUrl}/join/checkout/success?localOrderId=${prepared.localOrderId}`;
     const failRedirectUrl = `${baseUrl}/join/checkout?plan=${planId}&interval=${interval}`;
-    const webhookUrl = `${baseUrl}/api/payments/pokpay/webhook`;
+    const webhookUrl = withPokPayWebhookSecret(
+      `${baseUrl}/api/payments/pokpay/webhook`
+    );
     const products: PokPaySdkOrderProduct[] = [
       {
         name: `${prepared.plan.name} · ${interval === "monthly" ? "Monthly" : "Annual"}`,

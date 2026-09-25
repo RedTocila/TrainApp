@@ -23,6 +23,7 @@ import {
   isSdkOrderPaid,
   type PokPaySdkOrderProduct,
 } from "@/lib/pokpay/client";
+import { withPokPayWebhookSecret } from "@/lib/pokpay/env";
 import { getAppBaseUrl } from "@/lib/app-url";
 import type { Profile } from "@/lib/types";
 import { getSubscriptionRequiredMessage } from "@/lib/subscription-messages";
@@ -52,11 +53,45 @@ async function completeSubscriptionOrder(
     referralCreditsAppliedCents?: number;
     preferredLocale?: string | null;
   }
-): Promise<{ success: true } | { error: string }> {
+): Promise<
+  { success: true; alreadyCompleted?: boolean } | { error: string }
+> {
   const now = new Date();
   const expiresAt = addBillingPeriod(now, args.billingInterval);
 
-  await admin
+  // Claim the order first so success-page + webhook cannot double-settle.
+  const orderUpdate: Record<string, unknown> = {
+    status: "completed",
+    completed_at: now.toISOString(),
+  };
+  if (args.pokpayOrderId) {
+    orderUpdate.pokpay_order_id = args.pokpayOrderId;
+  }
+
+  const { data: claimed, error: claimError } = await admin
+    .from("subscription_orders")
+    .update(orderUpdate)
+    .eq("id", args.orderId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+
+  if (claimError) {
+    return { error: claimError.message };
+  }
+  if (!claimed) {
+    const { data: existing } = await admin
+      .from("subscription_orders")
+      .select("status")
+      .eq("id", args.orderId)
+      .maybeSingle();
+    if (existing?.status === "completed") {
+      return { success: true, alreadyCompleted: true };
+    }
+    return { error: "Order could not be completed" };
+  }
+
+  const { error: profileError } = await admin
     .from("profiles")
     .update({
       subscription_plan: args.plan,
@@ -66,15 +101,9 @@ async function completeSubscriptionOrder(
     })
     .eq("id", args.userId);
 
-  const orderUpdate: Record<string, unknown> = {
-    status: "completed",
-    completed_at: now.toISOString(),
-  };
-  if (args.pokpayOrderId) {
-    orderUpdate.pokpay_order_id = args.pokpayOrderId;
+  if (profileError) {
+    return { error: profileError.message };
   }
-
-  await admin.from("subscription_orders").update(orderUpdate).eq("id", args.orderId);
 
   const { settleReferralCreditsSpend, grantInviterCreditForSubscription, spendDescriptionForOrder } =
     await import("@/lib/actions/referrals");
@@ -200,11 +229,32 @@ export async function createCheckoutOrder(
     return { error: insertError?.message ?? "Could not start checkout" };
   }
 
+  const {
+    reserveReferralCreditsForOrder,
+    releaseReferralCreditsForOrder,
+    spendDescriptionForOrder,
+  } = await import("@/lib/actions/referrals");
+
   const { data: profile } = await admin
     .from("profiles")
     .select("preferred_locale")
     .eq("id", user.id)
     .maybeSingle();
+
+  const locale = parseCheckoutLocale(profile?.preferred_locale);
+
+  if (creditsToApply > 0) {
+    const reserved = await reserveReferralCreditsForOrder(admin, {
+      userId: user.id,
+      orderId: orderRow.id,
+      amountCents: creditsToApply,
+      description: await spendDescriptionForOrder(locale, "subscription"),
+    });
+    if ("error" in reserved) {
+      await admin.from("subscription_orders").update({ status: "failed" }).eq("id", orderRow.id);
+      return { error: reserved.error };
+    }
+  }
 
   // Fully covered by discounts/credits — activate without PokPay.
   if (chargeCents === 0) {
@@ -217,7 +267,13 @@ export async function createCheckoutOrder(
       referralCreditsAppliedCents: creditsToApply,
       preferredLocale: profile?.preferred_locale,
     });
-    if ("error" in result) return result;
+    if ("error" in result) {
+      await releaseReferralCreditsForOrder(admin, {
+        userId: user.id,
+        orderId: orderRow.id,
+      });
+      return result;
+    }
     revalidateSubscriptionPaths();
     return {
       localOrderId: orderRow.id,
@@ -238,7 +294,9 @@ export async function createCheckoutOrder(
   try {
     const redirectUrl = `${baseUrl}/dashboard/checkout/success?localOrderId=${orderRow.id}`;
     const failRedirectUrl = `${baseUrl}/dashboard/checkout?plan=${planId}&interval=${interval}`;
-    const webhookUrl = `${baseUrl}/api/payments/pokpay/webhook`;
+    const webhookUrl = withPokPayWebhookSecret(
+      `${baseUrl}/api/payments/pokpay/webhook`
+    );
     const products: PokPaySdkOrderProduct[] = [
       {
         name: `${plan.name} · ${interval === "monthly" ? "Monthly" : "Annual"}`,
@@ -276,6 +334,10 @@ export async function createCheckoutOrder(
       offerBadge,
     };
   } catch (err) {
+    await releaseReferralCreditsForOrder(admin, {
+      userId: user.id,
+      orderId: orderRow.id,
+    });
     await admin
       .from("subscription_orders")
       .update({ status: "failed" })

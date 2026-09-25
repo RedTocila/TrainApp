@@ -407,8 +407,17 @@ export async function toggleHabitCompletion(
     .maybeSingle();
 
   if (existing) {
+    const { error: deleteError } = await admin
+      .from("habit_completions")
+      .delete()
+      .eq("habit_id", habitId)
+      .eq("date", date)
+      .eq("client_id", clientId);
+    if (deleteError) {
+      return { error: formatDbError(deleteError.message), completed: true };
+    }
     revalidatePath("/dashboard");
-    return { completed: true };
+    return { completed: false };
   }
 
   await ensureHabitScheduledForDate(admin, habitId, clientId, date);

@@ -30,6 +30,7 @@ import { getChallengeSeries, isFlashChallenge, isTransformationChallenge, usesCh
 import {
   flashGroupSize,
   flashRequiresPaymentOnJoin,
+  flashParticipantIsConfirmed,
 } from "@/lib/flash-challenge-entry-fee";
 import {
   flashMaxGroupCount,
@@ -677,8 +678,32 @@ export async function startChallenge(challengeId: string) {
     throw new Error("This challenge has already started.");
   }
 
-  const participantCount = await countChallengeParticipants(supabase, challengeId);
-  if (participantCount < MIN_PARTICIPANTS_TO_START) {
+  let participantCount = await countChallengeParticipants(supabase, challengeId);
+
+  if (isFlashChallenge(challenge)) {
+    const { data: flashParticipants } = await supabase
+      .from("challenge_participants")
+      .select("id, created_at, entry_fee_paid_at")
+      .eq("challenge_id", challengeId)
+      .in("status", ["registered", "active", "finalist"])
+      .order("created_at", { ascending: true });
+
+    const all = (flashParticipants ?? []).map((row) => ({
+      id: row.id as string,
+      created_at: row.created_at as string,
+      entry_fee_paid_at: (row.entry_fee_paid_at as string | null) ?? null,
+    }));
+    const confirmed = all.filter((p) =>
+      flashParticipantIsConfirmed(p, all, flashGroupSize(challenge))
+    );
+    participantCount = confirmed.length;
+
+    if (participantCount < MIN_PARTICIPANTS_TO_START) {
+      throw new Error(
+        `At least ${MIN_PARTICIPANTS_TO_START} paid/confirmed participants are required before starting. (${participantCount} ready, ${all.length - participantCount} still need to pay.)`
+      );
+    }
+  } else if (participantCount < MIN_PARTICIPANTS_TO_START) {
     throw new Error(
       `At least ${MIN_PARTICIPANTS_TO_START} participants are required before starting.`
     );
@@ -721,20 +746,29 @@ async function generateFlashGroupsInternal(
 
   const { data: participants } = await supabase
     .from("challenge_participants")
-    .select("id, created_at")
+    .select("id, created_at, entry_fee_paid_at")
     .eq("challenge_id", challengeId)
     .in("status", ["registered", "active", "finalist"])
     .order("created_at", { ascending: true });
 
-  const participantRows = participants ?? [];
-  if (participantRows.length === 0) return;
+  const allParticipants = (participants ?? []).map((participant) => ({
+    id: participant.id as string,
+    created_at: participant.created_at as string,
+    entry_fee_paid_at: (participant.entry_fee_paid_at as string | null) ?? null,
+  }));
 
-  const ids = participantIdsByJoinOrder(
-    participantRows.map((participant) => ({
-      id: participant.id as string,
-      created_at: participant.created_at as string,
-    }))
+  // Only paid/confirmed seats enter live groups — unpaid reserves stay out.
+  const confirmed = allParticipants.filter((participant) =>
+    flashParticipantIsConfirmed(
+      participant,
+      allParticipants,
+      flashGroupSize(challenge)
+    )
   );
+
+  if (confirmed.length === 0) return;
+
+  const ids = participantIdsByJoinOrder(confirmed);
 
   const groupSize = flashGroupSize(challenge);
   const groupCount = Math.min(

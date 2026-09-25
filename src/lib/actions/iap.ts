@@ -35,13 +35,45 @@ async function activateFromVerifiedApple(args: {
   expiresDateMs: number | null;
   referralCreditsAppliedCents?: number;
   preferredLocale?: string | null;
-}): Promise<{ success: true } | { error: string }> {
+}): Promise<{ success: true; alreadyCompleted?: boolean } | { error: string }> {
   const now = new Date();
   const expiresAt = args.expiresDateMs
     ? new Date(args.expiresDateMs)
     : addBillingPeriod(now, args.billingInterval);
 
-  await args.admin
+  if (expiresAt.getTime() <= now.getTime()) {
+    return { error: "This Apple subscription has already expired." };
+  }
+
+  const { data: claimed, error: claimError } = await args.admin
+    .from("subscription_orders")
+    .update({
+      status: "completed",
+      completed_at: now.toISOString(),
+      payment_provider: "apple",
+      apple_transaction_id: args.transactionId,
+      apple_original_transaction_id: args.originalTransactionId,
+      user_id: args.userId,
+    })
+    .eq("id", args.orderId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+
+  if (claimError) return { error: claimError.message };
+  if (!claimed) {
+    const { data: existing } = await args.admin
+      .from("subscription_orders")
+      .select("status")
+      .eq("id", args.orderId)
+      .maybeSingle();
+    if (existing?.status === "completed") {
+      return { success: true, alreadyCompleted: true };
+    }
+    return { error: "Order could not be completed" };
+  }
+
+  const { error: profileError } = await args.admin
     .from("profiles")
     .update({
       subscription_plan: args.plan,
@@ -52,17 +84,7 @@ async function activateFromVerifiedApple(args: {
     })
     .eq("id", args.userId);
 
-  await args.admin
-    .from("subscription_orders")
-    .update({
-      status: "completed",
-      completed_at: now.toISOString(),
-      payment_provider: "apple",
-      apple_transaction_id: args.transactionId,
-      apple_original_transaction_id: args.originalTransactionId,
-      user_id: args.userId,
-    })
-    .eq("id", args.orderId);
+  if (profileError) return { error: profileError.message };
 
   const {
     settleReferralCreditsSpend,
@@ -201,6 +223,13 @@ export async function completeAppleCheckoutPurchase(input: CompleteApplePurchase
     return { error: "Product mismatch for this Apple purchase." };
   }
 
+  if (
+    verified.appAccountToken &&
+    verified.appAccountToken.toLowerCase() !== user.id.toLowerCase()
+  ) {
+    return { error: "Apple purchase is bound to a different account." };
+  }
+
   if (!verified.transactionId.trim()) {
     return { error: "Apple transaction is missing a transaction id." };
   }
@@ -325,4 +354,133 @@ export async function completeGuestAppleCheckout(input: {
     expiresDateMs: verified.expiresDate,
     originalTransactionId: verified.originalTransactionId,
   });
+}
+
+/**
+ * Restore: verify a StoreKit entitlement JWS and activate/extend the signed-in user.
+ * Creates a completed Apple order if one does not already exist for this transaction.
+ */
+export async function syncAppleEntitlementFromSignedTransaction(input: {
+  signedTransaction: string;
+}): Promise<{ success: true; alreadyActive?: boolean } | { error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  let verified;
+  try {
+    verified = await verifyAppleTransactionJws(input.signedTransaction);
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Could not verify Apple purchase",
+    };
+  }
+
+  if (
+    verified.appAccountToken &&
+    verified.appAccountToken.toLowerCase() !== user.id.toLowerCase()
+  ) {
+    return { error: "Apple purchase is bound to a different account." };
+  }
+
+  const parsed = parseIapProductId(verified.productId);
+  if (!parsed) return { error: "Unknown Apple product." };
+
+  const admin = createAdminClient();
+
+  const { data: existingTxn } = await admin
+    .from("subscription_orders")
+    .select("id, status, user_id")
+    .eq("apple_transaction_id", verified.transactionId)
+    .maybeSingle();
+
+  if (existingTxn?.status === "completed") {
+    if (existingTxn.user_id && existingTxn.user_id !== user.id) {
+      return { error: "This Apple transaction belongs to another account." };
+    }
+    // Refresh expiry on profile from the verified receipt.
+    const expiresAt = verified.expiresDate
+      ? new Date(verified.expiresDate)
+      : addBillingPeriod(new Date(), parsed.interval);
+    await admin
+      .from("profiles")
+      .update({
+        subscription_plan: parsed.planId,
+        subscription_status: "active",
+        subscription_interval: parsed.interval,
+        subscription_expires_at: expiresAt.toISOString(),
+        apple_original_transaction_id: verified.originalTransactionId,
+      })
+      .eq("id", user.id);
+    revalidateSubscriptionPaths();
+    return { success: true, alreadyActive: true };
+  }
+
+  if (existingTxn?.status === "pending" && existingTxn.user_id === user.id) {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("preferred_locale")
+      .eq("id", user.id)
+      .maybeSingle();
+    const result = await activateFromVerifiedApple({
+      admin,
+      orderId: existingTxn.id,
+      userId: user.id,
+      plan: parsed.planId,
+      billingInterval: parsed.interval,
+      transactionId: verified.transactionId,
+      originalTransactionId: verified.originalTransactionId,
+      expiresDateMs: verified.expiresDate,
+      preferredLocale: profile?.preferred_locale,
+    });
+    if ("error" in result) return result;
+    revalidateSubscriptionPaths();
+    return { success: true };
+  }
+
+  const price = getPlanPrice(parsed.planId, parsed.interval);
+  const { data: orderRow, error: insertError } = await admin
+    .from("subscription_orders")
+    .insert({
+      user_id: user.id,
+      plan: parsed.planId,
+      billing_interval: parsed.interval,
+      amount_cents: price?.amountCents ?? 0,
+      currency_code: CHECKOUT_CURRENCY,
+      status: "pending",
+      order_kind: "subscription",
+      payment_provider: "apple",
+      apple_transaction_id: verified.transactionId,
+      apple_original_transaction_id: verified.originalTransactionId,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !orderRow) {
+    return { error: insertError?.message ?? "Could not create restore order" };
+  }
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("preferred_locale")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const result = await activateFromVerifiedApple({
+    admin,
+    orderId: orderRow.id,
+    userId: user.id,
+    plan: parsed.planId,
+    billingInterval: parsed.interval,
+    transactionId: verified.transactionId,
+    originalTransactionId: verified.originalTransactionId,
+    expiresDateMs: verified.expiresDate,
+    preferredLocale: profile?.preferred_locale,
+  });
+
+  if ("error" in result) return result;
+  revalidateSubscriptionPaths();
+  return { success: true };
 }

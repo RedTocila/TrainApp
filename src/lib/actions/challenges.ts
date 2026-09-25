@@ -21,6 +21,7 @@ import {
 } from "@/lib/challenge-gender";
 
 import type { Challenge } from "@/lib/types";
+import { requireAdmin } from "@/lib/actions/auth";
 
 export async function ensureCatalogChallengesInDb(): Promise<void> {
   await Promise.all([ensureTransformationChallengesInDb(), ensureFlashChallengesInDb()]);
@@ -246,6 +247,7 @@ export async function getChallengeById(id: string): Promise<Challenge | null> {
 }
 
 export async function createChallenge(formData: FormData) {
+  await requireAdmin();
   const supabase = await createClient();
   const title = String(formData.get("title") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim();
@@ -306,6 +308,7 @@ export async function createChallenge(formData: FormData) {
 }
 
 export async function updateChallenge(id: string, formData: FormData) {
+  await requireAdmin();
   const supabase = await createClient();
   const title = String(formData.get("title") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim();
@@ -365,8 +368,10 @@ export async function updateChallenge(id: string, formData: FormData) {
 }
 
 export async function deleteChallenge(id: string) {
+  await requireAdmin();
   const supabase = await createClient();
-  await supabase.from("challenges").delete().eq("id", id);
+  const { error } = await supabase.from("challenges").delete().eq("id", id);
+  if (error) throw new Error(error.message);
   revalidatePath("/admin/challenges");
   revalidatePath("/dashboard/classes");
 }

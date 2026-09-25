@@ -99,7 +99,10 @@ async function ensureProfileExists(
   }
 
   const role =
-    process.env.ADMIN_EMAIL && input.email === process.env.ADMIN_EMAIL ? "admin" : "client";
+    process.env.ADMIN_EMAIL &&
+    input.email.trim().toLowerCase() === process.env.ADMIN_EMAIL.trim().toLowerCase()
+      ? "admin"
+      : "client";
 
   const referralCode = Math.random().toString(36).slice(2, 10);
 
@@ -152,7 +155,10 @@ async function finalizeNewUserProfile(
     full_name: input.fullName,
   };
   if (input.phone) profileUpdate.phone = input.phone;
-  if (process.env.ADMIN_EMAIL && input.email === process.env.ADMIN_EMAIL) {
+  if (
+    process.env.ADMIN_EMAIL &&
+    email === process.env.ADMIN_EMAIL.trim().toLowerCase()
+  ) {
     profileUpdate.role = "admin";
   }
 
@@ -230,18 +236,15 @@ export async function completeRegistration(input: RegistrationInput) {
 }
 
 export async function signIn(formData: FormData) {
-  const email = (formData.get("email") as string).trim().toLowerCase();
-  const password = formData.get("password") as string;
-
-  let result = await signInWithPasswordOnly(email, password);
-
-  if (result.code === "email_not_confirmed") {
-    const userId = await findAuthUserIdByEmail(email);
-    if (userId) {
-      await confirmEmailForAccess(userId);
-      result = await signInWithPasswordOnly(email, password);
-    }
+  const emailRaw = formData.get("email");
+  const passwordRaw = formData.get("password");
+  if (typeof emailRaw !== "string" || typeof passwordRaw !== "string") {
+    return { error: "Enter your email and password." };
   }
+  const email = emailRaw.trim().toLowerCase();
+  const password = passwordRaw;
+
+  const result = await signInWithPasswordOnly(email, password);
 
   if (result.error) return { error: result.error };
 

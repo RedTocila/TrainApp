@@ -77,13 +77,6 @@ function joinText(base: string, addition: string): string {
   return `${a} ${b}`;
 }
 
-function commonPrefixLength(a: string, b: string): number {
-  const n = Math.min(a.length, b.length);
-  let i = 0;
-  while (i < n && a[i] === b[i]) i += 1;
-  return i;
-}
-
 function micErrorMessage(
   error: unknown,
   permissionCopy: string,
@@ -179,6 +172,7 @@ export function useVoiceDictation({
   const valueRef = useRef(value);
   const baseRef = useRef(value);
   const speechLiveFinalRef = useRef("");
+  const dictatedRef = useRef(value);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -187,78 +181,24 @@ export function useVoiceDictation({
   const stopRequestedRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRafRef = useRef<number | null>(null);
-  const revealTargetRef = useRef(value);
-  const revealShownRef = useRef(value);
-  const revealRafRef = useRef<number | null>(null);
   const onChangeRef = useRef(onChange);
   const speechFailedRef = useRef(false);
   const liveSpeechOkRef = useRef(false);
   const interimTimerRef = useRef<number | null>(null);
   const interimInFlightRef = useRef(false);
   const lastInterimBytesRef = useRef(0);
+  const lastInterimTextRef = useRef("");
   const recorderMimeRef = useRef("audio/webm");
 
   valueRef.current = value;
   onChangeRef.current = onChange;
 
-  const stopReveal = useCallback(() => {
-    if (revealRafRef.current != null) {
-      cancelAnimationFrame(revealRafRef.current);
-      revealRafRef.current = null;
-    }
+  /** Instant text update — no typewriter / delete-retype animation. */
+  const setDictatedText = useCallback((text: string) => {
+    dictatedRef.current = text;
+    valueRef.current = text;
+    onChangeRef.current(text);
   }, []);
-
-  const flushReveal = useCallback(
-    (text: string) => {
-      stopReveal();
-      revealTargetRef.current = text;
-      revealShownRef.current = text;
-      valueRef.current = text;
-      onChangeRef.current(text);
-    },
-    [stopReveal]
-  );
-
-  const revealTick = useCallback(() => {
-    const target = revealTargetRef.current;
-    let shown = revealShownRef.current;
-
-    if (shown === target) {
-      revealRafRef.current = null;
-      return;
-    }
-
-    if (target.startsWith(shown)) {
-      const remaining = target.length - shown.length;
-      const step = remaining > 24 ? 4 : remaining > 10 ? 2 : 1;
-      shown = target.slice(0, shown.length + step);
-    } else if (shown.startsWith(target)) {
-      const step = Math.max(1, Math.ceil((shown.length - target.length) / 3));
-      shown = shown.slice(0, Math.max(target.length, shown.length - step));
-    } else {
-      const prefix = commonPrefixLength(shown, target);
-      if (shown.length > prefix + 2) {
-        shown = shown.slice(0, Math.max(prefix, shown.length - 2));
-      } else {
-        shown = target.slice(0, Math.min(target.length, prefix + 2));
-      }
-    }
-
-    revealShownRef.current = shown;
-    valueRef.current = shown;
-    onChangeRef.current(shown);
-    revealRafRef.current = requestAnimationFrame(revealTick);
-  }, []);
-
-  const revealToward = useCallback(
-    (next: string) => {
-      revealTargetRef.current = next;
-      if (revealRafRef.current == null) {
-        revealRafRef.current = requestAnimationFrame(revealTick);
-      }
-    },
-    [revealTick]
-  );
 
   const stopInterimTimer = useCallback(() => {
     if (interimTimerRef.current != null) {
@@ -284,6 +224,7 @@ export function useVoiceDictation({
     mediaRecorderRef.current = null;
     chunksRef.current = [];
     lastInterimBytesRef.current = 0;
+    lastInterimTextRef.current = "";
     interimInFlightRef.current = false;
     liveSpeechOkRef.current = false;
     if (mediaStreamRef.current) {
@@ -313,7 +254,6 @@ export function useVoiceDictation({
   useEffect(() => {
     return () => {
       stopRequestedRef.current = true;
-      stopReveal();
       stopSpeech();
       stopInterimTimer();
       if (mediaRecorderRef.current?.state === "recording") {
@@ -321,7 +261,7 @@ export function useVoiceDictation({
       }
       cleanupMedia();
     };
-  }, [cleanupMedia, stopInterimTimer, stopReveal, stopSpeech]);
+  }, [cleanupMedia, stopInterimTimer, stopSpeech]);
 
   const buildRecordingBlob = useCallback(() => {
     return new Blob(chunksRef.current, {
@@ -354,14 +294,20 @@ export function useVoiceDictation({
         !liveSpeechOkRef.current &&
         text.trim()
       ) {
-        revealToward(joinText(baseRef.current, text));
+        const next = text.trim();
+        const prev = lastInterimTextRef.current;
+        // Only grow (or first fill) — avoid Whisper rewrites that shrink/replace mid-phrase.
+        if (!prev || next.length >= prev.length || next.startsWith(prev.slice(0, 12))) {
+          lastInterimTextRef.current = next;
+          setDictatedText(joinText(baseRef.current, next));
+        }
       }
     } catch {
       /* final pass still runs on stop */
     } finally {
       interimInFlightRef.current = false;
     }
-  }, [buildRecordingBlob, locale, revealToward]);
+  }, [buildRecordingBlob, locale, setDictatedText]);
 
   const startServerInterimPolling = useCallback(() => {
     stopInterimTimer();
@@ -378,7 +324,7 @@ export function useVoiceDictation({
       setStatus("transcribing");
       try {
         const text = await requestTranscript(blob, locale);
-        flushReveal(joinText(baseRef.current, text));
+        setDictatedText(joinText(baseRef.current, text));
       } catch (error) {
         onError(error instanceof Error ? error.message : "Transcription failed");
       } finally {
@@ -387,7 +333,7 @@ export function useVoiceDictation({
         cleanupMedia();
       }
     },
-    [cleanupMedia, flushReveal, locale, onError]
+    [cleanupMedia, locale, onError, setDictatedText]
   );
 
   const startRecorder = useCallback(
@@ -406,6 +352,7 @@ export function useVoiceDictation({
       recorderMimeRef.current = recorder.mimeType || mimeType || "audio/webm";
       chunksRef.current = [];
       lastInterimBytesRef.current = 0;
+      lastInterimTextRef.current = "";
       interimInFlightRef.current = false;
 
       recorder.ondataavailable = (event) => {
@@ -431,6 +378,20 @@ export function useVoiceDictation({
           }
           return;
         }
+
+        // Hybrid with working live speech: keep what the user already sees.
+        // Skip the late Whisper rewrite that caused post-stop flicker.
+        if (modeRef.current === "hybrid" && liveSpeechOkRef.current) {
+          const live = dictatedRef.current.trim();
+          if (live && live !== baseRef.current.trim()) {
+            setDictatedText(live);
+            setStatus("idle");
+            modeRef.current = null;
+            cleanupMedia();
+            return;
+          }
+        }
+
         void transcribeFinalBlob(blob);
       };
 
@@ -449,6 +410,7 @@ export function useVoiceDictation({
       cleanupAnalyser,
       cleanupMedia,
       onError,
+      setDictatedText,
       startServerInterimPolling,
       stopInterimTimer,
       stopSpeech,
@@ -463,8 +425,7 @@ export function useVoiceDictation({
         try {
           const s = stream ?? (await ensureMicStream());
           baseRef.current = valueRef.current;
-          revealTargetRef.current = valueRef.current;
-          revealShownRef.current = valueRef.current;
+          dictatedRef.current = valueRef.current;
           speechLiveFinalRef.current = "";
           stopRequestedRef.current = false;
           await startRecorder(s, "record");
@@ -476,6 +437,33 @@ export function useVoiceDictation({
       })();
     },
     [onError, permissionMessage, startRecorder, unsupportedMessage]
+  );
+
+  const applySpeechResult = useCallback(
+    (event: SpeechRecognitionEventLike) => {
+      liveSpeechOkRef.current = true;
+      let finalChunk = "";
+      let interimChunk = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        const piece = result[0]?.transcript ?? "";
+        if (result.isFinal) finalChunk += piece;
+        else interimChunk += piece;
+      }
+      if (finalChunk.trim()) {
+        speechLiveFinalRef.current = joinText(
+          speechLiveFinalRef.current,
+          finalChunk
+        );
+      }
+      setDictatedText(
+        joinText(
+          baseRef.current,
+          joinText(speechLiveFinalRef.current, interimChunk)
+        )
+      );
+    },
+    [setDictatedText]
   );
 
   const startSpeechOnly = useCallback(
@@ -491,8 +479,7 @@ export function useVoiceDictation({
       }
 
       baseRef.current = valueRef.current;
-      revealTargetRef.current = valueRef.current;
-      revealShownRef.current = valueRef.current;
+      dictatedRef.current = valueRef.current;
       speechLiveFinalRef.current = "";
       modeRef.current = "speech";
       stopRequestedRef.current = false;
@@ -505,27 +492,7 @@ export function useVoiceDictation({
       recognitionRef.current = recognition;
 
       recognition.onresult = (event) => {
-        liveSpeechOkRef.current = true;
-        let finalChunk = "";
-        let interimChunk = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          const piece = result[0]?.transcript ?? "";
-          if (result.isFinal) finalChunk += piece;
-          else interimChunk += piece;
-        }
-        if (finalChunk.trim()) {
-          speechLiveFinalRef.current = joinText(
-            speechLiveFinalRef.current,
-            finalChunk
-          );
-        }
-        revealToward(
-          joinText(
-            baseRef.current,
-            joinText(speechLiveFinalRef.current, interimChunk)
-          )
-        );
+        applySpeechResult(event);
       };
 
       recognition.onerror = (event) => {
@@ -574,14 +541,19 @@ export function useVoiceDictation({
         startRecorderFallback();
       }
     },
-    [locale, onError, revealToward, startRecorderFallback, stopSpeech]
+    [
+      applySpeechResult,
+      locale,
+      onError,
+      startRecorderFallback,
+      stopSpeech,
+    ]
   );
 
   const startHybridAlbanian = useCallback(
     async (stream: MediaStream) => {
       baseRef.current = valueRef.current;
-      revealTargetRef.current = valueRef.current;
-      revealShownRef.current = valueRef.current;
+      dictatedRef.current = valueRef.current;
       speechLiveFinalRef.current = "";
       stopRequestedRef.current = false;
       liveSpeechOkRef.current = false;
@@ -604,30 +576,8 @@ export function useVoiceDictation({
       recognitionRef.current = recognition;
 
       recognition.onresult = (event) => {
-        liveSpeechOkRef.current = true;
         stopInterimTimer();
-
-        let finalChunk = "";
-        let interimChunk = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          const piece = result[0]?.transcript ?? "";
-          if (result.isFinal) finalChunk += piece;
-          else interimChunk += piece;
-        }
-        if (finalChunk.trim()) {
-          speechLiveFinalRef.current = joinText(
-            speechLiveFinalRef.current,
-            finalChunk
-          );
-        }
-        // Same immediate reveal path as English.
-        revealToward(
-          joinText(
-            baseRef.current,
-            joinText(speechLiveFinalRef.current, interimChunk)
-          )
-        );
+        applySpeechResult(event);
       };
 
       recognition.onerror = (event) => {
@@ -684,8 +634,8 @@ export function useVoiceDictation({
       }
     },
     [
+      applySpeechResult,
       locale,
-      revealToward,
       startRecorder,
       startServerInterimPolling,
       stopInterimTimer,
@@ -698,11 +648,11 @@ export function useVoiceDictation({
     const mode = modeRef.current;
 
     if (mode === "speech") {
-      const text = (revealTargetRef.current || valueRef.current).trim();
+      const text = dictatedRef.current.trim();
       stopSpeech();
       setStatus("idle");
       modeRef.current = null;
-      if (text) flushReveal(text);
+      if (text) setDictatedText(text);
       return;
     }
 
@@ -718,7 +668,7 @@ export function useVoiceDictation({
         cleanupMedia();
       }
     }
-  }, [cleanupMedia, flushReveal, stopInterimTimer, stopSpeech]);
+  }, [cleanupMedia, setDictatedText, stopInterimTimer, stopSpeech]);
 
   const toggle = useCallback(() => {
     if (!enabled) return;

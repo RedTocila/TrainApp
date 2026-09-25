@@ -70,6 +70,7 @@ export async function POST(request: Request) {
     history?: ChatMessage[];
     image?: ChatImageAttachment | null;
     mode?: string;
+    timezoneOffsetMinutes?: number;
   };
   try {
     body = await request.json();
@@ -81,6 +82,11 @@ export async function POST(request: Request) {
   const history = Array.isArray(body.history) ? body.history : [];
   const imageInput = body.image ?? null;
   const coachMode = parseCoachChatMode(body.mode);
+  const timezoneOffsetMinutes =
+    typeof body.timezoneOffsetMinutes === "number" &&
+    Number.isFinite(body.timezoneOffsetMinutes)
+      ? body.timezoneOffsetMinutes
+      : undefined;
   const validatedImage = imageInput ? validateChatImage(imageInput) : null;
   if (validatedImage && "error" in validatedImage) {
     return Response.json({ error: validatedImage.error }, { status: 400 });
@@ -155,7 +161,7 @@ export async function POST(request: Request) {
                 enqueue({ navigate: event.href });
               }
             },
-            { maxTokens: 900, signal: request.signal, onToken, mode: coachMode }
+            { maxTokens: 900, signal: request.signal, onToken, mode: coachMode, timezoneOffsetMinutes }
           );
 
           reply = result.reply;

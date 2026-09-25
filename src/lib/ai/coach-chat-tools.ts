@@ -496,7 +496,8 @@ export async function executeCoachChatTool(
   onEvent?: (event: CoachChatToolEvent) => void,
   mode: CoachChatMode = "ask",
   /** Latest user message — used to detect plan vs single workout when preferences omit it. */
-  userMessage?: string
+  userMessage?: string,
+  timezoneOffsetMinutes?: number
 ): Promise<{
   result: string;
   planPreview?: ChatPlanPreview;
@@ -523,7 +524,12 @@ export async function executeCoachChatTool(
   if (COACH_COMMAND_TOOL_NAMES.has(name)) {
     try {
       const { result, pendingAction, dashboardMutated, navigate } =
-        await executeCoachCommandTool(name, argsJson, profile);
+        await executeCoachCommandTool(
+          name,
+          argsJson,
+          profile,
+          timezoneOffsetMinutes
+        );
       if (pendingAction) {
         onEvent?.({ type: "pending_action", action: pendingAction });
       }

@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { activateSubscriptionFromLocalOrder } from "@/lib/actions/subscriptions";
 import type { PlatformCopy } from "@/lib/platform-copy";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+const MAX_ATTEMPTS = 8;
+const RETRY_MS = 2000;
 
 export function CheckoutSuccessClient({
   copy,
@@ -19,8 +22,9 @@ export function CheckoutSuccessClient({
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const attemptRef = useRef(0);
 
-  useEffect(() => {
+  const activate = useCallback(() => {
     if (!localOrderId) {
       setStatus("error");
       setMessage(copy.missingOrder);
@@ -30,13 +34,24 @@ export function CheckoutSuccessClient({
     startTransition(async () => {
       const result = await activateSubscriptionFromLocalOrder(localOrderId);
       if ("error" in result && result.error) {
+        const pending = /not completed yet|not started/i.test(result.error);
+        attemptRef.current += 1;
+        if (pending && attemptRef.current < MAX_ATTEMPTS) {
+          window.setTimeout(() => activate(), RETRY_MS);
+          return;
+        }
         setStatus("error");
         setMessage(result.error);
         return;
       }
       setStatus("success");
     });
-  }, [localOrderId, copy.missingOrder]);
+  }, [localOrderId, copy.missingOrder, startTransition]);
+
+  useEffect(() => {
+    attemptRef.current = 0;
+    activate();
+  }, [activate]);
 
   return (
     <div className="mx-auto max-w-md pt-8">
@@ -64,6 +79,21 @@ export function CheckoutSuccessClient({
             <p className="text-sm text-red-400">
               {message ?? copy.paymentUnconfirmed}
             </p>
+          )}
+          {status === "error" && localOrderId && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                attemptRef.current = 0;
+                setStatus("loading");
+                setMessage(null);
+                activate();
+              }}
+            >
+              Try again
+            </Button>
           )}
           <Link href="/dashboard">
             <Button className="w-full">{copy.goDashboard}</Button>

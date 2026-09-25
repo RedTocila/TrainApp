@@ -30,8 +30,12 @@ export function ProfileSubscriptionActions({
     setError(null);
     startTransition(async () => {
       if (appleManaged) {
+        // Apple billing is canceled only in App Store management — do not
+        // flip local status here or entitlements desync from Apple.
         try {
           await openAppleSubscriptionManagement();
+          setGiveUpOpen(false);
+          router.refresh();
         } catch (err) {
           setError(
             err instanceof Error
@@ -39,6 +43,7 @@ export function ProfileSubscriptionActions({
               : platform.checkoutFlow.appleProcessorNote
           );
         }
+        return;
       }
       const result = await cancelSubscription();
       if ("error" in result && result.error) {

@@ -268,7 +268,11 @@ function ActiveExercisePanel({
     );
     onSetsChange(nextSets);
     const result = await updateSessionSet(setId, { reps, weight_kg, completed });
-    if (result.error) onSaveError?.(result.error);
+    if (result.error) {
+      onSetsChange(setsSnapshot);
+      onSaveError?.(result.error);
+      return;
+    }
     if (completed) {
       onLoggedSet();
       const nextCompleted = nextSets.filter(
@@ -822,7 +826,7 @@ export function ActiveWorkoutClient({
               ? session.plan_title
               : null
         }
-        onBack={() => void leaveWorkout({ confirm: false })}
+        onBack={() => void leaveWorkout()}
         backDisabled={isPending || isGivingUp}
         trailing={
           !isStarted ? (

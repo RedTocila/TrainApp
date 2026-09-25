@@ -1825,7 +1825,19 @@ export async function completeWorkoutSession(
       { onConflict: "client_id,date,task_id" }
     );
 
-  if (completionError) return { error: completionError.message };
+  if (completionError) {
+    await admin
+      .from("workout_sessions")
+      .update({
+        status: "in_progress",
+        completed_at: null,
+        notes: null,
+      })
+      .eq("id", sessionId)
+      .eq("client_id", userId)
+      .eq("status", "completed");
+    return { error: completionError.message };
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");

@@ -8,6 +8,7 @@ import {
 } from "@/lib/challenge-series";
 import { getChallengeStatus } from "@/lib/challenge-utils";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { hasEliteAccess } from "@/lib/subscription";
 import type { Challenge } from "@/lib/types";
 import { progressMonthKey } from "@/lib/progress-photo-utils";
 
@@ -263,15 +264,18 @@ export async function promoteNextFromWaitlist(
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, subscription_plan, subscription_status, subscription_expires_at")
+    .select("full_name, role, subscription_plan, subscription_status, subscription_expires_at")
     .eq("id", nextWaiter.user_id)
     .maybeSingle();
 
-  const hasActiveElite =
-    profile?.subscription_plan === "elite" &&
-    profile.subscription_status === "active" &&
-    (profile.subscription_expires_at == null ||
-      new Date(profile.subscription_expires_at) > new Date());
+  const hasActiveElite = profile
+    ? hasEliteAccess({
+        role: profile.role ?? "client",
+        subscription_plan: profile.subscription_plan,
+        subscription_status: profile.subscription_status,
+        subscription_expires_at: profile.subscription_expires_at,
+      })
+    : false;
 
   await supabase.from("challenge_waitlist").delete().eq("id", nextWaiter.id);
 
@@ -396,15 +400,18 @@ export async function removeIneligibleSeriesParticipants(
 ): Promise<void> {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("subscription_plan, subscription_status, subscription_expires_at")
+    .select("role, subscription_plan, subscription_status, subscription_expires_at")
     .eq("id", userId)
     .maybeSingle();
 
-  const hasActiveElite =
-    profile?.subscription_plan === "elite" &&
-    profile.subscription_status === "active" &&
-    (profile.subscription_expires_at == null ||
-      new Date(profile.subscription_expires_at) > new Date());
+  const hasActiveElite = profile
+    ? hasEliteAccess({
+        role: profile.role ?? "client",
+        subscription_plan: profile.subscription_plan,
+        subscription_status: profile.subscription_status,
+        subscription_expires_at: profile.subscription_expires_at,
+      })
+    : false;
 
   if (hasActiveElite) return;
 

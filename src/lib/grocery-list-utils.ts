@@ -1,4 +1,5 @@
 import type { GroceryListItem } from "@/lib/types";
+import { formatDateKey } from "@/lib/utils";
 
 function slugify(name: string): string {
   return name
@@ -15,14 +16,19 @@ function parseAmountNumber(amount: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
+function formatAmountValue(value: number, unit: string, weeklyLabel: boolean): string {
+  const rounded = value % 1 === 0 ? String(Math.round(value)) : value.toFixed(1);
+  if (unit) return `${rounded}${unit}`;
+  return weeklyLabel ? `${rounded} (weekly)` : rounded;
+}
+
 function formatWeeklyAmount(dailyAmount: string, days = 7): string {
   const value = parseAmountNumber(dailyAmount);
   if (value == null) return dailyAmount ? `${dailyAmount} × ${days} days` : "";
 
   const weekly = value * days;
   const unit = dailyAmount.replace(/[\d.]+/, "").trim();
-  const rounded = weekly % 1 === 0 ? String(Math.round(weekly)) : weekly.toFixed(1);
-  return unit ? `${rounded}${unit}` : `${rounded} (weekly)`;
+  return formatAmountValue(weekly, unit, true);
 }
 
 export function groceryItemId(name: string, amount?: string): string {
@@ -33,28 +39,63 @@ export function buildWeeklyGroceryListFromMeals(
   meals: Array<{ foods?: { name: string; amount?: string }[] | null }>,
   days = 7
 ): GroceryListItem[] {
-  const merged = new Map<string, GroceryListItem>();
+  type Accum = {
+    id: string;
+    name: string;
+    dailySum: number | null;
+    unit: string;
+    rawDaily: string[];
+  };
+
+  const merged = new Map<string, Accum>();
 
   for (const meal of meals) {
     for (const food of meal.foods ?? []) {
       const name = food.name?.trim();
       if (!name) continue;
-      const amount = food.amount?.trim() ?? "";
+      const amount = food.amount?.trim() || "1 serving";
       const id = groceryItemId(name, amount);
+      const value = parseAmountNumber(amount);
+      const unit = amount.replace(/[\d.]+/, "").trim();
       const existing = merged.get(id);
+
       if (existing) {
-        existing.amount = formatWeeklyAmount(amount || "1 serving", days);
+        if (existing.dailySum != null && value != null && existing.unit === unit) {
+          existing.dailySum += value;
+        } else {
+          existing.rawDaily.push(amount);
+        }
         continue;
       }
+
       merged.set(id, {
         id,
         name,
-        amount: formatWeeklyAmount(amount || "1 serving", days),
+        dailySum: value,
+        unit,
+        rawDaily: value == null ? [amount] : [],
       });
     }
   }
 
-  return [...merged.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...merged.values()]
+    .map((entry) => {
+      const parts: string[] = [];
+      if (entry.dailySum != null) {
+        parts.push(
+          formatAmountValue(entry.dailySum * days, entry.unit, true)
+        );
+      }
+      for (const raw of entry.rawDaily) {
+        parts.push(formatWeeklyAmount(raw, days));
+      }
+      return {
+        id: entry.id,
+        name: entry.name,
+        amount: parts.join(" + "),
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function normalizeGroceryList(raw: unknown): GroceryListItem[] {
@@ -84,7 +125,7 @@ export function groceryWeekKey(date: Date = new Date()): string {
   const diff = day === 0 ? -6 : 1 - day;
   start.setDate(start.getDate() + diff);
   start.setHours(0, 0, 0, 0);
-  return start.toISOString().slice(0, 10);
+  return formatDateKey(start);
 }
 
 export function resolveGroceryWeekKey(weekKey?: string | null): string {

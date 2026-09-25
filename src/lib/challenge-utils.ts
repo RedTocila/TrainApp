@@ -1,6 +1,7 @@
 import type { Challenge, ChallengeBracketData, ChallengePhase } from "@/lib/types";
 import {
   getChallengeMaxParticipants,
+  isFlashChallenge,
 } from "@/lib/challenge-series";
 
 export const DEFAULT_PRIZE_POOL_CENTS_PER_PARTICIPANT = 1000;
@@ -96,7 +97,8 @@ export function canRegisterForChallenge(challenge: Challenge, now = new Date()):
     return true;
   }
 
-  if (status === "live") return true;
+  // Flash challenges allow paid mid-event joins; other series lock after start.
+  if (status === "live") return isFlashChallenge(challenge);
 
   return isRegistrationOpen(challenge, now);
 }

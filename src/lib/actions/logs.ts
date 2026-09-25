@@ -61,9 +61,25 @@ export async function upsertDailyLog(
 }
 
 export async function addWater(clientId: string, date: string, amount: number) {
-  const existing = await getDailyLog(clientId, date);
-  const current = existing?.water_ml ?? 0;
-  return upsertDailyLog(clientId, date, { water_ml: current + amount });
+  if (!Number.isFinite(amount) || amount === 0) {
+    return { error: "Water amount must be a non-zero number" };
+  }
+
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
+
+  const { admin } = mutation;
+  const { data, error } = await admin.rpc("increment_water_ml", {
+    p_user_id: clientId,
+    p_date: date,
+    p_amount: Math.round(amount),
+  });
+
+  if (error) return { error: formatDbError(error.message) };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/day/nutrition");
+  return { success: true as const, water_ml: typeof data === "number" ? data : undefined };
 }
 
 export async function setWater(clientId: string, date: string, waterMl: number) {

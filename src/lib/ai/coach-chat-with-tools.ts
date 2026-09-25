@@ -65,6 +65,7 @@ export async function runCoachChatWithTools(
     /** Fired for final-answer tokens (not for tool-call rounds). */
     onToken?: (text: string) => void;
     mode?: CoachChatMode;
+    timezoneOffsetMinutes?: number;
   }
 ): Promise<{
   reply: string;
@@ -163,7 +164,8 @@ export async function runCoachChatWithTools(
           profile,
           onEvent,
           mode,
-          latestUserMessage
+          latestUserMessage,
+          options?.timezoneOffsetMinutes
         );
         if (preview) planPreview = preview;
         if (blocks?.length) richBlocks.push(...blocks);

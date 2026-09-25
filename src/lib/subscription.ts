@@ -32,7 +32,8 @@ export function isSubscriptionActive(
   if (status !== "active" && status !== "canceled" && status !== "trialing") {
     return false;
   }
-  if (!profile.subscription_expires_at) return status === "active";
+  // Missing expiry must not grant permanent access (bad/legacy writes).
+  if (!profile.subscription_expires_at) return false;
   return new Date(profile.subscription_expires_at) > new Date();
 }
 
@@ -52,7 +53,8 @@ export function freeTrialDaysRemaining(
   }
   const ms = new Date(profile.subscription_expires_at).getTime() - Date.now();
   if (ms <= 0) return 0;
-  return Math.ceil(ms / (1000 * 60 * 60 * 24));
+  // Whole days left (floor) so a few remaining hours don't read as "1 day".
+  return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 
 export function hasPaidAccess(

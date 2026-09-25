@@ -4,10 +4,16 @@ import { createServerClient } from "@supabase/ssr";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { getSupabasePublicEnv } from "@/lib/supabase/env";
 
+/** Only same-origin relative paths — block protocol-relative (`//evil`) and schemes. */
 function safeNextPath(next: string | null): string {
   const fallback = "/dashboard";
-  if (!next || !next.startsWith("/")) return fallback;
-  return next;
+  if (!next || typeof next !== "string") return fallback;
+  const trimmed = next.trim();
+  if (!trimmed.startsWith("/")) return fallback;
+  if (trimmed.startsWith("//") || trimmed.startsWith("/\\")) return fallback;
+  if (trimmed.includes("://")) return fallback;
+  if (/[\x00-\x1f]/.test(trimmed)) return fallback;
+  return trimmed;
 }
 
 export async function GET(request: NextRequest) {
@@ -37,11 +43,20 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  // Already signed in (e.g. unlocked at signup, then tapped email later).
   const {
     data: { user: existingUser },
   } = await supabase.auth.getUser();
-  if (existingUser) {
+
+  // Recovery / invite / email-change must still apply even if a session exists
+  // (wrong account signed in, or password-reset link after login).
+  const mustProcessToken =
+    Boolean(tokenHash && type) ||
+    Boolean(code) ||
+    type === "recovery" ||
+    type === "invite" ||
+    type === "email_change";
+
+  if (existingUser && !mustProcessToken) {
     return successRedirect;
   }
 
@@ -60,6 +75,8 @@ export async function GET(request: NextRequest) {
       return successRedirect;
     }
     console.error("[auth/callback] exchangeCodeForSession failed", error.message);
+  } else if (existingUser) {
+    return successRedirect;
   }
 
   // Expired / already-used / pre-confirmed signup link — password sign-in still works.

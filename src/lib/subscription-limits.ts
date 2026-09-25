@@ -74,12 +74,26 @@ export function getAiPlanMonthlyLimit(
 }
 
 export function alexUsageKey(date = new Date()): string {
-  return `alex:${date.toISOString().slice(0, 10)}`;
+  return `alex:${calendarDayKey(date)}`;
 }
 
 export function aiPlanUsageKey(
   type: "workout" | "nutrition",
   date = new Date()
 ): string {
-  return `ai_${type}:${date.toISOString().slice(0, 7)}`;
+  return `ai_${type}:${calendarMonthKey(date)}`;
+}
+
+/** App calendar day in Europe/Tirane (not UTC midnight). */
+function calendarDayKey(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: process.env.APP_TIMEZONE || "Europe/Tirane",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function calendarMonthKey(date: Date): string {
+  return calendarDayKey(date).slice(0, 7);
 }

@@ -209,7 +209,7 @@ function ExtraCheckToggle({
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors",
+        "flex w-full min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-lg border px-2.5 py-2 text-left transition-colors",
         checked
           ? accent.on
           : "border-border/50 bg-secondary/20 hover:bg-secondary/35",
@@ -420,7 +420,7 @@ export function WeekPlanBuilderClient({
               <li key={value}>
                 <Card
                   className={cn(
-                    "space-y-3 border-border/60 p-3 transition-colors",
+                    "min-w-0 space-y-3 overflow-hidden border-border/60 p-3 transition-colors",
                     draft.enabled && "bg-secondary/20"
                   )}
                 >
@@ -442,7 +442,7 @@ export function WeekPlanBuilderClient({
                   />
 
                   {draft.enabled ? (
-                    <div className="space-y-3">
+                    <div className="min-w-0 space-y-3">
                       {draft.planId ? (
                         <div className="space-y-1.5">
                           {(() => {
@@ -496,7 +496,7 @@ export function WeekPlanBuilderClient({
                       )}
 
                       {draft.planId && hasAnyExtras ? (
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="grid min-w-0 gap-2 sm:grid-cols-2">
                           {hasWarmups ? (
                             <ExtraCheckToggle
                               kind="warmup"

@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
@@ -61,6 +60,7 @@ import {
 } from "@/lib/intake-questionnaire";
 import type { MealType } from "@/lib/types";
 import type { Profile } from "@/lib/types";
+import { getDateKeyForTimezoneOffset } from "@/lib/utils";
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -78,8 +78,15 @@ function asNumberArray(value: unknown): number[] {
     .filter((n) => Number.isFinite(n) && n >= 0 && n <= 6);
 }
 
-function todayKey(): string {
-  return format(new Date(), "yyyy-MM-dd");
+/** Local calendar day for the viewer (JS Date#getTimezoneOffset minutes). */
+function todayKey(timezoneOffsetMinutes?: number): string {
+  if (
+    timezoneOffsetMinutes !== undefined &&
+    Number.isFinite(timezoneOffsetMinutes)
+  ) {
+    return getDateKeyForTimezoneOffset(timezoneOffsetMinutes);
+  }
+  return getDateKeyForTimezoneOffset(0);
 }
 
 async function requireUser() {
@@ -270,6 +277,7 @@ export async function coachLogMealCommand(input: {
   fat?: number;
   description?: string;
   date?: string;
+  timezoneOffsetMinutes?: number;
 }) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
@@ -283,7 +291,7 @@ export async function coachLogMealCommand(input: {
     ? input.meal_type
     : "snack") as MealType;
 
-  const date = input.date?.trim() || todayKey();
+  const date = input.date?.trim() || todayKey(input.timezoneOffsetMinutes);
   const result = await logCustomMeal(auth.userId, date, {
     meal_type: mealType,
     name,
@@ -308,13 +316,14 @@ export async function coachLogMealCommand(input: {
 export async function coachLogWeightCommand(input: {
   weight_kg: number;
   date?: string;
+  timezoneOffsetMinutes?: number;
 }) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
 
   const weight = asNumber(input.weight_kg);
   if (weight == null) return { error: "Weight is required" };
-  const date = input.date?.trim() || todayKey();
+  const date = input.date?.trim() || todayKey(input.timezoneOffsetMinutes);
   const result = await upsertBodyWeightLog(auth.userId, date, weight);
   if (result && "error" in result && result.error) return { error: result.error };
   return {
@@ -324,11 +333,13 @@ export async function coachLogWeightCommand(input: {
 }
 
 /** Habits scheduled for today (for coach chat). */
-export async function coachListTodayHabitsCommand() {
+export async function coachListTodayHabitsCommand(
+  timezoneOffsetMinutes?: number
+) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
 
-  const date = todayKey();
+  const date = todayKey(timezoneOffsetMinutes);
   const habits = await getHabitsWithCompletions(auth.userId, date);
   if (habits.length === 0) {
     return { text: "No habits scheduled for today." };
@@ -344,11 +355,12 @@ export async function coachListTodayHabitsCommand() {
 export async function coachCompleteHabitCommand(input: {
   habit_id?: string;
   habit_name?: string;
+  timezoneOffsetMinutes?: number;
 }) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
 
-  const date = todayKey();
+  const date = todayKey(input.timezoneOffsetMinutes);
   const habits = await getHabitsWithCompletions(auth.userId, date);
   if (habits.length === 0) {
     return { error: "No habits scheduled for today" };
@@ -384,7 +396,11 @@ export async function coachCompleteHabitCommand(input: {
     };
   }
 
-  const result = await toggleHabitCompletion(habitId, date);
+  const result = await toggleHabitCompletion(
+    habitId,
+    date,
+    input.timezoneOffsetMinutes
+  );
   if ("error" in result && result.error) {
     return { error: result.error };
   }
@@ -398,13 +414,14 @@ export async function coachCompleteHabitCommand(input: {
 export async function coachLogWaterCommand(input: {
   amount_ml: number;
   date?: string;
+  timezoneOffsetMinutes?: number;
 }) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
 
   const amount = asNumber(input.amount_ml);
   if (amount == null || amount <= 0) return { error: "Amount must be a positive number of ml" };
-  const date = input.date?.trim() || todayKey();
+  const date = input.date?.trim() || todayKey(input.timezoneOffsetMinutes);
   const result = await addWater(auth.userId, date, Math.round(amount));
   if (result && "error" in result && result.error) return { error: result.error };
   return {
@@ -725,11 +742,12 @@ export async function coachDeleteHabitById(habitId: string) {
 export async function coachStartWorkoutCommand(input?: {
   date?: string;
   scheduled_workout_id?: string;
+  timezoneOffsetMinutes?: number;
 }) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
 
-  const date = input?.date?.trim() || todayKey();
+  const date = input?.date?.trim() || todayKey(input?.timezoneOffsetMinutes);
   const workouts = await resolveWorkoutsForDate(auth.userId, date);
   if (workouts.length === 0) {
     return { error: `No workout scheduled for ${date}` };
@@ -767,11 +785,12 @@ export async function coachStartCardioCommand(input?: {
   date?: string;
   cardio_id?: string;
   cardio_name?: string;
+  timezoneOffsetMinutes?: number;
 }) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
 
-  const date = input?.date?.trim() || todayKey();
+  const date = input?.date?.trim() || todayKey(input?.timezoneOffsetMinutes);
   const scheduled = await getScheduledCardiosForDate(auth.userId, date);
   const library = await getClientCardioList();
 
@@ -847,10 +866,13 @@ export async function coachListMyCardioCommand() {
   };
 }
 
-export async function coachListTodayCardioCommand(date?: string) {
+export async function coachListTodayCardioCommand(
+  date?: string,
+  timezoneOffsetMinutes?: number
+) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
-  const dateKey = date?.trim() || todayKey();
+  const dateKey = date?.trim() || todayKey(timezoneOffsetMinutes);
   const scheduled = await getScheduledCardiosForDate(auth.userId, dateKey);
   if (scheduled.length === 0) {
     return { text: `No cardio scheduled for ${dateKey}.` };
@@ -865,10 +887,13 @@ export async function coachListTodayCardioCommand(date?: string) {
   };
 }
 
-export async function coachListTodayWorkoutsCommand(date?: string) {
+export async function coachListTodayWorkoutsCommand(
+  date?: string,
+  timezoneOffsetMinutes?: number
+) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
-  const dateKey = date?.trim() || todayKey();
+  const dateKey = date?.trim() || todayKey(timezoneOffsetMinutes);
   const workouts = await resolveWorkoutsForDate(auth.userId, dateKey);
   if (workouts.length === 0) {
     return { text: `No workouts scheduled for ${dateKey}.` };
@@ -961,12 +986,13 @@ export async function coachDeleteCardioById(cardioId: string) {
 export async function coachClearCardioSchedule(input: {
   cardioId?: string | null;
   clearAll?: boolean;
+  timezoneOffsetMinutes?: number;
 }) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
 
   const admin = createAdminClient();
-  const today = todayKey();
+  const today = todayKey(input.timezoneOffsetMinutes);
   let query = admin
     .from("scheduled_cardio")
     .delete({ count: "exact" })
@@ -992,6 +1018,7 @@ export async function scheduleWorkoutPlanDays(input: {
   weeks: number;
   weekdays: number[];
   startDate?: string;
+  timezoneOffsetMinutes?: number;
 }) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
@@ -1041,7 +1068,8 @@ export async function scheduleWorkoutPlanDays(input: {
             ? [1, 4]
             : [1];
 
-  const startDate = input.startDate?.trim() || todayKey();
+  const startDate =
+    input.startDate?.trim() || todayKey(input.timezoneOffsetMinutes);
   const weeks = Math.min(52, Math.max(1, Math.round(input.weeks) || 4));
   let count = 0;
 
@@ -1166,6 +1194,8 @@ export async function confirmCoachPendingAction(
           weeks,
           weekdays,
           startDate,
+          timezoneOffsetMinutes:
+            asNumber(payload.timezoneOffsetMinutes) ?? undefined,
         });
         if ("error" in result && result.error) return { error: result.error };
         const count = "count" in result ? result.count : 0;
@@ -1197,7 +1227,9 @@ export async function confirmCoachPendingAction(
         if (!planId) return { error: "Missing nutrition plan" };
         const weeks = asNumber(payload.weeks) ?? 4;
         const weekdays = asNumberArray(payload.weekdays);
-        const startDate = asString(payload.startDate) || todayKey();
+        const startDate =
+          asString(payload.startDate) ||
+          todayKey(asNumber(payload.timezoneOffsetMinutes) ?? undefined);
         const resolvedWeekdays =
           weekdays.length > 0 ? weekdays : [0, 1, 2, 3, 4, 5, 6];
         const result = await scheduleNutritionSeries({
@@ -1277,6 +1309,8 @@ export async function confirmCoachPendingAction(
         const result = await coachClearCardioSchedule({
           cardioId,
           clearAll,
+          timezoneOffsetMinutes:
+            asNumber(payload.timezoneOffsetMinutes) ?? undefined,
         });
         if ("error" in result && result.error) return { error: result.error };
         const removed = "removed" in result ? result.removed : 0;

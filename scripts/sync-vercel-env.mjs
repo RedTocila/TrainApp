@@ -58,6 +58,7 @@ const sensitive = new Set([
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "POKPAY_KEY_ID",
   "POKPAY_KEY_SECRET",
+  "POKPAY_WEBHOOK_SECRET",
 ]);
 
 const targets = ["production", "preview", "development"];

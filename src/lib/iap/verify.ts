@@ -95,7 +95,7 @@ function toVerified(
 
 /**
  * Verify a StoreKit 2 signed transaction (JWS).
- * Tries Production first in Vercel production, otherwise Sandbox first.
+ * Production deployments only accept Production receipts (no Sandbox fallback).
  */
 export async function verifyAppleTransactionJws(
   signedTransaction: string
@@ -105,19 +105,33 @@ export async function verifyAppleTransactionJws(
   }
 
   const preferProduction = process.env.VERCEL_ENV === "production";
-  const order: Environment[] = preferProduction
-    ? [Environment.PRODUCTION, Environment.SANDBOX]
-    : [Environment.SANDBOX, Environment.PRODUCTION];
+  const allowSandboxInProd = process.env.ALLOW_APPLE_SANDBOX === "true";
+  const order: Environment[] =
+    preferProduction && !allowSandboxInProd
+      ? [Environment.PRODUCTION]
+      : preferProduction
+        ? [Environment.PRODUCTION, Environment.SANDBOX]
+        : [Environment.SANDBOX, Environment.PRODUCTION];
 
   let lastError: unknown;
   for (const environment of order) {
     try {
       const verifier = getVerifier(environment);
       const payload = await verifier.verifyAndDecodeTransaction(signedTransaction);
-      return toVerified(
+      const verified = toVerified(
         payload,
         environment === Environment.PRODUCTION ? "Production" : "Sandbox"
       );
+
+      if (
+        verified.expiresDate != null &&
+        verified.expiresDate > 0 &&
+        verified.expiresDate < Date.now()
+      ) {
+        throw new Error("This Apple subscription has already expired.");
+      }
+
+      return verified;
     } catch (err) {
       lastError = err;
     }

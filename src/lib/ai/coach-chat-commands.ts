@@ -788,7 +788,8 @@ function sanitizeIntakeUpdates(raw: unknown): IntakeResponses {
 export async function executeCoachCommandTool(
   name: string,
   argsJson: string,
-  profile: Profile
+  profile: Profile,
+  timezoneOffsetMinutes?: number
 ): Promise<{
   result: string;
   pendingAction?: CoachPendingAction;
@@ -796,6 +797,11 @@ export async function executeCoachCommandTool(
   navigate?: string;
 }> {
   const args = parseToolArgs(argsJson);
+  const tz =
+    typeof args.timezoneOffsetMinutes === "number" &&
+    Number.isFinite(args.timezoneOffsetMinutes)
+      ? args.timezoneOffsetMinutes
+      : timezoneOffsetMinutes;
 
   switch (name) {
     case "list_my_workouts": {
@@ -866,6 +872,7 @@ export async function executeCoachCommandTool(
         description:
           typeof args.description === "string" ? args.description : undefined,
         date: typeof args.date === "string" ? args.date : undefined,
+        timezoneOffsetMinutes: tz,
       });
       if ("error" in result) return { result: `Error: ${result.error}` };
       return {
@@ -877,6 +884,7 @@ export async function executeCoachCommandTool(
       const result = await coachLogWeightCommand({
         weight_kg: Number(args.weight_kg),
         date: typeof args.date === "string" ? args.date : undefined,
+        timezoneOffsetMinutes: tz,
       });
       if ("error" in result) return { result: `Error: ${result.error}` };
       return {
@@ -888,6 +896,7 @@ export async function executeCoachCommandTool(
       const result = await coachLogWaterCommand({
         amount_ml: Number(args.amount_ml),
         date: typeof args.date === "string" ? args.date : undefined,
+        timezoneOffsetMinutes: tz,
       });
       if ("error" in result) return { result: `Error: ${result.error}` };
       return {
@@ -896,7 +905,7 @@ export async function executeCoachCommandTool(
       };
     }
     case "list_today_habits": {
-      const result = await coachListTodayHabitsCommand();
+      const result = await coachListTodayHabitsCommand(tz);
       if ("error" in result) return { result: `Error: ${result.error}` };
       return { result: result.text };
     }
@@ -906,6 +915,7 @@ export async function executeCoachCommandTool(
           typeof args.habit_id === "string" ? args.habit_id : undefined,
         habit_name:
           typeof args.habit_name === "string" ? args.habit_name : undefined,
+        timezoneOffsetMinutes: tz,
       });
       if ("error" in result) return { result: `Error: ${result.error}` };
       return {
@@ -1050,7 +1060,8 @@ export async function executeCoachCommandTool(
     }
     case "list_today_workouts": {
       const result = await coachListTodayWorkoutsCommand(
-        typeof args.date === "string" ? args.date : undefined
+        typeof args.date === "string" ? args.date : undefined,
+        tz
       );
       if ("error" in result) return { result: `Error: ${result.error}` };
       return { result: result.text };
@@ -1062,6 +1073,7 @@ export async function executeCoachCommandTool(
           typeof args.scheduled_workout_id === "string"
             ? args.scheduled_workout_id
             : undefined,
+        timezoneOffsetMinutes: tz,
       });
       if ("error" in result) return { result: `Error: ${result.error}` };
       return {
@@ -1077,7 +1089,8 @@ export async function executeCoachCommandTool(
     }
     case "list_today_cardio": {
       const result = await coachListTodayCardioCommand(
-        typeof args.date === "string" ? args.date : undefined
+        typeof args.date === "string" ? args.date : undefined,
+        tz
       );
       if ("error" in result) return { result: `Error: ${result.error}` };
       return { result: result.text };
@@ -1186,7 +1199,12 @@ export async function executeCoachCommandTool(
         "clear_cardio_schedule",
         clearAll ? "Clear all upcoming cardio" : `Clear schedule for “${title}”`,
         "Removes upcoming calendar cardio sessions from today onward.",
-        { cardioId: cardioId ?? null, clearAll, title },
+        {
+          cardioId: cardioId ?? null,
+          clearAll,
+          title,
+          timezoneOffsetMinutes: tz,
+        },
         { confirmLabel: "Clear schedule" }
       );
       return {
@@ -1202,6 +1220,7 @@ export async function executeCoachCommandTool(
           typeof args.cardio_id === "string" ? args.cardio_id : undefined,
         cardio_name:
           typeof args.cardio_name === "string" ? args.cardio_name : undefined,
+        timezoneOffsetMinutes: tz,
       });
       if ("error" in result) return { result: `Error: ${result.error}` };
       return {
@@ -1277,7 +1296,7 @@ export async function executeCoachCommandTool(
         }${startDate ? ` · from ${startDate}` : " · starting today"} → ~${
           (weekdays.length || meta.dayCount) * weeks
         } sessions. Days: ${days.map((d) => d.title).join(", ") || "—"}`,
-        { planId, weeks, weekdays, startDate },
+        { planId, weeks, weekdays, startDate, timezoneOffsetMinutes: tz },
         { confirmLabel: "Confirm schedule" }
       );
       return {
@@ -1342,7 +1361,7 @@ export async function executeCoachCommandTool(
         `${weeks} week(s) of nutrition days${
           weekdays.length ? ` on ${weekdayNames(weekdays)}` : " (every day)"
         }${startDate ? ` from ${startDate}` : ", starting today"}.`,
-        { planId, weeks, weekdays, startDate },
+        { planId, weeks, weekdays, startDate, timezoneOffsetMinutes: tz },
         { confirmLabel: "Confirm schedule" }
       );
       return {

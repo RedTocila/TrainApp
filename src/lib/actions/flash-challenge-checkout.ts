@@ -24,6 +24,7 @@ import {
   isSdkOrderPaid,
   type PokPaySdkOrderProduct,
 } from "@/lib/pokpay/client";
+import { withPokPayWebhookSecret } from "@/lib/pokpay/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { onFlashChallengeParticipantJoined } from "@/lib/actions/challenge-bracket";
@@ -178,6 +179,32 @@ export async function createFlashChallengeEntryCheckout(
     return { error: insertError?.message ?? "Could not start checkout" };
   }
 
+  const {
+    reserveReferralCreditsForOrder,
+    releaseReferralCreditsForOrder,
+    spendDescriptionForOrder,
+  } = await import("@/lib/actions/referrals");
+  const { parseCheckoutLocale } = await import("@/lib/checkout-i18n");
+  const { data: localeProfile } = await admin
+    .from("profiles")
+    .select("preferred_locale")
+    .eq("id", profile.id)
+    .maybeSingle();
+  const locale = parseCheckoutLocale(localeProfile?.preferred_locale);
+
+  if (creditsToApply > 0) {
+    const reserved = await reserveReferralCreditsForOrder(admin, {
+      userId: profile.id,
+      orderId: orderRow.id,
+      amountCents: creditsToApply,
+      description: await spendDescriptionForOrder(locale, "flash"),
+    });
+    if ("error" in reserved) {
+      await admin.from("subscription_orders").update({ status: "failed" }).eq("id", orderRow.id);
+      return { error: reserved.error };
+    }
+  }
+
   if (chargeCents === 0) {
     const completed = await completeFlashChallengeEntryOrder({
       id: orderRow.id,
@@ -192,13 +219,21 @@ export async function createFlashChallengeEntryCheckout(
       referral_credits_applied_cents: creditsToApply,
       amount_cents: 0,
     });
+    if ("error" in completed && completed.error) {
+      await releaseReferralCreditsForOrder(admin, {
+        userId: profile.id,
+        orderId: orderRow.id,
+      });
+    }
     return completed;
   }
 
   try {
     const redirectUrl = `${baseUrl}/dashboard/checkout/flash-challenge/success?localOrderId=${orderRow.id}`;
     const failRedirectUrl = `${baseUrl}/dashboard/checkout/flash-challenge?localOrderId=${orderRow.id}`;
-    const webhookUrl = `${baseUrl}/api/payments/pokpay/webhook`;
+    const webhookUrl = withPokPayWebhookSecret(
+      `${baseUrl}/api/payments/pokpay/webhook`
+    );
     const products: PokPaySdkOrderProduct[] = [
       {
         name: `${challenge.title} · entry fee`,
@@ -229,6 +264,10 @@ export async function createFlashChallengeEntryCheckout(
       referralCreditsAppliedCents: creditsToApply,
     };
   } catch (err) {
+    await releaseReferralCreditsForOrder(admin, {
+      userId: profile.id,
+      orderId: orderRow.id,
+    });
     await admin
       .from("subscription_orders")
       .update({ status: "failed" })
@@ -287,7 +326,53 @@ async function completeFlashChallengeEntryOrder(order: {
     return { error: "This challenge has ended." };
   }
 
+  // Re-check capacity for paid joins so races cannot overfill the challenge.
+  if (action === "join") {
+    const { data: existingParticipant } = await admin
+      .from("challenge_participants")
+      .select("id")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", order.user_id)
+      .maybeSingle();
+
+    if (!existingParticipant) {
+      const max = challenge.max_participants;
+      if (typeof max === "number" && max > 0) {
+        const count = await countChallengeParticipants(admin, challengeId);
+        if (count >= max) {
+          return { error: "This challenge is full." };
+        }
+      }
+    }
+  }
+
   const paidAt = new Date().toISOString();
+
+  // Claim order before mutating participants / credits (webhook + success race).
+  const { data: claimed, error: claimError } = await admin
+    .from("subscription_orders")
+    .update({ status: "completed", completed_at: paidAt })
+    .eq("id", order.id)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+
+  if (claimError) return { error: claimError.message };
+  if (!claimed) {
+    const { data: existing } = await admin
+      .from("subscription_orders")
+      .select("status")
+      .eq("id", order.id)
+      .maybeSingle();
+    if (existing?.status === "completed") {
+      return {
+        success: true,
+        alreadyCompleted: true as const,
+        challengeSlug: metadata.challenge_slug ?? challenge.slug,
+      };
+    }
+    return { error: "Order could not be completed" };
+  }
 
   if (action === "confirm") {
     const { data: participant } = await admin
@@ -352,11 +437,6 @@ async function completeFlashChallengeEntryOrder(order: {
         .eq("user_id", order.user_id);
     }
   }
-
-  await admin
-    .from("subscription_orders")
-    .update({ status: "completed", completed_at: paidAt })
-    .eq("id", order.id);
 
   const creditsApplied = order.referral_credits_applied_cents ?? 0;
   if (creditsApplied > 0) {
