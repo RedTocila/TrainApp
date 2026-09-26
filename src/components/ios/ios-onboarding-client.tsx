@@ -58,7 +58,7 @@ export function IosOnboardingClient() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-red-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
             RUTINA
           </p>
           <p className="text-sm text-zinc-400">

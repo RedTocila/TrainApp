@@ -21,7 +21,7 @@ export function IosWelcomeClient() {
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           className="pt-8"
         >
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-red-500">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
             RUTINA
           </p>
           <h1 className="mt-6 text-4xl font-black leading-[1.05] tracking-tight text-zinc-50 sm:text-5xl">
@@ -47,7 +47,7 @@ export function IosWelcomeClient() {
             href={IOS_ONBOARDING_PATH}
             className={cn(
               buttonVariants({ variant: "default" }),
-              "h-12 w-full rounded-xl bg-red-600 text-base font-semibold text-white hover:bg-red-500"
+              "h-12 w-full rounded-xl text-base font-semibold"
             )}
           >
             Get Started

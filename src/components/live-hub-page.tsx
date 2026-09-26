@@ -34,7 +34,7 @@ export function LiveHubPage({
     <div className="mx-auto w-full min-w-0 max-w-5xl space-y-6">
       <header>
         <nav
-          className="dashboard-instant-nav mb-3 flex rounded-full bg-secondary/50 p-1"
+          className="dashboard-instant-nav mb-3 flex h-[var(--control-height)] rounded-full border border-border/60 bg-secondary/60 p-1"
           role="tablist"
           aria-label="Live sections"
         >
@@ -44,13 +44,13 @@ export function LiveHubPage({
             aria-selected={tab === "challenges"}
             onClick={() => setTab("challenges")}
             className={cn(
-              "relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-3 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
+              "relative flex h-full flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
               tab === "challenges"
                 ? "bg-violet-500/20 text-violet-400 shadow-sm"
-                : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"
+                : "text-zinc-500 active:opacity-80 [@media(hover:hover)]:hover:text-zinc-300"
             )}
           >
-            <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <Users className="h-4 w-4 shrink-0" aria-hidden />
             <span>Challenges</span>
             {liveChallengeCount > 0 && (
               <span className="absolute right-2 top-1.5 flex h-2 w-2">
@@ -65,13 +65,13 @@ export function LiveHubPage({
             aria-selected={tab === "classes"}
             onClick={() => setTab("classes")}
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-3 text-xs font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
+              "flex h-full flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
               tab === "classes"
                 ? "bg-primary/20 text-primary shadow-sm"
-                : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"
+                : "text-zinc-500 active:opacity-80 [@media(hover:hover)]:hover:text-zinc-300"
             )}
           >
-            <Video className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <Video className="h-4 w-4 shrink-0" aria-hidden />
             <span>Live Classes</span>
           </button>
         </nav>

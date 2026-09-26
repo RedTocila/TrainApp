@@ -94,7 +94,7 @@ export function IosGeneratingClient() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-sm"
       >
-        <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-red-500">
+        <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-primary">
           RUTINA
         </p>
         <h1 className="mt-3 text-center text-2xl font-black tracking-tight text-zinc-50">
@@ -114,7 +114,7 @@ export function IosGeneratingClient() {
                 className={cn(
                   "flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors",
                   complete || current
-                    ? "border-red-500/40 bg-red-600/10"
+                    ? "border-primary/40 bg-primary/10"
                     : "border-zinc-800 bg-zinc-900/40"
                 )}
               >
@@ -122,9 +122,9 @@ export function IosGeneratingClient() {
                   className={cn(
                     "flex h-7 w-7 items-center justify-center rounded-full",
                     complete
-                      ? "bg-red-600 text-white"
+                      ? "bg-primary text-primary-foreground"
                       : current
-                        ? "bg-zinc-800 text-red-400"
+                        ? "bg-zinc-800 text-primary"
                         : "bg-zinc-900 text-zinc-600"
                   )}
                 >

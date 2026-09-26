@@ -25,7 +25,7 @@ export type AccentPaletteEntry = {
 };
 
 export const ACCENT_PALETTE: Record<AccentColor, AccentPaletteEntry> = {
-  red: { primary: "#dc2626", accent: "#ef4444", rgb: "220, 38, 38" },
+  red: { primary: "#dc2626", accent: "#dc2626", rgb: "220, 38, 38" },
   purple: { primary: "#9333ea", accent: "#a855f7", rgb: "147, 51, 234" },
   pink: { primary: "#db2777", accent: "#f472b6", rgb: "219, 39, 119" },
   teal: { primary: "#0d9488", accent: "#2dd4bf", rgb: "13, 148, 136" },

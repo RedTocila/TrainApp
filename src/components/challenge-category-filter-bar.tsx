@@ -27,7 +27,7 @@ function CategoryTag({
         "inline-flex w-auto shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all whitespace-nowrap",
         active
           ? activeClassName
-          : "border-border bg-muted text-muted-foreground hover:border-primary/30 hover:text-foreground"
+          : "border-border/60 bg-secondary/50 text-zinc-500 hover:bg-white/[0.03] hover:text-zinc-300"
       )}
     >
       {Icon ? <Icon className="h-3 w-3 shrink-0" aria-hidden /> : null}
@@ -35,7 +35,7 @@ function CategoryTag({
       <span
         className={cn(
           "shrink-0 rounded-full px-1 py-px text-[10px] leading-none tabular-nums",
-          active ? "bg-black/15" : "bg-background/80"
+          active ? "bg-black/15" : "bg-zinc-800/80 text-zinc-400"
         )}
       >
         {count}
@@ -71,7 +71,7 @@ export function ChallengeCategoryFilterBar({
         onClick={() => onChange("all")}
         label={labels.all}
         count={counts.all}
-        activeClassName="border-primary/30 bg-primary/10 text-primary"
+        activeClassName="border-primary/25 bg-primary/12 text-primary/90"
       />
       <CategoryTag
         active={category === "flash"}
@@ -79,7 +79,7 @@ export function ChallengeCategoryFilterBar({
         label={labels.flash}
         count={counts.flash}
         icon={Zap}
-        activeClassName="border-amber-500/30 bg-amber-500/10 text-amber-200"
+        activeClassName="border-amber-500/25 bg-amber-500/12 text-amber-300/90"
       />
       <CategoryTag
         active={category === "men"}
@@ -87,7 +87,7 @@ export function ChallengeCategoryFilterBar({
         label={labels.men}
         count={counts.men}
         icon={Users}
-        activeClassName="border-blue-500/30 bg-blue-500/10 text-blue-300"
+        activeClassName="border-sky-500/25 bg-sky-500/12 text-sky-300/90"
       />
       <CategoryTag
         active={category === "women"}
@@ -95,7 +95,7 @@ export function ChallengeCategoryFilterBar({
         label={labels.women}
         count={counts.women}
         icon={Users}
-        activeClassName="border-pink-500/30 bg-pink-500/10 text-pink-300"
+        activeClassName="border-pink-500/25 bg-pink-500/12 text-pink-300/90"
       />
     </div>
   );

@@ -38,7 +38,7 @@ html.dark {
   --secondary-foreground: #fafafa;
   --muted: #111113;
   --muted-foreground: #8e8e93;
-  --accent: #ef4444;
+  --accent: #dc2626;
   --accent-foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.08);
   --ring: #dc2626;
@@ -279,7 +279,7 @@ body:has(.dashboard-shell) {
   --secondary-foreground: #fafafa;
   --muted: rgba(255, 255, 255, 0.1);
   --muted-foreground: rgba(255, 255, 255, 0.72);
-  --accent: #ef4444;
+  --accent: #dc2626;
   --accent-foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.16);
   --background: rgba(0, 0, 0, 0.35);

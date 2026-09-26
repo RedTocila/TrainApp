@@ -85,14 +85,14 @@ export function CalendarStripDay({
         layout === "scroll"
           ? "w-14 shrink-0 sm:w-[3.75rem] md:w-16"
           : "min-w-0 w-full",
-        inactive && "cursor-default opacity-35",
+        inactive && "cursor-default opacity-40",
         !inactive && "active:scale-[0.97]"
       )}
     >
       {selected && !inactive && (
         <span
           aria-hidden
-          className="absolute inset-x-0.5 inset-y-1 rounded-lg bg-secondary/80"
+          className="absolute inset-x-0.5 inset-y-1 rounded-lg bg-zinc-800/90"
         />
       )}
 
@@ -100,9 +100,9 @@ export function CalendarStripDay({
         className={cn(
           "relative z-10 max-w-full truncate text-[0.625rem] font-medium tracking-wide sm:text-[11px]",
           selected && !inactive
-            ? "text-foreground"
+            ? "text-zinc-100"
             : future || inactive || tone === "muted"
-              ? "text-muted-foreground/45"
+              ? "text-muted-foreground/55"
               : "text-muted-foreground"
         )}
       >
@@ -120,8 +120,10 @@ export function CalendarStripDay({
           className={cn(
             "text-sm font-semibold leading-none tabular-nums sm:text-base",
             inactive || (tone === "muted" && (future || ringProgress === 0))
-              ? "text-muted-foreground/45"
-              : "text-foreground"
+              ? "text-muted-foreground/55"
+              : selected
+                ? "text-zinc-100"
+                : "text-foreground"
           )}
         >
           {formatLocalized(date, "d", locale)}
@@ -152,7 +154,7 @@ export function CalendarStripDay({
             <span
               key={category}
               className={cn(
-                "h-1 w-1 rounded-full opacity-40",
+                "h-1 w-1 rounded-full opacity-50",
                 CATEGORY_DOT_COLORS[category]
               )}
             />

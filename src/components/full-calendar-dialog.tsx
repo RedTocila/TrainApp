@@ -579,7 +579,7 @@ export function FullCalendarDialog({
                         }) => (
                           <div
                             key={day.toISOString()}
-                            className={cn(!inMonth && "opacity-35")}
+                            className={cn(!inMonth && "opacity-40")}
                           >
                             <CalendarDayDot
                               date={day}

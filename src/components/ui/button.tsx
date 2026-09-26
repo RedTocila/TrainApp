@@ -12,7 +12,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-lg shadow-primary/20 [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:hover:shadow-primary/30",
+          "bg-primary text-primary-foreground shadow-lg shadow-primary/25 [@media(hover:hover)]:hover:brightness-110",
         secondary:
           "border border-border/80 bg-secondary text-secondary-foreground [@media(hover:hover)]:hover:bg-secondary/80",
         outline:

@@ -30,9 +30,9 @@ export function DayCompletionRing({
         ? "stroke-amber-500"
         : tone === "red"
           ? "stroke-red-500"
-          : clamped > 0
-            ? "stroke-primary/75"
-            : "stroke-muted-foreground/30";
+            : clamped > 0
+              ? "stroke-primary/75"
+              : "stroke-muted-foreground/35";
 
   return (
     <span
@@ -56,7 +56,7 @@ export function DayCompletionRing({
           r={radius}
           fill="none"
           strokeWidth={stroke}
-          className="stroke-muted-foreground/20"
+          className="stroke-muted-foreground/25"
         />
         <circle
           cx={size / 2}
