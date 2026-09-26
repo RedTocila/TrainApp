@@ -26,17 +26,18 @@
 
 html.dark {
   color-scheme: dark;
-  --background: #121214;
+  --background: #0c0c0e;
   --foreground: #fafafa;
-  --card: #1a1a1d;
+  /* Very soft lifts — barely above pure black */
+  --card: #101012;
   --card-foreground: #fafafa;
   --primary: #dc2626;
   --primary-foreground: #ffffff;
   --primary-rgb: 220, 38, 38;
-  --secondary: #242428;
+  --secondary: #141416;
   --secondary-foreground: #fafafa;
-  --muted: #202024;
-  --muted-foreground: #a3a3a3;
+  --muted: #111113;
+  --muted-foreground: #8e8e93;
   --accent: #ef4444;
   --accent-foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.08);

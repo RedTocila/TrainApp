@@ -152,32 +152,43 @@ export function MyExercisesPage({
         }}
       />
 
-      <div className="flex flex-wrap gap-2">
-        <Button
+      <div className="flex flex-wrap gap-1.5">
+        <button
           type="button"
-          size="sm"
-          variant={category ? "outline" : "secondary"}
           onClick={() => {
             setCategory(undefined);
             setVisibleCount(PAGE_SIZE);
           }}
+          className={cn(
+            "inline-flex h-7 items-center rounded-full border px-2.5 text-[11px] font-semibold transition-colors",
+            !category
+              ? "border-white/10 bg-zinc-800/80 text-zinc-200"
+              : "border-border/60 bg-secondary/50 text-zinc-500 hover:text-zinc-300"
+          )}
         >
           All
-        </Button>
-        {EXERCISE_CATALOG.categories.map((item) => (
-          <Button
-            key={item}
-            type="button"
-            size="sm"
-            variant={category === item ? "secondary" : "outline"}
-            onClick={() => {
-              setCategory(item);
-              setVisibleCount(PAGE_SIZE);
-            }}
-          >
-            {formatCatalogLabel(item)}
-          </Button>
-        ))}
+        </button>
+        {EXERCISE_CATALOG.categories.map((item) => {
+          const active = category === item;
+          return (
+            <button
+              key={item}
+              type="button"
+              onClick={() => {
+                setCategory(item);
+                setVisibleCount(PAGE_SIZE);
+              }}
+              className={cn(
+                "inline-flex h-7 items-center rounded-full border px-2.5 text-[11px] font-semibold transition-colors",
+                active
+                  ? "border-white/10 bg-zinc-800/80 text-zinc-200"
+                  : "border-border/60 bg-secondary/50 text-zinc-500 hover:text-zinc-300"
+              )}
+            >
+              {formatCatalogLabel(item)}
+            </button>
+          );
+        })}
       </div>
 
       <div className="space-y-3">

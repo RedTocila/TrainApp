@@ -1,15 +1,9 @@
-import { RouteEnter } from "@/components/route-enter";
+import { AuthLayoutFrame } from "@/components/ios/auth-layout-client";
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="flex min-h-dvh justify-center px-4 py-8 sm:py-10">
-      <div className="my-auto w-full max-w-md">
-        <RouteEnter>{children}</RouteEnter>
-      </div>
-    </div>
-  );
+  return <AuthLayoutFrame>{children}</AuthLayoutFrame>;
 }

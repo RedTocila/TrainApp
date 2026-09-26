@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export function LoginForm({ authError }: { authError?: string }) {
   const searchParams = useSearchParams();
   const emailPrefill = searchParams.get("email")?.trim() ?? "";
+  const fromIos = searchParams.get("from") === "ios";
   const [error, setError] = useState<string | null>(() => {
     if (authError === "auth") {
       return "Your account is ready — sign in with your email and password to open the app.";
@@ -28,6 +29,8 @@ export function LoginForm({ authError }: { authError?: string }) {
 
   const handleSubmit = (formData: FormData) => {
     setError(null);
+    const next = searchParams.get("next");
+    if (next) formData.set("next", next);
     startTransition(async () => {
       const result = await signIn(formData);
       if (result?.error) setError(result.error);
@@ -35,8 +38,8 @@ export function LoginForm({ authError }: { authError?: string }) {
   };
 
   return (
-    <AuthCardShell>
-      <Card className="w-full">
+    <AuthCardShell backHref={fromIos ? "/ios/welcome" : "/"}>
+      <Card className="w-full border-border/80 bg-background/95 shadow-xl backdrop-blur">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-black">
             <BrandWordmark />
@@ -60,7 +63,7 @@ export function LoginForm({ authError }: { authError?: string }) {
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="password">Password</Label>
                 <Link
-                  href="/forgot-password"
+                  href={fromIos ? "/forgot-password?from=ios" : "/forgot-password"}
                   className="text-xs text-primary hover:underline"
                 >
                   Forgot password?
@@ -75,16 +78,21 @@ export function LoginForm({ authError }: { authError?: string }) {
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href="/register" className="text-primary hover:underline">
+            <Link
+              href={fromIos ? "/register?from=ios" : "/register"}
+              className="text-primary hover:underline"
+            >
               Register
             </Link>
           </p>
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            Coach? Sign in with your admin account — you&apos;ll go to{" "}
-            <Link href="/admin" className="text-primary hover:underline">
-              /admin
-            </Link>
-          </p>
+          {!fromIos ? (
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              Coach? Sign in with your admin account — you&apos;ll go to{" "}
+              <Link href="/admin" className="text-primary hover:underline">
+                /admin
+              </Link>
+            </p>
+          ) : null}
         </CardContent>
       </Card>
     </AuthCardShell>

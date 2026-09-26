@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 /** Exact liquid-glass chrome from the mobile nav pill (shared with the left nav). */
 export const DASHBOARD_NAV_GLASS_CLASS =
-  "rounded-full border border-zinc-300/90 bg-white/90 shadow-[0_8px_28px_rgba(0,0,0,0.12)] backdrop-blur-2xl dark:border-white/15 dark:bg-background/35 dark:shadow-[0_8px_28px_rgba(0,0,0,0.22)]";
+  "rounded-full border border-zinc-300/90 bg-white/90 shadow-[0_8px_28px_rgba(0,0,0,0.12)] backdrop-blur-2xl dark:border-white/10 dark:bg-zinc-900/55 dark:shadow-[0_8px_28px_rgba(0,0,0,0.25)]";
 
 function isAiCoachPath(pathname: string) {
   return pathname === "/dashboard/ai" || pathname.startsWith("/dashboard/ai/");

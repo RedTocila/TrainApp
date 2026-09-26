@@ -10,6 +10,8 @@ import { ClientIntakeForm } from "@/components/client-intake-form";
 import { IntakeRefreshBanner } from "@/components/intake-refresh-banner";
 import { DashboardScheduleProvider } from "@/components/dashboard-schedule-context";
 import { DashboardTodayCacheSeed } from "@/components/dashboard-today-cache-seed";
+import { NativeHomeGreeting } from "@/components/ios/native-home-greeting";
+import { WebOnly } from "@/components/ios/native-platform-gate";
 import type { ClientSchedule } from "@/lib/daily-tasks";
 import type { Profile } from "@/lib/types";
 import type { ComponentProps } from "react";
@@ -98,6 +100,7 @@ export function DashboardHomeView({
         }}
       />
       <DashboardHomeShell clientId={clientId} schedule={schedule}>
+        <NativeHomeGreeting fullName={profile.full_name ?? ""} />
         <IntakeRefreshBanner profile={profile} />
         <DashboardWorkoutCard
           clientId={clientId}
@@ -152,7 +155,10 @@ export function DashboardHomeView({
           {children}
         </div>
 
-        <ClientIntakeForm profile={profile} />
+        {/* Web keeps the in-dashboard intake wizard; native uses /ios/onboarding. */}
+        <WebOnly>
+          <ClientIntakeForm profile={profile} />
+        </WebOnly>
       </DashboardHomeShell>
     </DashboardScheduleProvider>
   );

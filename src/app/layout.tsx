@@ -26,9 +26,9 @@ const geistMono = Geist_Mono({
 
 /** Critical boot CSS: dark canvas + splash before stylesheet/JS bundles load. */
 const BOOT_STYLE = `
-html{background-color:#121214;color-scheme:dark}
-body{background-color:#121214;margin:0}
-.startup-splash{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:#121214;pointer-events:none;opacity:1;transition:opacity 280ms cubic-bezier(0.22,1,0.36,1)}
+html{background-color:#0c0c0e;color-scheme:dark}
+body{background-color:#0c0c0e;margin:0}
+.startup-splash{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:#0c0c0e;pointer-events:none;opacity:1;transition:opacity 280ms cubic-bezier(0.22,1,0.36,1)}
 .startup-splash--hide{opacity:0}
 .startup-splash__mark{display:flex;flex-direction:column;align-items:center;gap:1.25rem}
 .startup-splash__word{font-family:var(--font-geist-sans),ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:clamp(1.75rem,5vw,2.25rem);font-weight:900;letter-spacing:-0.03em;line-height:1;text-transform:uppercase;color:#fafafa}
@@ -77,7 +77,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#121214",
+  themeColor: "#0c0c0e",
 };
 
 export default async function RootLayout({

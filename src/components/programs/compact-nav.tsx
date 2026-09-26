@@ -38,7 +38,7 @@ export function CompactSegment({
         "flex h-full flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
         active
           ? cn("shadow-sm", activeClass)
-          : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"
+          : "text-zinc-500 active:opacity-80 [@media(hover:hover)]:hover:text-zinc-300"
       )}
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden />
@@ -87,7 +87,7 @@ export function CompactSubLink({
           : "h-[var(--control-height)] px-3.5",
         active
           ? activeClass
-          : "text-muted-foreground active:opacity-80 [@media(hover:hover)]:hover:text-foreground"
+          : "text-zinc-500 active:opacity-80 [@media(hover:hover)]:hover:text-zinc-300"
       )}
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden />

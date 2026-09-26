@@ -42,6 +42,12 @@ export interface IntakeResponses {
   alcohol?: string;
   stress_level?: string;
   water_habits?: string;
+  /** iOS onboarding — home / gym / both. Optional; ignored by web completeness. */
+  training_location?: string;
+  /** iOS onboarding — preferred session length. */
+  workout_duration?: string;
+  /** iOS onboarding — preferred workout formats. */
+  workout_styles?: string[];
 }
 
 /** Questionnaire fields where users may pick more than one option. */
@@ -51,6 +57,7 @@ export const INTAKE_MULTI_SELECT_KEYS = [
   "food_allergies",
   "injury_areas",
   "health_conditions",
+  "workout_styles",
 ] as const satisfies readonly (keyof IntakeResponses)[];
 
 export type IntakeMultiSelectKey = (typeof INTAKE_MULTI_SELECT_KEYS)[number];
@@ -356,6 +363,15 @@ export function buildDailyRoutineText(responses: IntakeResponses): string {
   if (activities) parts.push(`Activities: ${activities}`);
   const equipment = labelsFor(EQUIPMENT_OPTIONS, responses.equipment_access);
   if (equipment) parts.push(`Equipment: ${equipment}`);
+  if (responses.training_location) {
+    parts.push(`Trains at: ${responses.training_location}`);
+  }
+  if (responses.workout_duration) {
+    parts.push(`Session length: ${responses.workout_duration}`);
+  }
+  if (responses.workout_styles?.length) {
+    parts.push(`Preferred styles: ${responses.workout_styles.join(", ")}`);
+  }
   const meals = labelFor(MEALS_PER_DAY_OPTIONS, responses.meals_per_day);
   if (meals) parts.push(`${meals}/day`);
   const cooking = labelFor(COOKING_OPTIONS, responses.cooking_frequency);

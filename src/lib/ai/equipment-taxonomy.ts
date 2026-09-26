@@ -225,11 +225,81 @@ export function equipmentConstraintFromIntakeAccess(
       source
     );
   }
-  if (has("bodyweight") || equipment.length === 0) {
+  if (
+    has("bodyweight") ||
+    has("none") ||
+    has("no_equipment") ||
+    equipment.length === 0
+  ) {
+    // Only treat as bodyweight-only when no other gear was selected.
+    const hasGear = equipment.some(
+      (v) =>
+        v !== "bodyweight" &&
+        v !== "none" &&
+        v !== "no_equipment"
+    );
+    if (!hasGear) {
+      return constraintFromTags(
+        BODYWEIGHT_ONLY,
+        "HARD CONSTRAINT: Bodyweight / no-equipment only. Every exercise MUST use catalog equipment \"body weight\" (or empty). NO dumbbells, barbells, cables, machines, bands, benches-as-equipment, or kettlebells.",
+        "bodyweight",
+        source
+      );
+    }
+  }
+
+  // Granular iOS equipment picks → union of allowed catalog tags.
+  const granularTags = new Set<string>([CATALOG_EQUIPMENT.BODY_WEIGHT]);
+  let matchedGranular = false;
+  for (const item of equipment) {
+    switch (item) {
+      case "dumbbells":
+        matchedGranular = true;
+        granularTags.add(CATALOG_EQUIPMENT.DUMBBELL);
+        break;
+      case "kettlebell":
+        matchedGranular = true;
+        granularTags.add(CATALOG_EQUIPMENT.KETTLEBELL);
+        break;
+      case "resistance_bands":
+      case "bands":
+        matchedGranular = true;
+        granularTags.add(CATALOG_EQUIPMENT.BAND);
+        granularTags.add(CATALOG_EQUIPMENT.RESISTANCE_BAND);
+        break;
+      case "barbell":
+        matchedGranular = true;
+        granularTags.add(CATALOG_EQUIPMENT.BARBELL);
+        granularTags.add(CATALOG_EQUIPMENT.EZ_BARBELL);
+        granularTags.add(CATALOG_EQUIPMENT.OLYMPIC_BARBELL);
+        granularTags.add(CATALOG_EQUIPMENT.TRAP_BAR);
+        break;
+      case "cable":
+        matchedGranular = true;
+        granularTags.add(CATALOG_EQUIPMENT.CABLE);
+        break;
+      case "machines":
+        matchedGranular = true;
+        for (const tag of GYM_MACHINES) granularTags.add(tag);
+        break;
+      case "bench":
+      case "pull_up_bar":
+        // Bench / pull-up bar don't expand catalog tags beyond bodyweight + listed free weights.
+        matchedGranular = true;
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (matchedGranular) {
+    const labels = equipment.filter(
+      (v) => v !== "bodyweight" && v !== "none" && v !== "no_equipment"
+    );
     return constraintFromTags(
-      BODYWEIGHT_ONLY,
-      "HARD CONSTRAINT: Bodyweight / no-equipment only. Every exercise MUST use catalog equipment \"body weight\" (or empty). NO dumbbells, barbells, cables, machines, bands, benches-as-equipment, or kettlebells.",
-      "bodyweight",
+      granularTags,
+      `HARD CONSTRAINT: Only use equipment the client listed (${labels.join(", ") || "bodyweight"}). Bodyweight is always allowed. Do NOT invent machines, barbells, cables, or free weights they did not select.`,
+      "granular_intake",
       source
     );
   }

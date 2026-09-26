@@ -131,9 +131,14 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
   }, [searchParams]);
 
   const finishSignup = (role?: string) => {
-    clearIntakeDraft();
+    const fromIos = searchParams.get("from") === "ios";
+    if (!fromIos) clearIntakeDraft();
     router.refresh();
-    router.push(role === "admin" ? "/admin" : "/dashboard");
+    if (role === "admin") {
+      router.push("/admin");
+      return;
+    }
+    router.push(fromIos ? "/ios/generating" : "/dashboard");
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -212,7 +217,12 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
     }
   };
 
-  const backHref = intakeJson ? "/get-started" : "/";
+  const backHref =
+    searchParams.get("from") === "ios"
+      ? "/ios/onboarding"
+      : intakeJson
+        ? "/get-started"
+        : "/";
 
   if (
     checkoutStarted &&
@@ -221,7 +231,7 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
   ) {
     return (
       <AuthCardShell backHref={backHref}>
-      <Card className="w-full">
+      <Card className="w-full border-border/80 bg-background/95 shadow-xl backdrop-blur">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-black">Complete purchase</CardTitle>
           <CardDescription>
@@ -339,7 +349,7 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
   if (signupDraft) {
     return (
       <AuthCardShell backHref={backHref}>
-      <Card className="w-full overflow-visible">
+      <Card className="w-full overflow-visible border-border/80 bg-background/95 shadow-xl backdrop-blur">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-black">Choose your package</CardTitle>
           <CardDescription>
@@ -532,7 +542,7 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
 
   return (
     <AuthCardShell backHref={backHref}>
-    <Card className="w-full">
+    <Card className="w-full border-border/80 bg-background/95 shadow-xl backdrop-blur">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-black">
           JOIN <BrandWordmark />

@@ -16,7 +16,7 @@ import { useVisualViewportFrame } from "@/hooks/use-visual-viewport-frame";
  * Hard opaque fills — never `var(--background)` alone (dashboard photo cards
  * override it to translucent rgba, and some browsers resolve that through).
  */
-const OPAQUE_DARK = "#121214";
+const OPAQUE_DARK = "#0c0c0e";
 const OPAQUE_LIGHT = "#f4f4f5";
 /** Keep in sync with `--duration-page` in globals.css */
 const PAGE_MS = 320;

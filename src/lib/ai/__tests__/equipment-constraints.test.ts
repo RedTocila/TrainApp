@@ -8,6 +8,7 @@ import {
   CATALOG_EQUIPMENT,
   equipmentConstraintFromIntakeAccess,
   exerciseAllowedByConstraint,
+  isBodyweightOnlyConstraint,
   parseEquipmentConstraintFromText,
   resolveEquipmentConstraint,
 } from "../equipment-taxonomy";
@@ -80,6 +81,21 @@ describe("equipmentConstraintFromIntakeAccess", () => {
     assert.ok(c.allowedTags?.has(CATALOG_EQUIPMENT.DUMBBELL));
     assert.ok(!c.allowedTags?.has(CATALOG_EQUIPMENT.BARBELL));
     assert.ok(!c.allowedTags?.has(CATALOG_EQUIPMENT.LEVERAGE_MACHINE));
+  });
+
+  it("maps granular dumbbells intake without machines", () => {
+    const c = equipmentConstraintFromIntakeAccess(["dumbbells"]);
+    assert.equal(c.label, "granular_intake");
+    assert.ok(c.allowedTags?.has(CATALOG_EQUIPMENT.DUMBBELL));
+    assert.ok(c.allowedTags?.has(CATALOG_EQUIPMENT.BODY_WEIGHT));
+    assert.equal(c.allowedTags?.has(CATALOG_EQUIPMENT.BARBELL), false);
+    assert.equal(c.allowedTags?.has(CATALOG_EQUIPMENT.CABLE), false);
+  });
+
+  it("maps no equipment / none to bodyweight", () => {
+    const c = equipmentConstraintFromIntakeAccess(["none"]);
+    assert.equal(c.label, "bodyweight");
+    assert.ok(isBodyweightOnlyConstraint(c));
   });
 });
 

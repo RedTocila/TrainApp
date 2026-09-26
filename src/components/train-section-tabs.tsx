@@ -33,7 +33,7 @@ export function TrainSectionTabs({ className }: { className?: string }) {
   return (
     <nav
       className={cn(
-        "dashboard-instant-nav mb-3 flex h-[var(--control-height)] rounded-full bg-secondary/50 p-1",
+        "dashboard-instant-nav mb-3 flex h-[var(--control-height)] rounded-full border border-border/60 bg-secondary/60 p-1",
         className
       )}
       aria-label="Programs"

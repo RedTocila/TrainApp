@@ -58,8 +58,10 @@ export async function proxy(request: NextRequest) {
   const isResetPasswordPage = path === "/reset-password";
   const isAdminRoute = path.startsWith("/admin");
   const isDashboardRoute = path.startsWith("/dashboard");
+  // Native Capacitor funnel — accessible logged-out; web marketing stays on `/`.
+  const isIosFunnelRoute = path === "/ios" || path.startsWith("/ios/");
 
-  if (!user && (isAuthPage || path === "/")) {
+  if (!user && (isAuthPage || path === "/" || isIosFunnelRoute)) {
     return supabaseResponse;
   }
 
@@ -80,6 +82,11 @@ export async function proxy(request: NextRequest) {
     }
 
     if (isAuthPage) {
+      if (isServerAction) return supabaseResponse;
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    if (path === "/ios" || path === "/ios/welcome") {
       if (isServerAction) return supabaseResponse;
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }

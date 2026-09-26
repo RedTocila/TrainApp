@@ -8,6 +8,7 @@ import { applyIntakeToProfile } from "@/lib/actions/client-intake";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthEmailRedirectUrl } from "@/lib/app-url";
 import { formatUserError, isEmailNotConfirmedError } from "@/lib/format-user-error";
+import { safeNativeRedirect } from "@/lib/ios-routes";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -272,7 +273,10 @@ export async function signIn(formData: FormData) {
   if (profile?.role === "admin") {
     redirect("/admin");
   }
-  redirect("/dashboard");
+
+  // Optional native funnel redirect (web login form does not send `next`).
+  const next = safeNativeRedirect(formData.get("next"));
+  redirect(next ?? "/dashboard");
 }
 
 export async function signOut() {

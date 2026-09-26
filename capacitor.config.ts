@@ -25,12 +25,12 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchAutoHide: true,
       launchShowDuration: 800,
-      backgroundColor: "#121214",
+      backgroundColor: "#0c0c0e",
       showSpinner: false,
     },
     StatusBar: {
       style: "DARK",
-      backgroundColor: "#121214",
+      backgroundColor: "#0c0c0e",
     },
     Camera: {
       permissions: ["camera", "photos"],
@@ -48,7 +48,7 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: false,
-    backgroundColor: "#121214",
+    backgroundColor: "#0c0c0e",
   },
 };
 

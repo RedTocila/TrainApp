@@ -6,7 +6,11 @@ import { motion, useReducedMotion } from "framer-motion";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import {
   CalendarDays,
+  ChartNoAxesCombined,
+  Dumbbell,
   House,
+  Salad,
+  Sparkles,
   Trophy,
   UserRound,
 } from "lucide-react";
@@ -21,10 +25,15 @@ import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { getHasLivePublishedChallenge } from "@/lib/actions/challenges";
+import { isNativeApp } from "@/lib/native-app";
 import {
   hidesDashboardBottomNav,
+  isAiCoachNavActive,
   isHomeNavActive,
+  isNutritionNavActive,
   isProgramsNavActive,
+  isProgressNavActive,
+  isWorkoutNavActive,
 } from "@/lib/train-nav";
 
 const mobileNavLinkClass =
@@ -74,6 +83,15 @@ function NavIconWithDot({
   );
 }
 
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+  showDot?: boolean;
+  tapSlop?: number;
+};
+
 export function ClientNav({
   fullName,
 }: {
@@ -87,11 +105,18 @@ export function ClientNav({
   const activePath = pendingHref ?? pathname;
   const hideNav = hidesDashboardBottomNav(activePath);
   const hideMobileChrome = hideNav || alexChatOpen;
+  // Capacitor is unavailable during SSR — detect after mount to avoid hydration mismatch.
+  const [nativeApp, setNativeApp] = useState(false);
   const programsActive = isProgramsNavActive(activePath);
   const homeActive = isHomeNavActive(activePath);
   const [liveChallengeActive, setLiveChallengeActive] = useState(false);
 
   useEffect(() => {
+    setNativeApp(isNativeApp());
+  }, []);
+
+  useEffect(() => {
+    if (nativeApp) return;
     let cancelled = false;
     void getHasLivePublishedChallenge().then((live) => {
       if (!cancelled) setLiveChallengeActive(live);
@@ -99,19 +124,29 @@ export function ClientNav({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [nativeApp]);
 
   const prefetchRoutes = useMemo(
-    () => [
-      "/dashboard",
-      "/dashboard/workout/plans",
-      "/dashboard/nutrition",
-      "/dashboard/ai",
-      "/dashboard/classes",
-      "/dashboard/challenges",
-      "/dashboard/profile",
-    ],
-    []
+    () =>
+      nativeApp
+        ? [
+            "/dashboard",
+            "/dashboard/workout/plans",
+            "/dashboard/nutrition",
+            "/dashboard/progress",
+            "/dashboard/ai",
+            "/dashboard/profile",
+          ]
+        : [
+            "/dashboard",
+            "/dashboard/workout/plans",
+            "/dashboard/nutrition",
+            "/dashboard/ai",
+            "/dashboard/classes",
+            "/dashboard/challenges",
+            "/dashboard/profile",
+          ],
+    [nativeApp]
   );
   usePrefetchRoutes(prefetchRoutes);
 
@@ -131,14 +166,7 @@ export function ClientNav({
 
   if (hideNav) return null;
 
-  const mobileNavItems: {
-    href: string;
-    label: string;
-    icon: LucideIcon;
-    active: boolean;
-    showDot?: boolean;
-    tapSlop?: number;
-  }[] = [
+  const webNavItems: NavItem[] = [
     {
       href: "/dashboard",
       label: platform.nav.home,
@@ -159,7 +187,6 @@ export function ClientNav({
       active:
         activePath === "/dashboard/classes" ||
         activePath.startsWith("/dashboard/classes/"),
-      // Always draw attention; pulse when a challenge is live.
       showDot: true,
     },
     {
@@ -171,6 +198,42 @@ export function ClientNav({
         activePath.startsWith("/dashboard/profile/"),
     },
   ];
+
+  const nativeNavItems: NavItem[] = [
+    {
+      href: "/dashboard",
+      label: platform.nav.home,
+      icon: House,
+      active: homeActive,
+    },
+    {
+      href: "/dashboard/workout/plans",
+      label: platform.trainTabs.workout,
+      icon: Dumbbell,
+      active: isWorkoutNavActive(activePath),
+      tapSlop: 16,
+    },
+    {
+      href: "/dashboard/nutrition",
+      label: platform.trainTabs.nutrition,
+      icon: Salad,
+      active: isNutritionNavActive(activePath),
+    },
+    {
+      href: "/dashboard/progress",
+      label: "Progress",
+      icon: ChartNoAxesCombined,
+      active: isProgressNavActive(activePath),
+    },
+    {
+      href: "/dashboard/ai",
+      label: platform.nav.aiCoach,
+      icon: Sparkles,
+      active: isAiCoachNavActive(activePath),
+    },
+  ];
+
+  const mobileNavItems = nativeApp ? nativeNavItems : webNavItems;
 
   const sidebarLinkClass = (active: boolean) =>
     cn(
@@ -228,7 +291,10 @@ export function ClientNav({
           <div className="dashboard-mobile-nav pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex items-end justify-center gap-2.5 bg-transparent px-3 pb-[max(0.75rem,var(--safe-area-bottom))] lg:hidden">
             <nav
               className={cn(
-                "dashboard-instant-nav pointer-events-auto isolate relative flex h-14 w-full max-w-[min(28rem,calc(100%-3.75rem))] items-center justify-around p-1.5",
+                "dashboard-instant-nav pointer-events-auto isolate relative flex h-14 w-full items-center justify-around p-1.5",
+                nativeApp
+                  ? "max-w-[min(32rem,100%)]"
+                  : "max-w-[min(28rem,calc(100%-3.75rem))]",
                 DASHBOARD_NAV_GLASS_CLASS
               )}
               aria-label="Primary"
@@ -278,9 +344,13 @@ export function ClientNav({
                 </InstantNavLink>
               ))}
             </nav>
-            <AiCoachFab placement="docked" onNavigateStart={setPendingHref} />
+            {!nativeApp ? (
+              <AiCoachFab placement="docked" onNavigateStart={setPendingHref} />
+            ) : null}
           </div>
-          <AiCoachFab placement="corner" onNavigateStart={setPendingHref} />
+          {!nativeApp ? (
+            <AiCoachFab placement="corner" onNavigateStart={setPendingHref} />
+          ) : null}
         </>
       ) : null}
     </>

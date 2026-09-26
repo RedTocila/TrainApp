@@ -62,6 +62,33 @@ export function isHomeNavActive(pathname: string) {
   );
 }
 
+export function isWorkoutNavActive(pathname: string) {
+  const path = pathOnly(pathname);
+  return (
+    path === "/dashboard/workout" || path.startsWith("/dashboard/workout/")
+  );
+}
+
+export function isNutritionNavActive(pathname: string) {
+  const path = pathOnly(pathname);
+  return path === "/dashboard/nutrition" || path.startsWith("/dashboard/nutrition/");
+}
+
+export function isProgressNavActive(pathname: string) {
+  const path = pathOnly(pathname);
+  return (
+    path === "/dashboard/progress" ||
+    path.startsWith("/dashboard/progress/") ||
+    path === "/dashboard/progress-photos" ||
+    path.startsWith("/dashboard/progress-photos/")
+  );
+}
+
+export function isAiCoachNavActive(pathname: string) {
+  const path = pathOnly(pathname);
+  return path === "/dashboard/ai" || path.startsWith("/dashboard/ai/");
+}
+
 /** Full calendar entry — only on primary bottom-nav destinations (not nested pages). */
 export function showsFullCalendarNav(pathname: string) {
   const path = pathOnly(pathname);
@@ -72,6 +99,10 @@ export function showsFullCalendarNav(pathname: string) {
     path === "/dashboard/workout/plans" ||
     path.startsWith("/dashboard/workout/plans/")
   ) {
+    return true;
+  }
+  // Native Progress tab
+  if (path === "/dashboard/progress" || path.startsWith("/dashboard/progress/")) {
     return true;
   }
   // Classes tab
