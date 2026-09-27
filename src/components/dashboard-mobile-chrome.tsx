@@ -13,6 +13,7 @@ import {
   HeartPulse,
   ImageIcon,
 } from "lucide-react";
+import { useIsFreeNativeApp } from "@/components/ios/use-native-app";
 import { AppLogo } from "@/components/app-logo";
 import {
   FullCalendarNavButton,
@@ -63,6 +64,7 @@ function DashboardMobileHeaderBar() {
   const isWorkoutPage = chromePath === DASHBOARD_DAY_WORKOUT_PATH;
   const isProgressPhotosPage = chromePath === DASHBOARD_PROGRESS_PHOTOS_PATH;
   const isCardioSession = isCardioSessionPath(chromePath);
+  const freeNativeApp = useIsFreeNativeApp();
 
   return (
     <div
@@ -216,20 +218,22 @@ function DashboardMobileHeaderBar() {
           </div>
         ) : (
           <div className={headerActionsGroup}>
-            <Link
-              href="/dashboard/referrals"
-              aria-label={platform.referral.navAria}
-              className={cn(
-                "relative inline-flex items-center justify-center text-muted-foreground",
-                headerIconButton
-              )}
-            >
-              <Gift className="h-4 w-4" />
-              <span
-                aria-hidden
-                className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background"
-              />
-            </Link>
+            {!freeNativeApp ? (
+              <Link
+                href="/dashboard/referrals"
+                aria-label={platform.referral.navAria}
+                className={cn(
+                  "relative inline-flex items-center justify-center text-muted-foreground",
+                  headerIconButton
+                )}
+              >
+                <Gift className="h-4 w-4" />
+                <span
+                  aria-hidden
+                  className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background"
+                />
+              </Link>
+            ) : null}
             <FullCalendarNavButton className={headerIconButton} />
           </div>
         )

@@ -49,7 +49,7 @@ export function GetStartedClient() {
   };
 
   return (
-    <div className="relative min-h-dvh px-4 py-6 sm:px-6">
+    <div className="relative min-h-dvh px-4 pb-[max(1.5rem,var(--safe-area-bottom-inset))] pt-[max(1.5rem,var(--safe-area-top-inset))] sm:px-6">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-32 top-20 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
         <div className="absolute -right-20 bottom-20 h-64 w-64 rounded-full bg-violet-500/10 blur-3xl" />

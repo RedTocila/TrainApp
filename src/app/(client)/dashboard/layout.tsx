@@ -4,7 +4,6 @@ import { DashboardAiCoachProvider } from "@/components/dashboard-ai-coach-provid
 import { DashboardMainArea } from "@/components/dashboard-main-area";
 import { LocaleProvider } from "@/components/locale-provider";
 import { PendingIntakeSync } from "@/components/pending-intake-sync";
-import { NativeIncompleteIntakeGate } from "@/components/ios/native-incomplete-intake-gate";
 import { NativeAppAccessSync } from "@/components/ios/native-app-access-sync";
 import { ReminderBootstrap } from "@/components/reminder-bootstrap";
 import { DateProvider } from "@/components/date-provider";
@@ -29,7 +28,6 @@ export default async function DashboardLayout({
   return (
     <LocaleProvider locale={locale} unitSystem={profile.unit_system ?? "metric"}>
       <PendingIntakeSync intakeComplete={intakeComplete} />
-      <NativeIncompleteIntakeGate intakeComplete={intakeComplete} />
       <NativeAppAccessSync />
       <ReminderBootstrap />
       <DashboardMainReset />

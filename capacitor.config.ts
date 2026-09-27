@@ -41,7 +41,8 @@ const config: CapacitorConfig = {
     },
   },
   ios: {
-    contentInset: "automatic",
+    // CSS pads for the notch/home indicator via env(safe-area-inset-*); a native inset would double it.
+    contentInset: "never",
     preferredContentMode: "mobile",
     scheme: "RUTINA",
     // Must stay false unless Info.plist lists every host in WKAppBoundDomains (max 10).
