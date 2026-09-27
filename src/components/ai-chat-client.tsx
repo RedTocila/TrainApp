@@ -1073,6 +1073,9 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeActAria={ai.modeActAria}
               onVoiceError={setError}
             />
+            <p className="mt-1.5 text-center text-[11px] leading-snug text-muted-foreground">
+              {ai.medicalDisclaimer}
+            </p>
           </div>
         </div>
       ) : (
@@ -1156,6 +1159,9 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeActAria={ai.modeActAria}
               onVoiceError={setError}
             />
+            <p className="mt-1.5 text-center text-[11px] leading-snug text-muted-foreground">
+              {ai.medicalDisclaimer}
+            </p>
           </div>
         </CardContent>
       </Card>
