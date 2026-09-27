@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/actions/auth";
+import { isFreeNativeApp } from "@/lib/native-app";
 import { BrandWordmark } from "@/components/app-logo";
 import { AuthCardShell } from "@/components/auth-card-shell";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export function LoginForm({ authError }: { authError?: string }) {
     setError(null);
     const next = searchParams.get("next");
     if (next) formData.set("next", next);
+    if (isFreeNativeApp()) formData.set("free_app", "1");
     startTransition(async () => {
       const result = await signIn(formData);
       if (result?.error) setError(result.error);

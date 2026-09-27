@@ -6,6 +6,7 @@ import { ClassesCatalog } from "@/components/classes-catalog";
 import { ChallengesCatalog } from "@/components/challenges-catalog";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { getChallengeStatus } from "@/lib/challenge-utils";
+import { useHidesChallengesInApp } from "@/components/ios/use-native-app";
 import type { Challenge, FitnessClass } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +24,9 @@ export function LiveHubPage({
   requiresUpgrade?: boolean;
 }) {
   const platform = usePlatformCopy();
-  const [tab, setTab] = useState<LiveTab>("challenges");
+  const [selectedTab, setTab] = useState<LiveTab>("challenges");
+  const classesOnly = useHidesChallengesInApp();
+  const tab: LiveTab = classesOnly ? "classes" : selectedTab;
 
   const liveChallengeCount = useMemo(
     () => challenges.filter((c) => getChallengeStatus(c) === "live").length,
@@ -32,6 +35,12 @@ export function LiveHubPage({
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-5xl space-y-6">
+      {classesOnly ? (
+        <header className="flex items-center gap-2">
+          <Video className="h-5 w-5 text-primary" aria-hidden />
+          <h1 className="text-lg font-black leading-none">Live Classes</h1>
+        </header>
+      ) : (
       <header>
         <nav
           className="dashboard-instant-nav mb-3 flex h-[var(--control-height)] rounded-full border border-border/60 bg-secondary/60 p-1"
@@ -76,6 +85,7 @@ export function LiveHubPage({
           </button>
         </nav>
       </header>
+      )}
 
       <div
         role="status"

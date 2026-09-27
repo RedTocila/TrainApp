@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import {
   completeGuestCheckoutAndSignIn,
+  createFreeAppAccountAndSignIn,
   createGuestCheckoutOrder,
   createGuestAppleCheckoutOrder,
   type GuestSignupPayload,
@@ -48,6 +49,7 @@ import type { SubscriptionOffer } from "@/lib/subscription-offers";
 import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import { getPlanPrice, type BillingInterval } from "@/lib/subscription-plans";
 import { shouldUseAppleIap } from "@/lib/native-iap";
+import { useIsFreeNativeApp } from "@/components/ios/use-native-app";
 
 type PackagePlan = "ai" | "elite";
 type SignupDraft = GuestSignupPayload;
@@ -109,6 +111,7 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
   const [paymentPending, setPaymentPending] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [offers] = useState<SubscriptionOffer[]>(initialOffers);
+  const freeApp = useIsFreeNativeApp();
 
   useEffect(() => {
     const draft = loadIntakeDraft();
@@ -168,8 +171,22 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
         intakeJson,
         referralCode: normalizedReferralCode,
       };
+
+      if (freeApp) {
+        setIsPending(true);
+        const result = await createFreeAppAccountAndSignIn(nextDraft);
+        if ("error" in result) {
+          setError(result.error);
+          setIsPending(false);
+          return;
+        }
+        finishSignup(result.role);
+        return;
+      }
+
       setSignupDraft(nextDraft);
     } catch (err) {
+      setIsPending(false);
       setError(formatUserError(err, "Could not continue. Please try again."));
     }
   };
@@ -548,9 +565,13 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
           JOIN <BrandWordmark />
         </CardTitle>
         <CardDescription>
-          {intakeJson
-            ? "Your preferences are saved — complete package purchase to enter"
-            : "Create your account and buy a package to enter"}
+          {freeApp
+            ? intakeJson
+              ? "Your preferences are saved — create your account to start"
+              : "Create your account to start"
+            : intakeJson
+              ? "Your preferences are saved — complete package purchase to enter"
+              : "Create your account and buy a package to enter"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -693,26 +714,28 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
             <Label htmlFor="password">Password</Label>
             <PasswordInput id="password" name="password" required minLength={6} />
           </div>
-          <div className="rounded-2xl border border-border/70 bg-secondary/25 p-3.5">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <TicketPercent className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Referral code</p>
-                <p className="text-xs text-muted-foreground">Optional discount or invite credit</p>
+          {!freeApp ? (
+            <div className="rounded-2xl border border-border/70 bg-secondary/25 p-3.5">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <TicketPercent className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Referral code</p>
+                  <p className="text-xs text-muted-foreground">Optional discount or invite credit</p>
+                </div>
               </div>
+              <Input
+                id="guest-referral-code"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                placeholder="Enter code (Optional)"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                className="h-11"
+              />
             </div>
-            <Input
-              id="guest-referral-code"
-              value={referralCode}
-              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-              placeholder="Enter code (Optional)"
-              autoCapitalize="characters"
-              autoCorrect="off"
-              className="h-11"
-            />
-          </div>
+          ) : null}
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
             <input
               id="accept_terms"
@@ -752,19 +775,26 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
             {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Preparing checkout...
+                {freeApp ? "Creating your account..." : "Preparing checkout..."}
               </>
             ) : (
               <>
                 <ArrowRight className="mr-2 h-4 w-4" />
-                Continue
+                {freeApp ? "Create account" : "Continue"}
               </>
             )}
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="text-primary hover:underline">
+          <Link
+            href={
+              searchParams.get("from") === "ios"
+                ? "/login?from=ios&next=%2Fdashboard"
+                : "/login"
+            }
+            className="text-primary hover:underline"
+          >
             Sign in
           </Link>
         </p>

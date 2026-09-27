@@ -13,6 +13,7 @@ import {
   Sparkles,
   Trophy,
   UserRound,
+  Video,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { getHasLivePublishedChallenge } from "@/lib/actions/challenges";
+import { getHasPublishedClasses } from "@/lib/actions/classes";
 import { isNativeApp } from "@/lib/native-app";
 import {
   hidesDashboardBottomNav,
@@ -115,12 +117,19 @@ export function ClientNav({
     setNativeApp(isNativeApp());
   }, []);
 
+  const [hasPublishedClasses, setHasPublishedClasses] = useState(false);
+
   useEffect(() => {
-    if (nativeApp) return;
     let cancelled = false;
-    void getHasLivePublishedChallenge().then((live) => {
-      if (!cancelled) setLiveChallengeActive(live);
-    });
+    if (nativeApp) {
+      void getHasPublishedClasses().then((hasClasses) => {
+        if (!cancelled) setHasPublishedClasses(hasClasses);
+      });
+    } else {
+      void getHasLivePublishedChallenge().then((live) => {
+        if (!cancelled) setLiveChallengeActive(live);
+      });
+    }
     return () => {
       cancelled = true;
     };
@@ -134,6 +143,7 @@ export function ClientNav({
             "/dashboard/workout/plans",
             "/dashboard/nutrition",
             "/dashboard/progress",
+            "/dashboard/classes",
             "/dashboard/ai",
             "/dashboard/profile",
           ]
@@ -225,6 +235,18 @@ export function ClientNav({
       icon: ChartNoAxesCombined,
       active: isProgressNavActive(activePath),
     },
+    ...(hasPublishedClasses
+      ? [
+          {
+            href: "/dashboard/classes",
+            label: "Live Classes",
+            icon: Video,
+            active:
+              activePath === "/dashboard/classes" ||
+              activePath.startsWith("/dashboard/classes/"),
+          },
+        ]
+      : []),
     {
       href: "/dashboard/ai",
       label: platform.nav.aiCoach,

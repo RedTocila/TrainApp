@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile } from "@/lib/types";
 import { hasPaidAccess, subscriptionLabel } from "@/lib/subscription";
+import { isAppFreeAccessGrant } from "@/lib/app-free-access";
 
 export type RevenuePeriod = "1d" | "7d" | "30d" | "90d" | "all";
 
@@ -64,15 +65,18 @@ export async function getAdminClientsWithSubscriptions(): Promise<AdminClientRow
 
   return (clientsResult ?? []).map((client) => {
     const profile = client as Profile;
+    const appFreeAccess = isAppFreeAccessGrant(profile);
     return {
       ...profile,
       email: emailById[profile.id],
-      activeSubscription: hasPaidAccess(profile),
-      subscriptionLabel: subscriptionLabel(
-        profile.subscription_plan ?? null,
-        profile.subscription_interval ?? null
-      ),
-      subscriptionExpiresAt: profile.subscription_expires_at ?? null,
+      activeSubscription: hasPaidAccess(profile) && !appFreeAccess,
+      subscriptionLabel: appFreeAccess
+        ? "Free app access"
+        : subscriptionLabel(
+            profile.subscription_plan ?? null,
+            profile.subscription_interval ?? null
+          ),
+      subscriptionExpiresAt: appFreeAccess ? null : (profile.subscription_expires_at ?? null),
     };
   });
 }

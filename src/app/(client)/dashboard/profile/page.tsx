@@ -14,6 +14,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { ProfileSettings } from "@/components/profile-settings";
 import { ReminderSettingsCard } from "@/components/reminder-settings-card";
 import { ProfileSubscriptionSection } from "@/components/profile-subscription-section";
+import { HiddenInFreeApp } from "@/components/ios/native-platform-gate";
 import { DeleteOwnAccountSection } from "@/components/delete-own-account-section";
 import { PageTransition } from "@/components/page-transition";
 import { ProfileSupportCard } from "@/components/profile-support-card";
@@ -102,26 +103,30 @@ export default async function ProfilePage() {
             <ReminderSettingsCard initialSettings={profile.reminder_settings} />
           </div>
 
-          <ProfileSubscriptionSection profile={profile} />
+          <HiddenInFreeApp>
+            <ProfileSubscriptionSection profile={profile} />
+          </HiddenInFreeApp>
         </div>
 
-        <Link
-          href="/dashboard/referrals"
-          className="block rounded-2xl border border-border/60 bg-card text-card-foreground shadow-sm transition-colors hover:bg-secondary/40 active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-              <Gift className="h-5 w-5 text-primary" />
+        <HiddenInFreeApp>
+          <Link
+            href="/dashboard/referrals"
+            className="block rounded-2xl border border-border/60 bg-card text-card-foreground shadow-sm transition-colors hover:bg-secondary/40 active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3 p-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <Gift className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black">{platform.referral.profileCardTitle}</p>
+                <p className="text-xs text-muted-foreground">
+                  {platform.referral.profileCardHint}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-black">{platform.referral.profileCardTitle}</p>
-              <p className="text-xs text-muted-foreground">
-                {platform.referral.profileCardHint}
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </div>
-        </Link>
+          </Link>
+        </HiddenInFreeApp>
 
         <ProfileSupportCard copy={platform.support} />
 

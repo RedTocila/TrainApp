@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { isNativeApp } from "@/lib/native-app";
+import { useIsFreeNativeApp } from "@/components/ios/use-native-app";
 
 /**
  * Renders `native` only inside the Capacitor shell after mount.
@@ -28,5 +29,12 @@ export function WebOnly({ children }: { children: ReactNode }) {
     setNative(isNativeApp());
   }, []);
   if (native) return null;
+  return <>{children}</>;
+}
+
+/** Packages, payments and referral UI — hidden while the native app is free. */
+export function HiddenInFreeApp({ children }: { children: ReactNode }) {
+  const freeApp = useIsFreeNativeApp();
+  if (freeApp) return null;
   return <>{children}</>;
 }

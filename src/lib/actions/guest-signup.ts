@@ -25,6 +25,8 @@ import {
 } from "@/lib/pokpay/client";
 import { withPokPayWebhookSecret } from "@/lib/pokpay/env";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
+import { NATIVE_APP_FREE } from "@/lib/app-free-access";
+import { grantAppFreeAccess } from "@/lib/app-free-access-grant";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
 export type GuestSignupPayload = {
@@ -680,6 +682,60 @@ export async function completeGuestCheckoutAndSignIn(localOrderId: string) {
 
   revalidateJoinPaths();
   return { success: true as const };
+}
+
+/** Free native app: create the account without a package, grant full access, sign in. */
+export async function createFreeAppAccountAndSignIn(
+  signup: GuestSignupPayload
+): Promise<{ success: true; role: string } | { error: string }> {
+  if (!NATIVE_APP_FREE) {
+    return { error: "Choose a package to create your account." };
+  }
+
+  const email = signup.email?.trim().toLowerCase() ?? "";
+  const fullName = signup.fullName?.trim() ?? "";
+  const password = signup.password ?? "";
+  if (!fullName) return { error: "Enter your full name." };
+  if (password.length < 6) return { error: "Password must be at least 6 characters." };
+
+  const availability = await checkSignupEmailAvailable(email);
+  if (!availability.available) return { error: availability.error };
+
+  const admin = createAdminClient();
+  const phone = signup.phone?.trim() || null;
+  const userMetadata: Record<string, string> = { full_name: fullName };
+  if (phone) userMetadata.phone = phone;
+
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: userMetadata,
+  });
+
+  if (createError || !created.user) {
+    if (createError?.message?.toLowerCase().includes("already")) {
+      return { error: "This email is already registered. Sign in to continue." };
+    }
+    return { error: formatUserError(createError?.message, "Could not create your account.") };
+  }
+
+  const userId = created.user.id;
+  await ensureProfileRow(admin, userId, { fullName, email, phone });
+  await grantAppFreeAccess(userId);
+  await applyIntakeIfPresent(admin, userId, signup.intakeJson ?? null);
+
+  const signedIn = await signInCreatedUser(email, password);
+  if (signedIn.error) return { error: signedIn.error };
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle();
+
+  revalidateJoinPaths();
+  return { success: true, role: profile?.role ?? "client" };
 }
 
 /** Webhook / server path: create account if needed and activate subscription. */

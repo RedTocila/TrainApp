@@ -6,6 +6,7 @@ import { HtmlBootScript } from "@/components/html-boot-script";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LocaleProvider } from "@/components/locale-provider";
 import { NativeAppBootstrap } from "@/components/native-app-bootstrap";
+import { NativeRouteGuard } from "@/components/ios/native-route-guard";
 import { PwaRegister } from "@/components/pwa-register";
 import { getRequestLocale } from "@/lib/guest-locale-server";
 import { getHtmlLang } from "@/lib/platform-copy";
@@ -103,6 +104,7 @@ export default async function RootLayout({
           <LocaleProvider locale={locale} syncGuestStorage>
             {children}
             <NativeAppBootstrap />
+            <NativeRouteGuard />
             <PwaRegister />
           </LocaleProvider>
         </ThemeProvider>

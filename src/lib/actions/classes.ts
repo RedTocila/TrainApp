@@ -45,6 +45,18 @@ function isDemoClassSlug(slug: string): boolean {
   return slug === DEMO_CLASS_SLUG;
 }
 
+export async function getHasPublishedClasses(): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("classes")
+    .select("slug")
+    .eq("published", true)
+    .neq("slug", DEMO_CLASS_SLUG)
+    .limit(1);
+  if (error) return false;
+  return (data?.length ?? 0) > 0;
+}
+
 export async function getPublishedClasses(): Promise<FitnessClass[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
