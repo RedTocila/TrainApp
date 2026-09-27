@@ -128,18 +128,9 @@ export const platformCopyAl = {
   subscription: {
     title: "Abonimi dhe planet",
     active: "Aktiv",
-    freeTrial: "Provë falas",
-    freeTrialDaysLeft: (days: number) =>
-      days === 1
-        ? "1 ditë e mbetur në provën falas"
-        : `${days} ditë të mbetura në provën falas`,
-    freeTrialBlurb:
-      "Je në një provë falas 3-ditore të AI Pro — stërvitje, ushqim dhe Coach AI i plotë. Klasat live dhe sfidat kërkojnë Elite. Karta ngarkohet kur mbaron prova nëse nuk e anulon.",
-    trialCancelHint: "Anulo kur të duash nga këtu për të shmangur pagesën.",
     accessUntil: (date: string) =>
       `Akses deri më ${date}, pastaj aksesi mbaron`,
     renewsExpires: (date: string) => `Rinovohet / skadon ${date}`,
-    trialEnds: (date: string) => `Prova mbaron më ${date}`,
   },
   settings: {
     fullName: "Emri i plotë",
@@ -1197,8 +1188,15 @@ export const platformCopyAl = {
     processorNote: "Përpunohet në mënyrë të sigurt nga PokPay.",
     appleProcessorNote:
       "Pagesa merret nga Apple ID. Menaxho ose anulo te Settings → Apple ID → Subscriptions.",
-    applePriceNote:
-      "Në iPhone, çmimin e cakton App Store. Kreditë e referral vlejnë në website.",
+    applePriceNote: "Në iPhone, çmimin përfundimtar e cakton App Store.",
+    appleAutoRenewLabel: (interval: "monthly" | "annual") =>
+      interval === "annual"
+        ? "Abonim vjetor me rinovim automatik"
+        : "Abonim mujor me rinovim automatik",
+    appleRenewalDisclosure: (price: string, interval: "monthly" | "annual") =>
+      `${price} në ${interval === "annual" ? "vit" : "muaj"}. Pagesa merret nga Apple ID në momentin e konfirmimit. Abonimi rinovohet automatikisht me të njëjtin çmim, përveç nëse anulohet të paktën 24 orë para fundit të periudhës aktuale. Menaxho ose anulo kurdo te Settings → Apple ID → Subscriptions.`,
+    appleTermsLink: "Kushtet e Përdorimit (EULA)",
+    applePrivacyLink: "Politika e Privatësisë",
     appleManageCta: "Menaxho abonimin Apple",
     appleManageTitle: "Të hapim App Store?",
     appleManageMessage:
@@ -1288,8 +1286,6 @@ export const platformCopyAl = {
     onboardingBlurb: "Zgjidh AI Pro ose Elite për të hapur coaching dhe për të filluar.",
     upgradeBlurb: "Coach AI Pro nga 20€/muaj, ose komuniteti Elite nga 30€/muaj.",
     skipForNow: "Anashkalo për tani",
-    startFreeTrial: "Fillo provën falas 3-ditore",
-    trialCardRequired: "Shto kartën për të filluar — €0 sot. Anulo kur të duash para ditës 3.",
     monthly: "Mujore",
     annual: "Vjetore",
     perMonth: "muaj",
@@ -1315,24 +1311,6 @@ export const platformCopyAl = {
     errorTitle: "Pothuajse",
     goDashboard: "Shko te paneli",
     backPricing: "Zgjidh një plan tjetër",
-  },
-  trialCheckout: {
-    title: "Fillo provën falas AI Pro",
-    subtitle: (days: number) =>
-      `Shto një kartë për të hapur ${days} ditë falas. Sot nuk ngarkohesh.`,
-    appleTitle: "Fillo AI Pro me Apple",
-    appleSubtitle: (days: number) =>
-      `Abonohu me Apple. Nëse prova falas është konfiguruar në App Store Connect, ke ${days} ditë para faturimit.`,
-    chargeLater: (price: string, per: string, days: number) =>
-      `${price}/${per} fillon pas ${days} ditëve nëse nuk e anulon.`,
-    cancelAnytime: "Anulo kur të duash gjatë provës — pa pagesë.",
-    secureBlurb: "Detajet e kartës sigurohen nga PokPay. Ne nuk ruajmë numrin e plotë.",
-    appleSecureBlurb:
-      "Faturimi bëhet nga Apple. Anulo te Settings → Apple ID → Subscriptions.",
-    submitCard: "Fillo provën falas",
-    starting: "Po nisim provën…",
-    todayTotal: "€0 sot",
-    appleTodayTotal: "Çmimi i App Store",
   },
   bmi: {
     title: "BMI",

@@ -48,13 +48,13 @@ export const ADMIN_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "list_clients",
       description:
-        "List clients with subscription labels. Use filter to narrow: all, subscribed, trialing, not_subscribed.",
+        "List clients with subscription labels. Use filter to narrow: all, subscribed, not_subscribed.",
       parameters: {
         type: "object",
         properties: {
           filter: {
             type: "string",
-            enum: ["all", "subscribed", "trialing", "not_subscribed"],
+            enum: ["all", "subscribed", "not_subscribed"],
           },
           limit: { type: "number", description: "Max rows (1-100, default 40)" },
         },
@@ -98,7 +98,7 @@ export const ADMIN_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "get_platform_stats",
-      description: "Platform totals: client counts, trials, paid subs, revenue summaries.",
+      description: "Platform totals: client counts, paid subs, revenue summaries.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   },
@@ -263,7 +263,7 @@ export const ADMIN_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
         properties: {
           audience: {
             type: "string",
-            enum: ["all", "subscribed", "not_subscribed", "trialing", "single"],
+            enum: ["all", "subscribed", "not_subscribed", "single"],
           },
           client_id: {
             type: "string",
@@ -316,7 +316,6 @@ export async function executeAdminChatTool(
         const filter = args.filter as
           | "all"
           | "subscribed"
-          | "trialing"
           | "not_subscribed"
           | undefined;
         const limit = typeof args.limit === "number" ? args.limit : undefined;

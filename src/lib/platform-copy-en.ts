@@ -128,15 +128,8 @@ export const platformCopyEn = {
   subscription: {
     title: "Subscription & plans",
     active: "Active",
-    freeTrial: "Free trial",
-    freeTrialDaysLeft: (days: number) =>
-      days === 1 ? "1 day left on free trial" : `${days} days left on free trial`,
-    freeTrialBlurb:
-      "You're on a 3-day free trial of AI Pro — workouts, nutrition, and full AI Coach. Live classes and challenges need Elite. Your card is charged when the trial ends unless you cancel.",
-    trialCancelHint: "Cancel anytime from here to avoid being charged.",
     accessUntil: (date: string) => `Access until ${date}, then access ends`,
     renewsExpires: (date: string) => `Renews / expires ${date}`,
-    trialEnds: (date: string) => `Trial ends ${date}`,
   },
   settings: {
     fullName: "Full name",
@@ -1184,8 +1177,15 @@ export const platformCopyEn = {
     tryAgain: "Try again",
     processorNote: "Handled securely by PokPay.",
     appleProcessorNote: "Payment is charged through your Apple ID. Manage or cancel anytime in Settings → Apple ID → Subscriptions.",
-    applePriceNote:
-      "On iPhone, App Store sets the final price. Referral credits apply on the website.",
+    applePriceNote: "On iPhone, the App Store sets the final price.",
+    appleAutoRenewLabel: (interval: "monthly" | "annual") =>
+      interval === "annual"
+        ? "Auto-renewing yearly subscription"
+        : "Auto-renewing monthly subscription",
+    appleRenewalDisclosure: (price: string, interval: "monthly" | "annual") =>
+      `${price} per ${interval === "annual" ? "year" : "month"}. Payment is charged to your Apple ID at confirmation of purchase. The subscription renews automatically at the same price unless canceled at least 24 hours before the end of the current period. Manage or cancel anytime in Settings → Apple ID → Subscriptions.`,
+    appleTermsLink: "Terms of Use (EULA)",
+    applePrivacyLink: "Privacy Policy",
     appleManageCta: "Manage Apple subscription",
     appleManageTitle: "Manage in App Store?",
     appleManageMessage:
@@ -1276,8 +1276,6 @@ export const platformCopyEn = {
     upgradeBlurb:
       "AI Pro coaching from €20/month, or Elite community from €30/month.",
     skipForNow: "Skip for now",
-    startFreeTrial: "Start 3-day free trial",
-    trialCardRequired: "Add a card to start — €0 today. Cancel anytime before day 3.",
     monthly: "Monthly",
     annual: "Annual",
     perMonth: "mo",
@@ -1303,24 +1301,6 @@ export const platformCopyEn = {
     errorTitle: "Almost there",
     goDashboard: "Hit the dashboard",
     backPricing: "Pick another plan",
-  },
-  trialCheckout: {
-    title: "Start your AI Pro free trial",
-    subtitle: (days: number) =>
-      `Add a card to unlock ${days} days free. You won't be charged today.`,
-    appleTitle: "Start AI Pro with Apple",
-    appleSubtitle: (days: number) =>
-      `Subscribe with Apple. If a free trial is configured in App Store Connect, you get ${days} days before billing.`,
-    chargeLater: (price: string, per: string, days: number) =>
-      `${price}/${per} starts after ${days} days if you don't cancel.`,
-    cancelAnytime: "Cancel anytime during the trial — no charge.",
-    secureBlurb: "Card details are secured by PokPay. We never store your full card number.",
-    appleSecureBlurb:
-      "Billing is handled by Apple. Cancel anytime in Settings → Apple ID → Subscriptions.",
-    submitCard: "Start free trial",
-    starting: "Starting your trial…",
-    todayTotal: "€0 today",
-    appleTodayTotal: "App Store price",
   },
   bmi: {
     title: "BMI",

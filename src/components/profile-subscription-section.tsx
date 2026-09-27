@@ -12,11 +12,7 @@ import {
   getPlan,
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
-import {
-  freeTrialDaysRemaining,
-  isOnFreeTrial,
-  isSubscriptionActive,
-} from "@/lib/subscription";
+import { isSubscriptionActive } from "@/lib/subscription";
 import { buildPricingHref } from "@/lib/pricing-nav";
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -34,12 +30,10 @@ export function ProfileSubscriptionSection({
   const expires = profile.subscription_expires_at
     ? format(new Date(profile.subscription_expires_at), "MMM d, yyyy")
     : null;
-  const onTrial = isOnFreeTrial(profile);
-  const daysLeft = freeTrialDaysRemaining(profile);
   const isActive = profile.subscription_status === "active";
   const isCanceled = profile.subscription_status === "canceled";
   const hasAccess = isSubscriptionActive(profile);
-  const showGiveUp = Boolean(plan && (isActive || onTrial));
+  const showGiveUp = Boolean(plan && isActive);
 
   return (
     <Card>
@@ -54,20 +48,10 @@ export function ProfileSubscriptionSection({
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{plan.name}</span>
-              {onTrial ? (
-                <Badge className="bg-amber-500/15 text-amber-400">
-                  {platform.subscription.freeTrial}
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="capitalize">
-                  {profile.subscription_interval ?? "monthly"}
-                </Badge>
-              )}
-              {onTrial ? (
-                <Badge variant="secondary">
-                  {platform.subscription.freeTrialDaysLeft(daysLeft ?? 0)}
-                </Badge>
-              ) : isActive ? (
+              <Badge variant="secondary" className="capitalize">
+                {profile.subscription_interval ?? "monthly"}
+              </Badge>
+              {isActive ? (
                 <Badge className="bg-green-500/15 text-green-400">
                   {platform.subscription.active}
                 </Badge>
@@ -77,14 +61,7 @@ export function ProfileSubscriptionSection({
                 </Badge>
               ) : null}
             </div>
-            {onTrial ? (
-              <p className="text-sm text-muted-foreground">
-                {platform.subscription.freeTrialBlurb}
-                {expires ? ` ${platform.subscription.trialEnds(expires)}` : null}
-                {" "}
-                {platform.subscription.trialCancelHint}
-              </p>
-            ) : expires ? (
+            {expires ? (
               <p className="text-sm text-muted-foreground">
                 {isCanceled
                   ? platform.subscription.accessUntil(expires)
@@ -109,11 +86,7 @@ export function ProfileSubscriptionSection({
               className: "w-full",
             })}
           >
-            {onTrial
-              ? coachLabels.keepAiPro
-              : plan && hasAccess
-                ? coachLabels.levelUp
-                : coachLabels.pickAPlan}
+            {plan && hasAccess ? coachLabels.levelUp : coachLabels.pickAPlan}
           </Link>
           <ProfileSubscriptionActions
             billedViaApple={Boolean(profile.apple_original_transaction_id)}

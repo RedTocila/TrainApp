@@ -95,7 +95,9 @@ function toVerified(
 
 /**
  * Verify a StoreKit 2 signed transaction (JWS).
- * Production deployments only accept Production receipts (no Sandbox fallback).
+ * Production tries Production first, then Sandbox — App Review and TestFlight
+ * purchase with sandbox accounts against the live server. Set
+ * ALLOW_APPLE_SANDBOX=false to disable the fallback.
  */
 export async function verifyAppleTransactionJws(
   signedTransaction: string
@@ -105,7 +107,7 @@ export async function verifyAppleTransactionJws(
   }
 
   const preferProduction = process.env.VERCEL_ENV === "production";
-  const allowSandboxInProd = process.env.ALLOW_APPLE_SANDBOX === "true";
+  const allowSandboxInProd = process.env.ALLOW_APPLE_SANDBOX !== "false";
   const order: Environment[] =
     preferProduction && !allowSandboxInProd
       ? [Environment.PRODUCTION]

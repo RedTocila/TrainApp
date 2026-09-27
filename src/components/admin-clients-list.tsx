@@ -18,7 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type SubscriptionFilter = "all" | "subscribed" | "trial" | "none";
+type SubscriptionFilter = "all" | "subscribed" | "none";
 
 const SUBSCRIPTION_FILTERS: {
   id: SubscriptionFilter;
@@ -26,7 +26,6 @@ const SUBSCRIPTION_FILTERS: {
 }[] = [
   { id: "all", label: "All" },
   { id: "subscribed", label: "Subscribed" },
-  { id: "trial", label: "Free trial" },
   { id: "none", label: "No subscription" },
 ];
 
@@ -35,10 +34,7 @@ function clientMatchesFilter(
   filter: SubscriptionFilter
 ): boolean {
   if (filter === "all") return true;
-  if (filter === "trial") return client.onFreeTrial;
-  if (filter === "subscribed") {
-    return client.activeSubscription && !client.onFreeTrial;
-  }
+  if (filter === "subscribed") return client.activeSubscription;
   return !client.activeSubscription;
 }
 
@@ -61,17 +57,14 @@ export function AdminClientsList({
 
   const filterCounts = useMemo(() => {
     let subscribed = 0;
-    let trial = 0;
     let none = 0;
     for (const client of clients) {
-      if (client.onFreeTrial) trial += 1;
-      else if (client.activeSubscription) subscribed += 1;
+      if (client.activeSubscription) subscribed += 1;
       else none += 1;
     }
     return {
       all: clients.length,
       subscribed,
-      trial,
       none,
     } satisfies Record<SubscriptionFilter, number>;
   }, [clients]);
@@ -165,14 +158,7 @@ export function AdminClientsList({
                       <h2 className="text-base font-semibold leading-snug">
                         {client.full_name}
                       </h2>
-                      {client.onFreeTrial ? (
-                        <>
-                          <Badge className="bg-amber-500/15 text-amber-400">
-                            Free trial
-                          </Badge>
-                          <Badge variant="outline">{client.subscriptionLabel}</Badge>
-                        </>
-                      ) : client.activeSubscription ? (
+                      {client.activeSubscription ? (
                         <>
                           <Badge className="bg-green-500/15 text-green-400">
                             Subscribed
@@ -221,13 +207,9 @@ export function AdminClientsList({
 
                     {client.subscriptionExpiresAt && client.activeSubscription ? (
                       <p className="text-xs text-muted-foreground">
-                        {client.onFreeTrial
-                          ? client.trialDaysLeft != null && client.trialDaysLeft > 0
-                            ? `Trial ends in ${client.trialDaysLeft}d · ${format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}`
-                            : `Trial ends ${format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}`
-                          : client.subscription_interval === "annual"
-                            ? `Expires ${format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}`
-                            : `Renews ${format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}`}
+                        {client.subscription_interval === "annual"
+                          ? `Expires ${format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}`
+                          : `Renews ${format(new Date(client.subscriptionExpiresAt), "MMM d, yyyy")}`}
                       </p>
                     ) : null}
                   </div>

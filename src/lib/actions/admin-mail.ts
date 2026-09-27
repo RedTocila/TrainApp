@@ -35,8 +35,6 @@ function matchesAudience(
       return !client.activeSubscription;
     case "subscribed":
       return client.activeSubscription;
-    case "trialing":
-      return client.onFreeTrial;
     case "all":
       return true;
     case "single":

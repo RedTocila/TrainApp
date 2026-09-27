@@ -36,8 +36,6 @@ function summarizeClient(c: AdminClientRow) {
     email: c.email ?? null,
     subscription: c.subscriptionLabel,
     active_subscription: c.activeSubscription,
-    on_free_trial: c.onFreeTrial,
-    trial_days_left: c.trialDaysLeft,
     expires_at: c.subscriptionExpiresAt,
     plan: c.subscription_plan ?? null,
     status: c.subscription_status ?? null,
@@ -105,7 +103,7 @@ export async function adminResolveClient(query: string): Promise<{
 }
 
 export async function adminListClients(options?: {
-  filter?: "all" | "subscribed" | "trialing" | "not_subscribed";
+  filter?: "all" | "subscribed" | "not_subscribed";
   limit?: number;
 }) {
   await requireAdmin();
@@ -113,8 +111,7 @@ export async function adminListClients(options?: {
   const limit = Math.min(Math.max(options?.limit ?? 40, 1), 100);
   const clients = await getAdminClientsWithSubscriptions();
   const filtered = clients.filter((c) => {
-    if (filter === "subscribed") return c.activeSubscription && !c.onFreeTrial;
-    if (filter === "trialing") return c.onFreeTrial;
+    if (filter === "subscribed") return c.activeSubscription;
     if (filter === "not_subscribed") return !c.activeSubscription;
     return true;
   });

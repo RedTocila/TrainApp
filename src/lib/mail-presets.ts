@@ -3,7 +3,6 @@ import { getCanonicalSiteOrigin } from "@/lib/app-url";
 export type MailAudience =
   | "not_subscribed"
   | "subscribed"
-  | "trialing"
   | "all"
   | "single";
 
@@ -106,17 +105,12 @@ export const MAIL_AUDIENCE_OPTIONS: {
   {
     id: "not_subscribed",
     label: "Not subscribed",
-    description: "Clients without an active paid plan or trial",
+    description: "Clients without an active paid plan",
   },
   {
     id: "subscribed",
     label: "Subscribed",
-    description: "Clients with active paid access (including trial)",
-  },
-  {
-    id: "trialing",
-    label: "On free trial",
-    description: "Clients currently on the AI Pro trial",
+    description: "Clients with active paid access",
   },
   {
     id: "all",

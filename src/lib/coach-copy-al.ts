@@ -242,13 +242,7 @@ export const coachLabelsAl = {
   unlockDashboard: "Zgjidh një plan për të hapur coaching.",
   subscribeBlurb:
     "Abonohu te AI Pro ose Elite për Coach Alex, planet AI dhe komunitetin Elite.",
-  trialUnlockTitle: "Je në provën falas të AI Pro",
-  trialUnlockBlurb: (days: number) =>
-    days === 1
-      ? "1 ditë e mbetur me akses të plotë te Coach AI. Klasat live dhe sfidat mbeten vetëm Elite — abonohu që të mbash AI Pro pas sot."
-      : `${days} ditë të mbetura me akses të plotë te Coach AI. Klasat live dhe sfidat mbeten vetëm Elite — abonohu para se të mbarojë prova.`,
   viewPlans: "Shiko planet AI & Elite",
-  keepAiPro: "Mbaj AI Pro",
   noSubscription: "Nuk ke plan aktiv ende. Zgjidh AI Pro ose Elite për të hapur Coach Alex.",
   pickAPlan: "Shiko planet",
   levelUp: "Përmirësohu",

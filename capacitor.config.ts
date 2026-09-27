@@ -44,7 +44,8 @@ const config: CapacitorConfig = {
     contentInset: "automatic",
     preferredContentMode: "mobile",
     scheme: "RUTINA",
-    limitsNavigationsToAppBoundDomains: true,
+    // Must stay false unless Info.plist lists every host in WKAppBoundDomains (max 10).
+    limitsNavigationsToAppBoundDomains: false,
   },
   android: {
     allowMixedContent: false,

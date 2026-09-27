@@ -6,8 +6,7 @@ export type SubscriptionStatus =
   | "inactive"
   | "active"
   | "past_due"
-  | "canceled"
-  | "trialing";
+  | "canceled";
 export type BillingInterval = "monthly" | "annual";
 export type PlanRequestType = "workout" | "diet";
 export type PlanRequestStatus =
@@ -77,13 +76,7 @@ export interface Profile {
   subscription_status?: SubscriptionStatus;
   subscription_interval?: BillingInterval | null;
   subscription_expires_at?: string | null;
-  /** Set once when the AI Pro free trial starts; never re-granted. */
-  trial_started_at?: string | null;
-  /** PokPay vaulted card used to charge after the free trial. */
-  pokpay_card_id?: string | null;
   apple_original_transaction_id?: string | null;
-  /** When a card-backed free trial converted to a paid subscription. */
-  trial_converted_at?: string | null;
   referral_code?: string | null;
   referred_by?: string | null;
   referral_credit_balance_cents?: number;

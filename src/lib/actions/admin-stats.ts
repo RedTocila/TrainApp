@@ -1,11 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile } from "@/lib/types";
-import {
-  freeTrialDaysRemaining,
-  hasPaidAccess,
-  isOnFreeTrial,
-  subscriptionLabel,
-} from "@/lib/subscription";
+import { hasPaidAccess, subscriptionLabel } from "@/lib/subscription";
 
 export type RevenuePeriod = "1d" | "7d" | "30d" | "90d" | "all";
 
@@ -52,8 +47,6 @@ export async function getAdminRevenue(period: RevenuePeriod = "30d") {
 export interface AdminClientRow extends Profile {
   email?: string;
   activeSubscription: boolean;
-  onFreeTrial: boolean;
-  trialDaysLeft: number | null;
   subscriptionLabel: string;
   subscriptionExpiresAt: string | null;
 }
@@ -71,18 +64,13 @@ export async function getAdminClientsWithSubscriptions(): Promise<AdminClientRow
 
   return (clientsResult ?? []).map((client) => {
     const profile = client as Profile;
-    const onTrial = isOnFreeTrial(profile);
-    const trialDaysLeft = onTrial ? freeTrialDaysRemaining(profile) : null;
     return {
       ...profile,
       email: emailById[profile.id],
       activeSubscription: hasPaidAccess(profile),
-      onFreeTrial: onTrial,
-      trialDaysLeft,
       subscriptionLabel: subscriptionLabel(
         profile.subscription_plan ?? null,
-        profile.subscription_interval ?? null,
-        onTrial ? { trial: true, trialDaysLeft } : undefined
+        profile.subscription_interval ?? null
       ),
       subscriptionExpiresAt: profile.subscription_expires_at ?? null,
     };
@@ -119,17 +107,13 @@ export async function getAdminDashboardStats() {
     getAdminRevenue("all"),
   ]);
 
-  const freeTrialCount = clients.filter((c) => c.onFreeTrial).length;
-  const paidSubscribers = clients.filter(
-    (c) => c.activeSubscription && !c.onFreeTrial
-  ).length;
+  const paidSubscribers = clients.filter((c) => c.activeSubscription).length;
   const noSubscriptionCount = clients.filter((c) => !c.activeSubscription).length;
 
   return {
     clientCount: clients.length,
     activeSubscribers: clients.filter((c) => c.activeSubscription).length,
     paidSubscribers,
-    freeTrialCount,
     noSubscriptionCount,
     revenue30d,
     revenueAll,

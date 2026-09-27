@@ -205,8 +205,6 @@ async function finalizeNewUserProfile(
     }
   }
 
-  // AI Pro free trial is card-backed and starts from pricing — not auto-granted here.
-
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")

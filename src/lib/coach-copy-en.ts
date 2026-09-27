@@ -242,13 +242,7 @@ export const coachLabelsEn = {
   unlockDashboard: "Choose a plan to unlock coaching.",
   subscribeBlurb:
     "Subscribe to AI Pro or Elite for Coach Alex, AI plans, and the Elite community.",
-  trialUnlockTitle: "You're on the AI Pro free trial",
-  trialUnlockBlurb: (days: number) =>
-    days === 1
-      ? "1 day left of full AI Coach access. Live classes and challenges stay Elite-only — subscribe to keep AI Pro after today."
-      : `${days} days left of full AI Coach access. Live classes and challenges stay Elite-only — subscribe before the trial ends.`,
   viewPlans: "See AI & Elite plans",
-  keepAiPro: "Keep AI Pro",
   noSubscription: "No active plan yet. Choose AI Pro or Elite to unlock Coach Alex.",
   pickAPlan: "See plans",
   levelUp: "Upgrade",

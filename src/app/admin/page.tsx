@@ -69,7 +69,7 @@ export default async function AdminDashboardPage({
             <CardContent>
               <p className="text-3xl font-bold">{stats.clientCount}</p>
               <p className="text-xs text-muted-foreground">
-                {stats.paidSubscribers} paid · {stats.freeTrialCount} on free trial ·{" "}
+                {stats.paidSubscribers} paid ·{" "}
                 {stats.noSubscriptionCount} with no subscription
               </p>
             </CardContent>

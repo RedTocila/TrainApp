@@ -7,7 +7,7 @@ import { ChatCommandInput } from "@/components/chat-command-input";
 import { cn } from "@/lib/utils";
 
 const STARTER_PROMPTS = [
-  "Who's on free trial?",
+  "Who's subscribed right now?",
   "Show revenue last 30 days",
   "Find client by email…",
   "Grant Elite monthly to someone",

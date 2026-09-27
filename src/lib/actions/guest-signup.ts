@@ -17,13 +17,10 @@ import {
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
 import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
-import { buildFreeTrialGrant } from "@/lib/subscription";
 import {
   createSdkOrder,
   getSdkOrder,
   isSdkOrderPaid,
-  tokenizeGuestCard,
-  type PokPayAddCardPayload,
   type PokPaySdkOrderProduct,
 } from "@/lib/pokpay/client";
 import { withPokPayWebhookSecret } from "@/lib/pokpay/env";
@@ -232,7 +229,7 @@ async function applyIntakeIfPresent(
 }
 
 /**
- * Create auth user + profile from a pending signup after package purchase/trial.
+ * Create auth user + profile from a pending signup after package purchase.
  * Idempotent when the pending row was already consumed.
  * Password stays in-module only — never returned to clients.
  */
@@ -693,53 +690,4 @@ export async function activateGuestSubscriptionFromOrder(localOrderId: string) {
     return;
   }
   revalidateJoinPaths();
-}
-
-/** Card-backed AI Pro trial for a not-yet-created account. */
-export async function startGuestAiProTrial(params: {
-  signup: GuestSignupPayload;
-  interval: BillingInterval;
-  cardPayload: PokPayAddCardPayload;
-}): Promise<{ success: true } | { error: string }> {
-  const interval = params.interval;
-  if (interval !== "monthly" && interval !== "annual") {
-    return { error: "Invalid billing interval." };
-  }
-
-  const pending = await upsertPendingSignup(params.signup);
-  if ("error" in pending) return pending;
-
-  try {
-    const card = await tokenizeGuestCard(params.cardPayload);
-    const created = await createAccountFromPendingSignup(pending.pendingSignupId);
-    if ("error" in created) return created;
-
-    const admin = createAdminClient();
-    const grant = buildFreeTrialGrant(new Date(), interval);
-
-    const { error } = await admin
-      .from("profiles")
-      .update({
-        ...grant,
-        pokpay_card_id: card.id,
-        trial_converted_at: null,
-      })
-      .eq("id", created.userId);
-
-    if (error) return { error: error.message };
-
-    const signedIn = await signInCreatedUser(created.email, created.password);
-    if ("error" in signedIn) return signedIn;
-
-    revalidateJoinPaths();
-    return { success: true };
-  } catch (err) {
-    console.error("[startGuestAiProTrial]", err);
-    return {
-      error:
-        err instanceof Error
-          ? err.message
-          : "Could not start your free trial. Please try again.",
-    };
-  }
 }

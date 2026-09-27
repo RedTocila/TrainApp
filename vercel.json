@@ -25,10 +25,6 @@
     {
       "path": "/api/cron/expire-meal-photos",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/charge-ended-trials",
-      "schedule": "0 4 * * *"
     }
   ]
 }
