@@ -63,6 +63,7 @@ export function ClassSessionPanel({ fitnessClass }: { fitnessClass: FitnessClass
           videoUrl={streamUrl}
           title={fitnessClass.title}
           autoplay={status === "live"}
+          fullControls
         />
       )}
 

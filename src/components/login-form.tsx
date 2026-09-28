@@ -87,14 +87,6 @@ export function LoginForm({ authError }: { authError?: string }) {
               Register
             </Link>
           </p>
-          {!fromIos ? (
-            <p className="mt-3 text-center text-xs text-muted-foreground">
-              Coach? Sign in with your admin account — you&apos;ll go to{" "}
-              <Link href="/admin" className="text-primary hover:underline">
-                /admin
-              </Link>
-            </p>
-          ) : null}
         </CardContent>
       </Card>
     </AuthCardShell>

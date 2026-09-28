@@ -66,10 +66,10 @@ export default async function ClassDetailPage({
             <img
               src={fitnessClass.cover_image}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-30"
+              className="absolute inset-0 h-full w-full object-cover"
             />
           )}
-          <div className="relative space-y-4 p-6 sm:p-8">
+          <div className="relative space-y-4 p-6 [text-shadow:0_1px_10px_rgba(0,0,0,0.65)] sm:p-8">
             <Badge
               variant="outline"
               className="border-white/30 bg-zinc-900/40 text-white backdrop-blur-sm"

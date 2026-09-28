@@ -54,12 +54,11 @@ function LiveClassCard({
           <img
             src={fitnessClass.cover_image}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover opacity-30 mix-blend-overlay"
+            className="absolute inset-0 h-full w-full object-cover"
           />
         )}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.15),transparent_50%)]" />
 
-        <div className="relative flex min-h-[240px] flex-col justify-between p-6 sm:min-h-[280px] sm:p-8">
+        <div className="relative flex min-h-[240px] flex-col justify-between p-6 [text-shadow:0_1px_10px_rgba(0,0,0,0.65)] sm:min-h-[280px] sm:p-8">
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="border-red-500/40 bg-red-500/25 text-red-100">
@@ -128,10 +127,9 @@ function ClassCard({
             <img
               src={fitnessClass.cover_image}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-40"
+              className="absolute inset-0 h-full w-full object-cover"
             />
           )}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.2),transparent_60%)]" />
           <div className="absolute bottom-3 left-3 flex flex-wrap gap-2">
             <Badge variant="outline" className={cn("border backdrop-blur-sm", styles.badge)}>
               {fitnessClass.category}
