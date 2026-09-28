@@ -1048,6 +1048,9 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
 
           <div className="relative min-w-0 shrink-0 bg-background px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2">
             {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
+            <p className="mb-1.5 text-center text-[11px] leading-snug text-muted-foreground">
+              {ai.medicalDisclaimer}
+            </p>
             <ChatCommandBar
               input={input}
               onInputChange={setInput}
@@ -1073,9 +1076,6 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeActAria={ai.modeActAria}
               onVoiceError={setError}
             />
-            <p className="mt-1.5 text-center text-[11px] leading-snug text-muted-foreground">
-              {ai.medicalDisclaimer}
-            </p>
           </div>
         </div>
       ) : (
@@ -1134,6 +1134,9 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
 
           <div className="min-w-0 border-t border-border/50 bg-card p-4 shadow-[0_100dvh_0_0_var(--card)]">
             {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
+            <p className="mb-1.5 text-center text-[11px] leading-snug text-muted-foreground">
+              {ai.medicalDisclaimer}
+            </p>
             <ChatCommandBar
               input={input}
               onInputChange={setInput}
@@ -1159,9 +1162,6 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeActAria={ai.modeActAria}
               onVoiceError={setError}
             />
-            <p className="mt-1.5 text-center text-[11px] leading-snug text-muted-foreground">
-              {ai.medicalDisclaimer}
-            </p>
           </div>
         </CardContent>
       </Card>
