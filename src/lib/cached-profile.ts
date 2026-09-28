@@ -5,15 +5,14 @@ import type { Profile } from "@/lib/types";
 /** Per-request deduped profile fetch for layouts and pages. */
 export const getCachedProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data: auth } = await supabase.auth.getClaims();
+  const userId = auth?.claims?.sub;
+  if (!userId) return null;
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
 
   return profile as Profile | null;

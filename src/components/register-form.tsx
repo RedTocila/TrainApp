@@ -89,7 +89,11 @@ const PACKAGE_OPTIONS: Array<{
   },
 ];
 
-export function RegisterForm({ initialOffers = [] }: { initialOffers?: SubscriptionOffer[] }) {
+export function RegisterForm({
+  offersPromise,
+}: {
+  offersPromise?: Promise<SubscriptionOffer[]>;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const locale = useLocale();
@@ -111,8 +115,20 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
   const [checkoutStarted, setCheckoutStarted] = useState(false);
   const [paymentPending, setPaymentPending] = useState(false);
   const [referralCode, setReferralCode] = useState("");
-  const [offers] = useState<SubscriptionOffer[]>(initialOffers);
+  const [offers, setOffers] = useState<SubscriptionOffer[]>([]);
   const freeApp = useIsFreeNativeApp();
+
+  useEffect(() => {
+    let cancelled = false;
+    offersPromise
+      ?.then((loaded) => {
+        if (!cancelled) setOffers(loaded);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [offersPromise]);
 
   useEffect(() => {
     const draft = loadIntakeDraft();
@@ -136,7 +152,6 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
 
   const finishSignup = (role?: string) => {
     clearIntakeDraft();
-    router.refresh();
     if (role === "admin") {
       router.push("/admin");
       return;

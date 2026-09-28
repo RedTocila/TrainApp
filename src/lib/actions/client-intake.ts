@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/actions/auth";
@@ -169,7 +170,11 @@ export async function applyPendingIntakeDraft(intakeJson: string) {
     return { skipped: true as const };
   }
 
-  return updateClientIntakeFromResponses(responses);
+  const intakeError = await applyIntakeToProfile(user.id, supabase, responses);
+  if (intakeError) return { error: intakeError };
+
+  revalidatePath("/dashboard", "layout");
+  return { success: true as const };
 }
 
 /** @deprecated Use updateClientIntakeFromResponses */
@@ -192,7 +197,8 @@ export async function applyIntakeToProfile(
 ): Promise<string | null> {
   const intakeFields = responsesToProfileFields(normalizeIntakeResponses(responses));
   const mergedProfile = intakeFields as Profile;
-  const resolved = await resolveMacroTargets(mergedProfile, responses);
+  // Formula macros keep signup instant; AI refinement runs after the response.
+  const resolved = await resolveMacroTargets(mergedProfile, responses, { skipAi: true });
 
   const profileUpdate: Record<string, unknown> = {
     ...intakeFields,
@@ -208,20 +214,50 @@ export async function applyIntakeToProfile(
   const { error } = await supabase.from("profiles").update(profileUpdate).eq("id", userId);
   if (error) return error.message;
 
-  // Signup / draft apply with a complete questionnaire — build the starter program.
   if (isIntakeResponsesComplete(responses)) {
-    const { data: fresh } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    if (fresh) {
-      await buildStarterWorkoutProgramForUser(userId, fresh as Profile);
-    }
+    after(() => personalizeNewAccount(userId, responses, resolved?.targets.calories ?? null));
   }
 
   return null;
+}
+
+/** AI macro refinement + starter workout program for a freshly created account. */
+async function personalizeNewAccount(
+  userId: string,
+  responses: IntakeResponses,
+  formulaCalories: number | null
+) {
+  const admin = createAdminClient();
+  const { data: fresh } = await admin.from("profiles").select("*").eq("id", userId).single();
+  if (!fresh) return;
+  const profile = fresh as Profile;
+
+  const refineMacros = async () => {
+    const refined = await resolveMacroTargets(profile, responses);
+    if (!refined || refined.source !== "ai") return;
+    let update = admin
+      .from("profiles")
+      .update({
+        target_calories: refined.targets.calories,
+        target_protein: refined.targets.protein,
+        target_carbs: refined.targets.carbs,
+        target_fat: refined.targets.fat,
+      })
+      .eq("id", userId);
+    // Don't clobber targets the user already edited by hand.
+    if (formulaCalories !== null) update = update.eq("target_calories", formulaCalories);
+    await update;
+  };
+
+  const results = await Promise.allSettled([
+    refineMacros(),
+    buildStarterWorkoutProgramForUser(userId, profile),
+  ]);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error("[personalizeNewAccount]", result.reason);
+    }
+  }
 }
 
 export async function dismissHabitSuggestion(suggestionId: string) {

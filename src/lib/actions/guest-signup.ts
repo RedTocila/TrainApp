@@ -213,6 +213,7 @@ async function ensureProfileRow(
   if (role === "admin") profileUpdate.role = "admin";
 
   await admin.from("profiles").update(profileUpdate).eq("id", userId);
+  return role;
 }
 
 async function applyIntakeIfPresent(
@@ -698,8 +699,7 @@ export async function createFreeAppAccountAndSignIn(
   if (!fullName) return { error: "Enter your full name." };
   if (password.length < 6) return { error: "Password must be at least 6 characters." };
 
-  const availability = await checkSignupEmailAvailable(email);
-  if (!availability.available) return { error: availability.error };
+  if (!email.includes("@")) return { error: "Enter a valid email address." };
 
   const admin = createAdminClient();
   const phone = signup.phone?.trim() || null;
@@ -721,21 +721,17 @@ export async function createFreeAppAccountAndSignIn(
   }
 
   const userId = created.user.id;
-  await ensureProfileRow(admin, userId, { fullName, email, phone });
-  await grantAppFreeAccess(userId);
-  await applyIntakeIfPresent(admin, userId, signup.intakeJson ?? null);
+  const role = await ensureProfileRow(admin, userId, { fullName, email, phone });
 
-  const signedIn = await signInCreatedUser(email, password);
+  const [signedIn] = await Promise.all([
+    signInCreatedUser(email, password),
+    grantAppFreeAccess(userId),
+    applyIntakeIfPresent(admin, userId, signup.intakeJson ?? null),
+  ]);
   if (signedIn.error) return { error: signedIn.error };
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
-
-  revalidateJoinPaths();
-  return { success: true, role: profile?.role ?? "client" };
+  revalidatePath("/dashboard");
+  return { success: true, role };
 }
 
 /** Webhook / server path: create account if needed and activate subscription. */

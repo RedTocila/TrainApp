@@ -16,6 +16,9 @@ const STEPS = [
   "Configuring your AI Coach",
 ] as const;
 
+const STEP_START_MS = 200;
+const STEP_INTERVAL_MS = 300;
+
 /**
  * Native plan-generation experience. Same dark/red funnel language as JOIN.
  */
@@ -38,11 +41,13 @@ export function IosGeneratingClient() {
         timers.push(
           window.setTimeout(() => {
             if (!cancelled) setActiveIndex(i);
-          }, 450 + i * 700)
+          }, STEP_START_MS + i * STEP_INTERVAL_MS)
         );
       });
     };
 
+    router.prefetch("/dashboard");
+    const startedAt = Date.now();
     advanceVisual();
 
     void (async () => {
@@ -65,9 +70,9 @@ export function IosGeneratingClient() {
             timers.push(
               window.setTimeout(() => {
                 if (!cancelled) router.replace("/dashboard");
-              }, 600)
+              }, 300)
             );
-          }, 450 + STEPS.length * 700)
+          }, Math.max(0, STEP_START_MS + STEPS.length * STEP_INTERVAL_MS - (Date.now() - startedAt)))
         );
       } catch {
         if (!cancelled) {

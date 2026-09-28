@@ -31,9 +31,10 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims refreshes the session like getUser, but verifies the JWT locally
+  // (asymmetric signing keys) instead of a round-trip to Supabase Auth.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ? { id: data.claims.sub } : null;
 
   return { supabase, user, supabaseResponse };
 }

@@ -17,7 +17,8 @@ export interface ResolvedMacroTargets {
 
 export async function resolveMacroTargets(
   profile: Profile,
-  responses?: IntakeResponses
+  responses?: IntakeResponses,
+  options?: { skipAi?: boolean }
 ): Promise<ResolvedMacroTargets | null> {
   const intake = responses ?? profile.intake_responses;
   const mergedProfile = responses
@@ -31,7 +32,7 @@ export async function resolveMacroTargets(
 
   if (!baseline) return null;
 
-  if (intake && isIntakeResponsesComplete(intake)) {
+  if (!options?.skipAi && intake && isIntakeResponsesComplete(intake)) {
     const refined = await refineMacrosWithAi(intake, baseline, profile.preferred_locale);
     if (refined) {
       return {

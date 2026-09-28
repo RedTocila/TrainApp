@@ -32,10 +32,11 @@ export function IosOnboardingClient() {
 
     try {
       const supabase = createClient();
+      // Routing hint only (local session read) — the server re-checks auth.
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
         router.push(IOS_GENERATING_PATH);
         return;
       }
