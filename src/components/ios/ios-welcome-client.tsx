@@ -7,8 +7,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * Native-only welcome — original composition (dots, red/zinc blooms, dark black).
- * Atmosphere comes from IosFunnelShell; this is the content layer only.
+ * Native-only welcome — content layer only.
+ * The hero photo backdrop comes from IosFunnelShell (IosWelcomeBackdrop).
  */
 export function IosWelcomeClient() {
   return (
@@ -31,7 +31,7 @@ export function IosWelcomeClient() {
             <br />
             Fitness Coach
           </h1>
-          <p className="mt-4 max-w-sm text-base leading-relaxed text-zinc-400">
+          <p className="mt-4 max-w-[17rem] text-[15px] font-medium leading-snug text-zinc-200 [text-shadow:0_1px_14px_rgba(0,0,0,0.9)]">
             Personalized workouts, nutrition and guidance built around you.
           </p>
         </motion.div>

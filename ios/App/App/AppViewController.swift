@@ -3,13 +3,58 @@ import WebKit
 import Capacitor
 
 /// Capacitor bridge with Safari-style pull-to-refresh on the web view.
+/// Portrait-only, except while the web app has a video in fullscreen: it posts
+/// `{ landscape: true | false }` to `window.webkit.messageHandlers.rutinaOrientation`.
 class AppViewController: CAPBridgeViewController {
+    static let orientationMessageName = "rutinaOrientation"
+
+    /// Matches the web app's dark `--background` so overscroll areas don't show black.
+    static let platformBackground = UIColor(red: 12 / 255, green: 12 / 255, blue: 14 / 255, alpha: 1)
+
     private let pullToRefresh = WebViewPullToRefresh()
+    private var allowsLandscape = false
+    private var loadingObservation: NSKeyValueObservation?
+
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        allowsLandscape ? .landscape : .portrait
+    }
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         guard let webView = webView else { return }
+        webView.backgroundColor = Self.platformBackground
+        webView.scrollView.backgroundColor = Self.platformBackground
+        webView.underPageBackgroundColor = Self.platformBackground
+        view.backgroundColor = Self.platformBackground
         pullToRefresh.attach(to: webView)
+
+        webView.configuration.userContentController.add(
+            WeakScriptMessageHandler { [weak self] message in
+                guard let body = message.body as? [String: Any],
+                      let landscape = body["landscape"] as? Bool else { return }
+                self?.setLandscape(landscape)
+            },
+            name: Self.orientationMessageName
+        )
+        // A reload or full navigation drops the fullscreen video without telling us.
+        loadingObservation = webView.observe(\.isLoading, options: [.new]) { [weak self] webView, _ in
+            if webView.isLoading { self?.setLandscape(false) }
+        }
+    }
+
+    private func setLandscape(_ landscape: Bool) {
+        guard landscape != allowsLandscape else { return }
+        allowsLandscape = landscape
+        if #available(iOS 16.0, *) {
+            setNeedsUpdateOfSupportedInterfaceOrientations()
+            view.window?.windowScene?.requestGeometryUpdate(
+                .iOS(interfaceOrientations: landscape ? .landscapeRight : .portrait)
+            ) { _ in }
+        } else {
+            let orientation: UIInterfaceOrientation = landscape ? .landscapeRight : .portrait
+            UIDevice.current.setValue(orientation.rawValue, forKey: "orientation")
+            UIViewController.attemptRotationToDeviceOrientation()
+        }
     }
 }
 
@@ -48,7 +93,7 @@ final class WebViewPullToRefresh: NSObject {
         webView.addSubview(spinner)
 
         webView.configuration.userContentController.add(
-            WeakScriptMessageHandler(self),
+            WeakScriptMessageHandler { [weak self] message in self?.receive(message) },
             name: Self.messageName
         )
         scrollView.panGestureRecognizer.addTarget(self, action: #selector(handlePan(_:)))
@@ -69,8 +114,33 @@ final class WebViewPullToRefresh: NSObject {
     private func applyBounce() {
         guard let scrollView = webView?.scrollView else { return }
         let bounce = isEnabled || isRefreshing
+        // Turning bounce off mid-overscroll freezes the page below the top; wait until it settles.
+        if !bounce && (scrollView.isTracking || scrollView.contentOffset.y < 0) {
+            scheduleSettle()
+            return
+        }
         scrollView.bounces = bounce
         scrollView.alwaysBounceVertical = bounce
+    }
+
+    private func scheduleSettle() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.settleIfStuck()
+        }
+    }
+
+    /// Returns the page to the top if a short pull was released without refreshing.
+    private func settleIfStuck() {
+        guard let scrollView = webView?.scrollView, !isRefreshing, !isArmed else { return }
+        if scrollView.isTracking || scrollView.isDecelerating {
+            scheduleSettle()
+            return
+        }
+        if scrollView.contentOffset.y < 0 {
+            scrollView.setContentOffset(CGPoint(x: scrollView.contentOffset.x, y: 0), animated: true)
+        }
+        spinner.reset()
+        applyBounce()
     }
 
     private func setEnabled(_ enabled: Bool) {
@@ -93,14 +163,25 @@ final class WebViewPullToRefresh: NSObject {
 
     private func scrollDidChange() {
         guard isEnabled || isRefreshing else { return }
-        layoutSpinner()
-        if isRefreshing || isArmed { return }
+        guard let scrollView = webView?.scrollView else { return }
+        if isRefreshing { layoutSpinner(); return }
+        // The pan's end event can be swallowed by WebKit; commit once the finger has lifted.
+        if isArmed {
+            layoutSpinner()
+            if !scrollView.isTracking { beginRefresh() }
+            return
+        }
 
         let pull = pullDistance
+        if pull <= 0 {
+            if spinner.alpha > 0 { spinner.reset() }
+            return
+        }
+        layoutSpinner()
         spinner.alpha = min(1, max(0, (pull - 10) / 24))
         spinner.setProgress((pull - 10) / (triggerDistance - 10))
 
-        guard let scrollView = webView?.scrollView, scrollView.isTracking else { return }
+        guard scrollView.isTracking else { return }
         if pull >= triggerDistance {
             isArmed = true
             haptics.impactOccurred()
@@ -115,6 +196,8 @@ final class WebViewPullToRefresh: NSObject {
         case .ended, .cancelled, .failed:
             if isArmed && !isRefreshing {
                 beginRefresh()
+            } else if !isRefreshing {
+                scheduleSettle()
             }
         default:
             break
@@ -185,16 +268,16 @@ final class WebViewPullToRefresh: NSObject {
     }
 }
 
-/// Keeps WKUserContentController from retaining the pull-to-refresh controller.
+/// Keeps WKUserContentController from retaining its handlers (capture them weakly in `onMessage`).
 private final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
-    private weak var target: WebViewPullToRefresh?
+    private let onMessage: (WKScriptMessage) -> Void
 
-    init(_ target: WebViewPullToRefresh) {
-        self.target = target
+    init(_ onMessage: @escaping (WKScriptMessage) -> Void) {
+        self.onMessage = onMessage
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        target?.receive(message)
+        onMessage(message)
     }
 }
 

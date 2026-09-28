@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /** Near-black canvas used across the native funnel (darker than default card chrome). */
@@ -21,6 +22,28 @@ export function IosFunnelAtmosphere() {
           backgroundImage:
             "radial-gradient(circle at 1px 1px, #fff 1px, transparent 0)",
           backgroundSize: "24px 24px",
+        }}
+      />
+    </div>
+  );
+}
+
+/** Full-bleed hero photo for the native welcome screen; fades to the funnel black behind the CTAs. */
+export function IosWelcomeBackdrop() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+      <Image
+        src="/ios/welcome-bg.jpg"
+        alt=""
+        fill
+        preload
+        unoptimized
+        className="object-cover object-center"
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(to bottom, ${IOS_FUNNEL_BG}cc 0%, ${IOS_FUNNEL_BG}73 26%, transparent 42%, transparent 55%, ${IOS_FUNNEL_BG}d9 80%, ${IOS_FUNNEL_BG} 100%)`,
         }}
       />
     </div>

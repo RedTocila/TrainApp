@@ -43,6 +43,7 @@ const config: CapacitorConfig = {
     },
   },
   ios: {
+    backgroundColor: "#0c0c0e",
     // CSS pads for the notch/home indicator via env(safe-area-inset-*); a native inset would double it.
     contentInset: "never",
     preferredContentMode: "mobile",

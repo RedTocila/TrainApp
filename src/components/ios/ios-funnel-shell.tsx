@@ -3,10 +3,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { isNativeApp } from "@/lib/native-app";
-import { isIosAppPath } from "@/lib/ios-routes";
+import { IOS_WELCOME_PATH, isIosAppPath } from "@/lib/ios-routes";
 import { RouteEnter } from "@/components/route-enter";
 import {
   IosFunnelAtmosphere,
+  IosWelcomeBackdrop,
   IOS_FUNNEL_BG,
 } from "@/components/ios/ios-funnel-atmosphere";
 import { cn } from "@/lib/utils";
@@ -74,6 +75,8 @@ export function IosFunnelShell({
   className?: string;
 }) {
   useIosFunnelBrand(true);
+  const pathname = usePathname();
+  const welcome = pathname === IOS_WELCOME_PATH;
 
   return (
     <div
@@ -84,7 +87,7 @@ export function IosFunnelShell({
       )}
       style={{ backgroundColor: IOS_FUNNEL_BG }}
     >
-      <IosFunnelAtmosphere />
+      {welcome ? <IosWelcomeBackdrop /> : <IosFunnelAtmosphere />}
       <div className="relative z-[1] flex flex-1 flex-col">{children}</div>
     </div>
   );

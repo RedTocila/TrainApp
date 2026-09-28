@@ -14,7 +14,31 @@ import {
   extractYoutubeStartSeconds,
   getYoutubeThumbnailUrl,
 } from "@/lib/youtube";
+import { isNativeApp } from "@/lib/native-app";
 import { cn } from "@/lib/utils";
+
+type OrientationBridge = { postMessage: (message: { landscape: boolean }) => void };
+
+/** Native shell hook that rotates the app to landscape (see ios/App/App/AppViewController.swift). */
+function getOrientationBridge(): OrientationBridge | undefined {
+  return (
+    window as Window & {
+      webkit?: { messageHandlers?: { rutinaOrientation?: OrientationBridge } };
+    }
+  ).webkit?.messageHandlers?.rutinaOrientation;
+}
+
+/** Portrait viewport that must be rotated in CSS because the app itself can't turn. */
+function needsCssRotation(): boolean {
+  return !getOrientationBridge() && window.innerHeight > window.innerWidth;
+}
+
+/** iOS can't lock orientation from the web, so fullscreen there uses the overlay. */
+function needsRotatedOverlay(): boolean {
+  if (isNativeApp()) return true;
+  const ua = navigator.userAgent;
+  return /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
 
 interface ExerciseVideoPlayerProps {
   videoUrl?: string | null;
@@ -153,8 +177,8 @@ export function ExerciseVideoPlayer({
   const [controlsBump, setControlsBump] = useState(0);
   /** "native" = Fullscreen API; "css" = fixed overlay where the API is missing (iPhone). */
   const [fullscreen, setFullscreen] = useState<"native" | "css" | null>(null);
-  const [portrait, setPortrait] = useState(false);
-  const rotated = fullscreen === "css" && portrait;
+  const [cssRotation, setCssRotation] = useState(false);
+  const rotated = fullscreen === "css" && cssRotation;
 
   pausedRef.current = paused;
   onErrorRef.current = onError;
@@ -330,13 +354,30 @@ export function ExerciseVideoPlayer({
 
   useEffect(() => {
     if (fullscreen !== "css") return;
-    const onResize = () => setPortrait(window.innerHeight > window.innerWidth);
+    const onResize = () => setCssRotation(needsCssRotation());
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setFullscreen(null);
     };
     window.addEventListener("resize", onResize);
     window.addEventListener("keydown", onKey);
+
+    const orientationBridge = getOrientationBridge();
+    orientationBridge?.postMessage({ landscape: true });
+
+    let restoreStatusBar: (() => void) | undefined;
+    let cancelled = false;
+    if (isNativeApp()) {
+      void import("@capacitor/status-bar").then(({ StatusBar }) => {
+        if (cancelled) return;
+        void StatusBar.hide().catch(() => undefined);
+        restoreStatusBar = () => void StatusBar.show().catch(() => undefined);
+      });
+    }
+
     return () => {
+      cancelled = true;
+      restoreStatusBar?.();
+      orientationBridge?.postMessage({ landscape: false });
       window.removeEventListener("resize", onResize);
       window.removeEventListener("keydown", onKey);
     };
@@ -454,20 +495,29 @@ export function ExerciseVideoPlayer({
       return;
     }
     const frame = frameRef.current;
-    if (frame && document.fullscreenEnabled && frame.requestFullscreen) {
+    if (!needsRotatedOverlay() && frame && document.fullscreenEnabled && frame.requestFullscreen) {
       try {
         await frame.requestFullscreen();
         setFullscreen("native");
         const orientation = screen.orientation as ScreenOrientation & {
           lock?: (orientation: string) => Promise<void>;
         };
-        await orientation.lock?.("landscape").catch(() => undefined);
-        return;
+        let locked = false;
+        try {
+          if (orientation.lock) {
+            await orientation.lock("landscape");
+            locked = true;
+          }
+        } catch {
+          // Orientation lock unsupported; rotate with the overlay instead.
+        }
+        if (locked || window.innerWidth >= window.innerHeight) return;
+        await document.exitFullscreen().catch(() => undefined);
       } catch {
         // Fall through to the overlay.
       }
     }
-    setPortrait(window.innerHeight > window.innerWidth);
+    setCssRotation(needsCssRotation());
     setFullscreen("css");
   };
 
