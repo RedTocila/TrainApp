@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Clock, Radio, Users, Video } from "lucide-react";
+import { Radio, Users, Video } from "lucide-react";
 import { ClassesCatalog } from "@/components/classes-catalog";
 import { ChallengesCatalog } from "@/components/challenges-catalog";
-import { usePlatformCopy } from "@/components/locale-provider";
 import { getChallengeStatus } from "@/lib/challenge-utils";
 import { useHidesChallengesInApp } from "@/components/ios/use-native-app";
 import type { Challenge, FitnessClass } from "@/lib/types";
@@ -23,7 +22,6 @@ export function LiveHubPage({
   memberships?: Record<string, import("@/lib/actions/challenges").ChallengeCardMembership>;
   requiresUpgrade?: boolean;
 }) {
-  const platform = usePlatformCopy();
   const [selectedTab, setTab] = useState<LiveTab>("challenges");
   const classesOnly = useHidesChallengesInApp();
   const tab: LiveTab = classesOnly ? "classes" : selectedTab;
@@ -86,40 +84,6 @@ export function LiveHubPage({
         </nav>
       </header>
       )}
-
-      <div
-        role="status"
-        className={cn(
-          "flex items-start gap-3 rounded-2xl border px-4 py-3.5",
-          tab === "challenges"
-            ? "border-violet-500/30 bg-gradient-to-r from-violet-500/15 via-violet-500/5 to-transparent"
-            : "border-primary/30 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent"
-        )}
-      >
-        <div
-          className={cn(
-            "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-            tab === "challenges"
-              ? "bg-violet-500/15 text-violet-300"
-              : "bg-primary/15 text-primary"
-          )}
-        >
-          <Clock className="h-4 w-4" />
-        </div>
-        <div className="min-w-0">
-          <p
-            className={cn(
-              "text-sm font-black uppercase tracking-wide",
-              tab === "challenges" ? "text-violet-300" : "text-primary"
-            )}
-          >
-            {platform.classes.comingSoon}
-          </p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {platform.classes.comingSoonBanner}
-          </p>
-        </div>
-      </div>
 
       <div role="tabpanel">
         {tab === "challenges" ? (

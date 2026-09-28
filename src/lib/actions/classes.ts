@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/actions/auth";
 import { resolveCoverImageFromForm } from "@/lib/cover-image-upload";
 import type { ClassCategory, FitnessClass } from "@/lib/types";
 
@@ -96,83 +98,98 @@ export async function getClassBySlug(slug: string): Promise<FitnessClass | null>
   return rowToClass(data);
 }
 
-export async function createClass(formData: FormData) {
-  const supabase = await createClient();
+export type ClassFormState = { error: string | null };
+
+function slugify(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+async function readClassForm(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
-  const slug = String(formData.get("slug") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
-  const category = parseCategory(formData.get("category"));
-  const scheduled_at = parseScheduledAt(formData.get("scheduled_at"));
-  const duration_minutes = parseDuration(formData.get("duration_minutes"));
-  const meeting_url = String(formData.get("meeting_url") ?? "").trim() || null;
-  const replay_url = String(formData.get("replay_url") ?? "").trim() || null;
-  const published = formData.get("published") === "on";
+  if (!title) throw new Error("Title is required.");
+  const slug = slugify(String(formData.get("slug") ?? "")) || slugify(title);
+  if (!slug) throw new Error("Add a slug using letters or numbers.");
 
-  if (!title || !slug) throw new Error("Title and slug are required.");
+  // The browser sends the local time as ISO so the server's UTC clock doesn't shift it.
+  const scheduled_at = parseScheduledAt(
+    formData.get("scheduled_at_iso") || formData.get("scheduled_at")
+  );
 
-  const cover_image = await resolveCoverImageFromForm(formData, "classes", slug);
-
-  const { error } = await supabase.from("classes").insert({
+  return {
     title,
     slug,
-    description,
-    category,
-    cover_image,
+    description: String(formData.get("description") ?? "").trim(),
+    category: parseCategory(formData.get("category")),
     scheduled_at,
-    duration_minutes,
-    meeting_url,
-    replay_url,
-    published,
-  });
+    duration_minutes: parseDuration(formData.get("duration_minutes")),
+    meeting_url: String(formData.get("meeting_url") ?? "").trim() || null,
+    replay_url: String(formData.get("replay_url") ?? "").trim() || null,
+    published: formData.get("published") === "on",
+    cover_image: await resolveCoverImageFromForm(formData, "classes", slug),
+  };
+}
 
-  if (error) throw new Error(error.message);
+function classWriteError(error: { code?: string; message: string }): string {
+  if (error.code === "23505") {
+    return "A class with this slug already exists. Change the slug and try again.";
+  }
+  return error.message;
+}
+
+/** Writes bypass RLS with the service role, so every caller must be verified as admin first. */
+async function getAdminDb() {
+  await requireAdmin();
+  return createAdminClient();
+}
+
+function revalidateClassPaths() {
   revalidatePath("/admin/classes");
   revalidatePath("/dashboard/classes");
+}
+
+export async function createClass(
+  _prev: ClassFormState,
+  formData: FormData
+): Promise<ClassFormState> {
+  const db = await getAdminDb();
+  try {
+    const values = await readClassForm(formData);
+    const { error } = await db.from("classes").insert(values);
+    if (error) return { error: classWriteError(error) };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not create the class." };
+  }
+  revalidateClassPaths();
   redirect("/admin/classes");
 }
 
 export async function deleteClass(id: string) {
-  const supabase = await createClient();
-  await supabase.from("classes").delete().eq("id", id);
-  revalidatePath("/admin/classes");
-  revalidatePath("/dashboard/classes");
+  const db = await getAdminDb();
+  const { error } = await db.from("classes").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidateClassPaths();
 }
 
-export async function updateClass(id: string, formData: FormData) {
-  const supabase = await createClient();
-  const title = String(formData.get("title") ?? "").trim();
-  const slug = String(formData.get("slug") ?? "").trim();
-  const description = String(formData.get("description") ?? "").trim();
-  const category = parseCategory(formData.get("category"));
-  const scheduled_at = parseScheduledAt(formData.get("scheduled_at"));
-  const duration_minutes = parseDuration(formData.get("duration_minutes"));
-  const meeting_url = String(formData.get("meeting_url") ?? "").trim() || null;
-  const replay_url = String(formData.get("replay_url") ?? "").trim() || null;
-  const published = formData.get("published") === "on";
-
-  if (!title || !slug) throw new Error("Title and slug are required.");
-
-  const cover_image = await resolveCoverImageFromForm(formData, "classes", slug);
-
-  const { error } = await supabase
-    .from("classes")
-    .update({
-      title,
-      slug,
-      description,
-      category,
-      cover_image,
-      scheduled_at,
-      duration_minutes,
-      meeting_url,
-      replay_url,
-      published,
-    })
-    .eq("id", id);
-
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin/classes");
-  revalidatePath("/dashboard/classes");
+export async function updateClass(
+  id: string,
+  _prev: ClassFormState,
+  formData: FormData
+): Promise<ClassFormState> {
+  const db = await getAdminDb();
+  try {
+    const values = await readClassForm(formData);
+    const { error } = await db.from("classes").update(values).eq("id", id);
+    if (error) return { error: classWriteError(error) };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not save the class." };
+  }
+  revalidateClassPaths();
   redirect("/admin/classes");
 }
 

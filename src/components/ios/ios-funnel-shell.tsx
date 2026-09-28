@@ -78,14 +78,14 @@ export function IosFunnelShell({
   return (
     <div
       className={cn(
-        "relative min-h-dvh overflow-hidden text-zinc-50",
+        "relative flex min-h-dvh flex-col overflow-hidden text-zinc-50",
         "pb-[max(1.5rem,var(--safe-area-bottom))] pt-[max(0.75rem,var(--safe-area-top))]",
         className
       )}
       style={{ backgroundColor: IOS_FUNNEL_BG }}
     >
       <IosFunnelAtmosphere />
-      <div className="relative z-[1]">{children}</div>
+      <div className="relative z-[1] flex flex-1 flex-col">{children}</div>
     </div>
   );
 }

@@ -12,7 +12,10 @@ import { cn } from "@/lib/utils";
  */
 export function IosWelcomeClient() {
   return (
-    <div className="relative flex min-h-[calc(100dvh-2rem)] flex-col px-6">
+    <div
+      className="relative flex flex-1 flex-col px-6"
+      data-native-pull-refresh="off"
+    >
       <div className="relative flex flex-1 flex-col justify-between">
         <motion.div
           initial={{ opacity: 0, y: 12 }}

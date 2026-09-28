@@ -1449,9 +1449,6 @@ export const platformCopyEn = {
     },
   },
   classes: {
-    comingSoon: "Coming soon",
-    comingSoonBanner:
-      "Live classes and challenges are launching soon — stay tuned.",
     upgradeDescription:
       "Upgrade to Elite to join live training classes, community challenges, and group coaching.",
     upgradeDescriptionShort:

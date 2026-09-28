@@ -1458,9 +1458,6 @@ export const platformCopyAl = {
     },
   },
   classes: {
-    comingSoon: "Së shpejti",
-    comingSoonBanner:
-      "Klasat live dhe sfidat po vijnë së shpejti — qëndroni të lidhur.",
     upgradeDescription:
       "Përmirëso në Elite për klasa trajnimi live, sfida komuniteti dhe coaching në grup.",
     upgradeDescriptionShort:

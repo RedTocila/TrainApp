@@ -1,7 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { STORAGE_BUCKETS } from "@/lib/supabase/storage";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+/** Must match the `blog-images` bucket's allowed MIME types. */
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
 
 export async function resolveCoverImageFromForm(
@@ -16,7 +17,7 @@ export async function resolveCoverImageFromForm(
   const file = formData.get("cover_image_file");
   if (file instanceof File && file.size > 0) {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      throw new Error("Cover image must be JPG, PNG, WebP, or GIF.");
+      throw new Error("Cover image must be JPG, PNG, or WebP.");
     }
     if (file.size > MAX_BYTES) {
       throw new Error("Cover image must be 5 MB or smaller.");
@@ -27,9 +28,7 @@ export async function resolveCoverImageFromForm(
         ? "png"
         : file.type === "image/webp"
           ? "webp"
-          : file.type === "image/gif"
-            ? "gif"
-            : "jpg";
+          : "jpg";
     const path = `${folder}/${slug}-${Date.now()}.${ext}`;
     const admin = createAdminClient();
     const { error } = await admin.storage

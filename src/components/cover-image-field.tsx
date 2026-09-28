@@ -87,7 +87,7 @@ export function CoverImageField({
               id="cover_image_file"
               name="cover_image_file"
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/jpeg,image/png,image/webp"
               onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
             />
           </div>
@@ -116,7 +116,7 @@ export function CoverImageField({
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            JPG, PNG, WebP, or GIF up to 5 MB.
+            JPG, PNG, or WebP up to 5 MB.
           </p>
         </div>
       </div>
