@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
+import { NATIVE_APP_COOKIE } from "@/lib/native-app-request";
 
 type PullToRefreshBridge = {
   postMessage: (message: { enabled: boolean }) => void;
@@ -67,6 +68,8 @@ export function NativeAppBootstrap() {
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+
+    document.cookie = `${NATIVE_APP_COOKIE}=1; path=/; max-age=31536000; secure; samesite=lax`;
 
     let removeUrlListener: (() => void) | undefined;
     let cancelled = false;

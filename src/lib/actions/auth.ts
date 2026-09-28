@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/cached-profile";
@@ -9,7 +10,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { grantAppFreeAccess } from "@/lib/app-free-access-grant";
 import { getAuthEmailRedirectUrl } from "@/lib/app-url";
 import { formatUserError, isEmailNotConfirmedError } from "@/lib/format-user-error";
-import { safeNativeRedirect } from "@/lib/ios-routes";
+import { IOS_WELCOME_PATH, safeNativeRedirect } from "@/lib/ios-routes";
+import { NATIVE_APP_COOKIE, isNativeAppRequest } from "@/lib/native-app-request";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -286,7 +288,12 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
-  redirect("/login");
+  const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
+  const nativeApp = isNativeAppRequest(
+    cookieStore.get(NATIVE_APP_COOKIE)?.value,
+    headerList.get("user-agent")
+  );
+  redirect(nativeApp ? IOS_WELCOME_PATH : "/login");
 }
 
 /** Send a password-reset email. Always returns success to avoid email enumeration. */

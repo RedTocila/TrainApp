@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { BrandWordmark } from "@/components/app-logo";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { IOS_ONBOARDING_PATH } from "@/lib/ios-routes";
 
 /**
  * Native-only welcome — original composition (dots, red/zinc blooms, dark black).
@@ -44,7 +43,7 @@ export function IosWelcomeClient() {
             <BrandWordmark className="text-2xl" />
           </div>
           <Link
-            href={IOS_ONBOARDING_PATH}
+            href="/get-started"
             className={cn(
               buttonVariants({ variant: "default" }),
               "h-12 w-full rounded-xl text-base font-semibold"

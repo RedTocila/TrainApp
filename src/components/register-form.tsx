@@ -50,6 +50,7 @@ import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import { getPlanPrice, type BillingInterval } from "@/lib/subscription-plans";
 import { shouldUseAppleIap } from "@/lib/native-iap";
 import { useIsFreeNativeApp } from "@/components/ios/use-native-app";
+import { IOS_WELCOME_PATH } from "@/lib/ios-routes";
 
 type PackagePlan = "ai" | "elite";
 type SignupDraft = GuestSignupPayload;
@@ -134,14 +135,13 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
   }, [searchParams]);
 
   const finishSignup = (role?: string) => {
-    const fromIos = searchParams.get("from") === "ios";
-    if (!fromIos) clearIntakeDraft();
+    clearIntakeDraft();
     router.refresh();
     if (role === "admin") {
       router.push("/admin");
       return;
     }
-    router.push(fromIos ? "/ios/generating" : "/dashboard");
+    router.push("/dashboard");
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -236,7 +236,7 @@ export function RegisterForm({ initialOffers = [] }: { initialOffers?: Subscript
 
   const backHref =
     searchParams.get("from") === "ios"
-      ? "/ios/onboarding"
+      ? IOS_WELCOME_PATH
       : intakeJson
         ? "/get-started"
         : "/";

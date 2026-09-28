@@ -8,6 +8,8 @@ const config: CapacitorConfig = {
   appId: "al.rutina.app",
   appName: "RUTINA",
   webDir: "native-shell/www",
+  // Lets the server recognise app requests (see src/lib/native-app-request.ts).
+  appendUserAgent: "RutinaApp",
   server: {
     // Production web app — change via CAP_SERVER_URL for staging/dev builds.
     url: process.env.CAP_SERVER_URL ?? "https://rutina.al",

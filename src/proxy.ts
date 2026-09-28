@@ -6,6 +6,8 @@ import {
   LEGACY_VERCEL_HOSTS,
   WWW_SITE_HOST,
 } from "@/lib/site-config";
+import { IOS_WELCOME_PATH } from "@/lib/ios-routes";
+import { NATIVE_APP_COOKIE, isNativeAppRequest } from "@/lib/native-app-request";
 
 function missingSupabaseEnvResponse() {
   return new NextResponse(
@@ -60,6 +62,15 @@ export async function proxy(request: NextRequest) {
   const isDashboardRoute = path.startsWith("/dashboard");
   // Native Capacitor funnel — accessible logged-out; web marketing stays on `/`.
   const isIosFunnelRoute = path === "/ios" || path.startsWith("/ios/");
+  const isNativeApp = isNativeAppRequest(
+    request.cookies.get(NATIVE_APP_COOKIE)?.value,
+    request.headers.get("user-agent")
+  );
+
+  // The app never shows the marketing landing (it lists packages).
+  if (!user && isNativeApp && path === "/" && !isServerAction) {
+    return NextResponse.redirect(new URL(IOS_WELCOME_PATH, request.url));
+  }
 
   if (!user && (isAuthPage || path === "/" || isIosFunnelRoute)) {
     return supabaseResponse;
