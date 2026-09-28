@@ -203,7 +203,10 @@ export function AutoContinueDayFlow({ next }: { next: DayFlowNextWorkout }) {
   }, [begin]);
 
   return (
-    <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center gap-3 bg-background px-6 text-center">
+    <div
+      data-native-pull-refresh="off"
+      className="fixed inset-0 z-[120] flex flex-col items-center justify-center gap-3 bg-background px-6 text-center"
+    >
       {error ? (
         <>
           <p className="text-sm text-destructive">{error}</p>
@@ -251,7 +254,10 @@ function StretchOfferOverlay({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 p-4 sm:items-center">
+    <div
+      data-native-pull-refresh="off"
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 p-4 sm:items-center"
+    >
       <Card className="w-full max-w-sm border-border/60 shadow-2xl">
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">

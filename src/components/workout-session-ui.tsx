@@ -220,6 +220,7 @@ export function SessionSideIconButton({
 export function SessionBusyOverlay({ label }: { label: string }) {
   return (
     <div
+      data-native-pull-refresh="off"
       className="fixed inset-0 z-[300] flex flex-col items-center justify-center gap-3 bg-background/85 px-6 backdrop-blur-sm"
       role="status"
       aria-live="polite"

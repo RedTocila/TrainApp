@@ -496,7 +496,10 @@ export function ActiveHiitClient({
   }`;
 
   return (
-    <div className="fixed inset-0 z-[200] flex h-dvh max-h-dvh flex-col overflow-hidden bg-background text-foreground">
+    <div
+      data-native-pull-refresh="off"
+      className="fixed inset-0 z-[200] flex h-dvh max-h-dvh flex-col overflow-hidden bg-background text-foreground"
+    >
       <div className="flex shrink-0 flex-col gap-1.5 px-3 pb-1.5 pt-[max(0.35rem,var(--safe-area-top))]">
         <SessionTopBar
           title={headerTitle}

@@ -39,6 +39,10 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>RUTINA needs the camera for meal and progress photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>RUTINA uses the microphone so you can talk to your AI coach with voice input.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>RUTINA turns your voice into text so you can dictate messages to your AI coach.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>RUTINA may save photos you take in the app.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

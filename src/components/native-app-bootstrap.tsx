@@ -3,11 +3,68 @@
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 
+type PullToRefreshBridge = {
+  postMessage: (message: { enabled: boolean }) => void;
+};
+
+/**
+ * Pauses the iOS shell's pull-to-refresh while a sheet locks page scroll or a
+ * screen opts out with `data-native-pull-refresh="off"` (e.g. active workouts).
+ */
+function syncNativePullToRefresh(): () => void {
+  const bridge = (
+    window as Window & {
+      webkit?: { messageHandlers?: { rutinaPullToRefresh?: PullToRefreshBridge } };
+    }
+  ).webkit?.messageHandlers?.rutinaPullToRefresh;
+  if (!bridge) return () => undefined;
+
+  let lastEnabled: boolean | null = null;
+  let frame: number | null = null;
+
+  const report = () => {
+    frame = null;
+    const enabled =
+      !document.documentElement.classList.contains("body-scroll-locked") &&
+      !document.querySelector('[data-native-pull-refresh="off"]');
+    if (enabled === lastEnabled) return;
+    lastEnabled = enabled;
+    bridge.postMessage({ enabled });
+  };
+
+  const schedule = () => {
+    if (frame == null) frame = requestAnimationFrame(report);
+  };
+
+  const observer = new MutationObserver(schedule);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["data-native-pull-refresh"],
+  });
+  report();
+
+  return () => {
+    observer.disconnect();
+    if (frame != null) cancelAnimationFrame(frame);
+  };
+}
+
 /**
  * Native-only polish: status bar + splash + deep-link resume into the WebView.
  * No-ops on the regular website.
  */
 export function NativeAppBootstrap() {
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    return syncNativePullToRefresh();
+  }, []);
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
