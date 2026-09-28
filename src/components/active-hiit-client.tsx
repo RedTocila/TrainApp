@@ -63,6 +63,7 @@ import {
 } from "@/components/day-workout-flow";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
+import { FitLabel } from "@/components/fit-label";
 import type { WorkoutSession } from "@/lib/types";
 import { cn, formatDateKey } from "@/lib/utils";
 import {
@@ -147,6 +148,10 @@ export function ActiveHiitClient({
   const finishCtaLabel =
     isWarmup && continuesToMain
       ? platform.workout.finishWarmupNextMain
+      : "Complete";
+  const finishCtaShortLabel =
+    isWarmup && continuesToMain
+      ? platform.workout.finishWarmupNextMainShort
       : "Complete";
   const doneBannerTitle =
     isWarmup && continuesToMain
@@ -677,7 +682,7 @@ export function ActiveHiitClient({
               ) : (
                 <>
                   <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                  <span className="truncate">{finishCtaLabel}</span>
+                  <FitLabel full={finishCtaLabel} short={finishCtaShortLabel} />
                 </>
               )}
             </Button>
@@ -695,7 +700,7 @@ export function ActiveHiitClient({
             ) : (
               <>
                 <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                <span className="truncate">{finishCtaLabel}</span>
+                <FitLabel full={finishCtaLabel} short={finishCtaShortLabel} />
               </>
             )}
           </Button>

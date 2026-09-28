@@ -717,6 +717,7 @@ export const platformCopyEn = {
     skipWarmupHint: "Jump straight into the main workout",
     continueToMain: "Continue to main workout",
     finishWarmupNextMain: "Next: start the real workout",
+    finishWarmupNextMainShort: "Next",
     finishWarmupBannerTitle: "Warm-up done",
     finishWarmupBannerBody: "Next up — the real workout",
     stretchOfferTitle: "Add stretching?",

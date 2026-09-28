@@ -8,7 +8,16 @@ import {
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { Maximize, Minimize, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import {
+  FastForward,
+  Maximize,
+  Minimize,
+  Pause,
+  Play,
+  Rewind,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import {
   extractYoutubeId,
   extractYoutubeStartSeconds,
@@ -40,6 +49,45 @@ function needsRotatedOverlay(): boolean {
   return /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
 }
 
+/** On <html> while the overlay is open; globals.css hides everything but the frame. */
+const FULLSCREEN_ROOT_CLASS = "video-fullscreen-open";
+const FULLSCREEN_FRAME_CLASS = "video-fullscreen-frame";
+
+/**
+ * `position: fixed` is trapped by any ancestor with a transform, filter,
+ * backdrop-filter, perspective, containment, or matching will-change.
+ * Neutralize those while fullscreen so the overlay covers the whole screen.
+ */
+function releaseFixedContainingBlocks(frame: HTMLElement | null): () => void {
+  const restores: Array<() => void> = [];
+  const overrides: Array<[prop: string, isTrapping: (value: string) => boolean, reset: string]> = [
+    ["transform", (v) => v !== "none", "none"],
+    ["filter", (v) => v !== "none", "none"],
+    ["backdrop-filter", (v) => v !== "none", "none"],
+    ["-webkit-backdrop-filter", (v) => !!v && v !== "none", "none"],
+    ["perspective", (v) => v !== "none", "none"],
+    ["contain", (v) => v !== "none" && v !== "", "none"],
+    ["container-type", (v) => !!v && v !== "normal", "normal"],
+    ["will-change", (v) => /transform|filter|perspective/.test(v), "auto"],
+  ];
+
+  for (let el = frame?.parentElement; el && el !== document.body; el = el.parentElement) {
+    const computed = getComputedStyle(el);
+    for (const [prop, isTrapping, reset] of overrides) {
+      if (!isTrapping(computed.getPropertyValue(prop))) continue;
+      const target = el;
+      const previousValue = target.style.getPropertyValue(prop);
+      const previousPriority = target.style.getPropertyPriority(prop);
+      target.style.setProperty(prop, reset, "important");
+      restores.push(() => target.style.setProperty(prop, previousValue, previousPriority));
+    }
+  }
+
+  return () => {
+    for (const restore of restores.reverse()) restore();
+  };
+}
+
 interface ExerciseVideoPlayerProps {
   videoUrl?: string | null;
   title: string;
@@ -50,11 +98,17 @@ interface ExerciseVideoPlayerProps {
   fill?: boolean;
   /** Called when the YouTube iframe API reports an unrecoverable error. */
   onError?: () => void;
-  /** Sound toggle, fullscreen, and controls that hide on tap / after playback starts. */
+  /** Adds sound toggle, fullscreen, and a time readout to the auto-hiding controls. */
   fullControls?: boolean;
 }
 
-const CONTROLS_HIDE_MS = 2000;
+const CONTROLS_HIDE_MS = 1500;
+const DOUBLE_TAP_MS = 300;
+const DOUBLE_TAP_SEEK_SECONDS = 10;
+/** Outer fraction of the frame (each side) where a double-tap seeks. */
+const SEEK_ZONE = 0.35;
+
+type SeekSide = "back" | "forward";
 
 type YtPlayer = {
   destroy: () => void;
@@ -166,7 +220,11 @@ export function ExerciseVideoPlayer({
   const onErrorRef = useRef(onError);
   const seekingRef = useRef(false);
   const frameRef = useRef<HTMLDivElement>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const userUnmutedRef = useRef(false);
+  const lastTapRef = useRef<{ time: number; side: SeekSide | null }>({ time: 0, side: null });
+  const singleTapTimerRef = useRef<number | null>(null);
+  const seekFlashTimerRef = useRef<number | null>(null);
 
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -178,6 +236,7 @@ export function ExerciseVideoPlayer({
   /** "native" = Fullscreen API; "css" = fixed overlay where the API is missing (iPhone). */
   const [fullscreen, setFullscreen] = useState<"native" | "css" | null>(null);
   const [cssRotation, setCssRotation] = useState(false);
+  const [seekFlash, setSeekFlash] = useState<{ side: SeekSide; seconds: number } | null>(null);
   const rotated = fullscreen === "css" && cssRotation;
 
   pausedRef.current = paused;
@@ -338,10 +397,18 @@ export function ExerciseVideoPlayer({
   }, [ready]);
 
   useEffect(() => {
-    if (!fullControls || !playing || !controlsVisible) return;
+    if (!playing || !controlsVisible) return;
     const id = window.setTimeout(() => setControlsVisible(false), CONTROLS_HIDE_MS);
     return () => window.clearTimeout(id);
-  }, [fullControls, playing, controlsVisible, controlsBump]);
+  }, [playing, controlsVisible, controlsBump]);
+
+  useEffect(
+    () => () => {
+      if (singleTapTimerRef.current) window.clearTimeout(singleTapTimerRef.current);
+      if (seekFlashTimerRef.current) window.clearTimeout(seekFlashTimerRef.current);
+    },
+    []
+  );
 
   useEffect(() => {
     if (fullscreen !== "native") return;
@@ -361,10 +428,15 @@ export function ExerciseVideoPlayer({
     window.addEventListener("resize", onResize);
     window.addEventListener("keydown", onKey);
 
+    const root = document.documentElement;
+    root.classList.add(FULLSCREEN_ROOT_CLASS);
+    const restoreAncestors = releaseFixedContainingBlocks(frameRef.current);
+
     const orientationBridge = getOrientationBridge();
     orientationBridge?.postMessage({ landscape: true });
 
     let restoreStatusBar: (() => void) | undefined;
+    let restoreHomeIndicator: (() => void) | undefined;
     let cancelled = false;
     if (isNativeApp()) {
       void import("@capacitor/status-bar").then(({ StatusBar }) => {
@@ -372,11 +444,20 @@ export function ExerciseVideoPlayer({
         void StatusBar.hide().catch(() => undefined);
         restoreStatusBar = () => void StatusBar.show().catch(() => undefined);
       });
+      void import("@capacitor/core").then(({ SystemBars, SystemBarType }) => {
+        if (cancelled) return;
+        const bar = SystemBarType.NavigationBar;
+        void SystemBars.hide({ bar }).catch(() => undefined);
+        restoreHomeIndicator = () => void SystemBars.show({ bar }).catch(() => undefined);
+      });
     }
 
     return () => {
       cancelled = true;
       restoreStatusBar?.();
+      restoreHomeIndicator?.();
+      root.classList.remove(FULLSCREEN_ROOT_CLASS);
+      restoreAncestors();
       orientationBridge?.postMessage({ landscape: false });
       window.removeEventListener("resize", onResize);
       window.removeEventListener("keydown", onKey);
@@ -521,16 +602,86 @@ export function ExerciseVideoPlayer({
     setFullscreen("css");
   };
 
-  const controlsShown = !fullControls || !playing || controlsVisible;
+  const controlsShown = !playing || controlsVisible;
 
-  const onSurfaceTap = () => {
-    if (!fullControls) return;
+  const toggleControls = () => {
     if (controlsShown && playing) {
       setControlsVisible(false);
     } else {
       setControlsVisible(true);
       setControlsBump((n) => n + 1);
     }
+  };
+
+  const seekBy = (side: SeekSide) => {
+    const player = playerRef.current;
+    if (!player || !ready || paused) return;
+    let now = currentTime;
+    let total = duration;
+    try {
+      now = player.getCurrentTime();
+      total = player.getDuration() || duration;
+    } catch {
+      // Fall back to the last polled values.
+    }
+    const delta = side === "forward" ? DOUBLE_TAP_SEEK_SECONDS : -DOUBLE_TAP_SEEK_SECONDS;
+    const next = Math.max(0, total > 0 ? Math.min(total - 0.5, now + delta) : now + delta);
+    setCurrentTime(next);
+    try {
+      player.seekTo(next, true);
+    } catch {
+      // ignore
+    }
+    setSeekFlash((prev) => ({
+      side,
+      seconds: prev?.side === side ? prev.seconds + DOUBLE_TAP_SEEK_SECONDS : DOUBLE_TAP_SEEK_SECONDS,
+    }));
+    if (seekFlashTimerRef.current) window.clearTimeout(seekFlashTimerRef.current);
+    seekFlashTimerRef.current = window.setTimeout(() => setSeekFlash(null), 700);
+  };
+
+  /** Which seek zone a tap landed in, in video coordinates (handles the rotated overlay). */
+  const tapSide = (clientX: number, clientY: number): SeekSide | null => {
+    const rect = surfaceRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const ratio = rotated
+      ? rect.height > 0
+        ? (clientY - rect.top) / rect.height
+        : 0.5
+      : rect.width > 0
+        ? (clientX - rect.left) / rect.width
+        : 0.5;
+    if (ratio < SEEK_ZONE) return "back";
+    if (ratio > 1 - SEEK_ZONE) return "forward";
+    return null;
+  };
+
+  const onSurfaceTap = (event: MouseEvent<HTMLDivElement>) => {
+    const side = tapSide(event.clientX, event.clientY);
+    const now = Date.now();
+    const last = lastTapRef.current;
+    lastTapRef.current = { time: now, side };
+
+    if (side && last.side === side && now - last.time < DOUBLE_TAP_MS) {
+      if (singleTapTimerRef.current) {
+        window.clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      seekBy(side);
+      return;
+    }
+
+    if (!side) {
+      toggleControls();
+      return;
+    }
+
+    // Side taps wait briefly so a second tap can turn them into a seek.
+    if (singleTapTimerRef.current) window.clearTimeout(singleTapTimerRef.current);
+    singleTapTimerRef.current = window.setTimeout(() => {
+      singleTapTimerRef.current = null;
+      toggleControls();
+    }, DOUBLE_TAP_MS);
   };
 
   const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0;
@@ -594,7 +745,7 @@ export function ExerciseVideoPlayer({
       className={cn(
         "flex flex-col bg-black",
         fullscreen === "css"
-          ? "fixed inset-0 z-[1000] touch-none"
+          ? cn(FULLSCREEN_FRAME_CLASS, "fixed inset-0 z-[2147483647] touch-none")
           : fullscreen === "native"
             ? "h-full w-full justify-center"
             : fill
@@ -639,10 +790,34 @@ export function ExerciseVideoPlayer({
         ) : null}
 
         <div
-          className="absolute inset-0 z-[2]"
+          ref={surfaceRef}
+          className="absolute inset-0 z-[2] select-none [-webkit-tap-highlight-color:transparent] [touch-action:manipulation]"
           aria-hidden
-          onClick={fullControls ? onSurfaceTap : undefined}
+          onClick={onSurfaceTap}
         />
+
+        {seekFlash ? (
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-y-0 z-[3] flex w-[35%] items-center justify-center",
+              seekFlash.side === "back" ? "left-0" : "right-0"
+            )}
+          >
+            <span className="flex items-center gap-1 rounded-full bg-black/60 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur-sm">
+              {seekFlash.side === "back" ? (
+                <>
+                  <Rewind className="h-4 w-4 fill-current" />
+                  {seekFlash.seconds}s
+                </>
+              ) : (
+                <>
+                  {seekFlash.seconds}s
+                  <FastForward className="h-4 w-4 fill-current" />
+                </>
+              )}
+            </span>
+          </div>
+        ) : null}
 
         <div
           className={cn(
@@ -703,12 +878,17 @@ export function ExerciseVideoPlayer({
               </div>
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div
+            className={cn(
+              "absolute inset-x-0 bottom-0 z-[5] bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-8 transition-opacity duration-300",
+              controlsShown ? "opacity-100" : "pointer-events-none opacity-0"
+            )}
+          >
+            {progressBar}
+          </div>
+        )}
       </div>
-
-      {fullControls ? null : (
-        <div className="shrink-0 bg-black px-3 pb-3 pt-2">{progressBar}</div>
-      )}
     </div>
   );
 }

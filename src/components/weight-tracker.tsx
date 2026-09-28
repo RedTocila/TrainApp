@@ -5,7 +5,7 @@ import { isToday } from "date-fns";
 import { formatLocalized } from "@/lib/date-locale";
 import { Plus } from "lucide-react";
 import { ElectronicScale } from "@/components/icons/electronic-scale";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useSelectedDate, useIsPastSelectedDay } from "@/components/date-provider";
 import { WeightChartLazy } from "@/components/weight-chart-lazy";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/actions/weight-logs";
 import type { BodyWeightLog } from "@/lib/types";
 import { formatDateKey, cn } from "@/lib/utils";
+import { dashboardDayCacheKey, setDashboardDayCache } from "@/lib/dashboard-day-cache";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,12 @@ import { DashboardSectionHeader } from "@/components/dashboard-ui";
 import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
 import { DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
 import { isDayEnded } from "@/lib/meal-times";
+
+function withLog(history: BodyWeightLog[], log: BodyWeightLog): BodyWeightLog[] {
+  return [...history.filter((entry) => entry.date !== log.date), log].sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
+}
 
 export function WeightTracker({
   clientId,
@@ -56,12 +63,13 @@ export function WeightTracker({
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const saveSeqRef = useRef(0);
   const { confirm: confirmGiveUp, dialog: giveUpDialog } = useSarcasticConfirm();
 
   useEffect(() => {
     let cancelled = false;
     void getBodyWeightHistory(clientId).then((fetchedHistory) => {
-      if (cancelled) return;
+      if (cancelled || saveSeqRef.current > 0) return;
       setHistory(fetchedHistory);
       onHistoryChange?.(fetchedHistory);
     });
@@ -80,7 +88,13 @@ export function WeightTracker({
     fetcher: async () => getBodyWeightLog(clientId, dateKey),
   });
 
-  const todayLogForDay = todayLog ?? seedLog ?? null;
+  const [localLog, setLocalLog] = useState<{
+    dateKey: string;
+    log: BodyWeightLog | null;
+  } | null>(null);
+
+  const todayLogForDay =
+    localLog?.dateKey === dateKey ? localLog.log : (todayLog ?? seedLog ?? null);
 
   useEffect(() => {
     setWeightInput(
@@ -92,11 +106,16 @@ export function WeightTracker({
     ? platform.common.today
     : formatLocalized(selectedDate, "MMM d", locale);
 
-  const refreshHistory = useCallback(async () => {
-    const fetchedHistory = await getBodyWeightHistory(clientId);
-    setHistory(fetchedHistory);
-    onHistoryChange?.(fetchedHistory);
-  }, [clientId, onHistoryChange]);
+  /** Show a log (or its removal) for a date immediately, without a refetch. */
+  const applyLocalLog = useCallback(
+    (forDate: string, log: BodyWeightLog | null, nextHistory: BodyWeightLog[]) => {
+      setLocalLog({ dateKey: forDate, log });
+      setDashboardDayCache(dashboardDayCacheKey(clientId, "weight-log", forDate), log);
+      setHistory(nextHistory);
+      onHistoryChange?.(nextHistory);
+    },
+    [clientId, onHistoryChange]
+  );
 
   const handleSave = () => {
     const parsed = units.parseWeightInput(weightInput);
@@ -105,16 +124,35 @@ export function WeightTracker({
       return;
     }
     setError(null);
+
+    const forDate = dateKey;
+    const previousLog = todayLogForDay;
+    const previousHistory = history;
+    const optimistic: BodyWeightLog = {
+      id: previousLog?.id ?? `pending-${forDate}`,
+      client_id: clientId,
+      date: forDate,
+      weight_kg: parsed,
+      created_at: previousLog?.created_at ?? new Date().toISOString(),
+    };
+    applyLocalLog(forDate, optimistic, withLog(previousHistory, optimistic));
+    setFormOpen(false);
+
+    const seq = ++saveSeqRef.current;
     startTransition(async () => {
-      const result = await upsertBodyWeightLog(clientId, dateKey, parsed);
-      if (result.error) {
+      const result = await upsertBodyWeightLog(clientId, forDate, parsed).catch(() => ({
+        error: platform.profile.saveFailed,
+      }));
+      if (seq !== saveSeqRef.current) return;
+      if ("error" in result && result.error) {
+        applyLocalLog(forDate, previousLog, previousHistory);
         setError(result.error);
+        setFormOpen(true);
         return;
       }
-      const log = await getBodyWeightLog(clientId, dateKey);
-      setWeightInput(log ? units.formatWeightKg(log.weight_kg) : "");
-      await refreshHistory();
-      setFormOpen(false);
+      if ("log" in result && result.log) {
+        applyLocalLog(forDate, result.log, withLog(previousHistory, result.log));
+      }
     });
   };
 
@@ -124,14 +162,24 @@ export function WeightTracker({
       ...coachCopy.clearWeight,
       onConfirm: async () => {
         setError(null);
-        const result = await deleteBodyWeightLog(clientId, dateKey);
-        if (result.error) {
-          setError(result.error);
-          return;
-        }
+        const forDate = dateKey;
+        const previousLog = todayLogForDay;
+        const previousHistory = history;
+        applyLocalLog(
+          forDate,
+          null,
+          previousHistory.filter((entry) => entry.date !== forDate)
+        );
         setWeightInput("");
         setFormOpen(false);
-        await refreshHistory();
+
+        const seq = ++saveSeqRef.current;
+        const result = await deleteBodyWeightLog(clientId, forDate);
+        if (seq !== saveSeqRef.current) return;
+        if (result.error) {
+          applyLocalLog(forDate, previousLog, previousHistory);
+          setError(result.error);
+        }
       },
     });
   };

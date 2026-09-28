@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
   formatDbError,
@@ -53,26 +54,20 @@ export async function upsertBodyWeightLog(
     return { error: "Enter a valid weight between 0 and 500 kg" };
   }
 
-  const { admin } = mutation;
-  const existing = await getBodyWeightLog(clientId, date);
-
-  if (existing) {
-    const { error } = await admin
-      .from("body_weight_logs")
-      .update({ weight_kg: weightKg })
-      .eq("id", existing.id);
-    if (error) return { error: formatDbError(error.message) };
-  } else {
-    const { error } = await admin.from("body_weight_logs").insert({
-      client_id: clientId,
-      date,
-      weight_kg: weightKg,
-    });
-    if (error) return { error: formatDbError(error.message) };
+  const { data, error } = await mutation.admin
+    .from("body_weight_logs")
+    .upsert(
+      { client_id: clientId, date, weight_kg: weightKg },
+      { onConflict: "client_id,date" }
+    )
+    .select("id, client_id, date, weight_kg, created_at")
+    .single();
+  if (error || !data) {
+    return { error: formatDbError(error?.message ?? "Could not save weight") };
   }
 
-  revalidatePath("/dashboard");
-  return { success: true };
+  after(() => revalidatePath("/dashboard"));
+  return { success: true as const, log: data as BodyWeightLog };
 }
 
 export async function deleteBodyWeightLog(clientId: string, date: string) {
@@ -86,6 +81,6 @@ export async function deleteBodyWeightLog(clientId: string, date: string) {
     .eq("date", date);
 
   if (error) return { error: formatDbError(error.message) };
-  revalidatePath("/dashboard");
+  after(() => revalidatePath("/dashboard"));
   return { success: true };
 }

@@ -828,6 +828,23 @@ html.body-scroll-locked .dashboard-main .fixed.inset-0 {
   pointer-events: auto;
 }
 
+/* Video fullscreen overlay: nothing on screen but the video (beats any stacking context). */
+html.video-fullscreen-open,
+html.video-fullscreen-open body {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  background: #000 !important;
+}
+
+html.video-fullscreen-open body * {
+  visibility: hidden !important;
+}
+
+html.video-fullscreen-open .video-fullscreen-frame,
+html.video-fullscreen-open .video-fullscreen-frame * {
+  visibility: visible !important;
+}
+
 .section-highlight {
   animation: section-highlight-pulse 2s ease-out;
   border-radius: var(--radius);

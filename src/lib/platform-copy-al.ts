@@ -725,6 +725,7 @@ export const platformCopyAl = {
     skipWarmupHint: "Kalo drejt te stërvitja kryesore",
     continueToMain: "Vazhdo te stërvitja kryesore",
     finishWarmupNextMain: "Tjetër: nise stërvitjen e vërtetë",
+    finishWarmupNextMainShort: "Tjetër",
     finishWarmupBannerTitle: "Ngrohja u krye",
     finishWarmupBannerBody: "Tjetër — stërvitja e vërtetë",
     stretchOfferTitle: "Shto shtrirje?",

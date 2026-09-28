@@ -22,10 +22,7 @@ class AppViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         guard let webView = webView else { return }
-        webView.backgroundColor = Self.platformBackground
-        webView.scrollView.backgroundColor = Self.platformBackground
-        webView.underPageBackgroundColor = Self.platformBackground
-        view.backgroundColor = Self.platformBackground
+        applyPlatformBackground(to: webView)
         pullToRefresh.attach(to: webView)
 
         webView.configuration.userContentController.add(
@@ -38,8 +35,35 @@ class AppViewController: CAPBridgeViewController {
         )
         // A reload or full navigation drops the fullscreen video without telling us.
         loadingObservation = webView.observe(\.isLoading, options: [.new]) { [weak self] webView, _ in
-            if webView.isLoading { self?.setLandscape(false) }
+            if webView.isLoading {
+                self?.setLandscape(false)
+            } else {
+                // Capacitor restores `isOpaque` after the first load; run after its delegate.
+                DispatchQueue.main.async { self?.applyPlatformBackground(to: webView) }
+            }
         }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        view.window?.backgroundColor = Self.platformBackground
+    }
+
+    /// Everything behind the page (pull-to-refresh gap, reload flashes, rotation) uses the
+    /// dashboard color. Non-opaque so WebKit never paints its own default behind content.
+    private func applyPlatformBackground(to webView: WKWebView) {
+        webView.isOpaque = false
+        webView.backgroundColor = Self.platformBackground
+        webView.scrollView.backgroundColor = Self.platformBackground
+        webView.underPageBackgroundColor = Self.platformBackground
+        view.backgroundColor = Self.platformBackground
+        view.window?.backgroundColor = Self.platformBackground
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            // The iOS 26 scroll-edge effect draws a dark band over the top while pulling.
+            webView.scrollView.topEdgeEffect.isHidden = true
+        }
+        #endif
     }
 
     private func setLandscape(_ landscape: Bool) {
