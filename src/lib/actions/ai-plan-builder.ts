@@ -27,7 +27,8 @@ import { saveWorkoutDay } from "@/lib/actions/plans";
 import { createPersonalWorkoutPlan, assignPersonalWorkoutPlan, addWorkoutToDay, getPersonalWorkoutPlanWithDetails, createPersonalWeekPlan } from "@/lib/actions/user-workouts";
 import { savePersonalHiitPlan } from "@/lib/actions/user-hiit";
 import { scheduleWorkoutPlanDays } from "@/lib/actions/coach-commands";
-import { scheduleNutritionSeries } from "@/lib/actions/user-nutrition-schedule";
+import { scheduleNutritionDays, scheduleNutritionSeries } from "@/lib/actions/user-nutrition-schedule";
+import { menuIndexForDate, planDayMenus } from "@/lib/ai/nutrition-day-variants";
 import { generateRecurringScheduleDates } from "@/lib/schedule-utils";
 import type { AiWeeklyFullProgram } from "@/lib/ai/generate-weekly-full-program";
 import { enrichExerciseWithGif } from "@/lib/exercise-gif";
@@ -41,6 +42,7 @@ import {
   createPersonalNutritionPlan,
   assignPersonalNutritionPlan,
   addMealToDayMenuSlot,
+  createNutritionFolder,
 } from "@/lib/actions/user-nutrition";
 import { savePlanGroceryList } from "@/lib/actions/grocery-list";
 import {
@@ -651,7 +653,10 @@ async function applyMultiDayStrengthAsWeekPlan(
 
 export async function applyAiNutritionPlanAction(
   plan: AiGeneratedNutritionPlan
-): Promise<{ planId: string } | { error: string }> {
+): Promise<
+  | { planId: string; menuPlanIds: string[]; folderId: string | null }
+  | { error: string }
+> {
   const access = await requireAiPlanBuilder();
   if (!access.success) return { error: access.error };
 
@@ -660,44 +665,57 @@ export async function applyAiNutritionPlanAction(
 
   if (!plan.meals?.length) return { error: "No meals to apply" };
 
-  const created = await createPersonalNutritionPlan(
-    plan.title,
-    plan.description || "AI Coach day menu",
-    {
-      target_calories: plan.daily_targets.calories,
-      target_protein: plan.daily_targets.protein,
-      target_carbs: plan.daily_targets.carbs,
-      target_fat: plan.daily_targets.fat,
-    }
-  );
-  if (created.error || !created.data) {
-    return { error: created.error ?? "Could not create nutrition plan" };
+  const menus = planDayMenus(plan).filter((m) => m.meals.length > 0);
+  let folderId: string | null = null;
+  if (menus.length > 1) {
+    const folder = await createNutritionFolder(plan.title);
+    if (folder.data) folderId = folder.data.id;
   }
 
-  const planId = created.data.id;
-
-  for (const meal of plan.meals) {
-    const result = await addMealToDayMenuSlot(planId, meal.slot as MealSlot, {
-      meal_type:
-        meal.slot === "breakfast"
-          ? "breakfast"
-          : meal.slot === "lunch"
-            ? "lunch"
-            : meal.slot === "dinner"
-              ? "dinner"
-              : "snack",
-      name: meal.name,
-      description: meal.description ?? "",
-      macros: {
-        calories: meal.calories,
-        protein: meal.protein,
-        carbs: meal.carbs,
-        fat: meal.fat,
+  const menuPlanIds: string[] = [];
+  for (const menu of menus) {
+    const created = await createPersonalNutritionPlan(
+      menus.length > 1 ? `${plan.title} — ${menu.label}` : plan.title,
+      plan.description || "AI Coach day menu",
+      {
+        target_calories: plan.daily_targets.calories,
+        target_protein: plan.daily_targets.protein,
+        target_carbs: plan.daily_targets.carbs,
+        target_fat: plan.daily_targets.fat,
       },
-      ingredients: meal.ingredients ?? [],
-    });
-    if (result.error) return { error: result.error };
+      folderId
+    );
+    if (created.error || !created.data) {
+      return { error: created.error ?? "Could not create nutrition plan" };
+    }
+    const menuPlanId = created.data.id;
+    menuPlanIds.push(menuPlanId);
+
+    for (const meal of menu.meals) {
+      const result = await addMealToDayMenuSlot(menuPlanId, meal.slot as MealSlot, {
+        meal_type:
+          meal.slot === "breakfast"
+            ? "breakfast"
+            : meal.slot === "lunch"
+              ? "lunch"
+              : meal.slot === "dinner"
+                ? "dinner"
+                : "snack",
+        name: meal.name,
+        description: meal.description ?? "",
+        macros: {
+          calories: meal.calories,
+          protein: meal.protein,
+          carbs: meal.carbs,
+          fat: meal.fat,
+        },
+        ingredients: meal.ingredients ?? [],
+      });
+      if (result.error) return { error: result.error };
+    }
   }
+
+  const planId = menuPlanIds[0]!;
 
   const groceryItems = normalizeGroceryList(plan.grocery_list);
   const resolvedGrocery =
@@ -724,7 +742,7 @@ export async function applyAiNutritionPlanAction(
   revalidatePath("/dashboard/nutrition");
   revalidatePath("/dashboard/ai/plans/nutrition");
   revalidatePath("/dashboard");
-  return { planId };
+  return { planId, menuPlanIds, folderId };
 }
 
 /** Apply a plan preview from AI coach chat (same as plan builder apply).
@@ -813,21 +831,43 @@ export async function applyChatPlanPreviewAction(
       schedule.startDate?.trim() || new Date().toISOString().split("T")[0];
     const weekdays =
       schedule.weekdays.length > 0 ? schedule.weekdays : [0, 1, 2, 3, 4, 5, 6];
-    const scheduled = await scheduleNutritionSeries({
-      startDate,
-      weekdays,
-      weeks: Math.min(52, Math.max(1, Math.round(weeks))),
-      planId: result.planId,
-    });
-    if (scheduled?.error) {
-      return { error: `Plan saved, but scheduling failed: ${scheduled.error}` };
+    const clampedWeeks = Math.min(52, Math.max(1, Math.round(weeks)));
+    if (result.menuPlanIds.length > 1) {
+      const dates = generateRecurringScheduleDates(
+        new Date(startDate + "T12:00:00"),
+        weekdays,
+        clampedWeeks
+      );
+      for (let k = 0; k < result.menuPlanIds.length; k++) {
+        const menuDates = dates.filter(
+          (_, i) => menuIndexForDate(i, result.menuPlanIds.length) === k
+        );
+        if (!menuDates.length) continue;
+        const scheduled = await scheduleNutritionDays(result.menuPlanIds[k]!, menuDates);
+        if ("error" in scheduled && scheduled.error) {
+          return { error: `Plan saved, but scheduling failed: ${scheduled.error}` };
+        }
+        scheduledCount += "count" in scheduled ? (scheduled.count as number) : 0;
+      }
+    } else {
+      const scheduled = await scheduleNutritionSeries({
+        startDate,
+        weekdays,
+        weeks: clampedWeeks,
+        planId: result.planId,
+      });
+      if (scheduled?.error) {
+        return { error: `Plan saved, but scheduling failed: ${scheduled.error}` };
+      }
+      scheduledCount = "count" in scheduled ? (scheduled.count as number) : 0;
     }
-    scheduledCount = "count" in scheduled ? (scheduled.count as number) : 0;
   }
 
   return {
     planId: result.planId,
-    editPath: `/dashboard/nutrition/${result.planId}/edit`,
+    editPath: result.folderId
+      ? `/dashboard/nutrition/folder/${result.folderId}`
+      : `/dashboard/nutrition/${result.planId}/edit`,
     scheduledCount,
     weeks,
   };

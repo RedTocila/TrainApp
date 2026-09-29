@@ -14,20 +14,28 @@ import type {
   AiGeneratedWorkoutPlan,
   AiWorkoutExercise,
 } from "@/lib/ai/plan-builder-types";
-import type { WorkoutRequirements } from "@/lib/ai/workout-requirements";
+import {
+  exerciseFilterFromRequirements,
+  type WorkoutRequirements,
+} from "@/lib/ai/workout-requirements";
 import {
   canonicalizeAiExerciseName,
   findCatalogExercise,
-  getCatalogExercises,
 } from "@/lib/exercise-catalog";
-import {
-  exerciseAllowedByConstraint,
-  filterCatalogByEquipment,
-} from "@/lib/ai/equipment-taxonomy";
+import { exerciseAllowedByConstraint } from "@/lib/ai/equipment-taxonomy";
+import { exerciseRejection, pickAlternative } from "@/lib/ai/exercise-knowledge";
+import { getExerciseProfile } from "@/lib/ai/exercise-profile";
 import type { HiitConfig } from "@/lib/hiit";
 
 export type RequirementRepair = {
-  type: "removed_excluded" | "injected_required" | "replaced_excluded";
+  type:
+    | "removed_excluded"
+    | "injected_required"
+    | "replaced_excluded"
+    | "replaced_violation"
+    | "removed_violation"
+    | "removed_duplicate"
+    | "clamped_volume";
   from?: string;
   to?: string;
   detail: string;
@@ -57,34 +65,47 @@ function isExcludedName(
   return false;
 }
 
+/** Pattern-aware replacement that satisfies every hard requirement. */
 function findNonExcludedReplacement(
   originalName: string,
   requirements: WorkoutRequirements,
-  used: Set<string>
+  used: Set<string>,
+  options?: { avoidSameFamily?: boolean }
 ): string | null {
-  const equipment = requirements.equipment;
-  const allowed = filterCatalogByEquipment(
-    getCatalogExercises(),
-    equipment
-  ).filter((ex) => !isExcludedName(ex.name, requirements));
+  const original =
+    findCatalogExercise(originalName) ??
+    findCatalogExercise(originalName, { equipment: requirements.equipment });
+  const pick = pickAlternative(original ?? originalName, {
+    filter: exerciseFilterFromRequirements(requirements),
+    usedNames: used,
+    avoidSameFamily: options?.avoidSameFamily ?? false,
+    preferGroups: requirements.focusGroups,
+  });
+  if (!pick || isExcludedName(pick.name, requirements)) return null;
+  return pick.name;
+}
 
-  const original = findCatalogExercise(originalName, { equipment });
-  const muscle =
-    original?.primary_muscles[0] ?? original?.body_parts[0] ?? null;
-
-  const pool = muscle
-    ? allowed.filter(
-        (ex) =>
-          ex.primary_muscles.includes(muscle) ||
-          ex.body_parts.includes(muscle)
-      )
-    : allowed;
-
-  const candidates = (pool.length > 0 ? pool : allowed).filter(
-    (ex) => !used.has(ex.name.toLowerCase())
+function requiredNameSet(requirements: WorkoutRequirements): Set<string> {
+  return new Set(
+    requirements.requiredExercises
+      .map((r) => r.catalogName?.toLowerCase())
+      .filter(Boolean) as string[]
   );
-  if (candidates.length === 0) return null;
-  return [...candidates].sort((a, b) => a.name.localeCompare(b.name))[0]!.name;
+}
+
+/** Stable reorder: compound lifts before accessories (skips mixed mobility lists). */
+function orderCompoundsFirst<T extends { name: string }>(list: T[]): T[] {
+  if (list.length < 3) return list;
+  const profiles = list.map((ex) => {
+    const cat = findCatalogExercise(ex.name);
+    return cat ? getExerciseProfile(cat) : null;
+  });
+  if (profiles.some((p) => p?.isMobility || p?.pattern === "plyometric" || p?.pattern === "cardio")) {
+    return list;
+  }
+  const compound = list.filter((_, i) => profiles[i]?.isCompound);
+  const rest = list.filter((_, i) => !profiles[i]?.isCompound);
+  return [...compound, ...rest];
 }
 
 function defaultSetsForDifficulty(
@@ -108,16 +129,47 @@ function enforceOnNamedList<T extends { name: string }>(
   const repairs: RequirementRepair[] = [];
   const used = new Set<string>();
   const result: T[] = [];
+  const filter = exerciseFilterFromRequirements(requirements);
+  const required = requiredNameSet(requirements);
 
   for (const ex of exercises) {
     const canon = canonicalizeAiExerciseName(ex.name, {
       equipment: requirements.equipment,
     });
+    const lowerCanon = canon.toLowerCase();
+    if (used.has(lowerCanon)) {
+      repairs.push({ type: "removed_duplicate", from: ex.name, detail: "duplicate_in_session" });
+      continue;
+    }
+    const catalog = findCatalogExercise(canon);
+    const rejection =
+      catalog && !required.has(lowerCanon) ? exerciseRejection(catalog, filter) : null;
+    if (rejection && rejection.code !== "excluded_family" && rejection.code !== "excluded_name") {
+      const replacement = findNonExcludedReplacement(canon, requirements, used);
+      if (replacement) {
+        repairs.push({
+          type: "replaced_violation",
+          from: ex.name,
+          to: replacement,
+          detail: `${rejection.code}:${rejection.detail}`,
+        });
+        used.add(replacement.toLowerCase());
+        result.push({ ...ex, name: replacement });
+      } else {
+        repairs.push({
+          type: "removed_violation",
+          from: ex.name,
+          detail: `${rejection.code}:${rejection.detail}`,
+        });
+      }
+      continue;
+    }
     if (isExcludedName(canon, requirements) || isExcludedName(ex.name, requirements)) {
       const replacement = findNonExcludedReplacement(
         canon,
         requirements,
-        used
+        used,
+        { avoidSameFamily: true }
       );
       if (replacement) {
         repairs.push({
@@ -192,18 +244,33 @@ function enforceOnNamedList<T extends { name: string }>(
   return { value: result, repairs };
 }
 
+const BEGINNER_MAX_SETS = 4;
+
 export function enforceRequirementsOnExercises(
   exercises: AiWorkoutExercise[],
   requirements: WorkoutRequirements
 ): RequirementsEnforceResult<AiWorkoutExercise[]> {
   const defaults = defaultSetsForDifficulty(requirements.difficulty);
-  return enforceOnNamedList(exercises, requirements, (name, template) => ({
+  const enforced = enforceOnNamedList(exercises, requirements, (name, template) => ({
     name,
     sets: template?.sets ?? defaults.sets,
     reps: template?.reps ?? defaults.reps,
     rest_seconds: template?.rest_seconds ?? defaults.rest_seconds,
     notes: template?.notes,
   }));
+  let value = enforced.value;
+  if (requirements.experience === "beginner" && requirements.difficultySource !== "request") {
+    value = value.map((ex) => {
+      if (ex.sets <= BEGINNER_MAX_SETS) return ex;
+      enforced.repairs.push({
+        type: "clamped_volume",
+        from: ex.name,
+        detail: `sets ${ex.sets}→${BEGINNER_MAX_SETS} (beginner)`,
+      });
+      return { ...ex, sets: BEGINNER_MAX_SETS };
+    });
+  }
+  return { value: orderCompoundsFirst(value), repairs: enforced.repairs };
 }
 
 export function enforceRequirementsOnHiitConfig(

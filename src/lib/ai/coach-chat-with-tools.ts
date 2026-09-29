@@ -6,6 +6,7 @@ import {
   type CoachChatToolEvent,
 } from "@/lib/ai/coach-chat-tools";
 import type { CoachChatRichBlock } from "@/lib/ai/coach-chat-block-types";
+import type { CoachChatContext } from "@/lib/ai/coach-chat-context";
 import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import { getOpenAIClient } from "@/lib/ai/providers";
 import type { ChatTurn } from "@/lib/ai/types";
@@ -66,6 +67,7 @@ export async function runCoachChatWithTools(
     onToken?: (text: string) => void;
     mode?: CoachChatMode;
     timezoneOffsetMinutes?: number;
+    chatContext?: CoachChatContext | null;
   }
 ): Promise<{
   reply: string;
@@ -165,7 +167,8 @@ export async function runCoachChatWithTools(
           onEvent,
           mode,
           latestUserMessage,
-          options?.timezoneOffsetMinutes
+          options?.timezoneOffsetMinutes,
+          options?.chatContext
         );
         if (preview) planPreview = preview;
         if (blocks?.length) richBlocks.push(...blocks);

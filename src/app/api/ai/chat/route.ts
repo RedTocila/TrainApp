@@ -5,6 +5,7 @@ import {
   runCoachChatWithTools,
 } from "@/lib/ai/coach-chat-with-tools";
 import { TOOL_STATUS_LABELS, parseCoachChatMode } from "@/lib/ai/coach-chat-tools";
+import { extractCoachChatContext } from "@/lib/ai/coach-chat-context";
 import { maybeNaturalizeCoachReply } from "@/lib/ai/albanian-naturalize";
 import { streamChatCompletion, getConfiguredProviders } from "@/lib/ai/providers";
 import {
@@ -95,13 +96,15 @@ export async function POST(request: Request) {
   const preferredLocale = (profile as Profile).preferred_locale;
   const isAlbanian = preferredLocale === "al";
 
+  const chatContext = extractCoachChatContext(history, message);
   const prepared = await prepareFitnessCoachChatWithSearch(
     user.id,
     message,
     history,
     preferredLocale,
     image,
-    coachMode
+    coachMode,
+    chatContext
   );
   if ("error" in prepared) {
     return Response.json({ error: prepared.error }, { status: 400 });
@@ -161,7 +164,14 @@ export async function POST(request: Request) {
                 enqueue({ navigate: event.href });
               }
             },
-            { maxTokens: 900, signal: request.signal, onToken, mode: coachMode, timezoneOffsetMinutes }
+            {
+              maxTokens: 900,
+              signal: request.signal,
+              onToken,
+              mode: coachMode,
+              timezoneOffsetMinutes,
+              chatContext,
+            }
           );
 
           reply = result.reply;

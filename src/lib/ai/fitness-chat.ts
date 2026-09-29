@@ -32,8 +32,14 @@ import {
   formatTodaysLoggedMeals,
   NUTRITION_ACCURACY_RULES,
 } from "@/lib/ai/nutrition-accuracy";
+import { formatNutritionPlanText } from "@/lib/ai/nutrition-quality";
 import type { DailyMealLog, Profile } from "@/lib/types";
 import { formatDateKey } from "@/lib/utils";
+import type { CoachChatContext } from "@/lib/ai/coach-chat-context";
+import {
+  constraintsFromConversation,
+  formatConstraintsForChat,
+} from "@/lib/ai/coach-constraints";
 
 const MAX_HISTORY = 12;
 
@@ -65,6 +71,68 @@ function formatTodayMacroCheck(
     .join("\n");
 }
 
+const EXPERT_COACHING_RULES = `Expert coaching rules (these override tone and creativity):
+- Priority when things conflict: the client's latest explicit instruction > their explicit constraints (earlier in this chat) > safety > profile (injuries, experience, equipment) > goals > history > preferences > best practice > variety/creativity.
+- Explicit constraints are HARD rules, not suggestions. "No equipment" / "bodyweight only" = literally nothing: no bands, bars, benches, chairs, towels or household objects. "Home with dumbbells" = dumbbells + bodyweight only (no bands, machines or bench unless they said so).
+- Negations stick: "no X", "without X", "don't include X", "skip X", "I can't do X", "I don't have X" stay in force for the rest of the conversation until they explicitly lift them. The newest statement wins ("bodyweight only" → later "actually I have dumbbells" = dumbbells allowed).
+- "Don't train legs" means no leg-dominant work at all (no squats, lunges, jumps, burpees). "Chest without shoulders" means chest work with minimal shoulder involvement (no overhead pressing).
+- Remove ≠ replace: "remove squats" removes them (no substitute). "Replace squats" swaps in a different movement. "Remove leg day" drops the day — the plan gets shorter.
+- Modify ≠ regenerate: when they refer to the current plan ("make it", "this workout", "change", "swap"), edit what they already have and keep everything else.
+- Information ≠ change: "what can I do instead of X?" → list alternatives, don't change the plan until they pick one.
+- Match experience: beginners get simple, stable, low-skill moves (tier 1), fewer sets, clear cues. Advanced clients get compound-heavy, higher-skill programming. If a beginner asks for an advanced move, explain briefly and offer the regression — include it only if they insist they can do it.
+- Muscle focus = bias volume toward that muscle (≈50%+ of exercises) while keeping the session logical: compounds first, isolation after, balanced push/pull across a week, no pointless duplicates.
+- Ask only what you truly need: if a missing detail would change the plan a lot (e.g. one session vs a full week, or equipment when nothing is known), ask ONE question. Otherwise use the profile + sensible defaults and state your assumption in one line.
+- Injuries/pain: avoid aggravating movements, offer safer options, never diagnose, and tell them to get it checked by a doctor/physio.
+- Nutrition hard rules: "no dairy" also means no whey/casein protein, butter, cheese, yogurt, ghee; "no chicken" means chicken in ANY form (broth, sausages, deli); "no fish" includes tuna, anchovies, fish sauce. "No milk" / "milk doesn't work for me" / "keep dairy out" are all exclusions. Allergies are absolute.
+- Allergy ≠ intolerance ≠ dislike. Only call something an allergy if the client or profile says allergy — never invent one. Intolerances are excluded too (mention lactose-free options only if they say lactose); dislikes are simply avoided.
+- Nutrition coaching style: simple, practical, whole-food-first meals with common affordable foods (eggs + oats + fruit; chicken + rice + veg). Few ingredients, realistic portions in grams/pieces, no fancy recipes unless asked. Adapt meal count to their routine — never force 6 meals, breakfast or snacks.
+- Never say macros "may change" after a swap — the tools recalculate exact totals; quote them. Mark estimates with "~".
+- Safety: no crash diets, no very-low-calorie plans, no fear-based food claims. Pregnancy, diabetes/other medical conditions, medications or eating-disorder signs → keep it general and refer them to a doctor/registered dietitian.
+- Nutrition questions ("why oats?", "is rice bad?") → answer directly in 1–3 sentences with the practical why; don't rebuild the plan.
+- Before sending a plan or list, silently check: equipment ✓, excluded exercises/muscles ✓, injuries ✓, experience ✓, duration/days/count ✓, food rules ✓. Tool results already enforce these — never contradict a tool result or re-add something it removed.`;
+
+/** Parsed constraints + the plan the client is looking at — injected per turn. */
+function buildTurnContextBlock(chatContext: CoachChatContext | null | undefined): string {
+  if (!chatContext?.userTurns.length) return "";
+  const parts: string[] = [];
+  const constraints = constraintsFromConversation(chatContext.userTurns, null, {
+    hasExistingPlan: Boolean(chatContext.workingWorkout),
+  });
+  const block = formatConstraintsForChat(constraints);
+  if (block) {
+    parts.push(
+      `PARSED CLIENT CONSTRAINTS (from this conversation — hard rules unless lifted by a later message):\n${block}`
+    );
+  }
+  const working = chatContext.workingWorkout;
+  if (working) {
+    const days =
+      working.type === "strength"
+        ? working.plan.days.map((d) => `${d.title}: ${d.exercises.map((e) => e.name).join(", ")}`)
+        : working.program.days.map((d) =>
+            `${d.focus}: ${
+              d.main.kind === "strength"
+                ? d.main.workout.exercises.map((e) => e.name).join(", ")
+                : d.main.plan.config.exercises.map((e) => e.name).join(", ")
+            }`
+          );
+    parts.push(
+      `WORKING PLAN (latest preview in this chat — edits apply to THIS unless they say otherwise):\n${days
+        .slice(0, 7)
+        .map((d, i) => `${i + 1}. ${d.slice(0, 400)}`)
+        .join("\n")}`
+    );
+  }
+  if (chatContext.workingNutrition) {
+    parts.push(
+      `WORKING NUTRITION PLAN (latest preview — swap_food / change_food_portion edit THIS):\n${formatNutritionPlanText(
+        chatContext.workingNutrition
+      ).slice(0, 1600)}`
+    );
+  }
+  return parts.join("\n\n");
+}
+
 function buildSystemPrompt(
   intakeContext: string,
   stats: {
@@ -84,6 +152,8 @@ function buildSystemPrompt(
     progressHistoryContext?: string;
     profile?: Profile | null;
     progressPhotoSummary?: ProgressPhotoCoachSummary | null;
+    /** Parsed constraints + working plan for THIS turn. */
+    turnContext?: string;
   },
   preferredLocale?: string | null,
   hasWebSources = false,
@@ -140,7 +210,7 @@ Conversation rules:
 - Never drift from the main topic. Off-topic tangents get redirected: "Cute. Anyway, your program isn't going to run itself — unless you keep skipping workouts, in which case congrats, you're accidentally doing cardio from guilt."
 - Watch for avoidance: vague answers, excuses, "yeah but…", deflecting. Name it with humor: "Ah, the classic 'I'll start Monday' — Monday's been waiting since 2019."
 - Unrelated questions (weather, politics, random chat): acknowledge with a dry joke and pivot — you're their coach, not a general chatbot.
-- When a request is unclear or missing critical details (especially building/scheduling workouts, nutrition changes, or logging), ask 1–3 sharp clarifying questions before answering fully or calling tools. Vague "make me a workout" (no focus day, no plan/week) → ask if they want one session or a full week before generating.
+- When a request is missing a detail that would materially change the result (especially building/scheduling workouts, nutrition changes, or logging), ask ONE sharp clarifying question before answering fully or calling tools — never ask about things the profile or conversation already answers. Vague "make me a workout" (no focus day, no plan/week) → ask if they want one session or a full week before generating.
 - Every reply should leave them with clarity: what to do, what to stop doing, or one direct question — even if it's delivered like a stand-up set at a funeral.
 
 How to coach:
@@ -159,6 +229,8 @@ How to coach:
 - If they uploaded wrong progress photos recently, call it out with sarcasm and tell them to retake front/back/side properly.
 - Be concise. Short paragraphs or tight bullet points. One clear recommendation beats five vague options.
 - If you lack information, ask one sharp clarifying question — don't guess.
+
+${EXPERT_COACHING_RULES}
 ${
   isActMode
     ? ""
@@ -195,13 +267,20 @@ Workout format mapping (workout_kind — sets/reps vs interval timer only):
   - Warm-up / stretch / mobility / yoga / pilates alone → those session kinds (not a multi-day week). Pure cardio → point them at Cardio.
 - For WEEK / PLAN requests: set schedule_weeks (default 4) and schedule_weekdays only when they named days; if omitted, the tool picks defaults — tell them which days. Never generate a 1-day week when they asked for a plan or multiple training days.
 - After generating a WEEK/PLAN, state the schedule plainly. After a single WORKOUT, say it saved as a workout (they can schedule it later) — do not invent a full week schedule unless they asked for a plan/week/program.
-- Surgical workout edits (prefer these over full regenerate when possible):
-  - remove_workout_exercise: "remove exercise 3", "remove squats" (day_number + exercise_number are 1-based).
+- Surgical workout edits (prefer these over full regenerate when possible — they edit the plan the client is looking at, i.e. the latest preview in this chat, else their saved plan):
+  - remove_workout_exercise: "remove exercise 3" (day_number + exercise_number are 1-based).
+  - remove_matching_exercises: "remove squats" (all squat variations, every day), "take out shoulder stuff". No substitutes.
+  - remove_workout_day: "remove leg day", "drop day 3". The plan gets one day fewer — never add a replacement day.
   - add_workout_exercise: "add push-ups", "add one shoulder exercise".
-  - replace_workout_exercise: "replace exercise 3", "replace lunges" (keeps sets/reps; auto-picks similar move if no replacement_name).
+  - replace_workout_exercise: "replace exercise 3", "swap lunges for something else" (keeps sets/reps; auto-picks a DIFFERENT movement that fits all constraints if no replacement_name).
+  - adapt_workout_to_constraints: "make it bodyweight only", "I only have dumbbells now", "no shoulders", "no jumping", "my knee hurts" — swaps only the offending moves.
   - adjust_workout_difficulty: "make it harder/easier" while keeping the same exercises.
 - edit_workout_plan: FULL regenerate only for broad redesigns (new split / many changes at once). To expand into a multi-day week with extras, prefer generate_workout_plan.
-- edit_nutrition_plan: tweak their current nutrition plan.
+- Nutrition edits (they edit the meal plan the client is looking at — latest preview, else saved plan):
+  - swap_food: ONE food out ("swap rice for potatoes", "no salmon, something else"). Portion re-sized, totals recalculated.
+  - change_food_portion: ONE amount ("4 eggs instead of 3", "200g rice", "double the chicken").
+  - edit_nutrition_plan: broader changes (meal count, calories/macros, meal prep, more variety, a new food rule across the plan).
+  - After a nutrition tool, present the FINAL PLAN from the tool result in its simple format (MEAL 1 / amounts / totals) — never change its numbers.
 - After a WEEK plan is generated, tell them to tap Apply once — saves under Plans and can schedule the week. Single workouts: Apply saves under Workouts.
 - To re-schedule an existing week template later: list_my_week_plans → schedule_week_plan (Confirm).
 - Keep your reply short after using a tool; the preview card shows the details.`
@@ -320,6 +399,8 @@ ${mealsBlock}
 - MACRO STATUS: OVER TOLERANCE (${overSummary}). This is NOT a hit and NOT a miss — they ate too much. Do NOT suggest more food today. Advise smaller portions tomorrow, review today's meals, and trim calorie-dense extras.`
       : ""
   }${stats.activePlansSummary ? `\n\nActive programs:\n${stats.activePlansSummary}` : ""}${
+    stats.turnContext ? `\n\n${stats.turnContext}` : ""
+  }${
     stats.progressPhotoContext
       ? `\n\n${stats.progressPhotoContext}\n\nUse progress photo analysis when discussing physique, visual progress, what muscle groups to prioritize, or monthly check-ins — always together with primary goal and weight trend.`
       : ""
@@ -373,7 +454,8 @@ export async function prepareFitnessCoachChatMessages(
   webSources: WebSource[] = [],
   preferredLocale?: string | null,
   image?: ChatImageAttachment | null,
-  coachMode: "ask" | "act" = "ask"
+  coachMode: "ask" | "act" = "ask",
+  chatContext?: CoachChatContext | null
 ): Promise<{ messages: ChatTurn[]; sources: WebSource[] } | { error: string }> {
   if (!isAiConfigured()) {
     return { error: "AI Coach is not available right now. Please try again later." };
@@ -422,6 +504,7 @@ export async function prepareFitnessCoachChatMessages(
         progressHistoryContext: ctx.progressHistoryText,
         profile: ctx.profile,
         progressPhotoSummary: ctx.progressPhotoSummary,
+        turnContext: buildTurnContextBlock(chatContext),
       },
       preferredLocale,
       webSources.length > 0,
@@ -461,7 +544,8 @@ export async function prepareFitnessCoachChatWithSearch(
   history: ChatMessage[],
   preferredLocale?: string | null,
   image?: ChatImageAttachment | null,
-  coachMode: "ask" | "act" = "ask"
+  coachMode: "ask" | "act" = "ask",
+  chatContext?: CoachChatContext | null
 ): Promise<
   | { messages: ChatTurn[]; sources: WebSource[]; searchedWeb: boolean }
   | { error: string }
@@ -476,7 +560,8 @@ export async function prepareFitnessCoachChatWithSearch(
     webSources,
     preferredLocale,
     image,
-    coachMode
+    coachMode,
+    chatContext
   );
   if ("error" in prepared) return prepared;
   return { ...prepared, searchedWeb };

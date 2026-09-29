@@ -48,6 +48,13 @@ export interface AiGeneratedWorkoutDay {
   coach_notes: string[];
 }
 
+export interface AiNutritionIngredient {
+  name: string;
+  amount?: string;
+  /** Food-catalog id, so recalculation and swaps work whatever the display language. */
+  food?: string;
+}
+
 export interface AiNutritionMeal {
   slot: "breakfast" | "snack_1" | "lunch" | "snack_2" | "dinner";
   name: string;
@@ -56,7 +63,26 @@ export interface AiNutritionMeal {
   protein: number;
   carbs: number;
   fat: number;
-  ingredients?: { name: string; amount?: string }[];
+  fiber?: number;
+  /** "calculated" = summed from catalog foods; "estimated" = some foods had no reference data. */
+  macro_source?: "calculated" | "estimated";
+  ingredients?: AiNutritionIngredient[];
+}
+
+export interface AiNutritionTotals {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+}
+
+/** An extra daily menu rotated through the week (Day B, Day C…). */
+export interface AiNutritionDayMenu {
+  label: string;
+  meals: AiNutritionMeal[];
+  daily_totals?: AiNutritionTotals;
+  nutrition_estimated?: boolean;
 }
 
 export interface AiGeneratedNutritionPlan {
@@ -71,4 +97,12 @@ export interface AiGeneratedNutritionPlan {
   meals: AiNutritionMeal[];
   coach_notes: string[];
   grocery_list?: { name: string; amount?: string; category?: string }[];
+  /** Sum of the meals as actually written (always equals the meal values added up). */
+  daily_totals?: AiNutritionTotals;
+  /** True when any meal total is an estimate rather than a catalog calculation. */
+  nutrition_estimated?: boolean;
+  /** Label of the main menu when the plan rotates several (e.g. "Day A"). */
+  day_label?: string;
+  /** Further daily menus; `meals` is the first one. The grocery list covers all of them. */
+  day_variants?: AiNutritionDayMenu[];
 }

@@ -8,6 +8,7 @@ import {
 import {
   CATALOG_EQUIPMENT,
   exerciseAllowedByConstraint,
+  isUnrestricted,
   type EquipmentConstraint,
 } from "@/lib/ai/equipment-taxonomy";
 
@@ -274,7 +275,7 @@ function resolveAliasTarget(
     return bodyweightAlias;
   }
 
-  if (gymAlias && equipment?.allowedTags) {
+  if (gymAlias && equipment && !isUnrestricted(equipment)) {
     const gymTarget = catalogByName.get(normalizeExerciseName(gymAlias));
     if (gymTarget && exerciseAllowedByConstraint(gymTarget, equipment)) {
       return gymAlias;
@@ -290,7 +291,7 @@ function isAllowedExercise(
   exercise: CatalogExercise,
   equipment?: EquipmentConstraint | null
 ): boolean {
-  if (!equipment?.allowedTags) return true;
+  if (!equipment || isUnrestricted(equipment)) return true;
   return exerciseAllowedByConstraint(exercise, equipment);
 }
 
@@ -439,7 +440,7 @@ export function searchCatalogExercises({
   const q = query.trim().toLowerCase();
 
   return data.exercises.filter((ex) => {
-    if (equipmentConstraint?.allowedTags) {
+    if (equipmentConstraint && !isUnrestricted(equipmentConstraint)) {
       if (!exerciseAllowedByConstraint(ex, equipmentConstraint)) return false;
     }
     if (category && ex.category !== category && !ex.body_parts.includes(category)) {

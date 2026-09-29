@@ -1,15 +1,31 @@
 /**
  * Equipment taxonomy + constraint resolution for AI workout generation.
  *
- * Catalog equipment tags (ExerciseDB) are the source of truth. Intake values
- * and free-text user requests are mapped onto allowlists of those tags.
- * Unrestricted mode (full gym) skips filtering.
+ * Catalog equipment tags (ExerciseDB) are the base vocabulary; exercise
+ * profiles add hidden requirements the catalog misses (a "body weight" pull-up
+ * still needs a bar, bench dips need a bench/chair, "monster walk" needs a band).
+ *
+ * A constraint = allowlist of catalog tags (null = any tag) + forbidden tags +
+ * available props. Intake sets the baseline; explicit request text (and later
+ * conversation turns) override it via composable directives — latest wins.
  */
 
 import type { CatalogExercise } from "@/lib/exercise-catalog";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 import { profileToResponses } from "@/lib/intake-questionnaire";
 import type { Profile } from "@/lib/types";
+import {
+  ALL_EXERCISE_PROPS,
+  PROP_LABELS,
+  getExerciseProfile,
+  propRequirementsSatisfied,
+  type ExerciseProp,
+} from "@/lib/ai/exercise-profile";
+import {
+  normalizeUserText,
+  parseConstraintText,
+  splitTargetList,
+} from "@/lib/ai/constraint-language";
 
 /** Canonical catalog equipment tags used in allowlists. */
 export const CATALOG_EQUIPMENT = {
@@ -99,17 +115,6 @@ const HOME_WEIGHTS = new Set<string>([
   CATALOG_EQUIPMENT.WHEEL_ROLLER,
 ]);
 
-const BANDS_ONLY = new Set<string>([
-  CATALOG_EQUIPMENT.BODY_WEIGHT,
-  CATALOG_EQUIPMENT.BAND,
-  CATALOG_EQUIPMENT.RESISTANCE_BAND,
-]);
-
-const DUMBBELLS_ONLY = new Set<string>([
-  CATALOG_EQUIPMENT.BODY_WEIGHT,
-  CATALOG_EQUIPMENT.DUMBBELL,
-]);
-
 const OUTDOOR = new Set<string>([
   CATALOG_EQUIPMENT.BODY_WEIGHT,
   CATALOG_EQUIPMENT.MEDICINE_BALL,
@@ -133,19 +138,68 @@ const GYM_MACHINES = new Set<string>([
   CATALOG_EQUIPMENT.UPPER_BODY_ERGOMETER,
 ]);
 
+const BARBELL_TAGS = [
+  CATALOG_EQUIPMENT.BARBELL,
+  CATALOG_EQUIPMENT.EZ_BARBELL,
+  CATALOG_EQUIPMENT.OLYMPIC_BARBELL,
+  CATALOG_EQUIPMENT.TRAP_BAR,
+];
+
+const BAND_TAGS = [CATALOG_EQUIPMENT.BAND, CATALOG_EQUIPMENT.RESISTANCE_BAND];
+
+/** "Weights" in casual speech = any external load. */
+const WEIGHT_TAGS = [
+  CATALOG_EQUIPMENT.DUMBBELL,
+  CATALOG_EQUIPMENT.KETTLEBELL,
+  ...BARBELL_TAGS,
+  CATALOG_EQUIPMENT.WEIGHTED,
+  CATALOG_EQUIPMENT.MEDICINE_BALL,
+];
+
+/** Tags only found in a commercial gym. */
+const GYM_ONLY_TAGS = [...GYM_MACHINES, ...BARBELL_TAGS, CATALOG_EQUIPMENT.HAMMER, CATALOG_EQUIPMENT.TIRE];
+
+/** Props assumed in a full gym (a partner is never assumed). */
+const FULL_GYM_PROPS: ReadonlySet<ExerciseProp> = new Set(
+  ALL_EXERCISE_PROPS.filter((p) => p !== "partner")
+);
+const OUTDOOR_PROPS: ReadonlySet<ExerciseProp> = new Set<ExerciseProp>([
+  "wall",
+  "pull_up_bar",
+  "dip_station",
+  "bench",
+  "low_bar",
+  "box_step",
+]);
+const NO_PROPS: ReadonlySet<ExerciseProp> = new Set<ExerciseProp>(["wall"]);
+
 export type EquipmentConstraintSource = "intake" | "request" | "merged" | "default";
 
 export type EquipmentConstraint = {
-  /** null allowedTags = unrestricted (full gym / no filter). */
+  /** null allowedTags = any catalog tag (full gym). */
   allowedTags: ReadonlySet<string> | null;
   promptRule: string;
   source: EquipmentConstraintSource;
   /** Short label for logs / debugging. */
   label: string;
+  /** Non-catalog props available (bar, bench, chair…). Omitted = derived default. */
+  allowedProps?: ReadonlySet<ExerciseProp>;
+  /** Tags that are never allowed even when allowedTags is null ("no bands"). */
+  forbiddenTags?: ReadonlySet<string>;
 };
 
+/** Props available under a constraint (explicit or derived from its tags). */
+export function constraintProps(constraint: EquipmentConstraint): ReadonlySet<ExerciseProp> {
+  if (constraint.allowedProps) return constraint.allowedProps;
+  return constraint.allowedTags === null ? FULL_GYM_PROPS : NO_PROPS;
+}
+
+/** True when nothing is filtered (full gym, no forbidden tags, all gym props). */
 export function isUnrestricted(constraint: EquipmentConstraint): boolean {
-  return constraint.allowedTags === null;
+  if (constraint.allowedTags !== null) return false;
+  if (constraint.forbiddenTags && constraint.forbiddenTags.size > 0) return false;
+  const props = constraintProps(constraint);
+  return [...FULL_GYM_PROPS].every((p) => props.has(p));
 }
 
 export function isBodyweightOnlyConstraint(
@@ -156,31 +210,65 @@ export function isBodyweightOnlyConstraint(
   return constraint.allowedTags.has(CATALOG_EQUIPMENT.BODY_WEIGHT);
 }
 
-/** Tags an exercise effectively requires (empty → body weight). */
+/** Strict "no equipment": bodyweight tags AND no props beyond a wall/floor. */
+export function isStrictBodyweightConstraint(constraint: EquipmentConstraint): boolean {
+  if (!isBodyweightOnlyConstraint(constraint)) return false;
+  const props = constraintProps(constraint);
+  return [...props].every((p) => p === "wall");
+}
+
+/** Tags an exercise effectively requires (catalog + implied; empty → body weight). */
 export function exerciseEquipmentTags(exercise: CatalogExercise): string[] {
-  if (!exercise.equipment.length) return [CATALOG_EQUIPMENT.BODY_WEIGHT];
-  return exercise.equipment.map(normalizeEquipmentTag);
+  const profile = getExerciseProfile(exercise);
+  const tags = profile.effectiveEquipmentTags.map(normalizeEquipmentTag);
+  return tags.length ? tags : [CATALOG_EQUIPMENT.BODY_WEIGHT];
 }
 
 /**
- * Every required equipment tag must be in the allowlist.
- * Unrestricted constraints always pass.
+ * Exercise passes when every effective tag is allowed, none is forbidden, and
+ * every hidden prop requirement (bar, bench, chair…) is available.
  */
 export function exerciseAllowedByConstraint(
   exercise: CatalogExercise,
   constraint: EquipmentConstraint
 ): boolean {
-  if (!constraint.allowedTags) return true;
-  return exerciseEquipmentTags(exercise).every((tag) =>
-    constraint.allowedTags!.has(tag)
-  );
+  return equipmentViolationReason(exercise, constraint) === null;
+}
+
+/** Human-readable reason an exercise breaks the constraint (null = allowed). */
+export function equipmentViolationReason(
+  exercise: CatalogExercise,
+  constraint: EquipmentConstraint
+): string | null {
+  const tags = exerciseEquipmentTags(exercise);
+  const forbidden = constraint.forbiddenTags;
+  if (forbidden) {
+    const bad = tags.find((t) => forbidden.has(t));
+    if (bad) return `uses ${bad} (excluded)`;
+  }
+  if (constraint.allowedTags) {
+    const bad = tags.find((t) => !constraint.allowedTags!.has(t));
+    if (bad) return `needs ${bad}`;
+  }
+  const profile = getExerciseProfile(exercise);
+  if (profile.propRequirements.length > 0) {
+    const props = constraintProps(constraint);
+    if (!propRequirementsSatisfied(profile, props)) {
+      const missing = profile.propRequirements
+        .filter((g) => !g.some((p) => p === "wall" || props.has(p)))
+        .map((g) => g.map((p) => PROP_LABELS[p]).join(" or "))
+        .join(" + ");
+      return `needs ${missing}`;
+    }
+  }
+  return null;
 }
 
 export function filterCatalogByEquipment(
   exercises: CatalogExercise[],
   constraint: EquipmentConstraint
 ): CatalogExercise[] {
-  if (!constraint.allowedTags) return exercises;
+  if (isUnrestricted(constraint)) return exercises;
   return exercises.filter((ex) => exerciseAllowedByConstraint(ex, constraint));
 }
 
@@ -188,9 +276,16 @@ function constraintFromTags(
   tags: ReadonlySet<string> | null,
   promptRule: string,
   label: string,
-  source: EquipmentConstraintSource
+  source: EquipmentConstraintSource,
+  props?: ReadonlySet<ExerciseProp>
 ): EquipmentConstraint {
-  return { allowedTags: tags, promptRule, label, source };
+  return {
+    allowedTags: tags,
+    promptRule,
+    label,
+    source,
+    ...(props ? { allowedProps: props } : {}),
+  };
 }
 
 /** Map intake questionnaire equipment_access → constraint. */
@@ -204,25 +299,31 @@ export function equipmentConstraintFromIntakeAccess(
   if (has("full_gym")) {
     return constraintFromTags(
       null,
-      "Client has full gym access — barbells, machines, cables, and free weights are allowed.",
+      "Client has full gym access — barbells, machines, cables, benches, racks, and free weights are allowed.",
       "full_gym",
-      source
+      source,
+      FULL_GYM_PROPS
     );
   }
   if (has("home_dumbbells")) {
+    const props = new Set<ExerciseProp>(NO_PROPS);
+    if (has("bench")) props.add("bench");
+    if (has("pull_up_bar")) props.add("pull_up_bar");
     return constraintFromTags(
       HOME_WEIGHTS,
-      "HARD CONSTRAINT: Home weights only. Allowed catalog equipment: body weight, dumbbell, kettlebell, band/resistance band, medicine/stability ball. NO barbells, cables, smith, sled, or leverage machines.",
+      "HARD CONSTRAINT: Home weights only. Allowed catalog equipment: body weight, dumbbell, kettlebell, band/resistance band, medicine/stability ball. NO barbells, cables, smith, sled, or leverage machines. Do not assume a bench, pull-up bar, or dip station unless listed.",
       "home_dumbbells",
-      source
+      source,
+      props
     );
   }
   if (has("outdoor")) {
     return constraintFromTags(
       OUTDOOR,
-      "HARD CONSTRAINT: Outdoor / park setting. Use bodyweight and simple outdoor-friendly moves only. NO gym machines, barbells, cables, or smith machines.",
+      "HARD CONSTRAINT: Outdoor / park setting. Use bodyweight and simple outdoor-friendly moves only (park bars and benches are OK). NO gym machines, barbells, cables, or smith machines.",
       "outdoor",
-      source
+      source,
+      OUTDOOR_PROPS
     );
   }
   if (
@@ -241,15 +342,17 @@ export function equipmentConstraintFromIntakeAccess(
     if (!hasGear) {
       return constraintFromTags(
         BODYWEIGHT_ONLY,
-        "HARD CONSTRAINT: Bodyweight / no-equipment only. Every exercise MUST use catalog equipment \"body weight\" (or empty). NO dumbbells, barbells, cables, machines, bands, benches-as-equipment, or kettlebells.",
+        STRICT_BODYWEIGHT_RULE,
         "bodyweight",
-        source
+        source,
+        NO_PROPS
       );
     }
   }
 
-  // Granular iOS equipment picks → union of allowed catalog tags.
+  // Granular iOS equipment picks → union of allowed catalog tags + props.
   const granularTags = new Set<string>([CATALOG_EQUIPMENT.BODY_WEIGHT]);
+  const granularProps = new Set<ExerciseProp>(NO_PROPS);
   let matchedGranular = false;
   for (const item of equipment) {
     switch (item) {
@@ -264,15 +367,11 @@ export function equipmentConstraintFromIntakeAccess(
       case "resistance_bands":
       case "bands":
         matchedGranular = true;
-        granularTags.add(CATALOG_EQUIPMENT.BAND);
-        granularTags.add(CATALOG_EQUIPMENT.RESISTANCE_BAND);
+        for (const t of BAND_TAGS) granularTags.add(t);
         break;
       case "barbell":
         matchedGranular = true;
-        granularTags.add(CATALOG_EQUIPMENT.BARBELL);
-        granularTags.add(CATALOG_EQUIPMENT.EZ_BARBELL);
-        granularTags.add(CATALOG_EQUIPMENT.OLYMPIC_BARBELL);
-        granularTags.add(CATALOG_EQUIPMENT.TRAP_BAR);
+        for (const t of BARBELL_TAGS) granularTags.add(t);
         break;
       case "cable":
         matchedGranular = true;
@@ -281,11 +380,15 @@ export function equipmentConstraintFromIntakeAccess(
       case "machines":
         matchedGranular = true;
         for (const tag of GYM_MACHINES) granularTags.add(tag);
+        granularProps.add("gym_station");
         break;
       case "bench":
-      case "pull_up_bar":
-        // Bench / pull-up bar don't expand catalog tags beyond bodyweight + listed free weights.
         matchedGranular = true;
+        granularProps.add("bench");
+        break;
+      case "pull_up_bar":
+        matchedGranular = true;
+        granularProps.add("pull_up_bar");
         break;
       default:
         break;
@@ -298,19 +401,412 @@ export function equipmentConstraintFromIntakeAccess(
     );
     return constraintFromTags(
       granularTags,
-      `HARD CONSTRAINT: Only use equipment the client listed (${labels.join(", ") || "bodyweight"}). Bodyweight is always allowed. Do NOT invent machines, barbells, cables, or free weights they did not select.`,
+      `HARD CONSTRAINT: Only use equipment the client listed (${labels.join(", ") || "bodyweight"}). Bodyweight is always allowed. Do NOT invent machines, barbells, cables, benches, bars, or free weights they did not select.`,
       "granular_intake",
-      source
+      source,
+      granularProps
     );
   }
 
   // Unknown combo — be conservative: bodyweight + whatever we can map.
   return constraintFromTags(
     BODYWEIGHT_ONLY,
-    "HARD CONSTRAINT: Only use equipment the client listed; when unsure stay bodyweight-only.",
+    "HARD CONSTRAINT: Only use equipment the client listed; when unsure stay bodyweight-only (floor exercises, no props).",
     "unknown_intake",
-    source
+    source,
+    NO_PROPS
   );
+}
+
+const STRICT_BODYWEIGHT_RULE =
+  "HARD CONSTRAINT: No equipment / bodyweight only. Every exercise MUST be doable on the floor with only the body (a wall is OK). NO dumbbells, barbells, kettlebells, bands, machines, cables, pull-up bars, dip bars, rings/TRX, benches, chairs, boxes/steps, towels, or household objects. That rules out pull-ups, chin-ups, dips (incl. bench/chair dips), inverted rows, hanging leg raises, step-ups, and incline/decline push-ups.";
+
+// ─── Free-text equipment directives ─────────────────────────────────────────
+
+type EquipmentNoun = {
+  re: RegExp;
+  label: string;
+  tags?: readonly string[];
+  props?: readonly ExerciseProp[];
+};
+
+/** Specific nouns first; each match consumes its text. */
+const EQUIPMENT_NOUNS: EquipmentNoun[] = [
+  { re: /\bsmith(?: machine)?\b/, label: "smith machine", tags: [CATALOG_EQUIPMENT.SMITH_MACHINE] },
+  { re: /\bcable(?:s| machine| station)?\b/, label: "cables", tags: [CATALOG_EQUIPMENT.CABLE] },
+  { re: /\bmachines?\b/, label: "machines", tags: [...GYM_MACHINES] },
+  { re: /\bmedicine balls?\b|\bmed balls?\b/, label: "medicine ball", tags: [CATALOG_EQUIPMENT.MEDICINE_BALL] },
+  { re: /\b(?:stability|swiss|exercise|yoga|physio) balls?\b/, label: "stability ball", tags: [CATALOG_EQUIPMENT.STABILITY_BALL] },
+  { re: /\bbosu(?: balls?)?\b/, label: "bosu ball", tags: [CATALOG_EQUIPMENT.BOSU_BALL] },
+  { re: /\bweight(?:ed)? vests?\b/, label: "weighted vest", tags: [CATALOG_EQUIPMENT.WEIGHTED] },
+  { re: /\bdumb ?bells?\b|\bdbs?\b|\bhand weights?\b/, label: "dumbbells", tags: [CATALOG_EQUIPMENT.DUMBBELL] },
+  { re: /\bkettle ?bells?\b|\bkbs?\b/, label: "kettlebells", tags: [CATALOG_EQUIPMENT.KETTLEBELL] },
+  { re: /\b(?:resistance |mini |loop |elastic |booty )?bands?\b|\bresistance tubes?\b/, label: "bands", tags: BAND_TAGS },
+  { re: /\bbar ?bells?\b|\bez[\s-]?bars?\b|\btrap bars?\b|\bolympic bars?\b|\bsquat racks?\b|\bpower racks?\b|\bracks?\b/, label: "barbell", tags: BARBELL_TAGS },
+  { re: /\bfree weights?\b|\bweights\b|\bweight plates?\b|\bplates\b/, label: "weights", tags: WEIGHT_TAGS },
+  { re: /\bdip (?:station|bars?)\b|\bparallel bars\b|\bparallettes?\b/, label: "dip station", props: ["dip_station"] },
+  { re: /\bpull[\s-]?up bars?\b|\bchin[\s-]?up bars?\b|\bdoor(?:way)? bars?\b|\bmonkey bars\b|\bbar\b/, label: "pull-up bar", props: ["pull_up_bar"] },
+  { re: /\brings\b|\btrx\b|\bsuspension (?:trainer|straps)\b/, label: "rings / TRX", props: ["rings_suspension"] },
+  { re: /\bbench(?:es)?\b/, label: "bench", props: ["bench"] },
+  { re: /\bchairs?\b|\bcouch\b|\bsofa\b/, label: "chair", props: ["chair"] },
+  { re: /\bplyo box(?:es)?\b|\bboxe?s?\b|\bstep (?:box|platform)\b|\bstairs?\b|\bstaircase\b/, label: "box / step", props: ["box_step"] },
+  { re: /\btowels?\b/, label: "towel", props: ["towel"] },
+  { re: /\bpartner\b|\bspotter\b|\bworkout buddy\b/, label: "partner", props: ["partner"] },
+  { re: /\bfurniture\b|\bhousehold (?:items?|objects?|stuff)\b/, label: "furniture / household objects", props: ["chair", "bench", "box_step", "towel"] },
+];
+
+const STRICT_PHRASE_RE =
+  /\bno[\s-]?equipment\b|\bwithout (?:any )?(?:equipment|gear|weights or (?:anything|equipment))\b|\bzero equipment\b|\bequipment[\s-]?free\b|\bno gear\b|\bnothing but (?:my )?body ?weight\b|\bbody[\s-]?weight[\s-]?only\b|\bonly (?:use )?(?:my )?(?:own )?body[\s-]?weight\b|\bjust (?:my )?(?:own )?body[\s-]?weight\b|\busing (?:only )?(?:my )?(?:own )?body[\s-]?weight\b|\bbody[\s-]?weight (?:workout|session|routine|circuit|training|exercises?|plan|program|moves)\b|\bcalisthenics only\b|\bi (?:don't|do not) have (?:any )?(?:equipment|gear|anything)\b|\bi have no (?:equipment|gear)\b|\b(?:with|have|got|there's|there is) nothing\b|\bnothing at home\b|\bno (?:equipment|gear|weights) at all\b|\bpa pajisje\b|\bme peshen e trupit\b/;
+
+const FULL_GYM_RE =
+  /\bfull gym\b|\bat the gym\b|\bin the gym\b|\bgym (?:workout|session|access|equipment)\b|\bcommercial gym\b|\bi'm at the gym\b|\bi have (?:a )?gym(?: access| membership)?\b|\bi (?:go to|train at) (?:the|a) gym\b|\bi have access to (?:a )?gym\b|\beverything available\b|\ball equipment\b/;
+
+const POSITIVE_TRIGGER_RE =
+  /\b(?:with|using|use|have|has|got|own|access to|bought|only|just|equipment is|equipment:|there's|there is|i've got|plus|and)\s+(?:(?:a|an|some|my|two|2|one|pair of|pairs of|set of|light|heavy|adjustable|few|couple of|of|the|little|small|basic|home|pull[\s-]?up|resistance|mini|loop)\s+)*(?:[a-z-]+\s+(?:and|&|or)\s+(?:a |an |some |my )?|[a-z-]+,\s+(?:a |an |some |my )?)*$/;
+
+/** Text after an equipment noun that makes it part of an exercise name. */
+const EXERCISE_SUFFIX_RE =
+  /^\s*(?:bench )?(?:press|presses|rows?|curls?|flyes?|flys?|raises?|squats?|lunges?|deadlifts?|dips?|pull[\s-]?aparts?|swings?|snatch|cleans?|kickbacks?|extensions?|step[\s-]?ups?|thrusters?|walks?|jumps?|pull[\s-]?ups?|pullovers?|shrugs?|crunch(?:es)?|twists?|slams?)\b/;
+
+const POSITIVE_SUFFIX_RE =
+  /^\s*(?:only|workout|session|routine|circuit|training|exercises|plan|program|at home|are available|is available)\b/;
+
+type DirectiveBase = {
+  /** null = any catalog tag. */
+  tags: ReadonlySet<string> | null;
+  props: ReadonlySet<ExerciseProp> | null;
+  strict: boolean;
+  label: string;
+  description: string;
+};
+
+export type EquipmentDirectives = {
+  base: DirectiveBase | null;
+  addTags: Set<string>;
+  forbidTags: Set<string>;
+  addProps: Set<ExerciseProp>;
+  forbidProps: Set<ExerciseProp>;
+  forbidGym: boolean;
+  /** Human-readable log of what was understood, e.g. "no bands". */
+  notes: string[];
+};
+
+export function emptyEquipmentDirectives(): EquipmentDirectives {
+  return {
+    base: null,
+    addTags: new Set(),
+    forbidTags: new Set(),
+    addProps: new Set(),
+    forbidProps: new Set(),
+    forbidGym: false,
+    notes: [],
+  };
+}
+
+export function hasEquipmentDirectives(d: EquipmentDirectives): boolean {
+  return (
+    d.base !== null ||
+    d.addTags.size > 0 ||
+    d.forbidTags.size > 0 ||
+    d.addProps.size > 0 ||
+    d.forbidProps.size > 0 ||
+    d.forbidGym
+  );
+}
+
+function strictBase(): DirectiveBase {
+  return {
+    tags: BODYWEIGHT_ONLY,
+    props: NO_PROPS,
+    strict: true,
+    label: "request_no_equipment",
+    description: "no equipment (bodyweight only)",
+  };
+}
+
+function nounsIn(text: string): { noun: EquipmentNoun; index: number; length: number }[] {
+  let remaining = text;
+  const out: { noun: EquipmentNoun; index: number; length: number }[] = [];
+  for (const noun of EQUIPMENT_NOUNS) {
+    const re = new RegExp(noun.re.source, "g");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(remaining)) != null) {
+      out.push({ noun, index: m.index, length: m[0].length });
+    }
+    remaining = remaining.replace(new RegExp(noun.re.source, "g"), (s) => " ".repeat(s.length));
+  }
+  return out.sort((a, b) => a.index - b.index);
+}
+
+function labelForExclusiveTags(tags: Set<string>): string {
+  const extra = [...tags].filter((t) => t !== CATALOG_EQUIPMENT.BODY_WEIGHT);
+  if (extra.length === 1 && extra[0] === CATALOG_EQUIPMENT.DUMBBELL) return "request_dumbbells_only";
+  if (extra.length === 1 && extra[0] === CATALOG_EQUIPMENT.KETTLEBELL) return "request_kettlebells_only";
+  if (extra.length > 0 && extra.every((t) => (BAND_TAGS as readonly string[]).includes(t))) {
+    return "request_bands_only";
+  }
+  return "request_custom_equipment";
+}
+
+/**
+ * Parse explicit equipment statements from ONE message.
+ * "no equipment" / "home workout with nothing" → strict bodyweight;
+ * "with dumbbells" / "dumbbells only" → bodyweight + dumbbells (nothing else);
+ * "no bands" → forbid bands; "I have a pull-up bar" → add prop; "no gym" → drop gym gear.
+ */
+export function parseEquipmentDirectives(text: string | null | undefined): EquipmentDirectives {
+  const d = emptyEquipmentDirectives();
+  const normalized = normalizeUserText(text);
+  if (!normalized) return d;
+  const parsed = parseConstraintText(normalized);
+
+  // 1) Strict bodyweight phrases (checked on the full text — they are self-contained).
+  if (STRICT_PHRASE_RE.test(normalized)) {
+    d.base = strictBase();
+    d.notes.push("no equipment (strict bodyweight)");
+  }
+
+  // 2) Negated equipment: "no bands", "without a bench", "I don't have dumbbells".
+  for (const span of parsed.negated) {
+    if (span.kind === "reduce") continue;
+    const target = span.target;
+    const meansNoGear =
+      /^(?:any )?(?:equipment|gear)\b/.test(target) ||
+      (span.kind === "lack" && /^(?:any ?thing|anything)\b/.test(target)) ||
+      (/\bequipment\b/.test(target) && !nounsIn(target).length);
+    if (span.kind !== "inability" && meansNoGear) {
+      if (!d.base?.strict) {
+        d.base = strictBase();
+        d.notes.push("no equipment (strict bodyweight)");
+      }
+      continue;
+    }
+    if (/\bgym\b/.test(target) && !/\bgym (?:ball|mat)\b/.test(target)) {
+      d.forbidGym = true;
+      d.notes.push("no gym access");
+    }
+    for (const part of splitTargetList(target)) {
+      for (const { noun, index, length } of nounsIn(part)) {
+        // "no bench press" / "no band pull-aparts" exclude an exercise, not the gear.
+        if (EXERCISE_SUFFIX_RE.test(part.slice(index + length))) continue;
+        if (noun.tags) {
+          for (const t of noun.tags) d.forbidTags.add(t);
+          d.notes.push(`no ${noun.label}`);
+        }
+        if (noun.props) {
+          for (const p of noun.props) d.forbidProps.add(p);
+          d.notes.push(`no ${noun.label}`);
+        }
+      }
+    }
+  }
+
+  // 3) Positive equipment statements (only in non-negated text).
+  const positive = parsed.positive;
+  if (FULL_GYM_RE.test(positive) && !d.forbidGym) {
+    d.base = {
+      tags: null,
+      props: FULL_GYM_PROPS,
+      strict: false,
+      label: "request_full_gym",
+      description: "full gym",
+    };
+    d.notes.push("full gym");
+  }
+
+  const exclusiveTags = new Set<string>();
+  const additive = /\b(?:also|too|as well|in addition|additionally|plus)\b/.test(positive);
+  for (const { noun, index, length } of nounsIn(positive)) {
+    const pre = positive.slice(Math.max(0, index - 60), index);
+    const post = positive.slice(index + length, index + length + 30);
+    // "dumbbell rows", "bench press" = exercise names, not gear statements.
+    if (EXERCISE_SUFFIX_RE.test(post)) continue;
+    const triggered = POSITIVE_TRIGGER_RE.test(pre) || POSITIVE_SUFFIX_RE.test(post);
+    if (!triggered) continue;
+    if (noun.tags) {
+      for (const t of noun.tags) exclusiveTags.add(t);
+      d.notes.push(`has ${noun.label}`);
+    }
+    if (noun.props) {
+      for (const p of noun.props) {
+        d.addProps.add(p);
+        d.forbidProps.delete(p);
+      }
+      d.notes.push(`has ${noun.label}`);
+    }
+  }
+  if (exclusiveTags.size > 0) {
+    for (const t of exclusiveTags) d.forbidTags.delete(t);
+    if (additive && !d.base) {
+      for (const t of exclusiveTags) d.addTags.add(t);
+    } else if (!d.base || d.base.strict) {
+      // "bodyweight only… actually I have dumbbells" in one message: gear wins.
+      const tags = new Set<string>([CATALOG_EQUIPMENT.BODY_WEIGHT, ...exclusiveTags]);
+      d.base = {
+        tags,
+        props: NO_PROPS,
+        strict: false,
+        label: labelForExclusiveTags(tags),
+        description: `bodyweight + ${[...exclusiveTags].filter((t) => t !== "resistance band").join(", ")} only`,
+      };
+    } else if (d.base.tags) {
+      const tags = new Set(d.base.tags);
+      for (const t of exclusiveTags) tags.add(t);
+      d.base = { ...d.base, tags };
+    }
+  }
+
+  return d;
+}
+
+/** Combine directives in chronological order — later statements win. */
+export function mergeEquipmentDirectives(list: EquipmentDirectives[]): EquipmentDirectives {
+  const out = emptyEquipmentDirectives();
+  for (const d of list) {
+    if (d.base) {
+      out.base = d.base;
+      out.addTags = new Set();
+      out.forbidGym = false;
+      if (d.base.tags) {
+        for (const t of d.base.tags) out.forbidTags.delete(t);
+      } else {
+        out.forbidTags = new Set();
+      }
+      if (d.base.strict) {
+        out.addProps = new Set();
+        out.forbidProps = new Set();
+      }
+    }
+    for (const t of d.addTags) {
+      out.addTags.add(t);
+      out.forbidTags.delete(t);
+    }
+    for (const t of d.forbidTags) {
+      out.forbidTags.add(t);
+      out.addTags.delete(t);
+    }
+    for (const p of d.addProps) {
+      out.addProps.add(p);
+      out.forbidProps.delete(p);
+    }
+    for (const p of d.forbidProps) {
+      out.forbidProps.add(p);
+      out.addProps.delete(p);
+    }
+    if (d.forbidGym) out.forbidGym = true;
+    out.notes.push(...d.notes);
+  }
+  return out;
+}
+
+function describeTags(tags: ReadonlySet<string>): string {
+  return [...tags]
+    .filter((t) => t !== CATALOG_EQUIPMENT.RESISTANCE_BAND || !tags.has(CATALOG_EQUIPMENT.BAND))
+    .sort()
+    .join(", ");
+}
+
+function describeMissingProps(props: ReadonlySet<ExerciseProp>): string {
+  const missing = ALL_EXERCISE_PROPS.filter((p) => p !== "wall" && p !== "partner" && !props.has(p));
+  return missing.map((p) => PROP_LABELS[p]).join(", ");
+}
+
+/** Build the final prompt rule text for any constraint. */
+export function describeEquipmentConstraintRule(c: {
+  allowedTags: ReadonlySet<string> | null;
+  forbiddenTags?: ReadonlySet<string>;
+  allowedProps?: ReadonlySet<ExerciseProp>;
+  strict?: boolean;
+  headline?: string;
+}): string {
+  const props = c.allowedProps ?? (c.allowedTags === null ? FULL_GYM_PROPS : NO_PROPS);
+  if (c.strict) return STRICT_BODYWEIGHT_RULE;
+  const parts: string[] = [];
+  if (c.headline) parts.push(c.headline);
+  if (c.allowedTags) {
+    parts.push(`Allowed equipment ONLY: ${describeTags(c.allowedTags)}.`);
+  } else {
+    parts.push("Any gym equipment is allowed.");
+  }
+  if (c.forbiddenTags && c.forbiddenTags.size > 0) {
+    parts.push(`FORBIDDEN: ${describeTags(c.forbiddenTags)} — never use exercises that need them.`);
+  }
+  const available = [...props].filter((p) => p !== "wall").map((p) => PROP_LABELS[p]);
+  parts.push(
+    available.length
+      ? `Available props: ${available.join(", ")}.`
+      : "No props available (floor + wall only)."
+  );
+  const missing = describeMissingProps(props);
+  if (missing) parts.push(`NOT available: ${missing}.`);
+  return `HARD CONSTRAINT: ${parts.join(" ")}`;
+}
+
+/** Apply merged directives on top of a baseline (intake) constraint. */
+export function applyEquipmentDirectives(
+  baseline: EquipmentConstraint,
+  d: EquipmentDirectives
+): EquipmentConstraint {
+  if (!hasEquipmentDirectives(d)) return baseline;
+
+  let tags: Set<string> | null;
+  let props: Set<ExerciseProp>;
+  let label: string;
+  let strict = false;
+  if (d.base) {
+    tags = d.base.tags ? new Set(d.base.tags) : null;
+    props = new Set(d.base.props ?? (tags === null ? FULL_GYM_PROPS : NO_PROPS));
+    label = d.base.label;
+    strict = d.base.strict;
+  } else {
+    tags = baseline.allowedTags ? new Set(baseline.allowedTags) : null;
+    props = new Set(constraintProps(baseline));
+    label = `${baseline.label}+request`;
+  }
+
+  if (d.forbidGym) {
+    if (tags === null) {
+      tags = new Set(BODYWEIGHT_ONLY);
+      props = new Set(NO_PROPS);
+      if (!d.base) label = "request_no_gym";
+    } else {
+      for (const t of GYM_ONLY_TAGS) tags.delete(t);
+    }
+    props.delete("gym_station");
+    props.delete("dip_station");
+  }
+  if (tags !== null) {
+    for (const t of d.addTags) tags.add(t);
+    if (d.addTags.size > 0) strict = false;
+  }
+  const forbidden = new Set<string>(d.forbidTags);
+  if (tags !== null) {
+    for (const t of forbidden) tags.delete(t);
+    tags.add(CATALOG_EQUIPMENT.BODY_WEIGHT);
+  }
+  for (const p of d.addProps) {
+    props.add(p);
+    strict = false;
+  }
+  for (const p of d.forbidProps) props.delete(p);
+  props.add("wall");
+
+  const promptRule = describeEquipmentConstraintRule({
+    allowedTags: tags,
+    forbiddenTags: forbidden,
+    allowedProps: props,
+    strict,
+    headline: d.base?.description ? `User request: ${d.base.description}.` : "User request overrides profile equipment.",
+  });
+
+  return {
+    allowedTags: tags,
+    promptRule,
+    source: d.base ? "request" : "merged",
+    label,
+    allowedProps: props,
+    ...(forbidden.size > 0 ? { forbiddenTags: forbidden } : {}),
+  };
 }
 
 /**
@@ -320,100 +816,46 @@ export function equipmentConstraintFromIntakeAccess(
 export function parseEquipmentConstraintFromText(
   text: string | undefined | null
 ): EquipmentConstraint | null {
-  if (!text?.trim()) return null;
-  const t = text.toLowerCase();
-
-  // Order matters: more specific phrases first.
-  if (
-    /\b(no[\s-]?equipment|without\s+equipment|zero\s+equipment|equipment[\s-]?free|no\s+gear|nothing\s+but\s+body\s*weight|body\s*weight\s+only|bodyweight\s+only|only\s+body\s*weight|i\s+don'?t\s+have\s+(any\s+)?equipment)\b/.test(
-      t
-    )
-  ) {
-    return constraintFromTags(
-      BODYWEIGHT_ONLY,
-      "HARD CONSTRAINT (user request): No equipment / bodyweight only. Every exercise MUST be body weight. Do NOT use dumbbells, barbells, cables, machines, bands, or kettlebells.",
-      "request_no_equipment",
-      "request"
+  const d = parseEquipmentDirectives(text);
+  if (!hasEquipmentDirectives(d)) return null;
+  if (!d.base) {
+    // Pure exclusions ("no machines", "no bands") start from free-weight home/gym gear.
+    const freeWeights = new Set<string>([...HOME_WEIGHTS, ...BARBELL_TAGS]);
+    const baseline = constraintFromTags(
+      freeWeights,
+      "",
+      d.forbidTags.has(CATALOG_EQUIPMENT.LEVERAGE_MACHINE) ? "request_no_machines" : "request_exclusions",
+      "request",
+      FULL_GYM_PROPS
     );
+    const applied = applyEquipmentDirectives(baseline, d);
+    return { ...applied, label: baseline.label, source: "request" };
   }
-
-  if (
-    /\b(dumbbells?\s+only|only\s+dumbbells?|just\s+dumbbells?|home\s+dumbbells?|db\s+only)\b/.test(
-      t
-    )
-  ) {
-    return constraintFromTags(
-      DUMBBELLS_ONLY,
-      "HARD CONSTRAINT (user request): Dumbbells only (bodyweight allowed as accessory). NO barbells, machines, cables, or kettlebells.",
-      "request_dumbbells_only",
-      "request"
-    );
-  }
-
-  if (
-    /\b((resistance\s+)?bands?\s+only|only\s+(use\s+)?(resistance\s+)?bands?|just\s+(resistance\s+)?bands?|use\s+only\s+(resistance\s+)?bands?)\b/.test(
-      t
-    )
-  ) {
-    return constraintFromTags(
-      BANDS_ONLY,
-      "HARD CONSTRAINT (user request): Resistance bands only (bodyweight allowed). NO dumbbells, barbells, machines, or cables.",
-      "request_bands_only",
-      "request"
-    );
-  }
-
-  if (/\b(kettlebells?\s+only|only\s+kettlebells?)\b/.test(t)) {
-    return constraintFromTags(
-      new Set([CATALOG_EQUIPMENT.BODY_WEIGHT, CATALOG_EQUIPMENT.KETTLEBELL]),
-      "HARD CONSTRAINT (user request): Kettlebells only (bodyweight allowed). NO barbells, dumbbells, machines, or cables.",
-      "request_kettlebells_only",
-      "request"
-    );
-  }
-
-  if (/\b(no\s+machines?|without\s+machines?|avoid\s+machines?)\b/.test(t)) {
-    // Start from home weights (no machines/cables) — still allows free weights.
-    const noMachines = new Set(
-      [...HOME_WEIGHTS, CATALOG_EQUIPMENT.BARBELL, CATALOG_EQUIPMENT.EZ_BARBELL]
-    );
-    for (const m of GYM_MACHINES) noMachines.delete(m);
-    return constraintFromTags(
-      noMachines,
-      "HARD CONSTRAINT (user request): No machines or cables. Free weights and bodyweight only.",
-      "request_no_machines",
-      "request"
-    );
-  }
-
-  if (/\b(full\s+gym|gym\s+equipment|at\s+the\s+gym)\b/.test(t)) {
-    return constraintFromTags(
-      null,
-      "User requested full gym access — all catalog equipment is allowed.",
-      "request_full_gym",
-      "request"
-    );
-  }
-
-  return null;
+  return applyEquipmentDirectives(
+    constraintFromTags(BODYWEIGHT_ONLY, "", "request", "request", NO_PROPS),
+    d
+  );
 }
 
 /**
  * Resolve the effective equipment constraint for a generation call.
- * Explicit request text overrides intake when present.
+ * Order (latest wins): intake → earlier conversation turns → current request text.
  */
 export function resolveEquipmentConstraint(
   profile: Profile,
-  preferences?: string | null
+  preferences?: string | null,
+  conversationDirectives?: EquipmentDirectives[]
 ): EquipmentConstraint {
-  const fromRequest = parseEquipmentConstraintFromText(preferences);
-  if (fromRequest) return fromRequest;
-
   const responses: IntakeResponses = profileToResponses(profile);
-  return equipmentConstraintFromIntakeAccess(
+  const intake = equipmentConstraintFromIntakeAccess(
     responses.equipment_access,
     "intake"
   );
+  const merged = mergeEquipmentDirectives([
+    ...(conversationDirectives ?? []),
+    parseEquipmentDirectives(preferences),
+  ]);
+  return applyEquipmentDirectives(intake, merged);
 }
 
 /** Prompt bullet listing allowed catalog names when constrained. */
@@ -429,12 +871,20 @@ export function buildEquipmentPromptRule(
           .join(", ")}.`
       : "";
 
-  if (!constraint.allowedTags) {
+  if (isUnrestricted(constraint)) {
     return `- Equipment: ${constraint.promptRule}${samples}`;
   }
 
-  const tags = [...constraint.allowedTags].sort().join(", ");
-  return `- ${constraint.promptRule}
-- Allowed catalog equipment tags ONLY: ${tags}.
-- Never invent exercises that need other equipment. If unsure, pick a body-weight library name.${samples}`;
+  const tagLine = constraint.allowedTags
+    ? `\n- Allowed catalog equipment tags ONLY: ${[...constraint.allowedTags].sort().join(", ")}.`
+    : "";
+  const forbidLine =
+    constraint.forbiddenTags && constraint.forbiddenTags.size > 0
+      ? `\n- Forbidden equipment: ${[...constraint.forbiddenTags].sort().join(", ")}.`
+      : "";
+  const props = constraintProps(constraint);
+  const missing = describeMissingProps(props);
+  const propLine = missing ? `\n- NOT available (do not program moves that need them): ${missing}.` : "";
+  return `- ${constraint.promptRule}${tagLine}${forbidLine}${propLine}
+- Never invent exercises that need other equipment. If unsure, pick a floor body-weight library name.${samples}`;
 }

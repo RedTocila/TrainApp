@@ -12,10 +12,13 @@ import {
   exerciseMatchesAnyFamily,
   type ExerciseFamilyId,
 } from "@/lib/ai/exercise-semantic-match";
-import type {
-  WorkoutFocus,
-  WorkoutRequirements,
+import {
+  exerciseFilterFromRequirements,
+  type WorkoutFocus,
+  type WorkoutRequirements,
 } from "@/lib/ai/workout-requirements";
+import { exercisePassesFilter, pickAlternative } from "@/lib/ai/exercise-knowledge";
+import { getExerciseProfile, type MuscleGroupId } from "@/lib/ai/exercise-profile";
 import {
   varietyScoreDelta,
   type VarietyContext,
@@ -125,6 +128,29 @@ const PRIORITY_NAMES = new Set(
   ].map((n) => n.toLowerCase())
 );
 
+/** Hard filter: equipment/props, avoided muscles, injuries, difficulty, impact, exclusions. */
+function passesHardFilter(ex: CatalogExercise, requirements: WorkoutRequirements): boolean {
+  return exercisePassesFilter(ex, exerciseFilterFromRequirements(requirements));
+}
+
+/** Extra score for fine-grained focus (glutes, upper chest, hamstrings…). */
+function focusGroupScore(ex: CatalogExercise, requirements: WorkoutRequirements): number {
+  const focus = requirements.focusGroups ?? [];
+  const reduce = requirements.reduceMuscles ?? [];
+  if (focus.length === 0 && reduce.length === 0) return 0;
+  const profile = getExerciseProfile(ex);
+  const has = (g: MuscleGroupId) => focus.includes(g);
+  let score = 0;
+  if (profile.primaryGroups.some((g) => focus.includes(g))) score += 25;
+  else if (profile.secondaryGroups.some((g) => focus.includes(g))) score += 6;
+  if (has("glutes") && (profile.pattern === "hip_extension" || profile.pattern === "hip_abduction")) score += 12;
+  if (has("upper_chest") && profile.primaryGroups.includes("upper_chest")) score += 15;
+  if (has("hamstrings") && (profile.pattern === "hinge" || profile.pattern === "knee_flexion")) score += 12;
+  if ((has("side_delts") || has("rear_delts")) && profile.primaryGroups.some((g) => g === "side_delts" || g === "rear_delts")) score += 8;
+  if (profile.primaryGroups.some((g) => reduce.includes(g))) score -= 15;
+  return score;
+}
+
 function isExcluded(
   ex: CatalogExercise,
   requirements: WorkoutRequirements
@@ -194,6 +220,10 @@ function scoreCandidate(
     else if (ex.secondary_muscles.some((m) => muscles.includes(m))) score += 10;
   }
 
+  score += focusGroupScore(ex, requirements);
+  if (requirements.experience === "advanced" && getExerciseProfile(ex).isCompound) score += 4;
+  if (requirements.experience === "beginner" && getExerciseProfile(ex).difficulty === 1) score += 4;
+
   // Prefer shorter, clearer names for programming quality.
   if (ex.name.length < 40) score += 5;
   if (/\(male\)|\(female\)|v\.\s*2|elite|extreme|athletic variation/i.test(ex.name)) {
@@ -235,16 +265,21 @@ export function buildWorkoutCandidatePool(
   const variety = options?.variety ?? null;
 
   const { muscles, bodyParts } = collectFocusTargets(requirements.focus);
+  const focusGroups = requirements.focusGroups ?? [];
   const equipmentFiltered = filterCatalogByEquipment(
     getCatalogExercises(),
     requirements.equipment
-  ).filter((ex) => !isExcluded(ex, requirements));
+  ).filter((ex) => !isExcluded(ex, requirements) && passesHardFilter(ex, requirements));
 
   // Soft focus filter: if focus is set and enough matches, prefer focused set;
   // otherwise fall back to full equipment-allowed pool so generation never starves.
-  let focused = equipmentFiltered.filter((ex) =>
-    matchesFocus(ex, muscles, bodyParts)
-  );
+  let focused = equipmentFiltered.filter((ex) => {
+    if (focusGroups.length > 0) {
+      const p = getExerciseProfile(ex);
+      if (p.primaryGroups.some((g) => focusGroups.includes(g))) return true;
+    }
+    return matchesFocus(ex, muscles, bodyParts);
+  });
   if (focused.length < 12 && (muscles.length > 0 || bodyParts.length > 0)) {
     focused = equipmentFiltered;
   }
@@ -269,6 +304,7 @@ export function buildWorkoutCandidatePool(
     if (!hit) continue;
     if (!exerciseAllowedByConstraint(hit, requirements.equipment)) continue;
     if (isExcluded(hit, requirements)) continue;
+    // Explicitly requested moves skip the difficulty cap (already vetted in requirements).
     picked.set(hit.id, hit);
   }
 
@@ -357,6 +393,16 @@ export function pickReplacementFromPool(
   usedNames: Set<string>
 ): CandidateExercise | null {
   if (pool.candidates.length === 0) return null;
+
+  // Pattern-aware pick (same movement + muscles + difficulty) from the pool.
+  const universe = pool.candidates
+    .map((c) => findCatalogExercise(c.name))
+    .filter((ex): ex is CatalogExercise => !!ex && pool.idSet.has(ex.id));
+  const smart = pickAlternative(originalName, { filter: {}, pool: universe, usedNames });
+  if (smart && !usedNames.has(smart.name.toLowerCase())) {
+    const hit = pool.candidates.find((c) => c.id === smart.id);
+    if (hit) return hit;
+  }
 
   const original = findCatalogExercise(originalName);
   const muscle =

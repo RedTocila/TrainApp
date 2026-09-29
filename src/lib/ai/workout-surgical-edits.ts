@@ -11,8 +11,23 @@ import {
   buildWorkoutCandidatePool,
   pickReplacementFromPool,
 } from "@/lib/ai/workout-candidate-pool";
-import { resolveExerciseRef } from "@/lib/ai/exercise-semantic-match";
-import { resolveWorkoutRequirements } from "@/lib/ai/workout-requirements";
+import {
+  exerciseMatchesAnyFamily,
+  resolveExerciseRef,
+  type ExerciseFamilyId,
+} from "@/lib/ai/exercise-semantic-match";
+import {
+  exerciseFilterFromRequirements,
+  resolveWorkoutRequirements,
+  type WorkoutRequirements,
+} from "@/lib/ai/workout-requirements";
+import { exerciseRejection, pickAlternative } from "@/lib/ai/exercise-knowledge";
+import { getExerciseProfile, type MuscleGroupId } from "@/lib/ai/exercise-profile";
+import {
+  DAY_FOCUS_MUSCLES,
+  DAY_TITLE_PATTERNS,
+  type DayFocusId,
+} from "@/lib/ai/constraint-language";
 import type {
   AiGeneratedWorkoutPlan,
   AiWorkoutExercise,
@@ -45,7 +60,7 @@ export class SurgicalEditError extends Error {
 export type SurgicalChange = {
   dayIndex: number; // 0-based
   dayTitle: string;
-  action: "remove" | "add" | "replace" | "adjust_difficulty";
+  action: "remove" | "add" | "replace" | "adjust_difficulty" | "remove_day" | "adapt";
   detail: string;
 };
 
@@ -171,9 +186,34 @@ function usedNamesOnDay(day: AiWorkoutDay): Set<string> {
 
 function equipmentForProfile(
   profile: Profile,
-  hint?: string | null
+  hint?: string | null,
+  conversation?: readonly string[]
 ): EquipmentConstraint {
+  if (conversation?.length) {
+    return resolveWorkoutRequirements(profile, hint, { conversation, hasExistingPlan: true }).equipment;
+  }
   return resolveEquipmentConstraint(profile, hint);
+}
+
+/** Throw when an explicitly named move breaks a hard constraint (muscle, injury, family…). */
+function assertNamedExerciseAllowed(
+  catalogName: string,
+  profile: Profile,
+  hint: string | null | undefined,
+  conversation: readonly string[] | undefined
+): void {
+  if (!conversation?.length && !hint?.trim()) return;
+  const cat = findCatalogExercise(catalogName);
+  if (!cat) return;
+  const req = resolveWorkoutRequirements(profile, hint, { conversation, hasExistingPlan: true });
+  if (req.requiredExercises.some((r) => r.catalogName?.toLowerCase() === cat.name.toLowerCase())) return;
+  const rejection = exerciseRejection(cat, { ...exerciseFilterFromRequirements(req), maxDifficulty: null });
+  if (rejection) {
+    throw new SurgicalEditError(
+      "cannot_resolve",
+      `"${cat.name}" conflicts with the client's constraints (${rejection.detail}). Suggest an allowed alternative or ask them to confirm.`
+    );
+  }
 }
 
 export function removeWorkoutExercise(
@@ -225,12 +265,13 @@ export function addWorkoutExercise(
     reps?: string | null;
     restSeconds?: number | null;
     preferencesHint?: string | null;
+    conversation?: readonly string[];
   }
 ): SurgicalEditResult {
   const next = clonePlan(plan);
   const dayIdx = resolveDayIndex(next, options.dayNumber);
   const day = next.days[dayIdx]!;
-  const equipment = equipmentForProfile(profile, options.preferencesHint);
+  const equipment = equipmentForProfile(profile, options.preferencesHint, options.conversation);
   const used = usedNamesOnDay(day);
 
   let catalogName: string | null = null;
@@ -244,6 +285,7 @@ export function addWorkoutExercise(
         `Couldn't match "${options.exerciseName}" to an allowed library exercise for the current equipment.`
       );
     }
+    assertNamedExerciseAllowed(catalogName, profile, options.preferencesHint, options.conversation);
   } else {
     const requirements = resolveWorkoutRequirements(
       profile,
@@ -254,7 +296,8 @@ export function addWorkoutExercise(
           : day.title,
       ]
         .filter(Boolean)
-        .join(". ")
+        .join(". "),
+      { conversation: options.conversation, hasExistingPlan: true }
     );
     // Narrow focus if target muscle given
     if (options.targetMuscle?.trim()) {
@@ -323,6 +366,8 @@ export function replaceWorkoutExercise(
     /** Explicit replacement; if omitted, pick a similar allowed alternative. */
     replacementName?: string | null;
     preferencesHint?: string | null;
+    /** Chronological user turns so persisted constraints apply to the pick. */
+    conversation?: readonly string[];
   }
 ): SurgicalEditResult {
   const next = clonePlan(plan);
@@ -330,7 +375,7 @@ export function replaceWorkoutExercise(
   const day = next.days[dayIdx]!;
   const exIdx = resolveExerciseIndex(day, options);
   const original = day.exercises[exIdx]!;
-  const equipment = equipmentForProfile(profile, options.preferencesHint);
+  const equipment = equipmentForProfile(profile, options.preferencesHint, options.conversation);
   const used = usedNamesOnDay(day);
   used.delete(original.name.toLowerCase());
 
@@ -345,21 +390,37 @@ export function replaceWorkoutExercise(
         `Couldn't match replacement "${options.replacementName}" to an allowed library exercise.`
       );
     }
+    assertNamedExerciseAllowed(replacementName, profile, options.preferencesHint, options.conversation);
   } else {
     const requirements = resolveWorkoutRequirements(
       profile,
-      options.preferencesHint ?? ""
+      options.preferencesHint ?? "",
+      { conversation: options.conversation, hasExistingPlan: true }
     );
     requirements.equipment = equipment;
-    const pool = buildWorkoutCandidatePool(requirements, { cap: 100 });
-    const pick = pickReplacementFromPool(pool, original.name, used);
+    // Replacing "squats" means a different movement: skip the same family first.
+    const filter = exerciseFilterFromRequirements(requirements);
+    const pick =
+      pickAlternative(original.name, {
+        filter,
+        usedNames: used,
+        avoidSameFamily: true,
+        preferGroups: requirements.focusGroups,
+      }) ??
+      pickAlternative(original.name, { filter, usedNames: used });
     if (!pick) {
-      throw new SurgicalEditError(
-        "cannot_resolve",
-        `Couldn't find a similar replacement for "${original.name}" under current constraints.`
-      );
+      const pool = buildWorkoutCandidatePool(requirements, { cap: 100 });
+      const fallback = pickReplacementFromPool(pool, original.name, used);
+      if (!fallback) {
+        throw new SurgicalEditError(
+          "cannot_resolve",
+          `Couldn't find a similar replacement for "${original.name}" under current constraints.`
+        );
+      }
+      replacementName = fallback.name;
+    } else {
+      replacementName = pick.name;
     }
-    replacementName = pick.name;
   }
 
   if (replacementName.toLowerCase() === original.name.toLowerCase()) {
@@ -478,4 +539,252 @@ export function formatDayExerciseList(
 
 export function findCatalogExerciseSafe(name: string) {
   return findCatalogExercise(name);
+}
+
+// ─── Day removal / plan-wide removal / constraint adaptation ─────────────
+
+/** Share of a day's exercises whose primary muscles sit inside `groups`. */
+function dayMuscleShare(day: AiWorkoutDay, groups: readonly MuscleGroupId[]): number {
+  if (!groups.length || !day.exercises.length) return 0;
+  const set = new Set(groups);
+  let hits = 0;
+  let known = 0;
+  for (const ex of day.exercises) {
+    const cat = findCatalogExercise(ex.name);
+    if (!cat) continue;
+    known += 1;
+    const primary = getExerciseProfile(cat).primaryGroups;
+    if (primary.length && primary.every((g) => set.has(g))) hits += 1;
+  }
+  return known ? hits / known : 0;
+}
+
+/** Days matching a focus: title first, then content (≥60% of known exercises). */
+export function findDaysByFocus(
+  plan: AiGeneratedWorkoutPlan,
+  focuses: readonly DayFocusId[]
+): number[] {
+  const byTitle = plan.days
+    .map((d, i) => (focuses.some((f) => DAY_TITLE_PATTERNS[f].test(d.title)) ? i : -1))
+    .filter((i) => i >= 0);
+  if (byTitle.length) return byTitle;
+  return plan.days
+    .map((d, i) =>
+      focuses.some((f) => dayMuscleShare(d, DAY_FOCUS_MUSCLES[f]) >= 0.6) ? i : -1
+    )
+    .filter((i) => i >= 0);
+}
+
+function withDaysPerWeek(plan: AiGeneratedWorkoutPlan): AiGeneratedWorkoutPlan {
+  return { ...plan, days_per_week: plan.days.length };
+}
+
+/**
+ * Remove whole day(s) — no replacement day is generated.
+ * Target by 1-based `dayNumber` or by focus ("legs" → "Leg Day", "Lower Body").
+ */
+export function removeWorkoutDay(
+  plan: AiGeneratedWorkoutPlan,
+  options: { dayNumber?: number | null; focus?: readonly DayFocusId[] | null }
+): SurgicalEditResult {
+  const next = clonePlan(plan);
+  let indexes: number[];
+  if (options.dayNumber != null && Number.isFinite(options.dayNumber)) {
+    indexes = [resolveDayIndex(next, options.dayNumber)];
+  } else if (options.focus?.length) {
+    indexes = findDaysByFocus(next, options.focus);
+    if (!indexes.length) {
+      throw new SurgicalEditError(
+        "day_not_found",
+        `No ${options.focus.join("/")} day found. Days: ${next.days
+          .map((d, i) => `${i + 1}. ${d.title}`)
+          .join("; ")}.`
+      );
+    }
+  } else {
+    throw new SurgicalEditError("day_not_found", "Specify day_number or focus to remove a day.");
+  }
+  if (indexes.length >= next.days.length) {
+    throw new SurgicalEditError(
+      "empty_day",
+      "That would remove every day in the plan. Tell me what to keep, or ask for a new plan."
+    );
+  }
+
+  const changes: SurgicalChange[] = indexes.map((i) => ({
+    dayIndex: i,
+    dayTitle: next.days[i]!.title,
+    action: "remove_day",
+    detail: `Removed day ${i + 1} (${next.days[i]!.title})`,
+  }));
+  const drop = new Set(indexes);
+  next.days = next.days.filter((_, i) => !drop.has(i));
+  const result = withDaysPerWeek(next);
+  return {
+    plan: result,
+    changes,
+    summary: `Removed ${changes.map((c) => c.dayTitle).join(" and ")}. No replacement added — the plan now has ${
+      result.days.length
+    } day(s): ${result.days.map((d, i) => `${i + 1}. ${d.title}`).join("; ")}.`,
+  };
+}
+
+/**
+ * Remove every exercise matching families / names / avoided muscles across the plan.
+ * Days that would end up empty are dropped (unless it's the last day).
+ */
+export function removeExercisesMatching(
+  plan: AiGeneratedWorkoutPlan,
+  match: {
+    families?: readonly ExerciseFamilyId[];
+    names?: readonly string[];
+    avoidGroups?: readonly MuscleGroupId[];
+    dayNumber?: number | null;
+  }
+): SurgicalEditResult {
+  const next = clonePlan(plan);
+  const families = [...(match.families ?? [])];
+  const names = (match.names ?? []).map((n) => n.toLowerCase().trim()).filter(Boolean);
+  const avoid = match.avoidGroups ?? [];
+  const onlyDay =
+    match.dayNumber != null && Number.isFinite(match.dayNumber)
+      ? resolveDayIndex(next, match.dayNumber)
+      : null;
+
+  const hits = (name: string): boolean => {
+    const lower = name.toLowerCase();
+    if (families.length && exerciseMatchesAnyFamily(name, families)) return true;
+    if (names.some((n) => lower === n || lower.includes(n))) return true;
+    if (avoid.length) {
+      const cat = findCatalogExercise(name);
+      if (cat && exerciseRejection(cat, { avoidGroups: avoid })?.code === "avoided_muscle") return true;
+    }
+    return false;
+  };
+
+  const changes: SurgicalChange[] = [];
+  const emptied: number[] = [];
+  next.days.forEach((day, i) => {
+    if (onlyDay != null && i !== onlyDay) return;
+    const removed = day.exercises.filter((e) => hits(e.name));
+    if (!removed.length) return;
+    day.exercises = day.exercises.filter((e) => !hits(e.name));
+    changes.push({
+      dayIndex: i,
+      dayTitle: day.title,
+      action: "remove",
+      detail: `Removed ${removed.map((e) => e.name).join(", ")}`,
+    });
+    if (!day.exercises.length) emptied.push(i);
+  });
+
+  if (!changes.length) {
+    throw new SurgicalEditError(
+      "exercise_not_found",
+      `Nothing in the plan matches that. Current exercises: ${next.days
+        .map((d, i) => `Day ${i + 1}: ${d.exercises.map((e) => e.name).join(", ")}`)
+        .join(" | ")}.`
+    );
+  }
+  if (emptied.length >= next.days.length) {
+    throw new SurgicalEditError(
+      "empty_day",
+      "Removing those would leave the plan empty. Want replacements instead?"
+    );
+  }
+  const drop = new Set(emptied);
+  next.days = next.days.filter((_, i) => !drop.has(i));
+  const result = withDaysPerWeek(next);
+  const droppedNote = emptied.length
+    ? ` ${emptied.length} day(s) became empty and were removed.`
+    : "";
+  return {
+    plan: result,
+    changes,
+    summary: `${changes.map((c) => `${c.dayTitle}: ${c.detail}`).join("; ")}. No replacements added.${droppedNote}`,
+  };
+}
+
+/**
+ * Bring an existing plan in line with (new) hard constraints while keeping
+ * everything that already complies. Violating moves are swapped for the closest
+ * allowed alternative (same sets/reps); excluded day types are removed.
+ */
+export function adaptPlanToConstraints(
+  plan: AiGeneratedWorkoutPlan,
+  requirements: WorkoutRequirements
+): SurgicalEditResult {
+  let next = clonePlan(plan);
+  const changes: SurgicalChange[] = [];
+
+  if (requirements.excludedDayFocuses.length) {
+    const idx = findDaysByFocus(next, requirements.excludedDayFocuses);
+    if (idx.length && idx.length < next.days.length) {
+      const removed = removeWorkoutDay(next, { focus: requirements.excludedDayFocuses });
+      next = removed.plan;
+      changes.push(...removed.changes);
+    }
+  }
+
+  const filter = exerciseFilterFromRequirements(requirements);
+  const mobilityFilter = exerciseFilterFromRequirements(requirements, { forMobility: true });
+  const required = new Set(
+    requirements.requiredExercises
+      .map((r) => r.catalogName?.toLowerCase())
+      .filter((n): n is string => !!n)
+  );
+
+  next.days.forEach((day, dayIdx) => {
+    const used = usedNamesOnDay(day);
+    const kept: AiWorkoutExercise[] = [];
+    const notes: string[] = [];
+    for (const ex of day.exercises) {
+      const cat = findCatalogExercise(ex.name);
+      if (!cat || required.has(cat.name.toLowerCase())) {
+        kept.push(ex);
+        continue;
+      }
+      const isMobility = getExerciseProfile(cat).isMobility;
+      const rejection = exerciseRejection(cat, isMobility ? mobilityFilter : filter);
+      if (!rejection) {
+        kept.push(ex);
+        continue;
+      }
+      const avoidFamily =
+        rejection.code === "excluded_family" || rejection.code === "excluded_name";
+      const alt = pickAlternative(cat.name, {
+        filter: isMobility ? mobilityFilter : filter,
+        usedNames: used,
+        avoidSameFamily: avoidFamily,
+        preferGroups: requirements.focusGroups,
+      });
+      if (alt) {
+        used.add(alt.name.toLowerCase());
+        kept.push({ ...ex, name: alt.name, image_url: undefined, video_url: undefined });
+        notes.push(`${ex.name} → ${alt.name} (${rejection.detail})`);
+      } else {
+        notes.push(`removed ${ex.name} (${rejection.detail})`);
+      }
+    }
+    if (notes.length) {
+      day.exercises = kept;
+      changes.push({ dayIndex: dayIdx, dayTitle: day.title, action: "adapt", detail: notes.join("; ") });
+    }
+  });
+
+  next.days = next.days.filter((d) => d.exercises.length > 0);
+  if (!next.days.length) {
+    throw new SurgicalEditError(
+      "empty_day",
+      "Nothing in the current plan fits the new constraints — I'll need to build a new one."
+    );
+  }
+  const result = withDaysPerWeek(next);
+  return {
+    plan: result,
+    changes,
+    summary: changes.length
+      ? `Adapted the plan: ${changes.map((c) => `${c.dayTitle}: ${c.detail}`).join(" | ")}. Everything else unchanged.`
+      : "The current plan already fits those constraints — no changes needed.",
+  };
 }

@@ -226,7 +226,7 @@ export function parseExcludedFamiliesFromText(text: string): ExerciseFamilyId[] 
 export function parseRequiredExercisePhrases(text: string): string[] {
   const phrases: string[] = [];
   const patterns = [
-    /\b(?:include|must\s+include|must\s+have|using|use|with)\s+([a-z0-9][a-z0-9\s\-_/,&]+?)(?:\s+(?:but|and\s+also\s+make|please)|[.!?\n]|$)/gi,
+    /\b(?:include|must\s+include|must\s+have|using|use|with)\s+([a-z0-9][a-z0-9\s\-_/,&]+?)(?:\s+(?:but|and\s+also\s+make|please)|\s*[—–]|\s+-\s|,\s*(?:i|i'm|trust|please|thanks)\b|[.!?\n]|$)/gi,
     /\b(?:add)\s+([a-z0-9][a-z0-9\s\-/]+?)(?:\s+(?:to\s+(?:the|this)\s+workout)|[.!?\n]|$)/gi,
   ];
 
@@ -299,9 +299,16 @@ export function resolveExerciseRef(
   const canon = canonicalizeAiExerciseName(normalizedQuery, {
     equipment: equipment ?? null,
   });
+  const singular =
+    /\b[a-z]{2,}s$/.test(normalizedQuery) && !/ss$/.test(normalizedQuery)
+      ? normalizedQuery.slice(0, -1)
+      : normalizedQuery;
   const resolved =
     catalog ??
     findCatalogExercise(canon, { equipment: equipment ?? null }) ??
+    (singular !== normalizedQuery
+      ? findCatalogExercise(singular, { equipment: equipment ?? null }) ?? findCatalogExercise(singular)
+      : null) ??
     findCatalogExercise(normalizedQuery) ??
     findCatalogExercise(query);
 

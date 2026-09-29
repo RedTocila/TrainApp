@@ -1,142 +1,57 @@
 import { runTextPrompt } from "@/lib/ai/providers";
 import { parseJsonObject } from "@/lib/ai/parse-json";
-import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
-import { buildPlanTextLanguageRule } from "@/lib/ai/language-instructions";
-import { withPlanMedicalDisclaimer } from "@/lib/ai/plan-medical-disclaimer";
-import { nutritionGoalRulesForAi } from "@/lib/goal-coaching";
-import type { AiGeneratedNutritionPlan, AiNutritionMeal } from "@/lib/ai/plan-builder-types";
+import type { AiGeneratedNutritionPlan } from "@/lib/ai/plan-builder-types";
 import type { Profile } from "@/lib/types";
-import type { MealSlot } from "@/lib/meal-slots";
-import { normalizeGroceryList } from "@/lib/grocery-list-utils";
+import { parseSemanticDietaryItems, type SemanticDietaryItem } from "@/lib/ai/nutrition-constraints";
+import {
+  buildNutritionRequest,
+  runNutritionPipeline,
+  type NutritionGenerationInput,
+} from "@/lib/ai/nutrition-pipeline";
 
-const VALID_SLOTS = new Set<MealSlot>([
-  "breakfast",
-  "snack_1",
-  "lunch",
-  "snack_2",
-  "dinner",
-]);
+export type { NutritionGenerationInput };
 
-function roundMacro(n: unknown): number {
-  const v = typeof n === "number" ? n : parseFloat(String(n));
-  return Number.isFinite(v) ? Math.max(0, Math.round(v)) : 0;
-}
+const FOODISH_RE =
+  /\b(?:eat|drink|food|foods|meal|meals|diet|allerg\w*|intoleran\w*|milk|dairy|meat|fish|egg|eggs|gluten|nuts?|vegan|vegetarian|hate|dislike|stomach|bloat\w*|can't have|cannot have|don't like|avoid|without|no|keep|work for me|ushqim|ha|pi)\b/i;
 
-function normalizeNutritionPlan(
-  raw: AiGeneratedNutritionPlan,
-  locale?: string | null
-): AiGeneratedNutritionPlan {
-  const meals = (raw.meals ?? [])
-    .filter((m) => m.name?.trim() && VALID_SLOTS.has(m.slot))
-    .map((meal) => ({
-      slot: meal.slot,
-      name: meal.name.trim(),
-      description: meal.description?.trim() || "",
-      calories: roundMacro(meal.calories),
-      protein: roundMacro(meal.protein),
-      carbs: roundMacro(meal.carbs),
-      fat: roundMacro(meal.fat),
-      ingredients: (meal.ingredients ?? [])
-        .filter((i) => i.name?.trim())
-        .map((i) => ({
-          name: i.name.trim(),
-          amount: i.amount?.trim() || undefined,
-        })),
-    }));
+/**
+ * Semantic pass for wording the rule parser may miss ("milk doesn't sit well",
+ * other languages). Output is normalized and merged by code: exclusions are
+ * added (never as allergies); "allow" lifts a non-allergy rule only when the
+ * newest message itself mentions that food without excluding it.
+ */
+export async function extractDietaryConstraintsSemantic(texts: readonly string[]): Promise<SemanticDietaryItem[]> {
+  const relevant = texts.filter((t) => FOODISH_RE.test(t)).slice(-8);
+  if (!relevant.length) return [];
+  const prompt = `Extract the client's food exclusions from their messages (any language). Messages are chronological; a later message can cancel an earlier one ("actually I eat fish again").
 
-  const targets = {
-    calories: roundMacro(raw.daily_targets?.calories) || 2000,
-    protein: roundMacro(raw.daily_targets?.protein) || 150,
-    carbs: roundMacro(raw.daily_targets?.carbs) || 200,
-    fat: roundMacro(raw.daily_targets?.fat) || 65,
-  };
+MESSAGES:
+${relevant.map((t, i) => `${i + 1}. "${t.slice(0, 500)}"`).join("\n")}
 
-  return {
-    title: raw.title?.trim() || "AI Nutrition Plan",
-    description: raw.description?.trim() || "",
-    daily_targets: targets,
-    meals: meals.length > 0 ? meals : defaultMeals(targets),
-    coach_notes: withPlanMedicalDisclaimer(raw.coach_notes, locale),
-    grocery_list: normalizeGroceryList(raw.grocery_list).map((item) => ({
-      name: item.name,
-      amount: item.amount,
-      category: item.category,
-    })),
-  };
-}
-
-function defaultMeals(targets: AiGeneratedNutritionPlan["daily_targets"]): AiNutritionMeal[] {
-  const p = Math.round(targets.protein / 5);
-  const c = Math.round(targets.carbs / 5);
-  const f = Math.round(targets.fat / 5);
-  const cal = Math.round(targets.calories / 5);
-
-  return [
-    { slot: "breakfast", name: "Balanced breakfast", calories: cal, protein: p, carbs: c, fat: f },
-    { slot: "snack_1", name: "Protein snack", calories: Math.round(cal * 0.6), protein: p, carbs: Math.round(c * 0.5), fat: Math.round(f * 0.5) },
-    { slot: "lunch", name: "Lean lunch", calories: cal, protein: p, carbs: c, fat: f },
-    { slot: "snack_2", name: "Afternoon snack", calories: Math.round(cal * 0.6), protein: p, carbs: Math.round(c * 0.5), fat: Math.round(f * 0.5) },
-    { slot: "dinner", name: "Balanced dinner", calories: cal, protein: p, carbs: c, fat: f },
-  ];
+Return ONLY JSON: {"items":[{"food":"english food or food group","category":"dairy|chicken|poultry|fish|shellfish|seafood|eggs|gluten|soy|nuts|peanuts|red_meat|pork|meat|animal_products|null","severity":"allergy|intolerance|dislike|restriction","action":"exclude|allow"}]}
+Rules:
+- Only foods the client says they avoid, can't have, react to, dislike, or re-allow. Do not guess.
+- severity "allergy" ONLY if they literally say allergic/allergy; "intolerance" for reactions/digestive issues/"doesn't work for me"; "dislike" for taste; otherwise "restriction".
+- "No milk" / "I don't drink milk" → food "milk" (not all dairy) unless they say dairy.
+- action "allow" only when the client clearly re-allows a food they excluded before ("fish is back on", "I'm eating eggs again", "tani e ha mishin").
+- Empty list if nothing applies.`;
+  try {
+    const raw = await runTextPrompt(prompt, { maxTokens: 400, json: true, tier: "cheap" });
+    return parseSemanticDietaryItems(parseJsonObject(raw));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateNutritionPlanFromProfile(
   profile: Profile,
-  preferences?: string
+  preferences?: string,
+  input?: NutritionGenerationInput
 ): Promise<AiGeneratedNutritionPlan> {
-  const intake = buildIntakeContextForAi(profile, preferences);
-
-  const prompt = `You are an expert sports nutritionist. Create a full-day meal plan with macro targets for this client.
-
-CLIENT PROFILE:
-${intake}
-
-Rules:
-- ALWAYS return a complete plan. Never refuse, delay, or ask clarifying questions instead of generating — adapt conservatively when details are thin.
-- Calculate realistic daily calories and macros from age, gender, weight, height, goal, and activity (use work schedule & daily routine as activity hints).
-- If Current calories / protein / carbs / fat targets are already set on the profile, use those as daily_targets instead of inventing a different calorie budget.
-${nutritionGoalRulesForAi(profile.goal)}
-- Provide exactly one primary meal per slot: breakfast, snack_1, lunch, snack_2, dinner.
-- Meal macros should sum close to daily_targets (within ~10%).
-- Use simple, whole-food meals with realistic portions.
-- Treat PROFILE SAFETY FLAGS as mandatory constraints. Never ignore PCOS, medical conditions, allergies, medications/supplements, food dislikes, or lifestyle notes when present.
-- Respect medical conditions and injuries where relevant to food choices, and avoid presenting medical treatment claims.
-- Include 2-5 ingredients per meal when helpful.
-- Add a weekly grocery_list with realistic total amounts for 7 days (merge duplicates, group by category).
-- Description and coach_notes must clearly explain how the plan is personalized to this client's profile constraints and goal.
-- End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
-
-${buildPlanTextLanguageRule(profile.preferred_locale)}
-
-Respond with ONLY valid JSON:
-{
-  "title": "short plan name",
-  "description": "1-2 sentences explaining the approach",
-  "daily_targets": {
-    "calories": number,
-    "protein": number,
-    "carbs": number,
-    "fat": number
-  },
-  "meals": [
-    {
-      "slot": "breakfast" | "snack_1" | "lunch" | "snack_2" | "dinner",
-      "name": "meal name",
-      "description": "short description",
-      "calories": number,
-      "protein": number,
-      "carbs": number,
-      "fat": number,
-      "ingredients": [{ "name": "food", "amount": "e.g. 150g" }]
-    }
-  ],
-  "grocery_list": [
-    { "name": "ingredient", "amount": "weekly amount e.g. 1.2 kg", "category": "Protein" | "Produce" | "Dairy" | "Pantry" | "Other" }
-  ],
-  "coach_notes": ["2-4 practical nutrition tips", "not-a-doctor disclaimer"]
-}`;
-
-  const raw = await runTextPrompt(prompt, { maxTokens: 2800, json: true, tier: "quality" });
-  const parsed = parseJsonObject(raw) as unknown as AiGeneratedNutritionPlan;
-  return normalizeNutritionPlan(parsed, profile.preferred_locale);
+  const request = buildNutritionRequest(profile, preferences, input);
+  const result = await runNutritionPipeline(request, {
+    generate: (prompt) => runTextPrompt(prompt, { maxTokens: 2400, json: true, tier: "quality" }),
+    extractSemantic: extractDietaryConstraintsSemantic,
+  });
+  return result.plan;
 }

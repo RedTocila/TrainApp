@@ -1,9 +1,15 @@
 import { generateFullTrainingDayFromProfile } from "@/lib/ai/generate-workout-plan";
-import type { AiDayProgramResult } from "@/lib/ai/generate-workout-plan";
+import type {
+  AiDayProgramResult,
+  CoachGenerationInput,
+} from "@/lib/ai/generate-workout-plan";
 import { trainingGoalRulesForAi } from "@/lib/goal-coaching";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { parseJsonObject } from "@/lib/ai/parse-json";
 import { runTextPrompt } from "@/lib/ai/providers";
+import { describeMuscleGroups } from "@/lib/ai/constraint-language";
+import { resolveWorkoutRequirements } from "@/lib/ai/workout-requirements";
+import { sanitizeDayFocuses } from "@/lib/ai/weekly-focus-plan";
 import type { Profile } from "@/lib/types";
 import {
   fingerprintHiitConfig,
@@ -59,11 +65,31 @@ export async function generateWeeklyFullProgramFromProfile(
     preferences?: string;
     includeExtras?: boolean;
     dayFocuses?: string[];
-  }
+  } & CoachGenerationInput
 ): Promise<AiWeeklyFullProgram> {
   const daysPerWeek = Math.min(6, Math.max(1, Math.round(options.daysPerWeek)));
   const includeExtras = options.includeExtras !== false;
   const intake = buildIntakeContextForAi(profile, options.preferences);
+  const input: CoachGenerationInput = {
+    conversation: options.conversation,
+    hasExistingPlan: options.hasExistingPlan,
+  };
+  const requirements = resolveWorkoutRequirements(profile, options.preferences, input);
+  const focusRules = [
+    requirements.excludedDayFocuses.length
+      ? `- NEVER include these day types (client removed them): ${requirements.excludedDayFocuses
+          .map((f) => f.replace(/_/g, " "))
+          .join(", ")}.`
+      : "",
+    requirements.avoidMuscles.length
+      ? `- Do not train: ${describeMuscleGroups(requirements.avoidMuscles)} — no day may focus on them.`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const finalizeFocuses = (list: string[]) =>
+    sanitizeDayFocuses(list, requirements, daysPerWeek).focuses;
 
   let focuses = options.dayFocuses?.filter((f) => f.trim()).slice(0, daysPerWeek);
   if (!focuses || focuses.length < daysPerWeek) {
@@ -80,6 +106,7 @@ ${options.preferences ? `REQUEST: ${options.preferences}` : ""}
 Rules:
 - Return EXACTLY ${daysPerWeek} short titles (2–4 words), e.g. "Legs", "Push", "Pull", "Upper / core".
 - Match the client's goal and available days. No explanations.
+${focusRules}
 
 Respond with ONLY JSON: { "title": "plan name", "description": "1 sentence", "focuses": ["...", "..."], "coach_notes": ["tip"] }`,
         { maxTokens: 400, json: true, tier: "quality" }
@@ -90,13 +117,14 @@ Respond with ONLY JSON: { "title": "plan name", "description": "1 sentence", "fo
         focuses?: string[];
         coach_notes?: string[];
       }>(raw);
-      if (Array.isArray(parsed.focuses) && parsed.focuses.length >= daysPerWeek) {
-        focuses = parsed.focuses.map(String).slice(0, daysPerWeek);
+      if (Array.isArray(parsed.focuses) && parsed.focuses.length > 0) {
+        focuses = finalizeFocuses(parsed.focuses.map(String));
         const days = await buildDaysInParallel(
           profile,
           focuses,
           options.preferences,
-          includeExtras
+          includeExtras,
+          input
         );
         return {
           title: parsed.title?.trim() || `${daysPerWeek}-day weekly program`,
@@ -117,12 +145,14 @@ Respond with ONLY JSON: { "title": "plan name", "description": "1 sentence", "fo
     }
     focuses = focusesForGoal(profile.goal, daysPerWeek);
   }
+  focuses = finalizeFocuses(focuses);
 
   const days = await buildDaysInParallel(
     profile,
     focuses,
     options.preferences,
-    includeExtras
+    includeExtras,
+    input
   );
 
   return {
@@ -140,7 +170,8 @@ async function buildDaysInParallel(
   profile: Profile,
   focuses: string[],
   preferences: string | undefined,
-  includeExtras: boolean
+  includeExtras: boolean,
+  input: CoachGenerationInput
 ): Promise<AiWeeklyFullDay[]> {
   const results = await Promise.all(
     focuses.map(async (focus) => {
@@ -155,11 +186,11 @@ async function buildDaysInParallel(
         .filter(Boolean)
         .join("\n");
 
-      const program = await generateFullTrainingDayFromProfile(profile, prompt);
+      const program = await generateFullTrainingDayFromProfile(profile, prompt, input);
       return { ...program, focus };
     })
   );
-  return dedupeWeeklyDaySessions(profile, results, preferences, includeExtras);
+  return dedupeWeeklyDaySessions(profile, results, preferences, includeExtras, input);
 }
 
 function sessionFingerprints(day: AiWeeklyFullDay): string[] {
@@ -183,7 +214,8 @@ async function dedupeWeeklyDaySessions(
   profile: Profile,
   days: AiWeeklyFullDay[],
   preferences: string | undefined,
-  includeExtras: boolean
+  includeExtras: boolean,
+  input: CoachGenerationInput
 ): Promise<AiWeeklyFullDay[]> {
   const out = [...days];
   const seen = new Set<string>();
@@ -212,7 +244,8 @@ async function dedupeWeeklyDaySessions(
     try {
       const regenerated = await generateFullTrainingDayFromProfile(
         profile,
-        prompt
+        prompt,
+        input
       );
       out[i] = { ...regenerated, focus };
     } catch {

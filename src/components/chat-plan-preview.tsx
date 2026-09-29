@@ -52,6 +52,7 @@ export function ChatPlanPreviewCard({
   const [pendingMode, setPendingMode] = useState<"apply" | "save" | null>(null);
   const [applyProgress, setApplyProgress] = useState(0);
   const [openDay, setOpenDay] = useState(0);
+  const [menuIndex, setMenuIndex] = useState(0);
   const [showAbout, setShowAbout] = useState(false);
   const [showMoves, setShowMoves] = useState(true);
   const isWeeklyFull = preview.type === "weekly_full";
@@ -62,6 +63,19 @@ export function ChatPlanPreviewCard({
   const strengthPlan = workoutPlan && !isAiHiitPlan(workoutPlan) ? workoutPlan : null;
   const weeklyProgram = isWeeklyFull ? preview.program : null;
   const scheduleLabel = describeSchedule(preview);
+  const nutritionMenus =
+    preview.type === "nutrition"
+      ? [
+          {
+            label: preview.plan.day_label ?? "Day A",
+            meals: preview.plan.meals,
+            daily_totals: preview.plan.daily_totals,
+            nutrition_estimated: preview.plan.nutrition_estimated,
+          },
+          ...(preview.plan.day_variants ?? []),
+        ]
+      : [];
+  const shownMenu = nutritionMenus[Math.min(menuIndex, nutritionMenus.length - 1)];
   const isApplied = applied || localApplied;
   const canSaveWithoutSchedule = isWeeklyFull || isWorkout;
   const saveLabel =
@@ -70,13 +84,7 @@ export function ChatPlanPreviewCard({
       : "Save workout";
 
   useEffect(() => {
-    if (!isPending) {
-      if (localApplied) setApplyProgress(100);
-      else setApplyProgress(0);
-      return;
-    }
-
-    setApplyProgress(10);
+    if (!isPending) return;
     const id = window.setInterval(() => {
       setApplyProgress((p) => {
         if (p >= 92) return p;
@@ -86,7 +94,9 @@ export function ChatPlanPreviewCard({
     }, 320);
 
     return () => window.clearInterval(id);
-  }, [isPending, localApplied]);
+  }, [isPending]);
+
+  const shownProgress = isPending ? Math.max(10, applyProgress) : localApplied ? 100 : 0;
 
   const runApply = (scheduleToCalendar: boolean) => {
     setError(null);
@@ -194,6 +204,9 @@ export function ChatPlanPreviewCard({
                 <MetaChip>P{preview.plan.daily_targets.protein}</MetaChip>
                 <MetaChip>C{preview.plan.daily_targets.carbs}</MetaChip>
                 <MetaChip>F{preview.plan.daily_targets.fat}</MetaChip>
+                {nutritionMenus.length > 1 ? (
+                  <MetaChip>{nutritionMenus.length} daily menus</MetaChip>
+                ) : null}
               </>
             ) : null}
             {scheduleLabel ? <MetaChip>{scheduleLabel}</MetaChip> : null}
@@ -402,17 +415,73 @@ export function ChatPlanPreviewCard({
                   </div>
                 ))}
               </div>
-            ) : isNutrition ? (
-              <ul className="mt-2 space-y-0.5 text-left text-xs text-muted-foreground">
-                {preview.plan.meals.map((meal, i) => (
-                  <li key={i}>
-                    <span className="font-medium text-foreground">
-                      {slotLabel(meal.slot)}:
-                    </span>{" "}
-                    {meal.name}
-                  </li>
+            ) : isNutrition && shownMenu ? (
+              <div className="mt-2 space-y-2 text-left text-xs text-muted-foreground">
+                {nutritionMenus.length > 1 ? (
+                  <div
+                    role="tablist"
+                    aria-label="Daily menus"
+                    className="flex flex-wrap justify-center gap-1"
+                  >
+                    {nutritionMenus.map((menu, i) => (
+                      <button
+                        key={menu.label}
+                        type="button"
+                        role="tab"
+                        aria-selected={menu === shownMenu}
+                        onClick={() => setMenuIndex(i)}
+                        className={cn(
+                          "rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors",
+                          menu === shownMenu
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary/60 text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {menu.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {shownMenu.meals.map((meal, i) => (
+                  <div key={i}>
+                    <p>
+                      <span className="font-medium text-foreground">
+                        {slotLabel(meal.slot)}:
+                      </span>{" "}
+                      {meal.name}
+                      {meal.calories > 0 ? (
+                        <span className="ml-1 tabular-nums text-[11px]">
+                          · {meal.macro_source === "estimated" ? "~" : ""}
+                          {meal.calories} kcal · P{meal.protein}
+                        </span>
+                      ) : null}
+                    </p>
+                    {meal.ingredients?.length ? (
+                      <ul className="mt-0.5 space-y-px pl-3">
+                        {meal.ingredients.map((ing, j) => (
+                          <li key={j}>
+                            {!ing.amount
+                              ? ing.name
+                              : ing.amount === "to taste" || ing.amount === "sipas shijes"
+                                ? `${ing.name}, ${ing.amount}`
+                                : `${ing.amount} ${ing.name}`}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
                 ))}
-              </ul>
+                {shownMenu.daily_totals ? (
+                  <p className="border-t border-border/50 pt-1.5 font-medium tabular-nums text-foreground">
+                    {nutritionMenus.length > 1 ? shownMenu.label : "Day"}:{" "}
+                    {shownMenu.nutrition_estimated ? "~" : ""}
+                    {shownMenu.daily_totals.calories} kcal · P
+                    {shownMenu.daily_totals.protein} C
+                    {shownMenu.daily_totals.carbs} F
+                    {shownMenu.daily_totals.fat}
+                  </p>
+                ) : null}
+              </div>
             ) : null
           ) : hiitPlan ? (
             <button
@@ -448,7 +517,7 @@ export function ChatPlanPreviewCard({
                   {isPending && pendingMode === "apply" ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Applying… {Math.round(applyProgress)}%
+                      Applying… {Math.round(shownProgress)}%
                     </>
                   ) : scheduleLabel ? (
                     "Apply & schedule"
@@ -467,7 +536,7 @@ export function ChatPlanPreviewCard({
                     {isPending && pendingMode === "save" ? (
                       <>
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Saving… {Math.round(applyProgress)}%
+                        Saving… {Math.round(shownProgress)}%
                       </>
                     ) : (
                       saveLabel
@@ -476,7 +545,7 @@ export function ChatPlanPreviewCard({
                 ) : null}
                 {isPending ? (
                   <div className="w-full max-w-[14rem] space-y-1">
-                    <Progress value={applyProgress} className="h-1.5" />
+                    <Progress value={shownProgress} className="h-1.5" />
                     <p className="text-center text-[10px] font-medium text-muted-foreground">
                       {pendingMode === "save"
                         ? "Saving to library…"

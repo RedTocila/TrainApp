@@ -23,8 +23,27 @@ import {
   addWorkoutExerciseForChat,
   replaceWorkoutExerciseForChat,
   adjustWorkoutDifficultyForChat,
+  removeWorkoutDayForChat,
+  removeMatchingExercisesForChat,
+  adaptWorkoutToConstraintsForChat,
   SurgicalEditError,
+  NutritionEditError,
+  swapFoodForChat,
+  changeFoodPortionForChat,
+  type ChatSurgicalResult,
 } from "@/lib/ai/coach-chat-plans";
+import { formatNutritionPlanText } from "@/lib/ai/nutrition-quality";
+import { planMedicalDisclaimer } from "@/lib/ai/plan-medical-disclaimer";
+import type { CoachChatContext } from "@/lib/ai/coach-chat-context";
+import { classifyCoachIntent } from "@/lib/ai/coach-intent";
+import {
+  guardToolForIntent,
+  NUTRITION_EDIT_TOOLS,
+  NUTRITION_MUTATION_TOOLS,
+  WORKOUT_MUTATION_TOOLS,
+} from "@/lib/ai/coach-chat-tool-guard";
+import { extractCoachConstraints } from "@/lib/ai/coach-constraints";
+import { getGenerationReport } from "@/lib/ai/generate-workout-plan";
 import type {
   AiGeneratedNutritionPlan,
   AiWorkoutPlanResult,
@@ -42,7 +61,6 @@ import {
   formatConflictToolResult,
   WorkoutRequirementConflictError,
 } from "@/lib/ai/workout-requirements";
-import type { SurgicalEditResult } from "@/lib/ai/workout-surgical-edits";
 import { getLimitExceededMessage } from "@/lib/subscription-messages";
 import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
@@ -88,11 +106,42 @@ const PLAN_TOOLS = new Set([
   "generate_nutrition_plan",
   "edit_workout_plan",
   "edit_nutrition_plan",
+  "swap_food",
+  "change_food_portion",
   "remove_workout_exercise",
   "add_workout_exercise",
   "replace_workout_exercise",
   "adjust_workout_difficulty",
+  "remove_workout_day",
+  "remove_matching_exercises",
+  "adapt_workout_to_constraints",
 ]);
+
+/** Final (validated, recalculated) plan text + coach notes for the model to present simply. */
+function nutritionResultDetails(plan: AiGeneratedNutritionPlan): string {
+  const disclaimers = new Set([planMedicalDisclaimer("en"), planMedicalDisclaimer("al")]);
+  const notes = plan.coach_notes.filter((n) => !disclaimers.has(n)).slice(0, 5);
+  return [
+    "FINAL PLAN (present it in this simple format; amounts and totals are already calculated — don't change numbers):",
+    formatNutritionPlanText(plan),
+    plan.day_variants?.length
+      ? 'Several daily menus: show the first menu in full, then one short line per other menu with what changes (e.g. "Day B: turkey instead of chicken, potatoes instead of rice"). The preview card shows every menu in full.'
+      : "",
+    notes.length ? `Coach notes to weave in briefly: ${notes.join(" | ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function generationReportLine(plan: object): string {
+  const report = getGenerationReport(plan);
+  if (!report) return "";
+  const parts: string[] = [];
+  if (report.adjustments.length) parts.push(`Adjustments to tell the client: ${report.adjustments.join(" ")}`);
+  if (report.autoFixes > 0) parts.push(`${report.autoFixes} exercise(s) were swapped automatically to satisfy hard constraints.`);
+  if (report.remainingWarnings.length) parts.push(`Notes: ${report.remainingWarnings.slice(0, 3).join("; ")}.`);
+  return parts.length ? ` ${parts.join(" ")}` : "";
+}
 
 export const TOOL_STATUS_LABELS: Record<string, string> = {
   get_my_active_plans: "Loading your programs…",
@@ -100,10 +149,15 @@ export const TOOL_STATUS_LABELS: Record<string, string> = {
   generate_nutrition_plan: "Building nutrition plan…",
   edit_workout_plan: "Updating workout plan…",
   edit_nutrition_plan: "Updating nutrition plan…",
+  swap_food: "Swapping food…",
+  change_food_portion: "Updating portion…",
   remove_workout_exercise: "Removing exercise…",
   add_workout_exercise: "Adding exercise…",
   replace_workout_exercise: "Replacing exercise…",
   adjust_workout_difficulty: "Adjusting difficulty…",
+  remove_workout_day: "Removing day…",
+  remove_matching_exercises: "Removing exercises…",
+  adapt_workout_to_constraints: "Adapting your plan…",
   show_today_snapshot: "Loading today's snapshot…",
   show_weekly_report: "Generating weekly report…",
   show_meal_ideas: "Finding meal ideas…",
@@ -318,9 +372,65 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "remove_workout_day",
+      description:
+        "Remove a whole training DAY from the current plan (e.g. 'remove leg day', 'drop day 3', 'no more cardio day'). Does NOT add a replacement day — the plan simply has one day fewer. Use this instead of regenerating.",
+      parameters: {
+        type: "object",
+        properties: {
+          day_number: { type: "number", description: "1-based day to remove when they named a number." },
+          focus: {
+            type: "string",
+            description: "Day type to remove when named by focus: legs, push, pull, upper, chest, back, shoulders, arms, core, full body, cardio.",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "remove_matching_exercises",
+      description:
+        "Remove EVERY matching exercise across the plan without replacing them — e.g. 'remove squats' (all squat variations), 'take out anything for shoulders'. Use when they say remove/drop/no more for a movement or muscle and did NOT ask for a substitute.",
+      parameters: {
+        type: "object",
+        properties: {
+          exercise_names: {
+            type: "array",
+            items: { type: "string" },
+            description: "Movement names to remove (family-aware: 'squats' removes goblet/split/jump squats too).",
+          },
+          muscles: { type: "string", description: "Muscle group whose exercises should go, e.g. 'shoulders'." },
+          day_number: { type: "number", description: "Optional 1-based day to limit the removal to." },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "adapt_workout_to_constraints",
+      description:
+        "Keep the current plan but make it comply with new constraints — e.g. 'make it bodyweight only', 'I only have dumbbells now', 'no shoulders', 'my knee hurts', 'no jumping'. Swaps only the exercises that break the rule (same sets/reps), keeps everything else.",
+      parameters: {
+        type: "object",
+        properties: {
+          instructions: { type: "string", description: "The new constraint in the client's words." },
+        },
+        required: ["instructions"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "edit_nutrition_plan",
       description:
-        "Modify the client's current active nutrition plan (change meals, macros, swap foods, lighter dinners, etc.).",
+        "Rework the client's current nutrition plan when the change is broad (new meal structure, different calories/macros, lighter dinners, more variety, meal-prep style, a new food rule across the plan). For swapping ONE food use swap_food; for changing ONE portion use change_food_portion.",
       parameters: {
         type: "object",
         properties: {
@@ -330,6 +440,42 @@ const BASE_COACH_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           },
         },
         required: ["instructions"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "swap_food",
+      description:
+        "Swap one food in the current nutrition plan (e.g. 'swap the rice for potatoes', 'no salmon, something else', 'replace eggs'). Keeps everything else; the portion is re-sized to match and meal + day totals are recalculated. Leave `to` empty to let the engine pick the closest allowed whole food.",
+      parameters: {
+        type: "object",
+        properties: {
+          from: { type: "string", description: "Food to take out, as the client said it (e.g. 'rice', 'eggs')." },
+          to: { type: "string", description: "Replacement food if the client named one; empty = pick the best match." },
+          meal: { type: "string", description: "Optional meal (breakfast, lunch, dinner, snack, 'meal 2'); empty = everywhere it appears." },
+        },
+        required: ["from"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "change_food_portion",
+      description:
+        "Change the amount of one food in the current nutrition plan ('4 eggs instead of 3', '200g rice', 'double the chicken', 'less oats'). Meal and day totals are recalculated exactly.",
+      parameters: {
+        type: "object",
+        properties: {
+          food: { type: "string", description: "The food whose portion changes." },
+          amount: { type: "string", description: "New amount: '200g', '4 eggs', '1 cup', or relative: 'double', 'half', 'more', 'less'." },
+          meal: { type: "string", description: "Optional meal (breakfast, lunch, dinner, snack, 'meal 2')." },
+        },
+        required: ["food", "amount"],
         additionalProperties: false,
       },
     },
@@ -497,7 +643,9 @@ export async function executeCoachChatTool(
   mode: CoachChatMode = "ask",
   /** Latest user message — used to detect plan vs single workout when preferences omit it. */
   userMessage?: string,
-  timezoneOffsetMinutes?: number
+  timezoneOffsetMinutes?: number,
+  /** User turns + working plan from the thread (constraints persist, edits target what they see). */
+  chatContext?: CoachChatContext | null
 ): Promise<{
   result: string;
   planPreview?: ChatPlanPreview;
@@ -546,11 +694,36 @@ export async function executeCoachChatTool(
   }
 
   const args = parseToolArgs(argsJson);
+  const rawUserMessage = (userMessage ?? "")
+    .replace(/\n\n\[Instruction:[\s\S]*$/i, "")
+    .trim();
+  // A saved plan may exist without a preview in the thread; mutation tools imply one.
+  const hasWorkingPlan = NUTRITION_MUTATION_TOOLS.has(name)
+    ? Boolean(chatContext?.workingNutrition) || NUTRITION_EDIT_TOOLS.has(name)
+    : Boolean(chatContext?.workingWorkout) || WORKOUT_MUTATION_TOOLS.has(name);
+  const intent = rawUserMessage
+    ? classifyCoachIntent(rawUserMessage, { hasExistingPlan: hasWorkingPlan })
+    : null;
+  const blocked = guardToolForIntent(name, intent, hasWorkingPlan);
+  if (blocked) {
+    onEvent?.({ type: "tool_done", name });
+    return { result: blocked };
+  }
 
   const emitSurgicalPreview = (
-    result: SurgicalEditResult,
+    result: ChatSurgicalResult,
     scheduleArgs: Record<string, unknown>
   ) => {
+    if (result.weekly) {
+      const schedule = buildWorkoutScheduleIntent(scheduleArgs, result.weekly.days.length);
+      const preview: ChatPlanPreview = { type: "weekly_full", program: result.weekly, schedule };
+      onEvent?.({ type: "plan_preview", preview });
+      onEvent?.({ type: "tool_done", name });
+      return {
+        result: `${result.summary} Schedule: ${scheduleSummaryLine(schedule)}. Preview ready — Apply saves the updated weekly program.`,
+        planPreview: preview,
+      };
+    }
     const dayCount = result.plan.days.length;
     const schedule = buildWorkoutScheduleIntent(scheduleArgs, dayCount);
     const preview: ChatPlanPreview = {
@@ -582,9 +755,7 @@ export async function executeCoachChatTool(
             : null;
         // Prefer preferences; fall back to the raw user message so "make me a plan"
         // is detected even when the model omits the word from preferences.
-        const rawUser = (userMessage ?? "")
-          .replace(/\n\n\[Instruction:[\s\S]*$/i, "")
-          .trim();
+        const rawUser = rawUserMessage;
         const shapeText = [preferences, rawUser]
           .filter((s): s is string => Boolean(s?.trim()))
           .join("\n");
@@ -607,6 +778,11 @@ export async function executeCoachChatTool(
           typeof args.days_per_week === "number" && args.days_per_week > 0
             ? Math.min(6, Math.max(1, Math.round(args.days_per_week)))
             : undefined;
+        // "3 days a week" in the client's own words beats whatever the model filled in.
+        const statedDays = extractCoachConstraints(rawUser).frequency_days;
+        if (statedDays != null && weekPlan) {
+          daysPerWeek = Math.min(6, Math.max(1, statedDays));
+        }
 
         // Hard rules — never invent a Plans week from profile day count alone.
         // Workout = one session; Plan = only when week/split/"plan" language is clear.
@@ -633,6 +809,8 @@ export async function executeCoachChatTool(
             daysPerWeek: daysPerWeek ?? 4,
             preferences,
             includeExtras,
+            conversation: chatContext?.userTurns,
+            hasExistingPlan: Boolean(chatContext?.workingWorkout),
           });
           const schedule = buildWorkoutScheduleIntent(args, program.days.length);
           const preview: ChatPlanPreview = {
@@ -654,8 +832,10 @@ export async function executeCoachChatTool(
           profile,
           preferences,
           workoutKind,
-          daysPerWeek ?? (singleSession ? 1 : undefined)
+          daysPerWeek ?? (singleSession ? 1 : undefined),
+          chatContext
         );
+        const reportLine = generationReportLine(plan);
         const dayCount = isAiHiitPlan(plan) ? 1 : plan.days.length;
         const schedule = buildWorkoutScheduleIntent(args, dayCount);
         const preview: ChatPlanPreview = { type: "workout", plan, schedule };
@@ -663,26 +843,26 @@ export async function executeCoachChatTool(
         onEvent?.({ type: "tool_done", name });
         if (isAiHiitPlan(plan)) {
           return {
-            result: `Generated HIIT workout "${plan.title}" (single session). Preview ready — Apply saves under Workouts. They can schedule it later if they want.`,
+            result: `Generated HIIT workout "${plan.title}" (single session). Preview ready — Apply saves under Workouts. They can schedule it later if they want.${reportLine}`,
             planPreview: preview,
           };
         }
         if (dayCount <= 1 || singleSession) {
           const exerciseCount = plan.days[0]?.exercises.length ?? 0;
           return {
-            result: `Generated workout "${plan.title}" as a single session (${exerciseCount} exercises in one day). Preview ready — Apply saves under Workouts (not Plans). Do not describe this as a multi-day week.`,
+            result: `Generated workout "${plan.title}" as a single session (${exerciseCount} exercises in one day). Preview ready — Apply saves under Workouts (not Plans). Do not describe this as a multi-day week.${reportLine}`,
             planPreview: preview,
           };
         }
         return {
-          result: `Generated multi-day workout "${plan.title}" with ${plan.days.length} training day(s). Schedule: ${scheduleSummaryLine(schedule)}. Preview ready — Apply saves it. If they wanted a full week template with warm-up/stretch under Plans, regenerate with days_per_week≥2 and include_warmup_stretch=true.`,
+          result: `Generated multi-day workout "${plan.title}" with ${plan.days.length} training day(s). Schedule: ${scheduleSummaryLine(schedule)}. Preview ready — Apply saves it. If they wanted a full week template with warm-up/stretch under Plans, regenerate with days_per_week≥2 and include_warmup_stretch=true.${reportLine}`,
           planPreview: preview,
         };
       }
       case "generate_nutrition_plan": {
         const preferences =
           typeof args.preferences === "string" ? args.preferences : undefined;
-        const plan = await generateNutritionPlanForChat(profile, preferences);
+        const plan = await generateNutritionPlanForChat(profile, preferences, chatContext);
         const schedule: ChatPlanScheduleIntent = {
           weeks:
             typeof args.schedule_weeks === "number" && args.schedule_weeks > 0
@@ -694,7 +874,7 @@ export async function executeCoachChatTool(
         onEvent?.({ type: "plan_preview", preview });
         onEvent?.({ type: "tool_done", name });
         return {
-          result: `Generated nutrition plan "${plan.title}" (${plan.daily_targets.calories} cal). Apply saves it and schedules ${schedule.weeks} week(s) of meals on the calendar.`,
+          result: `Generated nutrition plan "${plan.title}" (${plan.daily_targets.calories} cal). Apply saves it and schedules ${schedule.weeks} week(s) of meals on the calendar.\n${nutritionResultDetails(plan)}`,
           planPreview: preview,
         };
       }
@@ -704,16 +884,56 @@ export async function executeCoachChatTool(
           onEvent?.({ type: "tool_done", name });
           return { result: "Missing instructions for workout plan edit." };
         }
-        const plan = await editWorkoutPlanForChat(profile, instructions);
+        const plan = await editWorkoutPlanForChat(profile, instructions, chatContext);
         const dayCount = isAiHiitPlan(plan) ? 1 : plan.days.length;
         const schedule = buildWorkoutScheduleIntent(args, dayCount);
         const preview: ChatPlanPreview = { type: "workout", plan, schedule };
         onEvent?.({ type: "plan_preview", preview });
         onEvent?.({ type: "tool_done", name });
         return {
-          result: `Updated workout plan "${plan.title}". Schedule: ${scheduleSummaryLine(schedule)}. Preview ready — Apply saves changes and schedules on the calendar. Tell the client the weekdays and that they can change them.`,
+          result: `Updated workout plan "${plan.title}". Schedule: ${scheduleSummaryLine(schedule)}. Preview ready — Apply saves changes and schedules on the calendar. Tell the client the weekdays and that they can change them.${generationReportLine(plan)}`,
           planPreview: preview,
         };
+      }
+      case "remove_workout_day": {
+        const result = await removeWorkoutDayForChat(
+          profile,
+          {
+            dayNumber: typeof args.day_number === "number" ? args.day_number : undefined,
+            focus: typeof args.focus === "string" ? args.focus : undefined,
+          },
+          chatContext
+        );
+        return emitSurgicalPreview(result, args);
+      }
+      case "remove_matching_exercises": {
+        const names = Array.isArray(args.exercise_names)
+          ? args.exercise_names.filter((n): n is string => typeof n === "string")
+          : [];
+        const muscles = typeof args.muscles === "string" ? args.muscles : undefined;
+        if (!names.length && !muscles?.trim()) {
+          onEvent?.({ type: "tool_done", name });
+          return { result: "Specify exercise_names or muscles to remove." };
+        }
+        const result = await removeMatchingExercisesForChat(
+          profile,
+          {
+            exerciseNames: names,
+            muscles,
+            dayNumber: typeof args.day_number === "number" ? args.day_number : undefined,
+          },
+          chatContext
+        );
+        return emitSurgicalPreview(result, args);
+      }
+      case "adapt_workout_to_constraints": {
+        const instructions = String(args.instructions ?? "").trim() || rawUserMessage;
+        if (!instructions) {
+          onEvent?.({ type: "tool_done", name });
+          return { result: "Missing instructions for adapting the plan." };
+        }
+        const result = await adaptWorkoutToConstraintsForChat(profile, instructions, chatContext);
+        return emitSurgicalPreview(result, args);
       }
       case "remove_workout_exercise": {
         const result = await removeWorkoutExerciseForChat(profile, {
@@ -727,7 +947,7 @@ export async function executeCoachChatTool(
             typeof args.exercise_name === "string"
               ? args.exercise_name
               : undefined,
-        });
+        }, chatContext);
         return emitSurgicalPreview(result, args);
       }
       case "add_workout_exercise": {
@@ -748,7 +968,7 @@ export async function executeCoachChatTool(
             typeof args.rest_seconds === "number"
               ? args.rest_seconds
               : undefined,
-        });
+        }, chatContext);
         return emitSurgicalPreview(result, args);
       }
       case "replace_workout_exercise": {
@@ -767,7 +987,7 @@ export async function executeCoachChatTool(
             typeof args.replacement_name === "string"
               ? args.replacement_name
               : undefined,
-        });
+        }, chatContext);
         return emitSurgicalPreview(result, args);
       }
       case "adjust_workout_difficulty": {
@@ -784,7 +1004,8 @@ export async function executeCoachChatTool(
         const result = await adjustWorkoutDifficultyForChat(
           profile,
           direction,
-          typeof args.day_number === "number" ? args.day_number : undefined
+          typeof args.day_number === "number" ? args.day_number : undefined,
+          chatContext
         );
         return emitSurgicalPreview(result, args);
       }
@@ -794,7 +1015,7 @@ export async function executeCoachChatTool(
           onEvent?.({ type: "tool_done", name });
           return { result: "Missing instructions for nutrition plan edit." };
         }
-        const plan = await editNutritionPlanForChat(profile, instructions);
+        const plan = await editNutritionPlanForChat(profile, instructions, chatContext);
         const preview: ChatPlanPreview = {
           type: "nutrition",
           plan,
@@ -803,7 +1024,34 @@ export async function executeCoachChatTool(
         onEvent?.({ type: "plan_preview", preview });
         onEvent?.({ type: "tool_done", name });
         return {
-          result: `Updated nutrition plan "${plan.title}". Apply saves and schedules 4 weeks on the calendar.`,
+          result: `Updated nutrition plan "${plan.title}". Apply saves and schedules 4 weeks on the calendar.\n${nutritionResultDetails(plan)}`,
+          planPreview: preview,
+        };
+      }
+      case "swap_food":
+      case "change_food_portion": {
+        const meal = typeof args.meal === "string" ? args.meal : null;
+        const edit =
+          name === "swap_food"
+            ? await swapFoodForChat(
+                profile,
+                { from: String(args.from ?? ""), to: typeof args.to === "string" ? args.to : null, meal },
+                chatContext
+              )
+            : await changeFoodPortionForChat(
+                profile,
+                { food: String(args.food ?? ""), amount: String(args.amount ?? ""), meal },
+                chatContext
+              );
+        const preview: ChatPlanPreview = {
+          type: "nutrition",
+          plan: edit.plan,
+          schedule: { weeks: 4, weekdays: [0, 1, 2, 3, 4, 5, 6] },
+        };
+        onEvent?.({ type: "plan_preview", preview });
+        onEvent?.({ type: "tool_done", name });
+        return {
+          result: `${edit.summary} Preview ready — Apply saves the updated plan. Tell the client exactly what changed and the new day totals; don't say macros "may change".\n${edit.planText}`,
           planPreview: preview,
         };
       }
@@ -866,7 +1114,7 @@ export async function executeCoachChatTool(
     if (error instanceof WorkoutRequirementConflictError) {
       return { result: formatConflictToolResult(error) };
     }
-    if (error instanceof SurgicalEditError) {
+    if (error instanceof SurgicalEditError || error instanceof NutritionEditError) {
       return { result: error.message };
     }
     const msg = error instanceof Error ? error.message : "Tool execution failed";

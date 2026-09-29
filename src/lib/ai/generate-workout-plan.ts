@@ -62,6 +62,19 @@ import {
   experienceConstraintFromIntake,
 } from "@/lib/intake-starter-program";
 import { profileToResponses } from "@/lib/intake-questionnaire";
+import {
+  dayMatchesExcludedFocus,
+  generateWithValidation,
+  stripHardViolations,
+  validateHiitPlan,
+  validateWorkoutDay,
+  validateWorkoutPlan,
+  type SessionContext,
+  type ValidatedGenerationResult,
+} from "@/lib/ai/workout-constraint-validator";
+import { muscleGroupsFromMentions, parseMuscleMentions } from "@/lib/ai/constraint-language";
+import { getExerciseProfile } from "@/lib/ai/exercise-profile";
+import { findCatalogExercise } from "@/lib/exercise-catalog";
 
 export { inferAiWorkoutKind } from "@/lib/ai/infer-workout-kind";
 export {
@@ -77,6 +90,73 @@ type GenerationContext = {
   variety: VarietyContext;
 };
 
+/** Conversation-aware inputs shared by every generator. */
+export type CoachGenerationInput = {
+  /** Chronological user turns (latest LAST) — explicit constraints persist across turns. */
+  conversation?: readonly string[];
+  hasExistingPlan?: boolean;
+};
+
+type EnforcedResult<T> = { value: T; repairCount: number; itemCount: number };
+
+export type GenerationReport = {
+  attempts: number;
+  autoFixes: number;
+  adjustments: string[];
+  remainingWarnings: string[];
+};
+
+const generationReports = new WeakMap<object, GenerationReport>();
+
+/** Validation/repair summary for a generated plan object (for tool results). */
+export function getGenerationReport(plan: object): GenerationReport | null {
+  return generationReports.get(plan) ?? null;
+}
+
+function recordReport(plan: object, requirements: WorkoutRequirements, result: ValidatedGenerationResult<unknown>): void {
+  generationReports.set(plan, {
+    attempts: result.attempts,
+    autoFixes: result.repairCount,
+    adjustments: requirements.adjustments,
+    remainingWarnings: [...result.report.hard, ...result.report.soft].map((v) => v.message).slice(0, 6),
+  });
+}
+
+function withFeedback(prompt: string, feedback: string | null): string {
+  return feedback ? `${prompt}\n\n${feedback}` : prompt;
+}
+
+/** Surface automatic adjustments (regressions, safety swaps) in coach notes. */
+function withAdjustmentNotes(notes: string[], requirements: WorkoutRequirements): string[] {
+  if (requirements.adjustments.length === 0) return notes;
+  const fresh = requirements.adjustments.filter((a) => !notes.includes(a));
+  return [...fresh, ...notes];
+}
+
+/** Rename a day whose title contradicts removed/avoided focus ("Leg Day" after "no legs"). */
+function fixConflictingDayTitle(title: string, exerciseNames: string[], requirements: WorkoutRequirements): string {
+  const excluded = dayMatchesExcludedFocus(title, requirements);
+  const mentioned = muscleGroupsFromMentions(parseMuscleMentions(title));
+  const avoid = new Set(requirements.avoidMuscles);
+  const avoidConflict = mentioned.length > 0 && mentioned.every((g) => avoid.has(g));
+  if (!excluded && !avoidConflict) return title;
+  const counts = new Map<string, number>();
+  for (const name of exerciseNames) {
+    const ex = findCatalogExercise(name);
+    if (!ex) continue;
+    for (const g of getExerciseProfile(ex).primaryGroups) counts.set(g, (counts.get(g) ?? 0) + 1);
+  }
+  const score = (groups: string[]) => groups.reduce((n, g) => n + (counts.get(g) ?? 0), 0);
+  const options: [string, number][] = [
+    ["Push", score(["chest", "upper_chest", "front_delts", "side_delts", "triceps"])],
+    ["Pull", score(["lats", "upper_back", "traps", "rear_delts", "biceps"])],
+    ["Core & Conditioning", score(["core", "obliques", "cardio"])],
+    ["Arms", score(["biceps", "triceps", "forearms"])],
+  ];
+  options.sort((a, b) => b[1] - a[1]);
+  return options[0]![1] > 0 ? options[0]![0] : "Upper Body";
+}
+
 function buildPhase5PromptHints(ctx: GenerationContext): string {
   const varietyHint = buildVarietyPromptHint(
     ctx.variety,
@@ -90,9 +170,13 @@ function buildPhase5PromptHints(ctx: GenerationContext): string {
 
 async function prepareGenerationContext(
   profile: Profile,
-  preferences?: string | null
+  preferences?: string | null,
+  input?: CoachGenerationInput
 ): Promise<GenerationContext> {
-  const requirements = resolveWorkoutRequirements(profile, preferences);
+  const requirements = resolveWorkoutRequirements(profile, preferences, {
+    conversation: input?.conversation,
+    hasExistingPlan: input?.hasExistingPlan,
+  });
   assertNoRequirementConflicts(requirements);
   const variety = await loadExerciseVarietyContext(profile.id);
   const pool = buildWorkoutCandidatePool(requirements, { variety });
@@ -113,6 +197,12 @@ async function prepareGenerationContext(
       (r) => r.catalogName ?? r.query
     ),
     excludedFamilies: requirements.excludedFamilies,
+    avoidMuscles: requirements.avoidMuscles,
+    focusGroups: requirements.focusGroups,
+    injuries: requirements.injuries,
+    lowImpact: requirements.lowImpact,
+    maxDifficulty: requirements.maxDifficulty,
+    excludedDayFocuses: requirements.excludedDayFocuses,
     location: requirements.location,
     varietyLevel: requirements.varietyLevel,
     varietyTrackedNames: variety.trackedNames,
@@ -122,12 +212,17 @@ async function prepareGenerationContext(
   return { requirements, pool, variety };
 }
 
+function countRequirementRepairs(repairs: { type: string }[]): number {
+  return repairs.filter((r) => r.type !== "injected_required" && r.type !== "clamped_volume").length;
+}
+
 function enforceStrengthPlan(
   plan: AiGeneratedWorkoutPlan,
   ctx: GenerationContext
-): AiGeneratedWorkoutPlan {
+): EnforcedResult<AiGeneratedWorkoutPlan> {
   const { requirements, pool } = ctx;
   const equipment = requirements.equipment;
+  const itemCount = plan.days.reduce((n, d) => n + d.exercises.length, 0);
 
   const eq = enforceEquipmentOnWorkoutPlan(plan, equipment);
   summarizeEquipmentEnforcement(equipment, eq.violations, eq.repairs);
@@ -142,15 +237,36 @@ function enforceStrengthPlan(
   const req = enforceRequirementsOnWorkoutPlan(poolEnforced.value, requirements);
   summarizeRequirementRepairs(req.repairs);
 
-  const dur = enforceDurationOnWorkoutPlan(req.value, requirements);
+  let stripped = 0;
+  const guarded: AiGeneratedWorkoutPlan = {
+    ...req.value,
+    days: req.value.days
+      .map((day) => {
+        const guard = stripHardViolations(day.exercises, requirements);
+        stripped += guard.removed.length;
+        return {
+          ...day,
+          title: fixConflictingDayTitle(day.title, guard.value.map((e) => e.name), requirements),
+          exercises: guard.value,
+        };
+      })
+      .filter((day) => day.exercises.length > 0),
+  };
+
+  const dur = enforceDurationOnWorkoutPlan(guarded, requirements);
   summarizeDurationRepairs(dur.repairs);
-  return dur.value;
+  return {
+    value: { ...dur.value, coach_notes: withAdjustmentNotes(dur.value.coach_notes, requirements) },
+    repairCount:
+      eq.violations.length + poolEnforced.repairs.length + countRequirementRepairs(req.repairs) + stripped,
+    itemCount,
+  };
 }
 
 function enforceStrengthDay(
   day: AiGeneratedWorkoutDay,
   ctx: GenerationContext
-): AiGeneratedWorkoutDay {
+): EnforcedResult<AiGeneratedWorkoutDay> {
   const { requirements, pool } = ctx;
   const equipment = requirements.equipment;
 
@@ -167,15 +283,28 @@ function enforceStrengthDay(
   const req = enforceRequirementsOnWorkoutDay(poolEnforced.value, requirements);
   summarizeRequirementRepairs(req.repairs);
 
-  const dur = enforceDurationOnWorkoutDay(req.value, requirements);
+  const guard = stripHardViolations(req.value.exercises, requirements);
+  const guarded = {
+    ...req.value,
+    title: fixConflictingDayTitle(req.value.title, guard.value.map((e) => e.name), requirements),
+    exercises: guard.value,
+  };
+
+  const dur = enforceDurationOnWorkoutDay(guarded, requirements);
   summarizeDurationRepairs(dur.repairs);
-  return dur.value;
+  return {
+    value: { ...dur.value, coach_notes: withAdjustmentNotes(dur.value.coach_notes, requirements) },
+    repairCount:
+      eq.violations.length + poolEnforced.repairs.length + countRequirementRepairs(req.repairs) + guard.removed.length,
+    itemCount: day.exercises.length,
+  };
 }
 
 function enforceHiitPlan(
   plan: AiGeneratedHiitPlan,
-  ctx: GenerationContext
-): AiGeneratedHiitPlan {
+  ctx: GenerationContext,
+  context: SessionContext = "main"
+): EnforcedResult<AiGeneratedHiitPlan> {
   const { requirements, pool } = ctx;
   const equipment = requirements.equipment;
 
@@ -192,16 +321,32 @@ function enforceHiitPlan(
   const req = enforceRequirementsOnHiitPlan(poolEnforced.value, requirements);
   summarizeRequirementRepairs(req.repairs);
 
-  const dur = enforceDurationOnHiitPlan(req.value, requirements);
+  const guard = stripHardViolations(req.value.config.exercises, requirements, context);
+  const guarded =
+    guard.value.length > 0
+      ? { ...req.value, config: { ...req.value.config, exercises: guard.value } }
+      : req.value;
+
+  const dur = enforceDurationOnHiitPlan(guarded, requirements);
   summarizeDurationRepairs(dur.repairs);
-  return dur.value;
+  return {
+    value:
+      context === "main"
+        ? { ...dur.value, coach_notes: withAdjustmentNotes(dur.value.coach_notes, requirements) }
+        : dur.value,
+    repairCount:
+      eq.violations.length + poolEnforced.repairs.length + countRequirementRepairs(req.repairs) + guard.removed.length,
+    itemCount: plan.config.exercises.length,
+  };
 }
 
-export type WorkoutPlanGenerationOptions = {
+export type WorkoutPlanGenerationOptions = CoachGenerationInput & {
   /** Exact number of training days the weekly template must include. */
   targetDaysPerWeek?: number;
   /** Extra hard constraints for first-time onboarding programs. */
   onboarding?: boolean;
+  /** Prompt-only context (e.g. the current plan JSON) — never parsed for constraints. */
+  baseContext?: string;
 };
 
 function clampSets(n: unknown): number {
@@ -307,11 +452,11 @@ async function generateStrengthWorkoutPlanFromProfile(
   preferences?: string,
   options?: WorkoutPlanGenerationOptions
 ): Promise<AiGeneratedWorkoutPlan> {
-  const ctx = await prepareGenerationContext(profile, preferences);
+  const ctx = await prepareGenerationContext(profile, preferences, options);
   const { requirements, pool } = ctx;
   const equipment = requirements.equipment;
   const intake = buildIntakeContextForAi(profile, preferences);
-  const targetDays = options?.targetDaysPerWeek;
+  const targetDays = options?.targetDaysPerWeek ?? requirements.daysPerWeek ?? undefined;
   const daysRule = targetDays
     ? `- Create EXACTLY ${targetDays} training days in the "days" array (days_per_week must be ${targetDays}).`
     : "- 3–5 training days per week unless schedule clearly allows fewer.";
@@ -329,7 +474,7 @@ ONBOARDING CONSTRAINTS (mandatory):
 
 CLIENT PROFILE:
 ${intake}
-
+${options?.baseContext?.trim() ? `\n${options.baseContext.trim()}\n` : ""}
 ${buildRequirementsPromptBlock(requirements)}
 ${buildPhase5PromptHints(ctx)}
 
@@ -371,16 +516,22 @@ Respond with ONLY valid JSON:
   "coach_notes": ["2-4 short coaching tips for this client", "not-a-doctor disclaimer"]
 }`;
 
-  const raw = await runTextPrompt(prompt, { maxTokens: 2500, json: true, tier: "quality" });
-  const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutPlan;
-  const normalized = normalizeWorkoutPlan(
-    parsed,
-    profile.preferred_locale,
-    targetDays
-  );
-  const enforced = enforceStrengthPlan(normalized, ctx);
+  const result = await generateWithValidation({
+    generate: async (feedback) => {
+      const raw = await runTextPrompt(withFeedback(prompt, feedback), {
+        maxTokens: 2500,
+        json: true,
+        tier: "quality",
+      });
+      const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutPlan;
+      return normalizeWorkoutPlan(parsed, profile.preferred_locale, targetDays);
+    },
+    validateRaw: (raw) => validateWorkoutPlan(raw, requirements, { expectedDays: targetDays }),
+    enforce: (raw) => enforceStrengthPlan(raw, ctx),
+    validate: (value) => validateWorkoutPlan(value, requirements, { expectedDays: targetDays }),
+  });
   const plan = await attachDemoVideosToPlan(
-    enforced,
+    result.value,
     profile.gender,
     equipment
   );
@@ -389,6 +540,7 @@ Respond with ONLY valid JSON:
     throw new Error("AI did not return a valid workout plan. Try again.");
   }
 
+  recordReport(plan, requirements, result);
   return plan;
 }
 
@@ -433,9 +585,10 @@ function normalizeAiHiitPlan(
 
 export async function generateHiitPlanFromProfile(
   profile: Profile,
-  preferences?: string
+  preferences?: string,
+  input?: CoachGenerationInput
 ): Promise<AiGeneratedHiitPlan> {
-  const ctx = await prepareGenerationContext(profile, preferences);
+  const ctx = await prepareGenerationContext(profile, preferences, input);
   const { requirements, pool } = ctx;
   const equipment = requirements.equipment;
   const intake = buildIntakeContextForAi(profile, preferences);
@@ -494,16 +647,27 @@ Respond with ONLY valid JSON:
   "coach_notes": ["2-4 short coaching tips for this HIIT session", "not-a-doctor disclaimer"]
 }`;
 
-  const raw = await runTextPrompt(prompt, { maxTokens: 2000, json: true, tier: "quality" });
-  const parsed = parseJsonObject(raw) as Parameters<typeof normalizeAiHiitPlan>[0];
-  const normalized = normalizeAiHiitPlan(parsed, profile.preferred_locale);
-  if (!normalized) {
-    throw new Error("AI did not return a valid HIIT workout. Try again.");
-  }
+  const result = await generateWithValidation({
+    generate: async (feedback) => {
+      const raw = await runTextPrompt(withFeedback(prompt, feedback), {
+        maxTokens: 2000,
+        json: true,
+        tier: "quality",
+      });
+      const parsed = parseJsonObject(raw) as Parameters<typeof normalizeAiHiitPlan>[0];
+      const normalized = normalizeAiHiitPlan(parsed, profile.preferred_locale);
+      if (!normalized) {
+        throw new Error("AI did not return a valid HIIT workout. Try again.");
+      }
+      return normalized;
+    },
+    validateRaw: (raw) => validateHiitPlan(raw, requirements),
+    enforce: (raw) => enforceHiitPlan(raw, ctx),
+    validate: (value) => validateHiitPlan(value, requirements),
+  });
+  const enforced = result.value;
 
-  const enforced = enforceHiitPlan(normalized, ctx);
-
-  return {
+  const plan: AiGeneratedHiitPlan = {
     ...enforced,
     config: await attachDemoVideosToHiit(
       enforced.config,
@@ -511,6 +675,8 @@ Respond with ONLY valid JSON:
       equipment
     ),
   };
+  recordReport(plan, requirements, result);
+  return plan;
 }
 
 export async function generateWorkoutPlanFromProfile(
@@ -521,7 +687,7 @@ export async function generateWorkoutPlanFromProfile(
 ): Promise<AiWorkoutPlanResult> {
   const kind = inferAiWorkoutKind(preferences, explicitKind);
   if (kind === "hiit") {
-    return generateHiitPlanFromProfile(profile, preferences);
+    return generateHiitPlanFromProfile(profile, preferences, options);
   }
   return generateStrengthWorkoutPlanFromProfile(profile, preferences, options);
 }
@@ -580,24 +746,25 @@ export type AiDayProgramResult = {
 export async function generateWorkoutSessionFromProfile(
   profile: Profile,
   prompt: string,
-  explicitKind?: WorkoutPlanKind | null
+  explicitKind?: WorkoutPlanKind | null,
+  input?: CoachGenerationInput
 ): Promise<AiDaySessionResult> {
   const kind = inferAiWorkoutKind(prompt, explicitKind);
   if (kind === "hiit") {
     return {
       kind: "hiit",
-      plan: await generateHiitPlanFromProfile(profile, prompt),
+      plan: await generateHiitPlanFromProfile(profile, prompt, input),
     };
   }
   if (kind === "warmup" || kind === "stretch") {
     return {
       kind,
-      plan: await generateExtraIntervalSessionFromProfile(profile, prompt, kind),
+      plan: await generateExtraIntervalSessionFromProfile(profile, prompt, kind, input),
     };
   }
   return {
     kind: "strength",
-    workout: await generateStrengthWorkoutDayFromProfile(profile, prompt),
+    workout: await generateStrengthWorkoutDayFromProfile(profile, prompt, input),
   };
 }
 
@@ -607,9 +774,10 @@ export async function generateWorkoutSessionFromProfile(
  */
 export async function generateFullTrainingDayFromProfile(
   profile: Profile,
-  prompt: string
+  prompt: string,
+  input?: CoachGenerationInput
 ): Promise<AiDayProgramResult> {
-  const ctx = await prepareGenerationContext(profile, prompt);
+  const ctx = await prepareGenerationContext(profile, prompt, input);
   const { requirements, pool } = ctx;
   const equipment = requirements.equipment;
   const intake = buildIntakeContextForAi(profile, prompt);
@@ -711,7 +879,15 @@ Respond with ONLY valid JSON:
   "coach_notes": ["1-2 short tips for the whole day", "not-a-doctor disclaimer"]
 }`;
 
-  const raw = await runTextPrompt(aiPrompt, { maxTokens: 3200, json: true, tier: "quality" });
+  const locale = profile.preferred_locale;
+  type DayParts = {
+    warmup: AiGeneratedHiitPlan;
+    stretch: AiGeneratedHiitPlan;
+    main: { kind: "hiit"; plan: AiGeneratedHiitPlan } | { kind: "strength"; workout: AiGeneratedWorkoutDay };
+  };
+
+  const generateParts = async (feedback: string | null): Promise<DayParts> => {
+  const raw = await runTextPrompt(withFeedback(aiPrompt, feedback), { maxTokens: 3200, json: true, tier: "quality" });
   const parsed = parseJsonObject(raw) as {
     warmup?: Parameters<typeof normalizeAiHiitPlan>[0];
     stretch?: Parameters<typeof normalizeAiHiitPlan>[0];
@@ -719,7 +895,6 @@ Respond with ONLY valid JSON:
     coach_notes?: string[];
   };
 
-  const locale = profile.preferred_locale;
   const dayNotes = withPlanMedicalDisclaimer(parsed.coach_notes, locale);
 
   const warmupNorm = normalizeAiHiitPlan(
@@ -752,11 +927,7 @@ Respond with ONLY valid JSON:
     throw new Error("AI did not return a valid stretching session. Try again.");
   }
 
-  const warmupEnforced = enforceHiitPlan(warmupNorm, ctx);
-  const stretchEnforced = enforceHiitPlan(stretchNorm, ctx);
-
   const mainRaw = parsed.main ?? {};
-  let main: AiDayProgramResult["main"];
 
   if (mainKind === "hiit") {
     const hiit = normalizeAiHiitPlan(
@@ -775,37 +946,79 @@ Respond with ONLY valid JSON:
     if (!hiit?.config.exercises.length) {
       throw new Error("AI did not return a valid main HIIT workout. Try again.");
     }
-    const mainEnforced = enforceHiitPlan(hiit, ctx);
+    return { warmup: warmupNorm, stretch: stretchNorm, main: { kind: "hiit", plan: hiit } };
+  }
+  const workout = normalizeWorkoutDay(
+    {
+      ...(mainRaw as unknown as AiGeneratedWorkoutDay),
+      coach_notes:
+        (mainRaw.coach_notes as string[] | undefined) ?? dayNotes,
+    },
+    locale
+  );
+  if (!workout.exercises.length) {
+    throw new Error("AI did not return a valid main workout. Try again.");
+  }
+  return { warmup: warmupNorm, stretch: stretchNorm, main: { kind: "strength", workout } };
+  };
+
+  const validateParts = (parts: DayParts) => {
+    const mainReport =
+      parts.main.kind === "hiit"
+        ? validateHiitPlan(parts.main.plan, requirements)
+        : validateWorkoutDay(parts.main.workout, requirements);
+    const warm = validateHiitPlan(parts.warmup, requirements, "warmup");
+    const stretch = validateHiitPlan(parts.stretch, requirements, "stretch");
+    const hard = [...mainReport.hard, ...warm.hard, ...stretch.hard];
+    return { ok: hard.length === 0, hard, soft: [...mainReport.soft, ...warm.soft, ...stretch.soft] };
+  };
+
+  const result = await generateWithValidation({
+    generate: generateParts,
+    validateRaw: validateParts,
+    enforce: (parts): EnforcedResult<DayParts> => {
+      const warm = enforceHiitPlan(parts.warmup, ctx, "warmup");
+      const stretch = enforceHiitPlan(parts.stretch, ctx, "stretch");
+      const main =
+        parts.main.kind === "hiit"
+          ? (() => {
+              const e = enforceHiitPlan(parts.main.plan, ctx);
+              return { part: { kind: "hiit" as const, plan: e.value }, e };
+            })()
+          : (() => {
+              const e = enforceStrengthDay(parts.main.workout, ctx);
+              return { part: { kind: "strength" as const, workout: e.value }, e };
+            })();
+      return {
+        value: { warmup: warm.value, stretch: stretch.value, main: main.part },
+        repairCount: warm.repairCount + stretch.repairCount + main.e.repairCount,
+        itemCount: warm.itemCount + stretch.itemCount + main.e.itemCount,
+      };
+    },
+    validate: validateParts,
+  });
+  const { warmup: warmupEnforced, stretch: stretchEnforced, main: mainEnforcedPart } = result.value;
+
+  let main: AiDayProgramResult["main"];
+  if (mainEnforcedPart.kind === "hiit") {
     main = {
       kind: "hiit",
       plan: {
-        ...mainEnforced,
+        ...mainEnforcedPart.plan,
         config: await attachDemoVideosToHiit(
-          mainEnforced.config,
+          mainEnforcedPart.plan.config,
           profile.gender,
           equipment
         ),
       },
     };
   } else {
-    const workout = normalizeWorkoutDay(
-      {
-        ...(mainRaw as unknown as AiGeneratedWorkoutDay),
-        coach_notes:
-          (mainRaw.coach_notes as string[] | undefined) ?? dayNotes,
-      },
-      locale
-    );
-    if (!workout.exercises.length) {
-      throw new Error("AI did not return a valid main workout. Try again.");
-    }
-    const mainEnforced = enforceStrengthDay(workout, ctx);
     main = {
       kind: "strength",
       workout: {
-        ...mainEnforced,
+        ...mainEnforcedPart.workout,
         exercises: await enrichExercisesWithDemoVideos(
-          mainEnforced.exercises,
+          mainEnforcedPart.workout.exercises,
           profile.gender,
           equipment
         ),
@@ -813,7 +1026,7 @@ Respond with ONLY valid JSON:
     };
   }
 
-  return {
+  const day: AiDayProgramResult = {
     warmup: {
       ...warmupEnforced,
       config: await attachDemoVideosToHiit(
@@ -832,13 +1045,16 @@ Respond with ONLY valid JSON:
       ),
     },
   };
+  recordReport(day, requirements, result);
+  return day;
 }
 
 async function generateStrengthWorkoutDayFromProfile(
   profile: Profile,
-  prompt: string
+  prompt: string,
+  input?: CoachGenerationInput
 ): Promise<AiGeneratedWorkoutDay> {
-  const ctx = await prepareGenerationContext(profile, prompt);
+  const ctx = await prepareGenerationContext(profile, prompt, input);
   const { requirements, pool } = ctx;
   const equipment = requirements.equipment;
   const intake = buildIntakeContextForAi(profile, prompt);
@@ -889,10 +1105,21 @@ Respond with ONLY valid JSON:
   "coach_notes": ["1-3 short coaching tips for this session", "not-a-doctor disclaimer"]
 }`;
 
-  const raw = await runTextPrompt(aiPrompt, { maxTokens: 1800, json: true, tier: "quality" });
-  const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutDay;
-  const normalized = normalizeWorkoutDay(parsed, profile.preferred_locale);
-  const enforced = enforceStrengthDay(normalized, ctx);
+  const result = await generateWithValidation({
+    generate: async (feedback) => {
+      const raw = await runTextPrompt(withFeedback(aiPrompt, feedback), {
+        maxTokens: 1800,
+        json: true,
+        tier: "quality",
+      });
+      const parsed = parseJsonObject(raw) as unknown as AiGeneratedWorkoutDay;
+      return normalizeWorkoutDay(parsed, profile.preferred_locale);
+    },
+    validateRaw: (raw) => validateWorkoutDay(raw, requirements),
+    enforce: (raw) => enforceStrengthDay(raw, ctx),
+    validate: (value) => validateWorkoutDay(value, requirements),
+  });
+  const enforced = result.value;
   const workout = {
     ...enforced,
     exercises: await enrichExercisesWithDemoVideos(
@@ -906,15 +1133,17 @@ Respond with ONLY valid JSON:
     throw new Error("AI did not return a valid workout. Try again.");
   }
 
+  recordReport(workout, requirements, result);
   return workout;
 }
 
 async function generateExtraIntervalSessionFromProfile(
   profile: Profile,
   prompt: string,
-  kind: "warmup" | "stretch"
+  kind: "warmup" | "stretch",
+  input?: CoachGenerationInput
 ): Promise<AiGeneratedHiitPlan> {
-  const ctx = await prepareGenerationContext(profile, prompt);
+  const ctx = await prepareGenerationContext(profile, prompt, input);
   const { requirements, pool } = ctx;
   const equipment = requirements.equipment;
   const intake = buildIntakeContextForAi(profile, prompt);
@@ -1007,7 +1236,7 @@ Respond with ONLY valid JSON:
     );
   }
 
-  const enforced = enforceHiitPlan(normalized, ctx);
+  const enforced = enforceHiitPlan(normalized, ctx, kind).value;
 
   return {
     ...enforced,
