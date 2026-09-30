@@ -1,16 +1,20 @@
 import {
   Bot,
   CalendarDays,
+  ChartNoAxesColumnIncreasing,
   ClipboardList,
+  Clock,
   Dumbbell,
   Flame,
   LineChart,
   MessageCircle,
   Package,
+  Play,
   Target,
   Timer,
   Trophy,
   UserPlus,
+  Utensils,
   Video,
   Zap,
   type LucideIcon,
@@ -258,6 +262,37 @@ export const LANDING_HIGHLIGHTS = [
   { icon: LineChart, label: "Macro tracking" },
   { icon: Video, label: "Live sessions" },
   { icon: Target, label: "Your plans" },
+] as const;
+
+export const LANDING_HERO_FEATURES = [
+  { icon: Dumbbell, label: "Custom workouts", iconClassName: "rotate-45" },
+  { icon: Utensils, label: "Simple nutrition", iconClassName: "" },
+  { icon: ChartNoAxesColumnIncreasing, label: "Track progress", iconClassName: "" },
+  { icon: Play, label: "Live sessions", iconClassName: "" },
+] as const;
+
+export const LANDING_HERO_COACH_ROWS = [
+  {
+    title: "Home workout",
+    subtitle: "30 min · Full body",
+    image: "/workouts/full-body.jpg",
+  },
+  {
+    title: "Nutrition plan",
+    subtitle: "Simple · Real food",
+    image: "/dashboard/nutrition.jpg",
+  },
+  {
+    title: "Progress tracking",
+    subtitle: "Graphs · Insights",
+    image: null,
+  },
+] as const;
+
+export const LANDING_HERO_STATS = [
+  { icon: Clock, value: "2 min", label: "To your plan" },
+  { icon: Bot, value: "24/7", label: "AI coaching" },
+  { icon: Trophy, value: "Real", label: "Results" },
 ] as const;
 
 export const LANDING_STATS = [

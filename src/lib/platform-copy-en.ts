@@ -1049,6 +1049,8 @@ export const platformCopyEn = {
     chatUnreachable: "Could not reach AI Coach",
     noStream: "No response stream",
     requestFailed: "AI request failed",
+    sessionExpired: "Your session expired. Log in again to keep chatting with Alex.",
+    sessionExpiredCta: "Log in again",
     sources: (n: number) => `${n} source${n === 1 ? "" : "s"}`,
     buildPlan: "Create with AI",
     buildWorkoutWithAi: "Create workout with AI",

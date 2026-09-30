@@ -1059,6 +1059,8 @@ export const platformCopyAl = {
     chatUnreachable: "Nuk u arrit Coach AI",
     noStream: "Nuk ka përgjigje nga serveri",
     requestFailed: "Kërkesa AI dështoi",
+    sessionExpired: "Sesioni yt skadoi. Hyr përsëri për të vazhduar me Alex.",
+    sessionExpiredCta: "Hyr përsëri",
     sources: (n: number) => `${n} burim${n === 1 ? "" : "e"}`,
     buildPlan: "Krijo me AI",
     buildWorkoutWithAi: "Krijo stërvitjen me AI",

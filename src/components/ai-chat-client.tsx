@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowUp,
@@ -36,6 +36,8 @@ import {
   setCachedCoachChat,
 } from "@/lib/coach-chat-cache";
 import { useVoiceDictation } from "@/hooks/use-voice-dictation";
+import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
+import { signOut } from "@/lib/actions/auth";
 
 const URL_RE = /https?:\/\/[^\s<>)]+/g;
 
@@ -569,6 +571,8 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   );
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [isSigningOut, startSignOut] = useTransition();
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingWebSearch, setPendingWebSearch] = useState(false);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
@@ -655,6 +659,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     if ((!trimmed && !attachment) || isStreamingRef.current || !canChatRef.current) return;
 
     setError(null);
+    setSessionExpired(false);
     setInput("");
     stickToBottomRef.current = true;
     const image: ChatImageAttachment | undefined = attachment ?? undefined;
@@ -676,18 +681,32 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     abortRef.current = controller;
 
     try {
-      const response = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: messageContent,
-          history,
-          mode: chatModeRef.current,
-          timezoneOffsetMinutes: new Date().getTimezoneOffset(),
-          ...(image ? { image } : {}),
-        }),
-        signal: controller.signal,
+      const requestBody = JSON.stringify({
+        message: messageContent,
+        history,
+        mode: chatModeRef.current,
+        timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+        ...(image ? { image } : {}),
       });
+      const postChat = () =>
+        fetch("/api/ai/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+          signal: controller.signal,
+        });
+
+      let response = await postChat();
+
+      // The page can outlive its session (app backgrounded, signed out elsewhere).
+      if (response.status === 401) {
+        const { error: refreshError } = await createBrowserSupabase().auth.refreshSession();
+        if (!refreshError) response = await postChat();
+        if (response.status === 401) {
+          setSessionExpired(true);
+          throw new Error(ai.sessionExpired);
+        }
+      }
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -981,6 +1000,23 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
         !(lastMessage.richBlocks?.length ?? 0) &&
         !(lastMessage.pendingActions?.length ?? 0)));
 
+  const errorNotice = error ? (
+    <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <p className="text-sm text-red-400">{error}</p>
+      {sessionExpired && error === ai.sessionExpired && (
+        <button
+          type="button"
+          onClick={() => startSignOut(() => signOut())}
+          disabled={isSigningOut}
+          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          {isSigningOut && <Loader2 className="h-3 w-3 animate-spin" />}
+          {ai.sessionExpiredCta}
+        </button>
+      )}
+    </div>
+  ) : null;
+
   const thinkingRow = showThinkingPlaceholder ? (
     <div className="flex gap-3">
       <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
@@ -1047,7 +1083,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
           </div>
 
           <div className="relative min-w-0 shrink-0 bg-background px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2">
-            {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
+            {errorNotice}
             <p className="mb-1.5 text-center text-[11px] leading-snug text-muted-foreground">
               {ai.medicalDisclaimer}
             </p>
@@ -1133,7 +1169,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
           </div>
 
           <div className="min-w-0 border-t border-border/50 bg-card p-4 shadow-[0_100dvh_0_0_var(--card)]">
-            {error && <p className="mb-2 text-sm text-red-400">{error}</p>}
+            {errorNotice}
             <p className="mb-1.5 text-center text-[11px] leading-snug text-muted-foreground">
               {ai.medicalDisclaimer}
             </p>

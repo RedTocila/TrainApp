@@ -286,7 +286,8 @@ export async function signIn(formData: FormData) {
 
 export async function signOut() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  // Default scope is "global", which would revoke the user's sessions on every other device too.
+  await supabase.auth.signOut({ scope: "local" });
   revalidatePath("/", "layout");
   const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
   const nativeApp = isNativeAppRequest(
