@@ -4,7 +4,7 @@ import type { CoachPendingAction } from "@/lib/ai/coach-pending-actions";
 import type { MealType } from "@/lib/types";
 import type { MealIngredient } from "@/lib/meal-utils";
 
-export type AiProvider = "openai" | "anthropic";
+export type AiProvider = "openai";
 
 export type ChatRole = "system" | "user" | "assistant";
 

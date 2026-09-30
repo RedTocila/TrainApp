@@ -1,14 +1,11 @@
-import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import type { AiProvider, ChatImageAttachment, ChatTurn } from "@/lib/ai/types";
 import { formatUserError } from "@/lib/format-user-error";
 
-type AnthropicImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-
 /**
- * Routing tier for cost vs quality:
- * - cheap: OpenAI mini first (chat, meals, short tasks), Anthropic fallback
- * - quality: Anthropic Sonnet first (plans, reports), OpenAI fallback
+ * Routing tier for cost vs quality (OpenAI only):
+ * - cheap: OPENAI_MEAL_MODEL (chat, meals, short tasks)
+ * - quality: OPENAI_QUALITY_MODEL (plans, reports)
  */
 export type AiRouteTier = "cheap" | "quality";
 
@@ -18,6 +15,13 @@ type PromptOptions = {
   /** Defaults to cheap for text/chat; quality for long plan/report jobs. */
   tier?: AiRouteTier;
 };
+
+const NOT_CONFIGURED = "AI is not configured. Add OPENAI_API_KEY.";
+
+function openaiTextModel(tier: AiRouteTier): string {
+  if (tier === "quality") return process.env.OPENAI_QUALITY_MODEL ?? "gpt-4.1-mini";
+  return process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini";
+}
 
 function getTurnImages(message: ChatTurn): ChatImageAttachment[] {
   if (message.images?.length) return message.images;
@@ -46,72 +50,8 @@ function toOpenAIMessage(message: ChatTurn): OpenAI.Chat.ChatCompletionMessagePa
   return { role: "user", content: parts };
 }
 
-function toAnthropicMessage(
-  message: ChatTurn
-): Anthropic.MessageParam | null {
-  if (message.role === "system") return null;
-
-  const images = getTurnImages(message);
-  if (message.role === "assistant" || images.length === 0) {
-    return {
-      role: message.role,
-      content: message.content,
-    };
-  }
-
-  const parts: Anthropic.ContentBlockParam[] = [];
-  for (const img of images) {
-    parts.push({
-      type: "image",
-      source: {
-        type: "base64",
-        media_type: img.mimeType as AnthropicImageMediaType,
-        data: img.base64,
-      },
-    });
-  }
-  if (message.content.trim()) {
-    parts.push({ type: "text", text: message.content });
-  }
-  return { role: "user", content: parts };
-}
-
-function hasProvider(provider: AiProvider): boolean {
-  if (provider === "openai") return Boolean(process.env.OPENAI_API_KEY);
-  return Boolean(process.env.ANTHROPIC_API_KEY);
-}
-
-/**
- * Ordered provider list. Tier overrides AI_MEAL_PROVIDER when both keys exist.
- * AI_MEAL_PROVIDER still sets default order when tier is omitted (legacy).
- */
-export function getConfiguredProviders(tier?: AiRouteTier): AiProvider[] {
-  const openaiOk = hasProvider("openai");
-  const anthropicOk = hasProvider("anthropic");
-
-  if (tier === "cheap") {
-    return [
-      ...(openaiOk ? (["openai"] as const) : []),
-      ...(anthropicOk ? (["anthropic"] as const) : []),
-    ];
-  }
-  if (tier === "quality") {
-    return [
-      ...(anthropicOk ? (["anthropic"] as const) : []),
-      ...(openaiOk ? (["openai"] as const) : []),
-    ];
-  }
-
-  const preferred = (process.env.AI_MEAL_PROVIDER ?? "openai") as AiProvider;
-  const other: AiProvider = preferred === "openai" ? "anthropic" : "openai";
-  const providers: AiProvider[] = [];
-
-  if (preferred === "openai" && openaiOk) providers.push("openai");
-  if (preferred === "anthropic" && anthropicOk) providers.push("anthropic");
-  if (other === "openai" && openaiOk) providers.push("openai");
-  if (other === "anthropic" && anthropicOk) providers.push("anthropic");
-
-  return [...new Set(providers)];
+export function getConfiguredProviders(): AiProvider[] {
+  return process.env.OPENAI_API_KEY ? ["openai"] : [];
 }
 
 export function isAiConfigured(): boolean {
@@ -125,254 +65,112 @@ export function getOpenAIClient(): OpenAI {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 }
 
-export function getAnthropicClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not configured");
-  }
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function requireOpenAIClient(): OpenAI {
+  if (!isAiConfigured()) throw new Error(NOT_CONFIGURED);
+  return getOpenAIClient();
 }
 
 export async function runTextPrompt(
   prompt: string,
   options?: PromptOptions
 ): Promise<string> {
-  const tier = options?.tier ?? "cheap";
-  const providers = getConfiguredProviders(tier);
-  if (providers.length === 0) {
-    throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
+  const client = requireOpenAIClient();
+  try {
+    const response = await client.chat.completions.create({
+      model: openaiTextModel(options?.tier ?? "cheap"),
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: options?.maxTokens ?? 1200,
+      ...(options?.json ? { response_format: { type: "json_object" } } : {}),
+    });
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error("OpenAI returned an empty response");
+    return content;
+  } catch (error) {
+    throw new Error(formatUserError(error, "AI request failed"));
   }
-
-  let lastError: Error | null = null;
-  for (const provider of providers) {
-    try {
-      if (provider === "openai") {
-        const client = getOpenAIClient();
-        const response = await client.chat.completions.create({
-          model: process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini",
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: options?.maxTokens ?? 1200,
-          ...(options?.json ? { response_format: { type: "json_object" } } : {}),
-        });
-        const content = response.choices[0]?.message?.content;
-        if (!content) throw new Error("OpenAI returned an empty response");
-        return content;
-      }
-
-      const client = getAnthropicClient();
-      const response = await client.messages.create({
-        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-6",
-        max_tokens: options?.maxTokens ?? 1200,
-        messages: [{ role: "user", content: prompt }],
-      });
-      const textBlock = response.content.find((block) => block.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
-        throw new Error("Anthropic returned an empty response");
-      }
-      return textBlock.text;
-    } catch (error) {
-      lastError = new Error(
-        formatUserError(error, "AI request failed")
-      );
-    }
-  }
-
-  throw lastError ?? new Error("AI request failed");
 }
 
 export async function runChatCompletion(
   messages: ChatTurn[],
   options?: { maxTokens?: number; tier?: AiRouteTier }
 ): Promise<string> {
-  const tier = options?.tier ?? "cheap";
-  const providers = getConfiguredProviders(tier);
-  if (providers.length === 0) {
-    throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
+  const client = requireOpenAIClient();
+  try {
+    const response = await client.chat.completions.create({
+      model: openaiTextModel(options?.tier ?? "cheap"),
+      messages: messages.map(toOpenAIMessage),
+      max_tokens: options?.maxTokens ?? 900,
+    });
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error("OpenAI returned an empty response");
+    return content;
+  } catch (error) {
+    throw new Error(formatUserError(error, "AI chat request failed"));
   }
-
-  const systemMessage = messages.find((message) => message.role === "system")?.content;
-  const conversation = messages.filter((message) => message.role !== "system");
-
-  let lastError: Error | null = null;
-  for (const provider of providers) {
-    try {
-      if (provider === "openai") {
-        const client = getOpenAIClient();
-        const response = await client.chat.completions.create({
-          model: process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini",
-          messages: messages.map(toOpenAIMessage),
-          max_tokens: options?.maxTokens ?? 900,
-        });
-        const content = response.choices[0]?.message?.content;
-        if (!content) throw new Error("OpenAI returned an empty response");
-        return content;
-      }
-
-      const client = getAnthropicClient();
-      const response = await client.messages.create({
-        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-6",
-        max_tokens: options?.maxTokens ?? 900,
-        ...(systemMessage ? { system: systemMessage } : {}),
-        messages: conversation
-          .map(toAnthropicMessage)
-          .filter((message): message is Anthropic.MessageParam => message !== null),
-      });
-      const textBlock = response.content.find((block) => block.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
-        throw new Error("Anthropic returned an empty response");
-      }
-      return textBlock.text;
-    } catch (error) {
-      lastError = new Error(formatUserError(error, "AI chat request failed"));
-    }
-  }
-
-  throw lastError ?? new Error("AI chat request failed");
 }
 
 export async function* streamChatCompletion(
   messages: ChatTurn[],
   options?: { maxTokens?: number; signal?: AbortSignal; tier?: AiRouteTier }
 ): AsyncGenerator<string> {
-  const tier = options?.tier ?? "cheap";
-  const providers = getConfiguredProviders(tier);
-  if (providers.length === 0) {
-    throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
-  }
-
-  const systemMessage = messages.find((message) => message.role === "system")?.content;
-  const conversation = messages.filter((message) => message.role !== "system");
-
-  let lastError: Error | null = null;
-  for (const provider of providers) {
-    try {
-      if (provider === "openai") {
-        const client = getOpenAIClient();
-        const stream = await client.chat.completions.create(
-          {
-            model: process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini",
-            messages: messages.map(toOpenAIMessage),
-            max_tokens: options?.maxTokens ?? 900,
-            stream: true,
-          },
-          { signal: options?.signal }
-        );
-
-        for await (const chunk of stream) {
-          const text = chunk.choices[0]?.delta?.content;
-          if (text) yield text;
-        }
-        return;
-      }
-
-      const client = getAnthropicClient();
-      const stream = client.messages.stream({
-        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-6",
+  const client = requireOpenAIClient();
+  try {
+    const stream = await client.chat.completions.create(
+      {
+        model: openaiTextModel(options?.tier ?? "cheap"),
+        messages: messages.map(toOpenAIMessage),
         max_tokens: options?.maxTokens ?? 900,
-        ...(systemMessage ? { system: systemMessage } : {}),
-        messages: conversation
-          .map(toAnthropicMessage)
-          .filter((message): message is Anthropic.MessageParam => message !== null),
-      });
+        stream: true,
+      },
+      { signal: options?.signal }
+    );
 
-      for await (const event of stream) {
-        if (
-          event.type === "content_block_delta" &&
-          event.delta.type === "text_delta"
-        ) {
-          yield event.delta.text;
-        }
-      }
-      return;
-    } catch (error) {
-      if (options?.signal?.aborted) return;
-      lastError = new Error(formatUserError(error, "AI chat stream failed"));
+    for await (const chunk of stream) {
+      const text = chunk.choices[0]?.delta?.content;
+      if (text) yield text;
     }
+  } catch (error) {
+    if (options?.signal?.aborted) return;
+    throw new Error(formatUserError(error, "AI chat stream failed"));
   }
-
-  throw lastError ?? new Error("AI chat stream failed");
 }
 
 export async function runVisionPrompt(
   prompt: string,
   imageBase64: string,
   mimeType: string,
-  options?: { maxTokens?: number; imageDetail?: "low" | "high" | "auto"; tier?: AiRouteTier }
+  options?: { maxTokens?: number; imageDetail?: "low" | "high" | "auto" }
 ): Promise<string> {
-  // Vision stays on OpenAI gpt-4o by default (cheap tier); Anthropic is fallback.
-  const tier = options?.tier ?? "cheap";
-  const providers = getConfiguredProviders(tier);
-  if (providers.length === 0) {
-    throw new Error("AI is not configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
-  }
-
-  const maxTokens = options?.maxTokens ?? 900;
-  const imageDetail = options?.imageDetail ?? "auto";
+  const client = requireOpenAIClient();
   // Vision needs a stronger model than text — mini often mislabels chicken as fish.
   // Do not fall back to OPENAI_MEAL_MODEL (often mini); override only via OPENAI_VISION_MODEL.
-  const openaiVisionModel = process.env.OPENAI_VISION_MODEL ?? "gpt-4o";
+  const visionModel = process.env.OPENAI_VISION_MODEL ?? "gpt-4o";
 
-  let lastError: Error | null = null;
-  for (const provider of providers) {
-    try {
-      if (provider === "openai") {
-        const client = getOpenAIClient();
-        const response = await client.chat.completions.create({
-          model: openaiVisionModel,
-          temperature: 0.2,
-          messages: [
+  try {
+    const response = await client.chat.completions.create({
+      model: visionModel,
+      temperature: 0.2,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
             {
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${mimeType};base64,${imageBase64}`,
-                    detail: imageDetail,
-                  },
-                },
-              ],
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${imageBase64}`,
+                detail: options?.imageDetail ?? "auto",
+              },
             },
           ],
-          max_tokens: maxTokens,
-        });
-        const content = response.choices[0]?.message?.content;
-        if (!content) throw new Error("OpenAI returned an empty response");
-        return content;
-      }
-
-      const client = getAnthropicClient();
-      const mediaType = mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-      const response = await client.messages.create({
-        model: process.env.ANTHROPIC_MEAL_MODEL ?? "claude-sonnet-4-6",
-        max_tokens: maxTokens,
-        temperature: 0.2,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mediaType,
-                  data: imageBase64,
-                },
-              },
-              { type: "text", text: prompt },
-            ],
-          },
-        ],
-      });
-      const textBlock = response.content.find((block) => block.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
-        throw new Error("Anthropic returned an empty response");
-      }
-      return textBlock.text;
-    } catch (error) {
-      lastError = new Error(formatUserError(error, "AI vision request failed"));
-    }
+        },
+      ],
+      max_tokens: options?.maxTokens ?? 900,
+    });
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error("OpenAI returned an empty response");
+    return content;
+  } catch (error) {
+    throw new Error(formatUserError(error, "AI vision request failed"));
   }
-
-  throw lastError ?? new Error("AI vision request failed");
 }
