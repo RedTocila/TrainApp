@@ -4,21 +4,20 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
 import { DEFAULT_CHECKOUT_LOCALE } from "@/lib/checkout-i18n";
 import {
+  HEIGHT_INPUT_PLACEHOLDER,
+  HEIGHT_LABEL,
+  HEIGHT_UNIT,
+  MAX_WEIGHT_INPUT,
+  WEIGHT_INPUT_PLACEHOLDER,
+  WEIGHT_LABEL,
+  WEIGHT_UNIT,
   formatHeightFromCm,
   formatHeightWithUnitFromCm,
   formatWeightFromKg,
   formatWeightFromKgForInput,
   formatWeightWithUnitFromKg,
-  heightInputPlaceholder,
-  heightLabel,
-  heightUnitLabel,
-  maxWeightInput,
   parseHeightToCm,
   parseWeightToKg,
-  weightInputPlaceholder,
-  weightLabel,
-  weightUnitLabel,
-  type UnitSystem,
 } from "@/lib/body-units";
 import { getCoachCopy, getCoachLabels } from "@/lib/coach-copy";
 import { persistGuestLocale, readStoredGuestLocale } from "@/lib/guest-locale";
@@ -26,7 +25,6 @@ import { getPlatformCopy } from "@/lib/platform-copy";
 
 type LocaleContextValue = {
   locale: CheckoutLocale;
-  unitSystem: UnitSystem;
   setLocalePreview: (locale: CheckoutLocale) => void;
   /** Change language immediately and persist for guests (cookie + localStorage). */
   setLocale: (locale: CheckoutLocale) => void;
@@ -34,20 +32,17 @@ type LocaleContextValue = {
 
 const LocaleContext = createContext<LocaleContextValue>({
   locale: DEFAULT_CHECKOUT_LOCALE,
-  unitSystem: "metric",
   setLocalePreview: () => {},
   setLocale: () => {},
 });
 
 export function LocaleProvider({
   locale: serverLocale,
-  unitSystem: serverUnitSystem = "metric",
   /** When true, hydrate from localStorage if present (public pages). */
   syncGuestStorage = false,
   children,
 }: {
   locale: CheckoutLocale;
-  unitSystem?: UnitSystem;
   syncGuestStorage?: boolean;
   children: React.ReactNode;
 }) {
@@ -74,11 +69,10 @@ export function LocaleProvider({
   const value = useMemo(
     () => ({
       locale: preview ?? serverLocale,
-      unitSystem: serverUnitSystem,
       setLocalePreview: setPreview,
       setLocale,
     }),
-    [preview, serverLocale, serverUnitSystem]
+    [preview, serverLocale]
   );
 
   return (
@@ -113,34 +107,23 @@ export function usePlatformCopy() {
   return useMemo(() => getPlatformCopy(locale), [locale]);
 }
 
-export function useUnitSystem(): UnitSystem {
-  return useContext(LocaleContext).unitSystem;
-}
+const BODY_UNITS = {
+  weightUnit: WEIGHT_UNIT,
+  heightUnit: HEIGHT_UNIT,
+  weightFieldLabel: WEIGHT_LABEL,
+  heightFieldLabel: HEIGHT_LABEL,
+  weightPlaceholder: WEIGHT_INPUT_PLACEHOLDER,
+  heightPlaceholder: HEIGHT_INPUT_PLACEHOLDER,
+  formatWeightKg: formatWeightFromKg,
+  formatWeightKgInput: formatWeightFromKgForInput,
+  formatWeightKgWithUnit: formatWeightWithUnitFromKg,
+  parseWeightInput: parseWeightToKg,
+  formatHeightCm: formatHeightFromCm,
+  formatHeightCmWithUnit: formatHeightWithUnitFromCm,
+  parseHeightInput: parseHeightToCm,
+  maxWeightInput: MAX_WEIGHT_INPUT,
+} as const;
 
 export function useBodyUnits() {
-  const unitSystem = useUnitSystem();
-
-  return useMemo(
-    () => ({
-      unitSystem,
-      weightUnit: weightUnitLabel(unitSystem),
-      heightUnit: heightUnitLabel(unitSystem),
-      weightFieldLabel: weightLabel(unitSystem),
-      heightFieldLabel: heightLabel(unitSystem),
-      weightPlaceholder: weightInputPlaceholder(unitSystem),
-      heightPlaceholder: heightInputPlaceholder(unitSystem),
-      formatWeightKg: (kg: number) => formatWeightFromKg(kg, unitSystem),
-      formatWeightKgInput: (kg: number) =>
-        formatWeightFromKgForInput(kg, unitSystem),
-      formatWeightKgWithUnit: (kg: number) =>
-        formatWeightWithUnitFromKg(kg, unitSystem),
-      parseWeightInput: (raw: string) => parseWeightToKg(raw, unitSystem),
-      formatHeightCm: (cm: number) => formatHeightFromCm(cm, unitSystem),
-      formatHeightCmWithUnit: (cm: number) =>
-        formatHeightWithUnitFromCm(cm, unitSystem),
-      parseHeightInput: (raw: string) => parseHeightToCm(raw, unitSystem),
-      maxWeightInput: maxWeightInput(unitSystem),
-    }),
-    [unitSystem]
-  );
+  return BODY_UNITS;
 }

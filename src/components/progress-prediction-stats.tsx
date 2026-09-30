@@ -1,7 +1,6 @@
 "use client";
 
 import { useBodyUnits } from "@/components/locale-provider";
-import { kgToLb } from "@/lib/body-units";
 import type { ProgressPrediction } from "@/lib/ai/types";
 import { Scale, Target, TrendingDown, TrendingUp } from "lucide-react";
 
@@ -13,12 +12,7 @@ export function ProgressPredictionStats({
   const units = useBodyUnits();
   const trendingUp = (prediction.weekly_change_kg ?? 0) > 0;
   const TrendIcon = trendingUp ? TrendingUp : TrendingDown;
-  const weeklyChange =
-    prediction.weekly_change_kg != null
-      ? units.unitSystem === "imperial"
-        ? kgToLb(prediction.weekly_change_kg)
-        : prediction.weekly_change_kg
-      : null;
+  const weeklyChange = prediction.weekly_change_kg ?? null;
 
   return (
     <div className="grid grid-cols-2 gap-2">

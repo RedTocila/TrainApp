@@ -2,7 +2,6 @@ import type { Profile } from "@/lib/types";
 import {
   formatHeightWithUnitFromCm,
   formatWeightWithUnitFromKg,
-  type UnitSystem,
 } from "@/lib/body-units";
 import {
   buildFullIntakeSummaryFromResponses,
@@ -50,13 +49,9 @@ export interface IntakeSummaryItem {
   emoji?: string;
 }
 
-export function buildIntakeSummary(
-  profile: Profile,
-  unitSystem: UnitSystem = profile.unit_system ?? "metric"
-): IntakeSummaryItem[] {
+export function buildIntakeSummary(profile: Profile): IntakeSummaryItem[] {
   const fromQuestionnaire = buildIntakeSummaryFromResponses(
-    profileToResponses(profile),
-    unitSystem
+    profileToResponses(profile)
   );
   if (fromQuestionnaire.length > 0) {
     return fromQuestionnaire;
@@ -82,14 +77,14 @@ export function buildIntakeSummary(
   push(
     "Weight",
     profile.intake_weight_kg
-      ? formatWeightWithUnitFromKg(profile.intake_weight_kg, unitSystem)
+      ? formatWeightWithUnitFromKg(profile.intake_weight_kg)
       : null,
     "⚖️"
   );
   push(
     "Height",
     profile.height_cm
-      ? formatHeightWithUnitFromCm(profile.height_cm, unitSystem)
+      ? formatHeightWithUnitFromCm(profile.height_cm)
       : null,
     "📏"
   );
@@ -104,14 +99,10 @@ export function buildIntakeSummary(
 }
 
 /** Full questionnaire dump for admin / coach review. */
-export function buildFullIntakeSummary(
-  profile: Profile,
-  unitSystem: UnitSystem = profile.unit_system ?? "metric"
-): IntakeSummaryItem[] {
+export function buildFullIntakeSummary(profile: Profile): IntakeSummaryItem[] {
   const fromQuestionnaire = buildFullIntakeSummaryFromResponses(
-    profileToResponses(profile),
-    unitSystem
+    profileToResponses(profile)
   );
   if (fromQuestionnaire.length > 0) return fromQuestionnaire;
-  return buildIntakeSummary(profile, unitSystem);
+  return buildIntakeSummary(profile);
 }

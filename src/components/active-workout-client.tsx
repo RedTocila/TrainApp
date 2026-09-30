@@ -243,7 +243,6 @@ function ActiveExercisePanel({
   const historyLabel = formatExerciseHistoryLabel(
     history,
     platform.workout.lastSets,
-    units.unitSystem,
     platform.workout.neverTried
   );
   const previousSets = (history?.sets ?? []).filter(

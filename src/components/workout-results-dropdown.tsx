@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, ChevronDown, ClipboardList, Clock, Dumbbell } from "lucide-react";
-import { usePlatformCopy, useBodyUnits } from "@/components/locale-provider";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { dashboard, DashboardSectionHeading } from "@/components/dashboard-ui";
 import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import type { CompletedWorkoutResults } from "@/lib/actions/workout-sessions";
@@ -43,7 +43,6 @@ export function WorkoutResultsContent({
   gender?: string | null;
 }) {
   const platform = usePlatformCopy();
-  const units = useBodyUnits();
   const duration = formatSessionDuration(results.startedAt, results.completedAt);
   const stats = getWorkoutSetStats(
     results.exercises.map((exercise) => ({
@@ -93,8 +92,7 @@ export function WorkoutResultsContent({
               const loggedSets = exercise.sets.filter(
                 (set) =>
                   formatLoggedSetLine(
-                    { reps: set.reps, weight_kg: set.weightKg },
-                    units.unitSystem
+                    { reps: set.reps, weight_kg: set.weightKg }
                   ) != null
               );
               if (loggedSets.length === 0) return null;
@@ -119,8 +117,7 @@ export function WorkoutResultsContent({
                         {
                           reps: set.reps,
                           weight_kg: set.weightKg,
-                        },
-                        units.unitSystem
+                        }
                       );
                       if (!line) return null;
                       return (
@@ -202,8 +199,7 @@ export function WorkoutResultsContent({
                     {
                       reps: set.reps,
                       weight_kg: set.weightKg,
-                    },
-                    units.unitSystem
+                    }
                   );
                   if (!line) return null;
                   return (

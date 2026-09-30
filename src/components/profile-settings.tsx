@@ -55,7 +55,6 @@ export function ProfileSettings({
   phone,
   goal,
   preferredLocale = "al",
-  unitSystem = "metric",
   macros: initialMacros = {
     calories: 2000,
     protein: 150,
@@ -69,7 +68,6 @@ export function ProfileSettings({
   phone?: string | null;
   goal: string | null;
   preferredLocale?: CheckoutLocale;
-  unitSystem?: "metric" | "imperial";
   macros?: MacroTargets;
   showHeader?: boolean;
 }) {
@@ -85,7 +83,6 @@ export function ProfileSettings({
   const [phoneValue, setPhoneValue] = useState(phone ?? "");
   const [goalValue, setGoalValue] = useState(() => goalToFormValue(goal));
   const [locale, setLocale] = useState<CheckoutLocale>(preferredLocale);
-  const [units, setUnits] = useState<"metric" | "imperial">(unitSystem);
   const [macros, setMacros] = useState(() => normalizeTargets(initialMacros));
   const [calorieEditOpen, setCalorieEditOpen] = useState(false);
 
@@ -94,7 +91,6 @@ export function ProfileSettings({
     phone: phone ?? "",
     goal: goalToFormValue(goal),
     preferredLocale,
-    unitSystem,
     macros: normalizeTargets(initialMacros),
   });
 
@@ -109,7 +105,6 @@ export function ProfileSettings({
       prev.phone !== nextPhone ||
       prev.goal !== nextGoal ||
       prev.preferredLocale !== preferredLocale ||
-      prev.unitSystem !== unitSystem ||
       prev.macros.calories !== nextMacros.calories ||
       prev.macros.protein !== nextMacros.protein ||
       prev.macros.carbs !== nextMacros.carbs ||
@@ -120,17 +115,15 @@ export function ProfileSettings({
         phone: nextPhone,
         goal: nextGoal,
         preferredLocale,
-        unitSystem,
         macros: nextMacros,
       };
       setName(fullName);
       setPhoneValue(nextPhone);
       setGoalValue(nextGoal);
       setLocale(preferredLocale);
-      setUnits(unitSystem);
       setMacros(nextMacros);
     }
-  }, [fullName, phone, goal, preferredLocale, unitSystem, initialMacros]);
+  }, [fullName, phone, goal, preferredLocale, initialMacros]);
 
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -154,7 +147,6 @@ export function ProfileSettings({
     formData.set("phone", phoneValue);
     formData.set("goal", goalValue);
     formData.set("preferred_locale", locale);
-    formData.set("unit_system", units);
 
     startProfileTransition(async () => {
       const result = await updateProfile(formData);
@@ -166,7 +158,6 @@ export function ProfileSettings({
           phone: phoneValue,
           goal: goalValue,
           preferredLocale: locale,
-          unitSystem: units,
           macros,
         };
         setProfileSuccess(true);
@@ -340,19 +331,6 @@ export function ProfileSettings({
                   value: opt.value,
                   label: opt.label,
                 }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{platform.settings.units}</Label>
-              <input type="hidden" name="unit_system" value={units} />
-              <SegmentedToggle
-                value={units}
-                onChange={setUnits}
-                aria-label={platform.settings.units}
-                options={[
-                  { value: "metric", label: platform.settings.metricToggle },
-                  { value: "imperial", label: platform.settings.imperialToggle },
-                ]}
               />
             </div>
             {profileError && (

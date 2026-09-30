@@ -11,7 +11,7 @@ import {
 } from "@/lib/exercise-catalog";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
 import { ExerciseGifImage } from "@/components/exercise-gif-image";
-import { useBodyUnits, usePlatformCopy } from "@/components/locale-provider";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
 import {
   lookupExerciseHistory,
@@ -118,7 +118,6 @@ export function MyExercisesPage({
   gender?: string | null;
 }) {
   const platform = usePlatformCopy();
-  const units = useBodyUnits();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | undefined>();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -209,7 +208,6 @@ export function MyExercisesPage({
                 previousLabel={formatExerciseHistoryLabel(
                   lookupExerciseHistory(catalogHistories, exercise.name),
                   platform.workout.lastSets,
-                  units.unitSystem,
                   platform.workout.neverTried
                 )}
               />

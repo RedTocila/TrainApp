@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { AlertTriangle, UserRound } from "lucide-react";
 import { buildIntakeSummary } from "@/lib/intake-display";
-import { useBodyUnits } from "@/components/locale-provider";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 import type { Profile } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -11,9 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 
 export function AiPlanProfileSummary({ profile }: { profile: Profile }) {
-  const units = useBodyUnits();
   const complete = isClientIntakeComplete(profile);
-  const items = buildIntakeSummary(profile, units.unitSystem);
+  const items = buildIntakeSummary(profile);
 
   return (
     <Card className={!complete ? "border-amber-500/30 bg-amber-500/[0.03]" : undefined}>

@@ -3,7 +3,6 @@ import { GOAL_LABELS, GENDER_OPTIONS } from "@/lib/intake-display";
 import {
   formatHeightWithUnitFromCm,
   formatWeightWithUnitFromKg,
-  type UnitSystem,
 } from "@/lib/body-units";
 
 export const INTAKE_STORAGE_KEY = "rutina-intake-draft";
@@ -563,8 +562,7 @@ export function getStepMissingFields(
 }
 
 export function buildFullIntakeSummaryFromResponses(
-  responses: IntakeResponses,
-  unitSystem: UnitSystem = "metric"
+  responses: IntakeResponses
 ): { label: string; value: string; emoji?: string }[] {
   const items: { label: string; value: string; emoji?: string }[] = [];
   const push = (
@@ -582,14 +580,14 @@ export function buildFullIntakeSummaryFromResponses(
   push(
     "Weight",
     responses.intake_weight_kg
-      ? formatWeightWithUnitFromKg(responses.intake_weight_kg, unitSystem)
+      ? formatWeightWithUnitFromKg(responses.intake_weight_kg)
       : null,
     "⚖️"
   );
   push(
     "Height",
     responses.height_cm
-      ? formatHeightWithUnitFromCm(responses.height_cm, unitSystem)
+      ? formatHeightWithUnitFromCm(responses.height_cm)
       : null,
     "📏"
   );
@@ -723,8 +721,7 @@ export function buildDetailedIntakeContextForAi(responses: IntakeResponses): str
 }
 
 export function buildIntakeSummaryFromResponses(
-  responses: IntakeResponses,
-  unitSystem: UnitSystem = "metric"
+  responses: IntakeResponses
 ): { label: string; value: string; emoji?: string }[] {
   const push = (
     label: string,
@@ -747,14 +744,14 @@ export function buildIntakeSummaryFromResponses(
     ...push(
       "Weight",
       responses.intake_weight_kg
-        ? formatWeightWithUnitFromKg(responses.intake_weight_kg, unitSystem)
+        ? formatWeightWithUnitFromKg(responses.intake_weight_kg)
         : null,
       "⚖️"
     ),
     ...push(
       "Height",
       responses.height_cm
-        ? formatHeightWithUnitFromCm(responses.height_cm, unitSystem)
+        ? formatHeightWithUnitFromCm(responses.height_cm)
         : null,
       "📏"
     ),

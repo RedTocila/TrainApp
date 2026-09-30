@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useBodyUnits, usePlatformCopy } from "@/components/locale-provider";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { dashboard, DashboardSectionHeading } from "@/components/dashboard-ui";
 import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +33,6 @@ export function WorkoutExerciseList({
   gender?: ExerciseGender | string | null;
 }) {
   const platform = usePlatformCopy();
-  const units = useBodyUnits();
   const names = useMemo(() => exercises.map((exercise) => exercise.name), [exercises]);
   const histories = useExerciseHistories(names);
 
@@ -45,7 +44,6 @@ export function WorkoutExerciseList({
     formatExerciseHistoryLabel(
       lookupExerciseHistory(histories, name),
       platform.workout.lastSets,
-      units.unitSystem,
       platform.workout.neverTried
     );
 

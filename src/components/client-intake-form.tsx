@@ -24,7 +24,7 @@ import {
   type IntakeResponses,
 } from "@/lib/intake-questionnaire";
 import { buildFullIntakeSummary } from "@/lib/intake-display";
-import { useBodyUnits, usePlatformCopy } from "@/components/locale-provider";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DashboardSectionHeader } from "@/components/dashboard-ui";
@@ -184,7 +184,6 @@ function SavedResults({
 
 export function ClientIntakeForm({ profile }: { profile: Profile }) {
   const platform = usePlatformCopy();
-  const { unitSystem } = useBodyUnits();
   const initial = profileToResponses(profile);
   const complete = isIntakeResponsesComplete(initial);
   const missingFields = getMissingIntakeResponses(initial);
@@ -210,7 +209,7 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
     return () => window.removeEventListener("intake-refresh-open", openUpdate);
   }, []);
 
-  const summary = buildFullIntakeSummary(profile, unitSystem);
+  const summary = buildFullIntakeSummary(profile);
 
   const handleComplete = (responses: IntakeResponses) => {
     setError(null);

@@ -481,6 +481,21 @@ export function ActiveHiitClient({
     phase?.type === "rest" ||
     phase?.type === "round_rest" ||
     phase?.type === "cycle_rest";
+  const bigClock = isDone
+    ? "00:00"
+    : isIdle
+      ? formatHiitClock(Math.floor(idlePreviewMs / 1000))
+      : countdown;
+  const isFinalSeconds =
+    isRunning && !isDone && Math.ceil(remainingMs / 1000) <= 3;
+  const phaseTone =
+    isDone || isIdle
+      ? { text: "text-foreground", pill: "border-border bg-secondary/60 text-muted-foreground" }
+      : phase?.type === "work"
+        ? { text: "text-primary", pill: "border-primary/40 bg-primary/15 text-primary" }
+        : phase?.type === "prepare"
+          ? { text: "text-amber-400", pill: "border-amber-400/40 bg-amber-400/15 text-amber-400" }
+          : { text: "text-emerald-400", pill: "border-emerald-400/40 bg-emerald-400/15 text-emerald-400" };
   const plannedStatSeconds = isRestPhase ? restSeconds : workSeconds;
   const plannedStatLabel = isRestPhase
     ? platform.workout.rest
@@ -542,8 +557,7 @@ export function ActiveHiitClient({
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-4 pb-1">
         <SessionMediaStage
-          className="min-h-0 flex-1"
-          fill
+          className="mx-auto w-full max-w-[45dvh] shrink-0 [@media(max-height:700px)]:max-w-[38dvh]"
           sideActions={
             <>
               <SessionSideIconButton
@@ -562,7 +576,7 @@ export function ActiveHiitClient({
             </>
           }
         >
-          <div className="relative h-full min-h-0 w-full overflow-hidden bg-black">
+          <div className="relative aspect-[4/3] w-full overflow-hidden bg-black">
             {currentExerciseName ? (
               <div className="absolute inset-0">
                 <ExerciseDemoPlayer
@@ -576,69 +590,52 @@ export function ActiveHiitClient({
                 />
               </div>
             ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              <div className="flex h-full items-center justify-center px-6 text-center">
+                <p className="text-2xl font-black uppercase tracking-tight text-muted-foreground">
                   {phaseEyebrow}
-                </p>
-                <p
-                  className={cn(
-                    "font-mono text-5xl font-black tabular-nums tracking-tighter",
-                    isRunning && isRestPhase && "animate-pulse text-primary"
-                  )}
-                >
-                  {isDone
-                    ? "00:00"
-                    : isIdle
-                      ? formatHiitClock(Math.floor(idlePreviewMs / 1000))
-                      : countdown}
                 </p>
               </div>
             )}
           </div>
         </SessionMediaStage>
 
-        <div className="shrink-0 space-y-0.5 text-center">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 text-center">
+          <span
+            className={cn(
+              "rounded-full border px-3 py-0.5 text-xs font-black uppercase tracking-[0.18em]",
+              phaseTone.pill
+            )}
+          >
             {phaseEyebrow}
+          </span>
+          <p
+            className={cn(
+              "font-mono font-black leading-none tabular-nums tracking-tighter",
+              "text-[min(26vw,12dvh)]",
+              phaseTone.text,
+              isFinalSeconds && "animate-pulse"
+            )}
+            aria-live="off"
+          >
+            {bigClock}
           </p>
-          <h2 className="text-lg font-black leading-tight tracking-tight sm:text-xl">
+          <h2 className="line-clamp-2 text-xl font-black leading-tight tracking-tight sm:text-2xl">
             {headline}
           </h2>
           {!isDone && nextPhase && nextPhase.type !== "done" ? (
-            <p className="text-xs text-muted-foreground sm:text-sm">
+            <p className="text-sm text-muted-foreground [@media(max-height:700px)]:hidden">
               Up next: {nextPhase.exerciseName ?? nextPhase.label} ·{" "}
               {formatHiitClock(nextPhase.durationSeconds)}
             </p>
           ) : null}
         </div>
 
-        <SessionStatRow className="shrink-0 py-2.5">
+        <SessionStatRow className="shrink-0 grid-cols-2 py-2">
           <SessionStat
-            compact
             value={formatHiitClock(plannedStatSeconds)}
             label={plannedStatLabel}
           />
           <SessionStat
-            compact
-            value={
-              isDone
-                ? "00:00"
-                : isIdle
-                  ? formatHiitClock(Math.floor(idlePreviewMs / 1000))
-                  : countdown
-            }
-            label={
-              phase?.type === "work"
-                ? platform.workout.work
-                : isRestPhase
-                  ? platform.workout.rest
-                  : phaseEyebrow ?? platform.workout.rest
-            }
-            emphasize
-            pulse={isRunning && isRestPhase}
-          />
-          <SessionStat
-            compact
             value={`${Math.max(0, roundsRemaining)}`}
             label={platform.workout.roundsLeft}
           />

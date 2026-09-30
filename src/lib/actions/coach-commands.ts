@@ -536,20 +536,19 @@ export async function coachUpdateWaterGoalCommand(input: {
   };
 }
 
-/** Soft: update profile settings (name, phone, goal, language, units). */
+/** Soft: update profile settings (name, phone, goal, language). */
 export async function coachUpdateProfileSettingsCommand(input: {
   full_name?: string;
   phone?: string | null;
   goal?: string | null;
   preferred_locale?: string;
-  unit_system?: string;
 }) {
   const auth = await requireUser();
   if ("error" in auth) return { error: auth.error };
 
   const { data: existing } = await auth.supabase
     .from("profiles")
-    .select("full_name, phone, goal, preferred_locale, unit_system, intake_responses")
+    .select("full_name, phone, goal, preferred_locale, intake_responses")
     .eq("id", auth.userId)
     .single();
 
@@ -582,14 +581,6 @@ export async function coachUpdateProfileSettingsCommand(input: {
     }
   }
 
-  const unitSystemRaw =
-    input.unit_system?.trim() ||
-    (existing.unit_system as string | null) ||
-    "metric";
-  if (unitSystemRaw !== "metric" && unitSystemRaw !== "imperial") {
-    return { error: "unit_system must be metric or imperial" };
-  }
-
   const preferredLocale = parseCheckoutLocale(
     input.preferred_locale ?? (existing.preferred_locale as string | null)
   );
@@ -606,21 +597,12 @@ export async function coachUpdateProfileSettingsCommand(input: {
     goal,
     preferred_locale: preferredLocale,
     intake_responses: intakeResponses,
-    unit_system: unitSystemRaw,
   };
 
-  let { error } = await auth.supabase
+  const { error } = await auth.supabase
     .from("profiles")
     .update(profileUpdate)
     .eq("id", auth.userId);
-
-  if (error?.message?.includes("unit_system")) {
-    const { unit_system: _u, ...withoutUnits } = profileUpdate;
-    ({ error } = await auth.supabase
-      .from("profiles")
-      .update(withoutUnits)
-      .eq("id", auth.userId));
-  }
 
   if (error) return { error: error.message };
 
@@ -634,7 +616,6 @@ export async function coachUpdateProfileSettingsCommand(input: {
   if (input.preferred_locale !== undefined) {
     changed.push(`language=${preferredLocale}`);
   }
-  if (input.unit_system !== undefined) changed.push(`units=${unitSystemRaw}`);
 
   return {
     success: true as const,

@@ -35,15 +35,11 @@ export async function updateProfile(formData: FormData) {
   const fullName = (formData.get("full_name") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim() || null;
   const goal = (formData.get("goal") as string)?.trim() || null;
-  const unitSystem = ((formData.get("unit_system") as string) || "metric").trim();
   const preferredLocale = parseCheckoutLocale(
     (formData.get("preferred_locale") as string)?.trim()
   );
 
   if (!fullName) return { error: "Name is required" };
-  if (unitSystem !== "metric" && unitSystem !== "imperial") {
-    return { error: "Invalid unit system" };
-  }
 
   const allowedGoals = new Set<string>(PROFILE_GOAL_KEYS);
   const normalizedGoal =
@@ -70,28 +66,18 @@ export async function updateProfile(formData: FormData) {
     goal: string | null;
     preferred_locale: CheckoutLocale;
     intake_responses: Record<string, unknown>;
-    unit_system?: "metric" | "imperial";
   } = {
     full_name: fullName,
     phone,
     goal: normalizedGoal,
     preferred_locale: preferredLocale,
     intake_responses: intakeResponses,
-    unit_system: unitSystem,
   };
 
-  let { error } = await supabase
+  const { error } = await supabase
     .from("profiles")
     .update(profileUpdate)
     .eq("id", user.id);
-
-  if (error?.message?.includes("unit_system")) {
-    const { unit_system: _unitSystem, ...withoutUnits } = profileUpdate;
-    ({ error } = await supabase
-      .from("profiles")
-      .update(withoutUnits)
-      .eq("id", user.id));
-  }
 
   if (error) return { error: error.message };
 

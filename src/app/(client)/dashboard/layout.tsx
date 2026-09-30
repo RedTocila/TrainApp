@@ -26,7 +26,7 @@ export default async function DashboardLayout({
   const intakeComplete = isClientIntakeComplete(profile);
 
   return (
-    <LocaleProvider locale={locale} unitSystem={profile.unit_system ?? "metric"}>
+    <LocaleProvider locale={locale}>
       <PendingIntakeSync intakeComplete={intakeComplete} />
       <NativeAppAccessSync />
       <ReminderBootstrap />

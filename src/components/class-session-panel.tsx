@@ -64,6 +64,7 @@ export function ClassSessionPanel({ fitnessClass }: { fitnessClass: FitnessClass
           title={fitnessClass.title}
           autoplay={status === "live"}
           fullControls
+          loop={false}
         />
       )}
 

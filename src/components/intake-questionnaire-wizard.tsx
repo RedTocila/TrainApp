@@ -233,7 +233,6 @@ function BodyMetricInput({
   format,
   parse,
   onCommit,
-  unitSystem,
   placeholder,
   step,
 }: {
@@ -242,15 +241,10 @@ function BodyMetricInput({
   format: (value: number) => string;
   parse: (raw: string) => number | null;
   onCommit: (value: number | undefined) => void;
-  unitSystem: string;
   placeholder: string;
   step: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDraft(null);
-  }, [unitSystem]);
 
   const display =
     draft ?? (canonical != null ? format(canonical) : "");
@@ -358,7 +352,6 @@ function StepFields({
                 format={units.formatWeightKgInput}
                 parse={units.parseWeightInput}
                 onCommit={(kg) => onChange({ intake_weight_kg: kg })}
-                unitSystem={units.unitSystem}
                 placeholder={units.weightPlaceholder.replace("e.g. ", "")}
                 step="0.1"
               />
@@ -371,9 +364,8 @@ function StepFields({
                 format={units.formatHeightCm}
                 parse={units.parseHeightInput}
                 onCommit={(cm) => onChange({ height_cm: cm })}
-                unitSystem={units.unitSystem}
                 placeholder={units.heightPlaceholder.replace("e.g. ", "")}
-                step={units.unitSystem === "imperial" ? "0.01" : "1"}
+                step="1"
               />
             </div>
           </div>

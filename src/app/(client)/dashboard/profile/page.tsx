@@ -91,7 +91,6 @@ export default async function ProfilePage() {
               phone={profile.phone}
               goal={resolveProfileGoal(profile)}
               preferredLocale={profile.preferred_locale ?? "al"}
-              unitSystem={profile.unit_system ?? "metric"}
               macros={{
                 calories: profile.target_calories ?? 2000,
                 protein: profile.target_protein ?? 150,

@@ -10,7 +10,7 @@ import {
 } from "@/lib/exercise-catalog";
 import type { ExerciseGender } from "@/lib/exercise-gif";
 import { ExerciseGifImage } from "@/components/exercise-gif-image";
-import { useBodyUnits, usePlatformCopy } from "@/components/locale-provider";
+import { usePlatformCopy } from "@/components/locale-provider";
 import { Input } from "@/components/ui/input";
 import {
   lookupExerciseHistory,
@@ -48,7 +48,6 @@ export function ExerciseNameInput({
   placeholder = "Search exercises…",
 }: ExerciseNameInputProps) {
   const platform = usePlatformCopy();
-  const units = useBodyUnits();
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [focused, setFocused] = useState(false);
@@ -161,7 +160,6 @@ export function ExerciseNameInput({
           const historyLabel = formatExerciseHistoryLabel(
             lookupExerciseHistory(histories, exercise.name),
             platform.workout.lastSets,
-            units.unitSystem,
             platform.workout.neverTried
           );
           return (

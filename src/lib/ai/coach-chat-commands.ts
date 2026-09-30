@@ -322,7 +322,7 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
     function: {
       name: "update_profile_settings",
       description:
-        "Update profile settings: name, phone, goal, language (en/al), units (metric/imperial). Soft action. Only include fields the client wants changed.",
+        "Update profile settings: name, phone, goal, language (en/al). Soft action. Only include fields the client wants changed. Units are always kg/cm and cannot be changed.",
       parameters: {
         type: "object",
         properties: {
@@ -340,7 +340,6 @@ export const COACH_COMMAND_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] =
             ],
           },
           preferred_locale: { type: "string", enum: ["en", "al"] },
-          unit_system: { type: "string", enum: ["metric", "imperial"] },
         },
         additionalProperties: false,
       },
@@ -1024,12 +1023,11 @@ export async function executeCoachCommandTool(
         args.full_name === undefined &&
         args.phone === undefined &&
         args.goal === undefined &&
-        args.preferred_locale === undefined &&
-        args.unit_system === undefined
+        args.preferred_locale === undefined
       ) {
         return {
           result:
-            "Error: Provide at least one of full_name, phone, goal, preferred_locale, unit_system.",
+            "Error: Provide at least one of full_name, phone, goal, preferred_locale.",
         };
       }
       const result = await coachUpdateProfileSettingsCommand({
@@ -1041,8 +1039,6 @@ export async function executeCoachCommandTool(
           typeof args.preferred_locale === "string"
             ? args.preferred_locale
             : undefined,
-        unit_system:
-          typeof args.unit_system === "string" ? args.unit_system : undefined,
       });
       if ("error" in result) return { result: `Error: ${result.error}` };
       return {

@@ -100,6 +100,8 @@ interface ExerciseVideoPlayerProps {
   onError?: () => void;
   /** Adds sound toggle, fullscreen, and a time readout to the auto-hiding controls. */
   fullControls?: boolean;
+  /** Restart from the beginning when the video ends (exercise demos). */
+  loop?: boolean;
 }
 
 const CONTROLS_HIDE_MS = 1500;
@@ -207,6 +209,7 @@ export function ExerciseVideoPlayer({
   fill = false,
   onError,
   fullControls = false,
+  loop = true,
 }: ExerciseVideoPlayerProps) {
   const videoId = videoUrl ? extractYoutubeId(videoUrl) : null;
   const startSeconds = videoUrl ? extractYoutubeStartSeconds(videoUrl) : null;
@@ -216,6 +219,7 @@ export function ExerciseVideoPlayer({
   const playerRef = useRef<YtPlayer | null>(null);
   const progressTrackRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(paused);
+  const loopRef = useRef(loop);
   const userPausedRef = useRef(false);
   const onErrorRef = useRef(onError);
   const seekingRef = useRef(false);
@@ -241,6 +245,10 @@ export function ExerciseVideoPlayer({
 
   pausedRef.current = paused;
   onErrorRef.current = onError;
+
+  useEffect(() => {
+    loopRef.current = loop;
+  }, [loop]);
 
   useEffect(() => {
     if (!videoId || !mountRef.current) return;
@@ -321,19 +329,27 @@ export function ExerciseVideoPlayer({
               setPlaying(true);
               return;
             }
-            if (event.data === PAUSED || event.data === ENDED) {
+            if (event.data === PAUSED) {
               setPlaying(false);
-              if (event.data === ENDED) {
-                // Avoid YouTube end-screen titles / related cards.
-                try {
-                  const d = event.target.getDuration();
-                  setCurrentTime(d > 0 ? d : 0);
-                  event.target.seekTo(0, true);
+              return;
+            }
+            if (event.data === ENDED) {
+              const replay =
+                loopRef.current && !pausedRef.current && !userPausedRef.current;
+              // Keep "playing" through a replay so the poster and play button don't flash.
+              if (!replay) setPlaying(false);
+              // Rewind immediately so YouTube's end-screen cards never show.
+              try {
+                const restartAt = startSeconds ?? 0;
+                event.target.seekTo(restartAt, true);
+                setCurrentTime(restartAt);
+                if (replay) {
+                  event.target.playVideo();
+                } else {
                   event.target.pauseVideo();
-                  setCurrentTime(0);
-                } catch {
-                  // ignore
                 }
+              } catch {
+                // ignore
               }
             }
           },
