@@ -18,7 +18,12 @@ import {
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
-import type { ChatImageAttachment, ChatMessage, WebSource } from "@/lib/ai/types";
+import {
+  trimCoachChatHistory,
+  type ChatImageAttachment,
+  type ChatMessage,
+  type WebSource,
+} from "@/lib/ai/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { compressImageFile, fileToDataUrl, parseDataUrl } from "@/lib/image-compress";
 import { cn } from "@/lib/utils";
@@ -572,6 +577,8 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
+  /** Ask-mode request that needs Act — resent as-is when the client taps the switch button. */
+  const [actSuggestion, setActSuggestion] = useState<string | null>(null);
   const [isSigningOut, startSignOut] = useTransition();
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingWebSearch, setPendingWebSearch] = useState(false);
@@ -633,6 +640,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
     setMessages([]);
     setInput("");
     setError(null);
+    setActSuggestion(null);
     setIsStreaming(false);
     setPendingWebSearch(false);
     setAttachmentPreviewUrl(null);
@@ -660,6 +668,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
 
     setError(null);
     setSessionExpired(false);
+    setActSuggestion(null);
     setInput("");
     stickToBottomRef.current = true;
     const image: ChatImageAttachment | undefined = attachment ?? undefined;
@@ -669,7 +678,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
       content: messageContent,
       ...(image ? { image } : {}),
     };
-    const history = messages;
+    const history = trimCoachChatHistory(messages);
     setMessages((prev) => [...prev, userMessage]);
     setAttachmentPreviewUrl(null);
     setIsStreaming(true);
@@ -766,8 +775,13 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               pendingAction?: CoachPendingAction;
               dashboardRefresh?: boolean;
               navigate?: string;
+              suggestMode?: CoachChatMode;
             };
             if (parsed.error) throw new Error(parsed.error);
+            if (parsed.suggestMode === "act") {
+              setActSuggestion(messageContent);
+              continue;
+            }
             if (parsed.navigate) {
               pendingNavigateRef.current = parsed.navigate;
               continue;
@@ -1000,6 +1014,28 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
         !(lastMessage.richBlocks?.length ?? 0) &&
         !(lastMessage.pendingActions?.length ?? 0)));
 
+  const switchToActAndResend = () => {
+    const text = actSuggestion;
+    if (!text) return;
+    chatModeRef.current = "act";
+    setChatMode("act");
+    void sendMessage(text);
+  };
+
+  const actSuggestionNotice =
+    actSuggestion && chatMode === "ask" && !isStreaming ? (
+      <div className="mb-2 flex justify-center">
+        <button
+          type="button"
+          onClick={switchToActAndResend}
+          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/30 transition-opacity hover:opacity-90"
+        >
+          <Zap className="h-4 w-4" />
+          {ai.switchToActCta}
+        </button>
+      </div>
+    ) : null;
+
   const errorNotice = error ? (
     <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
       <p className="text-sm text-red-400">{error}</p>
@@ -1083,6 +1119,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
           </div>
 
           <div className="relative min-w-0 shrink-0 bg-background px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2">
+            {actSuggestionNotice}
             {errorNotice}
             <p className="mb-1.5 text-center text-[11px] leading-snug text-muted-foreground">
               {ai.medicalDisclaimer}
@@ -1169,6 +1206,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
           </div>
 
           <div className="min-w-0 border-t border-border/50 bg-card p-4 shadow-[0_100dvh_0_0_var(--card)]">
+            {actSuggestionNotice}
             {errorNotice}
             <p className="mb-1.5 text-center text-[11px] leading-snug text-muted-foreground">
               {ai.medicalDisclaimer}

@@ -12,7 +12,13 @@ import {
   loadProgressPhotosForChat,
 } from "@/lib/ai/progress-photo-chat-images";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
-import type { ChatImageAttachment, ChatMessage, ChatTurn, WebSource } from "@/lib/ai/types";
+import {
+  trimCoachChatHistory,
+  type ChatImageAttachment,
+  type ChatMessage,
+  type ChatTurn,
+  type WebSource,
+} from "@/lib/ai/types";
 import type { ProgressPhotoCoachSummary } from "@/lib/ai/progress-photo-context";
 import {
   formatWebSourcesForPrompt,
@@ -40,8 +46,6 @@ import {
   constraintsFromConversation,
   formatConstraintsForChat,
 } from "@/lib/ai/coach-constraints";
-
-const MAX_HISTORY = 12;
 
 const MACRO_CHECK_LABELS: Record<keyof MealMacros, string> = {
   calories: "Calories",
@@ -514,7 +518,7 @@ export async function prepareFitnessCoachChatMessages(
       true,
       coachMode
     ) + (webContext ? `\n\n${webContext}` : "");
-  const recentHistory = history.slice(-MAX_HISTORY);
+  const recentHistory = trimCoachChatHistory(history);
 
   return {
     messages: [

@@ -1024,6 +1024,7 @@ export const platformCopyAl = {
     placeholderAct: "Pyete Alex…",
     modeAsk: "Pyet",
     modeAct: "Vepro",
+    switchToActCta: "Kalo në Vepro dhe bëje",
     modeAskAria: "Modaliteti Pyet — vetëm përgjigje dhe analiza",
     modeActAria: "Modaliteti Vepro — regjistro, planifiko, ndërto dhe menaxho",
     voiceStartAria: "Fillo hyrjen me zë",

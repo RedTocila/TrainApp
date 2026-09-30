@@ -1014,6 +1014,7 @@ export const platformCopyEn = {
     placeholderAct: "Ask Alex…",
     modeAsk: "Ask",
     modeAct: "Act",
+    switchToActCta: "Switch to Act mode & do it",
     modeAskAria: "Ask mode — answers and insights only",
     modeActAria: "Act mode — log, schedule, build, and manage",
     voiceStartAria: "Start voice input",

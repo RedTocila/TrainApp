@@ -24,6 +24,21 @@ export interface ChatMessage {
   pendingActions?: CoachPendingAction[];
 }
 
+/** Messages of the open chat Coach Alex reads each turn — nothing is remembered beyond the chat. */
+export const COACH_CHAT_HISTORY_MESSAGES = 24;
+/** Photos older than this many messages are dropped (text kept): they bloat requests and disable tools. */
+export const COACH_CHAT_HISTORY_IMAGE_MESSAGES = 4;
+
+export function trimCoachChatHistory<T extends { image?: ChatImageAttachment }>(
+  history: readonly T[]
+): T[] {
+  const recent = history.slice(-COACH_CHAT_HISTORY_MESSAGES);
+  const keepImagesFrom = recent.length - COACH_CHAT_HISTORY_IMAGE_MESSAGES;
+  return recent.map((message, i) =>
+    message.image && i < keepImagesFrom ? { ...message, image: undefined } : message
+  );
+}
+
 export interface WebSource {
   title: string;
   url: string;

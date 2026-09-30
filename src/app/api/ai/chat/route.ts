@@ -7,6 +7,11 @@ import {
 import { TOOL_STATUS_LABELS, parseCoachChatMode } from "@/lib/ai/coach-chat-tools";
 import { extractCoachChatContext } from "@/lib/ai/coach-chat-context";
 import { maybeNaturalizeCoachReply } from "@/lib/ai/albanian-naturalize";
+import {
+  askModeSwitchReply,
+  isAskModeBuildRequest,
+  mentionsActMode,
+} from "@/lib/ai/coach-mode-switch";
 import { streamChatCompletion, getConfiguredProviders } from "@/lib/ai/providers";
 import {
   checkAlexCommandAllowed,
@@ -39,6 +44,29 @@ async function enqueueTextSmooth(
     }
   }
   if (buffer) enqueue({ text: buffer });
+}
+
+const SSE_HEADERS = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+  "X-Accel-Buffering": "no",
+};
+
+/** Instant reply (no model call, no usage charge) asking the client to switch to Act mode. */
+function askModeSwitchResponse(reply: string) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      const send = (payload: unknown) =>
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+      send({ text: reply });
+      send({ suggestMode: "act" });
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      controller.close();
+    },
+  });
+  return new Response(stream, { headers: SSE_HEADERS });
 }
 
 export async function POST(request: Request) {
@@ -97,6 +125,15 @@ export async function POST(request: Request) {
   const isAlbanian = preferredLocale === "al";
 
   const chatContext = extractCoachChatContext(history, message);
+
+  if (
+    coachMode === "ask" &&
+    !image &&
+    isAskModeBuildRequest(message, Boolean(chatContext?.workingWorkout))
+  ) {
+    return askModeSwitchResponse(askModeSwitchReply(preferredLocale));
+  }
+
   const prepared = await prepareFitnessCoachChatWithSearch(
     user.id,
     message,
@@ -217,6 +254,9 @@ export async function POST(request: Request) {
           }
         }
 
+        if (coachMode === "ask" && mentionsActMode(reply)) {
+          enqueue({ suggestMode: "act" });
+        }
         if (sources.length > 0) {
           enqueue({ sources });
         }
@@ -231,12 +271,5 @@ export async function POST(request: Request) {
     },
   });
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-    },
-  });
+  return new Response(stream, { headers: SSE_HEADERS });
 }

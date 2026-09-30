@@ -13,7 +13,7 @@ import type { ChatTurn } from "@/lib/ai/types";
 import type { Profile } from "@/lib/types";
 import type OpenAI from "openai";
 
-const MAX_TOOL_ROUNDS = 6;
+const MAX_TOOL_ROUNDS = { act: 6, ask: 3 } as const;
 
 function getTurnImages(message: ChatTurn) {
   if (message.images?.length) return message.images;
@@ -79,6 +79,7 @@ export async function runCoachChatWithTools(
 }> {
   const mode = options?.mode ?? "ask";
   const tools = getCoachChatToolsForMode(mode);
+  const maxRounds = MAX_TOOL_ROUNDS[mode];
   const client = getOpenAIClient();
   const conversation = messages.map(toOpenAIMessage);
   const latestUserMessage = [...messages]
@@ -91,17 +92,19 @@ export async function runCoachChatWithTools(
   let dashboardMutated = false;
   let navigate: string | undefined;
 
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+  for (let round = 0; round < maxRounds; round++) {
     if (options?.signal?.aborted) {
       throw new Error("Request aborted");
     }
 
+    // Last round must be a text answer — otherwise a model stuck calling tools ends with no reply.
+    const isFinalRound = round === maxRounds - 1;
     const stream = await client.chat.completions.create(
       {
         model: process.env.OPENAI_MEAL_MODEL ?? "gpt-4o-mini",
         messages: conversation,
         ...(tools.length > 0
-          ? { tools, tool_choice: "auto" as const }
+          ? { tools, tool_choice: isFinalRound ? ("none" as const) : ("auto" as const) }
           : {}),
         max_tokens: options?.maxTokens ?? 900,
         stream: true,
@@ -215,7 +218,12 @@ export async function runCoachChatWithTools(
   }
 
   return {
-    reply: "I hit the tool limit — try a simpler request or apply the preview above.",
+    reply:
+      mode === "ask"
+        ? "I can't build or change plans in Ask mode. Switch to Act mode (the button next to the paperclip) and I'll do it."
+        : planPreview
+          ? "Your preview is above — tap Apply to save it, or tell me one change at a time."
+          : "That took too many steps. Tell me one change at a time and I'll handle it.",
     planPreview,
     richBlocks: richBlocks.length > 0 ? richBlocks : undefined,
     pendingActions: pendingActions.length > 0 ? pendingActions : undefined,
