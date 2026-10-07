@@ -340,7 +340,7 @@ export function LogMealDialog({
       className={cn(
         "flex shrink-0 items-center gap-1.5 px-4 py-2.5 sm:py-3",
         isPhotoReviewFullscreen &&
-          "bg-background/95 pt-[max(0.75rem,env(safe-area-inset-top,0px))] backdrop-blur-md",
+          "absolute inset-x-0 top-0 z-30 border-0 bg-gradient-to-b from-black/70 to-transparent pb-6 pt-[max(0.75rem,env(safe-area-inset-top,0px))] text-white",
         isPhotoCaptureFullscreen &&
           "absolute inset-x-0 top-0 z-20 border-0 bg-gradient-to-b from-black/75 to-transparent pb-8 pt-[max(0.75rem,env(safe-area-inset-top,0px))] text-white"
       )}
@@ -365,7 +365,7 @@ export function LogMealDialog({
       <h2
         className={cn(
           "min-w-0 flex-1 truncate text-base font-black sm:text-lg",
-          isPhotoReviewFullscreen && "text-center",
+            isPhotoReviewFullscreen && "sr-only",
           isPhotoCaptureFullscreen && "text-white"
         )}
       >
@@ -396,7 +396,7 @@ export function LogMealDialog({
             isPhotoCaptureFullscreen &&
               "h-10 w-10 rounded-full bg-white/20 text-white hover:bg-white/35 hover:text-white",
             isPhotoReviewFullscreen &&
-              "h-10 w-10 rounded-full bg-muted text-foreground hover:bg-muted/80"
+              "h-10 w-10 rounded-full bg-black/45 text-white hover:bg-black/60 hover:text-white"
           )}
           onClick={onClose}
           aria-label={platform.aria.close}
@@ -551,6 +551,7 @@ export function LogMealDialog({
                 confidence={aiConfidence}
                 onConfidenceChange={setAiConfidence}
                 isSaving={isSaving}
+                onLogMeal={handleLogCustom}
               />
             ) : (
               <div className="space-y-4 py-4 text-center">
@@ -624,7 +625,7 @@ export function LogMealDialog({
   );
 
   const footerActions =
-    canLogCustom || canLogPhoto || error ? (
+    canLogCustom || (canLogPhoto && !isPhotoReviewFullscreen) || error ? (
       <div
         className={cn(
           "space-y-2 border-t border-border",
@@ -634,7 +635,9 @@ export function LogMealDialog({
         )}
       >
         {error && <p className="text-sm text-red-400">{error}</p>}
-        {canLogCustom || canLogPhoto ? logPrimaryButton : null}
+        {canLogCustom || (canLogPhoto && !isPhotoReviewFullscreen)
+          ? logPrimaryButton
+          : null}
       </div>
     ) : null;
 
@@ -712,13 +715,16 @@ export function LogMealDialog({
           dismissible={!isSaving && !isPhotoCaptureFullscreen}
           maxWidth="max-w-lg"
           aria-label={platform.mealLog.photoLog}
-          className={cn(isPhotoCaptureFullscreen && "bg-black")}
+          className={cn(
+            isPhotoCaptureFullscreen && "bg-black",
+            isPhotoReviewFullscreen && "bg-black"
+          )}
         >
           {header}
           <div
             className={cn(
               "min-h-0 flex-1",
-              isPhotoCaptureFullscreen
+              isPhotoCaptureFullscreen || isPhotoReviewFullscreen
                 ? "relative overflow-hidden p-0"
                 : "overflow-y-auto overscroll-contain px-4 py-4"
             )}
@@ -729,7 +735,7 @@ export function LogMealDialog({
             <div
               className={cn(
                 isPhotoCaptureFullscreen && "absolute inset-0",
-                isPhotoReviewFullscreen && "mx-auto w-full max-w-lg"
+                isPhotoReviewFullscreen && "absolute inset-0"
               )}
             >
               {body}

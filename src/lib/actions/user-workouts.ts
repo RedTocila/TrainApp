@@ -1807,48 +1807,94 @@ export async function schedulePersonalWeekPlan(input: {
     }
   }
 
-  let scheduledCount = 0;
-  for (const day of config.days) {
-    const dates = generateRecurringScheduleDates(anchor, [day.weekday], weeks);
-    for (const dateKey of dates) {
-      const refs: { planId: string; dayId: string }[] = [];
-      if (config.includeExtras && day.warmupPlanId) {
-        const { data: wDay } = await admin
-          .from("workout_days")
-          .select("id")
-          .eq("plan_id", day.warmupPlanId)
-          .order("day_index")
-          .limit(1)
-          .maybeSingle();
-        if (wDay?.id) {
-          refs.push({ planId: day.warmupPlanId, dayId: wDay.id as string });
-        }
-      }
-      refs.push({ planId: day.mainPlanId, dayId: day.mainDayId });
-      if (config.includeExtras && day.stretchPlanId) {
-        const { data: sDay } = await admin
-          .from("workout_days")
-          .select("id")
-          .eq("plan_id", day.stretchPlanId)
-          .order("day_index")
-          .limit(1)
-          .maybeSingle();
-        if (sDay?.id) {
-          refs.push({ planId: day.stretchPlanId, dayId: sDay.id as string });
-        }
-      }
-
-      for (const ref of refs) {
-        const result = await addWorkoutToDay(dateKey, ref.planId, ref.dayId);
-        if (result?.error) {
-          return {
-            error: `Scheduled partially, then failed on ${dateKey}: ${result.error}`,
-          };
-        }
-        scheduledCount += 1;
+  // Resolve warmup/stretch day ids once per unique plan (avoid N×weeks queries).
+  const extraPlanIds = [
+    ...new Set(
+      config.days.flatMap((day) => {
+        const ids: string[] = [];
+        if (config.includeExtras && day.warmupPlanId) ids.push(day.warmupPlanId);
+        if (config.includeExtras && day.stretchPlanId) ids.push(day.stretchPlanId);
+        return ids;
+      })
+    ),
+  ];
+  const firstDayByPlan = new Map<string, string>();
+  if (extraPlanIds.length > 0) {
+    const { data: extraDays } = await admin
+      .from("workout_days")
+      .select("id, plan_id, day_index")
+      .in("plan_id", extraPlanIds)
+      .order("day_index", { ascending: true });
+    for (const row of extraDays ?? []) {
+      const planId = row.plan_id as string;
+      if (!firstDayByPlan.has(planId) && row.id) {
+        firstDayByPlan.set(planId, row.id as string);
       }
     }
   }
+
+  type ScheduleRow = {
+    client_id: string;
+    scheduled_date: string;
+    plan_id: string;
+    day_id: string;
+    order_index: number;
+  };
+  const rows: ScheduleRow[] = [];
+  for (const day of config.days) {
+    const dates = generateRecurringScheduleDates(anchor, [day.weekday], weeks);
+    const refs: { planId: string; dayId: string; orderIndex: number }[] = [];
+    if (config.includeExtras && day.warmupPlanId) {
+      const warmupDayId = firstDayByPlan.get(day.warmupPlanId);
+      if (warmupDayId) {
+        refs.push({
+          planId: day.warmupPlanId,
+          dayId: warmupDayId,
+          orderIndex: 0,
+        });
+      }
+    }
+    refs.push({
+      planId: day.mainPlanId,
+      dayId: day.mainDayId,
+      orderIndex: 100,
+    });
+    if (config.includeExtras && day.stretchPlanId) {
+      const stretchDayId = firstDayByPlan.get(day.stretchPlanId);
+      if (stretchDayId) {
+        refs.push({
+          planId: day.stretchPlanId,
+          dayId: stretchDayId,
+          orderIndex: 200,
+        });
+      }
+    }
+    for (const dateKey of dates) {
+      for (const ref of refs) {
+        rows.push({
+          client_id: userId,
+          scheduled_date: dateKey,
+          plan_id: ref.planId,
+          day_id: ref.dayId,
+          order_index: ref.orderIndex,
+        });
+      }
+    }
+  }
+
+  const insertChunkSize = 100;
+  for (let i = 0; i < rows.length; i += insertChunkSize) {
+    const chunk = rows.slice(i, i + insertChunkSize);
+    const { error: insertError } = await admin
+      .from("scheduled_workouts")
+      .insert(chunk);
+    if (insertError) {
+      return {
+        error: `Scheduled partially, then failed: ${insertError.message}`,
+      };
+    }
+  }
+  const scheduledCount = rows.length;
 
   // Mark this template as currently scheduled; clear the flag on siblings.
   const scheduledAt = new Date().toISOString();
@@ -1861,39 +1907,41 @@ export async function schedulePersonalWeekPlan(input: {
     .eq("is_personal", true)
     .eq("kind", "week");
 
-  for (const sibling of siblingPlans ?? []) {
-    const siblingConfig = normalizeWeekPlanConfig(sibling.week_config);
-    if (!siblingConfig) continue;
-    const isThis = sibling.id === plan.id;
-    const nextConfig = isThis
-      ? {
-          ...siblingConfig,
-          lastScheduledAt: scheduledAt,
-          scheduledUntil,
-          scheduledStartDate: startDate,
-          scheduledWeeks: weeks,
-        }
-      : siblingConfig.lastScheduledAt ||
-          siblingConfig.scheduledUntil ||
-          siblingConfig.scheduledWeeks
+  await Promise.all(
+    (siblingPlans ?? []).map(async (sibling) => {
+      const siblingConfig = normalizeWeekPlanConfig(sibling.week_config);
+      if (!siblingConfig) return;
+      const isThis = sibling.id === plan.id;
+      const nextConfig = isThis
         ? {
             ...siblingConfig,
-            lastScheduledAt: null,
-            scheduledUntil: null,
-            scheduledStartDate: null,
-            scheduledWeeks: null,
+            lastScheduledAt: scheduledAt,
+            scheduledUntil,
+            scheduledStartDate: startDate,
+            scheduledWeeks: weeks,
           }
-        : null;
-    if (!nextConfig) continue;
-    await admin
-      .from("workout_plans")
-      .update({ week_config: nextConfig })
-      .eq("id", sibling.id)
-      .eq("created_by", userId);
-  }
+        : siblingConfig.lastScheduledAt ||
+            siblingConfig.scheduledUntil ||
+            siblingConfig.scheduledWeeks
+          ? {
+              ...siblingConfig,
+              lastScheduledAt: null,
+              scheduledUntil: null,
+              scheduledStartDate: null,
+              scheduledWeeks: null,
+            }
+          : null;
+      if (!nextConfig) return;
+      await admin
+        .from("workout_plans")
+        .update({ week_config: nextConfig })
+        .eq("id", sibling.id)
+        .eq("created_by", userId);
+    })
+  );
 
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/workout");
-  revalidatePath("/dashboard/workout/plans");
   revalidatePath("/dashboard/workout/plans");
   return { success: true as const, count: scheduledCount, weeks };
 }

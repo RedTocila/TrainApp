@@ -4,6 +4,7 @@ import { memo, useEffect, useRef, useState, useTransition, type ReactNode } from
 import { useRouter } from "next/navigation";
 import {
   ArrowUp,
+  Camera,
   ExternalLink,
   Globe,
   Loader2,
@@ -11,7 +12,6 @@ import {
   Mic,
   Paperclip,
   Square,
-  UserRound,
   X,
   Zap,
 } from "lucide-react";
@@ -216,23 +216,17 @@ const ChatBubble = memo(function ChatBubble({
   return (
     <div
       className={cn(
-        "flex gap-3",
+        "flex gap-2.5",
         message.role === "user" ? "flex-row-reverse" : "flex-row"
       )}
     >
-      {message.role === "user" ? (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-          <UserRound className="h-4 w-4 text-muted-foreground" />
-        </div>
-      ) : (
-        <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
-      )}
+      {message.role === "assistant" ? (
+        <AiCoachAvatar size="xs" className="mt-0.5 h-8 w-8 shrink-0" />
+      ) : null}
       <div
         className={cn(
-          "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
-          message.role === "user"
-            ? "bg-primary text-primary-foreground"
-            : "bg-secondary/60 text-foreground",
+          "max-w-[88%] px-4 py-3 text-sm leading-relaxed",
+          message.role === "user" ? "chat-bubble-user" : "chat-bubble-assistant",
           isStreaming && message.role === "assistant" && "transition-[opacity] duration-150"
         )}
       >
@@ -319,6 +313,7 @@ function ChatCommandBar({
   modeAskAria,
   modeActAria,
   onVoiceError,
+  minimal = false,
 }: {
   input: string;
   onInputChange: (value: string) => void;
@@ -343,6 +338,7 @@ function ChatCommandBar({
   modeAskAria: string;
   modeActAria: string;
   onVoiceError: (message: string) => void;
+  minimal?: boolean;
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
@@ -376,6 +372,158 @@ function ChatCommandBar({
   const actionBtnTone = isAct
     ? "bg-red-600 text-white shadow-[0_0_14px_rgba(220,38,38,0.4)]"
     : "bg-[#48A868] text-zinc-950 shadow-[0_0_14px_rgba(72,168,104,0.35)]";
+
+  if (minimal) {
+    return (
+      <form onSubmit={onSubmit} className="min-w-0 w-full space-y-2">
+        {attachmentPreviewUrl && (
+          <div className="flex items-center gap-2 px-1">
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-border/70 bg-secondary/40">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={attachmentPreviewUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={onAttachmentClear}
+                disabled={composerLocked}
+                aria-label={removeAttachmentAriaLabel}
+                className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        )}
+        <div
+          className={cn(
+            "chat-composer-minimal grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 px-1.5 py-1.5",
+            isMultiline && "items-end"
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => onChatModeChange(isAct ? "ask" : "act")}
+            disabled={composerLocked || voice.isActive}
+            aria-label={isAct ? modeActAria : modeAskAria}
+            title={isAct ? modeActAria : modeAskAria}
+            className={cn(
+              "col-start-1 flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+              isMultiline && "mb-0.5",
+              isAct
+                ? "bg-primary/15 text-primary hover:bg-primary/20"
+                : "bg-[#1B3326] text-[#62C471] hover:bg-[#243d30]"
+            )}
+          >
+            {isAct ? (
+              <Zap className="h-3.5 w-3.5" strokeWidth={2.25} />
+            ) : (
+              <MessageCircle className="h-3.5 w-3.5" strokeWidth={2.25} />
+            )}
+            <span>{isAct ? modeActLabel : modeAskLabel}</span>
+          </button>
+          <div className="relative col-start-2 row-start-1 min-w-0 self-center">
+            <ChatCommandInput
+              value={input}
+              onChange={onInputChange}
+              onKeyDown={onKeyDown}
+              placeholder={
+                voice.status === "listening"
+                  ? ai.voiceListening
+                  : voice.status === "recording"
+                    ? ai.voiceRecording
+                    : voice.status === "transcribing"
+                      ? ai.voiceTranscribing
+                      : placeholder
+              }
+              disabled={composerLocked}
+              onMultilineChange={setIsMultiline}
+              className="chat-command-input-wrap min-w-0 border-0 bg-transparent px-1"
+            />
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={composerLocked || voice.isActive}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onAttachSelect(file);
+              if (fileInputRef.current) fileInputRef.current.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={composerLocked || voice.isActive}
+            aria-label={attachAriaLabel}
+            className={cn(
+              "col-start-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-45",
+              isMultiline && "mb-0.5"
+            )}
+          >
+            <Camera className="h-4 w-4" strokeWidth={2} />
+          </button>
+          {isStreaming ? (
+            <button
+              type="button"
+              onClick={onStopStreaming}
+              aria-label={stopAriaLabel}
+              title={stopAriaLabel}
+              className={cn(
+                "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition hover:opacity-90",
+                isMultiline && "mb-0.5"
+              )}
+            >
+              <Square className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
+            </button>
+          ) : showMicAction ? (
+            <button
+              type="button"
+              onClick={voice.toggle}
+              disabled={disabled || voice.isBusy}
+              aria-label={voiceAria}
+              title={voiceAria}
+              className={cn(
+                "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition hover:opacity-90",
+                isMultiline && "mb-0.5",
+                disabled || voice.isBusy
+                  ? "cursor-not-allowed opacity-45"
+                  : ""
+              )}
+            >
+              {voice.isBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : voice.isActive ? (
+                <Square
+                  className="relative z-10 h-3.5 w-3.5 fill-current"
+                  strokeWidth={0}
+                />
+              ) : (
+                <Mic className="h-4 w-4" strokeWidth={2.5} />
+              )}
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!canSend}
+              aria-label={sendAriaLabel}
+              className={cn(
+                "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition hover:opacity-90",
+                isMultiline && "mb-0.5",
+                !canSend && "cursor-not-allowed opacity-45"
+              )}
+            >
+              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+      </form>
+    );
+  }
 
   return (
     <form onSubmit={onSubmit} className="min-w-0 w-full space-y-2">
@@ -1056,7 +1204,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   const thinkingRow = showThinkingPlaceholder ? (
     <div className="flex gap-3">
       <AiCoachAvatar size="xs" className="h-8 w-8 shrink-0" />
-      <div className="flex items-center gap-2 rounded-2xl bg-secondary/60 px-3.5 py-2.5 text-sm text-muted-foreground">
+      <div className="chat-bubble-assistant flex items-center gap-2 px-4 py-3 text-sm text-zinc-300">
         <Loader2 className="h-4 w-4 animate-spin" />
         {pendingWebSearch ? ai.searching : ai.thinking}
       </div>
@@ -1066,7 +1214,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col", !embedded && "min-h-[calc(100dvh-14rem)] gap-4")}>
       {embedded ? (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-black">
           <div
             ref={scrollRef}
             onScroll={handleMessagesScroll}
@@ -1118,10 +1266,10 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
             {thinkingRow}
           </div>
 
-          <div className="relative min-w-0 shrink-0 bg-background px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2">
+          <div className="relative min-w-0 shrink-0 bg-black px-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2">
             {actSuggestionNotice}
             {errorNotice}
-            <p className="mb-1.5 text-center text-[11px] leading-snug text-muted-foreground">
+            <p className="mb-1.5 text-center text-[11px] leading-snug text-zinc-500">
               {ai.medicalDisclaimer}
             </p>
             <ChatCommandBar
@@ -1148,6 +1296,7 @@ export function AiChatClient({ embedded = false }: { embedded?: boolean }) {
               modeAskAria={ai.modeAskAria}
               modeActAria={ai.modeActAria}
               onVoiceError={setError}
+              minimal
             />
           </div>
         </div>

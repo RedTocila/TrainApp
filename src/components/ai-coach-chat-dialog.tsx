@@ -16,7 +16,7 @@ import { useVisualViewportFrame } from "@/hooks/use-visual-viewport-frame";
  * Hard opaque fills — never `var(--background)` alone (dashboard photo cards
  * override it to translucent rgba, and some browsers resolve that through).
  */
-const OPAQUE_DARK = "#0c0c0e";
+const OPAQUE_DARK = "#000000";
 const OPAQUE_LIGHT = "#f4f4f5";
 /** Keep in sync with `--duration-page` in globals.css */
 const PAGE_MS = 320;
@@ -186,6 +186,10 @@ export function AiCoachChatDialog() {
               <h2 id="ai-coach-chat-title" className="text-base font-bold">
                 Coach Alex
               </h2>
+              <p className="flex items-center gap-1.5 text-xs text-zinc-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+                {ai.coachOnline}
+              </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -193,10 +197,9 @@ export function AiCoachChatDialog() {
               type="button"
               onClick={startNewChat}
               aria-label={ai.newChatAria}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
             >
-              <SquarePen className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
-              {ai.newChat}
+              <SquarePen className="h-4 w-4" strokeWidth={2.25} aria-hidden />
             </button>
           </div>
         </div>

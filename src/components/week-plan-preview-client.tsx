@@ -49,13 +49,17 @@ export function WeekPlanPreviewClient({
   const [weeks, setWeeks] = useState(savedWeeks);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [scheduledLocally, setScheduledLocally] = useState(false);
   const [isPending, startTransition] = useTransition();
   const { confirm: confirmAction, dialog: actionDialog } = useSarcasticConfirm();
 
-  const weeksDirty = isScheduled && weeks !== savedWeeks;
+  const effectivelyScheduled = isScheduled || scheduledLocally;
+  const weeksDirty = effectivelyScheduled && weeks !== savedWeeks;
 
   useEffect(() => {
     setWeeks(plan.config.scheduledWeeks ?? 4);
+    setScheduledLocally(false);
   }, [plan.id, plan.config.scheduledWeeks]);
 
   const weekdayLabels = useMemo(() => {
@@ -87,28 +91,34 @@ export function WeekPlanPreviewClient({
   const runSchedule = () => {
     setError(null);
     setSuccess(null);
-    startTransition(async () => {
-      const result = await schedulePersonalWeekPlan({
-        weekPlanId: plan.id,
-        weeks,
-        startDate: isScheduled
-          ? plan.config.scheduledStartDate ?? undefined
-          : undefined,
-      });
-      if (result && "error" in result && result.error) {
-        setError(result.error);
-        return;
+    setIsScheduling(true);
+    void (async () => {
+      try {
+        const result = await schedulePersonalWeekPlan({
+          weekPlanId: plan.id,
+          weeks,
+          startDate: effectivelyScheduled
+            ? plan.config.scheduledStartDate ?? undefined
+            : undefined,
+        });
+        if (result && "error" in result && result.error) {
+          setError(result.error);
+          return;
+        }
+        if (result && "success" in result && result.success) {
+          setScheduledLocally(true);
+          setSuccess(
+            platform.workout.weekPlanScheduled(
+              result.count ?? 0,
+              result.weeks ?? weeks
+            )
+          );
+          router.refresh();
+        }
+      } finally {
+        setIsScheduling(false);
       }
-      if (result && "success" in result && result.success) {
-        setSuccess(
-          platform.workout.weekPlanScheduled(
-            result.count ?? 0,
-            result.weeks ?? weeks
-          )
-        );
-        router.refresh();
-      }
-    });
+    })();
   };
 
   const handleSchedule = () => {
@@ -255,7 +265,7 @@ export function WeekPlanPreviewClient({
             <button
               type="button"
               onClick={() => nudgeWeeks(-1)}
-              disabled={isPending || weeks <= 1}
+              disabled={isScheduling || weeks <= 1}
               className="flex h-full w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
               aria-label="Decrease weeks"
             >
@@ -267,7 +277,7 @@ export function WeekPlanPreviewClient({
             <button
               type="button"
               onClick={() => nudgeWeeks(1)}
-              disabled={isPending || weeks >= 52}
+              disabled={isScheduling || weeks >= 52}
               className="flex h-full w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
               aria-label="Increase weeks"
             >
@@ -278,21 +288,25 @@ export function WeekPlanPreviewClient({
           <Button
             type="button"
             size="sm"
-            variant={isScheduled && !weeksDirty ? "secondary" : "default"}
+            variant={
+              effectivelyScheduled && !weeksDirty ? "secondary" : "default"
+            }
             className={cn(
               "col-start-2 row-start-2 h-8 min-w-0 w-full",
-              isScheduled && !weeksDirty && "pointer-events-none opacity-50"
+              effectivelyScheduled &&
+                !weeksDirty &&
+                "pointer-events-none opacity-50"
             )}
-            disabled={isPending || (isScheduled && !weeksDirty)}
+            disabled={isScheduling || (effectivelyScheduled && !weeksDirty)}
             onClick={handleSchedule}
           >
-            {isPending
+            {isScheduling
               ? weeksDirty
                 ? platform.workout.weekPlanSavingSchedule
                 : platform.workout.weekPlanScheduling
               : weeksDirty
                 ? platform.workout.weekPlanSaveSchedule
-                : isScheduled
+                : effectivelyScheduled
                   ? platform.workout.weekPlanScheduledButton
                   : platform.workout.weekPlanSchedule}
           </Button>

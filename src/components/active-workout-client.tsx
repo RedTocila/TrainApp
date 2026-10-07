@@ -2,20 +2,19 @@
 
 import {
   useCoachCopy,
-  useCoachLabels,
   usePlatformCopy,
   useBodyUnits,
 } from "@/components/locale-provider";
 import { formatExerciseHistoryLabel } from "@/lib/exercise-history-format";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
-  ChevronRight,
-  Info,
   Loader2,
+  Minus,
   Pause,
   Play,
   Plus,
@@ -46,11 +45,7 @@ import { DayFlowProgress } from "@/components/day-flow-progress";
 import { useDayWorkoutFlowContinue } from "@/components/day-workout-flow";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { cn, formatDateKey } from "@/lib/utils";
-import {
-  estimateWorkoutDurationSeconds,
-  formatElapsedClock,
-  formatWorkoutDurationShort,
-} from "@/lib/workout-duration";
+import { formatElapsedClock } from "@/lib/workout-duration";
 import { markReminderDone } from "@/lib/reminder-events";
 import {
   clearWorkoutTimerState,
@@ -66,9 +61,6 @@ import {
   SessionBusyOverlay,
   SessionCircleButton,
   SessionMediaStage,
-  SessionSideIconButton,
-  SessionStat,
-  SessionStatRow,
   SessionTopBar,
   formatSessionClock,
 } from "@/components/workout-session-ui";
@@ -205,6 +197,58 @@ function useRestCountdown(restSeconds: number | null, workoutPaused: boolean) {
   };
 }
 
+function WorkoutMetricCard({
+  label,
+  value,
+  unit,
+  onDecrement,
+  onIncrement,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  onDecrement: () => void;
+  onIncrement: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-border/50 bg-zinc-900/70 px-2.5 py-2">
+      <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-xl font-black tabular-nums leading-none text-foreground">
+        {value}
+        {unit ? (
+          <span className="ml-1 text-[10px] font-bold uppercase text-muted-foreground">
+            {unit}
+          </span>
+        ) : null}
+      </p>
+      <div className="mt-2 flex items-center justify-between gap-1.5">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onDecrement}
+          aria-label={`Decrease ${label}`}
+          className="inline-flex h-8 flex-1 items-center justify-center rounded-lg border border-border/60 bg-background/40 text-foreground transition hover:bg-secondary disabled:opacity-45"
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onIncrement}
+          aria-label={`Increase ${label}`}
+          className="inline-flex h-8 flex-1 items-center justify-center rounded-lg border border-border/60 bg-background/40 text-foreground transition hover:bg-secondary disabled:opacity-45"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ActiveExercisePanel({
   exercise,
   exerciseIndex,
@@ -219,6 +263,8 @@ function ActiveExercisePanel({
   onLoggedSet,
   onAllSetsDone,
   mediaPaused,
+  onBackExercise,
+  canGoBack,
 }: {
   exercise: WorkoutSessionExercise;
   exerciseIndex: number;
@@ -233,6 +279,8 @@ function ActiveExercisePanel({
   onLoggedSet: () => void;
   onAllSetsDone?: () => void;
   mediaPaused?: boolean;
+  onBackExercise?: () => void;
+  canGoBack?: boolean;
 }) {
   const platform = usePlatformCopy();
   const units = useBodyUnits();
@@ -271,6 +319,43 @@ function ActiveExercisePanel({
     previousForNextSet?.weight_kg != null
       ? units.formatWeightKg(Number(previousForNextSet.weight_kg))
       : units.weightFieldLabel;
+  const currentSetNumber = Math.min(completedSets + 1, targetSets);
+  const repsDisplay =
+    repsDraft !== ""
+      ? repsDraft
+      : activeSet?.reps != null
+        ? String(activeSet.reps)
+        : repsPlaceholder;
+  const weightDisplay =
+    weightDraft !== ""
+      ? weightDraft
+      : activeSet?.weight_kg != null
+        ? units.formatWeightKg(Number(activeSet.weight_kg))
+        : weightPlaceholder;
+
+  const adjustReps = (delta: number) => {
+    const parsed = parseRepsField(repsDraft);
+    const base =
+      parsed ??
+      activeSet?.reps ??
+      previousForNextSet?.reps ??
+      (typeof exercise.target_reps === "number"
+        ? exercise.target_reps
+        : parseInt(String(exercise.target_reps || 10), 10)) ??
+      10;
+    setRepsDraft(String(Math.max(0, base + delta)));
+  };
+
+  const adjustWeight = (deltaKg: number) => {
+    const parsed = parseWeightField(weightDraft);
+    const baseKg =
+      parsed ??
+      activeSet?.weight_kg ??
+      previousForNextSet?.weight_kg ??
+      0;
+    const next = Math.max(0, Number(baseKg) + deltaKg);
+    setWeightDraft(units.formatWeightKg(next));
+  };
 
   useEffect(() => {
     setRepsDraft(activeSet?.reps != null ? String(activeSet.reps) : "");
@@ -317,8 +402,14 @@ function ActiveExercisePanel({
 
   const handleLogSet = async () => {
     if (readOnly || isAddingSet) return;
-    const reps = parseRepsField(repsDraft);
-    const weight_kg = parseWeightField(weightDraft);
+    let reps = parseRepsField(repsDraft);
+    let weight_kg = parseWeightField(weightDraft);
+    if (reps == null && previousForNextSet?.reps != null) {
+      reps = previousForNextSet.reps;
+    }
+    if (weight_kg == null && previousForNextSet?.weight_kg != null) {
+      weight_kg = Number(previousForNextSet.weight_kg);
+    }
     if (
       (repsDraft !== "" && (reps == null || Number.isNaN(reps))) ||
       (weightDraft !== "" && (weight_kg == null || Number.isNaN(weight_kg)))
@@ -351,72 +442,48 @@ function ActiveExercisePanel({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <SessionMediaStage
-        sideActions={
-          <>
-            <SessionSideIconButton
-              label={platform.workout.preview}
-              onClick={() => setShowHowTo(true)}
-            >
-              <Info className="h-4 w-4" />
-            </SessionSideIconButton>
-          </>
-        }
-      >
-        <div className="relative z-0 w-full overflow-hidden bg-secondary/40 [&_>div]:max-w-none [&_>div]:rounded-none [&_>div]:border-0">
-          <ExerciseDemoPlayer
-            name={exercise.name}
-            imageUrl={exercise.image_url}
-            videoUrl={exercise.video_url}
-            gender={gender}
-            autoplay
-            paused={mediaPaused}
-          />
-        </div>
-      </SessionMediaStage>
-
-      <div className="space-y-1 text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {platform.workout.exerciseProgress(exerciseIndex + 1, exerciseTotal)}
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="shrink-0 space-y-0.5 text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+          {platform.workout.exerciseOf(exerciseIndex + 1, exerciseTotal)}
         </p>
-        <h2 className="text-xl font-black leading-tight tracking-tight sm:text-2xl">
+        <h2 className="line-clamp-2 text-xl font-black uppercase leading-tight tracking-tight">
           {exercise.name}
         </h2>
       </div>
 
-      {previousSets.length > 0 ? (
-        <div className="space-y-1.5">
-          <p className="text-center text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-primary">
-            {platform.workout.previous}
-          </p>
-          <div className="flex w-full gap-1.5">
-            {previousSets.map((set, index) => (
-              <button
-                key={`prev-${index}`}
-                type="button"
-                disabled={readOnly}
-                onClick={() => {
-                  if (set.reps != null) setRepsDraft(String(set.reps));
-                  if (set.weight_kg != null) {
-                    setWeightDraft(units.formatWeightKg(Number(set.weight_kg)));
-                  }
-                }}
-                className="inline-flex min-w-0 flex-1 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-2 py-2 text-center text-[11px] font-medium tabular-nums text-primary transition hover:bg-primary/15 disabled:opacity-60"
-              >
-                {index + 1}. {set.reps != null ? set.reps : "—"}
-                {set.weight_kg != null
-                  ? ` × ${units.formatWeightKg(Number(set.weight_kg))}`
-                  : ""}
-              </button>
-            ))}
+      <SessionMediaStage className="mx-auto shrink-0 [&>div]:border-0 [&>div]:bg-transparent">
+        <div className="relative mx-auto h-[min(42vh,320px)] w-[min(42vh,320px)] overflow-hidden rounded-2xl bg-zinc-100 shadow-[0_8px_28px_-18px_rgba(0,0,0,0.65)] ring-1 ring-white/15">
+          <div className="absolute inset-0 [&_>div]:h-full [&_>div]:max-w-none [&_>div]:rounded-none [&_>div]:border-0">
+            <ExerciseDemoPlayer
+              name={exercise.name}
+              imageUrl={exercise.image_url}
+              videoUrl={exercise.video_url}
+              gender={gender}
+              autoplay
+              paused={mediaPaused}
+              fill
+            />
           </div>
+          <button
+            type="button"
+            onClick={() => setShowHowTo(true)}
+            className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/75 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-white backdrop-blur-sm transition hover:bg-black/90"
+          >
+            <Play className="h-3 w-3 fill-current" aria-hidden />
+            {platform.workout.watchForm}
+          </button>
         </div>
-      ) : (
-        <p className="text-center text-xs font-medium text-primary">
+      </SessionMediaStage>
+
+      <div className="flex shrink-0 items-baseline justify-between gap-2">
+        <p className="text-xs font-black uppercase tracking-[0.1em] text-foreground">
+          {platform.workout.setOf(currentSetNumber, targetSets)}
+        </p>
+        <p className="max-w-[55%] truncate text-right text-[11px] font-semibold text-primary">
           {historyLabel}
         </p>
-      )}
+      </div>
 
       <AppDialog
         open={showHowTo}
@@ -451,142 +518,155 @@ function ActiveExercisePanel({
         </div>
       </AppDialog>
 
-      <SessionStatRow>
-        <SessionStat
-          value={exercise.target_reps || "—"}
-          label={platform.workout.repsRequired}
-        />
-        <SessionStat
-          value={restClock}
-          label={platform.workout.rest}
-          emphasize
-          pulse={restRunning}
-        />
-        <SessionStat
-          value={`${completedSets}/${targetSets}`}
-          label={platform.workout.setsDone}
-        />
-      </SessionStatRow>
-
       {!readOnly ? (
-        <div className="space-y-3">
-          <div className="flex items-stretch gap-2">
-            <Input
-              type="number"
-              inputMode="numeric"
-              placeholder={repsPlaceholder}
-              value={repsDraft}
-              onChange={(e) => setRepsDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void handleLogSet();
-              }}
-              className="h-12 flex-1 rounded-xl border-border/60 bg-secondary/40 text-base"
+        <div className="flex shrink-0 flex-col gap-3">
+          <div className="flex gap-2">
+            <WorkoutMetricCard
+              label={platform.workout.load}
+              value={weightDisplay}
+              onDecrement={() => adjustWeight(-2.5)}
+              onIncrement={() => adjustWeight(2.5)}
+              disabled={isAddingSet}
             />
-            <Input
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck={false}
-              placeholder={weightPlaceholder}
-              value={weightDraft}
-              onChange={(e) => setWeightDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void handleLogSet();
-              }}
-              className="h-12 w-[30%] min-w-[5.5rem] rounded-xl border-border/60 bg-secondary/40 text-base"
+            <WorkoutMetricCard
+              label={platform.workout.reps}
+              value={repsDisplay}
+              onDecrement={() => adjustReps(-1)}
+              onIncrement={() => adjustReps(1)}
+              disabled={isAddingSet}
             />
+          </div>
+
+          {restRunning ? (
+            <p className="text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-primary animate-pulse">
+              {platform.workout.rest} · {restClock}
+            </p>
+          ) : null}
+
+          <div className="space-y-2">
+            <p className="text-center text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              {platform.workout.allSets}
+            </p>
+
+            {(() => {
+              const setSlots = Array.from({ length: targetSets }, (_, i) => {
+                const setNumber = i + 1;
+                return (
+                  sets.find((set) => set.set_number === setNumber) ?? null
+                );
+              });
+              const isSetDone = (set: WorkoutSessionSet | null) =>
+                Boolean(
+                  set &&
+                    (set.completed || set.reps != null || set.weight_kg != null)
+                );
+
+              return (
+                <div
+                  className="flex w-full items-start justify-between gap-2"
+                  role="list"
+                >
+                  {setSlots.map((set, index) => {
+                    const setNumber = index + 1;
+                    const done = isSetDone(set);
+                    const isCurrent =
+                      !done &&
+                      (activeSet
+                        ? activeSet.set_number === setNumber
+                        : completedSets === index);
+                    const tone = done
+                      ? "text-emerald-400"
+                      : isCurrent
+                        ? "text-white"
+                        : "text-zinc-500";
+
+                    return (
+                      <div
+                        key={set?.id ?? `slot-${setNumber}`}
+                        role="listitem"
+                        className={cn(
+                          "flex min-w-0 flex-1 flex-col items-center gap-0.5 text-center tabular-nums",
+                          tone
+                        )}
+                        aria-label={
+                          done
+                            ? `Set ${setNumber} completed`
+                            : isCurrent
+                              ? `Set ${setNumber} current`
+                              : `Set ${setNumber}`
+                        }
+                      >
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 text-xs font-black uppercase tracking-[0.1em]",
+                            isCurrent && "text-white"
+                          )}
+                        >
+                          {done ? (
+                            <Check
+                              className="h-3.5 w-3.5 shrink-0"
+                              strokeWidth={3}
+                              aria-hidden
+                            />
+                          ) : null}
+                          {platform.workout.set} {setNumber}
+                        </span>
+                        <span
+                          className={cn(
+                            "max-w-full truncate text-sm font-black leading-tight tabular-nums",
+                            done && "text-emerald-400",
+                            isCurrent && "text-white",
+                            !done && !isCurrent && "text-zinc-500"
+                          )}
+                        >
+                          {done && set
+                            ? [
+                                set.reps != null ? String(set.reps) : "—",
+                                set.weight_kg != null
+                                  ? units.formatWeightKg(Number(set.weight_kg))
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" × ")
+                            : isCurrent
+                              ? "…"
+                              : "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="relative z-10 grid w-full grid-cols-2 gap-2">
             <Button
               type="button"
-              size="icon"
-              className="h-12 w-12 shrink-0 rounded-xl"
-              disabled={isAddingSet || (repsDraft === "" && weightDraft === "")}
+              variant="outline"
+              className="h-11 min-w-0 rounded-full text-sm font-semibold"
+              disabled={!canGoBack}
+              onClick={onBackExercise}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4 shrink-0" />
+              {platform.workout.previousExercise}
+            </Button>
+            <Button
+              type="button"
+              className="h-11 min-w-0 rounded-full bg-primary text-sm font-black uppercase tracking-[0.08em] text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90"
+              disabled={isAddingSet}
               onClick={() => void handleLogSet()}
-              aria-label={platform.workout.logSet}
             >
               {isAddingSet ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="h-5 w-5" strokeWidth={2.5} />
+                <>
+                  <Check className="mr-1.5 h-4 w-4 shrink-0" strokeWidth={2.5} />
+                  {platform.workout.finishSet(currentSetNumber)}
+                </>
               )}
             </Button>
           </div>
-
-          {(() => {
-            const setSlots = Array.from({ length: targetSets }, (_, i) => {
-              const setNumber = i + 1;
-              return (
-                sets.find((set) => set.set_number === setNumber) ?? null
-              );
-            });
-            const isSetDone = (set: WorkoutSessionSet | null) =>
-              Boolean(
-                set &&
-                  (set.completed || set.reps != null || set.weight_kg != null)
-              );
-
-            return (
-              <div className="flex w-full gap-1.5">
-                {setSlots.map((set, index) => {
-                  const setNumber = index + 1;
-                  const done = isSetDone(set);
-                  const isCurrent =
-                    !done &&
-                    (activeSet
-                      ? activeSet.set_number === setNumber
-                      : completedSets === index);
-
-                  return (
-                    <span
-                      key={set?.id ?? `slot-${setNumber}`}
-                      className={cn(
-                        "inline-flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border px-1.5 py-2 text-center tabular-nums",
-                        done &&
-                          "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
-                        isCurrent &&
-                          "border-primary/45 bg-primary/10 text-foreground",
-                        !done &&
-                          !isCurrent &&
-                          "border-border/50 bg-secondary/40 text-muted-foreground"
-                      )}
-                      aria-label={
-                        done
-                          ? `Set ${setNumber} completed`
-                          : isCurrent
-                            ? `Set ${setNumber} current`
-                            : `Set ${setNumber}`
-                      }
-                    >
-                      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide">
-                        {done ? (
-                          <Check
-                            className="h-3 w-3 shrink-0 text-emerald-500"
-                            strokeWidth={3}
-                            aria-hidden
-                          />
-                        ) : null}
-                        {setNumber}
-                      </span>
-                      <span className="max-w-full truncate text-[11px] font-medium leading-tight">
-                        {done && set
-                          ? [
-                              set.reps != null ? String(set.reps) : "—",
-                              set.weight_kg != null
-                                ? units.formatWeightKg(Number(set.weight_kg))
-                                : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" × ")
-                          : isCurrent
-                            ? "…"
-                            : "—"}
-                      </span>
-                    </span>
-                  );
-                })}
-              </div>
-            );
-          })()}
         </div>
       ) : (
         <p className="text-center text-sm text-muted-foreground">
@@ -611,7 +691,6 @@ export function ActiveWorkoutClient({
   planKind?: WorkoutPlanKind;
 }) {
   const coachCopy = useCoachCopy();
-  const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
   const router = useRouter();
   const { patchDashboard, notifySync } = useDashboardSync();
@@ -714,11 +793,6 @@ export function ActiveWorkoutClient({
     };
   }, [initialExercises, initialHistories]);
 
-  const estimatedSeconds = useMemo(
-    () => estimateWorkoutDurationSeconds(exercises),
-    [exercises]
-  );
-
   const patchExerciseSets = (exerciseId: string, sets: WorkoutSessionSet[]) => {
     setExercises((prev) =>
       prev.map((exercise) =>
@@ -789,10 +863,6 @@ export function ActiveWorkoutClient({
     });
   };
 
-  const handleDiscardWorkout = () => {
-    void leaveWorkout();
-  };
-
   const handleFinishWorkout = async () => {
     if (finishLockRef.current || isFinishing || isContinuing) return;
     finishLockRef.current = true;
@@ -843,59 +913,119 @@ export function ActiveWorkoutClient({
     session.day_title?.trim() ||
     session.plan_title?.trim() ||
     platform.workout.fallbackTitle;
+  const sessionProgress =
+    exercises.length > 0
+      ? Math.min(1, (activeIndex + 1) / exercises.length)
+      : 0;
 
   return (
-    <div className="mx-auto flex min-h-[calc(100dvh-2rem)] max-w-lg flex-col gap-4 pb-[max(1rem,var(--safe-area-bottom))] pt-[max(0.5rem,var(--safe-area-top))] lg:pt-2">
-      <SessionTopBar
-        title={headerTitle}
-        subtitle={
-          isStarted
-            ? `${formatElapsedClock(elapsedSeconds)} · ${platform.workout.estTotal(formatWorkoutDurationShort(estimatedSeconds))}`
-            : session.plan_title && session.plan_title !== headerTitle
-              ? session.plan_title
-              : null
-        }
-        onBack={() => void leaveWorkout()}
-        backDisabled={isPending || isGivingUp}
-        trailing={
-          !isStarted ? (
-            <StartWorkoutLoadingShell isLoading={isPending}>
-              <SessionCircleButton
-                label={platform.workout.startWorkout}
-                onClick={handleBeginWorkout}
-                disabled={isPending || isLoadingExercises}
-                busy={isPending}
-              />
-            </StartWorkoutLoadingShell>
-          ) : (
-            <SessionCircleButton
-              label={workoutPaused ? platform.cardio.resume : platform.cardio.pause}
-              onClick={togglePause}
-              className={
-                workoutPaused
-                  ? undefined
-                  : "bg-emerald-500 text-white shadow-[0_0_0_3px_rgba(16,185,129,0.22)]"
-              }
+    <div
+      className={cn(
+        "mx-auto flex max-w-lg flex-col px-2 pb-[max(0.75rem,var(--safe-area-bottom))] pt-[max(0.35rem,var(--safe-area-top))] lg:pt-2",
+        isStarted
+          ? "h-[100dvh] max-h-[100dvh] gap-3 overflow-hidden"
+          : "min-h-[calc(100dvh-2rem)] gap-4"
+      )}
+    >
+      {isStarted ? (
+        <div className="shrink-0 space-y-1.5 px-0">
+          <header className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex h-9 items-center gap-1 rounded-full border border-border/60 bg-secondary/50 px-2.5 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
+              disabled={isPending || isGivingUp || isFinishing}
+              onClick={() => void leaveWorkout()}
+              aria-label={platform.workout.giveUp}
             >
-              {workoutPaused ? (
-                <Play className="h-5 w-5 fill-current" />
-              ) : (
-                <Pause className="h-5 w-5 fill-current" />
-              )}
-            </SessionCircleButton>
-          )
-        }
-      />
-
-      <DayFlowProgress
-        currentKind={planKind}
-        compact
-        className="justify-center px-0"
-      />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+              {platform.workout.giveUp}
+            </button>
+            <div className="flex justify-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-secondary/60 px-3 py-1 font-mono text-xs font-bold tabular-nums text-foreground">
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    workoutPaused ? "bg-amber-400" : "bg-primary animate-pulse"
+                  )}
+                  aria-hidden
+                />
+                {formatElapsedClock(elapsedSeconds)}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-secondary/50 text-foreground transition hover:bg-secondary"
+                onClick={() => setShowAddExercise(true)}
+                aria-label={platform.workout.addExercise}
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              <SessionCircleButton
+                label={workoutPaused ? platform.cardio.resume : platform.cardio.pause}
+                onClick={togglePause}
+                className={cn(
+                  "!h-9 !w-9",
+                  workoutPaused
+                    ? undefined
+                    : "bg-emerald-500 text-white shadow-[0_0_0_3px_rgba(16,185,129,0.22)]"
+                )}
+              >
+                {workoutPaused ? (
+                  <Play className="h-4 w-4 fill-current" />
+                ) : (
+                  <Pause className="h-4 w-4 fill-current" />
+                )}
+              </SessionCircleButton>
+            </div>
+          </header>
+          <div
+            className="h-0.5 overflow-hidden rounded-full bg-secondary/80"
+            role="progressbar"
+            aria-valuenow={Math.round(sessionProgress * 100)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={headerTitle}
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+              style={{ width: `${sessionProgress * 100}%` }}
+            />
+          </div>
+        </div>
+      ) : (
+        <>
+          <SessionTopBar
+            title={headerTitle}
+            subtitle={
+              session.plan_title && session.plan_title !== headerTitle
+                ? session.plan_title
+                : null
+            }
+            onBack={() => void leaveWorkout()}
+            backDisabled={isPending || isGivingUp}
+            trailing={
+              <StartWorkoutLoadingShell isLoading={isPending}>
+                <SessionCircleButton
+                  label={platform.workout.startWorkout}
+                  onClick={handleBeginWorkout}
+                  disabled={isPending || isLoadingExercises}
+                  busy={isPending}
+                />
+              </StartWorkoutLoadingShell>
+            }
+          />
+          <DayFlowProgress
+            currentKind={planKind}
+            compact
+            className="justify-center px-0"
+          />
+        </>
+      )}
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain">
         {isLoadingExercises ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 p-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -930,117 +1060,63 @@ export function ActiveWorkoutClient({
                 window.setTimeout(() => {
                   setActiveIndex((i) => Math.min(exercises.length - 1, i + 1));
                 }, 350);
+              } else {
+                void handleFinishWorkout();
               }
             }}
             mediaPaused={workoutPaused}
+            canGoBack={activeIndex > 0}
+            onBackExercise={() => setActiveIndex((i) => Math.max(0, i - 1))}
           />
         ) : null}
 
-        {exercises.length > 0 ? (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-w-0 flex-1 rounded-full"
-              disabled={activeIndex <= 0}
-              onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
-            >
-              <ChevronLeft className="mr-1 h-4 w-4 shrink-0" />
-              {platform.workout.previousExercise}
-            </Button>
-            {isStarted ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="shrink-0 rounded-full px-2 text-muted-foreground"
-                onClick={() => setShowAddExercise(true)}
-              >
-                <Plus className="mr-1 h-4 w-4" />
-                {platform.workout.addExercise}
-              </Button>
-            ) : (
-              <div className="min-w-[1rem] shrink-0" />
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-w-0 flex-1 rounded-full"
-              disabled={activeIndex >= exercises.length - 1}
-              onClick={() =>
-                setActiveIndex((i) => Math.min(exercises.length - 1, i + 1))
-              }
-            >
-              {platform.workout.nextExercise}
-              <ChevronRight className="ml-1 h-4 w-4 shrink-0" />
-            </Button>
-          </div>
-        ) : null}
       </div>
 
-      {isStarted && showAddExercise ? (
-          <div className="space-y-3 rounded-2xl border border-border/60 bg-card/40 p-4">
-            <div className="space-y-1">
-              <Label htmlFor="new-exercise">{platform.workout.exerciseName}</Label>
-              <Input
-                id="new-exercise"
-                placeholder={platform.workout.exercisePlaceholder}
-                value={newExerciseName}
-                onChange={(e) => setNewExerciseName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddExercise()}
-                autoFocus
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleAddExercise}
-                disabled={isPending || !newExerciseName.trim()}
-              >
-                {platform.common.add}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAddExercise(false);
-                  setNewExerciseName("");
-                }}
-              >
-                {platform.common.cancel}
-              </Button>
-            </div>
+      <AppDialog
+        open={isStarted && showAddExercise}
+        onClose={() => {
+          setShowAddExercise(false);
+          setNewExerciseName("");
+        }}
+        title={platform.workout.addExercise}
+      >
+        <div className="space-y-4 px-5 pb-6">
+          <div className="space-y-1.5">
+            <Label htmlFor="new-exercise">{platform.workout.exerciseName}</Label>
+            <Input
+              id="new-exercise"
+              placeholder={platform.workout.exercisePlaceholder}
+              value={newExerciseName}
+              onChange={(e) => setNewExerciseName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddExercise()}
+              autoFocus
+            />
           </div>
-        ) : null}
-
-      {isStarted ? (
-        <div className="space-y-2 border-t border-border/50 pt-4">
-          <Button
-            size="lg"
-            className="h-12 w-full rounded-full text-base font-bold"
-            disabled={isPending || isFinishing || isContinuing}
-            onClick={handleFinishWorkout}
-          >
-            {isFinishing || isContinuing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                {coachLabels.actuallyFinish}
-              </>
-            )}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full text-muted-foreground"
-            disabled={isPending || isFinishing || isGivingUp}
-            onClick={handleDiscardWorkout}
-          >
-            {platform.workout.discardWorkout}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              className="flex-1"
+              onClick={handleAddExercise}
+              disabled={isPending || !newExerciseName.trim()}
+            >
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                platform.common.add
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                setShowAddExercise(false);
+                setNewExerciseName("");
+              }}
+            >
+              {platform.common.cancel}
+            </Button>
+          </div>
         </div>
-      ) : null}
+      </AppDialog>
 
       {isFinishing || isContinuing ? (
         <SessionBusyOverlay label={platform.common.saving} />

@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { analyzeMealPhotoAction, refineMealPhotoAction } from "@/lib/actions/ai-meal";
 import { lookupBarcodeProductAction } from "@/lib/actions/barcode-product";
@@ -16,10 +15,9 @@ import {
 import { type MealFormData } from "@/lib/meal-utils";
 import type { MealAnalysisResult } from "@/lib/ai/types";
 import { MealAnalysisSummary } from "@/components/meal-analysis-summary";
+import { MealScanOverlay } from "@/components/meal-scan-overlay";
 import { MealCameraCapture } from "@/components/meal-camera-capture";
 import { ProgressPhotoAlexDialog } from "@/components/progress-photo-alex-dialog";
-import { Button } from "@/components/ui/button";
-
 type PhotoPhase =
   | "capture"
   | "compressing"
@@ -49,6 +47,7 @@ export function MealPhotoLogStep({
   confidence,
   onConfidenceChange,
   isSaving = false,
+  onLogMeal,
 }: {
   form: MealFormData;
   onFormChange: (form: MealFormData) => void;
@@ -59,6 +58,7 @@ export function MealPhotoLogStep({
   confidence: number | null;
   onConfidenceChange: (value: number | null) => void;
   isSaving?: boolean;
+  onLogMeal?: () => void;
 }) {
   const platform = usePlatformCopy();
   const [phase, setPhase] = useState<PhotoPhase>("capture");
@@ -259,7 +259,7 @@ export function MealPhotoLogStep({
 
   if (phase === "review") {
     return (
-      <div className="space-y-4">
+      <div className="absolute inset-0">
         <MealAnalysisSummary
           form={form}
           onFormChange={onFormChange}
@@ -270,17 +270,11 @@ export function MealPhotoLogStep({
           }
           isRefining={isRefining}
           isSaving={isSaving}
+          onSave={onLogMeal}
+          saveLabel={platform.mealLog.continueMeal}
+          onRetake={handleRetake}
+          retakeDisabled={isSaving || isPending || isRefining}
         />
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="w-full"
-          onClick={handleRetake}
-          disabled={isSaving || isPending || isRefining}
-        >
-          {platform.mealLog.retakePhoto}
-        </Button>
       </div>
     );
   }
@@ -291,26 +285,20 @@ export function MealPhotoLogStep({
     phase === "lookingUpBarcode";
 
   if (isBusy) {
+    const statusLabel =
+      phase === "compressing"
+        ? platform.mealLog.preparingPhoto
+        : phase === "lookingUpBarcode"
+          ? platform.mealLog.lookingUpBarcode
+          : platform.mealLog.estimatingPortions;
+
     return (
-      <div className="absolute inset-0 flex flex-col bg-black">
-        {previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={previewUrl}
-            alt={platform.mealLog.mealPreview}
-            className="absolute inset-0 h-full w-full object-cover opacity-40"
-          />
-        ) : null}
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center text-white">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <p className="text-sm font-medium">
-            {phase === "compressing"
-              ? platform.mealLog.preparingPhoto
-              : phase === "lookingUpBarcode"
-                ? platform.mealLog.lookingUpBarcode
-                : platform.mealLog.analyzingMeal}
-          </p>
-        </div>
+      <>
+        <MealScanOverlay
+          imageUrl={previewUrl}
+          statusLabel={statusLabel}
+          imageAlt={platform.mealLog.mealPreview}
+        />
         <ProgressPhotoAlexDialog
           open={Boolean(alexRoast)}
           onClose={() => setAlexRoast(null)}
@@ -318,7 +306,7 @@ export function MealPhotoLogStep({
           message={alexRoast ?? ""}
           primaryLabel={platform.mealLog.retakePhoto}
         />
-      </div>
+      </>
     );
   }
 

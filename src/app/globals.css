@@ -1031,3 +1031,60 @@ input[type="time"]::-webkit-date-and-time-value {
 .challenge-announcement-flashy__enter {
   animation: challenge-announcement-slide-in 0.45s ease-out both;
 }
+
+/* Meal photo scan overlay — full-width accent sweep */
+@keyframes rutina-meal-scan-sweep {
+  0%,
+  100% {
+    top: 6%;
+  }
+  50% {
+    top: 78%;
+  }
+}
+
+.meal-scan-sweep {
+  animation: rutina-meal-scan-sweep 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meal-scan-sweep {
+    animation: none;
+    top: 40%;
+  }
+}
+
+.rutina-gradient-ring-btn {
+  position: relative;
+  border-radius: 999px;
+  padding: 1px;
+  background: linear-gradient(
+    120deg,
+    rgba(var(--primary-rgb), 0.95),
+    rgba(236, 72, 153, 0.85),
+    rgba(96, 165, 250, 0.9)
+  );
+}
+
+.rutina-gradient-ring-btn > * {
+  border-radius: 999px;
+}
+
+/* Simplified AI coach chat */
+.chat-bubble-assistant {
+  border-radius: 1.35rem;
+  background: rgb(24 24 27 / 0.92);
+  color: rgb(250 250 250);
+}
+
+.chat-bubble-user {
+  border-radius: 1.35rem;
+  background: rgb(250 250 250);
+  color: rgb(9 9 11);
+}
+
+.chat-composer-minimal {
+  border-radius: 999px;
+  border: 1px solid rgb(63 63 70 / 0.85);
+  background: rgb(24 24 27 / 0.92);
+}

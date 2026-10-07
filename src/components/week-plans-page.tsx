@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -214,14 +214,17 @@ function WeekPlanCard({
   const [weeks, setWeeks] = useState(savedWeeks);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [scheduledLocally, setScheduledLocally] = useState(false);
   const { confirm: confirmSchedule, dialog: scheduleDialog } =
     useSarcasticConfirm();
 
-  const weeksDirty = isScheduled && weeks !== savedWeeks;
+  const effectivelyScheduled = isScheduled || scheduledLocally;
+  const weeksDirty = effectivelyScheduled && weeks !== savedWeeks;
 
   useEffect(() => {
     setWeeks(plan.config.scheduledWeeks ?? 4);
+    setScheduledLocally(false);
   }, [plan.id, plan.config.scheduledWeeks]);
 
   const weekdayLabels = useMemo(() => {
@@ -272,28 +275,35 @@ function WeekPlanCard({
   const runSchedule = () => {
     setError(null);
     setSuccess(null);
-    startTransition(async () => {
-      const result = await schedulePersonalWeekPlan({
-        weekPlanId: plan.id,
-        weeks,
-        startDate: isScheduled
-          ? plan.config.scheduledStartDate ?? undefined
-          : undefined,
-      });
-      if (result && "error" in result && result.error) {
-        setError(result.error);
-        return;
+    setIsScheduling(true);
+    void (async () => {
+      try {
+        const result = await schedulePersonalWeekPlan({
+          weekPlanId: plan.id,
+          weeks,
+          startDate: effectivelyScheduled
+            ? plan.config.scheduledStartDate ?? undefined
+            : undefined,
+        });
+        if (result && "error" in result && result.error) {
+          setError(result.error);
+          return;
+        }
+        if (result && "success" in result && result.success) {
+          setScheduledLocally(true);
+          setSuccess(
+            platform.workout.weekPlanScheduled(
+              result.count ?? 0,
+              result.weeks ?? weeks
+            )
+          );
+          // Refresh calendar data in the background — don't keep the button pending.
+          router.refresh();
+        }
+      } finally {
+        setIsScheduling(false);
       }
-      if (result && "success" in result && result.success) {
-        setSuccess(
-          platform.workout.weekPlanScheduled(
-            result.count ?? 0,
-            result.weeks ?? weeks
-          )
-        );
-        router.refresh();
-      }
-    });
+    })();
   };
 
   const handleSchedule = () => {
@@ -315,7 +325,7 @@ function WeekPlanCard({
         accent={accent}
         className={cn(
           "cursor-pointer transition-[transform,box-shadow,filter,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:brightness-[1.04] active:translate-y-0 active:shadow-sm",
-          isScheduled &&
+          effectivelyScheduled &&
             "border-primary ring-2 ring-primary/70 shadow-[0_0_28px_-10px] shadow-primary/50"
         )}
       >
@@ -364,7 +374,7 @@ function WeekPlanCard({
                   variant="ghost"
                   size="icon"
                   className={cn("h-8 w-8", accentUi.icon)}
-                  disabled={deleting || isPending}
+                  disabled={deleting || isScheduling}
                   aria-label={platform.common.edit}
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -375,7 +385,7 @@ function WeekPlanCard({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-red-500 hover:bg-red-500/10 hover:text-red-400"
-                disabled={deleting || isPending}
+                disabled={deleting || isScheduling}
                 onClick={() => onDelete(plan.id, plan.title)}
                 aria-label="Delete plan"
               >
@@ -431,7 +441,7 @@ function WeekPlanCard({
               <button
                 type="button"
                 onClick={() => nudgeWeeks(-1)}
-                disabled={isPending || weeks <= 1}
+                disabled={isScheduling || weeks <= 1}
                 className="flex h-full w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
                 aria-label="Decrease weeks"
               >
@@ -443,7 +453,7 @@ function WeekPlanCard({
               <button
                 type="button"
                 onClick={() => nudgeWeeks(1)}
-                disabled={isPending || weeks >= 52}
+                disabled={isScheduling || weeks >= 52}
                 className="flex h-full w-8 items-center justify-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
                 aria-label="Increase weeks"
               >
@@ -455,22 +465,24 @@ function WeekPlanCard({
               type="button"
               size="sm"
               variant={
-                isScheduled && !weeksDirty ? "secondary" : "default"
+                effectivelyScheduled && !weeksDirty ? "secondary" : "default"
               }
               className={cn(
                 "col-start-2 row-start-2 h-8 min-w-0 w-full",
-                isScheduled && !weeksDirty && "pointer-events-none opacity-50"
+                effectivelyScheduled &&
+                  !weeksDirty &&
+                  "pointer-events-none opacity-50"
               )}
-              disabled={isPending || (isScheduled && !weeksDirty)}
+              disabled={isScheduling || (effectivelyScheduled && !weeksDirty)}
               onClick={handleSchedule}
             >
-              {isPending
+              {isScheduling
                 ? weeksDirty
                   ? platform.workout.weekPlanSavingSchedule
                   : platform.workout.weekPlanScheduling
                 : weeksDirty
                   ? platform.workout.weekPlanSaveSchedule
-                  : isScheduled
+                  : effectivelyScheduled
                     ? platform.workout.weekPlanScheduledButton
                     : platform.workout.weekPlanSchedule}
             </Button>

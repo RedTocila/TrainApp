@@ -170,12 +170,14 @@ export function PricingPlans({
   checkoutBasePath = "/dashboard/checkout",
   currentPlan,
   subscribed,
+  premiumPresentation = false,
 }: {
   interval: BillingInterval;
   onIntervalChange: (interval: BillingInterval) => void;
   checkoutBasePath?: string;
   currentPlan?: string | null;
   subscribed?: boolean;
+  premiumPresentation?: boolean;
 }) {
   const locale = useLocale();
   const platform = usePlatformCopy();
@@ -224,10 +226,35 @@ export function PricingPlans({
     ? cardLabels.currentPlan
     : subscribed
       ? cardLabels.switchPlan
-      : cardLabels.subscribe;
+      : premiumPresentation
+        ? pricing.wantPlanNow
+        : cardLabels.subscribe;
+
+  const selectedTier = interval === "monthly" ? selectedPlan.monthly : selectedPlan.annual;
+  const selectedOffer = offerByPlan[selectedPlan.id] ?? null;
+  const selectedDiscounted = applyOfferDiscount(
+    selectedTier.amountEurCents,
+    selectedOffer
+  );
+  const heroPrice = getCurrencyPrice({ amountEurCents: selectedDiscounted });
+  const heroPer =
+    interval === "monthly" ? cardLabels.perMonth : cardLabels.perYear;
 
   return (
     <div className="mx-auto w-full max-w-md space-y-6">
+      {premiumPresentation ? (
+        <div className="space-y-1 px-4 text-center">
+          <p className="text-4xl font-black tracking-tight text-primary">{heroPrice.label}</p>
+          <p className="text-xs text-muted-foreground">
+            /{heroPer}
+            {interval === "annual" && selectedPlan.monthly.amountEurCents > 0
+              ? ` · ${getCurrencyPrice({
+                  amountEurCents: Math.round(selectedDiscounted / 12),
+                }).label}/${cardLabels.perMonth}`
+              : null}
+          </p>
+        </div>
+      ) : null}
       <div className="flex justify-center">
         <SegmentedToggle
           value={interval}
@@ -270,6 +297,17 @@ export function PricingPlans({
         <Button className="w-full" size="lg" variant="outline" disabled>
           {cardLabels.currentPlan}
         </Button>
+      ) : premiumPresentation ? (
+        <Link href={checkoutHref} className="block px-4">
+          <div className="rutina-gradient-ring-btn w-full">
+            <Button
+              className="h-12 w-full bg-black text-sm font-black uppercase tracking-[0.12em] shadow-none hover:bg-zinc-950"
+              size="lg"
+            >
+              {ctaLabel}
+            </Button>
+          </div>
+        </Link>
       ) : (
         <Link href={checkoutHref} className="block">
           <Button className="w-full shadow-md shadow-primary/25" size="lg">
