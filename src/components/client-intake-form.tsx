@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -15,6 +15,7 @@ import {
 import {
   IntakeQuestionnaireWizard,
   MacroDonut,
+  type IntakeQuestionnaireWizardHandle,
 } from "@/components/intake-questionnaire-wizard";
 import { updateClientIntakeFromResponses } from "@/lib/actions/client-intake";
 import {
@@ -194,6 +195,7 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
   const [workoutResult, setWorkoutResult] = useState<WorkoutResult | null>(null);
   const [isPending, startTransition] = useTransition();
   const [buildingProgram, setBuildingProgram] = useState(false);
+  const wizardRef = useRef<IntakeQuestionnaireWizardHandle>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -296,10 +298,16 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
           <Button
             type="button"
             size="sm"
-            variant={mode === "update" ? "default" : "outline"}
+            variant="default"
             className="!h-8 rounded-full px-3 text-xs"
             disabled={isPending}
-            onClick={() => setMode((current) => (current === "update" ? "closed" : "update"))}
+            onClick={() => {
+              if (mode === "update") {
+                wizardRef.current?.submit();
+                return;
+              }
+              setMode("update");
+            }}
           >
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
             {platform.common.update}
@@ -358,8 +366,10 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
             ) : (
               <>
                 <IntakeQuestionnaireWizard
+                  ref={wizardRef}
                   compact
-                  completeLabel="Save health profile"
+                  freeStepNavigation
+                  completeLabel={platform.common.update}
                   initialResponses={initial}
                   onComplete={handleComplete}
                 />

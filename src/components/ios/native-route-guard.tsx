@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { hidesChallengesInApp, isFreeNativeApp, isNativeApp } from "@/lib/native-app";
 import {
   IOS_WELCOME_PATH,
+  isAllowedIosFunnelPath,
   isChallengePath,
   isIosAppPath,
   isPaidOnlyPath,
@@ -23,7 +24,7 @@ export function NativeRouteGuard() {
       return;
     }
     const blocked =
-      (isIosAppPath(pathname) && pathname !== IOS_WELCOME_PATH) ||
+      (isIosAppPath(pathname) && !isAllowedIosFunnelPath(pathname)) ||
       (isFreeNativeApp() && isPaidOnlyPath(pathname)) ||
       (hidesChallengesInApp() && isChallengePath(pathname));
     if (blocked) router.replace("/dashboard");

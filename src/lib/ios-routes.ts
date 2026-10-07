@@ -12,6 +12,15 @@ export function isIosAppPath(pathname: string): boolean {
   return pathname === "/ios" || pathname.startsWith("/ios/");
 }
 
+/** Logged-out native funnel — must not be redirected away by NativeRouteGuard. */
+export function isAllowedIosFunnelPath(pathname: string): boolean {
+  return (
+    pathname === IOS_WELCOME_PATH ||
+    pathname === IOS_ONBOARDING_PATH ||
+    pathname === IOS_GENERATING_PATH
+  );
+}
+
 function matchesPrefix(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);
 }

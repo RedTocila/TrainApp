@@ -313,7 +313,11 @@ function WeekPlanCard({
     <>
       <PremiumSurface
         accent={accent}
-        className="cursor-pointer transition-[transform,box-shadow,filter] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:brightness-[1.04] active:translate-y-0 active:shadow-sm"
+        className={cn(
+          "cursor-pointer transition-[transform,box-shadow,filter,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:brightness-[1.04] active:translate-y-0 active:shadow-sm",
+          isScheduled &&
+            "border-primary ring-2 ring-primary/70 shadow-[0_0_28px_-10px] shadow-primary/50"
+        )}
       >
         <div
           className="space-y-3 p-3.5"

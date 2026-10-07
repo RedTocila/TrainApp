@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -13,6 +13,7 @@ import { AppLogo } from "@/components/app-logo";
 import { AuthBackButton } from "@/components/auth-back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useIsNativeApp } from "@/components/ios/use-native-app";
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
 import {
   EMPTY_INTAKE_RESPONSES,
@@ -31,6 +32,8 @@ type Phase = "intro" | "wizard" | "complete";
 
 export function GetStartedClient() {
   const router = useRouter();
+  const nativeApp = useIsNativeApp();
+  const registerHref = nativeApp ? "/register?from=ios" : "/register";
   const [phase, setPhase] = useState<Phase>("intro");
   const [responses, setResponses] = useState<IntakeResponses>(
     () => loadIntakeDraft() ?? EMPTY_INTAKE_RESPONSES
@@ -45,7 +48,7 @@ export function GetStartedClient() {
   const previewMacros = calculateMacrosFromIntakeResponses(responses);
   const handleSkipQuestionnaire = () => {
     clearIntakeDraft();
-    router.push("/register");
+    router.push(registerHref);
   };
 
   return (
@@ -153,7 +156,7 @@ export function GetStartedClient() {
                 responses={responses}
                 macros={previewMacros}
               />
-              <Link href="/register">
+              <Link href={registerHref}>
                 <Button size="lg" className="w-full gap-2">
                   Continue to sign up
                   <ArrowRight className="h-4 w-4" />

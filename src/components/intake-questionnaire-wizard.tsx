@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
   useTransition,
@@ -38,7 +40,9 @@ import {
   WATER_HABITS_OPTIONS,
   WORK_HOURS_OPTIONS,
   JOB_TYPE_OPTIONS,
+  getMissingIntakeResponses,
   getStepMissingFields,
+  isIntakeResponsesComplete,
   type IntakeOption,
   type IntakeResponses,
 } from "@/lib/intake-questionnaire";
@@ -52,23 +56,26 @@ import { cn } from "@/lib/utils";
 
 function StepProgress({
   step,
+  responses,
+  freeNavigation,
   onStepSelect,
 }: {
   step: number;
+  responses: IntakeResponses;
+  freeNavigation: boolean;
   onStepSelect: (index: number) => void;
 }) {
   return (
     <div
       className="flex w-full items-start"
-      role="progressbar"
-      aria-valuemin={1}
-      aria-valuemax={INTAKE_STEPS.length}
-      aria-valuenow={step + 1}
+      role="tablist"
       aria-label={`Step ${step + 1} of ${INTAKE_STEPS.length}: ${INTAKE_STEPS[step].title}`}
     >
       {INTAKE_STEPS.map((s, index) => {
-        const done = index < step;
+        const filled = getStepMissingFields(s.id, responses).length === 0;
+        const done = freeNavigation ? filled && index !== step : index < step;
         const active = index === step;
+        const selectable = freeNavigation || done;
         return (
           <div
             key={s.id}
@@ -76,13 +83,15 @@ function StepProgress({
           >
             <button
               type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => onStepSelect(index)}
-              disabled={!done}
+              disabled={!selectable}
               className={cn(
                 "flex w-8 shrink-0 flex-col items-center gap-1 sm:w-10",
-                done && "cursor-pointer"
+                selectable && "cursor-pointer"
               )}
-              aria-label={done ? `Go back to ${s.title}` : s.title}
+              aria-label={selectable ? `Open ${s.title}` : s.title}
             >
               <span
                 className={cn(
@@ -118,7 +127,13 @@ function StepProgress({
                 aria-hidden
                 className={cn(
                   "mx-0.5 mt-4 h-0.5 min-w-1 flex-1 self-start rounded-full sm:mt-[1.125rem]",
-                  index < step ? "bg-emerald-500" : "bg-border"
+                  freeNavigation
+                    ? filled
+                      ? "bg-emerald-500"
+                      : "bg-border"
+                    : index < step
+                      ? "bg-emerald-500"
+                      : "bg-border"
                 )}
               />
             )}
@@ -688,19 +703,32 @@ function StepFields({
   }
 }
 
-export function IntakeQuestionnaireWizard({
-  initialResponses = EMPTY_INTAKE_RESPONSES,
-  onComplete,
-  onStepChange,
-  compact = false,
-  completeLabel = "See my plan preview",
-}: {
-  initialResponses?: IntakeResponses;
-  onComplete: (responses: IntakeResponses) => void;
-  onStepChange?: (step: number) => void;
-  compact?: boolean;
-  completeLabel?: string;
-}) {
+export type IntakeQuestionnaireWizardHandle = {
+  submit: () => boolean;
+};
+
+export const IntakeQuestionnaireWizard = forwardRef<
+  IntakeQuestionnaireWizardHandle,
+  {
+    initialResponses?: IntakeResponses;
+    onComplete: (responses: IntakeResponses) => void;
+    onStepChange?: (step: number) => void;
+    compact?: boolean;
+    /** Allow jumping to any step (dashboard edit). Default off for onboarding. */
+    freeStepNavigation?: boolean;
+    completeLabel?: string;
+  }
+>(function IntakeQuestionnaireWizard(
+  {
+    initialResponses = EMPTY_INTAKE_RESPONSES,
+    onComplete,
+    onStepChange,
+    compact = false,
+    freeStepNavigation = false,
+    completeLabel = "See my plan preview",
+  },
+  ref
+) {
   const [step, setStep] = useState(0);
   const [responses, setResponses] = useState<IntakeResponses>(() =>
     normalizeIntakeResponses(initialResponses)
@@ -735,6 +763,27 @@ export function IntakeQuestionnaireWizard({
     });
   };
 
+  const submit = () => {
+    if (!isIntakeResponsesComplete(responses)) {
+      const missing = getMissingIntakeResponses(responses);
+      setError(
+        missing.length
+          ? `Still need: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}`
+          : "Fill in the required fields to save."
+      );
+      const firstIncomplete = INTAKE_STEPS.findIndex(
+        (s) => getStepMissingFields(s.id, responses).length > 0
+      );
+      if (firstIncomplete >= 0) goTo(firstIncomplete);
+      return false;
+    }
+    setError(null);
+    startTransition(() => onComplete(responses));
+    return true;
+  };
+
+  useImperativeHandle(ref, () => ({ submit }));
+
   const handleNext = () => {
     const missing = getStepMissingFields(current.id, responses);
     if (missing.length > 0) {
@@ -745,11 +794,15 @@ export function IntakeQuestionnaireWizard({
       goTo(step + 1);
       return;
     }
-    startTransition(() => onComplete(responses));
+    submit();
   };
 
   const handleBack = () => {
     if (step > 0) goTo(step - 1);
+  };
+
+  const handleStepSelect = (index: number) => {
+    if (freeStepNavigation || index < step) goTo(index);
   };
 
   return (
@@ -757,7 +810,12 @@ export function IntakeQuestionnaireWizard({
       ref={rootRef}
       className={cn("min-w-0 scroll-mt-20 space-y-6", compact && "space-y-4")}
     >
-      <StepProgress step={step} onStepSelect={(index) => index < step && goTo(index)} />
+      <StepProgress
+        step={step}
+        responses={responses}
+        freeNavigation={freeStepNavigation}
+        onStepSelect={handleStepSelect}
+      />
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -792,29 +850,36 @@ export function IntakeQuestionnaireWizard({
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-        <Button type="button" className="flex-1 gap-2" onClick={handleNext}>
-          {step === INTAKE_STEPS.length - 1 ? (
-            <>
-              <Sparkles className="h-4 w-4" />
-              {completeLabel}
-            </>
-          ) : (
-            <>
-              Continue
-              <ArrowRight className="h-4 w-4" />
-            </>
-          )}
-        </Button>
+        {freeStepNavigation ? (
+          <Button type="button" className="flex-1 gap-2" onClick={submit}>
+            <Check className="h-4 w-4" />
+            {completeLabel}
+          </Button>
+        ) : (
+          <Button type="button" className="flex-1 gap-2" onClick={handleNext}>
+            {step === INTAKE_STEPS.length - 1 ? (
+              <>
+                <Sparkles className="h-4 w-4" />
+                {completeLabel}
+              </>
+            ) : (
+              <>
+                Continue
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
-      {step === INTAKE_STEPS.length - 1 && (
+      {!freeStepNavigation && step === INTAKE_STEPS.length - 1 && (
         <p className="text-center text-xs text-muted-foreground">
           Your answers personalize macros, habits, and coach recommendations.
         </p>
       )}
     </div>
   );
-}
+});
 
 const MACRO_COLORS = {
   protein: "#34d399",

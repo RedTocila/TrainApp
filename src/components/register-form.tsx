@@ -48,8 +48,10 @@ import { OfferBanner } from "@/components/offer-banner";
 import type { SubscriptionOffer } from "@/lib/subscription-offers";
 import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import { getPlanPrice, type BillingInterval } from "@/lib/subscription-plans";
-import { shouldUseAppleIap } from "@/lib/native-iap";
-import { useIsFreeNativeApp } from "@/components/ios/use-native-app";
+import {
+  useIsFreeNativeApp,
+  useShouldUseAppleIap,
+} from "@/components/ios/use-native-app";
 import { IOS_WELCOME_PATH } from "@/lib/ios-routes";
 
 type PackagePlan = "ai" | "elite";
@@ -90,15 +92,15 @@ const PACKAGE_OPTIONS: Array<{
 ];
 
 export function RegisterForm({
-  offersPromise,
+  initialOffers = [],
 }: {
-  offersPromise?: Promise<SubscriptionOffer[]>;
+  initialOffers?: SubscriptionOffer[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const locale = useLocale();
   const platform = usePlatformCopy();
-  const useAppleIap = shouldUseAppleIap();
+  const useAppleIap = useShouldUseAppleIap();
   const [error, setError] = useState<string | null>(null);
   const [intakeJson, setIntakeJson] = useState<string | null>(null);
   const [macroTargets, setMacroTargets] = useState<MacroTargets | null>(null);
@@ -115,27 +117,19 @@ export function RegisterForm({
   const [checkoutStarted, setCheckoutStarted] = useState(false);
   const [paymentPending, setPaymentPending] = useState(false);
   const [referralCode, setReferralCode] = useState("");
-  const [offers, setOffers] = useState<SubscriptionOffer[]>([]);
+  const [offers] = useState<SubscriptionOffer[]>(initialOffers);
   const freeApp = useIsFreeNativeApp();
 
   useEffect(() => {
-    let cancelled = false;
-    offersPromise
-      ?.then((loaded) => {
-        if (!cancelled) setOffers(loaded);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [offersPromise]);
-
-  useEffect(() => {
-    const draft = loadIntakeDraft();
-    if (!draft) return;
-    setIntakeJson(JSON.stringify(draft));
-    const macros = calculateMacrosFromIntakeResponses(draft);
-    if (macros) setMacroTargets(macros);
+    try {
+      const draft = loadIntakeDraft();
+      if (!draft) return;
+      setIntakeJson(JSON.stringify(draft));
+      const macros = calculateMacrosFromIntakeResponses(draft);
+      if (macros) setMacroTargets(macros);
+    } catch {
+      // Corrupt local draft must never block account creation.
+    }
   }, []);
 
   useEffect(() => {
