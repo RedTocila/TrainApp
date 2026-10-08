@@ -29,15 +29,15 @@ const geistMono = Geist_Mono({
 const BOOT_STYLE = `
 html{background-color:#0c0c0e;color-scheme:dark}
 body{background-color:#0c0c0e;margin:0}
-.startup-splash{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:#0c0c0e;pointer-events:none;opacity:1;transition:opacity 280ms cubic-bezier(0.22,1,0.36,1)}
+.startup-splash{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 58% 42% at 50% 44%,rgba(220,38,38,0.32),rgba(220,38,38,0.06) 42%,transparent 68%),#0c0c0e;pointer-events:none;opacity:1;transition:opacity 280ms cubic-bezier(0.22,1,0.36,1)}
 .startup-splash--hide{opacity:0}
-.startup-splash__mark{display:flex;flex-direction:column;align-items:center;gap:1.25rem}
-.startup-splash__word{font-family:var(--font-geist-sans),ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:clamp(1.75rem,5vw,2.25rem);font-weight:900;letter-spacing:-0.03em;line-height:1;text-transform:uppercase;color:#fafafa}
-.startup-splash__accent{color:#dc2626}
-.startup-splash__loader{display:block;width:2.5rem;height:2px;border-radius:1px;background:rgba(255,255,255,0.12);overflow:hidden;position:relative}
-.startup-splash__loader::after{content:"";position:absolute;inset:0;width:40%;border-radius:inherit;background:#dc2626;animation:startup-splash-loader 1.1s cubic-bezier(0.45,0,0.15,1) infinite}
-@keyframes startup-splash-loader{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
-@media (prefers-reduced-motion:reduce){.startup-splash{transition:none}.startup-splash__loader::after{animation:none;width:100%;opacity:0.55}}
+.startup-splash__mark{display:flex;flex-direction:column;align-items:center;gap:0.9rem}
+.startup-splash__logo{width:5.25rem;height:5.25rem;border-radius:1.35rem;box-shadow:0 16px 40px rgba(0,0,0,0.45)}
+.startup-splash__word{font-family:var(--font-geist-sans),ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:1.35rem;font-weight:900;letter-spacing:0.01em;line-height:1;text-transform:uppercase;color:#fafafa}
+.startup-splash__accent{color:#f80213}
+.startup-splash__loader{display:block;width:2.1rem;height:3px;border-radius:99px;background:#f80213;box-shadow:0 0 14px rgba(248,2,19,0.85);transform-origin:center;animation:startup-splash-loader 1.4s cubic-bezier(0.45,0,0.55,1) infinite}
+@keyframes startup-splash-loader{0%,100%{opacity:.4;transform:scaleX(.62)}50%{opacity:1;transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){.startup-splash{transition:none}.startup-splash__loader{animation:none;opacity:.85}}
 `;
 
 export const metadata: Metadata = {

@@ -65,13 +65,13 @@ function PlanRow({
   return (
     <div
       className={cn(
-        "relative overflow-visible rounded-2xl border-2 transition-all",
+        "relative overflow-visible rounded-3xl border-2 transition-all",
         selected
           ? "border-primary bg-primary/10 shadow-[0_0_20px_-8px] shadow-primary/50"
           : "border-border/70 bg-secondary/30"
       )}
     >
-      {offer ? <OfferBanner offer={offer} locale={locale} className="rounded-t-[14px]" /> : null}
+      {offer ? <OfferBanner offer={offer} locale={locale} className="rounded-t-[1.35rem]" /> : null}
       {selected && (
         <span
           className="absolute -right-2.5 -top-2.5 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-background"
@@ -85,7 +85,7 @@ function PlanRow({
         type="button"
         onClick={onSelect}
         aria-pressed={selected}
-        className={cn("w-full p-4 text-left", !offer && "rounded-t-2xl")}
+        className={cn("w-full p-4 text-left", !offer && "rounded-t-3xl")}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

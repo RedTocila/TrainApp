@@ -3,17 +3,17 @@ import { cn } from "@/lib/utils";
 
 /** Shared dashboard surface tokens — AI Coach chrome: accent borders, soft depth. */
 export const dashboard = {
-  tile: "rounded-2xl border border-border/60 bg-card shadow-sm transition-[border-color,background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+  tile: "rounded-3xl border border-border/60 bg-card shadow-sm transition-[border-color,background-color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   tileInteractive:
-    "pressable rounded-2xl border border-border/60 bg-card shadow-sm transition-[border-color,background-color,transform,opacity,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-primary/35 hover:shadow-md active:scale-[0.99]",
+    "pressable rounded-3xl border border-border/60 bg-card shadow-sm transition-[border-color,background-color,transform,opacity,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-primary/35 hover:shadow-md active:scale-[0.99]",
   metricTile:
-    "relative flex min-h-[9.5rem] flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-card p-3 shadow-sm transition-[border-color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+    "relative flex min-h-[9.5rem] flex-col justify-between overflow-hidden rounded-3xl border border-border/60 bg-card p-3 shadow-sm transition-[border-color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   heroTile:
-    "relative flex items-center justify-between gap-4 overflow-hidden rounded-3xl border border-border/60 bg-card p-4 shadow-sm transition-[border-color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-5",
+    "relative flex items-center justify-between gap-4 overflow-hidden rounded-[2rem] border border-border/60 bg-card p-4 shadow-sm transition-[border-color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] sm:p-5",
   listRow:
-    "flex items-center gap-3 rounded-2xl border border-border/50 bg-secondary/35 p-3 transition-[background-color,transform,opacity,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+    "flex items-center gap-3 rounded-3xl border border-border/50 bg-secondary/35 p-3 transition-[background-color,transform,opacity,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   empty:
-    "rounded-2xl border border-dashed border-border/60 bg-secondary/20 px-4 py-6 text-center text-sm text-muted-foreground",
+    "rounded-3xl border border-dashed border-border/60 bg-secondary/20 px-4 py-6 text-center text-sm text-muted-foreground",
   section: "space-y-4",
   sectionHeading: "text-base font-bold",
   pageTitle: "text-xl font-black tracking-tight sm:text-2xl",
@@ -41,7 +41,7 @@ export const dashboard = {
   dropdownPanelBelowEnd: "absolute right-0 top-full z-30 mt-1",
   /** Cursor-style stack: main bar + attached tail sharing one outer border. */
   attachedDropdown:
-    "overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-[border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
+    "overflow-hidden rounded-3xl border border-border/60 bg-card shadow-sm transition-[border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
   attachedDropdownMain:
     "flex items-start gap-3 px-3 py-2.5",
   attachedDropdownTail:
@@ -52,7 +52,7 @@ export const dashboard = {
     "flex w-full touch-manipulation select-none items-start gap-3 px-3 py-2.5 text-left text-sm transition-[background-color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-secondary/80 active:bg-secondary/60",
   /** Detached menu surface (floats outside the trigger border box). */
   dropdownPanel:
-    "overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl ring-1 ring-border/30",
+    "overflow-hidden rounded-3xl border border-border/60 bg-card shadow-xl ring-1 ring-border/30",
 } as const;
 
 export function DashboardTile({

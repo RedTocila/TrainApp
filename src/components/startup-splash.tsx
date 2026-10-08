@@ -36,6 +36,8 @@ export function StartupSplash() {
       aria-hidden="true"
     >
       <div className="startup-splash__mark">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/app-icon.png" alt="" className="startup-splash__logo" />
         <span className="startup-splash__word">
           <span className="startup-splash__accent">{first}</span>
           {rest}

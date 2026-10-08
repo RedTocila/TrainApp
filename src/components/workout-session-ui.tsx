@@ -175,7 +175,7 @@ export function SessionMediaStage({
     <div className={cn("relative z-0 flex min-h-0 flex-col", className)}>
       <div
         className={cn(
-          "relative z-0 isolate min-h-0 overflow-hidden rounded-2xl border border-border/50 bg-secondary/30",
+          "relative z-0 isolate min-h-0 overflow-hidden rounded-3xl border border-border/50 bg-secondary/30",
           fill && "flex min-h-0 flex-1 flex-col"
         )}
       >

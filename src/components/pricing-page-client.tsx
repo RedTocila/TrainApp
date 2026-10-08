@@ -120,8 +120,9 @@ export function PricingPageClient({
 
         <div
           className={cn(
-            "mt-auto rounded-t-[1.75rem] border border-border/60 bg-zinc-950/90 px-1 pb-2 pt-5 shadow-[0_-24px_80px_rgba(0,0,0,0.35)] backdrop-blur-md",
-            !onboarding && "mt-8 rounded-2xl border-border/70 px-0 pt-0 shadow-none"
+            onboarding
+              ? "mt-auto rounded-t-[2rem] border border-border/60 bg-zinc-950/90 px-1 pb-2 pt-5 shadow-[0_-24px_80px_rgba(0,0,0,0.35)] backdrop-blur-md"
+              : "mt-6"
           )}
         >
           <PricingPlans

@@ -144,7 +144,7 @@ export function DashboardThemedShell({
     <div
       id={id}
       className={cn(
-        "relative flex w-full flex-col overflow-hidden rounded-2xl border",
+        "relative flex w-full flex-col overflow-hidden rounded-3xl border",
         t.border,
         hasPhoto
           ? "bg-zinc-950 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.85)]"

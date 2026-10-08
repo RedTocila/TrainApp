@@ -1032,25 +1032,171 @@ input[type="time"]::-webkit-date-and-time-value {
   animation: challenge-announcement-slide-in 0.45s ease-out both;
 }
 
-/* Meal photo scan overlay — full-width accent sweep */
+/* Meal photo scan — beam trails behind the line, opposite its travel. */
 @keyframes rutina-meal-scan-sweep {
-  0%,
-  100% {
-    top: 6%;
+  0% {
+    top: 16%;
   }
   50% {
-    top: 78%;
+    top: 76%;
+  }
+  100% {
+    top: 16%;
+  }
+}
+
+@keyframes meal-scan-fade-up {
+  0%,
+  44% {
+    opacity: 1;
+  }
+  50%,
+  94% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes meal-scan-fade-down {
+  0%,
+  44% {
+    opacity: 0;
+  }
+  50%,
+  94% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 
 .meal-scan-sweep {
-  animation: rutina-meal-scan-sweep 2.4s ease-in-out infinite;
+  height: 0;
+  animation: rutina-meal-scan-sweep 3.6s cubic-bezier(0.45, 0.02, 0.55, 0.98) infinite;
+}
+
+.meal-scan-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 11rem;
+  filter: blur(14px);
+  animation-duration: 3.6s;
+  animation-timing-function: cubic-bezier(0.45, 0.02, 0.55, 0.98);
+  animation-iteration-count: infinite;
+}
+
+/* Moving down: wash rises off the bar. Moving up: wash falls off the bar. */
+.meal-scan-fade--up {
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    rgba(var(--primary-rgb), 0.72) 0%,
+    rgba(var(--primary-rgb), 0.28) 24%,
+    rgba(var(--primary-rgb), 0.08) 58%,
+    transparent 100%
+  );
+  animation-name: meal-scan-fade-up;
+}
+
+.meal-scan-fade--down {
+  top: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(var(--primary-rgb), 0.72) 0%,
+    rgba(var(--primary-rgb), 0.28) 24%,
+    rgba(var(--primary-rgb), 0.08) 58%,
+    transparent 100%
+  );
+  animation-name: meal-scan-fade-down;
+}
+
+.meal-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  transform: translateY(-50%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(var(--primary-rgb), 0.15) 7%,
+    #fff 22%,
+    #fff 78%,
+    rgba(var(--primary-rgb), 0.15) 93%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 8px 1px rgba(var(--primary-rgb), 1),
+    0 0 22px 4px rgba(var(--primary-rgb), 0.55),
+    0 0 48px 12px rgba(var(--primary-rgb), 0.22);
+}
+
+.meal-scan-corner {
+  pointer-events: none;
+  position: absolute;
+  height: 2.75rem;
+  width: 2.75rem;
+  border-style: solid;
+  border-color: rgb(var(--primary-rgb));
+  filter: drop-shadow(0 0 10px rgba(var(--primary-rgb), 0.55));
+}
+
+.meal-scan-corner--tl {
+  left: 1rem;
+  top: 1rem;
+  border-top-left-radius: 1.35rem;
+  border-top-width: 2px;
+  border-left-width: 2px;
+}
+
+.meal-scan-corner--tr {
+  right: 1rem;
+  top: 1rem;
+  border-top-right-radius: 1.35rem;
+  border-top-width: 2px;
+  border-right-width: 2px;
+}
+
+.meal-scan-corner--bl {
+  bottom: 1rem;
+  left: 1rem;
+  border-bottom-left-radius: 1.35rem;
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+}
+
+.meal-scan-corner--br {
+  right: 1rem;
+  bottom: 1rem;
+  border-bottom-right-radius: 1.35rem;
+  border-bottom-width: 2px;
+  border-right-width: 2px;
+}
+
+.workout-demo-stage img {
+  object-fit: contain;
+  object-position: center center;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .meal-scan-sweep {
     animation: none;
-    top: 40%;
+    top: 42%;
+  }
+
+  .meal-scan-fade--up {
+    animation: none;
+    opacity: 1;
+  }
+
+  .meal-scan-fade--down {
+    animation: none;
+    opacity: 0;
   }
 }
 

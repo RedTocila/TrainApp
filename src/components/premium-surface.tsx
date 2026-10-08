@@ -66,7 +66,7 @@ export function PremiumSurface({
     <div
       className={cn(
         "relative overflow-hidden border bg-card shadow-sm",
-        rounded === "3xl" ? "rounded-3xl" : "rounded-2xl",
+        rounded === "3xl" ? "rounded-[2rem]" : "rounded-3xl",
         t.border,
         className
       )}

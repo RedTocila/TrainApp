@@ -13,7 +13,14 @@
       body {
         margin: 0;
         min-height: 100%;
-        background: #0c0c0e;
+        background:
+          radial-gradient(
+            ellipse 58% 42% at 50% 44%,
+            rgba(220, 38, 38, 0.32),
+            rgba(220, 38, 38, 0.06) 42%,
+            transparent 68%
+          ),
+          #0c0c0e;
         color: #fafafa;
         font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
       }
@@ -21,30 +28,35 @@
         min-height: 100dvh;
         display: grid;
         place-items: center;
-        padding: 2rem;
         text-align: center;
       }
       h1 {
-        margin: 0 0 0.5rem;
-        font-size: 1.75rem;
-        letter-spacing: -0.03em;
+        margin: 0;
+        font-size: 1.35rem;
+        font-weight: 900;
+        letter-spacing: 0.01em;
+        line-height: 1;
         text-transform: uppercase;
       }
       h1 span {
-        color: #dc2626;
+        color: #f80213;
       }
-      p {
-        margin: 0;
-        opacity: 0.7;
-        font-size: 0.95rem;
+      .tick {
+        display: block;
+        width: 2.1rem;
+        height: 3px;
+        margin: 0.9rem auto 0;
+        border-radius: 99px;
+        background: #f80213;
+        box-shadow: 0 0 14px rgba(248, 2, 19, 0.85);
       }
     </style>
   </head>
   <body>
     <main>
       <div>
-        <h1>RUTI<span>NA</span></h1>
-        <p>Duke ngarkuar…</p>
+        <h1><span>R</span>UTINA</h1>
+        <span class="tick"></span>
       </div>
     </main>
   </body>

@@ -30,46 +30,48 @@ export function MealScanOverlay({
       ) : (
         <div className="absolute inset-0 bg-zinc-950" aria-hidden />
       )}
-      <div className="absolute inset-0 bg-black/55" aria-hidden />
+      <div className="absolute inset-0 bg-black/25" aria-hidden />
+      <div
+        className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_42%,rgba(0,0,0,0.55)_100%)]"
+        aria-hidden
+      />
+      <div
+        className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/55 to-transparent"
+        aria-hidden
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/75 via-black/35 to-transparent"
+        aria-hidden
+      />
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col pt-[max(1rem,env(safe-area-inset-top,0px))] pb-4">
-        {/* Full-bleed scan area */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
         <div className="relative min-h-0 w-full flex-1">
-          {/* Corner brackets — accent */}
-          <span
-            className="pointer-events-none absolute left-3 top-3 h-10 w-10 border-l-[3px] border-t-[3px] border-primary"
+          <div
+            className="pointer-events-none absolute inset-4 rounded-[1.75rem] border border-white/10"
             aria-hidden
           />
-          <span
-            className="pointer-events-none absolute right-3 top-3 h-10 w-10 border-r-[3px] border-t-[3px] border-primary"
-            aria-hidden
-          />
-          <span
-            className="pointer-events-none absolute bottom-3 left-3 h-10 w-10 border-b-[3px] border-l-[3px] border-primary"
-            aria-hidden
-          />
-          <span
-            className="pointer-events-none absolute bottom-3 right-3 h-10 w-10 border-b-[3px] border-r-[3px] border-primary"
-            aria-hidden
-          />
+          <span className="meal-scan-corner meal-scan-corner--tl" aria-hidden />
+          <span className="meal-scan-corner meal-scan-corner--tr" aria-hidden />
+          <span className="meal-scan-corner meal-scan-corner--bl" aria-hidden />
+          <span className="meal-scan-corner meal-scan-corner--br" aria-hidden />
 
-          {/* Full-width scan beam + line (edge to edge) */}
           <div className="meal-scan-sweep pointer-events-none absolute inset-x-0" aria-hidden>
-            <div className="h-28 w-full bg-gradient-to-b from-primary/35 to-transparent" />
-            <div className="h-0.5 w-full bg-primary shadow-[0_0_16px_rgba(var(--primary-rgb),0.9)]" />
+            <div className="meal-scan-fade meal-scan-fade--up" />
+            <div className="meal-scan-fade meal-scan-fade--down" />
+            <div className="meal-scan-line" />
           </div>
         </div>
 
-        <div className="flex shrink-0 justify-center px-4 pt-5 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+        <div className="flex shrink-0 justify-center px-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-3">
           <p
-            className="inline-flex items-center gap-2 rounded-full bg-black/85 px-5 py-2.5 text-center text-[0.7rem] font-bold uppercase tracking-[0.14em] text-primary"
+            className="inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-black/45 px-4 py-2 text-center text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/95 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl"
             role="status"
             aria-live="polite"
           >
-            <span
-              className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-primary"
-              aria-hidden
-            />
+            <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-70" />
+              <span className="relative h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.95)]" />
+            </span>
             {statusLabel}
           </p>
         </div>

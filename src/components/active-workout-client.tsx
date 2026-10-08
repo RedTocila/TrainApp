@@ -442,19 +442,38 @@ function ActiveExercisePanel({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div
+      className={cn(
+        "flex min-h-0 flex-1 flex-col",
+        readOnly ? "gap-2" : "gap-3"
+      )}
+    >
       <div className="shrink-0 space-y-0.5 text-center">
         <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
           {platform.workout.exerciseOf(exerciseIndex + 1, exerciseTotal)}
         </p>
-        <h2 className="line-clamp-2 text-xl font-black uppercase leading-tight tracking-tight">
+        <h2 className="line-clamp-2 text-lg font-black uppercase leading-none tracking-tight">
           {exercise.name}
         </h2>
       </div>
 
-      <SessionMediaStage className="mx-auto shrink-0 [&>div]:border-0 [&>div]:bg-transparent">
-        <div className="relative mx-auto h-[min(42vh,320px)] w-[min(42vh,320px)] overflow-hidden rounded-2xl bg-zinc-100 shadow-[0_8px_28px_-18px_rgba(0,0,0,0.65)] ring-1 ring-white/15">
-          <div className="absolute inset-0 [&_>div]:h-full [&_>div]:max-w-none [&_>div]:rounded-none [&_>div]:border-0">
+      <SessionMediaStage
+        className={cn(
+          "mx-auto w-full shrink-0 [&>div]:overflow-hidden [&>div]:border-0 [&>div]:bg-transparent [&>div]:shadow-none",
+          readOnly
+            ? "[&>div]:rounded-[1.75rem]"
+            : "[&>div]:rounded-[1.35rem]"
+        )}
+      >
+        <div
+          className={cn(
+            "workout-demo-stage relative mx-auto w-full overflow-hidden bg-white shadow-[0_18px_48px_-28px_rgba(0,0,0,0.85)] ring-1 ring-white/15",
+            readOnly
+              ? "aspect-square max-h-[min(62dvh,36rem)]"
+              : "h-[min(36vh,280px)] max-w-[20rem]"
+          )}
+        >
+          <div className="absolute inset-0 [&_>div]:h-full [&_>div]:max-w-none [&_>div]:rounded-none [&_>div]:border-0 [&_*]:bg-white">
             <ExerciseDemoPlayer
               name={exercise.name}
               imageUrl={exercise.image_url}
@@ -669,7 +688,7 @@ function ActiveExercisePanel({
           </div>
         </div>
       ) : (
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="shrink-0 pt-0.5 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           {platform.workout.readyToStart}
         </p>
       )}
@@ -924,7 +943,7 @@ export function ActiveWorkoutClient({
         "mx-auto flex max-w-lg flex-col px-2 pb-[max(0.75rem,var(--safe-area-bottom))] pt-[max(0.35rem,var(--safe-area-top))] lg:pt-2",
         isStarted
           ? "h-[100dvh] max-h-[100dvh] gap-3 overflow-hidden"
-          : "min-h-[calc(100dvh-2rem)] gap-4"
+          : "h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] gap-2 overflow-hidden"
       )}
     >
       {isStarted ? (
@@ -1025,7 +1044,12 @@ export function ActiveWorkoutClient({
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain">
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-2",
+          isStarted ? "overflow-y-auto overscroll-contain" : "overflow-hidden"
+        )}
+      >
         {isLoadingExercises ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 p-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
