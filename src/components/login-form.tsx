@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/actions/auth";
@@ -13,10 +13,45 @@ import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+const SAVED_LOGIN_KEY = "rutina-saved-login";
+
+type SavedLogin = {
+  email: string;
+  password: string;
+};
+
+function readSavedLogin(): SavedLogin | null {
+  try {
+    const raw = localStorage.getItem(SAVED_LOGIN_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SavedLogin>;
+    if (typeof parsed.email !== "string" || typeof parsed.password !== "string") return null;
+    if (!parsed.email || !parsed.password) return null;
+    return { email: parsed.email, password: parsed.password };
+  } catch {
+    return null;
+  }
+}
+
+function writeSavedLogin(login: SavedLogin | null) {
+  try {
+    if (!login) {
+      localStorage.removeItem(SAVED_LOGIN_KEY);
+      return;
+    }
+    localStorage.setItem(SAVED_LOGIN_KEY, JSON.stringify(login));
+  } catch {
+    // Storage can be unavailable in private mode.
+  }
+}
+
 export function LoginForm({ authError }: { authError?: string }) {
   const searchParams = useSearchParams();
   const emailPrefill = searchParams.get("email")?.trim() ?? "";
   const fromIos = searchParams.get("from") === "ios";
+  const [email, setEmail] = useState(emailPrefill);
+  const [password, setPassword] = useState("");
+  const [saveLogin, setSaveLogin] = useState(false);
   const [error, setError] = useState<string | null>(() => {
     if (authError === "auth") {
       return "Your account is ready — sign in with your email and password to open the app.";
@@ -28,11 +63,24 @@ export function LoginForm({ authError }: { authError?: string }) {
   });
   const [isPending, startTransition] = useTransition();
 
+  useEffect(() => {
+    const saved = readSavedLogin();
+    if (!saved) return;
+    setSaveLogin(true);
+    if (!emailPrefill) setEmail(saved.email);
+    if (!emailPrefill || emailPrefill.toLowerCase() === saved.email.toLowerCase()) {
+      setPassword(saved.password);
+    }
+  }, [emailPrefill]);
+
   const handleSubmit = (formData: FormData) => {
     setError(null);
     const next = searchParams.get("next");
     if (next) formData.set("next", next);
     if (isFreeNativeApp()) formData.set("free_app", "1");
+    writeSavedLogin(
+      saveLogin ? { email: email.trim(), password } : null
+    );
     startTransition(async () => {
       const result = await signIn(formData);
       if (result?.error) setError(result.error);
@@ -57,8 +105,10 @@ export function LoginForm({ authError }: { authError?: string }) {
                 name="email"
                 type="email"
                 required
+                autoComplete="username"
                 placeholder="you@email.com"
-                defaultValue={emailPrefill}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -71,8 +121,24 @@ export function LoginForm({ authError }: { authError?: string }) {
                   Forgot password?
                 </Link>
               </div>
-              <PasswordInput id="password" name="password" required />
+              <PasswordInput
+                id="password"
+                name="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
             </div>
+            <label className="flex cursor-pointer items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={saveLogin}
+                onChange={(event) => setSaveLogin(event.target.checked)}
+                className="h-4 w-4 shrink-0 accent-primary"
+              />
+              <span className="text-sm text-muted-foreground">Save login</span>
+            </label>
             {error && <p className="text-sm text-red-400">{error}</p>}
             <Button type="submit" className="w-full" disabled={isPending}>
               {isPending ? "Signing in..." : "Sign In"}

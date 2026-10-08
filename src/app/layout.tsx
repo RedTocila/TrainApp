@@ -29,15 +29,11 @@ const geistMono = Geist_Mono({
 const BOOT_STYLE = `
 html{background-color:#0c0c0e;color-scheme:dark}
 body{background-color:#0c0c0e;margin:0}
-.startup-splash{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse 58% 42% at 50% 44%,rgba(220,38,38,0.32),rgba(220,38,38,0.06) 42%,transparent 68%),#0c0c0e;pointer-events:none;opacity:1;transition:opacity 280ms cubic-bezier(0.22,1,0.36,1)}
+.startup-splash{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:#f80213;pointer-events:none;opacity:1;transition:opacity 280ms cubic-bezier(0.22,1,0.36,1)}
 .startup-splash--hide{opacity:0}
-.startup-splash__mark{display:flex;flex-direction:column;align-items:center;gap:0.9rem}
-.startup-splash__logo{width:5.25rem;height:5.25rem;border-radius:1.35rem;box-shadow:0 16px 40px rgba(0,0,0,0.45)}
-.startup-splash__word{font-family:var(--font-geist-sans),ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:1.35rem;font-weight:900;letter-spacing:0.01em;line-height:1;text-transform:uppercase;color:#fafafa}
-.startup-splash__accent{color:#f80213}
-.startup-splash__loader{display:block;width:2.1rem;height:3px;border-radius:99px;background:#f80213;box-shadow:0 0 14px rgba(248,2,19,0.85);transform-origin:center;animation:startup-splash-loader 1.4s cubic-bezier(0.45,0,0.55,1) infinite}
-@keyframes startup-splash-loader{0%,100%{opacity:.4;transform:scaleX(.62)}50%{opacity:1;transform:scaleX(1)}}
-@media (prefers-reduced-motion:reduce){.startup-splash{transition:none}.startup-splash__loader{animation:none;opacity:.85}}
+.startup-splash__mark{display:flex;align-items:center;justify-content:center}
+.startup-splash__logo{width:min(46vw,12.5rem);height:auto;display:block}
+@media (prefers-reduced-motion:reduce){.startup-splash{transition:none}}
 `;
 
 export const metadata: Metadata = {

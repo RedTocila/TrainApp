@@ -9,12 +9,16 @@ export function ConfidenceBadge({
 }) {
   const pct = Math.round(confidence * 100);
   const tone =
-    pct >= 80 ? "text-green-400 bg-green-500/15" : pct >= 60 ? "text-amber-400 bg-amber-500/15" : "text-orange-400 bg-orange-500/15";
+    pct >= 80
+      ? "text-primary bg-primary/15"
+      : pct >= 60
+        ? "text-amber-400 bg-amber-500/15"
+        : "text-orange-400 bg-orange-500/15";
 
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold",
         tone,
         className
       )}

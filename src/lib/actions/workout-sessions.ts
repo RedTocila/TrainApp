@@ -1263,6 +1263,20 @@ export async function startWorkout({
       .eq("status", "in_progress");
   }
 
+  if (scheduledDate) {
+    let clearSkip = admin
+      .from("workout_sessions")
+      .update({ notes: null })
+      .eq("client_id", userId)
+      .eq("status", "cancelled")
+      .eq("notes", "skipped")
+      .eq("scheduled_date", scheduledDate);
+    clearSkip = scheduledWorkoutId
+      ? clearSkip.eq("scheduled_workout_id", scheduledWorkoutId)
+      : clearSkip.eq("plan_id", planId).eq("day_id", dayId);
+    await clearSkip;
+  }
+
   const { data: day } = await admin
     .from("workout_days")
     .select("title, workout_plans(title)")
@@ -1384,11 +1398,26 @@ export async function startTodaysWorkoutAndRedirect(
   }
 
   const status = await getWorkoutCompletionStatusForDate(userId, dateKey);
-  const isCompleted = (taskId: string) =>
-    status[taskId]?.completed === true || status[taskId]?.skipped === true;
+  // Play follows warm-up → main → stretch. A skip does not remove that step.
+  const isCompleted = (taskId: string) => status[taskId]?.completed === true;
 
   const { pickNextDayFlowWorkout, sortWorkoutsBySessionOrder } = await import(
     "@/lib/hiit"
+  );
+
+  const ordered = sortWorkoutsBySessionOrder(workouts);
+  console.info(
+    "[day-flow-start]",
+    JSON.stringify({
+      dayFlow: options?.dayFlow,
+      scheduledWorkoutId: options?.scheduledWorkoutId ?? null,
+      steps: ordered.map((workout) => ({
+        title: workout.planTitle,
+        kind: workout.planKind,
+        completed: isCompleted(workout.taskId),
+        skipped: status[workout.taskId]?.skipped === true,
+      })),
+    })
   );
 
   const targetWorkout =
@@ -1397,7 +1426,7 @@ export async function startTodaysWorkoutAndRedirect(
       : null) ??
     (options?.dayFlow !== false
       ? pickNextDayFlowWorkout(workouts, isCompleted)
-      : sortWorkoutsBySessionOrder(workouts).find((w) => !isCompleted(w.taskId))) ??
+      : ordered.find((w) => !isCompleted(w.taskId))) ??
     workouts[0];
 
   if (!targetWorkout) {

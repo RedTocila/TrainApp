@@ -1,7 +1,7 @@
 "use client";
 import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
-import { Check, ChevronRight, Clock, Dumbbell, Flame, Layers, List, Play, TriangleAlert } from "lucide-react";
+import { Check, ChevronRight, Clock, Dumbbell, Flame, Layers, List, Loader2, Play, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addDays } from "date-fns";
@@ -58,7 +58,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { DashboardWorkoutPlusMenu } from "@/components/dashboard-workout-plus-menu";
-import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
+import { StartTodaysWorkoutButton, useStartTodaysWorkout } from "@/components/start-todays-workout-button";
 import { useRegisterWorkoutPageChrome } from "@/components/workout-page-chrome-context";
 import { AddWorkoutToDayDialog } from "@/components/add-workout-to-day-dialog";
 import { EditDayWorkoutsDialog } from "@/components/edit-day-workouts-dialog";
@@ -718,6 +718,11 @@ export function DashboardWorkoutCard({
       .find((id): id is string => Boolean(id)) ??
     null;
 
+  const { start: startFocusWorkout, isStarting: isStartingWorkout } = useStartTodaysWorkout(
+    selectedDate,
+    readOnly || !isDayLoaded
+  );
+
   const openEditWorkout = useCallback(() => setEditWorkoutOpen(true), []);
 
   const canEditDayWorkouts = !readOnly || !hasScheduledWorkout;
@@ -1043,9 +1048,28 @@ export function DashboardWorkoutCard({
                           {durationLabel ? ` · ${durationLabel}` : null}
                         </p>
                       </div>
-                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                        <Play className="h-4 w-4" />
-                      </span>
+                      <button
+                        type="button"
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/30 transition hover:brightness-110 disabled:opacity-60"
+                        disabled={readOnly || !isDayLoaded || isStartingWorkout}
+                        aria-label={
+                          isStartingWorkout
+                            ? platform.workout.starting
+                            : platform.workout.startWorkout
+                        }
+                        aria-busy={isStartingWorkout}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          startFocusWorkout();
+                        }}
+                      >
+                        {isStartingWorkout ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Play className="h-4 w-4 fill-current" />
+                        )}
+                      </button>
                     </div>
                   )}
                 </div>

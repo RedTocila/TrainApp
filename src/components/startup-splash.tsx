@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PLATFORM_NAME } from "@/lib/brand";
 
 const FADE_MS = 280;
 
@@ -12,8 +11,6 @@ const FADE_MS = 280;
  */
 export function StartupSplash() {
   const [phase, setPhase] = useState<"visible" | "fading" | "gone">("visible");
-  const first = PLATFORM_NAME.slice(0, 1);
-  const rest = PLATFORM_NAME.slice(1);
 
   useEffect(() => {
     let timeoutId = 0;
@@ -37,12 +34,7 @@ export function StartupSplash() {
     >
       <div className="startup-splash__mark">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/app-icon.png" alt="" className="startup-splash__logo" />
-        <span className="startup-splash__word">
-          <span className="startup-splash__accent">{first}</span>
-          {rest}
-        </span>
-        <span className="startup-splash__loader" />
+        <img src="/brand/mark.png" alt="" className="startup-splash__logo" />
       </div>
     </div>
   );

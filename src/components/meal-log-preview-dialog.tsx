@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, CheckCircle2, Target, Trash2 } from "lucide-react";
+import { Check, CheckCircle2, Target, Trash2, X } from "lucide-react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
+import { MealAnalysisSummary } from "@/components/meal-analysis-summary";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
 import { useCoachCopy, usePlatformCopy } from "@/components/locale-provider";
 import type { MealFormData } from "@/lib/meal-utils";
@@ -86,6 +87,54 @@ export function MealLogPreviewDialog({
   const tierStyles = getMealScoreTierStyles(adviceTier);
 
   if (!open || !meal) return null;
+
+  if (variant === "view") {
+    return (
+      <AppOverlay
+        open={open}
+        onClose={onClose}
+        fullscreen
+        closeOnBackdrop={!isDeleting}
+      >
+        <AppOverlayPanel
+          fullscreen
+          showHandle={false}
+          dismissible={!isDeleting}
+          aria-label="Meal insights"
+          className="bg-background"
+        >
+          <div className="absolute inset-x-0 top-0 z-30 flex justify-end bg-gradient-to-b from-black/70 to-transparent px-4 pb-6 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-full bg-black/45 text-white hover:bg-black/60 hover:text-white"
+              onClick={onClose}
+              disabled={isDeleting}
+              aria-label={platform.aria.close}
+            >
+              <X className="h-6 w-6" strokeWidth={2.25} />
+            </Button>
+          </div>
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            <div className="absolute inset-0">
+              <MealAnalysisSummary
+                form={meal}
+                confidence={null}
+                imageUrl={photoUrl}
+                onSave={onClose}
+                saveLabel={platform.common.done}
+                isSaving={isDeleting}
+                onSecondary={onDelete}
+                secondaryLabel={onDelete ? platform.aria.deleteMeal : undefined}
+                secondaryDisabled={isDeleting}
+              />
+            </div>
+          </div>
+        </AppOverlayPanel>
+      </AppOverlay>
+    );
+  }
 
   const summary = formatMealMacrosSummary(meal.macros);
 

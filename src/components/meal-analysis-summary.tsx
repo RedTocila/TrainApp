@@ -21,11 +21,11 @@ import { type MealFormData, type MealMacros } from "@/lib/meal-utils";
 import type { MealType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const MEAL_TYPE_META: Record<MealType, { icon: typeof Coffee; className: string }> = {
-  breakfast: { icon: Coffee, className: "text-amber-400 bg-amber-500/15" },
-  lunch: { icon: Sun, className: "text-orange-400 bg-orange-500/15" },
-  dinner: { icon: Moon, className: "text-indigo-400 bg-indigo-500/15" },
-  snack: { icon: UtensilsCrossed, className: "text-emerald-400 bg-emerald-500/15" },
+const MEAL_TYPE_META: Record<MealType, { icon: typeof Coffee }> = {
+  breakfast: { icon: Coffee },
+  lunch: { icon: Sun },
+  dinner: { icon: Moon },
+  snack: { icon: UtensilsCrossed },
 };
 
 function MacroMiniRing({
@@ -41,13 +41,13 @@ function MacroMiniRing({
     <div className="flex flex-col items-center gap-1.5">
       <div
         className={cn(
-          "flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full border-[3px] bg-black/40 text-sm font-black tabular-nums text-white",
+          "flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full border-[3px] bg-secondary text-sm font-black tabular-nums text-foreground",
           ringClass
         )}
       >
         {Math.round(value)}
       </div>
-      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </span>
     </div>
@@ -66,6 +66,9 @@ export function MealAnalysisSummary({
   saveLabel,
   onRetake,
   retakeDisabled = false,
+  onSecondary,
+  secondaryLabel,
+  secondaryDisabled = false,
 }: {
   form: MealFormData;
   onFormChange?: (form: MealFormData) => void;
@@ -78,6 +81,9 @@ export function MealAnalysisSummary({
   saveLabel?: string;
   onRetake?: () => void;
   retakeDisabled?: boolean;
+  onSecondary?: () => void;
+  secondaryLabel?: string;
+  secondaryDisabled?: boolean;
 }) {
   const platform = usePlatformCopy();
   const locale = useLocale();
@@ -89,8 +95,7 @@ export function MealAnalysisSummary({
       .filter((option) => option.value !== "all")
       .map((option) => [option.value, option.label])
   ) as Record<MealType, string>;
-  const mealMeta = MEAL_TYPE_META[form.meal_type];
-  const MealIcon = mealMeta.icon;
+  const MealIcon = MEAL_TYPE_META[form.meal_type].icon;
   const ingredients = form.ingredients.filter((item) => item.name.trim());
   const macros: MealMacros = form.macros;
 
@@ -101,11 +106,11 @@ export function MealAnalysisSummary({
   };
 
   const sheet = (
-    <div className="relative z-10 mt-auto max-h-[min(72dvh,640px)] overflow-y-auto overscroll-contain rounded-t-[1.75rem] bg-black px-5 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-5 text-white shadow-[0_-24px_80px_rgba(0,0,0,0.55)]">
-      <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-zinc-700" aria-hidden />
+    <div className="relative z-10 mt-auto min-h-0 max-h-[min(72dvh,640px)] overflow-y-auto overscroll-contain rounded-t-[1.35rem] border border-border/80 bg-card px-5 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-5 text-card-foreground shadow-2xl">
+      <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted-foreground/40" aria-hidden />
 
       <div className="flex items-start justify-between gap-3">
-        <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-teal-400">
+        <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
           <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
           {platform.mealLog.identifiedByItem}
           {confidence != null ? (
@@ -119,7 +124,7 @@ export function MealAnalysisSummary({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-9 w-9 shrink-0 rounded-full text-zinc-300 hover:bg-zinc-800 hover:text-white"
+            className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
             onClick={() => setIsEditing((value) => !value)}
             disabled={isRefining || isSaving}
             aria-label={platform.common.edit}
@@ -130,38 +135,33 @@ export function MealAnalysisSummary({
         ) : null}
       </div>
 
-      <h3 className="mt-3 text-2xl font-black uppercase italic leading-tight tracking-tight">
+      <h3 className="mt-3 text-2xl font-black leading-tight tracking-tight text-foreground">
         {form.name}
       </h3>
 
-      <span
-        className={cn(
-          "mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-          mealMeta.className
-        )}
-      >
+      <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
         <MealIcon className="h-3.5 w-3.5" />
         {mealTypeLabels[form.meal_type]}
       </span>
 
       {form.description && !isEditing ? (
-        <p className="mt-3 text-sm leading-relaxed text-zinc-400">{form.description}</p>
+        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{form.description}</p>
       ) : null}
 
       {!isEditing ? (
         <>
           {ingredients.length > 0 ? (
-            <ul className="mt-5 divide-y divide-zinc-800/90 border-t border-zinc-800/90">
+            <ul className="mt-5 divide-y divide-border border-t border-border">
               {ingredients.map((ingredient, index) => (
                 <li
                   key={`${ingredient.name}-${index}`}
                   className="flex items-center justify-between gap-3 py-3 text-sm"
                 >
-                  <span className="min-w-0 truncate lowercase text-zinc-400">
+                  <span className="min-w-0 truncate text-muted-foreground">
                     {ingredient.name}
                   </span>
                   {ingredient.amount ? (
-                    <span className="shrink-0 font-semibold tabular-nums text-white">
+                    <span className="shrink-0 font-semibold tabular-nums text-foreground">
                       {ingredient.amount}
                     </span>
                   ) : null}
@@ -172,31 +172,31 @@ export function MealAnalysisSummary({
 
           <div className="mt-6 flex items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
                 {platform.mealLog.caloriesLabel}
               </p>
               <p className="mt-1 flex items-baseline gap-1.5">
                 <span className="text-5xl font-black tabular-nums leading-none">
                   {macros.calories}
                 </span>
-                <span className="text-sm font-bold uppercase text-zinc-400">kcal</span>
+                <span className="text-sm font-bold uppercase text-muted-foreground">kcal</span>
               </p>
             </div>
             <div className="flex shrink-0 gap-3">
               <MacroMiniRing
                 label={platform.ai.protein}
                 value={macros.protein}
-                ringClass="border-violet-400"
+                ringClass="border-rose-500"
               />
               <MacroMiniRing
                 label={platform.ai.carbs}
                 value={macros.carbs}
-                ringClass="border-pink-400"
+                ringClass="border-amber-400"
               />
               <MacroMiniRing
                 label={platform.ai.fat}
                 value={macros.fat}
-                ringClass="border-sky-400"
+                ringClass="border-sky-500"
               />
             </div>
           </div>
@@ -204,7 +204,7 @@ export function MealAnalysisSummary({
       ) : null}
 
       {isEditing && onFormChange ? (
-        <div className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4">
+        <div className="mt-5 rounded-2xl border border-border bg-secondary/40 p-4">
           <MealDetailsFields
             mealType={form.meal_type}
             onMealTypeChange={(meal_type) => onFormChange({ ...form, meal_type })}
@@ -226,13 +226,13 @@ export function MealAnalysisSummary({
 
       {isEditing && onRefineWithSpecification ? (
         <div className="mt-4 rounded-2xl border border-primary/35 bg-primary/10 p-4">
-          <p className="text-sm text-zinc-300">{platform.mealLog.specifyHint}</p>
+          <p className="text-sm text-muted-foreground">{platform.mealLog.specifyHint}</p>
           <Textarea
             value={specification}
             onChange={(event) => setSpecification(event.target.value)}
             rows={3}
             placeholder={platform.mealLog.specifyPlaceholder}
-            className="mt-3 resize-none border-zinc-700 bg-zinc-950 text-sm text-white"
+            className="mt-3 resize-none text-sm"
             disabled={isRefining}
           />
           <Button
@@ -257,41 +257,49 @@ export function MealAnalysisSummary({
       ) : null}
 
       {onSave ? (
-        <div className="rutina-gradient-ring-btn mt-6 w-full">
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-12 w-full bg-black text-sm font-black uppercase tracking-[0.14em] text-white hover:bg-zinc-950 hover:text-white"
-            disabled={isSaving || isRefining}
-            onClick={onSave}
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {platform.common.saving}
-              </>
-            ) : (
-              saveLabel ?? platform.mealLog.continueMeal
-            )}
-          </Button>
-        </div>
+        <Button
+          type="button"
+          className="mt-6 w-full"
+          disabled={isSaving || isRefining}
+          onClick={onSave}
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {platform.common.saving}
+            </>
+          ) : (
+            saveLabel ?? platform.mealLog.continueMeal
+          )}
+        </Button>
       ) : null}
 
       {onRetake ? (
         <button
           type="button"
-          className="mt-3 w-full py-2 text-center text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-300 disabled:opacity-50"
+          className="mt-3 w-full py-2 text-center text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
           onClick={onRetake}
           disabled={retakeDisabled}
         >
           {platform.mealLog.retakePhoto}
         </button>
       ) : null}
+
+      {onSecondary && secondaryLabel ? (
+        <button
+          type="button"
+          className="mt-1 w-full py-2 text-center text-sm font-semibold text-primary transition-colors hover:brightness-110 disabled:opacity-50"
+          onClick={onSecondary}
+          disabled={secondaryDisabled}
+        >
+          {secondaryLabel}
+        </button>
+      ) : null}
     </div>
   );
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col bg-black">
+    <div className="relative flex h-full min-h-0 flex-col bg-background">
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -300,10 +308,10 @@ export function MealAnalysisSummary({
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
-        <div className="absolute inset-0 bg-zinc-950" aria-hidden />
+        <div className="absolute inset-0 bg-background" aria-hidden />
       )}
       <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/80"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background/40 via-transparent to-background"
         aria-hidden
       />
       {sheet}
