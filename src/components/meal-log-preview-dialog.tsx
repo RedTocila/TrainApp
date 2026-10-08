@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, CheckCircle2, Target, Trash2, X } from "lucide-react";
+import { Check, CheckCircle2, Target, X } from "lucide-react";
 import { AppOverlay, AppOverlayPanel } from "@/components/app-overlay";
 import { MealAnalysisSummary } from "@/components/meal-analysis-summary";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
@@ -170,18 +170,6 @@ export function MealLogPreviewDialog({
                 <Check className="h-3.5 w-3.5" />
                 {platform.common.done}
               </Button>
-              {variant === "view" && onDelete ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-full border border-red-500/30 bg-red-500/15 text-red-400 hover:bg-red-500/25 hover:text-red-300"
-                  onClick={onDelete}
-                  disabled={isDeleting}
-                  aria-label={platform.aria.deleteMeal}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              ) : null}
             </div>
           </div>
         </div>
@@ -254,7 +242,7 @@ export function MealLogPreviewDialog({
             </div>
           )}
 
-          {meal.ingredients?.length > 0 && (
+          {meal.ingredients.length > 0 && (
             <Card className="mt-4">
               <CardContent className="p-4">
                 <p className="text-sm font-semibold">Ingredients</p>
@@ -275,24 +263,6 @@ export function MealLogPreviewDialog({
             </Card>
           )}
 
-          <div className="mt-4 space-y-2 border-t border-border pt-4 pb-1">
-            {variant === "view" && onDelete ? (
-              <>
-                <Button className="w-full" onClick={onClose} disabled={isDeleting}>
-                  {platform.common.done}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full text-red-400 hover:text-red-300"
-                  onClick={onDelete}
-                  disabled={isDeleting}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {isDeleting ? platform.common.saving : platform.aria.deleteMeal}
-                </Button>
-              </>
-            ) : null}
-          </div>
         </div>
       </AppOverlayPanel>
       </AppOverlay>
