@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useIsFreeNativeApp } from "@/components/ios/use-native-app";
 import { AppLogo } from "@/components/app-logo";
+import { ChallengesHeaderLink } from "@/components/challenges-header-link";
 import {
   FullCalendarNavButton,
 } from "@/components/full-calendar-nav-button";
@@ -218,6 +219,7 @@ function DashboardMobileHeaderBar() {
           </div>
         ) : (
           <div className={headerActionsGroup}>
+            <ChallengesHeaderLink className={headerIconButton} />
             {!freeNativeApp ? (
               <Link
                 href="/dashboard/referrals"

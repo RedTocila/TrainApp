@@ -1,109 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Radio, Users, Video } from "lucide-react";
+import { Video } from "lucide-react";
 import { ClassesCatalog } from "@/components/classes-catalog";
-import { ChallengesCatalog } from "@/components/challenges-catalog";
-import { getChallengeStatus } from "@/lib/challenge-utils";
-import { useHidesChallengesInApp } from "@/components/ios/use-native-app";
-import type { Challenge, FitnessClass } from "@/lib/types";
-import { cn } from "@/lib/utils";
-
-type LiveTab = "classes" | "challenges";
+import { usePlatformCopy } from "@/components/locale-provider";
+import type { FitnessClass } from "@/lib/types";
 
 export function LiveHubPage({
   classes,
-  challenges,
-  memberships = {},
   requiresUpgrade = false,
 }: {
   classes: FitnessClass[];
-  challenges: Challenge[];
-  memberships?: Record<string, import("@/lib/actions/challenges").ChallengeCardMembership>;
   requiresUpgrade?: boolean;
 }) {
-  const [selectedTab, setTab] = useState<LiveTab>("challenges");
-  const classesOnly = useHidesChallengesInApp();
-  const tab: LiveTab = classesOnly ? "classes" : selectedTab;
-
-  const liveChallengeCount = useMemo(
-    () => challenges.filter((c) => getChallengeStatus(c) === "live").length,
-    [challenges]
-  );
+  const platform = usePlatformCopy();
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-5xl space-y-6">
-      {classesOnly ? (
-        <header className="flex items-center gap-2">
-          <Video className="h-5 w-5 text-primary" aria-hidden />
-          <h1 className="text-lg font-black leading-none">Live Classes</h1>
-        </header>
-      ) : (
-      <header>
-        <nav
-          className="dashboard-instant-nav mb-3 flex h-[var(--control-height)] rounded-full border border-border/60 bg-secondary/60 p-1"
-          role="tablist"
-          aria-label="Live sections"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "challenges"}
-            onClick={() => setTab("challenges")}
-            className={cn(
-              "relative flex h-full flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
-              tab === "challenges"
-                ? "bg-violet-500/20 text-violet-400 shadow-sm"
-                : "text-zinc-500 active:opacity-80 [@media(hover:hover)]:hover:text-zinc-300"
-            )}
-          >
-            <Users className="h-4 w-4 shrink-0" aria-hidden />
-            <span>Challenges</span>
-            {liveChallengeCount > 0 && (
-              <span className="absolute right-2 top-1.5 flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "classes"}
-            onClick={() => setTab("classes")}
-            className={cn(
-              "flex h-full flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-all touch-manipulation select-none [-webkit-tap-highlight-color:transparent]",
-              tab === "classes"
-                ? "bg-primary/20 text-primary shadow-sm"
-                : "text-zinc-500 active:opacity-80 [@media(hover:hover)]:hover:text-zinc-300"
-            )}
-          >
-            <Video className="h-4 w-4 shrink-0" aria-hidden />
-            <span>Live Classes</span>
-          </button>
-        </nav>
+      <header className="flex items-center gap-2">
+        <Video className="h-5 w-5 text-primary" aria-hidden />
+        <h1 className="text-lg font-black leading-none">{platform.nav.liveCoaching}</h1>
       </header>
-      )}
-
-      <div role="tabpanel">
-        {tab === "challenges" ? (
-          <div className="space-y-4">
-            {liveChallengeCount > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300">
-                <Radio className="h-3.5 w-3.5" />
-                {liveChallengeCount} live now
-              </span>
-            )}
-            <ChallengesCatalog
-              challenges={challenges}
-              memberships={memberships}
-              requiresUpgrade={requiresUpgrade}
-            />
-          </div>
-        ) : (
-          <ClassesCatalog classes={classes} requiresUpgrade={requiresUpgrade} />
-        )}
-      </div>
+      <ClassesCatalog classes={classes} requiresUpgrade={requiresUpgrade} />
     </div>
   );
 }

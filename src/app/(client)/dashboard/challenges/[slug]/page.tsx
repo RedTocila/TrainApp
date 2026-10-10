@@ -58,7 +58,7 @@ export default async function ChallengeDetailPage({
   const challenge = await getChallengeBySlug(slug, profile.gender);
   if (!challenge) notFound();
   if (!isChallengeActive(challenge)) {
-    redirect("/dashboard/classes");
+    redirect("/dashboard/challenges");
   }
 
   const copy = resolveChallengePlatformCopy(platform.challenges, challenge);

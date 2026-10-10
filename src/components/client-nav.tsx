@@ -1,27 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import {
   CalendarDays,
   House,
-  Trophy,
   UserRound,
+  Video,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AiCoachFab, DASHBOARD_NAV_GLASS_CLASS } from "@/components/ai-coach-fab";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { AppLogo } from "@/components/app-logo";
+import { ChallengesHeaderLink } from "@/components/challenges-header-link";
 import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
 import { SignOutButton } from "@/components/sign-out-button";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { getHasLivePublishedChallenge } from "@/lib/actions/challenges";
-import { hidesChallengesInApp } from "@/lib/native-app";
 import {
   hidesDashboardBottomNav,
   isHomeNavActive,
@@ -51,30 +50,6 @@ function NavGlyph({
   );
 }
 
-function NavIconWithDot({
-  icon: Icon,
-  active,
-  showDot,
-  className,
-}: {
-  icon: LucideIcon;
-  active: boolean;
-  showDot: boolean;
-  className?: string;
-}) {
-  return (
-    <span className="relative z-[1] inline-flex">
-      <NavGlyph icon={Icon} active={active} className={className} />
-      {showDot ? (
-        <span
-          aria-hidden
-          className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background"
-        />
-      ) : null}
-    </span>
-  );
-}
-
 export function ClientNav({
   fullName,
 }: {
@@ -90,18 +65,6 @@ export function ClientNav({
   const hideMobileChrome = hideNav || alexChatOpen;
   const programsActive = isProgramsNavActive(activePath);
   const homeActive = isHomeNavActive(activePath);
-  const [liveChallengeActive, setLiveChallengeActive] = useState(false);
-
-  useEffect(() => {
-    if (hidesChallengesInApp()) return;
-    let cancelled = false;
-    void getHasLivePublishedChallenge().then((live) => {
-      if (!cancelled) setLiveChallengeActive(live);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const prefetchRoutes = useMemo(
     () => [
@@ -138,7 +101,6 @@ export function ClientNav({
     label: string;
     icon: LucideIcon;
     active: boolean;
-    showDot?: boolean;
     tapSlop?: number;
   }[] = [
     {
@@ -157,12 +119,10 @@ export function ClientNav({
     {
       href: "/dashboard/classes",
       label: platform.nav.liveCoaching,
-      icon: Trophy,
+      icon: Video,
       active:
         activePath === "/dashboard/classes" ||
         activePath.startsWith("/dashboard/classes/"),
-      // Always draw attention; pulse when a challenge is live.
-      showDot: true,
     },
     {
       href: "/dashboard/profile",
@@ -191,7 +151,10 @@ export function ClientNav({
               <AppLogo href="/dashboard" />
               <p className="mt-1 text-sm text-muted-foreground">{platform.nav.welcome(fullName)}</p>
             </div>
-            <FullCalendarNavButton className="h-9 w-9 shrink-0 rounded-full" />
+            <div className="flex shrink-0 items-center gap-1.5">
+              <ChallengesHeaderLink className="h-9 w-9 rounded-full border border-border/60 bg-background/60" />
+              <FullCalendarNavButton className="h-9 w-9 shrink-0 rounded-full" />
+            </div>
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-4">
@@ -202,20 +165,11 @@ export function ClientNav({
               onNavigateStart={setPendingHref}
               className={sidebarLinkClass(item.active)}
             >
-              {item.showDot ? (
-                <NavIconWithDot
-                  icon={item.icon}
-                  active={item.active}
-                  showDot
-                  className="h-4 w-4"
-                />
-              ) : (
-                <NavGlyph
-                  icon={item.icon}
-                  active={item.active}
-                  className="h-4 w-4"
-                />
-              )}
+              <NavGlyph
+                icon={item.icon}
+                active={item.active}
+                className="h-4 w-4"
+              />
               {item.label}
             </InstantNavLink>
           ))}
@@ -263,20 +217,11 @@ export function ClientNav({
                       aria-hidden
                     />
                   ) : null}
-                  {item.showDot ? (
-                    <NavIconWithDot
-                      icon={item.icon}
-                      active={item.active}
-                      showDot
-                      className={cn("h-6 w-6", liveChallengeActive && "animate-pulse")}
-                    />
-                  ) : (
-                    <NavGlyph
-                      icon={item.icon}
-                      active={item.active}
-                      className="relative z-[1] h-6 w-6"
-                    />
-                  )}
+                  <NavGlyph
+                    icon={item.icon}
+                    active={item.active}
+                    className="relative z-[1] h-6 w-6"
+                  />
                 </InstantNavLink>
               ))}
             </nav>

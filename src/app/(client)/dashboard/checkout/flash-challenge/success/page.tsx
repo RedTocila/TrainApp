@@ -14,7 +14,7 @@ export default async function FlashChallengeCheckoutSuccessPage({
   searchParams: Promise<{ localOrderId?: string }>;
 }) {
   const { localOrderId } = await searchParams;
-  if (!localOrderId) redirect("/dashboard/classes");
+  if (!localOrderId) redirect("/dashboard/challenges");
 
   const result = await activateFlashChallengeEntryFromLocalOrder(localOrderId);
   const locale = await getPreferredLocale();
@@ -28,7 +28,7 @@ export default async function FlashChallengeCheckoutSuccessPage({
           <Card>
             <CardContent className="space-y-4 p-6 text-center">
               <p className="text-sm text-destructive">{errorMessage}</p>
-              <Link href="/dashboard/classes">
+              <Link href="/dashboard/challenges">
                 <Button variant="outline">Back to challenges</Button>
               </Link>
             </CardContent>
@@ -41,7 +41,7 @@ export default async function FlashChallengeCheckoutSuccessPage({
   const challengeHref =
     "challengeSlug" in result && result.challengeSlug
       ? `/dashboard/challenges/${result.challengeSlug}`
-      : "/dashboard/classes";
+      : "/dashboard/challenges";
 
   return (
     <PageTransition>

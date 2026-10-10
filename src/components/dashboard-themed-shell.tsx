@@ -84,9 +84,9 @@ export function dashboardThemeAccent(theme: DashboardCardTheme) {
 
 /** Fixed photo backgrounds for home dashboard cards. */
 export const DASHBOARD_CARD_BACKGROUNDS = {
-  water: "/dashboard/water.jpg",
-  cardio: "/dashboard/cardio.jpg",
-  nutrition: "/dashboard/nutrition.jpg",
+  water: "/dashboard/water-card.jpg",
+  cardio: "/dashboard/cardio-card.jpg",
+  nutrition: "/dashboard/nutrition-card.jpg",
   photos: "/dashboard/progress-photos.jpg",
   weight: "/dashboard/body-weight.jpg",
   bmi: "/dashboard/bmi.jpg",
@@ -108,9 +108,9 @@ const PHOTO_OBJECT_POSITION: Partial<Record<DashboardCardTheme, string>> = {
 
 /** Darker wash for dense pair / nutrition tiles; lighter for the rest. */
 const PHOTO_OVERLAY: Partial<Record<DashboardCardTheme, string>> = {
-  water: "from-black/78 via-black/58 to-black/40",
-  cardio: "from-black/78 via-black/58 to-black/40",
-  nutrition: "from-black/78 via-black/58 to-black/40",
+  water: "from-black/68 via-black/52 to-black/40",
+  cardio: "from-black/68 via-black/52 to-black/40",
+  nutrition: "from-black/72 via-black/64 to-black/58",
 };
 
 const DEFAULT_PHOTO_OVERLAY = "from-black/40 via-black/22 to-black/10";

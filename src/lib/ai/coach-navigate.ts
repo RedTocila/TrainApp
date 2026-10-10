@@ -21,7 +21,7 @@ export const COACH_NAVIGATE_ALIASES: Record<string, string> = {
   coach: "/dashboard/ai",
   "progress photos": "/dashboard/progress-photos",
   photos: "/dashboard/progress-photos",
-  challenges: "/dashboard/classes",
+  challenges: "/dashboard/challenges",
   classes: "/dashboard/classes",
   pricing: "/dashboard/pricing",
   referrals: "/dashboard/referrals",

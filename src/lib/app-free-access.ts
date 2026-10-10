@@ -6,8 +6,8 @@ import type { Profile } from "@/lib/types";
  */
 export const NATIVE_APP_FREE = true;
 
-/** Challenges are hidden in the native app — the Live hub shows live classes only. */
-export const NATIVE_HIDE_CHALLENGES = true;
+/** When true, the native app hides the challenges entry and blocks challenge routes. */
+export const NATIVE_HIDE_CHALLENGES = false;
 
 /**
  * Sentinel expiry written for free-app Elite grants. Paid subscriptions always carry a

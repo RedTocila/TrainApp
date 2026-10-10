@@ -13,7 +13,7 @@ export default async function FlashChallengeCheckoutPage({
   searchParams: Promise<{ localOrderId?: string }>;
 }) {
   const { localOrderId } = await searchParams;
-  if (!localOrderId) redirect("/dashboard/classes");
+  if (!localOrderId) redirect("/dashboard/challenges");
 
   const locale = await getPreferredLocale();
   const platform = getPlatformCopy(locale);
@@ -34,7 +34,7 @@ export default async function FlashChallengeCheckoutPage({
     .single();
 
   if (!order?.pokpay_order_id || order.order_kind !== "flash_challenge_entry") {
-    redirect("/dashboard/classes");
+    redirect("/dashboard/challenges");
   }
 
   const metadata = (order.metadata ?? {}) as {
@@ -44,7 +44,7 @@ export default async function FlashChallengeCheckoutPage({
   const challengeTitle = metadata.challenge_title ?? "Flash challenge";
   const backHref = metadata.challenge_slug
     ? `/dashboard/challenges/${metadata.challenge_slug}`
-    : "/dashboard/classes";
+    : "/dashboard/challenges";
   const totalLabel = formatCurrencyAmount(order.amount_cents ?? 0);
 
   return (
