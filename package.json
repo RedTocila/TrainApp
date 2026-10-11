@@ -37,6 +37,7 @@
     "@capgo/native-purchases": "^8.8.1",
     "@hookform/resolvers": "^5.4.0",
     "@mjcdev/react-body-highlighter": "^0.0.4",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@nebula-ltd/pok-payments-js": "^2.0.1",
     "@sentry/nextjs": "^10.62.0",
     "@supabase/ssr": "^0.12.0",

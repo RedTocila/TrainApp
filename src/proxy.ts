@@ -37,6 +37,12 @@ export async function proxy(request: NextRequest) {
   const canonicalRedirect = redirectToCanonicalHost(request);
   if (canonicalRedirect) return canonicalRedirect;
 
+  // Public ChatGPT MCP discovery (initialize + read-only tools). No session required.
+  // Authenticated tools are not registered on this route.
+  if (request.nextUrl.pathname === "/api/mcp") {
+    return NextResponse.next();
+  }
+
   if (!getSupabasePublicEnv()) {
     return missingSupabaseEnvResponse();
   }
