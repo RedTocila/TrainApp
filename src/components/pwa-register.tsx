@@ -14,6 +14,8 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 const DISMISS_KEY = "rutina_pwa_install_dismissed";
+/** Install banner is paused. Set true to show “Instalo RUTINA” again. */
+const SHOW_INSTALL_BANNER = false;
 
 function isStandaloneDisplay(): boolean {
   if (typeof window === "undefined") return false;
@@ -96,6 +98,7 @@ export function PwaRegister() {
   }, []);
 
   useEffect(() => {
+    if (!SHOW_INSTALL_BANNER) return;
     if (Capacitor.isNativePlatform()) return;
     if (isStandaloneDisplay()) return;
     if (localStorage.getItem(DISMISS_KEY) === "1") return;
@@ -115,7 +118,7 @@ export function PwaRegister() {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
   }, []);
 
-  if (!showBanner) return null;
+  if (!SHOW_INSTALL_BANNER || !showBanner) return null;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--dashboard-mobile-nav-height,4.75rem)+0.75rem)] z-[110] flex justify-center px-4 lg:bottom-[max(1rem,env(safe-area-inset-bottom))]">

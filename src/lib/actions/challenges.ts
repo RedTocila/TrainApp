@@ -3,16 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveCoverImageFromForm } from "@/lib/cover-image-upload";
 import { hasLiveChallenge, suggestChallengeZoomDates } from "@/lib/challenge-utils";
 import {
   ensureFlashChallengesInDb,
-  getFlashChallengeBySlug,
   mergeFlashChallenges,
 } from "@/lib/flash-challenge-catalog";
 import {
   ensureTransformationChallengesInDb,
-  getTransformationChallengeBySlug,
   mergeTransformationChallenges,
 } from "@/lib/transformation-challenge-catalog";
 import {
@@ -158,26 +157,40 @@ function mergeCatalogChallenges(
   return [...transformation, ...flash, ...custom];
 }
 
+/**
+ * Includes unpublished rows. The signed-in client can only read published
+ * challenges, so a hidden catalog card would otherwise be filled back in.
+ */
+async function loadChallengesForVisibility(): Promise<Challenge[] | null> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("challenges")
+      .select("*")
+      .order("scheduled_at", { ascending: false });
+    if (error) return null;
+    return (data ?? []).map(rowToChallenge);
+  } catch {
+    return null;
+  }
+}
+
+function challengesShownLive(challenges: Challenge[], profileGender?: string | null) {
+  const merged = mergeCatalogChallenges(challenges, profileGender).filter(
+    (challenge) => challenge.published && challenge.is_active !== false
+  );
+  return filterChallengesForProfile(merged, profileGender);
+}
+
 export async function getPublishedChallenges(
   profileGender?: string | null
 ): Promise<Challenge[]> {
   await ensureCatalogChallengesInDb();
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("challenges")
-    .select("*")
-    .order("scheduled_at", { ascending: false });
+  const rows = await loadChallengesForVisibility();
+  if (!rows) return [];
 
-  if (error) {
-    return attachParticipantCounts(
-      filterChallengesForProfile(mergeCatalogChallenges([], profileGender), profileGender)
-    );
-  }
-  const merged = mergeCatalogChallenges((data ?? []).map(rowToChallenge), profileGender).filter(
-    (challenge) => challenge.published && challenge.is_active !== false
-  );
-  return attachParticipantCounts(filterChallengesForProfile(merged, profileGender));
+  return attachParticipantCounts(challengesShownLive(rows, profileGender));
 }
 
 /** Nav badge only — skips catalog backfill so the dashboard shell can paint. */
@@ -219,22 +232,13 @@ export async function getChallengeBySlug(
   slug: string,
   profileGender?: string | null
 ): Promise<Challenge | null> {
-  const catalog = getTransformationChallengeBySlug(slug) ?? getFlashChallengeBySlug(slug);
-
   await ensureCatalogChallengesInDb();
 
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("challenges")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
-
-  const challenge = data ? rowToChallenge(data) : catalog?.published ? catalog : null;
-
-  if (!challenge?.published) return null;
-  if (!canUserAccessChallenge(challenge, profileGender)) return null;
-  return challenge;
+  const rows = await loadChallengesForVisibility();
+  const match = rows?.find((challenge) => challenge.slug === slug) ?? null;
+  if (!match?.published || match.is_active === false) return null;
+  if (!canUserAccessChallenge(match, profileGender)) return null;
+  return match;
 }
 
 export async function getChallengeById(id: string): Promise<Challenge | null> {
