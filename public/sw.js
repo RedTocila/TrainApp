@@ -1,15 +1,9 @@
-/* RUTINA PWA service worker — shell cache + network-first navigations. */
-const CACHE_VERSION = "rutina-v2";
-const SHELL_URLS = ["/", "/dashboard", "/icons/icon-192.png", "/icons/icon-512.png"];
+/* RUTINA PWA service worker. Does not handle navigations — those stay on the
+   network so a slow response cannot freeze the page change. */
+const CACHE_VERSION = "rutina-v3";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_VERSION)
-      .then((cache) => cache.addAll(SHELL_URLS))
-      .then(() => self.skipWaiting())
-      .catch(() => undefined),
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener("activate", (event) => {
@@ -34,7 +28,17 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Never cache auth/API/server-action traffic.
+  // Page changes and Next.js route fetches must not wait on this worker.
+  if (
+    request.mode === "navigate" ||
+    request.headers.get("RSC") === "1" ||
+    request.headers.get("Next-Router-Prefetch") === "1" ||
+    request.headers.has("next-url") ||
+    url.searchParams.has("_rsc")
+  ) {
+    return;
+  }
+
   if (
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/auth/") ||
@@ -44,26 +48,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Navigations: always try network; only fall back to a warm shell offline.
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => response)
-        .catch(async () => {
-          const cached =
-            (await caches.match("/dashboard")) || (await caches.match("/"));
-          if (cached) return cached;
-          return new Response("Offline", {
-            status: 503,
-            statusText: "Service Unavailable",
-            headers: { "content-type": "text/plain; charset=utf-8" },
-          });
-        }),
-    );
-    return;
-  }
-
-  // Same-origin static assets: stale-while-revalidate.
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/icons/") ||

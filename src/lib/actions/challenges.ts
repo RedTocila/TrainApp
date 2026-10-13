@@ -151,7 +151,11 @@ function mergeCatalogChallenges(
   const filtered = dbChallenges.filter((c) => c.slug !== DEMO_CHALLENGE_SLUG);
   const transformation = mergeTransformationChallenges(filtered, profileGender);
   const flash = mergeFlashChallenges(filtered);
-  return [...transformation, ...flash];
+  const catalogSlugs = new Set(
+    [...transformation, ...flash].map((challenge) => challenge.slug)
+  );
+  const custom = filtered.filter((challenge) => !catalogSlugs.has(challenge.slug));
+  return [...transformation, ...flash, ...custom];
 }
 
 export async function getPublishedChallenges(
@@ -163,7 +167,6 @@ export async function getPublishedChallenges(
   const { data, error } = await supabase
     .from("challenges")
     .select("*")
-    .eq("published", true)
     .order("scheduled_at", { ascending: false });
 
   if (error) {
@@ -171,7 +174,9 @@ export async function getPublishedChallenges(
       filterChallengesForProfile(mergeCatalogChallenges([], profileGender), profileGender)
     );
   }
-  const merged = mergeCatalogChallenges((data ?? []).map(rowToChallenge), profileGender);
+  const merged = mergeCatalogChallenges((data ?? []).map(rowToChallenge), profileGender).filter(
+    (challenge) => challenge.published && challenge.is_active !== false
+  );
   return attachParticipantCounts(filterChallengesForProfile(merged, profileGender));
 }
 
@@ -219,22 +224,15 @@ export async function getChallengeBySlug(
   await ensureCatalogChallengesInDb();
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from("challenges")
     .select("*")
     .eq("slug", slug)
     .maybeSingle();
 
-  let challenge: Challenge | null;
-  if (error || !data) {
-    challenge = catalog?.published ? catalog : null;
-  } else if (!data.published) {
-    challenge = catalog?.published ? catalog : null;
-  } else {
-    challenge = rowToChallenge(data);
-  }
+  const challenge = data ? rowToChallenge(data) : catalog?.published ? catalog : null;
 
-  if (!challenge) return null;
+  if (!challenge?.published) return null;
   if (!canUserAccessChallenge(challenge, profileGender)) return null;
   return challenge;
 }
@@ -367,13 +365,31 @@ export async function updateChallenge(id: string, formData: FormData) {
   redirect("/admin/challenges");
 }
 
+function revalidateChallengeSurfaces() {
+  revalidatePath("/admin/challenges");
+  revalidatePath("/dashboard/challenges");
+  revalidatePath("/dashboard/challenges/[slug]", "page");
+}
+
+/** Admin list switch: on shows the challenge in the app and lets people join. */
+export async function setChallengeShownLive(id: string, shown: boolean) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("challenges")
+    .update({ published: shown, is_active: shown })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidateChallengeSurfaces();
+}
+
 export async function deleteChallenge(id: string) {
   await requireAdmin();
   const supabase = await createClient();
   const { error } = await supabase.from("challenges").delete().eq("id", id);
   if (error) throw new Error(error.message);
-  revalidatePath("/admin/challenges");
-  revalidatePath("/dashboard/classes");
+  revalidateChallengeSurfaces();
 }
 
 export type ChallengeCardMembership = {

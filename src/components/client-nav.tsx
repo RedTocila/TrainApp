@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
@@ -18,7 +18,6 @@ import { AppLogo } from "@/components/app-logo";
 import { ChallengesHeaderLink } from "@/components/challenges-header-link";
 import { SignOutButton } from "@/components/sign-out-button";
 import { InstantNavLink } from "@/components/instant-nav-link";
-import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 import { usePlatformCopy } from "@/components/locale-provider";
 import {
   hidesDashboardBottomNav,
@@ -64,20 +63,6 @@ export function ClientNav({
   const hideMobileChrome = hideNav || alexChatOpen;
   const programsActive = isProgramsNavActive(activePath);
   const homeActive = isHomeNavActive(activePath);
-
-  const prefetchRoutes = useMemo(
-    () => [
-      "/dashboard",
-      "/dashboard/workout/plans",
-      "/dashboard/nutrition",
-      "/dashboard/ai",
-      "/dashboard/classes",
-      "/dashboard/challenges",
-      "/dashboard/profile",
-    ],
-    []
-  );
-  usePrefetchRoutes(prefetchRoutes);
 
   useEffect(() => {
     if (!hideMobileChrome) return;

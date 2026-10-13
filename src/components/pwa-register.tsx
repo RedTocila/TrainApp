@@ -25,12 +25,25 @@ function isStandaloneDisplay(): boolean {
   );
 }
 
+function isIosBrowser(): boolean {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return true;
+  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+}
+
+function isMobileBrowser(): boolean {
+  if (isIosBrowser()) return true;
+  if (/Android|Mobile/i.test(navigator.userAgent)) return true;
+  return window.matchMedia("(max-width: 767px)").matches;
+}
+
 export function PwaRegister() {
   const locale = useLocale();
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(
     null,
   );
   const [showBanner, setShowBanner] = useState(false);
+  const [manualHint, setManualHint] = useState<string | null>(null);
 
   const copy =
     locale === "en"
@@ -39,12 +52,16 @@ export function PwaRegister() {
           body: "Open it like an app on your phone",
           dismiss: "No",
           install: "Install",
+          iosHint: "Tap Share, then Add to Home Screen.",
+          otherHint: "Open the browser menu, then Install app or Add to Home screen.",
         }
       : {
           title: `Instalo ${PLATFORM_NAME}`,
           body: "Hapeni si app në telefonin tuaj",
           dismiss: "Jo",
           install: "Instalo",
+          iosHint: "Trokit Share, pastaj Shto në ekranin kryesor.",
+          otherHint: "Hap menunë e shfletuesit, pastaj Instalo ose Shto në ekranin kryesor.",
         };
 
   useEffect(() => {
@@ -55,17 +72,11 @@ export function PwaRegister() {
     if (process.env.NODE_ENV !== "production") {
       void (async () => {
         try {
-          const hadController = Boolean(navigator.serviceWorker.controller);
           const regs = await navigator.serviceWorker.getRegistrations();
           await Promise.all(regs.map((reg) => reg.unregister()));
           if ("caches" in window) {
             const keys = await caches.keys();
             await Promise.all(keys.map((key) => caches.delete(key)));
-          }
-          // Unregister alone does not drop an active controller until reload.
-          if (hadController && sessionStorage.getItem("rutina_sw_dev_cleared") !== "1") {
-            sessionStorage.setItem("rutina_sw_dev_cleared", "1");
-            window.location.reload();
           }
         } catch {
           // ignore
@@ -96,20 +107,26 @@ export function PwaRegister() {
     };
 
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    // Phones never get that event in Safari, and often not in mobile Chrome.
+    // Show the same banner there anyway.
+    if (isMobileBrowser()) setShowBanner(true);
+
     return () =>
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
   }, []);
 
-  if (!showBanner || !deferred) return null;
+  if (!showBanner) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[60] flex justify-center px-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--dashboard-mobile-nav-height,4.75rem)+0.75rem)] z-[110] flex justify-center px-4 lg:bottom-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-border/60 bg-card/95 px-3 py-2.5 shadow-lg backdrop-blur-md">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-foreground">
             {copy.title}
           </p>
-          <p className="truncate text-xs text-muted-foreground">{copy.body}</p>
+          <p className={manualHint ? "text-xs text-muted-foreground" : "truncate text-xs text-muted-foreground"}>
+            {manualHint ?? copy.body}
+          </p>
         </div>
         <Button
           type="button"
@@ -128,6 +145,10 @@ export function PwaRegister() {
           size="sm"
           className="shrink-0 gap-1.5"
           onClick={async () => {
+            if (!deferred) {
+              setManualHint(isIosBrowser() ? copy.iosHint : copy.otherHint);
+              return;
+            }
             await deferred.prompt();
             const choice = await deferred.userChoice;
             if (choice.outcome === "accepted") {

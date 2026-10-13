@@ -20,7 +20,7 @@ type InstantNavLinkProps = Omit<
 export function InstantNavLink({
   href,
   children,
-  prefetch = true,
+  prefetch = false,
   tapSlop,
   pressToNavigate,
   onNavigateStart,

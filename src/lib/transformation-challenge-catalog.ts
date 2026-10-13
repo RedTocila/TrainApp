@@ -181,7 +181,7 @@ export async function ensureTransformationChallengesInDb(): Promise<void> {
           published: true,
           current_phase: 0,
         },
-        { onConflict: "slug" }
+        { onConflict: "slug", ignoreDuplicates: true }
       );
 
       if (error) {

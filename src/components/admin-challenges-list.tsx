@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { useMemo, useState } from "react";
+import { GitBranch, Pencil, Trash2 } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ChallengeCategoryFilterBar } from "@/components/challenge-category-filter-bar";
-import { DeleteChallengeButton } from "@/components/delete-challenge-button";
 import { StartChallengeButton } from "@/components/start-challenge-button";
 import {
   countChallengesByCategory,
@@ -12,6 +13,8 @@ import {
   type ChallengeListCategory,
 } from "@/lib/challenge-list-filters";
 import { getChallengeGender } from "@/lib/challenge-gender";
+import { isFlashChallenge } from "@/lib/challenge-series";
+import { deleteChallenge, setChallengeShownLive } from "@/lib/actions/challenges";
 import {
   challengeHasStarted,
   getChallengeDurationMonths,
@@ -19,16 +22,116 @@ import {
   getChallengeRegistrationStatus,
   getChallengeStatus,
   getPrizePoolCentsPerParticipant,
-  getRegistrationClosesAt,
-  getRegistrationOpensAt,
-  isChallengeActive,
   MIN_PARTICIPANTS_TO_START,
 } from "@/lib/challenge-utils";
 import { formatEurosFromCents } from "@/lib/format-currency";
 import type { Challenge } from "@/lib/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+function isShownLive(challenge: Challenge) {
+  return challenge.published && challenge.is_active !== false;
+}
+
+function durationLabel(challenge: Challenge) {
+  if (isFlashChallenge(challenge)) return "24 hours";
+  if (challenge.duration_days === 30) return "30 days";
+  if (challenge.duration_days === 90) return "90 days";
+  return `${getChallengeDurationMonths(challenge)} months`;
+}
+
+function statusLabel(status: string) {
+  return status.replaceAll("_", " ");
+}
+
+function ShowInAppSwitch({ challenge }: { challenge: Challenge }) {
+  const router = useRouter();
+  const [live, setLive] = useState(isShownLive(challenge));
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={live}
+        disabled={isPending}
+        onClick={() => {
+          const next = !live;
+          setError(null);
+          setLive(next);
+          startTransition(async () => {
+            try {
+              await setChallengeShownLive(challenge.id, next);
+              router.refresh();
+            } catch (err) {
+              setLive(!next);
+              setError(err instanceof Error ? err.message : "Could not update this challenge.");
+            }
+          });
+        }}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-colors disabled:opacity-60",
+          live
+            ? "border-emerald-500/40 bg-emerald-500/10"
+            : "border-border bg-secondary/50"
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+            live ? "bg-emerald-500" : "bg-zinc-600"
+          )}
+        >
+          <span
+            className={cn(
+              "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform",
+              live ? "translate-x-6" : "translate-x-1"
+            )}
+          />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold">
+            {live ? "Showing in the app" : "Hidden from the app"}
+          </span>
+          <span className="block text-xs text-muted-foreground">
+            {live
+              ? "Clients can see this challenge and join it."
+              : "Turn on to put this challenge on the live challenges page."}
+          </span>
+        </span>
+      </button>
+      {error ? <p className="mt-1.5 text-xs text-destructive">{error}</p> : null}
+    </div>
+  );
+}
+
+function DeleteChallengeButton({ challengeId, title }: { challengeId: string; title: string }) {
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="w-full border-red-900/60 text-red-300"
+      disabled={isPending}
+      onClick={() => {
+        if (!window.confirm(`Delete “${title}”? This cannot be undone.`)) return;
+        startTransition(() => {
+          void deleteChallenge(challengeId);
+        });
+      }}
+    >
+      <Trash2 className="h-4 w-4" />
+      Delete
+    </Button>
+  );
+}
 
 export function AdminChallengesList({ challenges }: { challenges: Challenge[] }) {
   const [category, setCategory] = useState<ChallengeListCategory>("all");
@@ -80,86 +183,74 @@ export function AdminChallengesList({ challenges }: { challenges: Challenge[] })
             );
             const challengeGender = getChallengeGender(challenge);
             const started = challengeHasStarted(challenge);
-            const registrationCloses = getRegistrationClosesAt(challenge);
+            const genderLabel =
+              challengeGender === "male" ? "Men" : challengeGender === "female" ? "Women" : "Open";
 
             return (
               <Card key={challenge.id}>
-                <CardHeader className="space-y-3 p-4 sm:p-6">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <CardTitle className="text-base leading-snug break-words">
-                        {challenge.title}
-                      </CardTitle>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {started
-                          ? `Started ${format(new Date(challenge.scheduled_at), "MMM d, yyyy · h:mm a")}`
-                          : `Manual start · min ${MIN_PARTICIPANTS_TO_START} participants (${participantCount} registered)`}
-                      </p>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {getChallengeDurationMonths(challenge)}-month tournament ·{" "}
-                        {challenge.duration_minutes} min calls · groups of {challenge.group_size}
-                      </p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        Registration:{" "}
-                        {getRegistrationOpensAt(challenge)
-                          ? format(getRegistrationOpensAt(challenge)!, "MMM d · h:mm a")
-                          : "open now"}{" "}
-                        →{" "}
-                        {registrationCloses
-                          ? format(registrationCloses, "MMM d · h:mm a")
-                          : "until you start"}
-                      </p>
-                      <p className="text-sm leading-relaxed text-amber-200/90">
-                        Prize pool: {pool} · +{perEntry}/entry · {participantCount} registered
-                      </p>
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <Badge variant="outline">{status}</Badge>
-                        <Badge variant="outline">{registrationStatus}</Badge>
-                        {challengeGender === "male" ? (
-                          <Badge className="bg-blue-500/15 text-blue-400">Men</Badge>
-                        ) : challengeGender === "female" ? (
-                          <Badge className="bg-pink-500/15 text-pink-400">Women</Badge>
-                        ) : (
-                          <Badge variant="secondary">Open</Badge>
-                        )}
-                      </div>
+                <CardContent className="space-y-4 p-4 sm:p-5">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge
+                        className={
+                          challengeGender === "male"
+                            ? "bg-blue-500/15 text-blue-300"
+                            : challengeGender === "female"
+                              ? "bg-pink-500/15 text-pink-300"
+                              : undefined
+                        }
+                        variant={challengeGender ? "outline" : "secondary"}
+                      >
+                        {genderLabel}
+                      </Badge>
+                      <Badge variant="outline">{durationLabel(challenge)}</Badge>
+                      <Badge variant="outline" className="capitalize">
+                        {statusLabel(status)}
+                      </Badge>
+                      <Badge variant="outline" className="capitalize">
+                        Registration {statusLabel(registrationStatus)}
+                      </Badge>
                     </div>
-                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:max-w-[16rem] sm:items-stretch">
-                      <StartChallengeButton
-                        challenge={challenge}
-                        participantCount={participantCount}
-                        fullWidth
-                      />
-                      <div className="flex w-full flex-wrap items-center gap-2 sm:justify-end">
-                        <Link
-                          href={`/admin/challenges/${challenge.id}/bracket`}
-                          className="min-w-0 flex-1 sm:flex-none"
-                        >
-                          <Button variant="default" size="sm" className="w-full sm:w-auto">
-                            Bracket
-                          </Button>
-                        </Link>
-                        <Link
-                          href={`/admin/challenges/${challenge.id}/edit`}
-                          className="min-w-0 flex-1 sm:flex-none"
-                        >
-                          <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                            Edit
-                          </Button>
-                        </Link>
-                        <Badge variant={challenge.published ? "success" : "secondary"}>
-                          {challenge.published ? "Published" : "Draft"}
-                        </Badge>
-                        <Badge
-                          variant={isChallengeActive(challenge) ? "success" : "secondary"}
-                        >
-                          {isChallengeActive(challenge) ? "Active" : "Inactive"}
-                        </Badge>
-                        <DeleteChallengeButton challengeId={challenge.id} />
+                    <h2 className="text-lg font-black leading-snug">{challenge.title}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {participantCount} registered
+                      {started
+                        ? ` · started ${format(new Date(challenge.scheduled_at), "MMM d, yyyy")}`
+                        : ` · ${MIN_PARTICIPANTS_TO_START} needed to start`}
+                      {" · "}
+                      prize {pool} · +{perEntry} each
+                    </p>
+                  </div>
+
+                  <ShowInAppSwitch key={`${challenge.id}-${String(isShownLive(challenge))}`} challenge={challenge} />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link href={`/admin/challenges/${challenge.id}/edit`} className="block">
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Pencil className="h-4 w-4" />
+                        Edit
+                      </Button>
+                    </Link>
+                    <Link href={`/admin/challenges/${challenge.id}/bracket`} className="block">
+                      <Button variant="outline" size="sm" className="w-full">
+                        <GitBranch className="h-4 w-4" />
+                        Bracket
+                      </Button>
+                    </Link>
+                    {started ? null : (
+                      <div className="col-span-2">
+                        <StartChallengeButton
+                          challenge={challenge}
+                          participantCount={participantCount}
+                          fullWidth
+                        />
                       </div>
+                    )}
+                    <div className="col-span-2">
+                      <DeleteChallengeButton challengeId={challenge.id} title={challenge.title} />
                     </div>
                   </div>
-                </CardHeader>
+                </CardContent>
               </Card>
             );
           })}

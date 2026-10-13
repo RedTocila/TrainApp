@@ -17,8 +17,8 @@ export default async function AdminChallengesPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-black">Challenges</h1>
             <p className="text-sm text-muted-foreground sm:text-base">
-              Multi-month transformation tournaments — monthly Zoom eliminations in groups of 10,
-              winners from platform reports and live peer voting
+              Turn on “Showing in the app” for each challenge clients should see and join.
+              Edit, bracket, and start stay on the card.
             </p>
           </div>
           <Link href="/admin/challenges/new" className="w-full shrink-0 sm:w-auto">

@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -17,7 +16,6 @@ import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 import { NotificationBell } from "@/components/notification-bell";
 import { InstantNavLink } from "@/components/instant-nav-link";
-import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", shortLabel: "Home", icon: LayoutDashboard, exact: true },
@@ -43,8 +41,6 @@ export function AdminNav({
   unreadCount: number;
 }) {
   const pathname = usePathname();
-  const prefetchRoutes = useMemo(() => navItems.map((item) => item.href), []);
-  usePrefetchRoutes(prefetchRoutes);
 
   return (
     <>
