@@ -11,7 +11,8 @@ import {
   type ChangeEvent,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Mars, Sparkles, Venus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Dumbbell, Mars, Sparkles, Venus } from "lucide-react";
+import { starterProgramPreview } from "@/lib/intake-starter-program";
 import {
   ACTIVITY_OPTIONS,
   ALCOHOL_OPTIONS,
@@ -981,6 +982,8 @@ export function IntakeCompleteSummary({
   responses: IntakeResponses;
   macros?: { calories: number; protein: number; carbs: number; fat: number } | null;
 }) {
+  const workout = starterProgramPreview(responses);
+
   return (
     <div className="space-y-5 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -989,7 +992,7 @@ export function IntakeCompleteSummary({
       <div className="space-y-1">
         <h2 className="text-2xl font-black">You&apos;re all set</h2>
         <p className="text-sm text-muted-foreground">
-          We&apos;ve mapped your profile. Create your account to unlock your dashboard.
+          Macros and a workout program are ready. Create your account and both go live on your dashboard.
         </p>
       </div>
       {macros && (
@@ -1000,8 +1003,29 @@ export function IntakeCompleteSummary({
           <MacroDonut macros={macros} />
         </div>
       )}
+      <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4 text-left">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/20 text-sky-300">
+            <Dumbbell className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-sky-200">
+              Your workout program
+            </p>
+            <p className="text-sm font-semibold text-foreground">
+              {workout.daysPerWeek} days/week · {workout.weeks} weeks
+            </p>
+          </div>
+        </div>
+        <p className="text-sm text-foreground">
+          {workout.weekdayLabels.join(" · ")}
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {workout.experience} · {workout.equipment}. {workout.sessions} sessions are added to your calendar as soon as your account is created, matched to your level, equipment, and injuries.
+        </p>
+      </div>
       <p className="text-xs text-muted-foreground">
-        Preview estimate — AI fine-tunes when you create your account
+        Preview — AI builds the exercises and places them on your calendar when you sign up
       </p>
     </div>
   );

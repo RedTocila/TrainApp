@@ -197,7 +197,9 @@ export async function applyIntakeToProfile(
 ): Promise<string | null> {
   const intakeFields = responsesToProfileFields(normalizeIntakeResponses(responses));
   const mergedProfile = intakeFields as Profile;
-  // Formula macros keep signup instant; AI refinement runs after the response.
+  // Formula macros keep signup instant. AI macro refinement runs after the
+  // response. The workout is built in the open (dashboard or the generating
+  // screen) so it is on the calendar before training starts.
   const resolved = await resolveMacroTargets(mergedProfile, responses, { skipAi: true });
 
   const profileUpdate: Record<string, unknown> = {
@@ -221,7 +223,7 @@ export async function applyIntakeToProfile(
   return null;
 }
 
-/** AI macro refinement + starter workout program for a freshly created account. */
+/** AI macro refinement after signup. The starter workout is built visibly later. */
 async function personalizeNewAccount(
   userId: string,
   responses: IntakeResponses,
@@ -232,7 +234,7 @@ async function personalizeNewAccount(
   if (!fresh) return;
   const profile = fresh as Profile;
 
-  const refineMacros = async () => {
+  try {
     const refined = await resolveMacroTargets(profile, responses);
     if (!refined || refined.source !== "ai") return;
     let update = admin
@@ -247,16 +249,8 @@ async function personalizeNewAccount(
     // Don't clobber targets the user already edited by hand.
     if (formulaCalories !== null) update = update.eq("target_calories", formulaCalories);
     await update;
-  };
-
-  const results = await Promise.allSettled([
-    refineMacros(),
-    buildStarterWorkoutProgramForUser(userId, profile),
-  ]);
-  for (const result of results) {
-    if (result.status === "rejected") {
-      console.error("[personalizeNewAccount]", result.reason);
-    }
+  } catch (error) {
+    console.error("[personalizeNewAccount]", error);
   }
 }
 

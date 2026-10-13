@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -93,7 +94,9 @@ function IntakeSavingPanel({
           {steps[stepIndex] ?? platform.common.saving}
         </p>
         <p className="text-xs text-muted-foreground">
-          {platform.profile.savingTakeAMoment}
+          {buildingProgram
+            ? platform.profile.buildingWorkoutHint
+            : platform.profile.savingTakeAMoment}
         </p>
       </div>
       <div className="flex gap-1.5 pt-1">
@@ -162,6 +165,12 @@ function WorkoutResultCard({ result }: { result: WorkoutResult }) {
             result.sessions
           )}
         </p>
+        <Link
+          href="/dashboard"
+          className="mt-2 inline-flex text-xs font-semibold text-sky-200 underline-offset-2 hover:underline"
+        >
+          {platform.profile.startTraining}
+        </Link>
       </div>
     </div>
   );
@@ -252,7 +261,11 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
           firstCompletion &&
           result.workoutProgram &&
           !result.workoutProgram.built &&
-          !("skipped" in result.workoutProgram && result.workoutProgram.skipped)
+          !(
+            "skipped" in result.workoutProgram &&
+            result.workoutProgram.skipped &&
+            result.workoutProgram.reason === "already_has_program"
+          )
         ) {
           setWorkoutResult({ status: "failed" });
         }

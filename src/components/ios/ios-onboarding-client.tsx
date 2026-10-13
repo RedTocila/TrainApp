@@ -80,7 +80,7 @@ export function IosOnboardingClient() {
           />
           {finishing ? (
             <p className="mt-4 text-center text-sm text-zinc-400">
-              Preparing your macros…
+              Saving your profile. Your workout is built next.
             </p>
           ) : null}
         </CardContent>

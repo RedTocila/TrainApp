@@ -48,6 +48,40 @@ export function weekdaysForSessionCount(daysPerWeek: number): number[] {
   return [1, 3, 5]; // Mon Wed Fri
 }
 
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+export type StarterProgramPreview = {
+  daysPerWeek: number;
+  weeks: number;
+  sessions: number;
+  weekdays: number[];
+  weekdayLabels: string[];
+  experience: string;
+  equipment: string;
+};
+
+/** What the questionnaire completion screen shows before the calendar is filled. */
+export function starterProgramPreview(responses: IntakeResponses): StarterProgramPreview {
+  const daysPerWeek = daysPerWeekFromIntake(responses);
+  const weekdays = weekdaysForSessionCount(daysPerWeek);
+  const experience =
+    optionLabel(TRAINING_EXPERIENCE_OPTIONS, responses.training_experience) ??
+    "Matched to your level";
+  const equipment =
+    optionLabels(EQUIPMENT_OPTIONS, responses.equipment_access).join(", ") ||
+    "Bodyweight";
+
+  return {
+    daysPerWeek,
+    weeks: STARTER_PROGRAM_WEEKS,
+    sessions: daysPerWeek * STARTER_PROGRAM_WEEKS,
+    weekdays,
+    weekdayLabels: weekdays.map((day) => WEEKDAY_SHORT[day] ?? "Mon"),
+    experience,
+    equipment,
+  };
+}
+
 /** Prompt text for equipment — backed by the shared taxonomy allowlist. */
 export function equipmentConstraintFromIntake(responses: IntakeResponses): string {
   return equipmentConstraintFromIntakeAccess(responses.equipment_access).promptRule;

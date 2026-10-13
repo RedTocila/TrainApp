@@ -43,6 +43,15 @@ export const platformCopyAl = {
       `Stërvitja gati: “${title}” · ${daysPerWeek} ditë/javë · ${sessions} seanca të planifikuara për 4 javë.`,
     workoutProgramFailed:
       "Profili u ruajt. Nuk mundëm të ndërtojmë stërvitjen tani — provo Coach AI → Planet e stërvitjes.",
+    buildingWorkoutTitle: "Po ndërtohet stërvitja jote",
+    buildingWorkoutBody:
+      "Po zgjidhen ushtrimet sipas nivelit, pajisjeve dhe lëndimeve, pastaj shtohen në kalendar.",
+    addingToCalendar: "Po shtohen seancat në kalendar…",
+    buildingWorkoutHint:
+      "Po vendosen seancat në kalendar. Mund të zgjasë deri në një minutë.",
+    workoutOnCalendarReady: "Programi është në kalendar dhe gati për të filluar.",
+    startTraining: "Fillo stërvitjen",
+    workoutBuildRetry: "Provo përsëri",
     intakeRefreshTitle: "Koha për të përditësuar shëndetin & stilin e jetesës",
     intakeRefreshBody:
       "Ka kaluar rreth një muaj — përditëso rutinën dhe progresin që AI të rianalizojë profilin për raporte, makro dhe coaching më të sakta.",

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { applyPendingIntakeDraft } from "@/lib/actions/client-intake";
+import { ensureStarterWorkoutForCurrentUser } from "@/lib/actions/onboarding-workout";
 import { isIntakeResponsesComplete } from "@/lib/intake-questionnaire";
 import { clearIntakeDraft, loadIntakeDraft } from "@/lib/intake-storage";
 import { cn } from "@/lib/utils";
@@ -47,7 +48,6 @@ export function IosGeneratingClient() {
     };
 
     router.prefetch("/dashboard");
-    const startedAt = Date.now();
     advanceVisual();
 
     void (async () => {
@@ -62,17 +62,19 @@ export function IosGeneratingClient() {
           clearIntakeDraft();
         }
 
+        const workout = await ensureStarterWorkoutForCurrentUser();
+        if (cancelled) return;
+        if (!workout.built && "error" in workout && workout.error) {
+          setError(workout.error);
+          return;
+        }
+
+        setDone(true);
+        setActiveIndex(STEPS.length - 1);
         timers.push(
           window.setTimeout(() => {
-            if (cancelled) return;
-            setDone(true);
-            setActiveIndex(STEPS.length - 1);
-            timers.push(
-              window.setTimeout(() => {
-                if (!cancelled) router.replace("/dashboard");
-              }, 300)
-            );
-          }, Math.max(0, STEP_START_MS + STEPS.length * STEP_INTERVAL_MS - (Date.now() - startedAt)))
+            if (!cancelled) router.replace("/dashboard");
+          }, 400)
         );
       } catch {
         if (!cancelled) {
@@ -155,7 +157,16 @@ export function IosGeneratingClient() {
         </ul>
 
         {error ? (
-          <p className="mt-6 text-center text-sm text-red-400">{error}</p>
+          <div className="mt-6 space-y-3 text-center">
+            <p className="text-sm text-red-400">{error}</p>
+            <button
+              type="button"
+              className="text-sm font-semibold text-zinc-200 underline-offset-2 hover:underline"
+              onClick={() => router.replace("/dashboard")}
+            >
+              Continue to Home
+            </button>
+          </div>
         ) : null}
       </motion.div>
     </div>

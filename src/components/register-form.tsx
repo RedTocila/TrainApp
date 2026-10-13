@@ -9,6 +9,7 @@ import {
   Beef,
   Wheat,
   Droplets,
+  Dumbbell,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -39,6 +40,10 @@ import {
   type MacroTargets,
 } from "@/lib/macro-calculator";
 import { loadIntakeDraft, clearIntakeDraft } from "@/lib/intake-storage";
+import {
+  starterProgramPreview,
+  type StarterProgramPreview,
+} from "@/lib/intake-starter-program";
 import { loadCheckoutReferralCode, saveCheckoutReferralCode } from "@/lib/referral-storage";
 import { formatUserError } from "@/lib/format-user-error";
 import { cn } from "@/lib/utils";
@@ -52,7 +57,7 @@ import {
   useIsFreeNativeApp,
   useShouldUseAppleIap,
 } from "@/components/ios/use-native-app";
-import { IOS_WELCOME_PATH } from "@/lib/ios-routes";
+import { IOS_GENERATING_PATH, IOS_WELCOME_PATH } from "@/lib/ios-routes";
 
 type PackagePlan = "ai" | "elite";
 type SignupDraft = GuestSignupPayload;
@@ -91,6 +96,27 @@ const PACKAGE_OPTIONS: Array<{
   },
 ];
 
+function WorkoutPreviewRow({ preview }: { preview: StarterProgramPreview }) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-sky-400/25 bg-sky-500/10 px-3 py-2.5">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500/15 text-sky-300">
+        <Dumbbell className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-sky-200/90">
+          Workout program
+        </p>
+        <p className="text-sm font-semibold leading-snug">
+          {preview.daysPerWeek} days/week · {preview.weekdayLabels.join(", ")}
+        </p>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+          {preview.experience} · {preview.equipment}. {preview.sessions} sessions land on your calendar right after signup.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function RegisterForm({
   initialOffers = [],
 }: {
@@ -104,6 +130,7 @@ export function RegisterForm({
   const [error, setError] = useState<string | null>(null);
   const [intakeJson, setIntakeJson] = useState<string | null>(null);
   const [macroTargets, setMacroTargets] = useState<MacroTargets | null>(null);
+  const [workoutPreview, setWorkoutPreview] = useState<StarterProgramPreview | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PackagePlan>("ai");
@@ -127,6 +154,7 @@ export function RegisterForm({
       setIntakeJson(JSON.stringify(draft));
       const macros = calculateMacrosFromIntakeResponses(draft);
       if (macros) setMacroTargets(macros);
+      setWorkoutPreview(starterProgramPreview(draft));
     } catch {
       // Corrupt local draft must never block account creation.
     }
@@ -148,6 +176,10 @@ export function RegisterForm({
     clearIntakeDraft();
     if (role === "admin") {
       router.push("/admin");
+      return;
+    }
+    if (searchParams.get("from") === "ios" && intakeJson) {
+      router.push(IOS_GENERATING_PATH);
       return;
     }
     router.push("/dashboard");
@@ -591,7 +623,7 @@ export function RegisterForm({
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-primary">Health profile ready</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Daily targets from your questionnaire
+                  Daily targets and a 4-week workout from your questionnaire
                 </p>
               </div>
             </div>
@@ -686,11 +718,15 @@ export function RegisterForm({
                     );
                   })}
                 </div>
+                {workoutPreview ? <WorkoutPreviewRow preview={workoutPreview} /> : null}
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-3.5 py-3 text-sm text-muted-foreground">
-                <Sparkles className="h-4 w-4 text-primary" />
-                Your answers are saved and ready to apply.
+              <div className="space-y-3 p-3.5">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Your answers are saved and ready to apply.
+                </div>
+                {workoutPreview ? <WorkoutPreviewRow preview={workoutPreview} /> : null}
               </div>
             )}
           </div>

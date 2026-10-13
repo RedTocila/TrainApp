@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { format } from "date-fns";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 import { isAiConfigured } from "@/lib/ai/providers";
 import { generateOnboardingWorkoutPlanFromProfile } from "@/lib/ai/generate-workout-plan";
 import { enrichExerciseWithGif } from "@/lib/exercise-gif";
@@ -48,6 +50,33 @@ async function clientAlreadyHasWorkoutProgram(
     .limit(1)
     .maybeSingle();
   return !!personal;
+}
+
+/**
+ * Logged-in path used by the post-signup screen. Builds the 4-week program
+ * and waits until sessions are on the calendar.
+ */
+export async function ensureStarterWorkoutForCurrentUser(): Promise<StarterProgramResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { built: false, error: "Not authenticated" };
+
+  const admin = createAdminClient();
+  const { data: profile, error } = await admin
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+  if (error || !profile) {
+    return { built: false, error: error?.message ?? "Profile not found" };
+  }
+  if (!isClientIntakeComplete(profile as Profile)) {
+    return { built: false, skipped: true, reason: "intake_incomplete" };
+  }
+
+  return buildStarterWorkoutProgramForUser(user.id, profile as Profile);
 }
 
 /**
@@ -168,6 +197,47 @@ export async function buildStarterWorkoutProgramForUser(
     const startKey = format(today, "yyyy-MM-dd");
     let sessionsScheduled = 0;
 
+    const scheduleSession = async (dayId: string, scheduledDate: string) => {
+      if (scheduledDate < startKey) return null;
+
+      const { data: existing } = await admin
+        .from("scheduled_workouts")
+        .select("id")
+        .eq("client_id", userId)
+        .eq("scheduled_date", scheduledDate)
+        .eq("plan_id", planId)
+        .eq("day_id", dayId)
+        .maybeSingle();
+      if (existing) return null;
+
+      const { data: siblings } = await admin
+        .from("scheduled_workouts")
+        .select("order_index")
+        .eq("client_id", userId)
+        .eq("scheduled_date", scheduledDate)
+        .order("order_index", { ascending: false })
+        .limit(1);
+
+      const orderIndex = (siblings?.[0]?.order_index ?? -1) + 1;
+      const { error: insertError } = await admin.from("scheduled_workouts").insert({
+        client_id: userId,
+        scheduled_date: scheduledDate,
+        plan_id: planId,
+        day_id: dayId,
+        order_index: orderIndex,
+      });
+      if (insertError) return insertError.message;
+      sessionsScheduled += 1;
+      return null;
+    };
+
+    // If today is not one of the split days, still put session 1 on today
+    // so the program can be started as soon as the account exists.
+    if (!weekdays.includes(today.getDay()) && dayIds[0]) {
+      const todayError = await scheduleSession(dayIds[0], startKey);
+      if (todayError) return { built: false, error: todayError };
+    }
+
     for (let i = 0; i < dayIds.length; i++) {
       const weekday = weekdays[i] ?? weekdays[weekdays.length - 1]!;
       const dates = generateRecurringScheduleDates(
@@ -177,38 +247,8 @@ export async function buildStarterWorkoutProgramForUser(
       );
 
       for (const scheduledDate of dates) {
-        if (scheduledDate < startKey) continue;
-
-        const { data: existing } = await admin
-          .from("scheduled_workouts")
-          .select("id")
-          .eq("client_id", userId)
-          .eq("scheduled_date", scheduledDate)
-          .eq("plan_id", planId)
-          .eq("day_id", dayIds[i])
-          .maybeSingle();
-        if (existing) continue;
-
-        const { data: siblings } = await admin
-          .from("scheduled_workouts")
-          .select("order_index")
-          .eq("client_id", userId)
-          .eq("scheduled_date", scheduledDate)
-          .order("order_index", { ascending: false })
-          .limit(1);
-
-        const orderIndex = (siblings?.[0]?.order_index ?? -1) + 1;
-        const { error: insertError } = await admin
-          .from("scheduled_workouts")
-          .insert({
-            client_id: userId,
-            scheduled_date: scheduledDate,
-            plan_id: planId,
-            day_id: dayIds[i],
-            order_index: orderIndex,
-          });
-        if (insertError) return { built: false, error: insertError.message };
-        sessionsScheduled += 1;
+        const insertError = await scheduleSession(dayIds[i]!, scheduledDate);
+        if (insertError) return { built: false, error: insertError };
       }
     }
 

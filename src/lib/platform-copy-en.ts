@@ -43,6 +43,15 @@ export const platformCopyEn = {
       `Workout ready: “${title}” · ${daysPerWeek} days/week · ${sessions} sessions scheduled over 4 weeks.`,
     workoutProgramFailed:
       "Health profile saved. We couldn’t build your workout yet — try AI Coach → Workout plans.",
+    buildingWorkoutTitle: "Building your workout",
+    buildingWorkoutBody:
+      "Choosing exercises for your level, equipment, and injuries, then adding them to your calendar.",
+    addingToCalendar: "Adding sessions to your calendar…",
+    buildingWorkoutHint:
+      "Placing your sessions on the calendar. This can take up to a minute.",
+    workoutOnCalendarReady: "Your program is on the calendar and ready to start.",
+    startTraining: "Start training",
+    workoutBuildRetry: "Try again",
     intakeRefreshTitle: "Time to update health & lifestyle",
     intakeRefreshBody:
       "It’s been about a month — refresh your routine and progress so AI can re-analyse your profile for more accurate reports, macros, and coaching.",
