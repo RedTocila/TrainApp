@@ -16,7 +16,6 @@ import { AiCoachFab, DASHBOARD_NAV_GLASS_CLASS } from "@/components/ai-coach-fab
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { AppLogo } from "@/components/app-logo";
 import { ChallengesHeaderLink } from "@/components/challenges-header-link";
-import { FullCalendarNavButton } from "@/components/full-calendar-nav-button";
 import { SignOutButton } from "@/components/sign-out-button";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { usePrefetchRoutes } from "@/components/use-prefetch-routes";
@@ -151,10 +150,7 @@ export function ClientNav({
               <AppLogo href="/dashboard" />
               <p className="mt-1 text-sm text-muted-foreground">{platform.nav.welcome(fullName)}</p>
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <ChallengesHeaderLink className="h-9 w-9 rounded-full border border-border/60 bg-background/60" />
-              <FullCalendarNavButton className="h-9 w-9 shrink-0 rounded-full" />
-            </div>
+            <ChallengesHeaderLink className="h-9 w-9 shrink-0 rounded-full border border-border/60 bg-background/60" />
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-4">

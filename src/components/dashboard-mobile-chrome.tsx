@@ -16,9 +16,6 @@ import {
 import { useIsFreeNativeApp } from "@/components/ios/use-native-app";
 import { AppLogo } from "@/components/app-logo";
 import { ChallengesHeaderLink } from "@/components/challenges-header-link";
-import {
-  FullCalendarNavButton,
-} from "@/components/full-calendar-nav-button";
 import { useDashboardNavPending } from "@/components/dashboard-nav-pending";
 import { InstantNavLink } from "@/components/instant-nav-link";
 import { useNutritionPageChromeActions } from "@/components/nutrition-page-chrome-context";
@@ -158,7 +155,6 @@ function DashboardMobileHeaderBar() {
       workoutActions &&
       (workoutActions.showStart || workoutActions.showEdit) ? (
         <div className="flex shrink-0 items-center gap-1.5">
-          <FullCalendarNavButton className={headerIconButton} />
           {workoutActions.showEdit && workoutActions.onEdit ? (
             <DashboardWorkoutPlusMenu nav onEdit={workoutActions.onEdit} />
           ) : null}
@@ -173,7 +169,6 @@ function DashboardMobileHeaderBar() {
         </div>
       ) : isProgressPhotosPage && progressPhotosActions?.onOpenReadMe ? (
         <div className="flex shrink-0 items-center gap-1.5">
-          <FullCalendarNavButton className={headerIconButton} />
           <Button
             type="button"
             variant="outline"
@@ -190,7 +185,6 @@ function DashboardMobileHeaderBar() {
         !isCardioSession ? (
         isNutritionPage && nutritionActions ? (
           <div className="flex shrink-0 items-center gap-1.5">
-            <FullCalendarNavButton className={headerIconButton} />
             <div className={cn(headerSurface, "flex shrink-0 items-center gap-1.5 p-1.5")}>
               {nutritionActions.onLogMeal ? (
                 <Button
@@ -236,11 +230,8 @@ function DashboardMobileHeaderBar() {
                 />
               </Link>
             ) : null}
-            <FullCalendarNavButton className={headerIconButton} />
           </div>
         )
-      ) : !isCardioSession ? (
-        <FullCalendarNavButton className={headerIconButton} />
       ) : null}
     </div>
   );
