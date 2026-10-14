@@ -98,10 +98,14 @@ enum WatchTone {
     }
 }
 
+private final class IndexGate {
+    var remote = false
+}
+
 struct WorkoutWatchView: View {
     @EnvironmentObject private var model: WatchDashboardModel
     @State private var index = 0
-    @State private var applyingRemote = false
+    @State private var gate = IndexGate()
 
     private var interval: Bool {
         !(model.today?.workout.phases.isEmpty ?? true)
@@ -154,12 +158,14 @@ struct WorkoutWatchView: View {
         .onChange(of: model.remoteStamp) { _, _ in
             let next = min(max(0, model.liveIndex), max(pages.count - 1, 0))
             guard next != index else { return }
-            applyingRemote = true
+            gate.remote = true
             index = next
-            DispatchQueue.main.async { applyingRemote = false }
         }
         .onChange(of: index) { _, newIndex in
-            guard !applyingRemote else { return }
+            if gate.remote {
+                gate.remote = false
+                return
+            }
             let exercise = pages.indices.contains(newIndex) ? pages[newIndex] : nil
             model.noteSet(
                 index: newIndex,
@@ -237,11 +243,11 @@ private struct HiitWatchScreen: View {
     var body: some View {
         let phases = model.hiitPhases
         GeometryReader { geo in
-            let chrome: CGFloat = 176
-            let gifHeight = geo.size.height - chrome
+            let gifHeight = min(geo.size.width, max(120, geo.size.height * 0.42))
+            ScrollView {
             VStack(spacing: 5) {
                 Text(WatchTheme.clock(model.hiitLeft))
-                    .font(.system(size: min(48, geo.size.width * 0.3), weight: .black, design: .rounded))
+                    .font(.system(size: min(44, geo.size.width * 0.26), weight: .black, design: .rounded))
                     .foregroundStyle(tint)
                     .monospacedDigit()
                     .lineLimit(1)
@@ -269,13 +275,12 @@ private struct HiitWatchScreen: View {
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(WatchTheme.mute)
                 }
-                if gifHeight >= 48 {
-                    ExerciseMedia(gifUrl: phase?.gifUrl)
+                if phase?.gifUrl != nil {
+                    ExerciseMedia(gifUrl: phase?.gifUrl, loopAnchor: model.hiitPhaseStart)
                         .frame(maxWidth: .infinity)
-                        .frame(height: min(gifHeight, geo.size.height * 0.32))
+                        .frame(height: gifHeight)
                         .clipped()
                 }
-                Spacer(minLength: 0)
                 HStack(spacing: 6) {
                     watchPill(
                         model.hiitRunning ? "Pause" : "Play",
@@ -304,7 +309,9 @@ private struct HiitWatchScreen: View {
                     }
                 }
             }
-            .frame(width: geo.size.width, height: geo.size.height)
+            .frame(maxWidth: .infinity)
+            }
+            .scrollIndicators(.hidden)
         }
         .containerBackground(
             working
@@ -323,14 +330,15 @@ private struct ExerciseLogPage: View {
     var onNext: () -> Void
     @State private var reps = 8
     @State private var weight = 20.0
-    @State private var applyingRemote = false
 
     var body: some View {
-        ScrollView {
+        GeometryReader { geo in
+            let gifHeight = min(geo.size.width, max(132, geo.size.height * 0.5))
+            ScrollView {
             VStack(spacing: 8) {
                 ExerciseMedia(gifUrl: exercise.gifUrl)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 88)
+                    .frame(height: gifHeight)
                 Text(exercise.name)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
@@ -341,8 +349,8 @@ private struct ExerciseLogPage: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(WatchTheme.mute)
                 HStack(spacing: 6) {
-                    stepper("Kg", value: weightLabel, down: { weight = snap(weight - 2.5) }, up: { weight = snap(weight + 2.5) })
-                    stepper("Reps", value: "\(reps)", down: { reps = min(40, max(1, reps - 1)) }, up: { reps = min(40, max(1, reps + 1)) })
+                    stepper("Kg", value: weightLabel, down: { nudgeWeight(-2.5) }, up: { nudgeWeight(2.5) })
+                    stepper("Reps", value: "\(reps)", down: { nudgeReps(-1) }, up: { nudgeReps(1) })
                 }
                 HStack(spacing: 6) {
                     setControl(
@@ -372,24 +380,39 @@ private struct ExerciseLogPage: View {
                 }
             }
             .padding(.bottom, 8)
+            }
+            .scrollIndicators(.hidden)
         }
-        .scrollIndicators(.hidden)
         .onAppear(perform: seed)
         .onChange(of: exercise.id) { _, _ in seed() }
         .onChange(of: model.remoteStamp) { _, _ in
-            applyingRemote = true
+            guard model.liveIndex == index else { return }
             reps = min(40, max(1, model.liveReps))
             weight = snap(model.liveWeight)
-            DispatchQueue.main.async { applyingRemote = false }
         }
-        .onChange(of: reps) { _, newReps in
-            guard !applyingRemote else { return }
-            model.noteSet(index: index, setId: exercise.openSetId ?? "", reps: newReps, weight: weight)
-        }
-        .onChange(of: weight) { _, newWeight in
-            guard !applyingRemote else { return }
-            model.noteSet(index: index, setId: exercise.openSetId ?? "", reps: reps, weight: newWeight)
-        }
+    }
+
+    private func nudgeReps(_ delta: Int) {
+        let next = min(40, max(1, reps + delta))
+        guard next != reps else { return }
+        reps = next
+        publish()
+    }
+
+    private func nudgeWeight(_ delta: Double) {
+        let next = snap(weight + delta)
+        guard next != weight else { return }
+        weight = next
+        publish()
+    }
+
+    private func publish() {
+        model.noteSet(
+            index: index,
+            setId: exercise.openSetId ?? "",
+            reps: reps,
+            weight: weight
+        )
     }
 
     private var weightLabel: String {
@@ -406,13 +429,11 @@ private struct ExerciseLogPage: View {
     }
 
     private func seed() {
-        applyingRemote = true
         reps = exercise.lastReps ?? suggestedReps(exercise.targetReps)
         let remembered = UserDefaults.standard.object(forKey: weightKey(exercise.name)) == nil
             ? nil
             : UserDefaults.standard.double(forKey: weightKey(exercise.name))
         weight = snap(exercise.lastWeightKg ?? remembered ?? 20)
-        DispatchQueue.main.async { applyingRemote = false }
     }
 
     private func snap(_ value: Double) -> Double {
@@ -477,49 +498,158 @@ private struct ExerciseLogPage: View {
 
 private struct ExerciseMedia: View {
     var gifUrl: String?
+    var loopAnchor: Date? = nil
+    @State private var frames: [UIImage] = []
+    @State private var frame = 0
 
-    var body: some View {
-        ExercisePreview(urlString: gifUrl, playing: true)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    private var playbackID: String {
+        let anchor = loopAnchor.map { Int($0.timeIntervalSince1970) } ?? 0
+        return "\(gifUrl ?? "")|\(anchor)"
     }
-}
-
-private struct ExercisePreview: View {
-    var urlString: String?
-    var playing: Bool
-    @State private var still: UIImage?
 
     var body: some View {
         ZStack {
-            if let still {
-                Image(uiImage: still)
+            if frames.indices.contains(frame) {
+                Image(uiImage: frames[frame])
                     .resizable()
                     .scaledToFit()
-                    .padding(4)
             } else {
                 Image(systemName: "figure.strengthtraining.traditional")
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(WatchTheme.red)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white.opacity(still == nil ? 0 : 0.94))
-        .task(id: urlString) { await load() }
+        .background(Color.white.opacity(frames.isEmpty ? 0 : 0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .task(id: playbackID) { await play() }
     }
 
-    private func load() async {
-        still = nil
-        guard playing, let urlString, let url = URL(string: urlString) else { return }
-        do {
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 12
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard (response as? HTTPURLResponse)?.statusCode ?? 500 < 400 else { return }
-            guard data.count < 1_500_000, let image = stillFrame(data), !Task.isCancelled else { return }
-            still = image
-        } catch {
-            still = nil
+    private func play() async {
+        frames = []
+        frame = 0
+        guard let gifUrl, let url = URL(string: gifUrl) else { return }
+        guard let clip = await MotionLibrary.shared.clip(for: url) else { return }
+        guard !Task.isCancelled, !clip.frames.isEmpty else { return }
+        frames = clip.frames
+        let anchor = loopAnchor ?? Date()
+        while !Task.isCancelled {
+            let index = clip.frameIndex(at: Date(), anchor: anchor)
+            if frame != index { frame = index }
+            let wait = clip.secondsUntilNextFrame(at: Date(), anchor: anchor)
+            try? await Task.sleep(for: .seconds(min(0.4, max(0.05, wait))))
         }
+    }
+}
+
+/// A few downsampled frames. A full exercise GIF is enough to jetsam the watch.
+private struct MotionClip: @unchecked Sendable {
+    var frames: [UIImage]
+    var delays: [Double]
+
+    var loop: Double { max(0.2, delays.reduce(0, +)) }
+
+    func frameIndex(at date: Date, anchor: Date) -> Int {
+        guard !frames.isEmpty else { return 0 }
+        var elapsed = date.timeIntervalSince(anchor).truncatingRemainder(dividingBy: loop)
+        if elapsed < 0 { elapsed += loop }
+        var cursor = 0.0
+        for index in delays.indices {
+            cursor += delays[index]
+            if elapsed < cursor { return index }
+        }
+        return frames.count - 1
+    }
+
+    func secondsUntilNextFrame(at date: Date, anchor: Date) -> Double {
+        guard !delays.isEmpty else { return 0.12 }
+        var elapsed = date.timeIntervalSince(anchor).truncatingRemainder(dividingBy: loop)
+        if elapsed < 0 { elapsed += loop }
+        var cursor = 0.0
+        for delay in delays {
+            cursor += delay
+            if elapsed < cursor { return cursor - elapsed }
+        }
+        return 0.08
+    }
+}
+
+private actor MotionLibrary {
+    static let shared = MotionLibrary()
+    private var clips: [String: MotionClip] = [:]
+    private var order: [String] = []
+
+    func clip(for url: URL) async -> MotionClip? {
+        let key = url.absoluteString
+        if let cached = clips[key] { return cached }
+        guard let loaded = await Self.download(url) else { return nil }
+        clips[key] = loaded
+        order.removeAll { $0 == key }
+        order.append(key)
+        while order.count > 2 {
+            clips[order.removeFirst()] = nil
+        }
+        return loaded
+    }
+
+    private static func download(_ url: URL) async -> MotionClip? {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 12
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode ?? 500 < 400 else { return nil }
+            guard data.count < 2_000_000 else { return nil }
+            return decode(data)
+        } catch {
+            return nil
+        }
+    }
+
+    private static func decode(_ data: Data) -> MotionClip? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let count = CGImageSourceGetCount(source)
+        guard count > 0 else { return nil }
+        let maxFrames = 8
+        let step = max(1, Int(ceil(Double(count) / Double(maxFrames))))
+        var frames: [UIImage] = []
+        var delays: [Double] = []
+        var index = 0
+        let options: [CFString: Any] = [
+            kCGImageSourceThumbnailMaxPixelSize: 280,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+        ]
+        while index < count {
+            let end = min(count, index + step)
+            var delay = 0.0
+            for cursor in index..<end {
+                delay += frameDelay(source, cursor)
+            }
+            if let image = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) {
+                frames.append(UIImage(cgImage: image))
+                delays.append(max(0.05, delay))
+            }
+            index = end
+        }
+        guard !frames.isEmpty else { return nil }
+        return MotionClip(frames: frames, delays: delays)
+    }
+
+    private static func frameDelay(_ source: CGImageSource, _ index: Int) -> Double {
+        guard
+            let props = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any],
+            let gif = props[kCGImagePropertyGIFDictionary] as? [CFString: Any]
+        else { return 0.08 }
+        let unclamped = Self.seconds(gif[kCGImagePropertyGIFUnclampedDelayTime])
+        let clamped = Self.seconds(gif[kCGImagePropertyGIFDelayTime])
+        let delay = [unclamped, clamped].compactMap { $0 }.first { $0 >= 0.02 } ?? 0.08
+        return min(0.5, delay)
+    }
+
+    private static func seconds(_ value: Any?) -> Double? {
+        if let number = value as? Double { return number }
+        if let number = value as? NSNumber { return number.doubleValue }
+        return nil
     }
 }
 
@@ -566,74 +696,66 @@ private func suggestedReps(_ raw: String?) -> Int {
     return min(40, max(1, Int(numbers.first ?? "") ?? 8))
 }
 
-/// One small frame. Decoding a full exercise GIF is enough to jetsam the watch.
-private func stillFrame(_ data: Data) -> UIImage? {
-    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-    let options: [CFString: Any] = [
-        kCGImageSourceThumbnailMaxPixelSize: 160,
-        kCGImageSourceCreateThumbnailFromImageAlways: true,
-        kCGImageSourceCreateThumbnailWithTransform: true
-    ]
-    guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
-    return UIImage(cgImage: image)
-}
-
 struct CardioWatchView: View {
     @EnvironmentObject private var model: WatchDashboardModel
+    @StateObject private var clock = SecondClock()
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { _ in
-            let cardio = model.today?.cardio
-            let running = cardio?.status == "running"
-            let paused = cardio?.status == "paused"
-            GeometryReader { geo in
-                let clockSize = min(54, max(36, geo.size.height * 0.36))
-                VStack(spacing: 4) {
-                    Text(cardio?.title ?? "Cardio")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.7)
-                    Text(clockText(cardio))
-                        .font(.system(size: clockSize, weight: .bold, design: .rounded))
-                        .foregroundStyle(running ? WatchTheme.red : .white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                    Text(statusText(cardio))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(WatchTheme.mute)
-                    Spacer(minLength: 2)
-                    HStack(spacing: 10) {
-                        roundIcon("play.fill", fill: running ? Color.white.opacity(0.16) : WatchTheme.red, size: 48) {
-                            guard !running else { return }
-                            Task { await model.startCardio() }
-                        }
-                        roundIcon("pause.fill", fill: running ? WatchTheme.red : Color.white.opacity(0.16), size: 48) {
-                            guard running else { return }
-                            Task { await model.pauseCardio() }
-                        }
-                        roundIcon("arrow.counterclockwise", fill: (running || paused || cardio?.completed == true) ? Color.white.opacity(0.16) : Color.white.opacity(0.08), size: 48) {
-                            Task { await model.resetCardio() }
-                        }
-                    }
-                    if let error = model.error {
-                        Text(error)
-                            .font(.system(size: 10))
-                            .foregroundStyle(WatchTheme.red)
-                            .lineLimit(2)
-                    }
+        let cardio = model.today?.cardio
+        let running = cardio?.status == "running"
+        let paused = cardio?.status == "paused"
+        VStack(spacing: 6) {
+            Text(cardio?.title ?? "Cardio")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
+            Text(clockText(cardio))
+                .font(.system(size: 52, weight: .bold, design: .rounded))
+                .foregroundStyle(running ? WatchTheme.red : .white)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text(statusText(cardio))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(WatchTheme.mute)
+            Spacer(minLength: 4)
+            HStack(spacing: 10) {
+                roundIcon("play.fill", fill: running ? Color.white.opacity(0.16) : WatchTheme.red, size: 48) {
+                    guard !running else { return }
+                    Task { await model.startCardio() }
                 }
-                .frame(width: geo.size.width, height: geo.size.height)
+                roundIcon("pause.fill", fill: running ? WatchTheme.red : Color.white.opacity(0.16), size: 48) {
+                    guard running else { return }
+                    Task { await model.pauseCardio() }
+                }
+                roundIcon("arrow.counterclockwise", fill: (running || paused || cardio?.completed == true) ? Color.white.opacity(0.16) : Color.white.opacity(0.08), size: 48) {
+                    Task { await model.resetCardio() }
+                }
+            }
+            if let error = model.error {
+                Text(error)
+                    .font(.system(size: 10))
+                    .foregroundStyle(WatchTheme.red)
+                    .lineLimit(2)
             }
         }
         .navigationTitle("Cardio")
         .containerBackground(WatchTheme.ink, for: .navigation)
+        .onAppear { clock.setRunning(running) }
+        .onChange(of: running) { _, isRunning in
+            clock.setRunning(isRunning)
+        }
     }
 
     private func clockText(_ cardio: WatchCardio?) -> String {
-        if cardio?.status == "running" || cardio?.status == "paused" {
-            return WatchTheme.clock(model.cardioElapsed)
+        if cardio?.status == "running" {
+            let extra = max(0, Int(clock.now.timeIntervalSince(model.fetchedAt)))
+            return WatchTheme.clock((cardio?.elapsedSeconds ?? 0) + extra)
+        }
+        if cardio?.status == "paused" {
+            return WatchTheme.clock(cardio?.elapsedSeconds ?? model.cardioElapsed)
         }
         if let minutes = cardio?.plannedMinutes { return "\(minutes):00" }
         return "0:00"

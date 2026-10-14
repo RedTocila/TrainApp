@@ -15,8 +15,11 @@ import {
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import { resolveExerciseGifUrl, resolveProfileGender } from "@/lib/exercise-gif";
 import {
+  buildLiveBoard,
+  catchUpLiveSession,
   currentLiveDraft,
   endLiveWorkout,
+  subscribeAppForeground,
   useLiveWorkoutPublisher,
 } from "@/lib/live-workout";
 import {
@@ -117,9 +120,13 @@ export function QuickWorkoutClient() {
           setLoading(false);
           return;
         }
-        const details = await getWorkoutSession(session.id);
+        const [caught, details] = await Promise.all([
+          catchUpLiveSession(session.id),
+          getWorkoutSession(session.id),
+        ]);
         if (cancelled) return;
-        if (!details || details.hiitConfig || details.exercises.length === 0) {
+        const loaded = caught?.exercises ?? details?.exercises ?? [];
+        if (!details || details.hiitConfig || loaded.length === 0) {
           setSessionId(session.id);
           setTimerOnly(true);
           void endLiveWorkout();
@@ -127,17 +134,17 @@ export function QuickWorkoutClient() {
           return;
         }
         const requested = Number(searchParams.get("exercise"));
-        const start = Number.isFinite(requested)
-          ? requested
-          : draft?.exerciseIndex ?? 0;
+        const start =
+          caught?.exerciseIndex ??
+          (Number.isFinite(requested) ? requested : draft?.exerciseIndex ?? 0);
         const nextIndex = Math.min(
           Math.max(0, Math.round(start)),
-          details.exercises.length - 1
+          loaded.length - 1
         );
         setSessionId(session.id);
-        setExercises(details.exercises);
+        setExercises(loaded);
         setIndex(nextIndex);
-        seed(details.exercises, nextIndex, draft);
+        seed(loaded, nextIndex, caught?.draft ?? draft);
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "Couldn't open the set.");
@@ -189,11 +196,21 @@ export function QuickWorkoutClient() {
       setCount: targetSets,
       reps,
       weightKg,
+      board: buildLiveBoard(
+        exercises,
+        (item) =>
+          resolveExerciseGifUrl({
+            name: item.name,
+            imageUrl: item.image_url,
+            gender,
+          }),
+        { setId: current?.id ?? null, reps, weightKg }
+      ),
     });
   }, [
     current?.id,
     exercise,
-    exercises.length,
+    exercises,
     gender,
     index,
     publishLive,
@@ -203,6 +220,28 @@ export function QuickWorkoutClient() {
     timerOnly,
     weightKg,
   ]);
+
+  useEffect(() => {
+    if (!sessionId || timerOnly) return;
+    let cancelled = false;
+    const stop = subscribeAppForeground(() => {
+      void (async () => {
+        const caught = await catchUpLiveSession(sessionId);
+        if (cancelled || !caught || caught.exercises.length === 0) return;
+        const nextIndex = Math.min(
+          Math.max(0, caught.exerciseIndex),
+          caught.exercises.length - 1
+        );
+        setExercises(caught.exercises);
+        setIndex(nextIndex);
+        seed(caught.exercises, nextIndex, caught.draft);
+      })();
+    });
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [seed, sessionId, timerOnly]);
 
   const move = (delta: number) => {
     const next = Math.min(exercises.length - 1, Math.max(0, index + delta));

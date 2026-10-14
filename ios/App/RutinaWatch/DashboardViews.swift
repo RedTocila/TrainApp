@@ -14,15 +14,18 @@ final class WatchDashboardModel: ObservableObject {
     @Published var mirrorGeneration = 0
     @Published var mirrorAction = ""
     @Published var remoteStamp = 0
-    @Published var liveIndex = 0
-    @Published var liveReps = 8
-    @Published var liveWeight = 20.0
-    @Published var liveSetId = ""
+    /// Mirror fields stay unpublished. Publishing them on every tap rebuilt the
+    /// whole watch UI mid-gesture and crashed the set screen.
+    var liveIndex = 0
+    var liveReps = 8
+    var liveWeight = 20.0
+    var liveSetId = ""
 
     private var lastMirrorSeq = 0
     private var lastSentKey = ""
     private var echoing = false
     private var mirrorTask: Task<Void, Never>?
+    private var localEditAt = Date.distantPast
 
     init() {
         WatchDashboardModel.current = self
@@ -40,9 +43,13 @@ final class WatchDashboardModel: ObservableObject {
     }
 
     var cardioElapsed: Int {
+        cardioElapsed(at: Date())
+    }
+
+    func cardioElapsed(at moment: Date) -> Int {
         guard let cardio = today?.cardio else { return 0 }
         guard cardio.status == "running" else { return cardio.elapsedSeconds }
-        return cardio.elapsedSeconds + Int(Date().timeIntervalSince(fetchedAt))
+        return cardio.elapsedSeconds + max(0, Int(moment.timeIntervalSince(fetchedAt)))
     }
 
     @Published var hiitIndex = 0
@@ -54,6 +61,12 @@ final class WatchDashboardModel: ObservableObject {
     private var hiitTicker: Timer?
 
     var hiitPhases: [WatchHiitPhase] { today?.workout.phases ?? [] }
+
+    /// When this phase began, so the demo can stay on the same beat as the countdown.
+    var hiitPhaseStart: Date? {
+        guard hiitPhases.indices.contains(hiitIndex), let end = hiitEndsAt else { return nil }
+        return end.addingTimeInterval(-TimeInterval(max(hiitPhases[hiitIndex].seconds, 1)))
+    }
 
     func startHiit() {
         let phases = hiitPhases
@@ -107,11 +120,13 @@ final class WatchDashboardModel: ObservableObject {
 
     private func armHiitTicker() {
         hiitTicker?.invalidate()
-        hiitTicker = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.tickHiit()
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        hiitTicker = timer
     }
 
     private func hiitRemaining(at now: Date = Date()) -> Int {
@@ -169,15 +184,21 @@ final class WatchDashboardModel: ObservableObject {
     }
 
     func noteSet(index: Int, setId: String, reps: Int, weight: Double) {
+        let same = liveIndex == index
+            && liveSetId == setId
+            && liveReps == reps
+            && abs(liveWeight - weight) < 0.05
+        localEditAt = Date()
         liveIndex = index
         liveSetId = setId
         liveReps = reps
         liveWeight = weight
+        guard !same else { return }
         let key = mirrorKey(action: "move")
         guard key != lastSentKey else { return }
         mirrorTask?.cancel()
         mirrorTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(90))
+            try? await Task.sleep(for: .milliseconds(160))
             guard !Task.isCancelled else { return }
             self?.broadcast("move")
         }
@@ -193,13 +214,22 @@ final class WatchDashboardModel: ObservableObject {
         defer { echoing = false }
 
         if action == "move" || action == "log" {
-            liveIndex = Self.mirrorInt(payload["exerciseIndex"], fallback: liveIndex)
-            liveReps = max(1, Self.mirrorInt(payload["reps"], fallback: liveReps))
-            liveWeight = Self.mirrorDouble(payload["weightKg"], fallback: liveWeight)
-            if let setId = payload["setId"] as? String, !setId.isEmpty {
-                liveSetId = setId
+            let nextIndex = Self.mirrorInt(payload["exerciseIndex"], fallback: liveIndex)
+            let nextReps = max(1, Self.mirrorInt(payload["reps"], fallback: liveReps))
+            let nextWeight = Self.mirrorDouble(payload["weightKg"], fallback: liveWeight)
+            let nextSetId = (payload["setId"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? liveSetId
+            let echoingEdit = action == "move" && Date().timeIntervalSince(localEditAt) < 1.5
+            let changed = nextIndex != liveIndex
+                || (!echoingEdit && nextReps != liveReps)
+                || (!echoingEdit && abs(nextWeight - liveWeight) > 0.05)
+                || nextSetId != liveSetId
+            liveIndex = nextIndex
+            if !echoingEdit {
+                liveReps = nextReps
+                liveWeight = nextWeight
             }
-            remoteStamp += 1
+            liveSetId = nextSetId
+            if changed { remoteStamp += 1 }
         }
         lastSentKey = mirrorKey(action: action)
 
@@ -444,6 +474,78 @@ final class WatchDashboardModel: ObservableObject {
     }
 }
 
+/// Ticks inside the cardio screens only, and only while the session is running.
+final class SecondClock: ObservableObject {
+    @Published var now = Date()
+    private var timer: Timer?
+
+    func setRunning(_ running: Bool) {
+        guard running else {
+            timer?.invalidate()
+            timer = nil
+            return
+        }
+        guard timer == nil else { return }
+        now = Date()
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            self?.now = Date()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    deinit {
+        timer?.invalidate()
+    }
+}
+
+struct CardioTileFace: View {
+    var status: String?
+    var completed: Bool
+    var plannedMinutes: Int?
+    var baseSeconds: Int
+    var fetchedAt: Date
+    @StateObject private var clock = SecondClock()
+
+    private var running: Bool { status == "running" }
+
+    private var detail: String {
+        if running || status == "paused" {
+            let extra = running ? max(0, Int(clock.now.timeIntervalSince(fetchedAt))) : 0
+            return WatchTheme.clock(baseSeconds + extra)
+        }
+        if completed || status == "completed" { return "Done" }
+        if let plannedMinutes, plannedMinutes > 0 { return "\(plannedMinutes) min" }
+        if status == "none" || status == nil { return "Rest" }
+        return "Ready"
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Image(systemName: "figure.run")
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(WatchTheme.cardio)
+            Text("Cardio")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(detail)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(0.82))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.65)
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { clock.setRunning(running) }
+        .onChange(of: running) { _, isRunning in
+            clock.setRunning(isRunning)
+        }
+    }
+}
+
 enum WatchTheme {
     static let red = Color(red: 220 / 255, green: 38 / 255, blue: 38 / 255)
     static let ink = Color(red: 12 / 255, green: 12 / 255, blue: 14 / 255)
@@ -620,20 +722,19 @@ struct DashboardView: View {
                                     let side = (geo.size.width - 8) / 2
                                     HStack(spacing: 8) {
                                         destination { CardioWatchView() } label: {
-                                            TimelineView(.periodic(from: .now, by: 1)) { _ in
-                                                DashCard(
-                                                    accent: WatchTheme.cardio,
-                                                    done: cardioState.done,
-                                                    tracked: cardioState.tracked,
-                                                    square: true
-                                                ) {
-                                                    squareTile(
-                                                        "Cardio",
-                                                        detail: cardioDetail,
-                                                        symbol: "figure.run",
-                                                        accent: WatchTheme.cardio
-                                                    )
-                                                }
+                                            DashCard(
+                                                accent: WatchTheme.cardio,
+                                                done: cardioState.done,
+                                                tracked: cardioState.tracked,
+                                                square: true
+                                            ) {
+                                                CardioTileFace(
+                                                    status: model.today?.cardio.status,
+                                                    completed: model.today?.cardio.completed == true,
+                                                    plannedMinutes: model.today?.cardio.plannedMinutes,
+                                                    baseSeconds: model.today?.cardio.elapsedSeconds ?? 0,
+                                                    fetchedAt: model.fetchedAt
+                                                )
                                             }
                                         }
                                         .frame(width: side, height: side)
@@ -726,17 +827,6 @@ struct DashboardView: View {
             return "\(calories.formatted()) kcal · \(mealLine)"
         }
         return "\(calories.formatted()) / \(target.formatted()) kcal"
-    }
-
-    private var cardioDetail: String {
-        let cardio = model.today?.cardio
-        if cardio?.status == "running" || cardio?.status == "paused" {
-            return WatchTheme.clock(model.cardioElapsed)
-        }
-        if cardio?.completed == true || cardio?.status == "completed" { return "Done" }
-        if let minutes = cardio?.plannedMinutes, minutes > 0 { return "\(minutes) min" }
-        if cardio?.status == "none" || cardio == nil { return "Rest" }
-        return "Ready"
     }
 
     private var stepsDetail: String {

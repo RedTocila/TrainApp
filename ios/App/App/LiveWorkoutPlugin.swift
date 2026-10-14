@@ -80,6 +80,7 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "sync", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "end", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "flush", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "consumeQuickOpen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "currentDraft", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "prepareBackTap", returnType: CAPPluginReturnPromise)
@@ -118,14 +119,24 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
         let weight = Self.double(call, "weightKg", fallback: 20)
         let setId = call.getString("setId") ?? ""
         let gifUrl = call.getString("gifUrl")
+        let baseRevision = Self.int(call, "baseRevision", fallback: 0)
+        let board = LiveBoard(json: call.getString("boardJson"))
+        if LiveWorkoutStore.shouldIgnorePhoneSync(baseRevision: baseRevision, board: board) {
+            call.resolve()
+            return
+        }
         let generation = LiveWorkoutStore.beginSync()
         Task {
-            let token = await LiveWorkoutStore.cacheImage(from: gifUrl)
+            let token = await LiveWorkoutStore.cacheImage(from: gifUrl, index: exerciseIndex)
             guard LiveWorkoutStore.isSyncCurrent(generation) else {
                 call.resolve()
                 return
             }
-            let state = LiveWorkoutSync.state(
+            if LiveWorkoutStore.shouldIgnorePhoneSync(baseRevision: baseRevision, board: board) {
+                call.resolve()
+                return
+            }
+            let state = board?.contentState(index: exerciseIndex, imageToken: token) ?? LiveWorkoutSync.state(
                 name: name,
                 setNumber: setNumber,
                 setCount: setCount,
@@ -136,7 +147,25 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
                 exerciseCount: exerciseCount,
                 imageToken: token
             )
-            await LiveWorkoutActivity.start(state, generation: generation)
+            await LiveWorkoutActivity.start(state, generation: generation, board: board)
+            if let board {
+                Task.detached {
+                    for (index, exercise) in board.exercises.enumerated() where index != exerciseIndex {
+                        _ = await LiveWorkoutStore.cacheImage(from: exercise.gifUrl, index: index)
+                    }
+                }
+            }
+            call.resolve()
+        }
+    }
+
+    @objc func flush(_ call: CAPPluginCall) {
+        guard #available(iOS 16.2, *) else {
+            call.resolve()
+            return
+        }
+        Task {
+            await LiveWorkoutQueue.flush()
             call.resolve()
         }
     }
@@ -148,6 +177,7 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         LiveWorkoutStore.cancelSync()
         Task {
+            await LiveWorkoutQueue.flush()
             await LiveWorkoutSync.endAll()
             call.resolve()
         }
@@ -167,7 +197,10 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
             "exerciseIndex": (draft["exerciseIndex"] as? NSNumber)?.intValue ?? LiveWorkoutStore.focusIndex,
             "setId": draft["setId"] as? String ?? "",
             "reps": (draft["reps"] as? NSNumber)?.intValue ?? 0,
-            "weightKg": (draft["weightKg"] as? NSNumber)?.doubleValue ?? 0
+            "weightKg": (draft["weightKg"] as? NSNumber)?.doubleValue ?? 0,
+            "revision": LiveWorkoutStore.revision,
+            "boardJson": LiveWorkoutStore.boardJSON,
+            "pendingJson": LiveWorkoutStore.pendingJSON
         ])
     }
 
@@ -187,8 +220,11 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
 @available(iOS 16.2, *)
 enum LiveWorkoutActivity {
     @MainActor
-    static func start(_ state: WorkoutActivityAttributes.ContentState, generation: Int) async {
+    static func start(_ state: WorkoutActivityAttributes.ContentState, generation: Int, board: LiveBoard? = nil) async {
         guard LiveWorkoutStore.isSyncCurrent(generation) else { return }
+        if let board {
+            LiveWorkoutStore.board = board
+        }
         LiveWorkoutStore.saveDraft(
             index: state.exerciseIndex,
             setId: state.setId,

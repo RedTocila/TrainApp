@@ -14,12 +14,13 @@ struct WorkoutLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
             LiveSetView(state: context.state)
+                .padding(.vertical, 6)
                 .activityBackgroundTint(LivePalette.background)
                 .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    ExerciseThumb(token: context.state.imageToken)
+                    ExerciseThumb(index: context.state.exerciseIndex, token: context.state.imageToken)
                         .frame(width: 44, height: 44)
                 }
                 DynamicIslandExpandedRegion(.center) {
@@ -60,7 +61,7 @@ private struct LiveSetView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 10) {
-                ExerciseThumb(token: state.imageToken)
+                ExerciseThumb(index: state.exerciseIndex, token: state.imageToken)
                     .frame(width: 44, height: 44)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(state.exerciseName)
@@ -76,8 +77,9 @@ private struct LiveSetView: View {
             }
             LiveSetControls(state: state)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .padding(.top, 18)
+        .padding(.bottom, 18)
     }
 }
 
@@ -174,25 +176,27 @@ private struct StepIcon: View {
     var body: some View {
         Image(systemName: systemName)
             .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(.white)
             .frame(width: 22, height: 22)
     }
 }
 
 private extension View {
     func liveCircle() -> some View {
-        buttonStyle(.borderedProminent)
-            .buttonBorderShape(.circle)
-            .controlSize(.regular)
-            .tint(LivePalette.control)
+        buttonStyle(.plain)
+            .frame(width: 42, height: 42)
+            .background(Circle().fill(LivePalette.control))
+            .contentShape(Circle())
     }
 }
 
 private struct ExerciseThumb: View {
+    var index: Int
     var token: Int
 
     var body: some View {
         Group {
-            if let image = LiveWorkoutStore.thumbnail() {
+            if let image = LiveWorkoutStore.thumbnail(at: index) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
@@ -207,7 +211,7 @@ private struct ExerciseThumb: View {
                     .background(Color.white.opacity(0.08))
             }
         }
-        .id(token)
+        .id("\(index)-\(token)")
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }

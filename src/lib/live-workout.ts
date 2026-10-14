@@ -2,7 +2,23 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { getWorkoutSession } from "@/lib/actions/workout-sessions";
+import type { WorkoutSessionExercise } from "@/lib/types";
 import { pushWorkoutMirror } from "@/lib/watch-session";
+
+export type LiveBoardSet = {
+  id: string;
+  number: number;
+  reps: number;
+  weightKg: number;
+  done: boolean;
+};
+
+export type LiveBoardExercise = {
+  name: string;
+  gifUrl?: string | null;
+  sets: LiveBoardSet[];
+};
 
 export type LiveWorkoutPayload = {
   exerciseName: string;
@@ -14,18 +30,30 @@ export type LiveWorkoutPayload = {
   setCount: number;
   reps: number;
   weightKg: number;
+  board?: LiveBoardExercise[];
+};
+
+type LiveSnapshot = {
+  exerciseIndex: number;
+  setId: string;
+  reps: number;
+  weightKg: number;
+  revision: number;
+  boardJson?: string;
+  pendingJson?: string;
 };
 
 type LiveWorkoutPlugin = {
-  sync(options: LiveWorkoutPayload): Promise<void>;
+  sync(
+    options: Omit<LiveWorkoutPayload, "board"> & {
+      boardJson?: string;
+      baseRevision?: number;
+    }
+  ): Promise<void>;
   end(): Promise<void>;
+  flush(): Promise<void>;
   consumeQuickOpen(): Promise<{ open: boolean; exerciseIndex: number }>;
-  currentDraft(): Promise<{
-    exerciseIndex: number;
-    setId: string;
-    reps: number;
-    weightKg: number;
-  }>;
+  currentDraft(): Promise<LiveSnapshot>;
   prepareBackTap(options: { title: string; message: string; dismiss: string }): Promise<void>;
 };
 
@@ -33,6 +61,13 @@ const LiveWorkout = registerPlugin<LiveWorkoutPlugin>("LiveWorkout");
 
 let liveToken = 0;
 let liveSuppressed = false;
+let liveBaseRevision = 0;
+let liveRevisionReady = false;
+
+function noteLiveRevision(revision: number) {
+  liveBaseRevision = Number.isFinite(revision) ? Math.max(0, Math.round(revision)) : 0;
+  liveRevisionReady = true;
+}
 
 function stopLivePublishing() {
   liveSuppressed = true;
@@ -58,14 +93,149 @@ function absoluteGif(url: string | null | undefined): string | null {
   return null;
 }
 
+function clampReps(value: number): number {
+  return Math.min(40, Math.max(1, Math.round(value) || 1));
+}
+
+function clampWeight(value: number): number {
+  return Math.min(200, Math.max(0, Number(value) || 0));
+}
+
+function suggestedReps(target: string | null | undefined, fallback: number): number {
+  const match = String(target ?? "").match(/\d+/);
+  const parsed = match ? parseInt(match[0], 10) : fallback;
+  return clampReps(Number.isFinite(parsed) ? parsed : fallback);
+}
+
+export function buildLiveBoard(
+  exercises: WorkoutSessionExercise[],
+  gifFor: (exercise: WorkoutSessionExercise) => string | null | undefined,
+  current: { setId: string | null; reps: number; weightKg: number } | null
+): LiveBoardExercise[] {
+  return exercises.map((exercise) => {
+    const sets = [...(exercise.sets ?? [])].sort((a, b) => a.set_number - b.set_number);
+    const lastDone = [...sets].reverse().find((set) => set.completed);
+    const fallbackReps = suggestedReps(exercise.target_reps, lastDone?.reps ?? 8);
+    const fallbackWeight =
+      lastDone?.weight_kg != null ? Number(lastDone.weight_kg) : 20;
+    return {
+      name: exercise.name,
+      gifUrl: gifFor(exercise) ?? null,
+      sets: sets.map((set) => {
+        const done = Boolean(set.completed);
+        const isCurrent = !done && current?.setId === set.id;
+        const reps = isCurrent ? current.reps : (set.reps ?? fallbackReps);
+        const weightKg = isCurrent
+          ? current.weightKg
+          : set.weight_kg != null
+            ? Number(set.weight_kg)
+            : fallbackWeight;
+        return {
+          id: set.id,
+          number: set.set_number,
+          reps: clampReps(reps),
+          weightKg: clampWeight(weightKg),
+          done,
+        };
+      }),
+    };
+  });
+}
+
+function parseBoard(json: string | undefined): LiveBoardExercise[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json) as { exercises?: LiveBoardExercise[] };
+    return Array.isArray(parsed.exercises) ? parsed.exercises : [];
+  } catch {
+    return [];
+  }
+}
+
+function pendingSets(json: string | undefined): LiveBoardSet[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json) as { setId?: string; reps?: number; weightKg?: number }[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((log) =>
+      log.setId
+        ? [
+            {
+              id: log.setId,
+              number: 0,
+              reps: clampReps(Number(log.reps) || 1),
+              weightKg: clampWeight(Number(log.weightKg) || 0),
+              done: true,
+            },
+          ]
+        : []
+    );
+  } catch {
+    return [];
+  }
+}
+
+function mergeLiveBoard(
+  exercises: WorkoutSessionExercise[],
+  board: LiveBoardExercise[],
+  pending: LiveBoardSet[] = []
+): WorkoutSessionExercise[] {
+  const logged = new Map<string, LiveBoardSet>();
+  for (const exercise of board) {
+    for (const set of exercise.sets) {
+      if (set.done) logged.set(set.id, set);
+    }
+  }
+  for (const set of pending) logged.set(set.id, set);
+  if (logged.size === 0) return exercises;
+  return exercises.map((exercise) => ({
+    ...exercise,
+    sets: exercise.sets?.map((set) => {
+      if (set.completed) return set;
+      const extra = logged.get(set.id);
+      if (!extra) return set;
+      return {
+        ...set,
+        completed: true,
+        reps: extra.reps,
+        weight_kg: extra.weightKg,
+      };
+    }),
+  }));
+}
+
+function firstOpenExerciseIndex(
+  exercises: WorkoutSessionExercise[],
+  preferred: number
+): number {
+  const hasOpen = (exercise: WorkoutSessionExercise | undefined) =>
+    Boolean(exercise?.sets?.some((set) => !set.completed));
+  if (hasOpen(exercises[preferred])) return preferred;
+  const index = exercises.findIndex((exercise) => hasOpen(exercise));
+  if (index >= 0) return index;
+  return Math.min(Math.max(preferred, 0), Math.max(exercises.length - 1, 0));
+}
+
 /** Push the current set to the Lock Screen card. No-op off the iPhone app. */
-export async function syncLiveWorkout(payload: LiveWorkoutPayload): Promise<void> {
-  if (!onIos() || liveSuppressed) return;
+export async function syncLiveWorkout(
+  payload: LiveWorkoutPayload,
+  baseRevision = liveBaseRevision
+): Promise<void> {
+  if (!onIos() || liveSuppressed || !liveRevisionReady) return;
+  const { board, ...rest } = payload;
+  const boardJson = JSON.stringify({
+    exercises: (board ?? []).map((exercise) => ({
+      ...exercise,
+      gifUrl: absoluteGif(exercise.gifUrl),
+    })),
+  });
   await LiveWorkout.sync({
-    ...payload,
+    ...rest,
     gifUrl: absoluteGif(payload.gifUrl),
-    reps: Math.min(40, Math.max(1, Math.round(payload.reps) || 1)),
-    weightKg: Math.min(200, Math.max(0, Number(payload.weightKg) || 0)),
+    reps: clampReps(payload.reps),
+    weightKg: clampWeight(payload.weightKg),
+    boardJson,
+    baseRevision,
   }).catch(() => undefined);
   void pushWorkoutMirror({
     status: "live",
@@ -118,14 +288,73 @@ export async function currentLiveDraft(): Promise<{
   reps: number;
   weightKg: number;
 } | null> {
+  const snap = await currentLiveSnapshot();
+  if (!snap?.setId) return null;
+  return snap;
+}
+
+async function currentLiveSnapshot(): Promise<LiveSnapshot | null> {
   if (!onIos()) return null;
   try {
-    const draft = await LiveWorkout.currentDraft();
-    if (!draft?.setId) return null;
-    return draft;
+    return await LiveWorkout.currentDraft();
   } catch {
     return null;
   }
+}
+
+export async function flushLiveWorkoutLogs(): Promise<void> {
+  if (!onIos()) return;
+  await LiveWorkout.flush().catch(() => undefined);
+}
+
+/** Pulls Lock Screen logs into the open workout, including any the server hasn't stored yet. */
+export async function catchUpLiveSession(sessionId: string): Promise<{
+  exercises: WorkoutSessionExercise[];
+  exerciseIndex: number;
+  draft: { setId: string; reps: number; weightKg: number } | null;
+} | null> {
+  if (!onIos()) return null;
+  void flushLiveWorkoutLogs();
+  const details = await getWorkoutSession(sessionId);
+  const snap = await currentLiveSnapshot();
+  noteLiveRevision(snap?.revision ?? 0);
+  if (!details?.exercises) return null;
+  const exercises = mergeLiveBoard(
+    details.exercises,
+    parseBoard(snap?.boardJson),
+    pendingSets(snap?.pendingJson)
+  );
+  const preferred = snap?.exerciseIndex ?? 0;
+  const exerciseIndex = firstOpenExerciseIndex(exercises, preferred);
+  const open = exercises[exerciseIndex]?.sets?.find((set) => !set.completed);
+  const draft =
+    snap?.setId && open && snap.setId === open.id
+      ? { setId: snap.setId, reps: snap.reps, weightKg: snap.weightKg }
+      : null;
+  return { exercises, exerciseIndex, draft };
+}
+
+export function subscribeAppForeground(listener: () => void): () => void {
+  const onVisible = () => {
+    if (document.visibilityState === "visible") listener();
+  };
+  document.addEventListener("visibilitychange", onVisible);
+  let removeNative: (() => void) | undefined;
+  if (onIos()) {
+    void import("@capacitor/app").then(({ App }) =>
+      App.addListener("appStateChange", ({ isActive }) => {
+        if (isActive) listener();
+      }).then((handle) => {
+        removeNative = () => {
+          void handle.remove();
+        };
+      })
+    );
+  }
+  return () => {
+    document.removeEventListener("visibilitychange", onVisible);
+    removeNative?.();
+  };
 }
 
 /** Opens the system card that saves Current set into Shortcuts, so Back Tap can list it. */
@@ -143,20 +372,37 @@ export function useLiveWorkoutPublisher(enabled: boolean) {
   const timer = useRef<number | null>(null);
   const enabledRef = useRef(enabled);
   const wasEnabled = useRef(false);
+  const latest = useRef<LiveWorkoutPayload | null>(null);
   enabledRef.current = enabled;
   if (enabled && !wasEnabled.current) resumeLivePublishing();
   wasEnabled.current = enabled;
 
   const publish = useCallback((payload: LiveWorkoutPayload) => {
-    if (!enabledRef.current || liveSuppressed) return;
+    latest.current = payload;
+    if (!enabledRef.current || liveSuppressed || !liveRevisionReady) return;
     if (timer.current != null) window.clearTimeout(timer.current);
     const token = liveToken;
+    const baseRevision = liveBaseRevision;
     timer.current = window.setTimeout(() => {
       timer.current = null;
       if (!enabledRef.current || liveSuppressed || token !== liveToken) return;
-      void syncLiveWorkout(payload);
+      void syncLiveWorkout(payload, baseRevision);
     }, 200);
   }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    void currentLiveSnapshot().then((snap) => {
+      if (cancelled || !enabledRef.current) return;
+      const revision = snap?.revision ?? 0;
+      noteLiveRevision(revision);
+      if (revision === 0 && latest.current) publish(latest.current);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, publish]);
 
   useEffect(() => {
     return () => {

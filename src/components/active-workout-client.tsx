@@ -38,7 +38,7 @@ import type {
 import type { WorkoutPlanKind } from "@/lib/hiit";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
 import { resolveExerciseGifUrl, resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
-import { endLiveWorkout, useLiveWorkoutPublisher } from "@/lib/live-workout";
+import { buildLiveBoard, catchUpLiveSession, endLiveWorkout, subscribeAppForeground, useLiveWorkoutPublisher } from "@/lib/live-workout";
 import {
   pushWorkoutMirror,
   subscribeWorkoutMirror,
@@ -79,6 +79,29 @@ import { AppDialog } from "@/components/app-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+function preserveLoggedSets(
+  local: WorkoutSessionExercise[],
+  incoming: WorkoutSessionExercise[]
+): WorkoutSessionExercise[] {
+  const logged = new Map<string, WorkoutSessionSet>();
+  for (const exercise of local) {
+    for (const set of exercise.sets ?? []) {
+      if (set.completed) logged.set(set.id, set);
+    }
+  }
+  if (logged.size === 0) return incoming;
+  return incoming.map((exercise) => ({
+    ...exercise,
+    sets: exercise.sets?.map((set) => {
+      if (set.completed) return set;
+      const extra = logged.get(set.id);
+      return extra
+        ? { ...set, completed: true, reps: extra.reps, weight_kg: extra.weight_kg }
+        : set;
+    }),
+  }));
+}
 
 function useWorkoutTimer(
   sessionId: string,
@@ -910,10 +933,51 @@ export function ActiveWorkoutClient({
           gender: exerciseGender,
         }),
         ...draft,
+        board: buildLiveBoard(
+          exercises,
+          (exercise) =>
+            resolveExerciseGifUrl({
+              name: exercise.name,
+              imageUrl: exercise.image_url,
+              gender: exerciseGender,
+            }),
+          draft
+        ),
       });
     },
-    [activeExercise, activeIndex, exerciseGender, exercises.length, publishLive]
+    [activeExercise, activeIndex, exerciseGender, exercises, publishLive]
   );
+
+  useEffect(() => {
+    if (!isStarted || isPendingWorkoutSessionId(session.id)) return;
+    let cancelled = false;
+    let generation = 0;
+    const catchUp = async () => {
+      const token = ++generation;
+      const caught = await catchUpLiveSession(session.id);
+      if (cancelled || token !== generation || !caught) return;
+      resumeForRef.current = session.id;
+      setExercises((current) => preserveLoggedSets(current, caught.exercises));
+      if (caught.exercises.length > 0) {
+        setActiveIndex(Math.min(caught.exerciseIndex, caught.exercises.length - 1));
+      }
+      if (caught.draft) {
+        setRemoteDraft({
+          token: Date.now(),
+          reps: caught.draft.reps,
+          weightKg: caught.draft.weightKg,
+        });
+      }
+    };
+    void catchUp();
+    const stop = subscribeAppForeground(() => {
+      if (!cancelled) void catchUp();
+    });
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [isStarted, session.id]);
   const rest = useRestCountdown(
     activeExercise?.rest_seconds ?? 90,
     workoutPaused

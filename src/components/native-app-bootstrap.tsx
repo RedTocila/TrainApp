@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { NATIVE_APP_COOKIE } from "@/lib/native-app-request";
 import { createClient } from "@/lib/supabase/client";
-import { consumeQuickWorkoutOpen, endLiveWorkoutIfIdle } from "@/lib/live-workout";
+import { consumeQuickWorkoutOpen, endLiveWorkoutIfIdle, flushLiveWorkoutLogs } from "@/lib/live-workout";
 import { subscribeWorkoutMirror, syncWatchSession } from "@/lib/watch-session";
 
 type PullToRefreshBridge = {
@@ -73,6 +73,7 @@ export function NativeAppBootstrap() {
     if (!Capacitor.isNativePlatform()) return;
 
     document.cookie = `${NATIVE_APP_COOKIE}=1; path=/; max-age=31536000; secure; samesite=lax`;
+    void flushLiveWorkoutLogs();
     void syncWatchSession();
     void endLiveWorkoutIfIdle();
 
@@ -155,6 +156,7 @@ export function NativeAppBootstrap() {
 
         const stateHandle = await App.addListener("appStateChange", ({ isActive }) => {
           if (!isActive) return;
+          void flushLiveWorkoutLogs();
           void syncWatchSession();
           void openQuickSheet();
           void endLiveWorkoutIfIdle();
