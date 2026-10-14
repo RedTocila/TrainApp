@@ -225,37 +225,52 @@ private struct ExerciseLogPage: View {
 
     var body: some View {
         GeometryReader { geo in
-            VStack(spacing: 2) {
-                Text(exercise.name)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                ExerciseMedia(gifUrl: exercise.gifUrl)
-                    .frame(height: max(52, geo.size.height * 0.38))
-                Text(setLabel)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(WatchTheme.mute)
-                HStack(spacing: 4) {
-                    wheel("Reps", selection: repsBinding, values: (1...40).map(Double.init)) { value in
-                        "\(Int(value))"
+            ScrollView {
+                VStack(spacing: 6) {
+                    Text(exercise.name)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                    Text(setLabel)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(WatchTheme.mute)
+                    ExerciseMedia(gifUrl: exercise.gifUrl)
+                        .frame(height: max(120, geo.size.height * 0.86))
+                    HStack(spacing: 4) {
+                        wheel("Reps", selection: repsBinding, values: (1...40).map(Double.init)) { value in
+                            "\(Int(value))"
+                        }
+                        wheel("Kg", selection: $weight, values: weights) { value in
+                            value.truncatingRemainder(dividingBy: 1) == 0
+                                ? String(format: "%.0f", value)
+                                : String(format: "%.1f", value)
+                        }
                     }
-                    wheel("Kg", selection: $weight, values: weights) { value in
-                        value.truncatingRemainder(dividingBy: 1) == 0
-                            ? String(format: "%.0f", value)
-                            : String(format: "%.1f", value)
+                    .frame(height: 108)
+                    HStack(spacing: 6) {
+                        setControl(
+                            "Close set",
+                            symbol: "checkmark",
+                            fill: exercise.openSetId == nil ? Color.white.opacity(0.16) : WatchTheme.red,
+                            enabled: exercise.openSetId != nil
+                        ) {
+                            log()
+                        }
+                        setControl(
+                            "Next",
+                            symbol: "arrow.right",
+                            fill: Color.white.opacity(0.16),
+                            enabled: index + 1 < total
+                        ) {
+                            if index + 1 < total { onNext() }
+                        }
                     }
                 }
-                .frame(height: max(46, geo.size.height * 0.30))
-                HStack(spacing: 8) {
-                    roundIcon("checkmark", fill: exercise.openSetId == nil ? Color.white.opacity(0.16) : WatchTheme.red) {
-                        log()
-                    }
-                    roundIcon(index + 1 < total ? "forward.fill" : "flag.checkered", fill: Color.white.opacity(0.16)) {
-                        if index + 1 < total { onNext() }
-                    }
-                }
+                .padding(.bottom, 6)
             }
+            .scrollIndicators(.hidden)
         }
         .onAppear(perform: seed)
         .onChange(of: exercise.id) { _, _ in seed() }
@@ -295,6 +310,32 @@ private struct ExerciseLogPage: View {
 
     private func weightKey(_ name: String) -> String {
         "rutina.watch.kg.\(name.lowercased())"
+    }
+
+    private func setControl(
+        _ title: String,
+        symbol: String,
+        fill: Color,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 3) {
+                Image(systemName: symbol)
+                    .font(.system(size: 11, weight: .bold))
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(Capsule().fill(fill))
+            .opacity(enabled ? 1 : 0.4)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 
     private func wheel(
@@ -375,12 +416,12 @@ private struct ExercisePreview: View {
     }
 }
 
-private func roundIcon(_ name: String, fill: Color, action: @escaping () -> Void) -> some View {
+private func roundIcon(_ name: String, fill: Color, size: CGFloat = 36, action: @escaping () -> Void) -> some View {
     Button(action: action) {
         Image(systemName: name)
-            .font(.system(size: 14, weight: .bold))
+            .font(.system(size: size * 0.38, weight: .bold))
             .foregroundStyle(.white)
-            .frame(width: 36, height: 36)
+            .frame(width: size, height: size)
             .background(Circle().fill(fill))
     }
     .buttonStyle(.plain)
@@ -423,38 +464,45 @@ struct CardioWatchView: View {
             let cardio = model.today?.cardio
             let running = cardio?.status == "running"
             let paused = cardio?.status == "paused"
-            VStack(spacing: 6) {
-                Spacer(minLength: 0)
-                Text(cardio?.title ?? "Cardio")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                Text(clockText(cardio))
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(running ? WatchTheme.red : .white)
-                Text(statusText(cardio))
-                    .font(.system(size: 11))
-                    .foregroundStyle(WatchTheme.mute)
-                HStack(spacing: 8) {
-                    roundIcon("play.fill", fill: running ? Color.white.opacity(0.16) : WatchTheme.red) {
-                        guard !running else { return }
-                        Task { await model.startCardio() }
-                    }
-                    roundIcon("pause.fill", fill: running ? WatchTheme.red : Color.white.opacity(0.16)) {
-                        guard running else { return }
-                        Task { await model.pauseCardio() }
-                    }
-                    roundIcon("arrow.counterclockwise", fill: (running || paused || cardio?.completed == true) ? Color.white.opacity(0.16) : Color.white.opacity(0.08)) {
-                        Task { await model.resetCardio() }
-                    }
-                }
-                if let error = model.error {
-                    Text(error)
-                        .font(.system(size: 10))
-                        .foregroundStyle(WatchTheme.red)
+            GeometryReader { geo in
+                let clockSize = min(54, max(36, geo.size.height * 0.36))
+                VStack(spacing: 4) {
+                    Text(cardio?.title ?? "Cardio")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
                         .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                    Text(clockText(cardio))
+                        .font(.system(size: clockSize, weight: .bold, design: .rounded))
+                        .foregroundStyle(running ? WatchTheme.red : .white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                    Text(statusText(cardio))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(WatchTheme.mute)
+                    Spacer(minLength: 2)
+                    HStack(spacing: 10) {
+                        roundIcon("play.fill", fill: running ? Color.white.opacity(0.16) : WatchTheme.red, size: 42) {
+                            guard !running else { return }
+                            Task { await model.startCardio() }
+                        }
+                        roundIcon("pause.fill", fill: running ? WatchTheme.red : Color.white.opacity(0.16), size: 42) {
+                            guard running else { return }
+                            Task { await model.pauseCardio() }
+                        }
+                        roundIcon("arrow.counterclockwise", fill: (running || paused || cardio?.completed == true) ? Color.white.opacity(0.16) : Color.white.opacity(0.08), size: 42) {
+                            Task { await model.resetCardio() }
+                        }
+                    }
+                    if let error = model.error {
+                        Text(error)
+                            .font(.system(size: 10))
+                            .foregroundStyle(WatchTheme.red)
+                            .lineLimit(2)
+                    }
                 }
-                Spacer(minLength: 0)
+                .frame(width: geo.size.width, height: geo.size.height)
             }
         }
         .navigationTitle("Cardio")
@@ -486,43 +534,43 @@ struct AlexWatchView: View {
     @State private var reply = ""
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(spacing: 8) {
+            Group {
                 if !reply.isEmpty {
                     ScrollView {
                         Text(reply)
-                            .font(.system(size: 15))
+                            .font(.system(size: 16))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .multilineTextAlignment(.leading)
                     }
                 } else {
-                    Spacer(minLength: 0)
                     Text(hint)
-                        .font(.system(size: 13))
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(model.error == nil && recorder.errorMessage == nil ? WatchTheme.mute : WatchTheme.red)
-                        .multilineTextAlignment(.leading)
+                        .multilineTextAlignment(.center)
                         .lineLimit(4)
-                    Spacer(minLength: 0)
+                        .minimumScaleFactor(0.8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .padding(.trailing, 28)
-
             Button(action: toggleMic) {
                 ZStack {
                     Circle()
                         .fill(recorder.recording ? WatchTheme.red : Color.white)
-                        .frame(width: 34, height: 34)
+                        .frame(width: 48, height: 48)
                     if model.busy && !recorder.recording {
                         ProgressView()
-                            .scaleEffect(0.6)
+                            .scaleEffect(0.7)
                     } else {
                         Image(systemName: recorder.recording ? "waveform" : "mic.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 18, weight: .bold))
                             .foregroundStyle(recorder.recording ? Color.white : Color.black)
                     }
                 }
             }
             .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Alex")
         .containerBackground(WatchTheme.ink, for: .navigation)

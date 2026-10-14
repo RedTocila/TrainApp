@@ -9,6 +9,9 @@ final class WatchDashboardModel: ObservableObject {
     @Published var notice: String?
     @Published var busy = false
     @Published var fetchedAt = Date()
+    @Published var alexSpokenDate: String? = UserDefaults.standard.string(forKey: WatchDashboardModel.alexSpokenKey)
+
+    private static let alexSpokenKey = "rutina.watch.alex.spoken"
 
     private let health = HKHealthStore()
 
@@ -254,6 +257,7 @@ final class WatchDashboardModel: ObservableObject {
                 date: dateKey,
                 extra: ["audioBase64": base64, "context": alexContext]
             )
+            if let reply = response.reply, !reply.isEmpty { noteAlexSpoken() }
             return response.reply
         } catch {
             self.error = error.localizedDescription
@@ -270,11 +274,17 @@ final class WatchDashboardModel: ObservableObject {
                 date: dateKey,
                 extra: ["message": message, "context": alexContext]
             )
+            if let reply = response.reply, !reply.isEmpty { noteAlexSpoken() }
             return response.reply
         } catch {
             self.error = error.localizedDescription
             return nil
         }
+    }
+
+    private func noteAlexSpoken() {
+        alexSpokenDate = dateKey
+        UserDefaults.standard.set(dateKey, forKey: Self.alexSpokenKey)
     }
 
     private func mutate(_ action: String, extra: [String: Any] = [:]) async {
@@ -347,8 +357,8 @@ enum WatchTheme {
         return min(1, max(0, value / total))
     }
 
-    static func liters(_ ml: Int) -> String {
-        String(format: "%.1f L", Double(ml) / 1000)
+    static func milliliters(_ ml: Int) -> String {
+        "\(ml.formatted()) ml"
     }
 }
 
@@ -392,31 +402,35 @@ private struct DashTile: View {
     var title: String
     var symbol: String
     var tint: Color
-    var active = false
+    var done = false
+    var tracked = true
 
     var body: some View {
-        VStack(spacing: 3) {
+        VStack(spacing: 5) {
             ZStack(alignment: .topTrailing) {
-                Image(systemName: symbol)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(tint)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(tint.opacity(active ? 0.32 : 0.16))
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(done ? WatchTheme.stepsGreen.opacity(0.18) : Color.white.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(done ? WatchTheme.stepsGreen.opacity(0.85) : tint.opacity(0.28), lineWidth: 1)
                     )
-                if active {
+                Image(systemName: symbol)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(done ? WatchTheme.stepsGreen : tint)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if tracked {
                     Circle()
-                        .fill(tint)
-                        .frame(width: 6, height: 6)
-                        .padding(5)
+                        .fill(done ? WatchTheme.stepsGreen : Color.white.opacity(0.72))
+                        .frame(width: 8, height: 8)
+                        .padding(7)
                 }
             }
+            .aspectRatio(1.2, contentMode: .fit)
             Text(title)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.white)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(done ? WatchTheme.stepsGreen : .white)
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(0.7)
         }
     }
 }
@@ -427,54 +441,122 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            GeometryReader { geo in
-                let gap: CGFloat = 6
-                let headerHeight: CGFloat = 28
-                let tileHeight = max(44, (geo.size.height - headerHeight - gap) / 2)
-                VStack(spacing: gap) {
-                    header
-                        .frame(height: headerHeight, alignment: .top)
-                        HStack(spacing: gap) {
+            VStack(spacing: 6) {
+                header
+                ScrollView {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
                             destination { WorkoutWatchView() } label: {
                                 DashTile(
                                     title: "Workout",
                                     symbol: "dumbbell.fill",
                                     tint: WatchTheme.red,
-                                    active: model.today?.workout.status == "in_progress"
+                                    done: workoutState.done,
+                                    tracked: workoutState.tracked
                                 )
                             }
                             destination { NutritionWatchView() } label: {
-                                DashTile(title: "Nutrition", symbol: "fork.knife", tint: WatchTheme.red)
+                                DashTile(
+                                    title: "Nutrition",
+                                    symbol: "fork.knife",
+                                    tint: WatchTheme.red,
+                                    done: nutritionDone
+                                )
                             }
+                        }
+                        HStack(spacing: 8) {
                             destination { CardioWatchView() } label: {
                                 DashTile(
                                     title: "Cardio",
                                     symbol: "figure.run",
                                     tint: WatchTheme.red,
-                                    active: model.today?.cardio.status == "running"
+                                    done: cardioState.done,
+                                    tracked: cardioState.tracked
+                                )
+                            }
+                            destination { WaterWatchView() } label: {
+                                DashTile(
+                                    title: "Water",
+                                    symbol: "drop.fill",
+                                    tint: WatchTheme.water,
+                                    done: waterDone
                                 )
                             }
                         }
-                        .frame(height: tileHeight)
-                        HStack(spacing: gap) {
-                            destination { WaterWatchView() } label: {
-                                DashTile(title: "Water", symbol: "drop.fill", tint: WatchTheme.water)
-                            }
+                        HStack(spacing: 8) {
                             destination { StepsWatchView() } label: {
-                                DashTile(title: "Steps", symbol: "shoeprints.fill", tint: WatchTheme.stepsGreen)
+                                DashTile(
+                                    title: "Steps",
+                                    symbol: "shoeprints.fill",
+                                    tint: WatchTheme.stepsGreen,
+                                    done: stepsDone
+                                )
                             }
                             destination { AlexWatchView() } label: {
-                                DashTile(title: "Alex", symbol: "mic.fill", tint: WatchTheme.red)
+                                DashTile(
+                                    title: "Alex",
+                                    symbol: "mic.fill",
+                                    tint: WatchTheme.red,
+                                    done: model.alexSpokenDate == model.dateKey
+                                )
                             }
                         }
-                        .frame(height: tileHeight)
+                    }
+                    .padding(.bottom, 10)
                 }
+                .scrollIndicators(.hidden)
             }
             .padding(.horizontal, 2)
             .toolbar(.hidden, for: .navigationBar)
             .containerBackground(WatchTheme.ink, for: .navigation)
         }
         .tint(WatchTheme.red)
+    }
+
+    private var workoutState: (tracked: Bool, done: Bool) {
+        guard let workout = model.today?.workout, workout.status != "none" else {
+            return (false, false)
+        }
+        let exercises = workout.exercises
+        let setsDone = !exercises.isEmpty && exercises.allSatisfy { exercise in
+            exercise.setCount > 0 && exercise.openSetId == nil && exercise.completedSets >= exercise.setCount
+        }
+        return (true, workout.status == "completed" || setsDone)
+    }
+
+    private var nutritionDone: Bool {
+        guard let nutrition = model.today?.nutrition else { return false }
+        return macroHit(nutrition.calories, nutrition.targetCalories, calorie: true, floor: 0)
+            && macroHit(nutrition.protein, nutrition.targetProtein, calorie: false, floor: 5)
+            && macroHit(nutrition.carbs, nutrition.targetCarbs, calorie: false, floor: 10)
+            && macroHit(nutrition.fat, nutrition.targetFat, calorie: false, floor: 5)
+    }
+
+    private var cardioState: (tracked: Bool, done: Bool) {
+        guard let cardio = model.today?.cardio else { return (false, false) }
+        let done = cardio.completed || cardio.status == "completed"
+        if cardio.status == "none" && !done { return (false, false) }
+        return (true, done)
+    }
+
+    private var waterDone: Bool {
+        let water = model.today?.water
+        let goal = water?.goalMl ?? 0
+        guard goal > 0 else { return true }
+        let band = max(Int((Double(goal) * 0.2).rounded()), 250)
+        return (water?.ml ?? 0) >= goal - band
+    }
+
+    private var stepsDone: Bool {
+        let goal = model.today?.steps.goal ?? 10000
+        guard goal > 0 else { return true }
+        return (model.steps ?? 0) >= goal
+    }
+
+    private func macroHit(_ actual: Int, _ target: Int, calorie: Bool, floor: Int) -> Bool {
+        guard target > 0 else { return true }
+        let band = calorie ? 300 : max(Int((Double(target) * 0.2).rounded()), floor)
+        return actual >= target - band && actual <= target + band
     }
 
     private var header: some View {
@@ -503,6 +585,7 @@ struct DashboardView: View {
     ) -> some View {
         NavigationLink(destination: destination, label: label)
             .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
             .disabled(session.credentials?.isUsable != true)
     }
 
@@ -534,42 +617,100 @@ struct NutritionWatchView: View {
 
     var body: some View {
         let nutrition = model.today?.nutrition
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                macroRing("Kcal", nutrition?.calories, nutrition?.targetCalories, WatchTheme.red, unit: "")
-                macroRing("Protein", nutrition?.protein, nutrition?.targetProtein, Color(red: 1, green: 0.38, blue: 0.48), unit: "g")
+        GeometryReader { geo in
+            let small = min(CGFloat(54), floor((geo.size.width - 18) / 3))
+            let big = min(CGFloat(112), geo.size.width * 0.64)
+            ScrollView {
+                VStack(spacing: 14) {
+                    macroRing(
+                        "Kcal",
+                        nutrition?.calories,
+                        nutrition?.targetCalories,
+                        WatchTheme.red,
+                        unit: "",
+                        size: big,
+                        line: max(CGFloat(6), big * 0.07),
+                        valueSize: big * 0.2
+                    )
+                    HStack(alignment: .top, spacing: 6) {
+                        macroRing(
+                            "Protein",
+                            nutrition?.protein,
+                            nutrition?.targetProtein,
+                            Color(red: 1, green: 0.38, blue: 0.48),
+                            unit: "g",
+                            size: small,
+                            line: max(CGFloat(3), small * 0.08),
+                            valueSize: small * 0.24
+                        )
+                        macroRing(
+                            "Carbs",
+                            nutrition?.carbs,
+                            nutrition?.targetCarbs,
+                            Color(red: 1, green: 0.72, blue: 0.22),
+                            unit: "g",
+                            size: small,
+                            line: max(CGFloat(3), small * 0.08),
+                            valueSize: small * 0.24
+                        )
+                        macroRing(
+                            "Fat",
+                            nutrition?.fat,
+                            nutrition?.targetFat,
+                            Color(red: 0.35, green: 0.72, blue: 1),
+                            unit: "g",
+                            size: small,
+                            line: max(CGFloat(3), small * 0.08),
+                            valueSize: small * 0.24
+                        )
+                    }
+                    note
+                }
+                .padding(.bottom, 8)
             }
-            HStack(spacing: 8) {
-                macroRing("Carbs", nutrition?.carbs, nutrition?.targetCarbs, Color(red: 1, green: 0.72, blue: 0.22), unit: "g")
-                macroRing("Fat", nutrition?.fat, nutrition?.targetFat, Color(red: 0.35, green: 0.72, blue: 1), unit: "g")
-            }
-            note
+            .scrollIndicators(.hidden)
         }
         .navigationTitle("Nutrition")
         .containerBackground(WatchTheme.ink, for: .navigation)
     }
 
-    private func macroRing(_ title: String, _ value: Int?, _ target: Int?, _ tint: Color, unit: String) -> some View {
+    private func macroRing(
+        _ title: String,
+        _ value: Int?,
+        _ target: Int?,
+        _ tint: Color,
+        unit: String,
+        size: CGFloat,
+        line: CGFloat,
+        valueSize: CGFloat
+    ) -> some View {
         let current = value ?? 0
         let goal = target ?? 0
-        return VStack(spacing: 2) {
+        return VStack(spacing: 3) {
             ZStack {
                 WatchRing(
                     progress: WatchTheme.fraction(Double(current), Double(max(goal, 1))),
-                    size: 58,
+                    size: size,
                     tint: tint,
-                    line: 5
+                    line: line
                 )
                 Text("\(current)")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(size: valueSize, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .padding(.horizontal, line + 2)
             }
+            .frame(width: size, height: size)
             Text(title)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: size > 70 ? 12 : 10, weight: .semibold))
                 .foregroundStyle(tint)
-            Text("\(goal)\(unit)")
-                .font(.system(size: 9))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(unit.isEmpty ? "\(goal)" : "\(goal)\(unit)")
+                .font(.system(size: size > 70 ? 11 : 9))
                 .foregroundStyle(WatchTheme.mute)
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
     }
@@ -618,31 +759,36 @@ struct WaterWatchView: View {
         let water = model.today?.water
         let ml = water?.ml ?? 0
         let goal = water?.goalMl ?? 2500
-        VStack(spacing: 6) {
-            Spacer(minLength: 0)
-            ZStack {
-                WatchRing(
-                    progress: WatchTheme.fraction(Double(ml), Double(max(goal, 1))),
-                    size: 96,
-                    tint: WatchTheme.water,
-                    line: 9
-                )
-                Image(systemName: "drop.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(WatchTheme.water)
+        GeometryReader { geo in
+            let ring = min(geo.size.width * 0.58, geo.size.height * 0.46)
+            VStack(spacing: 4) {
+                ZStack {
+                    WatchRing(
+                        progress: WatchTheme.fraction(Double(ml), Double(max(goal, 1))),
+                        size: ring,
+                        tint: WatchTheme.water,
+                        line: 8
+                    )
+                    Image(systemName: "drop.fill")
+                        .font(.system(size: ring * 0.22, weight: .semibold))
+                        .foregroundStyle(WatchTheme.water)
+                }
+                Text(WatchTheme.milliliters(ml))
+                    .font(.system(size: min(24, geo.size.height * 0.14), weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Text("of \(WatchTheme.milliliters(goal))")
+                    .font(.system(size: 12))
+                    .foregroundStyle(WatchTheme.mute)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                HStack(spacing: 8) {
+                    amount("+250", 250)
+                    amount("+500", 500)
+                }
             }
-            Text(WatchTheme.liters(ml))
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-            Text("of \(WatchTheme.liters(goal))")
-                .font(.system(size: 12))
-                .foregroundStyle(WatchTheme.mute)
-            HStack(spacing: 6) {
-                amount("−250", -250)
-                amount("+250", 250)
-                amount("+500", 500)
-            }
-            Spacer(minLength: 0)
+            .frame(width: geo.size.width, height: geo.size.height)
         }
         .navigationTitle("Water")
         .containerBackground(WatchTheme.ink, for: .navigation)

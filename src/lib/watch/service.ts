@@ -3,6 +3,8 @@ import {
   checkAlexCommandAllowed,
   consumeAlexCommand,
 } from "@/lib/actions/usage-limits";
+import { maybeNaturalizeCoachReply } from "@/lib/ai/albanian-naturalize";
+import { prepareFitnessCoachChatMessages } from "@/lib/ai/fitness-chat";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
 import { transcribeAudioBytes } from "@/lib/ai/transcribe-audio";
 import {
@@ -907,6 +909,10 @@ export async function resetWatchCardio(
   return { today: await loadWatchToday(ctx, date) };
 }
 
+const WATCH_ALEX_TURN = `Apple Watch turn — you are the same Coach Alex as the rutina.al chat. Same client, same sarcastic gym-coach voice, same facts from the profile above.
+Say it the way you would text them between sets: dry, specific, human. One or two short sentences, so it fits a watch screen.
+No markdown, no lists, no links. No tools on this turn — do not mention Act mode, Confirm, or cards. Do not pretend you changed their plan.`;
+
 export async function askWatchAlex(
   ctx: WatchContext,
   date: string,
@@ -923,20 +929,29 @@ export async function askWatchAlex(
   const access = await checkAlexCommandAllowed(ctx.profile);
   if (!access.allowed) return { error: access.error, status: 403 };
 
-  const lang = ctx.profile.preferred_locale === "en" ? "English" : "Albanian";
   const snapshot = context?.trim().slice(0, 500) || "";
 
   try {
-    const reply = await runChatCompletion(
-      [
-        {
-          role: "system",
-          content: `You are Coach Alex on the RUTINA Apple Watch. Reply in ${lang}. One short sentence only. No markdown. Be direct. Do not claim you changed their plan.\n${snapshot}`,
-        },
-        { role: "user", content: trimmed },
-      ],
-      { maxTokens: 60, tier: "cheap" }
+    const prepared = await prepareFitnessCoachChatMessages(
+      ctx.userId,
+      trimmed,
+      [],
+      [],
+      ctx.profile.preferred_locale,
+      null,
+      "ask"
     );
+    if ("error" in prepared) return { error: prepared.error, status: 503 };
+
+    const live = snapshot ? `\nWatch screen right now: ${snapshot}` : "";
+    const messages = prepared.messages.map((turn, index) => {
+      if (index !== 0 || turn.role !== "system") return turn;
+      return { ...turn, content: `${turn.content}\n\n${WATCH_ALEX_TURN}${live}` };
+    });
+    const draft = await runChatCompletion(messages, { maxTokens: 120, tier: "cheap" });
+    const reply = await maybeNaturalizeCoachReply(draft, ctx.profile.preferred_locale, {
+      maxTokens: 180,
+    });
     await consumeAlexCommand(ctx.profile);
     return { reply: reply.trim() };
   } catch (error) {
