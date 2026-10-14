@@ -22,6 +22,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>RUTINA reads your step count from Apple Health to show today's steps.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>RUTINA does not write health data. Apple Health access is only used to read your daily step count.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>RUTINA uses the microphone so you can ask Coach Alex by voice.</string>
 	<key>WKApplication</key>

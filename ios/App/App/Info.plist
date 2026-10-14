@@ -39,6 +39,8 @@
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>RUTINA reads your step count from Apple Health to show the steps you take each day.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>RUTINA does not write health data. Apple Health access is only used to read your daily step count.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>RUTINA needs the camera for meal and progress photos.</string>
 	<key>NSMicrophoneUsageDescription</key>
