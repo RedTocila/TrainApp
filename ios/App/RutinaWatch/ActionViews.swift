@@ -8,51 +8,100 @@ struct WorkoutWatchView: View {
 
     var body: some View {
         let workout = model.today?.workout
-        ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(workout?.title ?? "No workout today")
-                    .font(.headline)
-                if workout?.status == "completed" {
-                    Text("Done for today")
-                        .foregroundStyle(.secondary)
-                } else if workout?.status == "in_progress" {
-                    if let name = workout?.exerciseName, let set = workout?.setNumber {
+        WatchScreen(title: "Workout") {
+            Text(workout?.title ?? "Rest day")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+            if workout?.status == "completed" {
+                quiet("Done for today")
+            } else if workout?.status == "in_progress" {
+                if let name = workout?.exerciseName, let set = workout?.setNumber {
+                    WatchCard(fill: WatchTheme.red) {
+                        WatchEyebrow(text: "Set \(set)", color: Color.white.opacity(0.75))
                         Text(name)
-                        Text("Set \(set)" + (workout?.targetReps.map { " · \($0)" } ?? ""))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        if workout?.setId != nil {
-                            Stepper("Reps \(reps)", value: $reps, in: 1...100)
-                            Stepper(String(format: "%.1f kg", weight), value: $weight, in: 0...300, step: 2.5)
-                            Button("Log set") {
-                                Task { await model.logSet(reps: reps, weight: weight) }
-                            }
-                            .buttonStyle(.borderedProminent)
-                        } else {
-                            Text("Sets logged")
-                                .foregroundStyle(.secondary)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                        if let target = workout?.targetReps {
+                            Text("\(target) reps")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color.white.opacity(0.8))
                         }
-                    } else if workout?.canLogSets == false {
-                        Text("Open this one on your iPhone.")
-                            .font(.caption)
                     }
-                    Button("Cancel", role: .destructive) {
-                        Task { await model.cancelWorkout() }
+                    if workout?.setId != nil {
+                        WatchCard {
+                            dial("Reps", value: "\(reps)") {
+                                reps = max(1, reps - 1)
+                            } up: {
+                                reps = min(100, reps + 1)
+                            }
+                        }
+                        WatchCard {
+                            dial("Kg", value: weightText) {
+                                weight = max(0, weight - 2.5)
+                            } up: {
+                                weight = min(300, weight + 2.5)
+                            }
+                        }
+                        WatchAction(title: "Log set") {
+                            Task { await model.logSet(reps: reps, weight: weight) }
+                        }
+                    } else {
+                        quiet("Sets logged")
                     }
-                } else if workout?.title != nil {
-                    Button("Start") {
-                        Task { await model.startWorkout() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                } else {
-                    Text("Nothing scheduled.")
-                        .foregroundStyle(.secondary)
+                } else if workout?.canLogSets == false {
+                    quiet("Open this one on your iPhone.")
                 }
+                WatchAction(title: "Cancel", prominent: false) {
+                    Task { await model.cancelWorkout() }
+                }
+            } else if workout?.title != nil {
+                WatchAction(title: "Start") {
+                    Task { await model.startWorkout() }
+                }
+            } else {
+                quiet("Nothing scheduled.")
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .navigationTitle("Workout")
         .disabled(model.busy)
+    }
+
+    private var weightText: String {
+        weight.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", weight)
+            : String(format: "%.1f", weight)
+    }
+
+    private func quiet(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 13))
+            .foregroundStyle(WatchTheme.mute)
+    }
+
+    private func dial(_ label: String, value: String, down: @escaping () -> Void, up: @escaping () -> Void) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 0) {
+                WatchEyebrow(text: label)
+                Text(value)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            Spacer()
+            stepButton("minus", action: down)
+            stepButton("plus", action: up)
+        }
+    }
+
+    private func stepButton(_ icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(Color.white.opacity(0.10)))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -62,44 +111,61 @@ struct CardioWatchView: View {
     var body: some View {
         let cardio = model.today?.cardio
         TimelineView(.periodic(from: .now, by: 1)) { _ in
-            VStack(spacing: 8) {
-                Text(cardio?.title ?? "No cardio today")
-                    .font(.headline)
+            WatchScreen(title: "Cardio") {
+                Text(cardio?.title ?? "Rest day")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
                     .multilineTextAlignment(.center)
                 if cardio?.status == "running" || cardio?.status == "paused" {
-                    Text(clock(model.cardioElapsed))
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                    let planned = max((cardio?.plannedMinutes ?? 1) * 60, 1)
+                    ZStack {
+                        WatchRing(
+                            progress: WatchTheme.fraction(Double(model.cardioElapsed), Double(planned)),
+                            size: 112
+                        )
+                        Text(WatchTheme.clock(model.cardioElapsed))
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
                     Text(cardio?.status == "paused" ? "Paused" : "Running")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button("Stop") {
+                        .font(.system(size: 11, weight: .semibold))
+                        .tracking(1)
+                        .foregroundStyle(cardio?.status == "paused" ? WatchTheme.mute : WatchTheme.red)
+                        .frame(maxWidth: .infinity)
+                    WatchAction(title: "Stop") {
                         Task { await model.stopCardio() }
                     }
-                    .buttonStyle(.borderedProminent)
                 } else if cardio?.completed == true || cardio?.status == "completed" {
                     Text("Done")
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
                 } else if cardio?.status == "none" || cardio == nil {
                     Text("Nothing scheduled.")
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 13))
+                        .foregroundStyle(WatchTheme.mute)
+                        .frame(maxWidth: .infinity)
                 } else {
                     if let minutes = cardio?.plannedMinutes {
-                        Text("\(minutes) min")
-                            .foregroundStyle(.secondary)
+                        Text("\(minutes)")
+                            .font(.system(size: 40, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                        Text("minutes")
+                            .font(.system(size: 12))
+                            .foregroundStyle(WatchTheme.mute)
+                            .frame(maxWidth: .infinity)
                     }
-                    Button("Start") {
+                    WatchAction(title: "Start") {
                         Task { await model.startCardio() }
                     }
-                    .buttonStyle(.borderedProminent)
                 }
             }
         }
-        .navigationTitle("Cardio")
         .disabled(model.busy)
-    }
-
-    private func clock(_ seconds: Int) -> String {
-        String(format: "%d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
     }
 }
 
@@ -110,42 +176,65 @@ struct AlexWatchView: View {
     @State private var reply = ""
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(recorder.recording ? "Listening…" : "Hold the mic and ask Alex.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button(recorder.recording ? "Listening…" : "Hold to talk") {}
-                    .buttonStyle(.borderedProminent)
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { _ in
-                                if !recorder.recording {
-                                    recorder.start()
-                                }
-                            }
-                            .onEnded { _ in
-                                guard let audio = recorder.stop() else { return }
-                                Task { await sendAudio(audio) }
-                            }
-                    )
-                TextField("Or type", text: $draft)
-                Button("Send") {
-                    Task { await send(draft) }
+        WatchScreen(title: "Alex") {
+            VStack(spacing: 8) {
+                Button {} label: {
+                    ZStack {
+                        Circle()
+                            .fill(recorder.recording ? WatchTheme.red : Color.white)
+                            .frame(width: 78, height: 78)
+                        Image(systemName: recorder.recording ? "waveform" : "mic.fill")
+                            .font(.system(size: 26, weight: .semibold))
+                            .foregroundStyle(recorder.recording ? Color.white : Color.black)
+                    }
                 }
-                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.busy)
-                if !reply.isEmpty {
+                .buttonStyle(.plain)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            if !recorder.recording {
+                                recorder.start()
+                            }
+                        }
+                        .onEnded { _ in
+                            guard let audio = recorder.stop() else { return }
+                            Task { await sendAudio(audio) }
+                        }
+                )
+                Text(recorder.recording ? "Listening" : "Hold to talk")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(WatchTheme.mute)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+
+            if model.busy && reply.isEmpty {
+                Text("Alex is thinking")
+                    .font(.system(size: 12))
+                    .foregroundStyle(WatchTheme.mute)
+                    .frame(maxWidth: .infinity)
+            }
+            if !reply.isEmpty {
+                WatchCard {
                     Text(reply)
-                        .font(.footnote)
-                }
-                if let speechError = recorder.errorMessage {
-                    Text(speechError)
-                        .font(.caption2)
-                        .foregroundStyle(.red)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            if let speechError = recorder.errorMessage {
+                Text(speechError)
+                    .font(.system(size: 11))
+                    .foregroundStyle(WatchTheme.red)
+            }
+            TextField("Or type", text: $draft)
+                .font(.system(size: 13))
+            WatchAction(title: "Send") {
+                Task { await send(draft) }
+            }
+            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.busy)
+            .opacity(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.35 : 1)
         }
-        .navigationTitle("Alex")
     }
 
     private func send(_ text: String) async {
