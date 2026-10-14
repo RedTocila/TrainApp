@@ -18,6 +18,9 @@ export async function POST(request: Request) {
     amount?: unknown;
     message?: unknown;
     audioBase64?: unknown;
+    context?: unknown;
+    exerciseIndex?: unknown;
+    advance?: unknown;
   };
   try {
     body = await request.json();

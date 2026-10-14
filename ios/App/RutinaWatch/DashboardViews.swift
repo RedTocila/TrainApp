@@ -9,9 +9,6 @@ final class WatchDashboardModel: ObservableObject {
     @Published var notice: String?
     @Published var busy = false
     @Published var fetchedAt = Date()
-    @Published var alexSpokenDate: String? = UserDefaults.standard.string(forKey: WatchDashboardModel.alexSpokenKey)
-
-    private static let alexSpokenKey = "rutina.watch.alex.spoken"
 
     private let health = HKHealthStore()
 
@@ -62,6 +59,15 @@ final class WatchDashboardModel: ObservableObject {
         hiitLeft = hiitPausedLeft
         hiitRunning = false
         hiitEndsAt = nil
+    }
+
+    func endHiit() {
+        hiitRunning = false
+        hiitEndsAt = nil
+        hiitLeft = 0
+        hiitPausedLeft = 0
+        hiitTicker?.invalidate()
+        hiitTicker = nil
     }
 
     func resumeHiit() {
@@ -159,6 +165,11 @@ final class WatchDashboardModel: ObservableObject {
         await mutate("workout.cancel")
     }
 
+    func restartWorkout() async {
+        await cancelWorkout()
+        await startWorkout()
+    }
+
     func logSet(setId: String, reps: Int, weight: Double) async {
         markSetDone(setId, reps: reps, weight: weight)
         await mutate("workout.logSet", extra: [
@@ -234,59 +245,6 @@ final class WatchDashboardModel: ObservableObject {
         self.today = today
     }
 
-    var alexContext: String {
-        let workout = today?.workout
-        let nutrition = today?.nutrition
-        let water = today?.water
-        return [
-            workout?.title.map { "Workout \($0) \(workout?.status ?? "")" },
-            nutrition.map { "Food \($0.calories)/\($0.targetCalories) kcal" },
-            water.map { "Water \($0.ml)/\($0.goalMl) ml" }
-        ]
-        .compactMap { $0 }
-        .joined(separator: ". ")
-    }
-
-    func askAlexAudio(_ base64: String) async -> String? {
-        busy = true
-        error = nil
-        defer { busy = false }
-        do {
-            let response = try await WatchAPI.perform(
-                "alex.audio",
-                date: dateKey,
-                extra: ["audioBase64": base64, "context": alexContext]
-            )
-            if let reply = response.reply, !reply.isEmpty { noteAlexSpoken() }
-            return response.reply
-        } catch {
-            self.error = error.localizedDescription
-            return nil
-        }
-    }
-    func askAlex(_ message: String) async -> String? {
-        busy = true
-        error = nil
-        defer { busy = false }
-        do {
-            let response = try await WatchAPI.perform(
-                "alex",
-                date: dateKey,
-                extra: ["message": message, "context": alexContext]
-            )
-            if let reply = response.reply, !reply.isEmpty { noteAlexSpoken() }
-            return response.reply
-        } catch {
-            self.error = error.localizedDescription
-            return nil
-        }
-    }
-
-    private func noteAlexSpoken() {
-        alexSpokenDate = dateKey
-        UserDefaults.standard.set(dateKey, forKey: Self.alexSpokenKey)
-    }
-
     private func mutate(_ action: String, extra: [String: Any] = [:]) async {
         await run {
             let response = try await WatchAPI.perform(action, date: dateKey, extra: extra)
@@ -341,11 +299,16 @@ final class WatchDashboardModel: ObservableObject {
 }
 
 enum WatchTheme {
-    static let red = Color(red: 248 / 255, green: 2 / 255, blue: 19 / 255)
+    static let red = Color(red: 220 / 255, green: 38 / 255, blue: 38 / 255)
     static let ink = Color(red: 12 / 255, green: 12 / 255, blue: 14 / 255)
     static let mute = Color.white.opacity(0.48)
-    static let water = Color(red: 0.25, green: 0.62, blue: 1)
-    static let stepsGreen = Color(red: 0.28, green: 0.86, blue: 0.48)
+    static let nutrition = Color(red: 52 / 255, green: 211 / 255, blue: 153 / 255)
+    static let water = Color(red: 56 / 255, green: 189 / 255, blue: 248 / 255)
+    static let cardio = Color(red: 251 / 255, green: 146 / 255, blue: 60 / 255)
+    static let steps = Color(red: 163 / 255, green: 230 / 255, blue: 53 / 255)
+    static let protein = Color(red: 244 / 255, green: 63 / 255, blue: 94 / 255)
+    static let carbs = Color(red: 251 / 255, green: 191 / 255, blue: 36 / 255)
+    static let kcal = Color(red: 249 / 255, green: 115 / 255, blue: 22 / 255)
 
     static func clock(_ seconds: Int) -> String {
         let safe = max(0, seconds)
@@ -366,11 +329,13 @@ struct WatchRing: View {
     var progress: Double
     var size: CGFloat = 46
     var tint: Color = WatchTheme.red
-    var line: CGFloat = 8
+
+    /// Same share of the diameter on every ring, close to Apple Fitness rings.
+    private var line: CGFloat { max(6, size * 0.14) }
 
     var body: some View {
         ZStack {
-            Circle().stroke(Color.white.opacity(0.12), lineWidth: line)
+            Circle().stroke(tint.opacity(0.22), lineWidth: line)
             Circle()
                 .trim(from: 0, to: WatchTheme.fraction(progress, 1))
                 .stroke(tint, style: StrokeStyle(lineWidth: line, lineCap: .round))
@@ -391,46 +356,78 @@ struct WatchAction: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, 12)
                 .background(Capsule().fill(fill))
         }
         .buttonStyle(.plain)
     }
 }
 
-private struct DashTile: View {
-    var title: String
-    var symbol: String
-    var tint: Color
+private struct DashCard<Content: View>: View {
+    var accent: Color
     var done = false
     var tracked = true
+    var square = false
+    @ViewBuilder var content: () -> Content
 
     var body: some View {
-        VStack(spacing: 5) {
-            ZStack(alignment: .topTrailing) {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(done ? WatchTheme.stepsGreen.opacity(0.18) : Color.white.opacity(0.06))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(done ? WatchTheme.stepsGreen.opacity(0.85) : tint.opacity(0.28), lineWidth: 1)
-                    )
-                Image(systemName: symbol)
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(done ? WatchTheme.stepsGreen : tint)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                if tracked {
-                    Circle()
-                        .fill(done ? WatchTheme.stepsGreen : Color.white.opacity(0.72))
-                        .frame(width: 8, height: 8)
-                        .padding(7)
-                }
+        let shape = RoundedRectangle(cornerRadius: square ? 18 : 16, style: .continuous)
+        ZStack(alignment: .topTrailing) {
+            shape.fill(Color(red: 0.06, green: 0.06, blue: 0.07))
+            shape.fill(
+                LinearGradient(
+                    colors: [accent.opacity(0.78), accent.opacity(0.22)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            shape.stroke(accent.opacity(done ? 1 : 0.72), lineWidth: 1.5)
+            content()
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: square ? .infinity : nil,
+                    alignment: square ? .center : .leading
+                )
+                .padding(.horizontal, square ? 6 : 10)
+                .padding(.vertical, square ? 8 : 10)
+            if tracked && done {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 9, weight: .black))
+                    .foregroundStyle(.white)
+                    .padding(7)
             }
-            .aspectRatio(1.2, contentMode: .fit)
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(done ? WatchTheme.stepsGreen : .white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, minHeight: square ? nil : 62)
+        .aspectRatio(square ? 1 : nil, contentMode: .fit)
+    }
+}
+
+private struct DashLabel: View {
+    var title: String
+    var detail: String
+    var symbol: String
+    var accent: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(accent)
+                .frame(width: 36, height: 36)
+                .background(Circle().fill(Color.black.opacity(0.28)))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(detail)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.78))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            Spacer(minLength: 0)
         }
     }
 }
@@ -445,62 +442,69 @@ struct DashboardView: View {
                 header
                 ScrollView {
                     VStack(spacing: 8) {
-                        HStack(spacing: 8) {
-                            destination { WorkoutWatchView() } label: {
-                                DashTile(
+                        destination { WorkoutWatchView() } label: {
+                            DashCard(accent: WatchTheme.red, done: workoutState.done, tracked: workoutState.tracked) {
+                                DashLabel(
                                     title: "Workout",
+                                    detail: workoutDetail,
                                     symbol: "dumbbell.fill",
-                                    tint: WatchTheme.red,
-                                    done: workoutState.done,
-                                    tracked: workoutState.tracked
+                                    accent: WatchTheme.red
                                 )
                             }
-                            destination { NutritionWatchView() } label: {
-                                DashTile(
+                        }
+                        destination { NutritionWatchView() } label: {
+                            DashCard(accent: WatchTheme.nutrition, done: nutritionDone) {
+                                DashLabel(
                                     title: "Nutrition",
+                                    detail: nutritionDetail,
                                     symbol: "fork.knife",
-                                    tint: WatchTheme.red,
-                                    done: nutritionDone
+                                    accent: WatchTheme.nutrition
                                 )
                             }
                         }
-                        HStack(spacing: 8) {
-                            destination { CardioWatchView() } label: {
-                                DashTile(
-                                    title: "Cardio",
-                                    symbol: "figure.run",
-                                    tint: WatchTheme.red,
-                                    done: cardioState.done,
-                                    tracked: cardioState.tracked
-                                )
-                            }
-                            destination { WaterWatchView() } label: {
-                                DashTile(
-                                    title: "Water",
-                                    symbol: "drop.fill",
-                                    tint: WatchTheme.water,
-                                    done: waterDone
-                                )
+                        destination { WaterWatchView() } label: {
+                            DashCard(accent: WatchTheme.water, done: waterDone) {
+                                waterPreview
                             }
                         }
-                        HStack(spacing: 8) {
-                            destination { StepsWatchView() } label: {
-                                DashTile(
-                                    title: "Steps",
-                                    symbol: "shoeprints.fill",
-                                    tint: WatchTheme.stepsGreen,
-                                    done: stepsDone
-                                )
+                        Color.clear
+                            .aspectRatio(2.08, contentMode: .fit)
+                            .overlay {
+                                GeometryReader { geo in
+                                    let side = (geo.size.width - 8) / 2
+                                    HStack(spacing: 8) {
+                                        destination { CardioWatchView() } label: {
+                                            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                                                DashCard(
+                                                    accent: WatchTheme.cardio,
+                                                    done: cardioState.done,
+                                                    tracked: cardioState.tracked,
+                                                    square: true
+                                                ) {
+                                                    squareTile(
+                                                        "Cardio",
+                                                        detail: cardioDetail,
+                                                        symbol: "figure.run",
+                                                        accent: WatchTheme.cardio
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        .frame(width: side, height: side)
+                                        destination { StepsWatchView() } label: {
+                                            DashCard(accent: WatchTheme.steps, done: stepsDone, square: true) {
+                                                squareTile(
+                                                    "Steps",
+                                                    detail: stepsDetail,
+                                                    symbol: "shoeprints.fill",
+                                                    accent: WatchTheme.steps
+                                                )
+                                            }
+                                        }
+                                        .frame(width: side, height: side)
+                                    }
+                                }
                             }
-                            destination { AlexWatchView() } label: {
-                                DashTile(
-                                    title: "Alex",
-                                    symbol: "mic.fill",
-                                    tint: WatchTheme.red,
-                                    done: model.alexSpokenDate == model.dateKey
-                                )
-                            }
-                        }
                     }
                     .padding(.bottom, 10)
                 }
@@ -557,6 +561,97 @@ struct DashboardView: View {
         guard target > 0 else { return true }
         let band = calorie ? 300 : max(Int((Double(target) * 0.2).rounded()), floor)
         return actual >= target - band && actual <= target + band
+    }
+
+    private var workoutDetail: String {
+        guard let workout = model.today?.workout, workout.status != "none" else { return "Rest day" }
+        if workout.status == "completed" || workoutState.done { return "Done" }
+        if let title = workout.title, !title.isEmpty { return title }
+        return workout.status == "in_progress" ? "In progress" : "Ready"
+    }
+
+    private var nutritionDetail: String {
+        let nutrition = model.today?.nutrition
+        let calories = nutrition?.calories ?? 0
+        let target = nutrition?.targetCalories ?? 0
+        let meals = nutrition?.meals.count ?? 0
+        if meals > 0 {
+            let mealLine = meals == 1 ? "1 meal" : "\(meals) meals"
+            return "\(calories.formatted()) kcal · \(mealLine)"
+        }
+        return "\(calories.formatted()) / \(target.formatted()) kcal"
+    }
+
+    private var cardioDetail: String {
+        let cardio = model.today?.cardio
+        if cardio?.status == "running" || cardio?.status == "paused" {
+            return WatchTheme.clock(model.cardioElapsed)
+        }
+        if cardio?.completed == true || cardio?.status == "completed" { return "Done" }
+        if let minutes = cardio?.plannedMinutes, minutes > 0 { return "\(minutes) min" }
+        if cardio?.status == "none" || cardio == nil { return "Rest" }
+        return "Ready"
+    }
+
+    private var stepsDetail: String {
+        let goal = model.today?.steps.goal ?? 10000
+        let steps = model.steps ?? 0
+        if goal > 0 { return "\(steps.formatted()) / \(goal.formatted())" }
+        return steps.formatted()
+    }
+
+    private func squareTile(_ title: String, detail: String, symbol: String, accent: Color) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(accent)
+            Text(title)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(detail)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(0.82))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.65)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var waterPreview: some View {
+        let water = model.today?.water
+        let ml = water?.ml ?? 0
+        let goal = water?.goalMl ?? 0
+        return HStack(spacing: 10) {
+            ZStack {
+                WatchRing(
+                    progress: WatchTheme.fraction(Double(ml), Double(max(goal, 1))),
+                    size: 46,
+                    tint: WatchTheme.water
+                )
+                Image(systemName: "drop.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(WatchTheme.water)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Water")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                Text(WatchTheme.milliliters(ml))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text("of \(WatchTheme.milliliters(goal))")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.75))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     private var header: some View {
@@ -626,44 +721,41 @@ struct NutritionWatchView: View {
                         "Kcal",
                         nutrition?.calories,
                         nutrition?.targetCalories,
-                        WatchTheme.red,
+                        WatchTheme.kcal,
                         unit: "",
                         size: big,
-                        line: max(CGFloat(6), big * 0.07),
-                        valueSize: big * 0.2
+                        valueSize: big * 0.18
                     )
                     HStack(alignment: .top, spacing: 6) {
                         macroRing(
                             "Protein",
                             nutrition?.protein,
                             nutrition?.targetProtein,
-                            Color(red: 1, green: 0.38, blue: 0.48),
+                            WatchTheme.protein,
                             unit: "g",
                             size: small,
-                            line: max(CGFloat(3), small * 0.08),
-                            valueSize: small * 0.24
+                            valueSize: small * 0.2
                         )
                         macroRing(
                             "Carbs",
                             nutrition?.carbs,
                             nutrition?.targetCarbs,
-                            Color(red: 1, green: 0.72, blue: 0.22),
+                            WatchTheme.carbs,
                             unit: "g",
                             size: small,
-                            line: max(CGFloat(3), small * 0.08),
-                            valueSize: small * 0.24
+                            valueSize: small * 0.2
                         )
                         macroRing(
                             "Fat",
                             nutrition?.fat,
                             nutrition?.targetFat,
-                            Color(red: 0.35, green: 0.72, blue: 1),
+                            WatchTheme.water,
                             unit: "g",
                             size: small,
-                            line: max(CGFloat(3), small * 0.08),
-                            valueSize: small * 0.24
+                            valueSize: small * 0.2
                         )
                     }
+                    loggedMeals(nutrition?.meals ?? [])
                     note
                 }
                 .padding(.bottom, 8)
@@ -681,18 +773,17 @@ struct NutritionWatchView: View {
         _ tint: Color,
         unit: String,
         size: CGFloat,
-        line: CGFloat,
         valueSize: CGFloat
     ) -> some View {
         let current = value ?? 0
         let goal = target ?? 0
+        let line = max(CGFloat(6), size * 0.14)
         return VStack(spacing: 3) {
             ZStack {
                 WatchRing(
                     progress: WatchTheme.fraction(Double(current), Double(max(goal, 1))),
                     size: size,
-                    tint: tint,
-                    line: line
+                    tint: tint
                 )
                 Text("\(current)")
                     .font(.system(size: valueSize, weight: .bold, design: .rounded))
@@ -715,6 +806,37 @@ struct NutritionWatchView: View {
         .frame(maxWidth: .infinity)
     }
 
+    private func loggedMeals(_ meals: [WatchMeal]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Logged")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(WatchTheme.nutrition)
+            if meals.isEmpty {
+                Text("No meals yet")
+                    .font(.system(size: 12))
+                    .foregroundStyle(WatchTheme.mute)
+            } else {
+                ForEach(meals) { meal in
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(WatchTheme.nutrition)
+                            .frame(width: 5, height: 5)
+                        Text(meal.name)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text("\(meal.calories)")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(WatchTheme.mute)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 2)
+    }
+
     private var note: some View {
         Text(model.error ?? model.notice ?? " ")
             .font(.system(size: 10))
@@ -733,10 +855,10 @@ struct StepsWatchView: View {
         VStack(spacing: 6) {
             Spacer(minLength: 0)
             ZStack {
-                WatchRing(progress: progress, size: 112, tint: WatchTheme.stepsGreen, line: 9)
+                WatchRing(progress: progress, size: 112, tint: WatchTheme.steps)
                 Image(systemName: "shoeprints.fill")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(WatchTheme.stepsGreen)
+                    .foregroundStyle(WatchTheme.steps)
             }
             Text(steps.formatted())
                 .font(.system(size: 28, weight: .bold, design: .rounded))
@@ -766,8 +888,7 @@ struct WaterWatchView: View {
                     WatchRing(
                         progress: WatchTheme.fraction(Double(ml), Double(max(goal, 1))),
                         size: ring,
-                        tint: WatchTheme.water,
-                        line: 8
+                        tint: WatchTheme.water
                     )
                     Image(systemName: "drop.fill")
                         .font(.system(size: ring * 0.22, weight: .semibold))
@@ -802,7 +923,7 @@ struct WaterWatchView: View {
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
+                .padding(.vertical, 12)
                 .background(Capsule().fill(value < 0 ? Color.white.opacity(0.12) : WatchTheme.water))
         }
         .buttonStyle(.plain)

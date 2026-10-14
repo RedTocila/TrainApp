@@ -19,6 +19,12 @@
 		A1B2C3D40FE9A0040072D4E8 /* AppViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40FE9A0030072D4E8 /* AppViewController.swift */; };
 		A1B2C3D40FE9A0060072D4E8 /* HealthStepsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40FE9A0050072D4E8 /* HealthStepsPlugin.swift */; };
 		B1A100012FE9A0020072D4E8 /* WatchSessionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A100012FE9A0010072D4E8 /* WatchSessionPlugin.swift */; };
+		C4E1A0022FE9C0010072D4E8 /* LiveWorkout.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E1A0012FE9C0010072D4E8 /* LiveWorkout.swift */; };
+		C4E1A0172FE9C0010072D4E8 /* LiveWorkoutPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E1A0162FE9C0010072D4E8 /* LiveWorkoutPlugin.swift */; };
+		C4E1A0032FE9C0010072D4E8 /* LiveWorkout.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E1A0012FE9C0010072D4E8 /* LiveWorkout.swift */; };
+		C4E1A0112FE9C0010072D4E8 /* RutinaLiveBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E1A0102FE9C0010072D4E8 /* RutinaLiveBundle.swift */; };
+		C4E1A0152FE9C0010072D4E8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C4E1A0142FE9C0010072D4E8 /* Assets.xcassets */; };
+		C4E1A0212FE9C0010072D4E8 /* RutinaLive.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C4E1A0202FE9C0010072D4E8 /* RutinaLive.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B1A100012FE9B0130072D4E8 /* RutinaWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B1A100012FE9B0010072D4E8 /* RutinaWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B1A100012FE9B0310072D4E8 /* RutinaWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A100012FE9B0210072D4E8 /* RutinaWatchApp.swift */; };
 		B1A100012FE9B0320072D4E8 /* WatchAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A100012FE9B0220072D4E8 /* WatchAPI.swift */; };
@@ -53,6 +59,13 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A1B2C3D40FE9A0000072D4E8 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A1B2C3D40FE9A0020072D4E8 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		C4E1A0012FE9C0010072D4E8 /* LiveWorkout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWorkout.swift; sourceTree = "<group>"; };
+		C4E1A0162FE9C0010072D4E8 /* LiveWorkoutPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWorkoutPlugin.swift; sourceTree = "<group>"; };
+		C4E1A0102FE9C0010072D4E8 /* RutinaLiveBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RutinaLiveBundle.swift; sourceTree = "<group>"; };
+		C4E1A0122FE9C0010072D4E8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C4E1A0132FE9C0010072D4E8 /* RutinaLive.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RutinaLive.entitlements; sourceTree = "<group>"; };
+		C4E1A0142FE9C0010072D4E8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C4E1A0202FE9C0010072D4E8 /* RutinaLive.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RutinaLive.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,7 +85,9 @@
 			children = (
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
+				C4E1A0382FE9C0010072D4E8 /* Shared */,
 				B1A100012FE9B0090072D4E8 /* RutinaWatch */,
+				C4E1A0372FE9C0010072D4E8 /* RutinaLive */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -82,6 +97,7 @@
 			children = (
 				504EC3041FED79650016851F /* App.app */,
 				B1A100012FE9B0010072D4E8 /* RutinaWatch.app */,
+				C4E1A0202FE9C0010072D4E8 /* RutinaLive.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -93,6 +109,7 @@
 				A1B2C3D40FE9A0030072D4E8 /* AppViewController.swift */,
 				A1B2C3D40FE9A0050072D4E8 /* HealthStepsPlugin.swift */,
 				B1A100012FE9A0010072D4E8 /* WatchSessionPlugin.swift */,
+				C4E1A0162FE9C0010072D4E8 /* LiveWorkoutPlugin.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -121,6 +138,25 @@
 			path = RutinaWatch;
 			sourceTree = "<group>";
 		};
+		C4E1A0382FE9C0010072D4E8 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				C4E1A0012FE9C0010072D4E8 /* LiveWorkout.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		C4E1A0372FE9C0010072D4E8 /* RutinaLive */ = {
+			isa = PBXGroup;
+			children = (
+				C4E1A0102FE9C0010072D4E8 /* RutinaLiveBundle.swift */,
+				C4E1A0122FE9C0010072D4E8 /* Info.plist */,
+				C4E1A0132FE9C0010072D4E8 /* RutinaLive.entitlements */,
+				C4E1A0142FE9C0010072D4E8 /* Assets.xcassets */,
+			);
+			path = RutinaLive;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -132,11 +168,13 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				B1A100012FE9B0120072D4E8 /* Embed Watch Content */,
+				C4E1A0342FE9C0010072D4E8 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				B1A100012FE9B0140072D4E8 /* PBXTargetDependency */,
+				C4E1A0352FE9C0010072D4E8 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -163,6 +201,23 @@
 			productReference = B1A100012FE9B0010072D4E8 /* RutinaWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C4E1A0302FE9C0010072D4E8 /* RutinaLive */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C4E1A0422FE9C0010072D4E8 /* Build configuration list for PBXNativeTarget "RutinaLive" */;
+			buildPhases = (
+				C4E1A0312FE9C0010072D4E8 /* Sources */,
+				C4E1A0322FE9C0010072D4E8 /* Frameworks */,
+				C4E1A0332FE9C0010072D4E8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RutinaLive;
+			productName = RutinaLive;
+			productReference = C4E1A0202FE9C0010072D4E8 /* RutinaLive.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -178,6 +233,10 @@
 						ProvisioningStyle = Automatic;
 					};
 					B1A100012FE9B0020072D4E8 = {
+						CreatedOnToolsVersion = 16.0;
+						ProvisioningStyle = Automatic;
+					};
+					C4E1A0302FE9C0010072D4E8 = {
 						CreatedOnToolsVersion = 16.0;
 						ProvisioningStyle = Automatic;
 					};
@@ -201,6 +260,7 @@
 			targets = (
 				504EC3031FED79650016851F /* App */,
 				B1A100012FE9B0020072D4E8 /* RutinaWatch */,
+				C4E1A0302FE9C0010072D4E8 /* RutinaLive */,
 			);
 		};
 /* End PBXProject section */
@@ -232,6 +292,8 @@
 				A1B2C3D40FE9A0040072D4E8 /* AppViewController.swift in Sources */,
 				A1B2C3D40FE9A0060072D4E8 /* HealthStepsPlugin.swift in Sources */,
 				B1A100012FE9A0020072D4E8 /* WatchSessionPlugin.swift in Sources */,
+				C4E1A0022FE9C0010072D4E8 /* LiveWorkout.swift in Sources */,
+				C4E1A0172FE9C0010072D4E8 /* LiveWorkoutPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -261,6 +323,30 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C4E1A0312FE9C0010072D4E8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C4E1A0112FE9C0010072D4E8 /* RutinaLiveBundle.swift in Sources */,
+				C4E1A0032FE9C0010072D4E8 /* LiveWorkout.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C4E1A0322FE9C0010072D4E8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C4E1A0332FE9C0010072D4E8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C4E1A0152FE9C0010072D4E8 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -275,6 +361,17 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C4E1A0342FE9C0010072D4E8 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C4E1A0212FE9C0010072D4E8 /* RutinaLive.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -282,6 +379,11 @@
 			isa = PBXTargetDependency;
 			target = B1A100012FE9B0020072D4E8 /* RutinaWatch */;
 			targetProxy = B1A100012FE9B0150072D4E8 /* PBXContainerItemProxy */;
+		};
+		C4E1A0352FE9C0010072D4E8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C4E1A0302FE9C0010072D4E8 /* RutinaLive */;
+			targetProxy = C4E1A0362FE9C0010072D4E8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -292,6 +394,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = B1A100012FE9B0020072D4E8;
 			remoteInfo = RutinaWatch;
+		};
+		C4E1A0362FE9C0010072D4E8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C4E1A0302FE9C0010072D4E8;
+			remoteInfo = RutinaLive;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -512,6 +621,62 @@
 			};
 			name = Release;
 		};
+		C4E1A0402FE9C0010072D4E8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = RutinaLive/RutinaLive.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 425G4U67A8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RutinaLive/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RutinaLive;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = al.rutina.app.live;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		C4E1A0412FE9C0010072D4E8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = RutinaLive/RutinaLive.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 425G4U67A8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RutinaLive/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RutinaLive;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = al.rutina.app.live;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -538,6 +703,15 @@
 			buildConfigurations = (
 				B1A100012FE9B0070072D4E8 /* Debug */,
 				B1A100012FE9B0080072D4E8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C4E1A0422FE9C0010072D4E8 /* Build configuration list for PBXNativeTarget "RutinaLive" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C4E1A0402FE9C0010072D4E8 /* Debug */,
+				C4E1A0412FE9C0010072D4E8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

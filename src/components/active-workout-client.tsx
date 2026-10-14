@@ -7,8 +7,9 @@ import {
 } from "@/components/locale-provider";
 import { formatExerciseHistoryLabel } from "@/lib/exercise-history-format";
 
+import { Capacitor } from "@capacitor/core";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   Check,
   ChevronDown,
@@ -37,7 +38,8 @@ import type {
 } from "@/lib/types";
 import type { WorkoutPlanKind } from "@/lib/hiit";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
-import { resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
+import { resolveExerciseGifUrl, resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
+import { endLiveWorkout, useLiveWorkoutPublisher } from "@/lib/live-workout";
 import { findCatalogExercise } from "@/lib/exercise-catalog";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { useDashboardSync } from "@/components/dashboard-sync";
@@ -265,6 +267,7 @@ function ActiveExercisePanel({
   mediaPaused,
   onBackExercise,
   canGoBack,
+  onLiveDraft,
 }: {
   exercise: WorkoutSessionExercise;
   exerciseIndex: number;
@@ -281,6 +284,13 @@ function ActiveExercisePanel({
   mediaPaused?: boolean;
   onBackExercise?: () => void;
   canGoBack?: boolean;
+  onLiveDraft?: (draft: {
+    setId: string | null;
+    setNumber: number;
+    setCount: number;
+    reps: number;
+    weightKg: number;
+  }) => void;
 }) {
   const platform = usePlatformCopy();
   const units = useBodyUnits();
@@ -440,6 +450,45 @@ function ActiveExercisePanel({
       setIsAddingSet(false);
     }
   };
+
+  useEffect(() => {
+    if (readOnly || !onLiveDraft) return;
+    const parsedReps = parseRepsField(repsDraft);
+    const parsedWeight = parseWeightField(weightDraft);
+    const reps =
+      parsedReps ??
+      activeSet?.reps ??
+      previousForNextSet?.reps ??
+      (typeof exercise.target_reps === "number"
+        ? exercise.target_reps
+        : parseInt(String(exercise.target_reps || 8), 10));
+    const weight =
+      parsedWeight ??
+      (activeSet?.weight_kg != null ? Number(activeSet.weight_kg) : null) ??
+      (previousForNextSet?.weight_kg != null
+        ? Number(previousForNextSet.weight_kg)
+        : 20);
+    onLiveDraft({
+      setId: activeSet?.id ?? null,
+      setNumber: currentSetNumber,
+      setCount: targetSets,
+      reps: Math.min(40, Math.max(1, Number.isFinite(reps) ? reps : 8)),
+      weightKg: Math.min(200, Math.max(0, Number.isFinite(weight) ? weight : 0)),
+    });
+  }, [
+    activeSet?.id,
+    activeSet?.reps,
+    activeSet?.weight_kg,
+    currentSetNumber,
+    exercise.target_reps,
+    onLiveDraft,
+    previousForNextSet?.reps,
+    previousForNextSet?.weight_kg,
+    readOnly,
+    repsDraft,
+    targetSets,
+    weightDraft,
+  ]);
 
   return (
     <div
@@ -686,6 +735,11 @@ function ActiveExercisePanel({
               )}
             </Button>
           </div>
+          {Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios" ? (
+            <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+              {platform.workout.backTapHint}
+            </p>
+          ) : null}
         </div>
       ) : (
         <p className="shrink-0 pt-0.5 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -742,9 +796,33 @@ export function ActiveWorkoutClient({
     togglePause,
   } = useWorkoutTimer(session.id, isStarted);
   const exerciseGender = resolveProfileGender(gender);
+  const publishLive = useLiveWorkoutPublisher(isStarted);
   const leaveHandledRef = useRef(false);
 
   const activeExercise = exercises[Math.min(activeIndex, exercises.length - 1)];
+  const reportLiveDraft = useCallback(
+    (draft: {
+      setId: string | null;
+      setNumber: number;
+      setCount: number;
+      reps: number;
+      weightKg: number;
+    }) => {
+      if (!activeExercise) return;
+      publishLive({
+        exerciseName: activeExercise.name,
+        exerciseIndex: activeIndex,
+        exerciseCount: exercises.length,
+        gifUrl: resolveExerciseGifUrl({
+          name: activeExercise.name,
+          imageUrl: activeExercise.image_url,
+          gender: exerciseGender,
+        }),
+        ...draft,
+      });
+    },
+    [activeExercise, activeIndex, exerciseGender, exercises.length, publishLive]
+  );
   const rest = useRestCountdown(
     activeExercise?.rest_seconds ?? 90,
     workoutPaused
@@ -834,6 +912,7 @@ export function ActiveWorkoutClient({
         return;
       }
       clearWorkoutTimerState(session.id);
+      void endLiveWorkout();
       router.push("/dashboard");
       router.refresh();
     };
@@ -898,6 +977,7 @@ export function ActiveWorkoutClient({
         return;
       }
       clearWorkoutTimerState(session.id);
+      void endLiveWorkout();
       const dateKey =
         result.scheduledDate ??
         session.scheduled_date ??
@@ -1091,6 +1171,7 @@ export function ActiveWorkoutClient({
             mediaPaused={workoutPaused}
             canGoBack={activeIndex > 0}
             onBackExercise={() => setActiveIndex((i) => Math.max(0, i - 1))}
+            onLiveDraft={isStarted ? reportLiveDraft : undefined}
           />
         ) : null}
 

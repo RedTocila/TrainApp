@@ -1,0 +1,63 @@
+{
+	"appId": "al.rutina.app",
+	"appName": "RUTINA",
+	"webDir": "native-shell/www",
+	"appendUserAgent": "RutinaApp",
+	"server": {
+		"url": "https://rutina.al",
+		"cleartext": false,
+		"allowNavigation": [
+			"rutina.al",
+			"www.rutina.al",
+			"*.supabase.co",
+			"*.pok.al",
+			"*.pokpay.io",
+			"*.nebula.ltd"
+		]
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchAutoHide": true,
+			"launchShowDuration": 800,
+			"backgroundColor": "#f80213",
+			"showSpinner": false
+		},
+		"StatusBar": {
+			"style": "DARK",
+			"backgroundColor": "#0c0c0e"
+		},
+		"Camera": {
+			"permissions": [
+				"camera",
+				"photos"
+			]
+		},
+		"LocalNotifications": {
+			"iconColor": "#dc2626",
+			"sound": "default"
+		}
+	},
+	"ios": {
+		"backgroundColor": "#0c0c0e",
+		"contentInset": "never",
+		"preferredContentMode": "mobile",
+		"scheme": "RUTINA",
+		"limitsNavigationsToAppBoundDomains": false
+	},
+	"android": {
+		"allowMixedContent": false,
+		"backgroundColor": "#0c0c0e"
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"CAPBrowserPlugin",
+		"CAPCameraPlugin",
+		"FilesystemPlugin",
+		"HapticsPlugin",
+		"KeyboardPlugin",
+		"LocalNotificationsPlugin",
+		"SplashScreenPlugin",
+		"StatusBarPlugin",
+		"NativePurchasesPlugin"
+	]
+}

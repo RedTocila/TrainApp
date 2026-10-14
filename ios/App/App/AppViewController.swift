@@ -23,6 +23,7 @@ class AppViewController: CAPBridgeViewController {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(HealthStepsPlugin())
         bridge?.registerPluginInstance(WatchSessionPlugin())
+        bridge?.registerPluginInstance(LiveWorkoutPlugin())
         guard let webView = webView else { return }
         applyPlatformBackground(to: webView)
         pullToRefresh.attach(to: webView)

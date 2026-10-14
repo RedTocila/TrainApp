@@ -175,38 +175,94 @@ struct WorkoutWatchView: View {
 private struct HiitWatchScreen: View {
     @EnvironmentObject private var model: WatchDashboardModel
 
+    private var phase: WatchHiitPhase? {
+        let phases = model.hiitPhases
+        guard phases.indices.contains(model.hiitIndex) else { return nil }
+        return phases[model.hiitIndex]
+    }
+
+    private var working: Bool { phase?.type == "work" }
+
+    private var tint: Color { working ? WatchTheme.red : WatchTheme.water }
+
     var body: some View {
         let phases = model.hiitPhases
-        let phase = phases.indices.contains(model.hiitIndex) ? phases[model.hiitIndex] : nil
-        VStack(spacing: 4) {
-            Text(phase?.name ?? phase?.label ?? "HIIT")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(phase?.label ?? "")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(phase?.type == "work" ? WatchTheme.red : WatchTheme.mute)
-            ExerciseMedia(gifUrl: phase?.gifUrl)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Text(WatchTheme.clock(model.hiitLeft))
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-            HStack(spacing: 10) {
-                roundIcon(model.hiitRunning ? "pause.fill" : "play.fill", fill: WatchTheme.red) {
-                    if model.hiitRunning {
-                        model.pauseHiit()
-                    } else if model.hiitLeft > 0 {
-                        model.resumeHiit()
-                    } else {
-                        model.startHiit()
+        GeometryReader { geo in
+            let chrome: CGFloat = 176
+            let gifHeight = geo.size.height - chrome
+            VStack(spacing: 5) {
+                Text(WatchTheme.clock(model.hiitLeft))
+                    .font(.system(size: min(48, geo.size.width * 0.3), weight: .black, design: .rounded))
+                    .foregroundStyle(tint)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .frame(maxWidth: .infinity)
+                Text((phase?.label ?? (working ? "Work" : "Rest")).uppercased())
+                    .font(.system(size: 16, weight: .black))
+                    .tracking(1.4)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 7)
+                    .background(Capsule().fill(tint))
+                if let name = phase?.name, !name.isEmpty {
+                    Text(name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                if phases.count > 0 {
+                    Text("\(model.hiitIndex + 1) of \(phases.count)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(WatchTheme.mute)
+                }
+                if gifHeight >= 48 {
+                    ExerciseMedia(gifUrl: phase?.gifUrl)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: min(gifHeight, geo.size.height * 0.32))
+                        .clipped()
+                }
+                Spacer(minLength: 0)
+                HStack(spacing: 6) {
+                    watchPill(
+                        model.hiitRunning ? "Pause" : "Play",
+                        symbol: model.hiitRunning ? "pause.fill" : "play.fill",
+                        fill: tint
+                    ) {
+                        if model.hiitRunning {
+                            model.pauseHiit()
+                        } else if model.hiitLeft > 0 {
+                            model.resumeHiit()
+                        } else {
+                            model.startHiit()
+                        }
+                    }
+                    watchPill("Next", symbol: "arrow.right", fill: Color.white.opacity(0.16)) {
+                        model.skipHiit()
                     }
                 }
-                roundIcon("forward.fill", fill: Color.white.opacity(0.16)) {
-                    model.skipHiit()
+                HStack(spacing: 6) {
+                    watchPill("Restart", symbol: "arrow.counterclockwise", fill: tint.opacity(0.85)) {
+                        model.startHiit()
+                    }
+                    watchPill("Cancel", symbol: "xmark", fill: Color.white.opacity(0.16)) {
+                        model.endHiit()
+                        Task { await model.cancelWorkout() }
+                    }
                 }
             }
+            .frame(width: geo.size.width, height: geo.size.height)
         }
+        .containerBackground(
+            working
+                ? Color(red: 0.18, green: 0.02, blue: 0.04)
+                : Color(red: 0.02, green: 0.08, blue: 0.16),
+            for: .navigation
+        )
     }
 }
 
@@ -227,17 +283,19 @@ private struct ExerciseLogPage: View {
         GeometryReader { geo in
             ScrollView {
                 VStack(spacing: 6) {
+                    ExerciseMedia(gifUrl: exercise.gifUrl)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: max(geo.size.width, geo.size.height * 0.7))
+                        .clipped()
                     Text(exercise.name)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .minimumScaleFactor(0.7)
                     Text(setLabel)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(WatchTheme.mute)
-                    ExerciseMedia(gifUrl: exercise.gifUrl)
-                        .frame(height: max(120, geo.size.height * 0.86))
                     HStack(spacing: 4) {
                         wheel("Reps", selection: repsBinding, values: (1...40).map(Double.init)) { value in
                             "\(Int(value))"
@@ -265,6 +323,14 @@ private struct ExerciseLogPage: View {
                             enabled: index + 1 < total
                         ) {
                             if index + 1 < total { onNext() }
+                        }
+                    }
+                    HStack(spacing: 6) {
+                        setControl("Restart", symbol: "arrow.counterclockwise", fill: WatchTheme.red.opacity(0.85), enabled: true) {
+                            Task { await model.restartWorkout() }
+                        }
+                        setControl("Cancel", symbol: "xmark", fill: Color.white.opacity(0.16), enabled: true) {
+                            Task { await model.cancelWorkout() }
                         }
                     }
                 }
@@ -319,23 +385,7 @@ private struct ExerciseLogPage: View {
         enabled: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 3) {
-                Image(systemName: symbol)
-                    .font(.system(size: 11, weight: .bold))
-                Text(title)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(Capsule().fill(fill))
-            .opacity(enabled ? 1 : 0.4)
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
+        watchPill(title, symbol: symbol, fill: fill, enabled: enabled, action: action)
     }
 
     private func wheel(
@@ -383,12 +433,12 @@ private struct ExercisePreview: View {
             } else {
                 Image(uiImage: frames[min(frame, frames.count - 1)])
                     .resizable()
-                    .scaledToFit()
-                    .padding(2)
+                    .scaledToFill()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white.opacity(0.06))
+        .clipped()
+        .background(Color.black)
         .task(id: urlString) { await load() }
         .task(id: playing) { await animate() }
     }
@@ -416,7 +466,33 @@ private struct ExercisePreview: View {
     }
 }
 
-private func roundIcon(_ name: String, fill: Color, size: CGFloat = 36, action: @escaping () -> Void) -> some View {
+private func watchPill(
+    _ title: String,
+    symbol: String,
+    fill: Color,
+    enabled: Bool = true,
+    action: @escaping () -> Void
+) -> some View {
+    Button(action: action) {
+        HStack(spacing: 3) {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .bold))
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(Capsule().fill(fill))
+        .opacity(enabled ? 1 : 0.4)
+    }
+    .buttonStyle(.plain)
+    .disabled(!enabled)
+}
+
+private func roundIcon(_ name: String, fill: Color, size: CGFloat = 44, action: @escaping () -> Void) -> some View {
     Button(action: action) {
         Image(systemName: name)
             .font(.system(size: size * 0.38, weight: .bold))
@@ -483,15 +559,15 @@ struct CardioWatchView: View {
                         .foregroundStyle(WatchTheme.mute)
                     Spacer(minLength: 2)
                     HStack(spacing: 10) {
-                        roundIcon("play.fill", fill: running ? Color.white.opacity(0.16) : WatchTheme.red, size: 42) {
+                        roundIcon("play.fill", fill: running ? Color.white.opacity(0.16) : WatchTheme.red, size: 48) {
                             guard !running else { return }
                             Task { await model.startCardio() }
                         }
-                        roundIcon("pause.fill", fill: running ? WatchTheme.red : Color.white.opacity(0.16), size: 42) {
+                        roundIcon("pause.fill", fill: running ? WatchTheme.red : Color.white.opacity(0.16), size: 48) {
                             guard running else { return }
                             Task { await model.pauseCardio() }
                         }
-                        roundIcon("arrow.counterclockwise", fill: (running || paused || cardio?.completed == true) ? Color.white.opacity(0.16) : Color.white.opacity(0.08), size: 42) {
+                        roundIcon("arrow.counterclockwise", fill: (running || paused || cardio?.completed == true) ? Color.white.opacity(0.16) : Color.white.opacity(0.08), size: 48) {
                             Task { await model.resetCardio() }
                         }
                     }
@@ -528,188 +604,3 @@ struct CardioWatchView: View {
     }
 }
 
-struct AlexWatchView: View {
-    @EnvironmentObject private var model: WatchDashboardModel
-    @StateObject private var recorder = AlexRecorder()
-    @State private var reply = ""
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Group {
-                if !reply.isEmpty {
-                    ScrollView {
-                        Text(reply)
-                            .font(.system(size: 16))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .multilineTextAlignment(.leading)
-                    }
-                } else {
-                    Text(hint)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(model.error == nil && recorder.errorMessage == nil ? WatchTheme.mute : WatchTheme.red)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(4)
-                        .minimumScaleFactor(0.8)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            Button(action: toggleMic) {
-                ZStack {
-                    Circle()
-                        .fill(recorder.recording ? WatchTheme.red : Color.white)
-                        .frame(width: 48, height: 48)
-                    if model.busy && !recorder.recording {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                    } else {
-                        Image(systemName: recorder.recording ? "waveform" : "mic.fill")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(recorder.recording ? Color.white : Color.black)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
-        }
-        .navigationTitle("Alex")
-        .containerBackground(WatchTheme.ink, for: .navigation)
-        .onChange(of: recorder.pendingAudio) { _, data in
-            guard data != nil, let audio = recorder.takePending() else { return }
-            Task { await sendAudio(audio) }
-        }
-    }
-
-    private var hint: String {
-        if let error = model.error ?? recorder.errorMessage, !error.isEmpty { return error }
-        if model.busy { return "..." }
-        if recorder.recording { return "Listening" }
-        return "Tap the mic"
-    }
-
-    private func toggleMic() {
-        if model.busy { return }
-        if recorder.recording {
-            guard let audio = recorder.stop() else { return }
-            Task { await sendAudio(audio) }
-        } else {
-            reply = ""
-            recorder.start()
-        }
-    }
-
-    private func sendAudio(_ data: Data) async {
-        reply = ""
-        if let answer = await model.askAlexAudio(data.base64EncodedString()) {
-            reply = answer
-        }
-    }
-}
-
-@MainActor
-final class AlexRecorder: ObservableObject {
-    @Published var recording = false
-    @Published var errorMessage: String?
-    @Published var pendingAudio: Data?
-
-    private var recorder: AVAudioRecorder?
-    private var fileURL: URL?
-    private var meter: Timer?
-    private var startedAt = Date()
-    private var heardSpeech = false
-    private var quietSince: Date?
-
-    func start() {
-        guard !recording else { return }
-        errorMessage = nil
-        pendingAudio = nil
-        if AVAudioApplication.shared.recordPermission == .granted {
-            begin()
-            return
-        }
-        AVAudioApplication.requestRecordPermission { allowed in
-            Task { @MainActor in
-                guard allowed else {
-                    self.errorMessage = "Allow the microphone for RUTINA."
-                    return
-                }
-                self.begin()
-            }
-        }
-    }
-
-    func stop() -> Data? {
-        meter?.invalidate()
-        meter = nil
-        recorder?.stop()
-        recording = false
-        defer {
-            recorder = nil
-            fileURL = nil
-        }
-        guard let fileURL else { return nil }
-        return try? Data(contentsOf: fileURL)
-    }
-
-    func takePending() -> Data? {
-        let data = pendingAudio
-        pendingAudio = nil
-        return data
-    }
-
-    private func begin() {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("alex-\(UUID().uuidString).m4a")
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: 16_000,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue
-        ]
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement, options: [])
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
-            let recorder = try AVAudioRecorder(url: url, settings: settings)
-            recorder.isMeteringEnabled = true
-            recorder.record()
-            self.recorder = recorder
-            self.fileURL = url
-            recording = true
-            startedAt = Date()
-            heardSpeech = false
-            quietSince = nil
-            meter?.invalidate()
-            meter = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { _ in
-                Task { @MainActor in
-                    self.sampleLevel()
-                }
-            }
-        } catch {
-            errorMessage = "Couldn't start the microphone."
-        }
-    }
-
-    private func sampleLevel() {
-        guard recording, let recorder else { return }
-        recorder.updateMeters()
-        let power = recorder.averagePower(forChannel: 0)
-        let elapsed = Date().timeIntervalSince(startedAt)
-        if power > -36 {
-            heardSpeech = true
-            quietSince = nil
-        } else if heardSpeech {
-            if quietSince == nil { quietSince = Date() }
-            if let quietSince, Date().timeIntervalSince(quietSince) >= 1.1 {
-                pendingAudio = stop()
-                return
-            }
-        } else if elapsed >= 5 {
-            _ = stop()
-            errorMessage = "Didn't catch that. Tap again."
-            return
-        }
-        if elapsed >= 18, recording {
-            pendingAudio = stop()
-        }
-    }
-}

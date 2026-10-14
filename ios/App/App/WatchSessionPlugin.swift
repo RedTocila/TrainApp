@@ -12,6 +12,7 @@ final class WatchConnectivityBridge: NSObject, WCSessionDelegate {
         super.init()
         if let stored = UserDefaults.standard.dictionary(forKey: defaultsKey) {
             payload = stored
+            LiveWorkoutStore.saveCredentials(stored)
         }
     }
 
@@ -25,12 +26,14 @@ final class WatchConnectivityBridge: NSObject, WCSessionDelegate {
     func update(_ next: [String: Any]) {
         payload = next
         UserDefaults.standard.set(next, forKey: defaultsKey)
+        LiveWorkoutStore.saveCredentials(next)
         push()
     }
 
     func clear() {
         payload = ["accessToken": ""]
         UserDefaults.standard.set(payload, forKey: defaultsKey)
+        LiveWorkoutStore.clearCredentials()
         push()
     }
 

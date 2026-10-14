@@ -29,10 +29,61 @@ final class WatchSessionBridge: NSObject, WCSessionDelegate, ObservableObject {
         if let credentials, credentials.isUsable, !isExpiring(credentials) {
             return credentials
         }
+        if await refreshSession() {
+            return credentials
+        }
         if WCSession.isSupported(), WCSession.default.activationState == .activated, WCSession.default.isReachable {
             _ = await requestCredentialsFromPhone()
+            if let credentials, isExpiring(credentials) {
+                _ = await refreshSession()
+            }
         }
         return credentials
+    }
+
+    @discardableResult
+    func refreshSession() async -> Bool {
+        guard
+            let current = credentials,
+            current.isUsable,
+            !current.refreshToken.isEmpty,
+            !current.supabaseUrl.isEmpty,
+            !current.supabaseAnonKey.isEmpty,
+            let url = URL(string: "\(current.supabaseUrl)/auth/v1/token?grant_type=refresh_token")
+        else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(current.supabaseAnonKey, forHTTPHeaderField: "apikey")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["refresh_token": current.refreshToken])
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode ?? 500 < 300 else { return false }
+            guard
+                let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let accessToken = json["access_token"] as? String,
+                let refreshToken = json["refresh_token"] as? String,
+                !accessToken.isEmpty
+            else { return false }
+            var expiresAt = jsonNumber(json["expires_at"])
+            if expiresAt <= 0 {
+                let expiresIn = jsonNumber(json["expires_in"])
+                expiresAt = Date().timeIntervalSince1970 + (expiresIn > 0 ? expiresIn : 3600)
+            }
+            apply([
+                "accessToken": accessToken,
+                "refreshToken": refreshToken,
+                "expiresAt": expiresAt,
+                "apiBase": current.apiBase,
+                "supabaseUrl": current.supabaseUrl,
+                "supabaseAnonKey": current.supabaseAnonKey
+            ])
+            return credentials?.isUsable == true && !isExpiring(credentials ?? current)
+        } catch {
+            return false
+        }
     }
 
     @discardableResult
@@ -65,12 +116,22 @@ final class WatchSessionBridge: NSObject, WCSessionDelegate, ObservableObject {
         return Date().timeIntervalSince1970 > credentials.expiresAt - 60
     }
 
+    private func jsonNumber(_ value: Any?) -> Double {
+        if let number = value as? Double { return number }
+        if let number = value as? Int { return Double(number) }
+        if let number = value as? NSNumber { return number.doubleValue }
+        return 0
+    }
+
     private func apply(_ payload: [String: Any]) {
         guard let next = WatchCredentials(payload) else {
             if payload["accessToken"] as? String == "" {
                 credentials = nil
                 UserDefaults.standard.removeObject(forKey: defaultsKey)
             }
+            return
+        }
+        if let current = credentials, current.expiresAt > next.expiresAt + 30, current.isUsable {
             return
         }
         credentials = next

@@ -24,6 +24,11 @@ export function isActiveWorkoutSessionPath(pathname: string) {
   return /^\/dashboard\/workout\/session\/[^/]+$/.test(path);
 }
 
+/** Back-tap sheet for the set already in progress. */
+export function isQuickWorkoutPath(pathname: string) {
+  return pathOnly(pathname) === "/dashboard/workout/quick";
+}
+
 /** Live cardio session — custom Cardio header, no Workout/Nutrition toggle. */
 export function isCardioSessionPath(pathname: string) {
   return pathOnly(pathname) === "/dashboard/workout/cardio/session";
@@ -31,7 +36,7 @@ export function isCardioSessionPath(pathname: string) {
 
 /** Hide logo / train tabs / bottom nav for immersive pages. */
 export function hidesDashboardChrome(pathname: string) {
-  return isActiveWorkoutSessionPath(pathname);
+  return isActiveWorkoutSessionPath(pathname) || isQuickWorkoutPath(pathname);
 }
 
 /** Bottom nav only — cardio session keeps the Cardio header, hides the dock. */
@@ -58,14 +63,16 @@ export function isHomeNavActive(pathname: string) {
   return (
     path === "/dashboard" ||
     path.startsWith("/dashboard/day/") ||
-    isActiveWorkoutSessionPath(path)
+    isActiveWorkoutSessionPath(path) ||
+    isQuickWorkoutPath(path)
   );
 }
 
 export function isWorkoutNavActive(pathname: string) {
   const path = pathOnly(pathname);
   return (
-    path === "/dashboard/workout" || path.startsWith("/dashboard/workout/")
+    (path === "/dashboard/workout" || path.startsWith("/dashboard/workout/")) &&
+    !isQuickWorkoutPath(path)
   );
 }
 

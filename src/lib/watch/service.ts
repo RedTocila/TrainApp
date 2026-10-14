@@ -4,8 +4,10 @@ import {
   consumeAlexCommand,
 } from "@/lib/actions/usage-limits";
 import { maybeNaturalizeCoachReply } from "@/lib/ai/albanian-naturalize";
-import { prepareFitnessCoachChatMessages } from "@/lib/ai/fitness-chat";
+import { buildWatchAlexSystemPrompt } from "@/lib/ai/fitness-chat";
+import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
+import type { Profile } from "@/lib/types";
 import { transcribeAudioBytes } from "@/lib/ai/transcribe-audio";
 import {
   isCardioDurationComplete,
@@ -52,6 +54,7 @@ export type WatchToday = {
     targetProtein: number;
     targetCarbs: number;
     targetFat: number;
+    meals: { id: string; name: string; calories: number }[];
   };
   steps: { goal: number };
   water: { ml: number; goalMl: number };
@@ -187,9 +190,10 @@ export async function loadWatchToday(
         .maybeSingle(),
       admin
         .from("daily_meal_logs")
-        .select("calories, protein, carbs, fat")
+        .select("id, name, calories, protein, carbs, fat")
         .eq("client_id", userId)
-        .eq("date", date),
+        .eq("date", date)
+        .order("logged_at", { ascending: true }),
       admin
         .from("daily_logs")
         .select("water_ml")
@@ -250,7 +254,15 @@ export async function loadWatchToday(
   else if (allScheduledDone) workoutStatus = "completed";
   else if (nextScheduled) workoutStatus = "scheduled";
 
-  const macros = sumMealMacros(mealsResult.data ?? []);
+  const mealRows = (mealsResult.data ?? []) as Array<{
+    id: string;
+    name: string | null;
+    calories: number | null;
+    protein: number | null;
+    carbs: number | null;
+    fat: number | null;
+  }>;
+  const macros = sumMealMacros(mealRows);
   const cardioRow = cardioResult.data as {
     cardio_id: string | null;
     client_cardio:
@@ -310,6 +322,11 @@ export async function loadWatchToday(
       targetProtein: profile.target_protein ?? 150,
       targetCarbs: profile.target_carbs ?? 200,
       targetFat: profile.target_fat ?? 65,
+      meals: mealRows.map((meal) => ({
+        id: meal.id,
+        name: meal.name?.trim() || "Meal",
+        calories: Math.round(Number(meal.calories) || 0),
+      })),
     },
     steps: { goal: profile.step_goal ?? 10000 },
     water: {
@@ -909,10 +926,6 @@ export async function resetWatchCardio(
   return { today: await loadWatchToday(ctx, date) };
 }
 
-const WATCH_ALEX_TURN = `Apple Watch turn — you are the same Coach Alex as the rutina.al chat. Same client, same sarcastic gym-coach voice, same facts from the profile above.
-Say it the way you would text them between sets: dry, specific, human. One or two short sentences, so it fits a watch screen.
-No markdown, no lists, no links. No tools on this turn — do not mention Act mode, Confirm, or cards. Do not pretend you changed their plan.`;
-
 export async function askWatchAlex(
   ctx: WatchContext,
   date: string,
@@ -932,24 +945,60 @@ export async function askWatchAlex(
   const snapshot = context?.trim().slice(0, 500) || "";
 
   try {
-    const prepared = await prepareFitnessCoachChatMessages(
-      ctx.userId,
-      trimmed,
-      [],
-      [],
-      ctx.profile.preferred_locale,
-      null,
-      "ask"
-    );
-    if ("error" in prepared) return { error: prepared.error, status: 503 };
+    const [{ data: fullProfile }, { data: meals }, today] = await Promise.all([
+      ctx.admin.from("profiles").select("*").eq("id", ctx.userId).maybeSingle(),
+      ctx.admin
+        .from("daily_meal_logs")
+        .select("name, calories, protein, carbs, fat")
+        .eq("client_id", ctx.userId)
+        .eq("date", date),
+      loadWatchToday(ctx, date),
+    ]);
+    const profile = (fullProfile as Profile | null) ?? ctx.profile;
+    let intake = "";
+    try {
+      intake = buildIntakeContextForAi(profile);
+    } catch {
+      intake = `Name: ${profile.full_name ?? "Client"}. Targets: ${profile.target_calories ?? 0} kcal, ${profile.target_protein ?? 0}g protein.`;
+    }
+    const mealLines =
+      (meals ?? [])
+        .map((meal) => {
+          const name = typeof meal.name === "string" && meal.name.trim() ? meal.name.trim() : "Meal";
+          return `- ${name}: ${Math.round(Number(meal.calories) || 0)} kcal, ${Math.round(Number(meal.protein) || 0)}g protein, ${Math.round(Number(meal.carbs) || 0)}g carbs, ${Math.round(Number(meal.fat) || 0)}g fat`;
+        })
+        .join("\n") || "  (none logged yet today)";
+    const todayBlock = [
+      "TODAY (ground truth):",
+      `- Workout: ${today.workout.title ?? "rest day"} (${today.workout.status})`,
+      `- Calories: ${today.nutrition.calories}/${today.nutrition.targetCalories} kcal`,
+      `- Protein: ${today.nutrition.protein}/${today.nutrition.targetProtein}g`,
+      `- Carbs: ${today.nutrition.carbs}/${today.nutrition.targetCarbs}g`,
+      `- Fat: ${today.nutrition.fat}/${today.nutrition.targetFat}g`,
+      `- Water: ${today.water.ml}/${today.water.goalMl} ml`,
+      `- Cardio: ${today.cardio.title ?? "none"} (${today.cardio.status})`,
+      "TODAY'S LOGGED MEALS:",
+      mealLines,
+      snapshot ? `Watch screen right now: ${snapshot}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
 
-    const live = snapshot ? `\nWatch screen right now: ${snapshot}` : "";
-    const messages = prepared.messages.map((turn, index) => {
-      if (index !== 0 || turn.role !== "system") return turn;
-      return { ...turn, content: `${turn.content}\n\n${WATCH_ALEX_TURN}${live}` };
-    });
-    const draft = await runChatCompletion(messages, { maxTokens: 120, tier: "cheap" });
-    const reply = await maybeNaturalizeCoachReply(draft, ctx.profile.preferred_locale, {
+    const draft = await runChatCompletion(
+      [
+        {
+          role: "system",
+          content: buildWatchAlexSystemPrompt({
+            intakeContext: intake,
+            todayBlock,
+            preferredLocale: profile.preferred_locale,
+          }),
+        },
+        { role: "user", content: trimmed },
+      ],
+      { maxTokens: 120, tier: "cheap" }
+    );
+    const reply = await maybeNaturalizeCoachReply(draft, profile.preferred_locale, {
       maxTokens: 180,
     });
     await consumeAlexCommand(ctx.profile);
@@ -986,6 +1035,97 @@ export async function askWatchAlexFromAudio(
   return askWatchAlex(ctx, date, transcript.text, context);
 }
 
+export type LiveWorkoutCard = {
+  active: boolean;
+  exerciseName: string;
+  exerciseIndex: number;
+  exerciseCount: number;
+  gifUrl: string | null;
+  setId: string | null;
+  setNumber: number;
+  setCount: number;
+  reps: number;
+  weightKg: number;
+};
+
+function suggestedLiveReps(target: string | null): number {
+  const match = target?.match(/\d+/);
+  const reps = match ? Number(match[0]) : 8;
+  if (!Number.isFinite(reps) || reps < 1) return 8;
+  return Math.min(40, Math.round(reps));
+}
+
+function liveCard(
+  exercise: WatchExercise,
+  index: number,
+  count: number
+): LiveWorkoutCard {
+  return {
+    active: true,
+    exerciseName: exercise.name,
+    exerciseIndex: index,
+    exerciseCount: count,
+    gifUrl: exercise.gifUrl,
+    setId: exercise.openSetId,
+    setNumber: exercise.openSetNumber ?? Math.min(exercise.completedSets + 1, exercise.setCount),
+    setCount: exercise.setCount,
+    reps: exercise.lastReps ?? suggestedLiveReps(exercise.targetReps),
+    weightKg: exercise.lastWeightKg ?? 20,
+  };
+}
+
+const inactiveLiveCard: LiveWorkoutCard = {
+  active: false,
+  exerciseName: "",
+  exerciseIndex: 0,
+  exerciseCount: 0,
+  gifUrl: null,
+  setId: null,
+  setNumber: 0,
+  setCount: 0,
+  reps: 8,
+  weightKg: 20,
+};
+
+/** The set the Lock Screen and back-tap sheet should show for an in-progress workout. */
+export async function loadLiveWorkout(
+  ctx: WatchContext,
+  date: string,
+  exerciseIndex: number | null,
+  advance: boolean
+): Promise<{ live: LiveWorkoutCard }> {
+  const today = await loadWatchToday(ctx, date);
+  const exercises = today.workout.exercises;
+  if (
+    today.workout.status !== "in_progress" ||
+    today.workout.mode !== "strength" ||
+    !today.workout.canLogSets ||
+    exercises.length === 0
+  ) {
+    return { live: inactiveLiveCard };
+  }
+
+  let index =
+    exerciseIndex == null || !Number.isFinite(exerciseIndex)
+      ? exercises.findIndex((exercise) => exercise.openSetId)
+      : Math.min(Math.max(Math.round(exerciseIndex), 0), exercises.length - 1);
+  if (index < 0) index = 0;
+
+  if (advance && !exercises[index]?.openSetId) {
+    const next = exercises.findIndex(
+      (exercise, exerciseIndex) => exerciseIndex > index && exercise.openSetId
+    );
+    const any = exercises.findIndex((exercise) => exercise.openSetId);
+    if (next >= 0) index = next;
+    else if (any >= 0) index = any;
+    else return { live: inactiveLiveCard };
+  }
+
+  const exercise = exercises[index];
+  if (!exercise) return { live: inactiveLiveCard };
+  return { live: liveCard(exercise, index, exercises.length) };
+}
+
 export async function handleWatchAction(
   ctx: WatchContext,
   body: {
@@ -998,10 +1138,13 @@ export async function handleWatchAction(
     message?: unknown;
     audioBase64?: unknown;
     context?: unknown;
+    exerciseIndex?: unknown;
+    advance?: unknown;
   }
 ): Promise<
   | WatchResult
   | { reply: string }
+  | { live: LiveWorkoutCard }
   | { error: string; status?: number }
 > {
   const date = watchDateKey(body.date);
@@ -1012,6 +1155,15 @@ export async function handleWatchAction(
       return startWatchWorkout(ctx, date);
     case "workout.cancel":
       return cancelWatchWorkout(ctx, date);
+    case "workout.live": {
+      const raw = Number(body.exerciseIndex);
+      return loadLiveWorkout(
+        ctx,
+        date,
+        Number.isFinite(raw) ? raw : null,
+        body.advance === true
+      );
+    }
     case "workout.logSet":
       return logWatchSet(
         ctx,

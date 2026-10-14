@@ -509,6 +509,13 @@ export const platformCopyEn = {
     finishSet: (setNumber: number) => `Finish set ${setNumber}`,
     watchForm: "Watch form",
     nextExercise: "Finish set",
+    quickSet: "Current set",
+    nextExerciseAction: "Next exercise",
+    noWorkoutInProgress: "No workout is in progress.",
+    quickTimerWorkout: "This workout runs on a timer. Open it to keep going.",
+    openWorkout: "Open workout",
+    backTapHint:
+      "To open this from the back of your iPhone: Settings → Accessibility → Touch → Back Tap → Double or Triple Tap → Current set.",
     previousExercise: "Back",
     giveUp: "give up",
     logSet: "Log set",

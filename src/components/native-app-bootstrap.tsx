@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { NATIVE_APP_COOKIE } from "@/lib/native-app-request";
 import { createClient } from "@/lib/supabase/client";
+import { consumeQuickWorkoutOpen } from "@/lib/live-workout";
 import { syncWatchSession } from "@/lib/watch-session";
 
 type PullToRefreshBridge = {
@@ -102,14 +103,15 @@ export function NativeAppBootstrap() {
         }
         await SplashScreen.hide().catch(() => undefined);
 
-        const stateHandle = await App.addListener("appStateChange", ({ isActive }) => {
-          if (isActive) void syncWatchSession();
-        });
-        removeStateListener = () => {
-          void stateHandle.remove();
+        const openQuickSheet = async () => {
+          const pending = await consumeQuickWorkoutOpen();
+          if (!pending?.open) return;
+          const target = `/dashboard/workout/quick?exercise=${pending.exerciseIndex}`;
+          const current = `${window.location.pathname}${window.location.search}`;
+          if (current !== target) window.location.assign(target);
         };
 
-        const handle = await App.addListener("appUrlOpen", ({ url }) => {
+        const openDeepLink = (url: string) => {
           try {
             const parsed = new URL(url);
             const isOurs =
@@ -130,7 +132,26 @@ export function NativeAppBootstrap() {
           } catch {
             // ignore malformed deep links
           }
+        };
+
+        const stateHandle = await App.addListener("appStateChange", ({ isActive }) => {
+          if (!isActive) return;
+          void syncWatchSession();
+          void openQuickSheet();
         });
+        removeStateListener = () => {
+          void stateHandle.remove();
+        };
+
+        const handle = await App.addListener("appUrlOpen", ({ url }) => {
+          openDeepLink(url);
+        });
+        const launch = await App.getLaunchUrl();
+        if (launch?.url) openDeepLink(launch.url);
+        void openQuickSheet();
+        window.setTimeout(() => {
+          if (!cancelled) void openQuickSheet();
+        }, 800);
 
         removeUrlListener = () => {
           void handle.remove();

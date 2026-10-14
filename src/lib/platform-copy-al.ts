@@ -511,6 +511,13 @@ export const platformCopyAl = {
     finishSet: (setNumber: number) => `Përfundo serinë ${setNumber}`,
     watchForm: "Shiko formën",
     nextExercise: "Përfundo serinë",
+    quickSet: "Seria aktuale",
+    nextExerciseAction: "Ushtrimi tjetër",
+    noWorkoutInProgress: "Nuk ka stërvitje të nisur.",
+    quickTimerWorkout: "Kjo stërvitje ecën me kohëmatës. Hape për të vazhduar.",
+    openWorkout: "Hap stërvitjen",
+    backTapHint:
+      "Për ta hapur nga pjesa e pasme e iPhone: Settings → Accessibility → Touch → Back Tap → Double ose Triple Tap → Current set.",
     previousExercise: "Mbrapa",
     giveUp: "hiq dorë",
     logSet: "Regjistro serinë",

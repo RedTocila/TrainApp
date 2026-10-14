@@ -150,6 +150,12 @@ struct WatchWorkout: Decodable, Equatable {
     }
 }
 
+struct WatchMeal: Decodable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var calories: Int
+}
+
 struct WatchNutrition: Decodable, Equatable {
     var calories: Int
     var protein: Int
@@ -159,6 +165,25 @@ struct WatchNutrition: Decodable, Equatable {
     var targetProtein: Int
     var targetCarbs: Int
     var targetFat: Int
+    var meals: [WatchMeal]
+
+    enum CodingKeys: String, CodingKey {
+        case calories, protein, carbs, fat
+        case targetCalories, targetProtein, targetCarbs, targetFat, meals
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        calories = try container.decode(Int.self, forKey: .calories)
+        protein = try container.decode(Int.self, forKey: .protein)
+        carbs = try container.decode(Int.self, forKey: .carbs)
+        fat = try container.decode(Int.self, forKey: .fat)
+        targetCalories = try container.decode(Int.self, forKey: .targetCalories)
+        targetProtein = try container.decode(Int.self, forKey: .targetProtein)
+        targetCarbs = try container.decode(Int.self, forKey: .targetCarbs)
+        targetFat = try container.decode(Int.self, forKey: .targetFat)
+        meals = try container.decodeIfPresent([WatchMeal].self, forKey: .meals) ?? []
+    }
 }
 
 struct WatchSteps: Decodable, Equatable {
@@ -235,9 +260,16 @@ enum WatchAPI {
         let decoded = try? JSONDecoder().decode(WatchActionResponse.self, from: data)
 
         if status == 401, retry {
+            if await WatchSessionBridge.shared.refreshSession() {
+                return try await post(body, retry: false)
+            }
             let refreshed = await WatchSessionBridge.shared.requestCredentialsFromPhone()
             if refreshed {
-                return try await post(body, retry: false)
+                _ = await WatchSessionBridge.shared.refreshSession()
+                let usable = await WatchSessionBridge.shared.credentials?.isUsable == true
+                if usable {
+                    return try await post(body, retry: false)
+                }
             }
             throw WatchAPIError.signedOut
         }

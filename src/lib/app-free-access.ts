@@ -6,8 +6,11 @@ import type { Profile } from "@/lib/types";
  */
 export const NATIVE_APP_FREE = true;
 
-/** When true, the native app hides the challenges entry and blocks challenge routes. */
-export const NATIVE_HIDE_CHALLENGES = false;
+/**
+ * When true, the native app hides the challenges entry and blocks challenge routes.
+ * Temporary for App Store review — turn this off when challenges go back in.
+ */
+export const NATIVE_HIDE_CHALLENGES = true;
 
 /**
  * Sentinel expiry written for free-app Elite grants. Paid subscriptions always carry a
