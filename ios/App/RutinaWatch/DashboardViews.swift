@@ -3,12 +3,30 @@ import HealthKit
 
 @MainActor
 final class WatchDashboardModel: ObservableObject {
+    static weak var current: WatchDashboardModel?
+
     @Published var today: WatchToday?
     @Published var steps: Int?
     @Published var error: String?
     @Published var notice: String?
     @Published var busy = false
     @Published var fetchedAt = Date()
+    @Published var mirrorGeneration = 0
+    @Published var mirrorAction = ""
+    @Published var remoteStamp = 0
+    @Published var liveIndex = 0
+    @Published var liveReps = 8
+    @Published var liveWeight = 20.0
+    @Published var liveSetId = ""
+
+    private var lastMirrorSeq = 0
+    private var lastSentKey = ""
+    private var echoing = false
+    private var mirrorTask: Task<Void, Never>?
+
+    init() {
+        WatchDashboardModel.current = self
+    }
 
     private let health = HKHealthStore()
 
@@ -49,6 +67,7 @@ final class WatchDashboardModel: ObservableObject {
         WatchTone.prepare()
         WatchTone.playStart()
         armHiitTicker()
+        broadcast("hiit")
         if today?.workout.status != "in_progress" {
             Task { await startWorkout() }
         }
@@ -59,6 +78,7 @@ final class WatchDashboardModel: ObservableObject {
         hiitLeft = hiitPausedLeft
         hiitRunning = false
         hiitEndsAt = nil
+        broadcast("hiit")
     }
 
     func endHiit() {
@@ -78,6 +98,7 @@ final class WatchDashboardModel: ObservableObject {
         hiitBeepSecond = nil
         WatchTone.prepare()
         armHiitTicker()
+        broadcast("hiit")
     }
 
     func skipHiit() {
@@ -134,6 +155,125 @@ final class WatchDashboardModel: ObservableObject {
             hiitEndsAt = Date().addingTimeInterval(TimeInterval(seconds))
         }
         WatchTone.playPhase(phases[next].type)
+        broadcast("hiit")
+    }
+
+    /// Starts the session on the watch and tells the iPhone immediately.
+    func beginFromWatch() {
+        if hiitPhases.isEmpty {
+            Task { await startWorkout() }
+        } else {
+            startHiit()
+        }
+        broadcast("start")
+    }
+
+    func noteSet(index: Int, setId: String, reps: Int, weight: Double) {
+        liveIndex = index
+        liveSetId = setId
+        liveReps = reps
+        liveWeight = weight
+        let key = mirrorKey(action: "move")
+        guard key != lastSentKey else { return }
+        mirrorTask?.cancel()
+        mirrorTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(90))
+            guard !Task.isCancelled else { return }
+            self?.broadcast("move")
+        }
+    }
+
+    func applyMirror(_ payload: [String: Any]) {
+        guard payload["origin"] as? String == "phone" else { return }
+        let seq = Self.mirrorInt(payload["seq"])
+        if seq > 0, seq <= lastMirrorSeq { return }
+        if seq > 0 { lastMirrorSeq = seq }
+        let action = payload["action"] as? String ?? "move"
+        echoing = true
+        defer { echoing = false }
+
+        if action == "move" || action == "log" {
+            liveIndex = Self.mirrorInt(payload["exerciseIndex"], fallback: liveIndex)
+            liveReps = max(1, Self.mirrorInt(payload["reps"], fallback: liveReps))
+            liveWeight = Self.mirrorDouble(payload["weightKg"], fallback: liveWeight)
+            if let setId = payload["setId"] as? String, !setId.isEmpty {
+                liveSetId = setId
+            }
+            remoteStamp += 1
+        }
+        lastSentKey = mirrorKey(action: action)
+
+        if payload["mode"] as? String == "hiit" || action == "hiit" {
+            let index = Self.mirrorInt(payload["hiitIndex"])
+            let running = (payload["hiitRunning"] as? Bool) ?? (payload["hiitRunning"] as? NSNumber)?.boolValue ?? false
+            let left = Self.mirrorInt(payload["hiitLeft"])
+            let ends = Self.mirrorDouble(payload["hiitEndsAt"])
+            if hiitPhases.indices.contains(index) || action == "start" {
+                hiitIndex = index
+                hiitRunning = running
+                hiitLeft = left
+                hiitPausedLeft = left
+                hiitBeepSecond = nil
+                if running, ends > 0 {
+                    hiitEndsAt = Date(timeIntervalSince1970: ends)
+                    armHiitTicker()
+                } else {
+                    hiitEndsAt = nil
+                }
+            }
+        }
+
+        mirrorAction = action
+        mirrorGeneration += 1
+
+        if action == "cancel" {
+            endHiit()
+            Task { await refresh() }
+        } else if action == "start" || action == "log" {
+            Task { await refresh() }
+        }
+    }
+
+    private func broadcast(_ action: String) {
+        guard !echoing else { return }
+        let key = mirrorKey(action: action)
+        if action == "move", key == lastSentKey { return }
+        lastSentKey = key
+        var payload: [String: Any] = [
+            "status": action == "cancel" ? "idle" : "live",
+            "mode": hiitPhases.isEmpty ? "strength" : "hiit",
+            "action": action,
+            "exerciseIndex": liveIndex,
+            "setId": liveSetId,
+            "reps": liveReps,
+            "weightKg": liveWeight,
+            "hiitIndex": hiitIndex,
+            "hiitRunning": hiitRunning,
+            "hiitLeft": hiitRunning ? hiitRemaining() : hiitLeft,
+            "hiitEndsAt": hiitEndsAt?.timeIntervalSince1970 ?? 0,
+            "sessionId": today?.workout.sessionId ?? ""
+        ]
+        payload["channel"] = "workout"
+        WatchSessionBridge.shared.sendWorkout(payload)
+    }
+
+    private func mirrorKey(action: String) -> String {
+        let weight = String(format: "%.1f", liveWeight)
+        return "\(action)|\(liveIndex)|\(liveSetId)|\(liveReps)|\(weight)|\(hiitIndex)|\(hiitRunning)|\(hiitLeft)"
+    }
+
+    private static func mirrorInt(_ value: Any?, fallback: Int = 0) -> Int {
+        if let number = value as? Int { return number }
+        if let number = value as? Double { return Int(number.rounded()) }
+        if let number = value as? NSNumber { return number.intValue }
+        return fallback
+    }
+
+    private static func mirrorDouble(_ value: Any?, fallback: Double = 0) -> Double {
+        if let number = value as? Double { return number }
+        if let number = value as? Int { return Double(number) }
+        if let number = value as? NSNumber { return number.doubleValue }
+        return fallback
     }
 
     func refresh() async {
@@ -162,6 +302,8 @@ final class WatchDashboardModel: ObservableObject {
     }
 
     func cancelWorkout() async {
+        broadcast("cancel")
+        endHiit()
         await mutate("workout.cancel")
     }
 
@@ -171,7 +313,11 @@ final class WatchDashboardModel: ObservableObject {
     }
 
     func logSet(setId: String, reps: Int, weight: Double) async {
+        liveSetId = setId
+        liveReps = reps
+        liveWeight = weight
         markSetDone(setId, reps: reps, weight: weight)
+        broadcast("log")
         await mutate("workout.logSet", extra: [
             "setId": setId,
             "reps": reps,
@@ -432,89 +578,278 @@ private struct DashLabel: View {
     }
 }
 
+private enum DashRoute: Hashable {
+    case workout, nutrition, water, cardio, steps
+}
+
+private struct DeckItem: Identifiable {
+    var id: DashRoute
+    var title: String
+    var detail: String
+    var symbol: String
+    var accent: Color
+    var onLight = false
+}
+
+private struct FocusDeck: View {
+    var items: [DeckItem]
+    var enabled: Bool
+    var onOpen: (DeckItem) -> Void
+    @State private var focus: Double = 0
+    @State private var dragBase: Double = 0
+    @State private var dragging = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let count = max(items.count, 1)
+            let large = geo.size.height * 0.62
+            let small = max(58, geo.size.height * 0.3)
+            let spacing: CGFloat = 8
+            let heights: [CGFloat] = items.indices.map { index in
+                let delta = min(1, abs(Double(index) - focus))
+                return small + (large - small) * CGFloat(1 - delta)
+            }
+            let offset: CGFloat = {
+                let base = min(max(Int(floor(focus)), 0), max(items.count - 1, 0))
+                let frac = CGFloat(focus - Double(base))
+                var y: CGFloat = 0
+                if base > 0 {
+                    for index in 0..<base where index < heights.count {
+                        y += heights[index] + spacing
+                    }
+                }
+                if base < heights.count {
+                    y += frac * (heights[base] + spacing)
+                }
+                return y
+            }()
+
+            VStack(spacing: spacing) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    DeckCard(item: item, focused: abs(Double(index) - focus) < 0.42) {
+                        onOpen(item)
+                    }
+                    .frame(height: heights[index])
+                }
+            }
+            .offset(y: -offset)
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+            .clipped()
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 12)
+                    .onChanged { value in
+                        if !dragging {
+                            dragging = true
+                            dragBase = focus
+                        }
+                        let travel = max(large * 0.72, 70)
+                        let next = dragBase - Double(value.translation.height / travel)
+                        focus = min(Double(count - 1), max(0, next))
+                    }
+                    .onEnded { value in
+                        dragging = false
+                        let flick = Double(value.predictedEndTranslation.height - value.translation.height) / 500
+                        let snapped = min(Double(count - 1), max(0, (focus - flick).rounded()))
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                            focus = snapped
+                        }
+                    }
+            )
+            .focusable(true)
+            .digitalCrownRotation(
+                $focus,
+                from: 0,
+                through: Double(max(items.count - 1, 0)),
+                by: 0.01,
+                sensitivity: .medium,
+                isContinuous: false,
+                isHapticFeedbackEnabled: true
+            )
+        }
+        .opacity(enabled ? 1 : 0.45)
+    }
+}
+
+private struct DeckCard: View {
+    var item: DeckItem
+    var focused: Bool
+    var action: () -> Void
+
+    var body: some View {
+        let ink: Color = item.onLight ? Color(red: 0.09, green: 0.11, blue: 0.06) : .white
+        Button(action: action) {
+            ZStack(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [item.accent, item.accent.opacity(0.78)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                VStack(alignment: .leading, spacing: focused ? 5 : 2) {
+                    Image(systemName: item.symbol)
+                        .font(.system(size: focused ? 28 : 18, weight: .bold))
+                        .foregroundStyle(ink)
+                    Spacer(minLength: 0)
+                    Text(item.title)
+                        .font(.system(size: focused ? 20 : 15, weight: .bold))
+                        .foregroundStyle(ink)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                    Text(item.detail)
+                        .font(.system(size: focused ? 13 : 11, weight: .semibold))
+                        .foregroundStyle(ink.opacity(0.9))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .padding(.horizontal, focused ? 12 : 9)
+                .padding(.vertical, focused ? 12 : 8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+
+                Image(systemName: "ellipsis")
+                    .font(.system(size: focused ? 13 : 11, weight: .black))
+                    .foregroundStyle(item.accent)
+                    .frame(width: focused ? 28 : 22, height: focused ? 28 : 22)
+                    .background(Circle().fill(ink.opacity(0.94)))
+                    .padding(8)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct StartCountdown: View {
+    var title: String
+    var symbol: String
+    var accent: Color
+    var value: Int
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack {
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(accent)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(accent.opacity(0.2)))
+                Spacer(minLength: 0)
+            }
+            Spacer(minLength: 0)
+            ZStack {
+                Circle().stroke(accent.opacity(0.22), lineWidth: 12)
+                Circle()
+                    .trim(from: 0, to: CGFloat(max(value, 0)) / 3)
+                    .stroke(accent, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 0.85), value: value)
+                Text("\(max(value, 1))")
+                    .font(.system(size: 58, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 14)
+            .aspectRatio(1, contentMode: .fit)
+            Spacer(minLength: 0)
+            Text(title)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+        }
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(WatchTheme.ink)
+    }
+}
+
 struct DashboardView: View {
     @EnvironmentObject private var session: WatchSessionBridge
     @EnvironmentObject private var model: WatchDashboardModel
+    @State private var route: DashRoute?
+    @State private var countdown: Int?
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 6) {
-                header
-                ScrollView {
-                    VStack(spacing: 8) {
-                        destination { WorkoutWatchView() } label: {
-                            DashCard(accent: WatchTheme.red, done: workoutState.done, tracked: workoutState.tracked) {
-                                DashLabel(
-                                    title: "Workout",
-                                    detail: workoutDetail,
-                                    symbol: "dumbbell.fill",
-                                    accent: WatchTheme.red
-                                )
-                            }
-                        }
-                        destination { NutritionWatchView() } label: {
-                            DashCard(accent: WatchTheme.nutrition, done: nutritionDone) {
-                                DashLabel(
-                                    title: "Nutrition",
-                                    detail: nutritionDetail,
-                                    symbol: "fork.knife",
-                                    accent: WatchTheme.nutrition
-                                )
-                            }
-                        }
-                        destination { WaterWatchView() } label: {
-                            DashCard(accent: WatchTheme.water, done: waterDone) {
-                                waterPreview
-                            }
-                        }
-                        Color.clear
-                            .aspectRatio(2.08, contentMode: .fit)
-                            .overlay {
-                                GeometryReader { geo in
-                                    let side = (geo.size.width - 8) / 2
-                                    HStack(spacing: 8) {
-                                        destination { CardioWatchView() } label: {
-                                            TimelineView(.periodic(from: .now, by: 1)) { _ in
-                                                DashCard(
-                                                    accent: WatchTheme.cardio,
-                                                    done: cardioState.done,
-                                                    tracked: cardioState.tracked,
-                                                    square: true
-                                                ) {
-                                                    squareTile(
-                                                        "Cardio",
-                                                        detail: cardioDetail,
-                                                        symbol: "figure.run",
-                                                        accent: WatchTheme.cardio
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        .frame(width: side, height: side)
-                                        destination { StepsWatchView() } label: {
-                                            DashCard(accent: WatchTheme.steps, done: stepsDone, square: true) {
-                                                squareTile(
-                                                    "Steps",
-                                                    detail: stepsDetail,
-                                                    symbol: "shoeprints.fill",
-                                                    accent: WatchTheme.steps
-                                                )
-                                            }
-                                        }
-                                        .frame(width: side, height: side)
-                                    }
-                                }
-                            }
-                    }
-                    .padding(.bottom, 10)
+            ZStack {
+                VStack(spacing: 2) {
+                    header
+                    FocusDeck(items: deckItems, enabled: session.credentials?.isUsable == true, onOpen: open)
+                        .frame(maxHeight: .infinity)
                 }
-                .scrollIndicators(.hidden)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if let countdown {
+                    StartCountdown(
+                        title: model.today?.workout.title ?? "Workout",
+                        symbol: (model.today?.workout.phases.isEmpty == false) ? "timer" : "dumbbell.fill",
+                        accent: WatchTheme.red,
+                        value: countdown
+                    )
+                    .transition(.opacity)
+                }
             }
             .padding(.horizontal, 2)
             .toolbar(.hidden, for: .navigationBar)
             .containerBackground(WatchTheme.ink, for: .navigation)
+            .navigationDestination(item: $route) { dest in
+                switch dest {
+                case .workout:
+                    WorkoutWatchView()
+                case .nutrition:
+                    NutritionWatchView()
+                case .water:
+                    WaterWatchView()
+                case .cardio:
+                    CardioWatchView()
+                case .steps:
+                    StepsWatchView()
+                }
+            }
         }
         .tint(WatchTheme.red)
+        .onChange(of: model.mirrorGeneration) { _, _ in
+            if model.mirrorAction == "cancel", route == .workout {
+                countdown = nil
+                route = nil
+            } else if model.mirrorAction == "start" {
+                countdown = nil
+                route = .workout
+            }
+        }
+        .task(id: countdown) {
+            guard let countdown else { return }
+            WatchTone.prepare()
+            WatchTone.countdown(countdown)
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, self.countdown == countdown else { return }
+            if countdown <= 1 {
+                self.countdown = nil
+                route = .workout
+                model.beginFromWatch()
+            } else {
+                self.countdown = countdown - 1
+            }
+        }
+    }
+
+    private var deckItems: [DeckItem] {
+        let water = model.today?.water
+        return [
+            DeckItem(id: .workout, title: "Workout", detail: workoutDetail, symbol: "dumbbell.fill", accent: WatchTheme.red),
+            DeckItem(id: .nutrition, title: "Nutrition", detail: nutritionDetail, symbol: "fork.knife", accent: WatchTheme.nutrition),
+            DeckItem(id: .water, title: "Water", detail: WatchTheme.milliliters(water?.ml ?? 0), symbol: "drop.fill", accent: WatchTheme.water),
+            DeckItem(id: .cardio, title: "Cardio", detail: cardioDetail, symbol: "figure.run", accent: WatchTheme.cardio),
+            DeckItem(id: .steps, title: "Steps", detail: stepsDetail, symbol: "shoeprints.fill", accent: WatchTheme.steps, onLight: true)
+        ]
+    }
+
+    private func open(_ item: DeckItem) {
+        guard session.credentials?.isUsable == true else { return }
+        if item.id == .workout, model.today?.workout.status == "scheduled" {
+            countdown = 3
+            return
+        }
+        route = item.id
     }
 
     private var workoutState: (tracked: Bool, done: Bool) {

@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { NATIVE_APP_COOKIE } from "@/lib/native-app-request";
 import { createClient } from "@/lib/supabase/client";
-import { consumeQuickWorkoutOpen } from "@/lib/live-workout";
-import { syncWatchSession } from "@/lib/watch-session";
+import { consumeQuickWorkoutOpen, endLiveWorkoutIfIdle } from "@/lib/live-workout";
+import { subscribeWorkoutMirror, syncWatchSession } from "@/lib/watch-session";
 
 type PullToRefreshBridge = {
   postMessage: (message: { enabled: boolean }) => void;
@@ -74,6 +74,25 @@ export function NativeAppBootstrap() {
 
     document.cookie = `${NATIVE_APP_COOKIE}=1; path=/; max-age=31536000; secure; samesite=lax`;
     void syncWatchSession();
+    void endLiveWorkoutIfIdle();
+
+    const stopMirror = subscribeWorkoutMirror((event) => {
+      if (event.action !== "start") return;
+      void (async () => {
+        const { getInProgressSession } = await import("@/lib/actions/workout-sessions");
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          const live = await getInProgressSession();
+          if (live?.id) {
+            const path = `/dashboard/workout/session/${live.id}`;
+            if (!window.location.pathname.startsWith(path)) {
+              window.location.assign(path);
+            }
+            return;
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 350));
+        }
+      })();
+    });
 
     const supabase = createClient();
     const { data: authListener } = supabase.auth.onAuthStateChange(() => {
@@ -138,6 +157,7 @@ export function NativeAppBootstrap() {
           if (!isActive) return;
           void syncWatchSession();
           void openQuickSheet();
+          void endLiveWorkoutIfIdle();
         });
         removeStateListener = () => {
           void stateHandle.remove();
@@ -163,6 +183,7 @@ export function NativeAppBootstrap() {
 
     return () => {
       cancelled = true;
+      stopMirror();
       authListener.subscription.unsubscribe();
       removeStateListener?.();
       removeUrlListener?.();

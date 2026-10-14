@@ -151,13 +151,57 @@ final class WatchSessionBridge: NSObject, WCSessionDelegate, ObservableObject {
         }
     }
 
+    func sendWorkout(_ payload: [String: Any]) {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+        var message = payload
+        message["channel"] = "workout"
+        message["origin"] = "watch"
+        if message["seq"] == nil {
+            message["seq"] = Int(Date().timeIntervalSince1970 * 1000)
+        }
+        if session.isReachable {
+            session.sendMessage(message, replyHandler: { _ in }, errorHandler: { _ in
+                session.transferUserInfo(message)
+            })
+        } else {
+            session.transferUserInfo(message)
+        }
+    }
+
     nonisolated func session(
         _ session: WCSession,
         didReceiveApplicationContext applicationContext: [String: Any]
     ) {
         Task { @MainActor in
-            self.apply(applicationContext)
+            self.deliver(applicationContext)
         }
+    }
+
+    nonisolated func session(
+        _ session: WCSession,
+        didReceiveMessage message: [String: Any],
+        replyHandler: @escaping ([String: Any]) -> Void
+    ) {
+        replyHandler(["ok": true])
+        Task { @MainActor in
+            self.deliver(message)
+        }
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        Task { @MainActor in
+            self.deliver(userInfo)
+        }
+    }
+
+    private func deliver(_ payload: [String: Any]) {
+        if payload["channel"] as? String == "workout" {
+            WatchDashboardModel.current?.applyMirror(payload)
+            return
+        }
+        apply(payload)
     }
 }
 

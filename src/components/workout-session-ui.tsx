@@ -179,7 +179,7 @@ export function SessionMediaStage({
           fill && "flex min-h-0 flex-1 flex-col"
         )}
       >
-        <div className={cn("relative z-0", fill && "min-h-0 flex-1")}>
+        <div className={cn("relative z-0", fill && "flex h-full min-h-0 flex-1 flex-col")}>
           {children}
         </div>
         {sideActions ? (

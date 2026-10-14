@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowUp,
@@ -344,6 +344,10 @@ function ChatCommandBar({
   const locale = useLocale();
   const ai = platform.ai;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const mirrorRef = useRef<HTMLDivElement>(null);
+  const pillWidthRef = useRef(0);
+  const multilineRef = useRef(false);
   const [isMultiline, setIsMultiline] = useState(false);
   const isAct = chatMode === "act";
   const voice = useVoiceDictation({
@@ -368,6 +372,26 @@ function ChatCommandBar({
     !isStreaming &&
     (voice.isActive || voice.isBusy || !hasDraft);
   const composerLocked = disabled || isStreaming || voice.isBusy;
+
+  // Wrap is measured at the single-line slot width so growing into the
+  // rectangle does not immediately measure as one line and snap back.
+  useLayoutEffect(() => {
+    const mirror = mirrorRef.current;
+    const slot = slotRef.current;
+    if (!mirror || !slot) return;
+    if (!multilineRef.current && slot.clientWidth > 0) {
+      pillWidthRef.current = slot.clientWidth;
+    }
+    const width = pillWidthRef.current || slot.clientWidth;
+    if (width <= 0) return;
+    mirror.style.width = `${width}px`;
+    const text = input.replace(/\n$/, "");
+    mirror.textContent = text.length ? text : " ";
+    const needsTwo = text.includes("\n") || mirror.scrollHeight > 37;
+    if (needsTwo === multilineRef.current) return;
+    multilineRef.current = needsTwo;
+    setIsMultiline(needsTwo);
+  }, [input]);
   // Match Cursor-style Ask greens: dark forest pill + solid mint send.
   const actionBtnTone = isAct
     ? "bg-red-600 text-white shadow-[0_0_14px_rgba(220,38,38,0.4)]"
@@ -375,7 +399,19 @@ function ChatCommandBar({
 
   if (minimal) {
     return (
-      <form onSubmit={onSubmit} className="min-w-0 w-full space-y-2">
+      <form onSubmit={onSubmit} className="relative min-w-0 w-full space-y-2">
+        <div
+          ref={mirrorRef}
+          aria-hidden
+          className="chat-command-editable pointer-events-none fixed top-0 -left-[9999px]"
+          style={{
+            minHeight: 0,
+            maxHeight: "none",
+            height: "auto",
+            overflow: "visible",
+            visibility: "hidden",
+          }}
+        />
         {attachmentPreviewUrl && (
           <div className="flex items-center gap-2 px-1">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-border/70 bg-secondary/40">
@@ -399,8 +435,10 @@ function ChatCommandBar({
         )}
         <div
           className={cn(
-            "chat-composer-minimal grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 px-1.5 py-1.5",
-            isMultiline && "items-end"
+            "chat-composer-minimal grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-1.5 overflow-hidden px-1.5 py-1.5",
+            isMultiline
+              ? "chat-composer-minimal--multiline items-end rounded-[1.35rem]"
+              : "items-center rounded-full"
           )}
         >
           <button
@@ -410,8 +448,8 @@ function ChatCommandBar({
             aria-label={isAct ? modeActAria : modeAskAria}
             title={isAct ? modeActAria : modeAskAria}
             className={cn(
-              "col-start-1 flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
-              isMultiline && "mb-0.5",
+              "flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+              isMultiline ? "col-start-1 row-start-2" : "col-start-1 row-start-1",
               isAct
                 ? "bg-primary/15 text-primary hover:bg-primary/20"
                 : "bg-[#1B3326] text-[#62C471] hover:bg-[#243d30]"
@@ -424,7 +462,15 @@ function ChatCommandBar({
             )}
             <span>{isAct ? modeActLabel : modeAskLabel}</span>
           </button>
-          <div className="relative col-start-2 row-start-1 min-w-0 self-center">
+          <div
+            ref={slotRef}
+            className={cn(
+              "relative min-w-0",
+              isMultiline
+                ? "col-span-full row-start-1 w-full self-stretch px-1"
+                : "col-start-2 row-start-1 self-center"
+            )}
+          >
             <ChatCommandInput
               value={input}
               onChange={onInputChange}
@@ -439,8 +485,7 @@ function ChatCommandBar({
                       : placeholder
               }
               disabled={composerLocked}
-              onMultilineChange={setIsMultiline}
-              className="chat-command-input-wrap min-w-0 border-0 bg-transparent px-1"
+              className="chat-command-input-wrap w-full min-w-0 border-0 bg-transparent text-white"
             />
           </div>
           <input
@@ -461,8 +506,8 @@ function ChatCommandBar({
             disabled={composerLocked || voice.isActive}
             aria-label={attachAriaLabel}
             className={cn(
-              "col-start-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-45",
-              isMultiline && "mb-0.5"
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-45",
+              isMultiline ? "col-start-3 row-start-2" : "col-start-3 row-start-1"
             )}
           >
             <Camera className="h-4 w-4" strokeWidth={2} />
@@ -474,8 +519,8 @@ function ChatCommandBar({
               aria-label={stopAriaLabel}
               title={stopAriaLabel}
               className={cn(
-                "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition hover:opacity-90",
-                isMultiline && "mb-0.5"
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.45)] transition hover:opacity-90",
+                isMultiline ? "col-start-4 row-start-2" : "col-start-4 row-start-1"
               )}
             >
               <Square className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
@@ -488,8 +533,8 @@ function ChatCommandBar({
               aria-label={voiceAria}
               title={voiceAria}
               className={cn(
-                "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition hover:opacity-90",
-                isMultiline && "mb-0.5",
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.45)] transition hover:opacity-90",
+                isMultiline ? "col-start-4 row-start-2" : "col-start-4 row-start-1",
                 disabled || voice.isBusy
                   ? "cursor-not-allowed opacity-45"
                   : ""
@@ -512,8 +557,8 @@ function ChatCommandBar({
               disabled={!canSend}
               aria-label={sendAriaLabel}
               className={cn(
-                "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black transition hover:opacity-90",
-                isMultiline && "mb-0.5",
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_0_14px_rgba(var(--primary-rgb),0.45)] transition hover:opacity-90",
+                isMultiline ? "col-start-4 row-start-2" : "col-start-4 row-start-1",
                 !canSend && "cursor-not-allowed opacity-45"
               )}
             >
@@ -550,8 +595,8 @@ function ChatCommandBar({
       )}
       <div
         className={cn(
-          "chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 border border-border/70 bg-secondary/60 p-1.5 pl-2 shadow-sm backdrop-blur-sm transition-[border-radius,box-shadow,border-color] duration-200",
-          isMultiline ? "rounded-2xl items-end" : "rounded-full",
+          "chat-command-shell grid w-full max-w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-1.5 border border-border/70 bg-secondary/60 p-1.5 pl-2 shadow-sm backdrop-blur-sm transition-[border-radius,box-shadow,border-color] duration-200",
+          isMultiline ? "items-end rounded-[1.35rem]" : "items-center rounded-full",
           voice.isActive
             ? isAct
               ? "overflow-visible border-red-500/50 shadow-[0_0_0_1px_rgba(220,38,38,0.18),0_0_18px_rgba(220,38,38,0.22)]"
@@ -566,8 +611,8 @@ function ChatCommandBar({
           aria-label={isAct ? modeActAria : modeAskAria}
           title={isAct ? modeActAria : modeAskAria}
           className={cn(
-            "col-start-1 flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
-            isMultiline && "mb-0.5",
+            "flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+            isMultiline ? "col-start-1 row-start-2" : "col-start-1 row-start-1",
             isAct
               ? "bg-primary/15 text-primary hover:bg-primary/20"
               : "bg-[#1B3326] text-[#62C471] hover:bg-[#243d30]"
@@ -580,7 +625,14 @@ function ChatCommandBar({
           )}
           <span>{isAct ? modeActLabel : modeAskLabel}</span>
         </button>
-        <div className="relative col-start-2 row-start-1 min-w-0 self-center">
+        <div
+          className={cn(
+            "relative min-w-0",
+            isMultiline
+              ? "col-span-full row-start-1 w-full self-stretch px-1"
+              : "col-start-2 row-start-1 self-center"
+          )}
+        >
           <ChatCommandInput
             value={input}
             onChange={onInputChange}
@@ -597,7 +649,7 @@ function ChatCommandBar({
             disabled={composerLocked}
             onMultilineChange={setIsMultiline}
             className={cn(
-              "chat-command-input-wrap min-w-0",
+              "chat-command-input-wrap min-w-0 text-foreground",
               voice.isActive && "pr-6"
             )}
           />
@@ -634,8 +686,8 @@ function ChatCommandBar({
           disabled={composerLocked || voice.isActive}
           aria-label={attachAriaLabel}
           className={cn(
-            "col-start-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45",
-            isMultiline && "mb-0.5"
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45",
+            isMultiline ? "col-start-3 row-start-2" : "col-start-3 row-start-1"
           )}
         >
           <Paperclip className="h-4 w-4" strokeWidth={2} />
@@ -647,9 +699,9 @@ function ChatCommandBar({
             aria-label={stopAriaLabel}
             title={stopAriaLabel}
             className={cn(
-              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-90",
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-90",
               actionBtnTone,
-              isMultiline && "mb-0.5"
+              isMultiline ? "col-start-4 row-start-2" : "col-start-4 row-start-1"
             )}
           >
             <Square className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
@@ -662,9 +714,9 @@ function ChatCommandBar({
             aria-label={voiceAria}
             title={voiceAria}
             className={cn(
-              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity",
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity",
               actionBtnTone,
-              isMultiline && "mb-0.5",
+              isMultiline ? "col-start-4 row-start-2" : "col-start-4 row-start-1",
               voice.isActive &&
                 (isAct ? "chat-voice-active chat-voice-active--act" : "chat-voice-active chat-voice-active--ask"),
               disabled || voice.isBusy
@@ -689,9 +741,9 @@ function ChatCommandBar({
             disabled={!canSend}
             aria-label={sendAriaLabel}
             className={cn(
-              "col-start-4 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity",
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity",
               actionBtnTone,
-              isMultiline && "mb-0.5",
+              isMultiline ? "col-start-4 row-start-2" : "col-start-4 row-start-1",
               canSend ? "hover:opacity-90" : "cursor-not-allowed opacity-45"
             )}
           >

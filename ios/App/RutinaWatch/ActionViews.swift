@@ -7,39 +7,67 @@ import WatchKit
 enum WatchTone {
     private static let engine = AVAudioEngine()
     private static let player = AVAudioPlayerNode()
-    private static var started = false
+    private static let queue = DispatchQueue(label: "al.rutina.watch.tone")
+    private static let sampleRate = 44_100.0
+    private static var format: AVAudioFormat?
+    private static var attached = false
 
     static func prepare() {
-        guard !started else { return }
+        queue.async { ensureEngine() }
+    }
+
+    /// Keeps the engine running and plays each beep after it is queued.
+    /// Starting playback on an empty queue made every beep after the first silent.
+    private static func ensureEngine() {
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
         try? session.setActive(true)
-        guard let format = AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1) else { return }
-        engine.attach(player)
-        engine.connect(player, to: engine.mainMixerNode, format: format)
-        engine.prepare()
-        try? engine.start()
-        started = engine.isRunning
+        let fmt = format ?? AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)
+        format = fmt
+        guard let fmt else { return }
+        if !attached {
+            engine.attach(player)
+            engine.connect(player, to: engine.mainMixerNode, format: fmt)
+            attached = true
+        }
+        if !engine.isRunning {
+            engine.prepare()
+            try? engine.start()
+        }
     }
 
     static func tone(_ frequency: Double, milliseconds: Double) {
-        prepare()
-        WKInterfaceDevice.current().play(.click)
-        guard
-            let format = AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1),
-            let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(16_000 * milliseconds / 1000))
-        else { return }
-        buffer.frameLength = buffer.frameCapacity
-        let data = buffer.floatChannelData?[0]
-        let frames = Int(buffer.frameLength)
-        let step = 2 * Double.pi * frequency / 16_000
-        for index in 0..<frames {
-            let attack = min(1, Double(index) / 40)
-            let release = min(1, Double(frames - index) / 40)
-            data?[index] = Float(sin(step * Double(index)) * 0.4 * attack * release)
+        DispatchQueue.main.async {
+            WKInterfaceDevice.current().play(.click)
         }
-        if !player.isPlaying { player.play() }
-        player.scheduleBuffer(buffer, completionHandler: nil)
+        queue.async {
+            ensureEngine()
+            guard
+                let fmt = format,
+                let buffer = AVAudioPCMBuffer(
+                    pcmFormat: fmt,
+                    frameCapacity: AVAudioFrameCount(sampleRate * milliseconds / 1000)
+                ),
+                let data = buffer.floatChannelData?[0]
+            else { return }
+            buffer.frameLength = buffer.frameCapacity
+            let frames = Int(buffer.frameLength)
+            let step = 2 * Double.pi * frequency / sampleRate
+            for index in 0..<frames {
+                let attack = min(1, Double(index) / 80)
+                let release = min(1, Double(frames - index) / 100)
+                data[index] = Float(sin(step * Double(index)) * 0.62 * attack * release)
+            }
+            if !engine.isRunning {
+                try? engine.start()
+            }
+            player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+            player.play()
+        }
+    }
+
+    static func countdown(_ secondsLeft: Int) {
+        tone(secondsLeft <= 1 ? 980 : 760, milliseconds: 150)
     }
 
     static func tick(_ secondsLeft: Int) {
@@ -73,6 +101,7 @@ enum WatchTone {
 struct WorkoutWatchView: View {
     @EnvironmentObject private var model: WatchDashboardModel
     @State private var index = 0
+    @State private var applyingRemote = false
 
     private var interval: Bool {
         !(model.today?.workout.phases.isEmpty ?? true)
@@ -118,6 +147,26 @@ struct WorkoutWatchView: View {
         .containerBackground(WatchTheme.ink, for: .navigation)
         .onChange(of: pages.count) { _, count in
             if index >= count { index = max(0, count - 1) }
+        }
+        .onAppear {
+            model.liveIndex = index
+        }
+        .onChange(of: model.remoteStamp) { _, _ in
+            let next = min(max(0, model.liveIndex), max(pages.count - 1, 0))
+            guard next != index else { return }
+            applyingRemote = true
+            index = next
+            DispatchQueue.main.async { applyingRemote = false }
+        }
+        .onChange(of: index) { _, newIndex in
+            guard !applyingRemote else { return }
+            let exercise = pages.indices.contains(newIndex) ? pages[newIndex] : nil
+            model.noteSet(
+                index: newIndex,
+                setId: exercise?.openSetId ?? model.liveSetId,
+                reps: exercise?.lastReps ?? model.liveReps,
+                weight: exercise?.lastWeightKg ?? model.liveWeight
+            )
         }
     }
 
@@ -274,6 +323,7 @@ private struct ExerciseLogPage: View {
     var onNext: () -> Void
     @State private var reps = 8
     @State private var weight = 20.0
+    @State private var applyingRemote = false
 
     private var weights: [Double] {
         Array(stride(from: 0.0, through: 200.0, by: 2.5))
@@ -340,6 +390,20 @@ private struct ExerciseLogPage: View {
         }
         .onAppear(perform: seed)
         .onChange(of: exercise.id) { _, _ in seed() }
+        .onChange(of: model.remoteStamp) { _, _ in
+            applyingRemote = true
+            reps = min(40, max(1, model.liveReps))
+            weight = snap(model.liveWeight)
+            DispatchQueue.main.async { applyingRemote = false }
+        }
+        .onChange(of: reps) { _, newReps in
+            guard !applyingRemote else { return }
+            model.noteSet(index: index, setId: exercise.openSetId ?? "", reps: newReps, weight: weight)
+        }
+        .onChange(of: weight) { _, newWeight in
+            guard !applyingRemote else { return }
+            model.noteSet(index: index, setId: exercise.openSetId ?? "", reps: reps, weight: newWeight)
+        }
     }
 
     private var repsBinding: Binding<Double> {
@@ -357,11 +421,13 @@ private struct ExerciseLogPage: View {
     }
 
     private func seed() {
+        applyingRemote = true
         reps = exercise.lastReps ?? suggestedReps(exercise.targetReps)
         let remembered = UserDefaults.standard.object(forKey: weightKey(exercise.name)) == nil
             ? nil
             : UserDefaults.standard.double(forKey: weightKey(exercise.name))
         weight = snap(exercise.lastWeightKg ?? remembered ?? 20)
+        DispatchQueue.main.async { applyingRemote = false }
     }
 
     private func snap(_ value: Double) -> Double {

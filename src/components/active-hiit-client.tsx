@@ -48,6 +48,7 @@ import {
   pauseHiitTimer,
   resetHiitTimer,
   resumeHiitTimer,
+  setHiitTimerState,
   startHiitTimer,
   type HiitTimerState,
 } from "@/lib/hiit-timer-storage";
@@ -57,6 +58,18 @@ import { useDashboardSync } from "@/components/dashboard-sync";
 import { DayFlowProgress } from "@/components/day-flow-progress";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
 import { resolveProfileGender } from "@/lib/exercise-gif";
+import { isPendingWorkoutSessionId } from "@/lib/staged-workout-open";
+
+function mirrorHiitEndsAt(running: boolean, remainingMs: number) {
+  if (!running) return 0;
+  return (Date.now() + remainingMs) / 1000;
+}
+import {
+  latestWorkoutMirror,
+  pushWorkoutMirror,
+  subscribeWorkoutMirror,
+  suppressWorkoutMirror,
+} from "@/lib/watch-session";
 import {
   isWarmupPlanKind,
   useDayWorkoutFlowContinue,
@@ -211,12 +224,78 @@ export function ActiveHiitClient({
     setHydrated(true);
   }, [session.id, hash]);
 
+  useEffect(() => {
+    const apply = (event: ReturnType<typeof latestWorkoutMirror>) => {
+      if (!event) return;
+      if (event.action === "cancel" || event.status === "idle") {
+        clearHiitTimerState(session.id);
+        router.replace("/dashboard");
+        return;
+      }
+      if (event.mode !== "hiit") return;
+      const current = getHiitTimerState(session.id);
+      if (
+        event.action === "hiit" &&
+        current &&
+        current.phaseIndex === event.hiitIndex &&
+        (current.status === "running") === event.hiitRunning
+      ) {
+        return;
+      }
+      suppressWorkoutMirror();
+      const leftMs =
+        event.hiitEndsAt > 0
+          ? Math.max(0, event.hiitEndsAt * 1000 - Date.now())
+          : Math.max(0, event.hiitLeft * 1000);
+      const running = event.hiitRunning;
+      const next: HiitTimerState = {
+        sessionId: session.id,
+        status: running ? "running" : "paused",
+        phaseIndex: event.hiitIndex,
+        phaseRemainingMs: leftMs,
+        segmentStartedAt: running ? Date.now() : null,
+        accumulatedElapsedMs: current?.accumulatedElapsedMs ?? 0,
+        configHash: hash,
+      };
+      setHiitTimerState(next);
+      setTimer(next);
+      if (event.action === "start" && !session.started_at && !isPendingWorkoutSessionId(session.id)) {
+        void beginWorkoutSession(session.id);
+      }
+    };
+    const latest = latestWorkoutMirror();
+    if (
+      latest &&
+      latest.mode === "hiit" &&
+      latest.status === "live" &&
+      Date.now() - latest.receivedAt < 20000
+    ) {
+      queueMicrotask(() => apply(latest));
+    }
+    return subscribeWorkoutMirror(apply);
+  }, [hash, router, session.id, session.started_at]);
+
+  const publishHiit = (state: HiitTimerState | null, action: string) => {
+    const remaining = state ? getPhaseRemainingMs(state) : 0;
+    void pushWorkoutMirror({
+      status: action === "cancel" ? "idle" : "live",
+      action: action === "cancel" ? "cancel" : action === "start" ? "start" : "hiit",
+      mode: "hiit",
+      sessionId: session.id,
+      hiitIndex: state?.phaseIndex ?? 0,
+      hiitRunning: state?.status === "running",
+      hiitLeft: Math.max(0, Math.ceil(remaining / 1000)),
+      hiitEndsAt: mirrorHiitEndsAt(state?.status === "running", remaining),
+    });
+  };
+
   const goToPhase = (nextIndex: number, { playSound = true } = {}) => {
     const next = phases[nextIndex];
     lastTickSecondRef.current = null;
     if (!next || next.type === "done") {
       const done = advanceHiitPhase(session.id, nextIndex, 0, true);
       setTimer(done);
+      publishHiit(done, "hiit");
       if (playSound && lastPhaseSoundRef.current !== nextIndex) {
         lastPhaseSoundRef.current = nextIndex;
         playHiitComplete();
@@ -230,6 +309,7 @@ export function ActiveHiitClient({
       false
     );
     setTimer(advanced);
+    publishHiit(advanced, "hiit");
     if (playSound && lastPhaseSoundRef.current !== nextIndex) {
       lastPhaseSoundRef.current = nextIndex;
       playHiitPhaseChange(next.type);
@@ -264,42 +344,46 @@ export function ActiveHiitClient({
     playHiitTick(secondsLeft);
   }, [hydrated, timer, remainingMs, isDone]);
 
-  const handleStart = async () => {
-    if (busyLockRef.current) return;
+  const handleStart = () => {
+    if (busyLockRef.current || isPendingWorkoutSessionId(session.id)) return;
     busyLockRef.current = true;
     setError(null);
-    setBusy("starting");
     unlockHiitAudio();
     playHiitStart();
     try {
-      if (!session.started_at) {
-        const result = await beginWorkoutSession(session.id);
-        if (result && "error" in result && result.error) {
-          setError(formatUserError(result.error));
-          return;
-        }
-      }
       const first = phases.find((p) => p.type !== "done") ?? phases[0];
       if (!first) return;
       lastTickSecondRef.current = null;
       lastPhaseSoundRef.current = 0;
-      setTimer(startHiitTimer(session.id, first.durationSeconds * 1000, hash));
+      const started = startHiitTimer(session.id, first.durationSeconds * 1000, hash);
+      setTimer(started);
+      publishHiit(started, "start");
+      if (!session.started_at) {
+        void beginWorkoutSession(session.id).then((result) => {
+          if (result && "error" in result && result.error) {
+            setError(formatUserError(result.error));
+          }
+        });
+      }
     } catch (err) {
       setError(formatUserError(err));
     } finally {
       busyLockRef.current = false;
-      setBusy("idle");
     }
   };
 
   const handlePause = () => {
-    setTimer(pauseHiitTimer(session.id));
+    const next = pauseHiitTimer(session.id);
+    setTimer(next);
+    publishHiit(next, "hiit");
   };
 
   const handleResume = () => {
     unlockHiitAudio();
     lastTickSecondRef.current = null;
-    setTimer(resumeHiitTimer(session.id));
+    const next = resumeHiitTimer(session.id);
+    setTimer(next);
+    publishHiit(next, "hiit");
   };
 
   const handleSkip = () => {
@@ -413,6 +497,7 @@ export function ActiveHiitClient({
       }
       clearHiitTimerState(session.id);
       notifySync();
+      publishHiit(null, "cancel");
       router.replace("/dashboard");
     } catch (err) {
       setError(formatUserError(err));
@@ -587,6 +672,7 @@ export function ActiveHiitClient({
                   fill
                   autoplay={Boolean(isRunning && currentExerciseName)}
                   paused={!isRunning}
+                  deferMedia={!isRunning}
                 />
               </div>
             ) : (

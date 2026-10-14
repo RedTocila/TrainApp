@@ -20,6 +20,8 @@ interface ExerciseDemoPlayerProps {
   paused?: boolean;
   /** Fill a parent frame (HIIT media stage) instead of intrinsic aspect ratio. */
   fill?: boolean;
+  /** When true, stay on the GIF until this turns false, then wait briefly before a video player. */
+  deferMedia?: boolean;
 }
 
 function resolveExplicitYoutubeUrl(videoUrl?: string | null): string | null {
@@ -40,6 +42,7 @@ export function ExerciseDemoPlayer({
   resolveOverride = true,
   paused = false,
   fill = false,
+  deferMedia = false,
 }: ExerciseDemoPlayerProps) {
   const resolved = resolveExerciseGifUrls({ name, imageUrl, gender });
   const gifUrl = resolved.url;
@@ -51,13 +54,22 @@ export function ExerciseDemoPlayer({
     () => Boolean(explicitVideo) || !resolveOverride
   );
   const [videoFailed, setVideoFailed] = useState(false);
+  const [armed, setArmed] = useState(!deferMedia);
+  const released = deferMedia ? false : armed;
+
+  useEffect(() => {
+    if (deferMedia || armed) return;
+    const id = window.setTimeout(() => setArmed(true), 400);
+    return () => window.clearTimeout(id);
+  }, [armed, deferMedia, name]);
 
   useEffect(() => {
     setVideoFailed(false);
   }, [name, explicitVideo, overrideVideo]);
 
   useEffect(() => {
-    if (explicitVideo || !resolveOverride || !name.trim()) {
+    if (!released || explicitVideo || !resolveOverride || !name.trim()) {
+      if (!released) return;
       setOverrideVideo(null);
       setOverrideReady(true);
       return;
@@ -74,11 +86,11 @@ export function ExerciseDemoPlayer({
     return () => {
       cancelled = true;
     };
-  }, [name, explicitVideo, resolveOverride]);
+  }, [name, explicitVideo, resolveOverride, released]);
 
   const effectiveVideo = explicitVideo ?? overrideVideo;
 
-  if (effectiveVideo && !videoFailed) {
+  if (released && effectiveVideo && !videoFailed) {
     return (
       <ExerciseVideoPlayer
         videoUrl={effectiveVideo}
@@ -92,7 +104,7 @@ export function ExerciseDemoPlayer({
   }
 
   // Wait for override lookup so admin YouTube isn't briefly replaced by a GIF.
-  if (!overrideReady) {
+  if (released && !overrideReady) {
     return (
       <div
         className={

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { CalendarDays, Loader2, Play } from "lucide-react";
 import Link from "next/link";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
@@ -12,6 +12,10 @@ import {
 } from "@/lib/actions/workout-sessions";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import { formatDateKey } from "@/lib/utils";
+import {
+  stageWorkoutOpen,
+  WORKOUT_SESSION_OPEN_PATH,
+} from "@/lib/staged-workout-open";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { dashboardInteractive } from "@/components/dashboard-card-nav-link";
@@ -20,16 +24,33 @@ export function useStartWorkout(
   date: Date,
   workout?: TodaysWorkoutInfo | null,
   disabled?: boolean,
-  options?: { dayFlow?: boolean }
+  options?: { dayFlow?: boolean; gender?: string | null; continuesToMain?: boolean }
 ) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dayFlow = options?.dayFlow ?? !workout;
+  const gender = options?.gender;
+  const continuesToMain = options?.continuesToMain;
+
+  useEffect(() => {
+    try {
+      router.prefetch(WORKOUT_SESSION_OPEN_PATH);
+    } catch {
+      // Prefetch is best-effort.
+    }
+  }, [router]);
 
   const start = useCallback(() => {
     if (disabled || isStarting) return;
     setError(null);
+    if (workout?.planId && workout.dayId) {
+      const opened = stageWorkoutOpen(workout, { gender, continuesToMain });
+      if (!opened) return;
+      setIsStarting(true);
+      router.push(WORKOUT_SESSION_OPEN_PATH);
+      return;
+    }
     setIsStarting(true);
     const dateKey = formatDateKey(date);
     void startTodaysWorkoutAndRedirect(dateKey, {
@@ -61,7 +82,16 @@ export function useStartWorkout(
         setIsStarting(false);
         setError("Could not start workout");
       });
-  }, [date, dayFlow, disabled, isStarting, router, workout]);
+  }, [
+    continuesToMain,
+    date,
+    dayFlow,
+    disabled,
+    gender,
+    isStarting,
+    router,
+    workout,
+  ]);
 
   return { start, isStarting, error };
 }
@@ -77,6 +107,8 @@ export function StartWorkoutButton({
   display = "icon",
   className,
   dayFlow,
+  gender,
+  continuesToMain,
 }: {
   date: Date;
   workout?: TodaysWorkoutInfo | null;
@@ -84,10 +116,14 @@ export function StartWorkoutButton({
   display?: "icon" | "text" | "hero" | "label" | "nav";
   className?: string;
   dayFlow?: boolean;
+  gender?: string | null;
+  continuesToMain?: boolean;
 }) {
   const platform = usePlatformCopy();
   const { start, isStarting, error } = useStartWorkout(date, workout, disabled, {
     dayFlow,
+    gender,
+    continuesToMain,
   });
 
   const handleStart = (event: MouseEvent<HTMLButtonElement>) => {
@@ -212,6 +248,8 @@ export function StartTodaysWorkoutButton({
   display = "icon",
   className,
   dayFlow,
+  gender,
+  continuesToMain,
 }: {
   date: Date;
   workout?: TodaysWorkoutInfo | null;
@@ -219,6 +257,8 @@ export function StartTodaysWorkoutButton({
   display?: "icon" | "text" | "hero" | "label" | "nav";
   className?: string;
   dayFlow?: boolean;
+  gender?: string | null;
+  continuesToMain?: boolean;
 }) {
   return (
     <StartWorkoutButton
@@ -228,6 +268,8 @@ export function StartTodaysWorkoutButton({
       display={display}
       className={className}
       dayFlow={dayFlow}
+      gender={gender}
+      continuesToMain={continuesToMain}
     />
   );
 }

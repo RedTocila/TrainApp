@@ -11,7 +11,14 @@ import {
 import { getClientWorkoutAssignment } from "@/lib/actions/plans";
 import { getScheduledWorkoutsForDate } from "@/lib/actions/user-workouts";
 import { getTaskCompletionsForDate } from "@/lib/actions/task-completions";
-import { isMainWorkoutKind, normalizeWorkoutPlanKind } from "@/lib/hiit";
+import {
+  isIntervalPlan,
+  isMainWorkoutKind,
+  normalizeWorkoutPlanKind,
+  parseHiitConfig,
+  type HiitConfig,
+  type WorkoutPlanKind,
+} from "@/lib/hiit";
 import { formatDateKey, localDateKeyRangeUtc, formatDateKeyInTimezone } from "@/lib/utils";
 import { workoutTaskId } from "@/lib/workout-task-id";
 import type {
@@ -1089,7 +1096,7 @@ export async function getExerciseHistory(
       name: recentExercise.name,
       sets: sets.map((s) => ({
         reps: s.reps,
-        weight_kg: s.weight_kg ? Number(s.weight_kg) : null,
+        weight_kg: s.weight_kg != null ? Number(s.weight_kg) : null,
       })),
       completed_at: session.completed_at!,
     };
@@ -1313,6 +1320,206 @@ export async function startWorkout({
   return { sessionId: session.id, resumed: false, started: false };
 }
 
+export type OpenedWorkout = {
+  error?: string;
+  sessionId?: string;
+  session?: WorkoutSession;
+  exercises?: WorkoutSessionExercise[];
+  planKind?: WorkoutPlanKind;
+  hiitConfig?: HiitConfig | null;
+};
+
+/**
+ * Create the session and its sets in one round of queries.
+ * The workout screen is already on screen when this runs.
+ */
+export async function openWorkoutSession({
+  planId,
+  dayId,
+  scheduledDate,
+  scheduledWorkoutId,
+}: {
+  planId: string;
+  dayId: string;
+  scheduledDate?: string | null;
+  scheduledWorkoutId?: string | null;
+}): Promise<OpenedWorkout> {
+  const { admin, userId } = await requireMutationAdmin();
+
+  const [{ data: existing }, { data: day }] = await Promise.all([
+    admin
+      .from("workout_sessions")
+      .select("id, scheduled_workout_id, plan_id, day_id, scheduled_date")
+      .eq("client_id", userId)
+      .eq("status", "in_progress")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from("workout_days")
+      .select(
+        "title, exercises(id, name, sets, reps, notes, order_index, image_url, video_url, rest_seconds), workout_plans(title, kind, hiit_config)"
+      )
+      .eq("id", dayId)
+      .eq("plan_id", planId)
+      .single(),
+  ]);
+
+  if (!day) return { error: "Workout day not found" };
+
+  if (existing) {
+    const sameWorkout =
+      (scheduledWorkoutId &&
+        existing.scheduled_workout_id === scheduledWorkoutId) ||
+      (existing.plan_id === planId &&
+        existing.day_id === dayId &&
+        (existing.scheduled_date ?? null) === (scheduledDate ?? null));
+
+    if (!sameWorkout) {
+      return {
+        error: "Finish your current workout before starting another one",
+        sessionId: existing.id,
+      };
+    }
+
+    await admin
+      .from("workout_sessions")
+      .update({ status: "cancelled" })
+      .eq("id", existing.id)
+      .eq("client_id", userId)
+      .eq("status", "in_progress");
+  }
+
+  if (scheduledDate) {
+    let clearSkip = admin
+      .from("workout_sessions")
+      .update({ notes: null })
+      .eq("client_id", userId)
+      .eq("status", "cancelled")
+      .eq("notes", "skipped")
+      .eq("scheduled_date", scheduledDate);
+    clearSkip = scheduledWorkoutId
+      ? clearSkip.eq("scheduled_workout_id", scheduledWorkoutId)
+      : clearSkip.eq("plan_id", planId).eq("day_id", dayId);
+    await clearSkip;
+  }
+
+  const planRaw = day.workout_plans as unknown as
+    | { title?: string; kind?: string | null; hiit_config?: unknown }
+    | { title?: string; kind?: string | null; hiit_config?: unknown }[]
+    | null;
+  const plan = Array.isArray(planRaw) ? planRaw[0] : planRaw;
+  const planKind = normalizeWorkoutPlanKind(plan?.kind);
+  const planTitle = plan?.title?.trim() || "Workout";
+  const dayTitle = (day.title as string | null)?.trim() || "Workout";
+  const hiitConfig = isIntervalPlan(plan) ? parseHiitConfig(plan?.hiit_config) : null;
+
+  const { data: session, error: sessionError } = await admin
+    .from("workout_sessions")
+    .insert({
+      client_id: userId,
+      plan_id: planId,
+      day_id: dayId,
+      scheduled_date: scheduledDate ?? null,
+      scheduled_workout_id: scheduledWorkoutId ?? null,
+      day_title: dayTitle,
+      plan_title: planTitle,
+      status: "in_progress",
+      started_at: null,
+    })
+    .select(WORKOUT_SESSION_COLUMNS)
+    .single();
+
+  if (sessionError || !session) {
+    return { error: sessionError?.message ?? "Failed to start workout" };
+  }
+
+  if (hiitConfig) {
+    return {
+      sessionId: session.id,
+      session: session as WorkoutSession,
+      exercises: [],
+      planKind,
+      hiitConfig,
+    };
+  }
+
+  const rawExercises = day.exercises as
+    | (PlanDayExercise & {
+        image_url?: string | null;
+        video_url?: string | null;
+        rest_seconds?: number | null;
+      })
+    | (PlanDayExercise & {
+        image_url?: string | null;
+        video_url?: string | null;
+        rest_seconds?: number | null;
+      })[]
+    | null;
+  const planExercises = (Array.isArray(rawExercises)
+    ? rawExercises
+    : rawExercises
+      ? [rawExercises]
+      : []
+  ).sort((a, b) => a.order_index - b.order_index);
+
+  if (planExercises.length === 0) {
+    return {
+      sessionId: session.id,
+      session: session as WorkoutSession,
+      exercises: [],
+      planKind,
+      hiitConfig: null,
+    };
+  }
+
+  const seedResult = await seedSessionExercisesFromPlan(
+    admin,
+    session.id,
+    planExercises
+  );
+  if (seedResult.error) {
+    return {
+      error: seedResult.error,
+      sessionId: session.id,
+      session: session as WorkoutSession,
+      exercises: [],
+      planKind,
+      hiitConfig: null,
+    };
+  }
+
+  const { data: rows } = await admin
+    .from("workout_session_exercises")
+    .select(
+      `${WORKOUT_SESSION_EXERCISE_COLUMNS}, workout_session_sets(${WORKOUT_SESSION_SET_COLUMNS})`
+    )
+    .eq("session_id", session.id)
+    .order("order_index");
+
+  const mediaById = new Map(planExercises.map((exercise) => [exercise.id, exercise]));
+  const exercises: WorkoutSessionExercise[] = (rows ?? []).map((row) => {
+    const media = row.exercise_id ? mediaById.get(row.exercise_id) : undefined;
+    return {
+      ...row,
+      sets: ((row.workout_session_sets as WorkoutSessionSet[]) ?? []).sort(
+        (a, b) => a.set_number - b.set_number
+      ),
+      image_url: media?.image_url ?? null,
+      video_url: media?.video_url ?? null,
+      rest_seconds: media?.rest_seconds ?? null,
+    };
+  });
+
+  return {
+    sessionId: session.id,
+    session: session as WorkoutSession,
+    exercises,
+    planKind,
+    hiitConfig: null,
+  };
+}
+
 export async function beginWorkoutSession(sessionId: string) {
   const { admin, userId } = await requireMutationAdmin();
 
@@ -1339,9 +1546,6 @@ export async function beginWorkoutSession(sessionId: string) {
 
   if (error) return { error: error.message };
 
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/workout");
-  revalidatePath(`/dashboard/workout/session/${sessionId}`);
   return { success: true };
 }
 

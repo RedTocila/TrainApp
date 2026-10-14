@@ -515,7 +515,8 @@ export const platformCopyEn = {
     quickTimerWorkout: "This workout runs on a timer. Open it to keep going.",
     openWorkout: "Open workout",
     backTapHint:
-      "To open this from the back of your iPhone: Settings → Accessibility → Touch → Back Tap → Double or Triple Tap → Current set.",
+      "Double Tap does not list this yet. Add Current set, then in Double Tap scroll to the bottom and choose it under Shortcuts.",
+    backTapAdd: "Add Current set",
     previousExercise: "Back",
     giveUp: "give up",
     logSet: "Log set",

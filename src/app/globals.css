@@ -378,16 +378,23 @@ body:has(.dashboard-shell) {
   font-size: 0.875rem;
   line-height: 1.25rem;
   white-space: pre-wrap;
-  word-break: break-all;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: break-word;
   outline: none;
   -webkit-text-size-adjust: 100%;
   -webkit-user-modify: read-write-plaintext-only;
 }
 
+.chat-command-input-wrap.text-white .chat-command-editable {
+  color: #fff;
+  caret-color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+
 .chat-command-editable:empty::before {
   content: attr(data-placeholder);
   color: var(--muted-foreground);
+  -webkit-text-fill-color: var(--muted-foreground);
   pointer-events: none;
 }
 
@@ -1230,7 +1237,11 @@ input[type="time"]::-webkit-date-and-time-value {
 }
 
 .chat-composer-minimal {
-  border-radius: 999px;
+  overflow: hidden;
   border: 1px solid rgb(63 63 70 / 0.85);
   background: rgb(24 24 27 / 0.92);
+}
+
+.chat-composer-minimal--multiline {
+  border-radius: 1.35rem;
 }

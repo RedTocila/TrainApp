@@ -14,7 +14,7 @@ struct WorkoutLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
             LiveSetView(state: context.state)
-                .activityBackgroundTint(Color(red: 0.05, green: 0.05, blue: 0.055))
+                .activityBackgroundTint(LivePalette.background)
                 .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
             DynamicIsland {
@@ -47,28 +47,36 @@ struct WorkoutLiveActivity: Widget {
     }
 }
 
+private enum LivePalette {
+    static let background = Color(red: 28 / 255, green: 28 / 255, blue: 30 / 255)
+    static let control = Color(red: 58 / 255, green: 58 / 255, blue: 62 / 255)
+    static let secondary = Color.white.opacity(0.55)
+}
+
 private struct LiveSetView: View {
     var state: WorkoutActivityAttributes.ContentState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
                 ExerciseThumb(token: state.imageToken)
-                    .frame(width: 58, height: 58)
+                    .frame(width: 44, height: 44)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(state.exerciseName)
-                        .font(.headline)
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
-                        .lineLimit(2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                     Text(state.setLabel)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(LivePalette.secondary)
                 }
                 Spacer(minLength: 0)
             }
             LiveSetControls(state: state)
         }
-        .padding(12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 }
 
@@ -76,69 +84,106 @@ private struct LiveSetControls: View {
     var state: WorkoutActivityAttributes.ContentState
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 6) {
-                stepper(
-                    title: "Kg",
-                    value: LiveWorkoutFormatting.weight(state.weightKg),
-                    down: AdjustWeightIntent(delta: -2.5),
-                    up: AdjustWeightIntent(delta: 2.5)
-                )
-                stepper(
-                    title: "Reps",
-                    value: "\(state.reps)",
-                    down: AdjustRepsIntent(delta: -1),
-                    up: AdjustRepsIntent(delta: 1)
-                )
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                metric(title: "KG", value: LiveWorkoutFormatting.weight(state.weightKg)) {
+                    Button(intent: AdjustWeightIntent(tenths: -25)) {
+                        StepIcon(systemName: "minus")
+                    }
+                    .liveCircle()
+                    .accessibilityLabel("Decrease weight")
+                } up: {
+                    Button(intent: AdjustWeightIntent(tenths: 25)) {
+                        StepIcon(systemName: "plus")
+                    }
+                    .liveCircle()
+                    .accessibilityLabel("Increase weight")
+                }
+                metric(title: "REPS", value: "\(state.reps)") {
+                    Button(intent: AdjustRepsIntent(delta: -1)) {
+                        StepIcon(systemName: "minus")
+                    }
+                    .liveCircle()
+                    .accessibilityLabel("Decrease reps")
+                } up: {
+                    Button(intent: AdjustRepsIntent(delta: 1)) {
+                        StepIcon(systemName: "plus")
+                    }
+                    .liveCircle()
+                    .accessibilityLabel("Increase reps")
+                }
             }
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Button(intent: LogLiveSetIntent()) {
                     Text(state.setId.isEmpty ? "Logged" : "Log set")
+                        .font(.system(size: 16, weight: .semibold))
                         .frame(maxWidth: .infinity)
+                        .frame(minHeight: 22)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color(red: 0.86, green: 0.15, blue: 0.18))
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
+                .tint(.white)
                 .disabled(state.setId.isEmpty)
                 Button(intent: NextLiveExerciseIntent()) {
                     Text("Next")
+                        .font(.system(size: 16, weight: .semibold))
                         .frame(maxWidth: .infinity)
+                        .frame(minHeight: 22)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
+                .tint(LivePalette.control)
                 .disabled(state.exerciseCount < 2)
             }
-            .font(.caption.weight(.semibold))
         }
     }
 
-    private func stepper<Down: AppIntent, Up: AppIntent>(
+    private func metric<Down: View, Up: View>(
         title: String,
         value: String,
-        down: Down,
-        up: Up
+        @ViewBuilder down: () -> Down,
+        @ViewBuilder up: () -> Up
     ) -> some View {
         HStack(spacing: 0) {
-            Button(intent: down) {
-                Image(systemName: "minus")
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.bordered)
-            VStack(spacing: 0) {
-                Text(title.uppercased())
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.55))
+            down()
+            VStack(spacing: 1) {
+                Text(title)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(LivePalette.secondary)
+                    .tracking(0.6)
                 Text(value)
-                    .font(.subheadline.weight(.bold))
+                    .font(.system(size: 20, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white)
+                    .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
-            Button(intent: up) {
-                Image(systemName: "plus")
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.bordered)
+            up()
         }
+        .padding(4)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+}
+
+private struct StepIcon: View {
+    var systemName: String
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 15, weight: .semibold))
+            .frame(width: 22, height: 22)
+    }
+}
+
+private extension View {
+    func liveCircle() -> some View {
+        buttonStyle(.borderedProminent)
+            .buttonBorderShape(.circle)
+            .controlSize(.regular)
+            .tint(LivePalette.control)
     }
 }
 

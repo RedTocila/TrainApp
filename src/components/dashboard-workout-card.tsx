@@ -11,7 +11,7 @@ import { useDashboardSync } from "@/components/dashboard-sync";
 import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichment-provider";
 import { DashboardWorkoutMiniRow } from "@/components/dashboard-workout-mini-row";
 import { DashboardWorkoutDetailSection, DashboardWorkoutDetailSkeleton } from "@/components/dashboard-workout-detail-section";
-import { areMainWorkoutsComplete, hasIncompleteWorkoutExtras, isMainWorkoutKind, sortWorkoutsBySessionOrder } from "@/lib/hiit";
+import { areMainWorkoutsComplete, hasIncompleteWorkoutExtras, isMainWorkoutKind, pickNextDayFlowWorkout, sortWorkoutsBySessionOrder } from "@/lib/hiit";
 import {
   DashboardStatusIcon,
   dashboardCompletionStatus,
@@ -38,6 +38,10 @@ import { formatDateKey, cn } from "@/lib/utils";
 import { resolveDashboardWorkoutBackground, getDashboardRestDayBackgroundSrc } from "@/lib/workout-visual-categories";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import {
+  rememberWorkoutGender,
+  WORKOUT_SESSION_OPEN_PATH,
+} from "@/lib/staged-workout-open";
+import {
   DashboardCardNavBody,
   DashboardCardNavLink,
   dashboardInteractive,
@@ -58,7 +62,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { DashboardWorkoutPlusMenu } from "@/components/dashboard-workout-plus-menu";
-import { StartTodaysWorkoutButton, useStartTodaysWorkout } from "@/components/start-todays-workout-button";
+import { StartTodaysWorkoutButton, useStartWorkout } from "@/components/start-todays-workout-button";
 import { useRegisterWorkoutPageChrome } from "@/components/workout-page-chrome-context";
 import { AddWorkoutToDayDialog } from "@/components/add-workout-to-day-dialog";
 import { EditDayWorkoutsDialog } from "@/components/edit-day-workouts-dialog";
@@ -245,6 +249,7 @@ export function DashboardWorkoutCard({
 
   useEffect(() => {
     router.prefetch(DASHBOARD_DAY_WORKOUT_PATH);
+    router.prefetch(WORKOUT_SESSION_OPEN_PATH);
   }, [router]);
 
   useEffect(() => {
@@ -718,9 +723,28 @@ export function DashboardWorkoutCard({
       .find((id): id is string => Boolean(id)) ??
     null;
 
-  const { start: startFocusWorkout, isStarting: isStartingWorkout } = useStartTodaysWorkout(
+  const nextDayWorkout = useMemo(
+    () => pickNextDayFlowWorkout(workoutsForDay, (taskId) => isTaskCompleted(taskId)),
+    [isTaskCompleted, workoutsForDay]
+  );
+  const continuesToMain = useMemo(
+    () =>
+      Boolean(
+        nextDayWorkout?.planKind === "warmup" &&
+          workoutsForDay.some(
+            (workout) =>
+              isMainWorkoutKind(workout.planKind) && !isTaskCompleted(workout.taskId)
+          )
+      ),
+    [isTaskCompleted, nextDayWorkout, workoutsForDay]
+  );
+  rememberWorkoutGender(gender);
+
+  const { start: startFocusWorkout, isStarting: isStartingWorkout } = useStartWorkout(
     selectedDate,
-    readOnly || !isDayLoaded
+    nextDayWorkout,
+    readOnly || !isDayLoaded || !nextDayWorkout,
+    { dayFlow: true, gender, continuesToMain }
   );
 
   const openEditWorkout = useCallback(() => setEditWorkoutOpen(true), []);
@@ -733,7 +757,10 @@ export function DashboardWorkoutCard({
     if (!showStart && !canEditDayWorkouts) return null;
     return {
       date: selectedDate,
-      disabled: !isDayLoaded,
+      workout: nextDayWorkout,
+      gender,
+      continuesToMain,
+      disabled: !isDayLoaded || !nextDayWorkout,
       showStart,
       ...(canEditDayWorkouts
         ? { showEdit: true as const, onEdit: openEditWorkout }
@@ -748,6 +775,9 @@ export function DashboardWorkoutCard({
     selectedDate,
     isDayLoaded,
     openEditWorkout,
+    nextDayWorkout,
+    gender,
+    continuesToMain,
   ]);
   useRegisterWorkoutPageChrome(workoutChromeActions);
 
@@ -1051,7 +1081,7 @@ export function DashboardWorkoutCard({
                       <button
                         type="button"
                         className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/30 transition hover:brightness-110 disabled:opacity-60"
-                        disabled={readOnly || !isDayLoaded || isStartingWorkout}
+                        disabled={readOnly || !isDayLoaded || !nextDayWorkout || isStartingWorkout}
                         aria-label={
                           isStartingWorkout
                             ? platform.workout.starting
@@ -1266,8 +1296,11 @@ export function DashboardWorkoutCard({
                 <div className="hidden lg:block">
                   <StartTodaysWorkoutButton
                     date={selectedDate}
+                    workout={nextDayWorkout}
                     dayFlow
-                    disabled={!isDayLoaded}
+                    gender={gender}
+                    continuesToMain={continuesToMain}
+                    disabled={!isDayLoaded || !nextDayWorkout}
                     display="nav"
                   />
                 </div>

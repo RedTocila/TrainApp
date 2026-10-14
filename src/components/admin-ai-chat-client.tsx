@@ -388,7 +388,7 @@ export function AdminAiChatClient() {
           <div
             className={cn(
               "chat-command-shell flex w-full max-w-full min-w-0 items-end gap-1 overflow-hidden border border-border/70 bg-secondary/60 p-1 pl-3 shadow-sm backdrop-blur-sm transition-[border-radius] duration-200",
-              isMultiline ? "rounded-2xl" : "rounded-full"
+              isMultiline ? "rounded-[1.35rem]" : "rounded-full"
             )}
           >
             <ChatCommandInput

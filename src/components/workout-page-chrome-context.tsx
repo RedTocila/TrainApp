@@ -1,5 +1,6 @@
 "use client";
 
+import type { TodaysWorkoutInfo } from "@/lib/actions/workout-sessions";
 import {
   createContext,
   useContext,
@@ -11,6 +12,9 @@ import {
 
 export type WorkoutPageChromeActions = {
   date: Date;
+  workout?: TodaysWorkoutInfo | null;
+  gender?: string | null;
+  continuesToMain?: boolean;
   disabled?: boolean;
   showStart: boolean;
   showEdit?: boolean;

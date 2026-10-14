@@ -126,7 +126,11 @@ export function WorkoutTabBanner({
             <Check className="h-4 w-4" />
           </span>
         ) : (
-          <StartTodaysWorkoutButton date={selectedDate} />
+          <StartTodaysWorkoutButton
+            date={selectedDate}
+            workout={workout}
+            dayFlow
+          />
         )}
       </CardContent>
     </Card>

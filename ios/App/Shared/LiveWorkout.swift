@@ -11,6 +11,8 @@ enum LiveWorkoutStore {
     private static let draftKey = "draft"
     private static let imageTokenKey = "imageToken"
     private static let imageName = "live-exercise.jpg"
+    private static let generationKey = "syncGeneration"
+    private static let activeKey = "liveActive"
 
     static var defaults: UserDefaults {
         UserDefaults(suiteName: suiteName) ?? .standard
@@ -63,6 +65,35 @@ enum LiveWorkoutStore {
 
     static func clearDraft() {
         defaults.removeObject(forKey: draftKey)
+    }
+
+    /// Bumped when the workout ends so an in-flight sync cannot bring the card back.
+    static var syncGeneration: Int {
+        defaults.integer(forKey: generationKey)
+    }
+
+    /// `nil` until a workout has started or ended on this install.
+    static var liveFlag: Bool? {
+        guard defaults.object(forKey: activeKey) != nil else { return nil }
+        return defaults.bool(forKey: activeKey)
+    }
+
+    static var isLive: Bool {
+        liveFlag == true
+    }
+
+    static func beginSync() -> Int {
+        defaults.set(true, forKey: activeKey)
+        return syncGeneration
+    }
+
+    static func cancelSync() {
+        defaults.set(false, forKey: activeKey)
+        defaults.set(syncGeneration + 1, forKey: generationKey)
+    }
+
+    static func isSyncCurrent(_ generation: Int) -> Bool {
+        isLive && syncGeneration == generation
     }
 
     static var imageToken: Int {
@@ -325,6 +356,7 @@ enum LiveWorkoutSync {
 
     @MainActor
     static func update(_ state: WorkoutActivityAttributes.ContentState) async {
+        guard LiveWorkoutStore.isLive else { return }
         LiveWorkoutStore.saveDraft(
             index: state.exerciseIndex,
             setId: state.setId,
@@ -339,9 +371,30 @@ enum LiveWorkoutSync {
 
     @MainActor
     static func endAll() async {
+        if LiveWorkoutStore.isLive {
+            LiveWorkoutStore.cancelSync()
+        }
+        let generation = LiveWorkoutStore.syncGeneration
+        guard !LiveWorkoutStore.isLive, LiveWorkoutStore.syncGeneration == generation else { return }
         LiveWorkoutStore.clearDraft()
+        await dismissAll(unlessGenerationChangesFrom: generation)
+    }
+
+    /// Removes a card left behind after the workout already ended.
+    @MainActor
+    static func endIfInactive() async {
+        let generation = LiveWorkoutStore.syncGeneration
+        guard LiveWorkoutStore.liveFlag == false else { return }
+        await dismissAll(unlessGenerationChangesFrom: generation)
+    }
+
+    @MainActor
+    private static func dismissAll(unlessGenerationChangesFrom generation: Int? = nil) async {
         for activity in Activity<WorkoutActivityAttributes>.activities {
-            await activity.end(nil, dismissalPolicy: .immediate)
+            if let generation, LiveWorkoutStore.syncGeneration != generation || LiveWorkoutStore.isLive {
+                return
+            }
+            await activity.end(activity.content, dismissalPolicy: .immediate)
         }
     }
 
@@ -372,9 +425,10 @@ enum LiveWorkoutSync {
 }
 
 @available(iOS 16.2, *)
-struct AdjustRepsIntent: AppIntent {
+struct AdjustRepsIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Change reps"
     static var openAppWhenRun = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     @Parameter(title: "Change") var delta: Int
 
@@ -388,28 +442,31 @@ struct AdjustRepsIntent: AppIntent {
 }
 
 @available(iOS 16.2, *)
-struct AdjustWeightIntent: AppIntent {
+struct AdjustWeightIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Change weight"
     static var openAppWhenRun = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
-    @Parameter(title: "Change") var delta: Double
+    @Parameter(title: "Tenths of a kilogram") var tenths: Int
 
-    init() { delta = 0 }
-    init(delta: Double) { self.delta = delta }
+    init() { tenths = 0 }
+    init(tenths: Int) { self.tenths = tenths }
 
     func perform() async throws -> some IntentResult {
-        await LiveWorkoutSync.adjust(repsDelta: 0, weightDelta: delta)
+        await LiveWorkoutSync.adjust(repsDelta: 0, weightDelta: Double(tenths) / 10)
         return .result()
     }
 }
 
 @available(iOS 16.2, *)
-struct LogLiveSetIntent: AppIntent {
+struct LogLiveSetIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Log set"
     static var openAppWhenRun = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     func perform() async throws -> some IntentResult {
-        guard let state = Activity<WorkoutActivityAttributes>.activities.first?.content.state,
+        guard LiveWorkoutStore.isLive,
+              let state = Activity<WorkoutActivityAttributes>.activities.first?.content.state,
               !state.setId.isEmpty else { return .result() }
         try await LiveWorkoutAPI.logSet(setId: state.setId, reps: state.reps, weight: state.weightKg)
         let live = try await LiveWorkoutAPI.live(exerciseIndex: state.exerciseIndex, advance: true)
@@ -419,12 +476,14 @@ struct LogLiveSetIntent: AppIntent {
 }
 
 @available(iOS 16.2, *)
-struct NextLiveExerciseIntent: AppIntent {
+struct NextLiveExerciseIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Next exercise"
     static var openAppWhenRun = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     func perform() async throws -> some IntentResult {
-        guard let state = Activity<WorkoutActivityAttributes>.activities.first?.content.state,
+        guard LiveWorkoutStore.isLive,
+              let state = Activity<WorkoutActivityAttributes>.activities.first?.content.state,
               state.exerciseCount > 1 else { return .result() }
         let next = (state.exerciseIndex + 1) % state.exerciseCount
         let live = try await LiveWorkoutAPI.live(exerciseIndex: next, advance: false)

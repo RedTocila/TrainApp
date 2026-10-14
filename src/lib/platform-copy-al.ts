@@ -517,7 +517,8 @@ export const platformCopyAl = {
     quickTimerWorkout: "Kjo stërvitje ecën me kohëmatës. Hape për të vazhduar.",
     openWorkout: "Hap stërvitjen",
     backTapHint:
-      "Për ta hapur nga pjesa e pasme e iPhone: Settings → Accessibility → Touch → Back Tap → Double ose Triple Tap → Current set.",
+      "Double Tap nuk e shfaq ende. Shto Current set, pastaj te Double Tap zbrit në fund dhe zgjidhe te Shortcuts.",
+    backTapAdd: "Shto Current set",
     previousExercise: "Mbrapa",
     giveUp: "hiq dorë",
     logSet: "Regjistro serinë",

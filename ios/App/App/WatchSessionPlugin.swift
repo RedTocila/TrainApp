@@ -37,11 +37,32 @@ final class WatchConnectivityBridge: NSObject, WCSessionDelegate {
         push()
     }
 
+    var onWorkout: (([String: Any]) -> Void)?
+
     private func push() {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
         guard session.activationState == .activated else { return }
         try? session.updateApplicationContext(payload)
+    }
+
+    func sendWorkout(_ payload: [String: Any]) {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+        var message = payload
+        message["channel"] = "workout"
+        message["origin"] = "phone"
+        if message["seq"] == nil {
+            message["seq"] = Int(Date().timeIntervalSince1970 * 1000)
+        }
+        if session.isReachable {
+            session.sendMessage(message, replyHandler: { _ in }, errorHandler: { _ in
+                session.transferUserInfo(message)
+            })
+        } else {
+            session.transferUserInfo(message)
+        }
     }
 
     func session(
@@ -69,7 +90,19 @@ final class WatchConnectivityBridge: NSObject, WCSessionDelegate {
             replyHandler(payload)
             return
         }
-        replyHandler([:])
+        replyHandler(["ok": true])
+        if message["channel"] as? String == "workout" {
+            DispatchQueue.main.async {
+                self.onWorkout?(message)
+            }
+        }
+    }
+
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        guard userInfo["channel"] as? String == "workout" else { return }
+        DispatchQueue.main.async {
+            self.onWorkout?(userInfo)
+        }
     }
 }
 
@@ -79,11 +112,34 @@ public class WatchSessionPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "WatchSession"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "sync", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "clear", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "clear", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pushMirror", returnType: CAPPluginReturnPromise)
     ]
 
     public override func load() {
         WatchConnectivityBridge.shared.activate()
+        WatchConnectivityBridge.shared.onWorkout = { [weak self] payload in
+            self?.notifyListeners("workoutMirror", data: payload)
+        }
+    }
+
+    @objc func pushMirror(_ call: CAPPluginCall) {
+        var payload: [String: Any] = [:]
+        if let status = call.getString("status") { payload["status"] = status }
+        if let mode = call.getString("mode") { payload["mode"] = mode }
+        if let action = call.getString("action") { payload["action"] = action }
+        if let sessionId = call.getString("sessionId") { payload["sessionId"] = sessionId }
+        if let setId = call.getString("setId") { payload["setId"] = setId }
+        payload["exerciseIndex"] = call.getInt("exerciseIndex") ?? 0
+        payload["reps"] = call.getInt("reps") ?? 0
+        payload["weightKg"] = call.getDouble("weightKg") ?? 0
+        payload["hiitIndex"] = call.getInt("hiitIndex") ?? 0
+        payload["hiitRunning"] = call.getBool("hiitRunning") ?? false
+        payload["hiitLeft"] = call.getInt("hiitLeft") ?? 0
+        payload["hiitEndsAt"] = call.getDouble("hiitEndsAt") ?? 0
+        WatchConnectivityBridge.shared.activate()
+        WatchConnectivityBridge.shared.sendWorkout(payload)
+        call.resolve()
     }
 
     @objc func sync(_ call: CAPPluginCall) {

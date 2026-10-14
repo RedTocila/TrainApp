@@ -2,6 +2,7 @@ import ActivityKit
 import AppIntents
 import Capacitor
 import Foundation
+import SwiftUI
 import UIKit
 
 @available(iOS 16.0, *)
@@ -23,6 +24,8 @@ struct ShowCurrentSetIntent: AppIntent {
 
 @available(iOS 16.0, *)
 struct RutinaShortcuts: AppShortcutsProvider {
+    static var shortcutTileColor: ShortcutTileColor = .red
+
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: ShowCurrentSetIntent(),
@@ -36,6 +39,40 @@ struct RutinaShortcuts: AppShortcutsProvider {
     }
 }
 
+@available(iOS 16.0, *)
+private struct BackTapSetupSheet: View {
+    var title: String
+    var message: String
+    var dismissTitle: String
+    var onClose: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 20) {
+                Text(message)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                SiriTipView(intent: ShowCurrentSetIntent())
+                ShortcutsLink()
+                    .shortcutsLinkStyle(.automaticOutline)
+                Spacer(minLength: 0)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Color(red: 12 / 255, green: 12 / 255, blue: 14 / 255))
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(dismissTitle, action: onClose)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+}
+
 @objc(LiveWorkoutPlugin)
 public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "LiveWorkoutPlugin"
@@ -44,8 +81,28 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "sync", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "end", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "consumeQuickOpen", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "currentDraft", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "currentDraft", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "prepareBackTap", returnType: CAPPluginReturnPromise)
     ]
+
+    @objc func prepareBackTap(_ call: CAPPluginCall) {
+        guard #available(iOS 16.0, *) else {
+            call.resolve()
+            return
+        }
+        let title = call.getString("title") ?? "Current set"
+        let message = call.getString("message") ?? "Add Current set, then choose it under Shortcuts at the bottom of Double Tap."
+        let dismissTitle = call.getString("dismiss") ?? "Done"
+        DispatchQueue.main.async { [weak self] in
+            let sheet = BackTapSetupSheet(title: title, message: message, dismissTitle: dismissTitle) {
+                self?.bridge?.viewController?.dismiss(animated: true)
+            }
+            let host = UIHostingController(rootView: sheet)
+            host.modalPresentationStyle = .pageSheet
+            self?.bridge?.viewController?.present(host, animated: true)
+            call.resolve()
+        }
+    }
 
     @objc func sync(_ call: CAPPluginCall) {
         guard #available(iOS 16.2, *) else {
@@ -61,8 +118,13 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
         let weight = Self.double(call, "weightKg", fallback: 20)
         let setId = call.getString("setId") ?? ""
         let gifUrl = call.getString("gifUrl")
+        let generation = LiveWorkoutStore.beginSync()
         Task {
             let token = await LiveWorkoutStore.cacheImage(from: gifUrl)
+            guard LiveWorkoutStore.isSyncCurrent(generation) else {
+                call.resolve()
+                return
+            }
             let state = LiveWorkoutSync.state(
                 name: name,
                 setNumber: setNumber,
@@ -74,7 +136,7 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
                 exerciseCount: exerciseCount,
                 imageToken: token
             )
-            await LiveWorkoutActivity.start(state)
+            await LiveWorkoutActivity.start(state, generation: generation)
             call.resolve()
         }
     }
@@ -84,6 +146,7 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve()
             return
         }
+        LiveWorkoutStore.cancelSync()
         Task {
             await LiveWorkoutSync.endAll()
             call.resolve()
@@ -124,7 +187,8 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
 @available(iOS 16.2, *)
 enum LiveWorkoutActivity {
     @MainActor
-    static func start(_ state: WorkoutActivityAttributes.ContentState) async {
+    static func start(_ state: WorkoutActivityAttributes.ContentState, generation: Int) async {
+        guard LiveWorkoutStore.isSyncCurrent(generation) else { return }
         LiveWorkoutStore.saveDraft(
             index: state.exerciseIndex,
             setId: state.setId,
@@ -133,9 +197,17 @@ enum LiveWorkoutActivity {
         )
         let content = ActivityContent(state: state, staleDate: nil)
         if Activity<WorkoutActivityAttributes>.activities.isEmpty {
-            let attributes = WorkoutActivityAttributes(title: "RUTINA")
-            _ = try? Activity.request(attributes: attributes, content: content, pushType: nil)
+            guard let activity = try? Activity.request(
+                attributes: WorkoutActivityAttributes(title: "RUTINA"),
+                content: content,
+                pushType: nil
+            ) else { return }
+            if !LiveWorkoutStore.isSyncCurrent(generation) {
+                await activity.end(activity.content, dismissalPolicy: .immediate)
+                LiveWorkoutStore.clearDraft()
+            }
         } else {
+            guard LiveWorkoutStore.isSyncCurrent(generation) else { return }
             for activity in Activity<WorkoutActivityAttributes>.activities {
                 await activity.update(content)
             }

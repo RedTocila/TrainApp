@@ -65,6 +65,15 @@ export function clearWorkoutTimerState(sessionId: string) {
   }
 }
 
+/** Keep the clock running when a provisional session id is replaced by the real one. */
+export function moveWorkoutTimerState(fromId: string, toId: string) {
+  if (!fromId || !toId || fromId === toId) return;
+  const existing = getWorkoutTimerState(fromId);
+  if (!existing) return;
+  setWorkoutTimerState({ ...existing, sessionId: toId });
+  clearWorkoutTimerState(fromId);
+}
+
 export function getWorkoutElapsedMs(
   state: WorkoutTimerState | null,
   nowMs = Date.now()

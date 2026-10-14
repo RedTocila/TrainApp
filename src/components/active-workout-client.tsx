@@ -7,7 +7,6 @@ import {
 } from "@/components/locale-provider";
 import { formatExerciseHistoryLabel } from "@/lib/exercise-history-format";
 
-import { Capacitor } from "@capacitor/core";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
@@ -27,7 +26,7 @@ import {
   cancelWorkoutSession,
   completeWorkoutSession,
   ensureWorkoutSessionExercises,
-  getExerciseHistories,
+  getLatestExerciseHistoriesByNames,
   updateSessionSet,
 } from "@/lib/actions/workout-sessions";
 import type {
@@ -40,6 +39,13 @@ import type { WorkoutPlanKind } from "@/lib/hiit";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
 import { resolveExerciseGifUrl, resolveProfileGender, type ExerciseGender } from "@/lib/exercise-gif";
 import { endLiveWorkout, useLiveWorkoutPublisher } from "@/lib/live-workout";
+import {
+  pushWorkoutMirror,
+  subscribeWorkoutMirror,
+  suppressWorkoutMirror,
+} from "@/lib/watch-session";
+import { isPendingWorkoutSessionId } from "@/lib/staged-workout-open";
+import { BackTapSetup } from "@/components/back-tap-setup";
 import { findCatalogExercise } from "@/lib/exercise-catalog";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { useDashboardSync } from "@/components/dashboard-sync";
@@ -199,6 +205,15 @@ function useRestCountdown(restSeconds: number | null, workoutPaused: boolean) {
   };
 }
 
+/** Workout loads may be bodyweight. Body-weight parsing rejects 0. */
+function parseSetWeightKg(raw: string): number | null {
+  const normalized = raw.trim().replace(/\s/g, "").replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 500) return null;
+  return Math.round(parsed * 100) / 100;
+}
+
 function WorkoutMetricCard({
   label,
   value,
@@ -268,6 +283,7 @@ function ActiveExercisePanel({
   onBackExercise,
   canGoBack,
   onLiveDraft,
+  remoteDraft,
 }: {
   exercise: WorkoutSessionExercise;
   exerciseIndex: number;
@@ -279,7 +295,7 @@ function ActiveExercisePanel({
   gender?: ExerciseGender | null;
   restClock: string;
   restRunning?: boolean;
-  onLoggedSet: () => void;
+  onLoggedSet: (info?: { setId: string; reps: number; weightKg: number }) => void;
   onAllSetsDone?: () => void;
   mediaPaused?: boolean;
   onBackExercise?: () => void;
@@ -291,6 +307,7 @@ function ActiveExercisePanel({
     reps: number;
     weightKg: number;
   }) => void;
+  remoteDraft?: { token: number; reps: number; weightKg: number } | null;
 }) {
   const platform = usePlatformCopy();
   const units = useBodyUnits();
@@ -298,6 +315,8 @@ function ActiveExercisePanel({
   const [showHowTo, setShowHowTo] = useState(false);
   const [repsDraft, setRepsDraft] = useState("");
   const [weightDraft, setWeightDraft] = useState("");
+  const applyingRemote = useRef(false);
+  const remoteToken = useRef<number | null>(null);
   const historyLabel = formatExerciseHistoryLabel(
     history,
     platform.workout.lastSets,
@@ -325,10 +344,6 @@ function ActiveExercisePanel({
     previousForNextSet?.reps != null
       ? String(previousForNextSet.reps)
       : platform.workout.reps;
-  const weightPlaceholder =
-    previousForNextSet?.weight_kg != null
-      ? units.formatWeightKg(Number(previousForNextSet.weight_kg))
-      : units.weightFieldLabel;
   const currentSetNumber = Math.min(completedSets + 1, targetSets);
   const repsDisplay =
     repsDraft !== ""
@@ -341,7 +356,9 @@ function ActiveExercisePanel({
       ? weightDraft
       : activeSet?.weight_kg != null
         ? units.formatWeightKg(Number(activeSet.weight_kg))
-        : weightPlaceholder;
+        : previousForNextSet?.weight_kg != null
+          ? units.formatWeightKg(Number(previousForNextSet.weight_kg))
+          : units.formatWeightKg(0);
 
   const adjustReps = (delta: number) => {
     const parsed = parseRepsField(repsDraft);
@@ -376,11 +393,23 @@ function ActiveExercisePanel({
     );
   }, [activeSet?.id, activeSet?.reps, activeSet?.weight_kg, units]);
 
+  useEffect(() => {
+    if (!remoteDraft || remoteToken.current === remoteDraft.token) return;
+    remoteToken.current = remoteDraft.token;
+    applyingRemote.current = true;
+    setRepsDraft(String(remoteDraft.reps));
+    setWeightDraft(units.formatWeightKg(remoteDraft.weightKg));
+    const timer = window.setTimeout(() => {
+      applyingRemote.current = false;
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [remoteDraft, units]);
+
   const parseRepsField = (rawValue: string) =>
     rawValue === "" ? null : parseInt(rawValue, 10);
 
   const parseWeightField = (rawValue: string) =>
-    rawValue === "" ? null : units.parseWeightInput(rawValue);
+    rawValue.trim() === "" ? null : parseSetWeightKg(rawValue);
 
   const persistSet = async (
     setId: string,
@@ -400,7 +429,11 @@ function ActiveExercisePanel({
       return;
     }
     if (completed) {
-      onLoggedSet();
+      onLoggedSet({
+        setId,
+        reps: reps ?? 0,
+        weightKg: weight_kg ?? 0,
+      });
       const nextCompleted = nextSets.filter(
         (set) => set.completed || set.reps != null || set.weight_kg != null
       ).length;
@@ -421,12 +454,14 @@ function ActiveExercisePanel({
       weight_kg = Number(previousForNextSet.weight_kg);
     }
     if (
-      (repsDraft !== "" && (reps == null || Number.isNaN(reps))) ||
-      (weightDraft !== "" && (weight_kg == null || Number.isNaN(weight_kg)))
+      (repsDraft.trim() !== "" && (reps == null || Number.isNaN(reps))) ||
+      (weightDraft.trim() !== "" && (weight_kg == null || Number.isNaN(weight_kg)))
     ) {
       return;
     }
-    if (reps == null && weight_kg == null) return;
+    // Untouched load is bodyweight. Explicit 0 stays 0.
+    if (weight_kg == null) weight_kg = 0;
+    if (reps == null && repsDraft.trim() === "" && weightDraft.trim() === "") return;
 
     setIsAddingSet(true);
     try {
@@ -452,7 +487,7 @@ function ActiveExercisePanel({
   };
 
   useEffect(() => {
-    if (readOnly || !onLiveDraft) return;
+    if (readOnly || !onLiveDraft || applyingRemote.current) return;
     const parsedReps = parseRepsField(repsDraft);
     const parsedWeight = parseWeightField(weightDraft);
     const reps =
@@ -493,7 +528,7 @@ function ActiveExercisePanel({
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-1 flex-col",
+        "flex min-h-full min-w-0 flex-1 flex-col",
         readOnly ? "gap-2" : "gap-3"
       )}
     >
@@ -507,21 +542,15 @@ function ActiveExercisePanel({
       </div>
 
       <SessionMediaStage
+        fill
         className={cn(
-          "mx-auto w-full shrink-0 [&>div]:overflow-hidden [&>div]:border-0 [&>div]:bg-transparent [&>div]:shadow-none",
+          "w-full min-h-0 flex-1 [&>div]:overflow-hidden [&>div]:border-0 [&>div]:bg-transparent [&>div]:shadow-none",
           readOnly
             ? "[&>div]:rounded-[1.75rem]"
             : "[&>div]:rounded-[1.35rem]"
         )}
       >
-        <div
-          className={cn(
-            "workout-demo-stage relative mx-auto w-full overflow-hidden bg-white shadow-[0_18px_48px_-28px_rgba(0,0,0,0.85)] ring-1 ring-white/15",
-            readOnly
-              ? "aspect-square max-h-[min(62dvh,36rem)]"
-              : "h-[min(36vh,280px)] max-w-[20rem]"
-          )}
-        >
+        <div className="workout-demo-stage relative h-full min-h-[11rem] w-full flex-1 overflow-hidden bg-white shadow-[0_18px_48px_-28px_rgba(0,0,0,0.85)] ring-1 ring-white/15">
           <div className="absolute inset-0 [&_>div]:h-full [&_>div]:max-w-none [&_>div]:rounded-none [&_>div]:border-0 [&_*]:bg-white">
             <ExerciseDemoPlayer
               name={exercise.name}
@@ -531,6 +560,7 @@ function ActiveExercisePanel({
               autoplay
               paused={mediaPaused}
               fill
+              deferMedia={readOnly}
             />
           </div>
           <button
@@ -735,11 +765,7 @@ function ActiveExercisePanel({
               )}
             </Button>
           </div>
-          {Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios" ? (
-            <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
-              {platform.workout.backTapHint}
-            </p>
-          ) : null}
+          <BackTapSetup />
         </div>
       ) : (
         <p className="shrink-0 pt-0.5 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -778,6 +804,13 @@ export function ActiveWorkoutClient({
   const [isPending, startTransition] = useTransition();
   const [isFinishing, setIsFinishing] = useState(false);
   const finishLockRef = useRef(false);
+  const beginSentRef = useRef(false);
+  const [startedLocally, setStartedLocally] = useState(false);
+  const [remoteDraft, setRemoteDraft] = useState<{
+    token: number;
+    reps: number;
+    weightKg: number;
+  } | null>(null);
   const [exercises, setExercises] = useState(initialExercises);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLoadingExercises, setIsLoadingExercises] = useState(
@@ -788,7 +821,7 @@ export function ActiveWorkoutClient({
   >(initialHistories ?? {});
   const { confirm: confirmGiveUp, dialog: giveUpDialog, isPending: isGivingUp } =
     useSarcasticConfirm();
-  const isStarted = session.started_at != null;
+  const isStarted = startedLocally || session.started_at != null;
   const {
     elapsedSeconds,
     paused: workoutPaused,
@@ -876,17 +909,24 @@ export function ActiveWorkoutClient({
     if (initialExercises.length === 0) return;
 
     let cancelled = false;
-    void getExerciseHistories(
-      initialExercises.map((ex) => ({
-        exerciseId: ex.exercise_id,
-        name: ex.name,
-      }))
-    ).then((loaded) => {
-      if (!cancelled) setHistories(loaded);
-    });
+    const timer = window.setTimeout(() => {
+      void getLatestExerciseHistoriesByNames(
+        initialExercises.map((exercise) => exercise.name)
+      ).then((byName) => {
+        if (cancelled) return;
+        const loaded: Record<string, ExerciseHistoryEntry | null> = {};
+        for (const exercise of initialExercises) {
+          const history = byName[exercise.name.trim().toLowerCase()] ?? null;
+          loaded[exercise.exercise_id ?? exercise.name] = history;
+          loaded[exercise.name] = history;
+        }
+        setHistories(loaded);
+      });
+    }, 350);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [initialExercises, initialHistories]);
 
@@ -900,19 +940,29 @@ export function ActiveWorkoutClient({
 
   const refresh = () => router.refresh();
 
-  const leaveWorkout = async (options?: { confirm?: boolean }) => {
+  const leaveWorkout = async (options?: { confirm?: boolean; remote?: boolean }) => {
     if (leaveHandledRef.current) return;
     const run = async () => {
       leaveHandledRef.current = true;
       setError(null);
-      const result = await cancelWorkoutSession(session.id);
-      if (result.error) {
-        leaveHandledRef.current = false;
-        setError(result.error);
-        return;
+      if (!isPendingWorkoutSessionId(session.id)) {
+        const result = await cancelWorkoutSession(session.id);
+        if (result.error && !options?.remote) {
+          leaveHandledRef.current = false;
+          setError(result.error);
+          return;
+        }
       }
       clearWorkoutTimerState(session.id);
       void endLiveWorkout();
+      if (!options?.remote) {
+        void pushWorkoutMirror({
+          status: "idle",
+          action: "cancel",
+          mode: planKind === "hiit" ? "hiit" : "strength",
+          sessionId: session.id,
+        });
+      }
       router.push("/dashboard");
       router.refresh();
     };
@@ -932,19 +982,79 @@ export function ActiveWorkoutClient({
   };
 
   const handleBeginWorkout = () => {
+    if (isStarted) return;
     setError(null);
-    startTransition(async () => {
-      const result = await beginWorkoutSession(session.id);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      leaveHandledRef.current = false;
-      clearWorkoutTimerState(session.id);
-      resetTimer();
-      router.refresh();
+    setStartedLocally(true);
+    clearWorkoutTimerState(session.id);
+    resetTimer();
+    void pushWorkoutMirror({
+      status: "live",
+      action: "start",
+      mode: "strength",
+      sessionId: session.id,
+      exerciseIndex: activeIndex,
     });
   };
+
+  useEffect(() => {
+    if (!isStarted || session.started_at) return;
+    if (isPendingWorkoutSessionId(session.id)) return;
+    if (beginSentRef.current) return;
+    beginSentRef.current = true;
+    void beginWorkoutSession(session.id).then((result) => {
+      if (result.error) {
+        beginSentRef.current = false;
+        setStartedLocally(false);
+        setError(result.error);
+      }
+    });
+  }, [isStarted, session.id, session.started_at]);
+
+  const leaveRef = useRef(leaveWorkout);
+  useEffect(() => {
+    leaveRef.current = leaveWorkout;
+  });
+
+  useEffect(() => {
+    return subscribeWorkoutMirror((event) => {
+      if (event.action === "cancel" || event.status === "idle") {
+        void leaveRef.current({ confirm: false, remote: true });
+        return;
+      }
+      if (event.status !== "live" || event.mode === "hiit") return;
+      suppressWorkoutMirror();
+      if (event.action === "start") setStartedLocally(true);
+      setActiveIndex((current) => {
+        const count = exercises.length;
+        if (count === 0) return current;
+        return Math.min(Math.max(0, event.exerciseIndex), count - 1);
+      });
+      if (event.action !== "log") {
+        setRemoteDraft({
+          token: event.seq || Date.now(),
+          reps: event.reps,
+          weightKg: event.weightKg,
+        });
+      }
+      if (event.action === "log" && event.setId) {
+        setExercises((prev) =>
+          prev.map((item) => ({
+            ...item,
+            sets: item.sets?.map((set) =>
+              set.id === event.setId
+                ? {
+                    ...set,
+                    reps: event.reps,
+                    weight_kg: event.weightKg,
+                    completed: true,
+                  }
+                : set
+            ),
+          }))
+        );
+      }
+    });
+  }, [exercises.length]);
 
   const handleAddExercise = () => {
     if (!newExerciseName.trim()) return;
@@ -978,6 +1088,12 @@ export function ActiveWorkoutClient({
       }
       clearWorkoutTimerState(session.id);
       void endLiveWorkout();
+      void pushWorkoutMirror({
+        status: "idle",
+        action: "cancel",
+        mode: "strength",
+        sessionId: session.id,
+      });
       const dateKey =
         result.scheduledDate ??
         session.scheduled_date ??
@@ -1019,6 +1135,7 @@ export function ActiveWorkoutClient({
 
   return (
     <div
+      data-native-pull-refresh="off"
       className={cn(
         "mx-auto flex max-w-lg flex-col px-2 pb-[max(0.75rem,var(--safe-area-bottom))] pt-[max(0.35rem,var(--safe-area-top))] lg:pt-2",
         isStarted
@@ -1124,12 +1241,7 @@ export function ActiveWorkoutClient({
 
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 flex-col gap-2",
-          isStarted ? "overflow-y-auto overscroll-contain" : "overflow-hidden"
-        )}
-      >
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
         {isLoadingExercises ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 p-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1154,11 +1266,24 @@ export function ActiveWorkoutClient({
             }
             onSetsChange={(sets) => patchExerciseSets(activeExercise.id, sets)}
             onSaveError={setError}
-            readOnly={!isStarted}
+            readOnly={!isStarted || isPendingWorkoutSessionId(session.id)}
             gender={exerciseGender}
             restClock={formatSessionClock(rest.displaySeconds)}
             restRunning={rest.running}
-            onLoggedSet={() => rest.start(activeExercise.rest_seconds)}
+            onLoggedSet={(info) => {
+              rest.start(activeExercise.rest_seconds);
+              if (!info) return;
+              void pushWorkoutMirror({
+                status: "live",
+                action: "log",
+                mode: "strength",
+                sessionId: session.id,
+                exerciseIndex: activeIndex,
+                setId: info.setId,
+                reps: info.reps,
+                weightKg: info.weightKg,
+              });
+            }}
             onAllSetsDone={() => {
               if (activeIndex < exercises.length - 1) {
                 window.setTimeout(() => {
@@ -1172,6 +1297,7 @@ export function ActiveWorkoutClient({
             canGoBack={activeIndex > 0}
             onBackExercise={() => setActiveIndex((i) => Math.max(0, i - 1))}
             onLiveDraft={isStarted ? reportLiveDraft : undefined}
+            remoteDraft={remoteDraft}
           />
         ) : null}
 

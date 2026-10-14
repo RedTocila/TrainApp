@@ -161,6 +161,9 @@ function DashboardMobileHeaderBar() {
           {workoutActions.showStart ? (
             <StartTodaysWorkoutButton
               date={workoutActions.date}
+              workout={workoutActions.workout}
+              gender={workoutActions.gender}
+              continuesToMain={workoutActions.continuesToMain}
               dayFlow
               disabled={workoutActions.disabled}
               display="nav"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Loader2, Minus, Plus } from "lucide-react";
 import { useBodyUnits, usePlatformCopy } from "@/components/locale-provider";
@@ -19,6 +19,12 @@ import {
   endLiveWorkout,
   useLiveWorkoutPublisher,
 } from "@/lib/live-workout";
+import {
+  pushWorkoutMirror,
+  subscribeWorkoutMirror,
+  suppressWorkoutMirror,
+} from "@/lib/watch-session";
+import { BackTapSetup } from "@/components/back-tap-setup";
 import type { WorkoutSessionExercise, WorkoutSessionSet } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +52,7 @@ export function QuickWorkoutClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const publishLive = useLiveWorkoutPublisher(true);
+  const applyingRemote = useRef(false);
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [timerOnly, setTimerOnly] = useState(false);
@@ -145,7 +152,29 @@ export function QuickWorkoutClient() {
   }, [searchParams, seed]);
 
   useEffect(() => {
-    if (!exercise || timerOnly) return;
+    return subscribeWorkoutMirror((event) => {
+      if (event.action === "cancel" || event.status === "idle") {
+        router.push("/dashboard");
+        return;
+      }
+      if (event.mode === "hiit" || event.status !== "live") return;
+      applyingRemote.current = true;
+      suppressWorkoutMirror();
+      setIndex((current) => {
+        const count = exercises.length;
+        if (!count) return current;
+        return Math.min(Math.max(0, event.exerciseIndex), count - 1);
+      });
+      setReps(Math.min(40, Math.max(1, event.reps || 1)));
+      setWeightKg(Math.max(0, event.weightKg || 0));
+      window.setTimeout(() => {
+        applyingRemote.current = false;
+      }, 80);
+    });
+  }, [exercises.length, router]);
+
+  useEffect(() => {
+    if (!exercise || timerOnly || applyingRemote.current) return;
     publishLive({
       exerciseName: exercise.name,
       exerciseIndex: index,
@@ -221,6 +250,16 @@ export function QuickWorkoutClient() {
       setExercises(nextExercises);
       setIndex(nextIndex);
       seed(nextExercises, nextIndex, null);
+      void pushWorkoutMirror({
+        status: "live",
+        action: "log",
+        mode: "strength",
+        sessionId: sessionId ?? "",
+        exerciseIndex: nextIndex,
+        setId,
+        reps,
+        weightKg,
+      });
     } finally {
       setSaving(false);
     }
@@ -352,9 +391,7 @@ export function QuickWorkoutClient() {
                 {platform.workout.openWorkout}
               </button>
             ) : null}
-            <p className="pb-1 text-center text-[11px] leading-relaxed text-muted-foreground">
-              {platform.workout.backTapHint}
-            </p>
+            <BackTapSetup />
           </div>
         ) : null}
       </section>
