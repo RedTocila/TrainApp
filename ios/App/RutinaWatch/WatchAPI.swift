@@ -39,6 +39,84 @@ struct WatchToday: Decodable, Equatable {
     var cardio: WatchCardio
 }
 
+struct WatchSet: Decodable, Equatable, Identifiable {
+    var id: String
+    var number: Int
+    var done: Bool
+}
+
+struct WatchHiitPhase: Decodable, Equatable {
+    var type: String
+    var seconds: Int
+    var label: String
+    var name: String?
+    var gifUrl: String?
+}
+
+struct WatchExercise: Decodable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var gifUrl: String?
+    var videoUrl: String?
+    var targetReps: String?
+    var setCount: Int
+    var completedSets: Int
+    var openSetId: String?
+    var openSetNumber: Int?
+    var lastWeightKg: Double?
+    var lastReps: Int?
+    var sets: [WatchSet]
+
+    init(
+        id: String,
+        name: String,
+        gifUrl: String?,
+        videoUrl: String? = nil,
+        targetReps: String?,
+        setCount: Int,
+        completedSets: Int,
+        openSetId: String?,
+        openSetNumber: Int?,
+        lastWeightKg: Double?,
+        lastReps: Int?,
+        sets: [WatchSet] = []
+    ) {
+        self.id = id
+        self.name = name
+        self.gifUrl = gifUrl
+        self.videoUrl = videoUrl
+        self.targetReps = targetReps
+        self.setCount = setCount
+        self.completedSets = completedSets
+        self.openSetId = openSetId
+        self.openSetNumber = openSetNumber
+        self.lastWeightKg = lastWeightKg
+        self.lastReps = lastReps
+        self.sets = sets
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, gifUrl, videoUrl, targetReps, setCount, completedSets
+        case openSetId, openSetNumber, lastWeightKg, lastReps, sets
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        gifUrl = try container.decodeIfPresent(String.self, forKey: .gifUrl)
+        videoUrl = try container.decodeIfPresent(String.self, forKey: .videoUrl)
+        targetReps = try container.decodeIfPresent(String.self, forKey: .targetReps)
+        setCount = try container.decodeIfPresent(Int.self, forKey: .setCount) ?? 1
+        completedSets = try container.decodeIfPresent(Int.self, forKey: .completedSets) ?? 0
+        openSetId = try container.decodeIfPresent(String.self, forKey: .openSetId)
+        openSetNumber = try container.decodeIfPresent(Int.self, forKey: .openSetNumber)
+        lastWeightKg = try container.decodeIfPresent(Double.self, forKey: .lastWeightKg)
+        lastReps = try container.decodeIfPresent(Int.self, forKey: .lastReps)
+        sets = try container.decodeIfPresent([WatchSet].self, forKey: .sets) ?? []
+    }
+}
+
 struct WatchWorkout: Decodable, Equatable {
     var title: String?
     var status: String
@@ -48,6 +126,28 @@ struct WatchWorkout: Decodable, Equatable {
     var setNumber: Int?
     var setId: String?
     var targetReps: String?
+    var exercises: [WatchExercise]
+    var mode: String
+    var phases: [WatchHiitPhase]
+
+    enum CodingKeys: String, CodingKey {
+        case title, status, canLogSets, sessionId, exerciseName, setNumber, setId, targetReps, exercises, mode, phases
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        status = try container.decode(String.self, forKey: .status)
+        canLogSets = try container.decodeIfPresent(Bool.self, forKey: .canLogSets) ?? false
+        sessionId = try container.decodeIfPresent(String.self, forKey: .sessionId)
+        exerciseName = try container.decodeIfPresent(String.self, forKey: .exerciseName)
+        setNumber = try container.decodeIfPresent(Int.self, forKey: .setNumber)
+        setId = try container.decodeIfPresent(String.self, forKey: .setId)
+        targetReps = try container.decodeIfPresent(String.self, forKey: .targetReps)
+        exercises = try container.decodeIfPresent([WatchExercise].self, forKey: .exercises) ?? []
+        mode = try container.decodeIfPresent(String.self, forKey: .mode) ?? "strength"
+        phases = try container.decodeIfPresent([WatchHiitPhase].self, forKey: .phases) ?? []
+    }
 }
 
 struct WatchNutrition: Decodable, Equatable {

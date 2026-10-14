@@ -135,6 +135,7 @@ export function WorkoutScheduleView({
           mergeCalendarEnrichment(prev, result.enrichment)
         );
       })
+      .catch(() => undefined)
       .finally(() => {
         if (!cancelled) setLoading(false);
       });

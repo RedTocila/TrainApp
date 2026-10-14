@@ -44,7 +44,13 @@ export function clearRemoteCardioTimer(dateKey: string, cardioId: string | null 
 
 /** Pull the shared clock. A brand-new local start is published instead of wiped. */
 export async function pullCardioTimerIntoLocal(dateKey: string, cardioId: string) {
-  const remote = await getRemoteCardioTimer(dateKey, cardioId);
+  let remote: Awaited<ReturnType<typeof getRemoteCardioTimer>>;
+  try {
+    remote = await getRemoteCardioTimer(dateKey, cardioId);
+  } catch {
+    // A dropped request is a TypeError "Failed to fetch". The clock keeps the local time.
+    return;
+  }
   if (!remote || "error" in remote) return;
 
   const local = getCardioTimerState(dateKey, cardioId);

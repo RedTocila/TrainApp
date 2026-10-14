@@ -76,6 +76,7 @@ export async function transcribeAudioBytes(input: {
   filename: string;
   mimeType: string;
   language?: string;
+  fast?: boolean;
 }): Promise<{ text: string } | { error: string }> {
   if (!process.env.OPENAI_API_KEY) {
     return { error: "Voice input is not available right now." };
@@ -85,8 +86,9 @@ export async function transcribeAudioBytes(input: {
 
   const client = getOpenAIClient();
   const prompt = languagePrompt(input.language);
-  const models = [PRIMARY_MODEL];
-  if (PRIMARY_MODEL !== FALLBACK_MODEL) models.push(FALLBACK_MODEL);
+  const models = input.fast
+    ? [FALLBACK_MODEL]
+    : [PRIMARY_MODEL, ...(PRIMARY_MODEL === FALLBACK_MODEL ? [] : [FALLBACK_MODEL])];
 
   let lastError: unknown = null;
   for (const model of models) {

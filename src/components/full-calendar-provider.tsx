@@ -104,6 +104,7 @@ export function FullCalendarProvider({ children }: { children: ReactNode }) {
     if (bootstrapping) return;
     setBootstrapping(true);
     void bootstrapCalendarData()
+      .catch(() => null)
       .then((data) => {
         if (!data) {
           pendingOpenRef.current = false;

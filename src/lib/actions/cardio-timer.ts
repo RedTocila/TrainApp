@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { requireSubscribedMutationAdmin } from "@/lib/actions/auth-client";
 import {
   readCardioTimer,
@@ -44,8 +43,5 @@ export async function saveRemoteCardioTimer(input: {
         ? new Date(input.segmentStartedAt).toISOString()
         : null,
   });
-  if ("timer" in result) {
-    revalidatePath("/dashboard");
-  }
   return result;
 }

@@ -16,6 +16,8 @@ import {
   writeCardioTimer,
   type RemoteCardioTimer,
 } from "@/lib/cardio-timer-db";
+import { resolveExerciseGifUrl } from "@/lib/exercise-gif";
+import { buildHiitPhases, isIntervalPlan, normalizeHiitConfig } from "@/lib/hiit";
 import { sumMealMacros } from "@/lib/meal-utils";
 import { workoutTaskId } from "@/lib/workout-task-id";
 import type { WatchContext } from "@/lib/watch/auth";
@@ -35,6 +37,9 @@ export type WatchToday = {
     setNumber: number | null;
     setId: string | null;
     targetReps: string | null;
+    exercises: WatchExercise[];
+    mode: "strength" | "interval";
+    phases: WatchHiitPhase[];
   };
   nutrition: {
     calories: number;
@@ -60,12 +65,45 @@ export type WatchToday = {
 
 type WatchResult = { today: WatchToday; message?: string } | { error: string; status?: number };
 
+export type WatchExercise = {
+  id: string;
+  name: string;
+  gifUrl: string | null;
+  targetReps: string | null;
+  setCount: number;
+  completedSets: number;
+  openSetId: string | null;
+  openSetNumber: number | null;
+  lastWeightKg: number | null;
+  lastReps: number | null;
+  videoUrl: string | null;
+  sets: WatchSet[];
+};
+
+export type WatchSet = {
+  id: string;
+  number: number;
+  done: boolean;
+};
+
+export type WatchHiitPhase = {
+  type: string;
+  seconds: number;
+  label: string;
+  name: string | null;
+  gifUrl: string | null;
+};
+
+const WATCH_ORIGIN = "https://rutina.al";
+
 type PlanExercise = {
   id: string;
   name: string;
   sets: number;
   reps: string;
   notes: string | null;
+  image_url: string | null;
+  video_url: string | null;
   order_index: number;
 };
 
@@ -79,6 +117,7 @@ type SessionSet = {
 
 type SessionExercise = {
   id: string;
+  exercise_id: string | null;
   name: string;
   target_reps: string | null;
   order_index: number;
@@ -101,8 +140,8 @@ type ScheduledRow = {
       }[]
     | null;
   workout_plans:
-    | { title: string | null; kind: string | null }
-    | { title: string | null; kind: string | null }[]
+    | { title: string | null; kind: string | null; hiit_config?: unknown }
+    | { title: string | null; kind: string | null; hiit_config?: unknown }[]
     | null;
 };
 
@@ -129,7 +168,7 @@ export async function loadWatchToday(
       admin
         .from("scheduled_workouts")
         .select(
-          "id, plan_id, day_id, order_index, workout_days(title, exercises(id, name, sets, reps, notes, order_index)), workout_plans(title, kind)"
+          "id, plan_id, day_id, order_index, workout_days(title, exercises(id, name, sets, reps, notes, image_url, video_url, order_index)), workout_plans(title, kind, hiit_config)"
         )
         .eq("client_id", userId)
         .eq("scheduled_date", date)
@@ -188,7 +227,7 @@ export async function loadWatchToday(
     const { data } = await admin
       .from("workout_session_exercises")
       .select(
-        "id, name, target_reps, order_index, workout_session_sets(id, set_number, reps, weight_kg, completed)"
+        "id, exercise_id, name, target_reps, order_index, workout_session_sets(id, set_number, reps, weight_kg, completed)"
       )
       .eq("session_id", session.id)
       .order("order_index");
@@ -254,6 +293,11 @@ export async function loadWatchToday(
       setNumber: open?.setNumber ?? null,
       setId: open?.setId ?? null,
       targetReps: open?.targetReps ?? null,
+      exercises: watchExercises(exercises, planExercisesFor(scheduled, session?.day_id, nextScheduled)),
+      ...watchInterval(
+        planFor(scheduled, session?.day_id, nextScheduled),
+        planExercisesFor(scheduled, session?.day_id, nextScheduled)
+      ),
     },
     nutrition: {
       calories: Math.round(macros.calories),
@@ -279,6 +323,148 @@ export async function loadWatchToday(
       completed: cardioCompleted,
     },
   };
+}
+
+function planFor(
+  scheduled: ScheduledRow[],
+  dayId: string | null | undefined,
+  nextScheduled: ScheduledRow | undefined
+) {
+  const match = dayId ? scheduled.find((row) => row.day_id === dayId) : null;
+  return (
+    one(match?.workout_plans) ??
+    one(nextScheduled?.workout_plans) ??
+    one(scheduled[0]?.workout_plans)
+  );
+}
+
+function planExercisesFor(
+  scheduled: ScheduledRow[],
+  dayId: string | null | undefined,
+  nextScheduled: ScheduledRow | undefined
+): PlanExercise[] {
+  const match = dayId ? scheduled.find((row) => row.day_id === dayId) : null;
+  return (
+    one(match?.workout_days)?.exercises ??
+    one(nextScheduled?.workout_days)?.exercises ??
+    one(scheduled[0]?.workout_days)?.exercises ??
+    []
+  );
+}
+
+function asNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function watchVideoUrl(url: string | null | undefined): string | null {
+  const trimmed = url?.trim();
+  if (!trimmed || !/^https?:\/\//i.test(trimmed)) return null;
+  return /\.(mp4|mov|m4v)(\?|$)/i.test(trimmed) ? trimmed : null;
+}
+
+function watchInterval(
+  plan: { kind?: string | null; hiit_config?: unknown } | null,
+  planExercises: PlanExercise[]
+): { mode: "strength" | "interval"; phases: WatchHiitPhase[] } {
+  const config = normalizeHiitConfig(plan?.hiit_config);
+  if (!plan || !config || !isIntervalPlan(plan)) {
+    return { mode: "strength", phases: [] };
+  }
+  const phases = buildHiitPhases(config)
+    .filter((phase) => phase.type !== "done" && phase.durationSeconds > 0)
+    .map((phase) => {
+      const named = phase.exerciseName?.trim().toLowerCase() ?? "";
+      const planned = planExercises.find((exercise) => exercise.name.trim().toLowerCase() === named);
+      const fromConfig = config.exercises.find(
+        (exercise) => exercise.name.trim().toLowerCase() === named
+      );
+      return {
+        type: phase.type,
+        seconds: phase.durationSeconds,
+        label: phase.label,
+        name: phase.exerciseName ?? phase.label,
+        gifUrl: named
+          ? watchGifUrl(phase.exerciseName ?? "", fromConfig?.image_url ?? planned?.image_url ?? null)
+          : null,
+      };
+    });
+  return { mode: "interval", phases };
+}
+
+function watchGifUrl(name: string, imageUrl: string | null): string | null {
+  const resolved = resolveExerciseGifUrl({ name, imageUrl });
+  if (!resolved) return null;
+  if (resolved.startsWith("https://") || resolved.startsWith("http://")) return resolved;
+  return `${WATCH_ORIGIN}${resolved.startsWith("/") ? resolved : `/${resolved}`}`;
+}
+
+function watchExercises(
+  sessionExercises: SessionExercise[],
+  planExercises: PlanExercise[]
+): WatchExercise[] {
+  const imageById = new Map(planExercises.map((exercise) => [exercise.id, exercise.image_url ?? null]));
+  const imageByName = new Map(
+    planExercises.map((exercise) => [exercise.name.trim().toLowerCase(), exercise.image_url ?? null])
+  );
+
+  if (sessionExercises.length > 0) {
+    return [...sessionExercises]
+      .sort((a, b) => a.order_index - b.order_index)
+      .map((exercise) => {
+        const sets = [...(exercise.workout_session_sets ?? [])].sort(
+          (a, b) => a.set_number - b.set_number
+        );
+        const open = sets.find((set) => !set.completed) ?? null;
+        const previous = [...sets].reverse().find((set) => set.completed) ?? null;
+        const image =
+          (exercise.exercise_id ? imageById.get(exercise.exercise_id) : null) ??
+          imageByName.get(exercise.name.trim().toLowerCase()) ??
+          null;
+        const planned = planExercises.find(
+          (item) => item.name.trim().toLowerCase() === exercise.name.trim().toLowerCase()
+        );
+        return {
+          id: exercise.id,
+          name: exercise.name,
+          gifUrl: watchGifUrl(exercise.name, image),
+          videoUrl: watchVideoUrl(planned?.video_url),
+          targetReps: exercise.target_reps,
+          setCount: Math.max(sets.length, 1),
+          completedSets: sets.filter((set) => set.completed).length,
+          openSetId: open?.id ?? null,
+          openSetNumber: open?.set_number ?? null,
+          lastWeightKg: asNumber(open?.weight_kg ?? previous?.weight_kg),
+          lastReps: (() => {
+            const reps = asNumber(open?.reps ?? previous?.reps);
+            return reps == null ? null : Math.round(reps);
+          })(),
+          sets: sets.map((set) => ({
+            id: set.id,
+            number: set.set_number,
+            done: set.completed,
+          })),
+        };
+      });
+  }
+
+  return [...planExercises]
+    .sort((a, b) => a.order_index - b.order_index)
+    .map((exercise) => ({
+      id: exercise.id,
+      name: exercise.name,
+      gifUrl: watchGifUrl(exercise.name, exercise.image_url ?? null),
+      videoUrl: watchVideoUrl(exercise.video_url),
+      targetReps: exercise.reps,
+      setCount: exercise.sets,
+      completedSets: 0,
+      openSetId: null,
+      openSetNumber: null,
+      lastWeightKg: null,
+      lastReps: null,
+      sets: [],
+    }));
 }
 
 function currentOpenSet(exercises: SessionExercise[]) {
@@ -536,8 +722,8 @@ export async function addWatchWater(
   date: string,
   amount: number
 ): Promise<WatchResult> {
-  if (amount !== 250 && amount !== 500) {
-    return { error: "Add 250 or 500 ml." };
+  if (amount !== 250 && amount !== 500 && amount !== -250) {
+    return { error: "Use 250 or 500 ml." };
   }
   const { error } = await ctx.admin.rpc("increment_water_ml", {
     p_user_id: ctx.userId,
@@ -673,10 +859,59 @@ export async function stopWatchCardio(
   return { today: await loadWatchToday(ctx, date), message: "Cardio saved." };
 }
 
+export async function pauseWatchCardio(
+  ctx: WatchContext,
+  date: string
+): Promise<WatchResult> {
+  const cardio = await todayCardio(ctx, date);
+  if (!cardio) return { error: "No cardio scheduled today." };
+  const current = await readCardioTimer(ctx.admin, ctx.userId, date, cardio.id);
+  if ("error" in current) return { error: current.error };
+  if (current.timer.status !== "running") {
+    return { today: await loadWatchToday(ctx, date) };
+  }
+  const elapsedSeconds = Math.floor(remoteCardioElapsedMs(current.timer) / 1000);
+  const paused = await writeCardioTimer(ctx.admin, ctx.userId, {
+    date,
+    cardioId: cardio.id,
+    status: "paused",
+    accumulatedMs: elapsedSeconds * 1000,
+    segmentStartedAt: null,
+  });
+  if ("error" in paused) return { error: paused.error };
+  revalidateDashboard();
+  return { today: await loadWatchToday(ctx, date) };
+}
+
+export async function resetWatchCardio(
+  ctx: WatchContext,
+  date: string
+): Promise<WatchResult> {
+  const cardio = await todayCardio(ctx, date);
+  if (!cardio) return { error: "No cardio scheduled today." };
+  const cleared = await writeCardioTimer(ctx.admin, ctx.userId, {
+    date,
+    cardioId: cardio.id,
+    status: "idle",
+    accumulatedMs: 0,
+    segmentStartedAt: null,
+  });
+  if ("error" in cleared) return { error: cleared.error };
+  await ctx.admin
+    .from("schedule_task_completions")
+    .delete()
+    .eq("client_id", ctx.userId)
+    .eq("date", date)
+    .eq("task_id", cardioTaskId(date, cardio.id));
+  revalidateDashboard();
+  return { today: await loadWatchToday(ctx, date) };
+}
+
 export async function askWatchAlex(
   ctx: WatchContext,
   date: string,
-  message: string
+  message: string,
+  context?: string
 ): Promise<{ reply: string } | { error: string; status?: number }> {
   const trimmed = message.trim();
   if (!trimmed) return { error: "Say something first." };
@@ -688,33 +923,19 @@ export async function askWatchAlex(
   const access = await checkAlexCommandAllowed(ctx.profile);
   if (!access.allowed) return { error: access.error, status: 403 };
 
-  const today = await loadWatchToday(ctx, date);
-  const lang = today.locale === "al" ? "Albanian" : "English";
-  const snapshot = [
-    `Workout: ${today.workout.title ?? "none"} (${today.workout.status})`,
-    today.workout.exerciseName
-      ? `Current set: ${today.workout.exerciseName} set ${today.workout.setNumber}`
-      : null,
-    `Nutrition: ${today.nutrition.calories}/${today.nutrition.targetCalories} kcal, P ${today.nutrition.protein}/${today.nutrition.targetProtein}g, C ${today.nutrition.carbs}/${today.nutrition.targetCarbs}g, F ${today.nutrition.fat}/${today.nutrition.targetFat}g`,
-    `Water: ${today.water.ml}/${today.water.goalMl} ml`,
-    `Steps goal: ${today.steps.goal}`,
-    today.cardio.title
-      ? `Cardio: ${today.cardio.title} ${today.cardio.status}, ${today.cardio.elapsedSeconds}s`
-      : "Cardio: none",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const lang = ctx.profile.preferred_locale === "en" ? "English" : "Albanian";
+  const snapshot = context?.trim().slice(0, 500) || "";
 
   try {
     const reply = await runChatCompletion(
       [
         {
           role: "system",
-          content: `You are Coach Alex inside the RUTINA Apple Watch. Reply in ${lang}. Two to four short sentences. No markdown, no bullet lists. Be direct and a little sharp, never cruel. Use today's snapshot. Do not claim you changed their plan, logged a set, or saved a meal.\n\n${snapshot}`,
+          content: `You are Coach Alex on the RUTINA Apple Watch. Reply in ${lang}. One short sentence only. No markdown. Be direct. Do not claim you changed their plan.\n${snapshot}`,
         },
         { role: "user", content: trimmed },
       ],
-      { maxTokens: 220, tier: "cheap" }
+      { maxTokens: 60, tier: "cheap" }
     );
     await consumeAlexCommand(ctx.profile);
     return { reply: reply.trim() };
@@ -727,7 +948,8 @@ export async function askWatchAlex(
 export async function askWatchAlexFromAudio(
   ctx: WatchContext,
   date: string,
-  audioBase64: string
+  audioBase64: string,
+  context?: string
 ): Promise<{ reply: string } | { error: string; status?: number }> {
   const cleaned = audioBase64.replace(/\s/g, "");
   if (!cleaned) return { error: "No audio received." };
@@ -743,9 +965,10 @@ export async function askWatchAlexFromAudio(
     filename: "watch.m4a",
     mimeType: "audio/m4a",
     language,
+    fast: true,
   });
   if ("error" in transcript) return { error: transcript.error, status: 500 };
-  return askWatchAlex(ctx, date, transcript.text);
+  return askWatchAlex(ctx, date, transcript.text, context);
 }
 
 export async function handleWatchAction(
@@ -759,6 +982,7 @@ export async function handleWatchAction(
     amount?: unknown;
     message?: unknown;
     audioBase64?: unknown;
+    context?: unknown;
   }
 ): Promise<
   | WatchResult
@@ -785,19 +1009,25 @@ export async function handleWatchAction(
       return addWatchWater(ctx, date, Number(body.amount));
     case "cardio.start":
       return startWatchCardio(ctx, date);
+    case "cardio.pause":
+      return pauseWatchCardio(ctx, date);
+    case "cardio.reset":
+      return resetWatchCardio(ctx, date);
     case "cardio.stop":
       return stopWatchCardio(ctx, date);
     case "alex":
       return askWatchAlex(
         ctx,
         date,
-        typeof body.message === "string" ? body.message : ""
+        typeof body.message === "string" ? body.message : "",
+        typeof body.context === "string" ? body.context : undefined
       );
     case "alex.audio":
       return askWatchAlexFromAudio(
         ctx,
         date,
-        typeof body.audioBase64 === "string" ? body.audioBase64 : ""
+        typeof body.audioBase64 === "string" ? body.audioBase64 : "",
+        typeof body.context === "string" ? body.context : undefined
       );
     default:
       return { error: "Unknown action.", status: 400 };

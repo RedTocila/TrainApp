@@ -207,7 +207,9 @@ export function FullCalendarDialog({
           );
         })
         .catch((err) => {
-          console.error("[full-calendar]", err);
+          const message = err instanceof Error ? err.message : "Calendar request failed";
+          if (/failed to fetch|load failed|networkerror|fetch failed/i.test(message)) return;
+          console.error("[full-calendar]", message);
         })
         .finally(() => {
           inflightRef.current.delete(cacheKey);

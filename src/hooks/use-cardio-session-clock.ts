@@ -28,10 +28,17 @@ export function useCardioSessionClock(
     if (!cardioId) return unsubscribe;
 
     let cancelled = false;
+    let pulling = false;
     const pull = () => {
-      void pullCardioTimerIntoLocal(dateKey, cardioId).then(() => {
-        if (!cancelled) refresh();
-      });
+      if (pulling) return;
+      pulling = true;
+      void pullCardioTimerIntoLocal(dateKey, cardioId)
+        .then(() => {
+          if (!cancelled) refresh();
+        })
+        .finally(() => {
+          pulling = false;
+        });
     };
     pull();
     const poll = window.setInterval(pull, 20000);
