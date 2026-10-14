@@ -321,36 +321,37 @@ struct LiveBoard: Codable, Equatable {
 }
 
 @available(iOS 16.2, *)
-private enum LiveWorkoutQueue {
+enum LiveWorkoutQueue {
     private static let lock = NSLock()
     private static var posting = Set<String>()
 
     static func enqueue(setId: String, reps: Int, weight: Double) {
         guard !setId.isEmpty else { return }
-        lock.lock()
-        var logs = LiveWorkoutStore.pendingLogs()
-        logs.removeAll { $0.setId == setId }
-        logs.append(PendingLiveLog(setId: setId, reps: reps, weightKg: weight))
-        LiveWorkoutStore.savePendingLogs(logs)
-        lock.unlock()
+        lock.withLock {
+            var logs = LiveWorkoutStore.pendingLogs()
+            logs.removeAll { $0.setId == setId }
+            logs.append(PendingLiveLog(setId: setId, reps: reps, weightKg: weight))
+            LiveWorkoutStore.savePendingLogs(logs)
+        }
     }
 
     static func remove(setId: String) {
-        lock.lock()
-        var logs = LiveWorkoutStore.pendingLogs()
-        logs.removeAll { $0.setId == setId }
-        LiveWorkoutStore.savePendingLogs(logs)
-        posting.remove(setId)
-        lock.unlock()
+        lock.withLock {
+            var logs = LiveWorkoutStore.pendingLogs()
+            logs.removeAll { $0.setId == setId }
+            LiveWorkoutStore.savePendingLogs(logs)
+            posting.remove(setId)
+        }
     }
 
     /// Starts the save without waiting. The request is not tied to the button's task.
     static func scheduleFlush() {
         for log in LiveWorkoutStore.pendingLogs() {
-            lock.lock()
-            let busy = posting.contains(log.setId)
-            if !busy { posting.insert(log.setId) }
-            lock.unlock()
+            let busy = lock.withLock { () -> Bool in
+                if posting.contains(log.setId) { return true }
+                posting.insert(log.setId)
+                return false
+            }
             if busy { continue }
             post(log, retry: true)
         }
@@ -375,17 +376,13 @@ private enum LiveWorkoutQueue {
 
     private static func post(_ log: PendingLiveLog, retry: Bool) {
         guard let request = LiveWorkoutAPI.logSetRequest(setId: log.setId, reps: log.reps, weight: log.weightKg) else {
-            lock.lock()
-            posting.remove(log.setId)
-            lock.unlock()
+            clearPosting(log.setId)
             return
         }
         URLSession.shared.dataTask(with: request) { _, response, error in
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             if error != nil || status >= 500 || status == 0 {
-                lock.lock()
-                posting.remove(log.setId)
-                lock.unlock()
+                clearPosting(log.setId)
                 return
             }
             if status == 401, retry {
@@ -394,9 +391,7 @@ private enum LiveWorkoutQueue {
                     if refreshed {
                         post(log, retry: false)
                     } else {
-                        lock.lock()
-                        posting.remove(log.setId)
-                        lock.unlock()
+                        clearPosting(log.setId)
                     }
                 }
                 return
@@ -405,10 +400,14 @@ private enum LiveWorkoutQueue {
                 remove(setId: log.setId)
                 return
             }
-            lock.lock()
-            posting.remove(log.setId)
-            lock.unlock()
+            clearPosting(log.setId)
         }.resume()
+    }
+
+    private static func clearPosting(_ setId: String) {
+        lock.withLock {
+            posting.remove(setId)
+        }
     }
 }
 
