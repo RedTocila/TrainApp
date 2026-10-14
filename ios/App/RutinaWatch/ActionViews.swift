@@ -325,69 +325,55 @@ private struct ExerciseLogPage: View {
     @State private var weight = 20.0
     @State private var applyingRemote = false
 
-    private var weights: [Double] {
-        Array(stride(from: 0.0, through: 200.0, by: 2.5))
-    }
-
     var body: some View {
-        GeometryReader { geo in
-            ScrollView {
-                VStack(spacing: 6) {
-                    ExerciseMedia(gifUrl: exercise.gifUrl)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: max(geo.size.width, geo.size.height * 0.7))
-                        .clipped()
-                    Text(exercise.name)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.7)
-                    Text(setLabel)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(WatchTheme.mute)
-                    HStack(spacing: 4) {
-                        wheel("Reps", selection: repsBinding, values: (1...40).map(Double.init)) { value in
-                            "\(Int(value))"
-                        }
-                        wheel("Kg", selection: $weight, values: weights) { value in
-                            value.truncatingRemainder(dividingBy: 1) == 0
-                                ? String(format: "%.0f", value)
-                                : String(format: "%.1f", value)
-                        }
+        ScrollView {
+            VStack(spacing: 8) {
+                ExerciseMedia(gifUrl: exercise.gifUrl)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 88)
+                Text(exercise.name)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+                Text(setLabel)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(WatchTheme.mute)
+                HStack(spacing: 6) {
+                    stepper("Kg", value: weightLabel, down: { weight = snap(weight - 2.5) }, up: { weight = snap(weight + 2.5) })
+                    stepper("Reps", value: "\(reps)", down: { reps = min(40, max(1, reps - 1)) }, up: { reps = min(40, max(1, reps + 1)) })
+                }
+                HStack(spacing: 6) {
+                    setControl(
+                        "Close set",
+                        symbol: "checkmark",
+                        fill: exercise.openSetId == nil ? Color.white.opacity(0.16) : WatchTheme.red,
+                        enabled: exercise.openSetId != nil
+                    ) {
+                        log()
                     }
-                    .frame(height: 108)
-                    HStack(spacing: 6) {
-                        setControl(
-                            "Close set",
-                            symbol: "checkmark",
-                            fill: exercise.openSetId == nil ? Color.white.opacity(0.16) : WatchTheme.red,
-                            enabled: exercise.openSetId != nil
-                        ) {
-                            log()
-                        }
-                        setControl(
-                            "Next",
-                            symbol: "arrow.right",
-                            fill: Color.white.opacity(0.16),
-                            enabled: index + 1 < total
-                        ) {
-                            if index + 1 < total { onNext() }
-                        }
-                    }
-                    HStack(spacing: 6) {
-                        setControl("Restart", symbol: "arrow.counterclockwise", fill: WatchTheme.red.opacity(0.85), enabled: true) {
-                            Task { await model.restartWorkout() }
-                        }
-                        setControl("Cancel", symbol: "xmark", fill: Color.white.opacity(0.16), enabled: true) {
-                            Task { await model.cancelWorkout() }
-                        }
+                    setControl(
+                        "Next",
+                        symbol: "arrow.right",
+                        fill: Color.white.opacity(0.16),
+                        enabled: index + 1 < total
+                    ) {
+                        if index + 1 < total { onNext() }
                     }
                 }
-                .padding(.bottom, 6)
+                HStack(spacing: 6) {
+                    setControl("Restart", symbol: "arrow.counterclockwise", fill: WatchTheme.red.opacity(0.85), enabled: true) {
+                        Task { await model.restartWorkout() }
+                    }
+                    setControl("Cancel", symbol: "xmark", fill: Color.white.opacity(0.16), enabled: true) {
+                        Task { await model.cancelWorkout() }
+                    }
+                }
             }
-            .scrollIndicators(.hidden)
+            .padding(.bottom, 8)
         }
+        .scrollIndicators(.hidden)
         .onAppear(perform: seed)
         .onChange(of: exercise.id) { _, _ in seed() }
         .onChange(of: model.remoteStamp) { _, _ in
@@ -406,11 +392,10 @@ private struct ExerciseLogPage: View {
         }
     }
 
-    private var repsBinding: Binding<Double> {
-        Binding(
-            get: { Double(reps) },
-            set: { reps = Int($0.rounded()) }
-        )
+    private var weightLabel: String {
+        weight.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", weight)
+            : String(format: "%.1f", weight)
     }
 
     private var setLabel: String {
@@ -431,7 +416,8 @@ private struct ExerciseLogPage: View {
     }
 
     private func snap(_ value: Double) -> Double {
-        weights.min(by: { abs($0 - value) < abs($1 - value) }) ?? 20
+        let stepped = (min(200, max(0, value)) / 2.5).rounded() * 2.5
+        return (stepped * 10).rounded() / 10
     }
 
     private func log() {
@@ -454,23 +440,37 @@ private struct ExerciseLogPage: View {
         watchPill(title, symbol: symbol, fill: fill, enabled: enabled, action: action)
     }
 
-    private func wheel(
+    private func stepper(
         _ title: String,
-        selection: Binding<Double>,
-        values: [Double],
-        label: @escaping (Double) -> String
+        value: String,
+        down: @escaping () -> Void,
+        up: @escaping () -> Void
     ) -> some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 3) {
             Text(title.uppercased())
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(WatchTheme.mute)
-            Picker(title, selection: selection) {
-                ForEach(values, id: \.self) { value in
-                    Text(label(value)).tag(value)
+            HStack(spacing: 0) {
+                Button(action: down) {
+                    Image(systemName: "minus")
+                        .font(.system(size: 12, weight: .bold))
+                        .frame(width: 28, height: 36)
+                }
+                Text(value)
+                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity)
+                Button(action: up) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .bold))
+                        .frame(width: 28, height: 36)
                 }
             }
-            .pickerStyle(.wheel)
-            .labelsHidden()
+            .foregroundStyle(.white)
+            .buttonStyle(.plain)
+            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
 }
@@ -487,47 +487,38 @@ private struct ExerciseMedia: View {
 private struct ExercisePreview: View {
     var urlString: String?
     var playing: Bool
-    @State private var frames: [UIImage] = []
-    @State private var frame = 0
+    @State private var still: UIImage?
 
     var body: some View {
         ZStack {
-            if frames.isEmpty {
+            if let still {
+                Image(uiImage: still)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(4)
+            } else {
                 Image(systemName: "figure.strengthtraining.traditional")
                     .font(.system(size: 26, weight: .semibold))
                     .foregroundStyle(WatchTheme.red)
-            } else {
-                Image(uiImage: frames[min(frame, frames.count - 1)])
-                    .resizable()
-                    .scaledToFill()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
-        .background(Color.black)
+        .background(Color.white.opacity(still == nil ? 0 : 0.94))
         .task(id: urlString) { await load() }
-        .task(id: playing) { await animate() }
     }
 
     private func load() async {
-        frames = []
-        frame = 0
-        guard let urlString, let url = URL(string: urlString) else { return }
+        still = nil
+        guard playing, let urlString, let url = URL(string: urlString) else { return }
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 12
+            let (data, response) = try await URLSession.shared.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode ?? 500 < 400 else { return }
-            let decoded = decodeGif(data)
-            if !Task.isCancelled { frames = decoded }
+            guard data.count < 1_500_000, let image = stillFrame(data), !Task.isCancelled else { return }
+            still = image
         } catch {
-            frames = []
-        }
-    }
-
-    private func animate() async {
-        while playing, !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(80))
-            guard playing, frames.count > 1 else { continue }
-            frame = (frame + 1) % frames.count
+            still = nil
         }
     }
 }
@@ -575,27 +566,16 @@ private func suggestedReps(_ raw: String?) -> Int {
     return min(40, max(1, Int(numbers.first ?? "") ?? 8))
 }
 
-private func decodeGif(_ data: Data) -> [UIImage] {
-    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
-        return UIImage(data: data).map { [$0] } ?? []
-    }
-    let count = CGImageSourceGetCount(source)
-    if count <= 1 {
-        return UIImage(data: data).map { [$0] } ?? []
-    }
-    let step = max(1, count / 16)
-    var images: [UIImage] = []
+/// One small frame. Decoding a full exercise GIF is enough to jetsam the watch.
+private func stillFrame(_ data: Data) -> UIImage? {
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
     let options: [CFString: Any] = [
-        kCGImageSourceThumbnailMaxPixelSize: 240,
+        kCGImageSourceThumbnailMaxPixelSize: 160,
         kCGImageSourceCreateThumbnailFromImageAlways: true,
         kCGImageSourceCreateThumbnailWithTransform: true
     ]
-    for index in stride(from: 0, to: count, by: step) {
-        if let image = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) {
-            images.append(UIImage(cgImage: image))
-        }
-    }
-    return images
+    guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+    return UIImage(cgImage: image)
 }
 
 struct CardioWatchView: View {

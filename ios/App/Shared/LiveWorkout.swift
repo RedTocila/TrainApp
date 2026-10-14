@@ -1,6 +1,7 @@
 import ActivityKit
 import AppIntents
 import Foundation
+import ImageIO
 import UIKit
 
 enum LiveWorkoutStore {
@@ -118,7 +119,8 @@ enum LiveWorkoutStore {
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             guard (response as? HTTPURLResponse)?.statusCode ?? 500 < 300,
-                  let image = UIImage(data: data) else { return imageToken }
+                  data.count < 8_000_000,
+                  let image = stillImage(data) else { return imageToken }
             let longest = max(image.size.width, image.size.height)
             let scale = longest > 240 ? 240 / longest : 1
             let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
@@ -133,6 +135,18 @@ enum LiveWorkoutStore {
         } catch {
             return imageToken
         }
+    }
+
+    /// First frame only. `UIImage(data:)` expands every frame of an exercise GIF.
+    private static func stillImage(_ data: Data) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceThumbnailMaxPixelSize: 240,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return UIImage(cgImage: image)
     }
 }
 

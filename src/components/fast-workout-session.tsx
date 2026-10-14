@@ -90,7 +90,8 @@ export function FastWorkoutSession() {
         if (
           openWatchers === 0 &&
           result.session?.id &&
-          result.session.status === "in_progress"
+          result.session.status === "in_progress" &&
+          !result.session.started_at
         ) {
           void cancelWorkoutSession(result.session.id);
         }

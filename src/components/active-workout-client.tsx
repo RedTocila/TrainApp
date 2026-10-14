@@ -8,7 +8,7 @@ import {
 import { formatExerciseHistoryLabel } from "@/lib/exercise-history-format";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import {
   Check,
   ChevronDown,
@@ -58,9 +58,12 @@ import { markReminderDone } from "@/lib/reminder-events";
 import {
   clearWorkoutTimerState,
   getWorkoutElapsedMs,
+  getWorkoutResumeIndex,
   getWorkoutTimerState,
   pauseWorkoutTimer,
   resumeWorkoutTimer,
+  setWorkoutResumeIndex,
+  setWorkoutTimerState,
   startWorkoutTimer,
   type WorkoutTimerState,
 } from "@/lib/workout-timer-storage";
@@ -77,7 +80,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function useWorkoutTimer(sessionId: string, isStarted: boolean) {
+function useWorkoutTimer(
+  sessionId: string,
+  isStarted: boolean,
+  startedAt: string | null
+) {
   const [timer, setTimer] = useState<WorkoutTimerState | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -95,14 +102,36 @@ function useWorkoutTimer(sessionId: string, isStarted: boolean) {
       setNow(Date.now());
       return;
     }
+    if (startedAt) {
+      const elapsed = Date.now() - new Date(startedAt).getTime();
+      if (Number.isFinite(elapsed) && elapsed >= 0) {
+        const seeded: WorkoutTimerState = {
+          sessionId,
+          status: "running",
+          accumulatedMs: elapsed,
+          segmentStartedAt: Date.now(),
+        };
+        setWorkoutTimerState(seeded);
+        setTimer(seeded);
+        setNow(Date.now());
+        return;
+      }
+    }
     setTimer(startWorkoutTimer(sessionId));
     setNow(Date.now());
-  }, [isStarted, sessionId]);
+  }, [isStarted, sessionId, startedAt]);
 
   useEffect(() => {
     if (!timer || timer.status !== "running") return;
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(interval);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") setNow(Date.now());
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [timer]);
 
   const elapsedSeconds = Math.floor(getWorkoutElapsedMs(timer, now) / 1000);
@@ -827,10 +856,39 @@ export function ActiveWorkoutClient({
     paused: workoutPaused,
     resetTimer,
     togglePause,
-  } = useWorkoutTimer(session.id, isStarted);
+  } = useWorkoutTimer(session.id, isStarted, session.started_at);
   const exerciseGender = resolveProfileGender(gender);
   const publishLive = useLiveWorkoutPublisher(isStarted);
   const leaveHandledRef = useRef(false);
+  const resumeForRef = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    if (exercises.length === 0) return;
+    if (resumeForRef.current === session.id) return;
+    resumeForRef.current = session.id;
+    const saved = getWorkoutResumeIndex(session.id);
+    if (saved != null && saved < exercises.length) {
+      setActiveIndex(saved);
+      return;
+    }
+    const openIndex = exercises.findIndex((exercise) => {
+      const target = Math.max(
+        1,
+        exercise.target_sets ?? exercise.sets?.length ?? 1
+      );
+      const done = (exercise.sets ?? []).filter(
+        (set) => set.completed || set.reps != null || set.weight_kg != null
+      ).length;
+      return done < target;
+    });
+    setActiveIndex(openIndex >= 0 ? openIndex : exercises.length - 1);
+  }, [exercises, session.id]);
+
+  useEffect(() => {
+    if (resumeForRef.current !== session.id) return;
+    if (!isStarted || isPendingWorkoutSessionId(session.id)) return;
+    setWorkoutResumeIndex(session.id, activeIndex);
+  }, [activeIndex, isStarted, session.id]);
 
   const activeExercise = exercises[Math.min(activeIndex, exercises.length - 1)];
   const reportLiveDraft = useCallback(

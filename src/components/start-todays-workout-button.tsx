@@ -24,7 +24,12 @@ export function useStartWorkout(
   date: Date,
   workout?: TodaysWorkoutInfo | null,
   disabled?: boolean,
-  options?: { dayFlow?: boolean; gender?: string | null; continuesToMain?: boolean }
+  options?: {
+    dayFlow?: boolean;
+    gender?: string | null;
+    continuesToMain?: boolean;
+    resumeSessionId?: string | null;
+  }
 ) {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
@@ -32,18 +37,28 @@ export function useStartWorkout(
   const dayFlow = options?.dayFlow ?? !workout;
   const gender = options?.gender;
   const continuesToMain = options?.continuesToMain;
+  const resumeSessionId = options?.resumeSessionId;
 
   useEffect(() => {
     try {
-      router.prefetch(WORKOUT_SESSION_OPEN_PATH);
+      router.prefetch(
+        resumeSessionId
+          ? `/dashboard/workout/session/${resumeSessionId}`
+          : WORKOUT_SESSION_OPEN_PATH
+      );
     } catch {
       // Prefetch is best-effort.
     }
-  }, [router]);
+  }, [resumeSessionId, router]);
 
   const start = useCallback(() => {
     if (disabled || isStarting) return;
     setError(null);
+    if (resumeSessionId) {
+      setIsStarting(true);
+      router.push(`/dashboard/workout/session/${resumeSessionId}`);
+      return;
+    }
     if (workout?.planId && workout.dayId) {
       const opened = stageWorkoutOpen(workout, { gender, continuesToMain });
       if (!opened) return;
@@ -89,6 +104,7 @@ export function useStartWorkout(
     disabled,
     gender,
     isStarting,
+    resumeSessionId,
     router,
     workout,
   ]);
@@ -109,6 +125,7 @@ export function StartWorkoutButton({
   dayFlow,
   gender,
   continuesToMain,
+  resumeSessionId,
 }: {
   date: Date;
   workout?: TodaysWorkoutInfo | null;
@@ -118,13 +135,21 @@ export function StartWorkoutButton({
   dayFlow?: boolean;
   gender?: string | null;
   continuesToMain?: boolean;
+  resumeSessionId?: string | null;
 }) {
   const platform = usePlatformCopy();
   const { start, isStarting, error } = useStartWorkout(date, workout, disabled, {
     dayFlow,
     gender,
     continuesToMain,
+    resumeSessionId,
   });
+  const actionLabel = resumeSessionId
+    ? platform.common.inProgress
+    : platform.workout.startWorkout;
+  const shortLabel = resumeSessionId
+    ? platform.common.inProgress
+    : platform.workout.start;
 
   const handleStart = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -150,7 +175,7 @@ export function StartWorkoutButton({
               )}
             >
               <span className="truncate">
-                {isStarting ? platform.workout.starting : platform.workout.startWorkout}
+                {isStarting ? platform.workout.starting : actionLabel}
               </span>
               <span className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-primary shadow-sm">
                 {isStarting ? (
@@ -199,7 +224,7 @@ export function StartWorkoutButton({
             ) : (
               <Play className="h-4 w-4" />
             )}
-            {isStarting ? platform.workout.starting : platform.workout.startWorkout}
+            {isStarting ? platform.workout.starting : actionLabel}
           </Button>
         ) : display === "label" || display === "nav" ? (
           <Button
@@ -217,7 +242,7 @@ export function StartWorkoutButton({
             ) : (
               <Play className="h-4 w-4 fill-current" />
             )}
-            {isStarting ? platform.workout.starting : platform.workout.start}
+            {isStarting ? platform.workout.starting : shortLabel}
           </Button>
         ) : (
           <Button
@@ -226,7 +251,7 @@ export function StartWorkoutButton({
             disabled={disabled || isStarting}
             onClick={handleStart}
             aria-busy={isStarting}
-            aria-label={isStarting ? platform.workout.starting : platform.workout.start}
+            aria-label={isStarting ? platform.workout.starting : shortLabel}
           >
             {isStarting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -250,6 +275,7 @@ export function StartTodaysWorkoutButton({
   dayFlow,
   gender,
   continuesToMain,
+  resumeSessionId,
 }: {
   date: Date;
   workout?: TodaysWorkoutInfo | null;
@@ -259,6 +285,7 @@ export function StartTodaysWorkoutButton({
   dayFlow?: boolean;
   gender?: string | null;
   continuesToMain?: boolean;
+  resumeSessionId?: string | null;
 }) {
   return (
     <StartWorkoutButton
@@ -270,6 +297,7 @@ export function StartTodaysWorkoutButton({
       dayFlow={dayFlow}
       gender={gender}
       continuesToMain={continuesToMain}
+      resumeSessionId={resumeSessionId}
     />
   );
 }

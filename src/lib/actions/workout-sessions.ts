@@ -694,20 +694,27 @@ export async function getWorkoutCompletionStatusForDate(
       completed: boolean;
       skipped: boolean;
       sessionId: string | null;
+      inProgressSessionId: string | null;
     }
   >
 > {
   const workouts =
     preloadedWorkouts ?? (await resolveWorkoutsForDate(clientId, dateKey));
-  const [taskCompletions, completedSessions, skippedSessions] =
+  const [taskCompletions, completedSessions, skippedSessions, inProgressSessions] =
     await Promise.all([
       getTaskCompletionsForDate(clientId, dateKey),
       loadCompletedSessionsForDate(clientId, dateKey),
       loadSkippedSessionsForDate(clientId, dateKey),
+      loadInProgressSessions(clientId),
     ]);
   const status: Record<
     string,
-    { completed: boolean; skipped: boolean; sessionId: string | null }
+    {
+      completed: boolean;
+      skipped: boolean;
+      sessionId: string | null;
+      inProgressSessionId: string | null;
+    }
   > = {};
 
   for (const workout of workouts) {
@@ -716,6 +723,7 @@ export async function getWorkoutCompletionStatusForDate(
         completed: true,
         skipped: false,
         sessionId: workout.historySessionId,
+        inProgressSessionId: null,
       };
       continue;
     }
@@ -726,6 +734,9 @@ export async function getWorkoutCompletionStatusForDate(
       completed,
       skipped: !completed && !!skippedId,
       sessionId: sessionId ?? skippedId,
+      inProgressSessionId: completed
+        ? null
+        : matchInProgressSessionId(workout, inProgressSessions),
     };
   }
 
@@ -768,6 +779,48 @@ async function loadSkippedSessionsForDate(
     .eq("notes", "skipped");
 
   return (data ?? []) as CompletedSessionRef[];
+}
+
+type InProgressSessionRef = CompletedSessionRef & {
+  scheduled_date: string | null;
+  started_at: string | null;
+};
+
+async function loadInProgressSessions(
+  clientId: string
+): Promise<InProgressSessionRef[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("workout_sessions")
+    .select(
+      "id, scheduled_workout_id, plan_id, day_id, scheduled_date, started_at"
+    )
+    .eq("client_id", clientId)
+    .eq("status", "in_progress")
+    .not("started_at", "is", null)
+    .order("started_at", { ascending: false });
+
+  return (data ?? []) as InProgressSessionRef[];
+}
+
+function matchInProgressSessionId(
+  workout: TodaysWorkoutInfo,
+  sessions: InProgressSessionRef[]
+): string | null {
+  const match = sessions.find((session) => {
+    if (
+      workout.scheduledWorkoutId &&
+      session.scheduled_workout_id === workout.scheduledWorkoutId
+    ) {
+      return true;
+    }
+    return (
+      session.plan_id === workout.planId &&
+      session.day_id === workout.dayId &&
+      (session.scheduled_date ?? null) === (workout.scheduledDate ?? null)
+    );
+  });
+  return match?.id ?? null;
 }
 
 function matchCompletedSessionId(
@@ -1261,13 +1314,12 @@ export async function startWorkout({
       };
     }
 
-    // Leaving the session abandons it — starting again creates a fresh session.
-    await admin
-      .from("workout_sessions")
-      .update({ status: "cancelled" })
-      .eq("id", existing.id)
-      .eq("client_id", userId)
-      .eq("status", "in_progress");
+    // Backgrounding keeps the session. Opening it again continues that one.
+    return {
+      sessionId: existing.id,
+      resumed: true,
+      started: existing.started_at != null,
+    };
   }
 
   if (scheduledDate) {
@@ -1382,12 +1434,16 @@ export async function openWorkoutSession({
       };
     }
 
-    await admin
-      .from("workout_sessions")
-      .update({ status: "cancelled" })
-      .eq("id", existing.id)
-      .eq("client_id", userId)
-      .eq("status", "in_progress");
+    const details = await getSessionWithDetails(existing.id);
+    if (details?.session.status === "in_progress") {
+      return {
+        sessionId: details.session.id,
+        session: details.session,
+        exercises: details.exercises,
+        planKind: details.planKind,
+        hiitConfig: details.hiitConfig,
+      };
+    }
   }
 
   if (scheduledDate) {

@@ -55,11 +55,41 @@ export function setWorkoutTimerState(state: WorkoutTimerState) {
   clearLegacyKeys(state.sessionId);
 }
 
+const RESUME_INDEX_PREFIX = "workout-resume-index-v1-";
+
+function resumeIndexKey(sessionId: string) {
+  return `${RESUME_INDEX_PREFIX}${sessionId}`;
+}
+
+export function getWorkoutResumeIndex(sessionId: string): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(resumeIndexKey(sessionId));
+  if (raw == null) return null;
+  const index = Number(raw);
+  if (!Number.isInteger(index) || index < 0) return null;
+  return index;
+}
+
+export function setWorkoutResumeIndex(sessionId: string, index: number) {
+  if (typeof window === "undefined") return;
+  if (!Number.isInteger(index) || index < 0) return;
+  localStorage.setItem(resumeIndexKey(sessionId), String(index));
+}
+
+function clearWorkoutResumeIndex(sessionId: string) {
+  try {
+    localStorage.removeItem(resumeIndexKey(sessionId));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function clearWorkoutTimerState(sessionId: string) {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(storageKey(sessionId));
     clearLegacyKeys(sessionId);
+    clearWorkoutResumeIndex(sessionId);
   } catch {
     /* ignore */
   }
@@ -69,9 +99,12 @@ export function clearWorkoutTimerState(sessionId: string) {
 export function moveWorkoutTimerState(fromId: string, toId: string) {
   if (!fromId || !toId || fromId === toId) return;
   const existing = getWorkoutTimerState(fromId);
-  if (!existing) return;
-  setWorkoutTimerState({ ...existing, sessionId: toId });
-  clearWorkoutTimerState(fromId);
+  const resumeIndex = getWorkoutResumeIndex(fromId);
+  if (existing) {
+    setWorkoutTimerState({ ...existing, sessionId: toId });
+  }
+  if (resumeIndex != null) setWorkoutResumeIndex(toId, resumeIndex);
+  if (existing || resumeIndex != null) clearWorkoutTimerState(fromId);
 }
 
 export function getWorkoutElapsedMs(

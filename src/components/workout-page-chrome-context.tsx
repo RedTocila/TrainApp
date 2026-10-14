@@ -15,6 +15,7 @@ export type WorkoutPageChromeActions = {
   workout?: TodaysWorkoutInfo | null;
   gender?: string | null;
   continuesToMain?: boolean;
+  resumeSessionId?: string | null;
   disabled?: boolean;
   showStart: boolean;
   showEdit?: boolean;

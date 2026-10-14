@@ -40,6 +40,7 @@ export default async function DashboardPage() {
         initialWorkouts={todayData.initialWorkouts}
         initialWorkoutCompleted={todayData.initialWorkoutCompleted}
         initialWorkoutResults={todayData.initialWorkoutResults}
+        initialInProgressByTaskId={todayData.initialInProgressByTaskId}
         initialLog={todayData.dailyLog}
         initialDailyMeals={todayData.dailyMeals}
         hasAiAccess={todayData.hasAiAccess}

@@ -40,6 +40,7 @@ import {
 } from "@/lib/hiit-sounds";
 import {
   advanceHiitPhase,
+  catchUpHiitTimer,
   clearHiitTimerState,
   getHiitElapsedMs,
   getHiitTimerState,
@@ -95,7 +96,14 @@ function useHiitClock(state: HiitTimerState | null) {
   useEffect(() => {
     if (state?.status !== "running") return;
     const id = window.setInterval(() => setNow(Date.now()), 100);
-    return () => window.clearInterval(id);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") setNow(Date.now());
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [state?.status]);
 
   return {
@@ -216,7 +224,12 @@ export function ActiveHiitClient({
   useEffect(() => {
     const existing = getHiitTimerState(session.id);
     if (existing && existing.configHash === hash) {
-      setTimer(existing);
+      const durations = phases.map((phase) => phase.durationSeconds * 1000);
+      setTimer(
+        existing.status === "running"
+          ? (catchUpHiitTimer(session.id, durations) ?? existing)
+          : existing
+      );
     } else if (existing) {
       clearHiitTimerState(session.id);
     }
@@ -321,7 +334,22 @@ export function ActiveHiitClient({
     if (remainingMs > 0) return;
     if (advancingRef.current) return;
     advancingRef.current = true;
-    goToPhase(timer.phaseIndex + 1);
+    const before = timer.phaseIndex;
+    const durations = phases.map((phase) => phase.durationSeconds * 1000);
+    const next = catchUpHiitTimer(session.id, durations);
+    if (next && (next.phaseIndex !== before || next.status === "completed")) {
+      setTimer(next);
+      publishHiit(next, "hiit");
+      const jump = next.phaseIndex - before;
+      if (next.status === "completed") {
+        playHiitComplete();
+      } else if (jump === 1) {
+        const landed = phases[next.phaseIndex];
+        if (landed && landed.type !== "done") playHiitPhaseChange(landed.type);
+      }
+    } else {
+      goToPhase(before + 1);
+    }
     const unlock = window.setTimeout(() => {
       advancingRef.current = false;
     }, 0);

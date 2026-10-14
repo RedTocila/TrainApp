@@ -164,6 +164,7 @@ function DashboardMobileHeaderBar() {
               workout={workoutActions.workout}
               gender={workoutActions.gender}
               continuesToMain={workoutActions.continuesToMain}
+              resumeSessionId={workoutActions.resumeSessionId}
               dayFlow
               disabled={workoutActions.disabled}
               display="nav"

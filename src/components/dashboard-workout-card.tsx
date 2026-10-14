@@ -151,6 +151,7 @@ export function DashboardWorkoutCard({
   initialWorkouts,
   initialWorkoutCompleted = false,
   initialWorkoutResults = null,
+  initialInProgressByTaskId = {},
   selectedWorkoutKey = null,
   variant = "full",
   schedule,
@@ -163,6 +164,7 @@ export function DashboardWorkoutCard({
   initialWorkouts?: TodaysWorkoutInfo[];
   initialWorkoutCompleted?: boolean;
   initialWorkoutResults?: CompletedWorkoutResults | null;
+  initialInProgressByTaskId?: Record<string, string>;
   selectedWorkoutKey?: string | null;
   variant?: "full" | "compact" | "detail" | "hero";
   schedule?: ClientSchedule;
@@ -194,6 +196,9 @@ export function DashboardWorkoutCard({
   const [sessionIdByTaskId, setSessionIdByTaskId] = useState<
     Record<string, string | null>
   >({});
+  const [inProgressByTaskId, setInProgressByTaskId] = useState<
+    Record<string, string | null>
+  >(initialInProgressByTaskId);
   const [workoutResults, setWorkoutResults] =
     useState<CompletedWorkoutResults | null>(initialWorkoutResults);
   const [loadedDateKey, setLoadedDateKey] = useState(() =>
@@ -309,6 +314,7 @@ export function DashboardWorkoutCard({
     if (prevDateKeyRef.current === dateKey) return;
     prevDateKeyRef.current = dateKey;
     setIsUpdatingDay(false);
+    setInProgressByTaskId({});
 
     const applyCache = (cached: WorkoutDayCache, markLoaded: boolean) => {
       setWorkouts(cached.workouts);
@@ -434,6 +440,12 @@ export function DashboardWorkoutCard({
       const sessionMap = Object.fromEntries(
         Object.entries(status).map(([taskId, entry]) => [taskId, entry.sessionId])
       );
+      const inProgressMap = Object.fromEntries(
+        Object.entries(status).map(([taskId, entry]) => [
+          taskId,
+          entry.inProgressSessionId,
+        ])
+      );
       const previous = workoutCacheRef.current.get(key);
 
       workoutCacheRef.current.set(key, {
@@ -450,6 +462,7 @@ export function DashboardWorkoutCard({
       setCompletedByTaskId(completedMap);
       setSkippedByTaskId(skippedMap);
       setSessionIdByTaskId(sessionMap);
+      setInProgressByTaskId(inProgressMap);
 
       if (!allCompleted || resolved.length === 0) {
         setWorkoutResults(null);
@@ -474,6 +487,14 @@ export function DashboardWorkoutCard({
       }
     }
   }, [clientId, withoutPendingRemoved]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshWorkout();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refreshWorkout]);
 
   useEffect(() => {
     if (dateKey !== todayKey) return;
@@ -740,11 +761,20 @@ export function DashboardWorkoutCard({
   );
   rememberWorkoutGender(gender);
 
+  const liveWorkout =
+    workoutsForDay.find((item) => {
+      const sessionId = inProgressByTaskId[item.taskId];
+      return typeof sessionId === "string" && sessionId.length > 0;
+    }) ?? null;
+  const liveSessionId = liveWorkout
+    ? (inProgressByTaskId[liveWorkout.taskId] ?? null)
+    : null;
+
   const { start: startFocusWorkout, isStarting: isStartingWorkout } = useStartWorkout(
     selectedDate,
     nextDayWorkout,
-    readOnly || !isDayLoaded || !nextDayWorkout,
-    { dayFlow: true, gender, continuesToMain }
+    readOnly || !isDayLoaded || (!nextDayWorkout && !liveSessionId),
+    { dayFlow: true, gender, continuesToMain, resumeSessionId: liveSessionId }
   );
 
   const openEditWorkout = useCallback(() => setEditWorkoutOpen(true), []);
@@ -760,7 +790,8 @@ export function DashboardWorkoutCard({
       workout: nextDayWorkout,
       gender,
       continuesToMain,
-      disabled: !isDayLoaded || !nextDayWorkout,
+      resumeSessionId: liveSessionId,
+      disabled: !isDayLoaded || (!nextDayWorkout && !liveSessionId),
       showStart,
       ...(canEditDayWorkouts
         ? { showEdit: true as const, onEdit: openEditWorkout }
@@ -778,6 +809,7 @@ export function DashboardWorkoutCard({
     nextDayWorkout,
     gender,
     continuesToMain,
+    liveSessionId,
   ]);
   useRegisterWorkoutPageChrome(workoutChromeActions);
 
@@ -909,8 +941,16 @@ export function DashboardWorkoutCard({
         >
           {hasWorkout ? (
             <DashboardCardNavLink
-              href={DASHBOARD_DAY_WORKOUT_PATH}
-              ariaLabel={platform.trainTabs.workout}
+              href={
+                liveSessionId
+                  ? `/dashboard/workout/session/${liveSessionId}`
+                  : DASHBOARD_DAY_WORKOUT_PATH
+              }
+              ariaLabel={
+                liveSessionId
+                  ? platform.common.inProgress
+                  : platform.trainTabs.workout
+              }
             />
           ) : null}
           <DashboardCardNavBody className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
@@ -1042,7 +1082,7 @@ export function DashboardWorkoutCard({
                 ) : null}
 
                 <div className="mt-auto">
-                  {mainDone ? (
+                  {mainDone && !liveSessionId ? (
                     <div
                       className={cn(
                         "flex items-center gap-2 rounded-xl px-3.5 py-2.5",
@@ -1071,21 +1111,44 @@ export function DashboardWorkoutCard({
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold leading-tight">
-                          {workout.dayTitle || workout.planTitle}
+                          {(liveWorkout ?? workout).dayTitle ||
+                            (liveWorkout ?? workout).planTitle}
                         </p>
                         <p className={cn("mt-0.5 truncate text-[11px]", softText)}>
-                          {platform.workout.viewDayPlan}
-                          {durationLabel ? ` · ${durationLabel}` : null}
+                          {liveSessionId ? (
+                            <span className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wide">
+                              <span
+                                className={cn(
+                                  "h-1.5 w-1.5 rounded-full animate-pulse",
+                                  onPhoto ? "bg-emerald-300" : "bg-primary"
+                                )}
+                                aria-hidden
+                              />
+                              {platform.common.inProgress}
+                            </span>
+                          ) : (
+                            <>
+                              {platform.workout.viewDayPlan}
+                              {durationLabel ? ` · ${durationLabel}` : null}
+                            </>
+                          )}
                         </p>
                       </div>
                       <button
                         type="button"
                         className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/30 transition hover:brightness-110 disabled:opacity-60"
-                        disabled={readOnly || !isDayLoaded || !nextDayWorkout || isStartingWorkout}
+                        disabled={
+                          readOnly ||
+                          !isDayLoaded ||
+                          (!nextDayWorkout && !liveSessionId) ||
+                          isStartingWorkout
+                        }
                         aria-label={
                           isStartingWorkout
                             ? platform.workout.starting
-                            : platform.workout.startWorkout
+                            : liveSessionId
+                              ? platform.common.inProgress
+                              : platform.workout.startWorkout
                         }
                         aria-busy={isStartingWorkout}
                         onClick={(event) => {
@@ -1300,7 +1363,8 @@ export function DashboardWorkoutCard({
                     dayFlow
                     gender={gender}
                     continuesToMain={continuesToMain}
-                    disabled={!isDayLoaded || !nextDayWorkout}
+                    resumeSessionId={liveSessionId}
+                    disabled={!isDayLoaded || (!nextDayWorkout && !liveSessionId)}
                     display="nav"
                   />
                 </div>

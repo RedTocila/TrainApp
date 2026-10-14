@@ -48,8 +48,9 @@ struct WorkoutLiveActivity: Widget {
 }
 
 private enum LivePalette {
-    static let background = Color(red: 28 / 255, green: 28 / 255, blue: 30 / 255)
+    static let background = Color(red: 22 / 255, green: 22 / 255, blue: 24 / 255)
     static let control = Color(red: 58 / 255, green: 58 / 255, blue: 62 / 255)
+    static let red = Color(red: 220 / 255, green: 38 / 255, blue: 38 / 255)
     static let secondary = Color.white.opacity(0.55)
 }
 
@@ -65,8 +66,8 @@ private struct LiveSetView: View {
                     Text(state.exerciseName)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
                     Text(state.setLabel)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(LivePalette.secondary)
@@ -117,24 +118,23 @@ private struct LiveSetControls: View {
                 Button(intent: LogLiveSetIntent()) {
                     Text(state.setId.isEmpty ? "Logged" : "Log set")
                         .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(minHeight: 22)
+                        .padding(.vertical, 11)
+                        .background(Capsule().fill(state.setId.isEmpty ? LivePalette.control : LivePalette.red))
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .controlSize(.large)
-                .tint(.white)
+                .buttonStyle(.plain)
                 .disabled(state.setId.isEmpty)
                 Button(intent: NextLiveExerciseIntent()) {
                     Text("Next")
                         .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(minHeight: 22)
+                        .padding(.vertical, 11)
+                        .background(Capsule().fill(LivePalette.control))
+                        .opacity(state.exerciseCount < 2 ? 0.45 : 1)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .controlSize(.large)
-                .tint(LivePalette.control)
+                .buttonStyle(.plain)
                 .disabled(state.exerciseCount < 2)
             }
         }
@@ -195,7 +195,10 @@ private struct ExerciseThumb: View {
             if let image = LiveWorkoutStore.thumbnail() {
                 Image(uiImage: image)
                     .resizable()
-                    .scaledToFill()
+                    .scaledToFit()
+                    .padding(3)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.white)
             } else {
                 Image(systemName: "dumbbell.fill")
                     .font(.title3)

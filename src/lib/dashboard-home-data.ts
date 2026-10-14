@@ -32,6 +32,7 @@ import {
   resolveWorkoutsForDate,
   isWorkoutCompletedOnDate,
   getCompletedWorkoutResultsForDate,
+  getWorkoutCompletionStatusForDate,
 } from "@/lib/actions/workout-sessions";
 import { getProgressPhotoDisplaySet } from "@/lib/progress-photo-utils";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
@@ -79,7 +80,8 @@ export async function loadDashboardToday(
     getScheduledCardiosForDate(profile.id, dateKey),
   ]);
 
-  const [initialCardioCompletions, initialWorkoutResults] = await Promise.all([
+  const [initialCardioCompletions, initialWorkoutResults, workoutStatus] =
+    await Promise.all([
     Promise.all(
       initialCardios.map(async (entry) => {
         const cardioId = entry.cardio_id ?? entry.client_cardio?.id ?? null;
@@ -98,7 +100,19 @@ export async function loadDashboardToday(
     initialWorkoutCompleted
       ? getCompletedWorkoutResultsForDate(profile.id, dateKey)
       : Promise.resolve(null),
+    initialWorkouts.length > 0
+      ? getWorkoutCompletionStatusForDate(profile.id, dateKey, initialWorkouts)
+      : Promise.resolve(
+          {} as Awaited<ReturnType<typeof getWorkoutCompletionStatusForDate>>
+        ),
   ]);
+
+  const initialInProgressByTaskId: Record<string, string> = {};
+  for (const [taskId, entry] of Object.entries(workoutStatus)) {
+    if (entry.inProgressSessionId) {
+      initialInProgressByTaskId[taskId] = entry.inProgressSessionId;
+    }
+  }
 
   const initialCardioCompletionById = Object.fromEntries(
     initialCardioCompletions
@@ -181,6 +195,7 @@ export async function loadDashboardToday(
     initialWorkouts,
     initialWorkoutCompleted,
     initialWorkoutResults,
+    initialInProgressByTaskId,
     initialCardios,
     initialCardioCompletionById,
     hasAiAccess: hasAiAccess(profile),

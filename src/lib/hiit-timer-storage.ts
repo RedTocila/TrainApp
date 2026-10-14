@@ -166,3 +166,64 @@ export function advanceHiitPhase(
 export function resetHiitTimer(sessionId: string): void {
   clearHiitTimerState(sessionId);
 }
+
+/**
+ * Walks a running timer forward by wall-clock time so backgrounding
+ * does not freeze the interval on the phase that expired.
+ */
+export function catchUpHiitTimer(
+  sessionId: string,
+  phaseDurationsMs: number[]
+): HiitTimerState | null {
+  const existing = getHiitTimerState(sessionId);
+  if (
+    !existing ||
+    existing.status !== "running" ||
+    existing.segmentStartedAt == null
+  ) {
+    return existing;
+  }
+
+  const now = Date.now();
+  let index = existing.phaseIndex;
+  let phaseMs = Math.max(0, existing.phaseRemainingMs);
+  let cursor = existing.segmentStartedAt;
+  const origin = existing.segmentStartedAt;
+  let steps = 0;
+  const limit = Math.max(phaseDurationsMs.length, 1) + 1;
+
+  while (steps < limit && cursor + phaseMs <= now) {
+    cursor += phaseMs;
+    index += 1;
+    steps += 1;
+    if (index >= phaseDurationsMs.length) {
+      const done: HiitTimerState = {
+        ...existing,
+        status: "completed",
+        phaseIndex: Math.max(0, phaseDurationsMs.length - 1),
+        phaseRemainingMs: 0,
+        segmentStartedAt: null,
+        accumulatedElapsedMs:
+          existing.accumulatedElapsedMs + Math.max(0, now - origin),
+      };
+      setHiitTimerState(done);
+      return done;
+    }
+    phaseMs = Math.max(0, phaseDurationsMs[index] ?? 0);
+  }
+
+  if (steps === 0) return existing;
+
+  const consumed = Math.max(0, now - cursor);
+  const next: HiitTimerState = {
+    ...existing,
+    status: "running",
+    phaseIndex: index,
+    phaseRemainingMs: phaseMs,
+    segmentStartedAt: now - consumed,
+    accumulatedElapsedMs:
+      existing.accumulatedElapsedMs + Math.max(0, cursor - origin),
+  };
+  setHiitTimerState(next);
+  return next;
+}
