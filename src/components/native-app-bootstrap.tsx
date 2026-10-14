@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { NATIVE_APP_COOKIE } from "@/lib/native-app-request";
+import { createClient } from "@/lib/supabase/client";
+import { syncWatchSession } from "@/lib/watch-session";
 
 type PullToRefreshBridge = {
   postMessage: (message: { enabled: boolean }) => void;
@@ -70,8 +72,15 @@ export function NativeAppBootstrap() {
     if (!Capacitor.isNativePlatform()) return;
 
     document.cookie = `${NATIVE_APP_COOKIE}=1; path=/; max-age=31536000; secure; samesite=lax`;
+    void syncWatchSession();
+
+    const supabase = createClient();
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      void syncWatchSession();
+    });
 
     let removeUrlListener: (() => void) | undefined;
+    let removeStateListener: (() => void) | undefined;
     let cancelled = false;
 
     void (async () => {
@@ -92,6 +101,13 @@ export function NativeAppBootstrap() {
           );
         }
         await SplashScreen.hide().catch(() => undefined);
+
+        const stateHandle = await App.addListener("appStateChange", ({ isActive }) => {
+          if (isActive) void syncWatchSession();
+        });
+        removeStateListener = () => {
+          void stateHandle.remove();
+        };
 
         const handle = await App.addListener("appUrlOpen", ({ url }) => {
           try {
@@ -126,6 +142,8 @@ export function NativeAppBootstrap() {
 
     return () => {
       cancelled = true;
+      authListener.subscription.unsubscribe();
+      removeStateListener?.();
       removeUrlListener?.();
     };
   }, []);

@@ -67,6 +67,8 @@ export interface Profile {
   daily_routine?: string | null;
   work_schedule?: string | null;
   water_goal_ml?: number;
+  /** Daily Apple Health step target. */
+  step_goal?: number;
   target_calories?: number;
   target_protein?: number;
   target_carbs?: number;

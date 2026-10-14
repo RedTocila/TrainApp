@@ -10,7 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Activity, CircleHelp } from "lucide-react";
-import { usePlatformCopy, useBodyUnits } from "@/components/locale-provider";
+import { usePlatformCopy } from "@/components/locale-provider";
 import {
   BMI_CATEGORIES,
   calculateBmi,
@@ -21,9 +21,11 @@ import {
   type BmiCategory,
 } from "@/lib/bmi-utils";
 import type { BodyWeightLog } from "@/lib/types";
-import { CardContent } from "@/components/ui/card";
-import { dashboard, DashboardSectionHeader } from "@/components/dashboard-ui";
-import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
+import { dashboard } from "@/components/dashboard-ui";
+import {
+  DashboardThemedShell,
+  DASHBOARD_CARD_BACKGROUNDS,
+} from "@/components/dashboard-themed-shell";
 import { cn } from "@/lib/utils";
 
 function bmiCategoryLabel(
@@ -52,16 +54,14 @@ export function BmiCard({
   weightHistory: BodyWeightLog[];
 }) {
   const platform = usePlatformCopy();
-  const units = useBodyUnits();
   const weightKg = resolveLatestWeightKg(weightHistory, intakeWeightKg);
-  const bmi =
-    heightCm && weightKg ? calculateBmi(weightKg, heightCm) : null;
+  const bmi = heightCm && weightKg ? calculateBmi(weightKg, heightCm) : null;
   const category = bmi != null ? getBmiCategory(bmi) : null;
   const gaugePercent = bmi != null ? bmiToGaugePercent(bmi) : null;
   const categoryStyle = category ? getBmiCategoryStyle(category) : null;
-
   const missingHeight = !heightCm;
   const missingWeight = !weightKg;
+
   const [helpOpen, setHelpOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -72,7 +72,7 @@ export function BmiCard({
     if (!button) return;
 
     const rect = button.getBoundingClientRect();
-    const width = 288; // w-72
+    const width = 288;
     const left = Math.min(
       Math.max(8, rect.right - width),
       window.innerWidth - width - 8
@@ -94,11 +94,9 @@ export function BmiCard({
 
   useLayoutEffect(() => {
     if (!helpOpen) return;
-
     updatePosition();
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
-
     return () => {
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
@@ -107,9 +105,8 @@ export function BmiCard({
 
   useEffect(() => {
     if (!helpOpen) return;
-
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as Node;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
       if (
         buttonRef.current?.contains(target) ||
         menuRef.current?.contains(target)
@@ -118,10 +115,9 @@ export function BmiCard({
       }
       setHelpOpen(false);
     };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setHelpOpen(false);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setHelpOpen(false);
     };
-
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
     return () => {
@@ -140,15 +136,11 @@ export function BmiCard({
         style={menuStyle}
         className="z-[200] overflow-y-auto rounded-xl border border-border bg-card p-3 text-foreground shadow-lg"
       >
-        <p className="text-xs font-semibold text-foreground">
-          {platform.bmi.bodyMassIndex}
-        </p>
+        <p className="text-xs font-semibold">{platform.bmi.bodyMassIndex}</p>
         <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
           {platform.bmi.helpText}
         </p>
-        <p className="mt-3 text-[11px] font-semibold text-foreground">
-          {platform.bmi.colorMapTitle}
-        </p>
+        <p className="mt-3 text-[11px] font-semibold">{platform.bmi.colorMapTitle}</p>
         <div className="mt-2 space-y-2">
           {BMI_CATEGORIES.map((item) => (
             <div key={item.key} className="flex items-start gap-2">
@@ -157,7 +149,7 @@ export function BmiCard({
                 aria-hidden
               />
               <div className="min-w-0">
-                <p className="text-[11px] font-medium text-foreground">
+                <p className="text-[11px] font-medium">
                   {bmiCategoryLabel(item.key, platform.bmi)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">{item.range}</p>
@@ -171,93 +163,78 @@ export function BmiCard({
 
   return (
     <DashboardThemedShell
+      id="dashboard-bmi"
       theme="bmi"
       backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.bmi}
       backgroundAlt={platform.bmi.title}
-      className="relative z-0 overflow-hidden p-0"
+      className={cn(dashboard.pairTile, "relative isolate")}
     >
-      <CardContent className="relative z-10 space-y-4 bg-transparent p-4 shadow-none sm:space-y-5 sm:p-5">
-        <DashboardSectionHeader
-          icon={Activity}
-          iconClassName="text-amber-300"
-          title={platform.bmi.title}
-          action={
-            <button
-              ref={buttonRef}
-              type="button"
-              className="rounded-full p-1 text-white/70 hover:bg-amber-500/20 hover:text-white"
-              onClick={() => setHelpOpen((value) => !value)}
-              aria-label={platform.bmi.whatIsBmi}
-              aria-expanded={helpOpen}
-              aria-haspopup="dialog"
-            >
-              <CircleHelp className="h-4 w-4" />
-            </button>
-          }
-        />
-        {helpMenu}
-        {bmi != null && category && categoryStyle ? (
-          <>
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-              <span className={dashboard.heroValue}>{bmi.toFixed(1)}</span>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <span>{platform.bmi.yourWeightIs}</span>
-                <span
-                  className={cn(
-                    "rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize",
-                    categoryStyle.pill
-                  )}
-                >
-                  {bmiCategoryLabel(category, platform.bmi)}
-                </span>
-              </div>
-            </div>
+      <div className="flex h-7 shrink-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Activity className="h-5 w-5 shrink-0 text-amber-300" />
+          <p className="truncate text-sm font-black">{platform.bmi.title}</p>
+        </div>
+        <button
+          ref={buttonRef}
+          type="button"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/75 hover:bg-amber-500/20 hover:text-white"
+          onClick={() => setHelpOpen((value) => !value)}
+          aria-label={platform.bmi.whatIsBmi}
+          aria-expanded={helpOpen}
+          aria-haspopup="dialog"
+        >
+          <CircleHelp className="h-4 w-4" />
+        </button>
+      </div>
+      {helpMenu}
 
-            <div className="relative h-2.5 overflow-hidden rounded-full">
-              <div className="flex h-full w-full">
-                {BMI_CATEGORIES.map((item) => (
-                  <div key={item.key} className={cn("h-full flex-1", item.color)} />
-                ))}
-              </div>
-              {gaugePercent != null && (
-                <div
-                  className="absolute top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]"
-                  style={{ left: `calc(${gaugePercent}% - 1px)` }}
-                  aria-hidden
-                />
+      {bmi != null && category && categoryStyle ? (
+        <div className="flex min-h-0 flex-1 flex-col justify-between py-2">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2">
+            <p className="text-5xl font-black tabular-nums leading-none tracking-tight">
+              {bmi.toFixed(1)}
+            </p>
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-[10px] font-semibold capitalize",
+                categoryStyle.pill
               )}
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              {platform.bmi.basedOn(
-                units.formatWeightKgWithUnit(weightKg!),
-                heightCm ? units.formatHeightCmWithUnit(heightCm) : null
-              )}{" "}
-              {weightHistory.length > 0
-                ? platform.bmi.lastLogged(
-                    weightHistory[weightHistory.length - 1]!.date
-                  )
-                : platform.bmi.usingIntakeWeight}
-            </p>
-          </>
-        ) : (
-          <div className="space-y-2 py-2">
-            <p className="text-sm text-muted-foreground">
-              {missingHeight && missingWeight
-                ? platform.bmi.addHeightWeight
-                : missingHeight
-                  ? platform.bmi.addHeight
-                  : platform.bmi.logWeight}
-            </p>
-            <Link
-              href="/dashboard/profile"
-              className="text-sm font-medium text-primary hover:underline"
             >
-              {platform.bmi.updateProfile} →
-            </Link>
+              {bmiCategoryLabel(category, platform.bmi)}
+            </span>
           </div>
-        )}
-      </CardContent>
+          <div className="relative h-4 w-full overflow-hidden rounded-full">
+            <div className="flex h-full w-full">
+              {BMI_CATEGORIES.map((item) => (
+                <div key={item.key} className={cn("h-full flex-1", item.color)} />
+              ))}
+            </div>
+            {gaugePercent != null ? (
+              <div
+                className="absolute top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.85)]"
+                style={{ left: `calc(${gaugePercent}% - 2px)` }}
+                aria-hidden
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-1 text-center">
+          <p className="text-xs leading-snug text-muted-foreground">
+            {missingHeight && missingWeight
+              ? platform.bmi.addHeightWeight
+              : missingHeight
+                ? platform.bmi.addHeight
+                : platform.bmi.logWeight}
+          </p>
+          <Link
+            href="/dashboard/profile"
+            className="text-xs font-semibold text-amber-200 hover:underline"
+          >
+            {platform.bmi.updateProfile}
+          </Link>
+        </div>
+      )}
     </DashboardThemedShell>
   );
 }

@@ -21,6 +21,8 @@ class AppViewController: CAPBridgeViewController {
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        bridge?.registerPluginInstance(HealthStepsPlugin())
+        bridge?.registerPluginInstance(WatchSessionPlugin())
         guard let webView = webView else { return }
         applyPlatformBackground(to: webView)
         pullToRefresh.attach(to: webView)

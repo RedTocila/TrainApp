@@ -1,76 +1,18 @@
-import { getOpenAIClient } from "@/lib/ai/providers";
+import { transcribeAudioBytes, transcribeAudioLimit } from "@/lib/ai/transcribe-audio";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-
-/** Prefer GPT-4o Transcribe (better Albanian); override via OPENAI_TRANSCRIBE_MODEL. */
-const PRIMARY_MODEL =
-  process.env.OPENAI_TRANSCRIBE_MODEL?.trim() || "gpt-4o-transcribe";
-const FALLBACK_MODEL = "whisper-1";
-
-/** Languages gpt-4o-transcribe accepts as `language` (ISO-639-1). Albanian `sq` is rejected. */
-const GPT_TRANSCRIBE_LANGUAGE_CODES = new Set([
-  "en",
-  "es",
-  "fr",
-  "de",
-  "it",
-  "pt",
-  "nl",
-  "ja",
-  "ko",
-  "zh",
-  "ru",
-  "ar",
-  "hi",
-  "tr",
-  "pl",
-  "sv",
-  "da",
-  "no",
-  "fi",
-  "uk",
-  "cs",
-  "ro",
-  "hu",
-  "el",
-  "he",
-  "th",
-  "vi",
-  "id",
-  "ms",
-  "tl",
-]);
-
-function isGptTranscribeModel(model: string): boolean {
-  return (
-    model.startsWith("gpt-4o-transcribe") || model.startsWith("gpt-transcribe")
-  );
-}
-
-function languagePrompt(language: string | undefined): string | undefined {
-  if (language === "sq") {
-    return "The audio is spoken in Albanian (shqip). Transcribe ONLY in Albanian. Keep fitness and coaching terms natural in Albanian — do not translate to English.";
+function pickExtension(mimeType: string, name: string): string {
+  const fromName = name.split(".").pop()?.toLowerCase();
+  if (fromName && fromName.length <= 5 && fromName !== name.toLowerCase()) {
+    return fromName;
   }
-  if (language === "en") {
-    return "Transcribe in English. Keep fitness coaching phrasing natural.";
-  }
-  return undefined;
-}
-
-/** API `language` field — omit unsupported codes (e.g. sq on gpt-4o-transcribe). */
-function apiLanguageForModel(
-  model: string,
-  language: string | undefined
-): string | undefined {
-  if (!language) return undefined;
-  if (isGptTranscribeModel(model)) {
-    return GPT_TRANSCRIBE_LANGUAGE_CODES.has(language) ? language : undefined;
-  }
-  // whisper-1 accepts Albanian as sq
-  return language;
+  if (mimeType.includes("mp4") || mimeType.includes("m4a")) return "m4a";
+  if (mimeType.includes("ogg")) return "ogg";
+  if (mimeType.includes("mpeg") || mimeType.includes("mp3")) return "mp3";
+  if (mimeType.includes("wav")) return "wav";
+  return "webm";
 }
 
 export async function POST(request: Request) {
@@ -81,13 +23,6 @@ export async function POST(request: Request) {
 
   if (!user) {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  if (!process.env.OPENAI_API_KEY) {
-    return Response.json(
-      { error: "Voice input is not available right now." },
-      { status: 503 }
-    );
   }
 
   let form: FormData;
@@ -101,7 +36,7 @@ export async function POST(request: Request) {
   if (!(audio instanceof File) || audio.size === 0) {
     return Response.json({ error: "No audio received" }, { status: 400 });
   }
-  if (audio.size > MAX_BYTES) {
+  if (audio.size > transcribeAudioLimit()) {
     return Response.json({ error: "Recording is too long" }, { status: 400 });
   }
 
@@ -111,62 +46,17 @@ export async function POST(request: Request) {
       ? languageRaw.trim()
       : undefined;
 
-  try {
-    const client = getOpenAIClient();
-    const extension = pickExtension(audio.type, audio.name);
-    // Buffer once so model fallback can re-upload the same bytes.
-    const bytes = await audio.arrayBuffer();
-    const makeFile = () =>
-      new File([bytes], `voice.${extension}`, {
-        type: audio.type || "audio/webm",
-      });
-
-    const prompt = languagePrompt(language);
-    const models = [PRIMARY_MODEL];
-    if (PRIMARY_MODEL !== FALLBACK_MODEL) models.push(FALLBACK_MODEL);
-
-    let lastError: unknown = null;
-    for (const model of models) {
-      try {
-        const apiLanguage = apiLanguageForModel(model, language);
-        const result = await client.audio.transcriptions.create({
-          file: makeFile(),
-          model,
-          ...(apiLanguage ? { language: apiLanguage } : {}),
-          ...(prompt ? { prompt } : {}),
-          ...(isGptTranscribeModel(model)
-            ? { response_format: "json" as const }
-            : {}),
-        });
-
-        const text = (result.text ?? "").trim();
-        if (!text) {
-          lastError = new Error("empty transcript");
-          continue;
-        }
-
-        return Response.json({ text });
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    const msg =
-      lastError instanceof Error ? lastError.message : "Transcription failed";
-    return Response.json({ error: msg }, { status: 500 });
-  } catch (error) {
-    const msg =
-      error instanceof Error ? error.message : "Transcription failed";
-    return Response.json({ error: msg }, { status: 500 });
+  const bytes = new Uint8Array(await audio.arrayBuffer());
+  const extension = pickExtension(audio.type, audio.name);
+  const result = await transcribeAudioBytes({
+    bytes,
+    filename: `voice.${extension}`,
+    mimeType: audio.type || "audio/webm",
+    language,
+  });
+  if ("error" in result) {
+    const status = result.error.includes("not available") ? 503 : 500;
+    return Response.json({ error: result.error }, { status });
   }
-}
-
-function pickExtension(mimeType: string, name: string): string {
-  const fromName = name.split(".").pop()?.toLowerCase();
-  if (fromName && fromName.length <= 5) return fromName;
-  if (mimeType.includes("mp4") || mimeType.includes("m4a")) return "m4a";
-  if (mimeType.includes("ogg")) return "ogg";
-  if (mimeType.includes("mpeg") || mimeType.includes("mp3")) return "mp3";
-  if (mimeType.includes("wav")) return "wav";
-  return "webm";
+  return Response.json({ text: result.text });
 }

@@ -64,6 +64,7 @@ export async function DashboardHomeBelowFold({
         accountCreatedAt={profile.created_at}
         initialHistory={deferred.weightHistory}
         initialLog={weightLog}
+        stepGoal={profile.step_goal}
       />
 
       <ProgressPhotosCard

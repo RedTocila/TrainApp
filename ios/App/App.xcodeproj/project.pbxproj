@@ -17,6 +17,14 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A1B2C3D40FE9A0040072D4E8 /* AppViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40FE9A0030072D4E8 /* AppViewController.swift */; };
+		A1B2C3D40FE9A0060072D4E8 /* HealthStepsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40FE9A0050072D4E8 /* HealthStepsPlugin.swift */; };
+		B1A100012FE9A0020072D4E8 /* WatchSessionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A100012FE9A0010072D4E8 /* WatchSessionPlugin.swift */; };
+		B1A100012FE9B0130072D4E8 /* RutinaWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = B1A100012FE9B0010072D4E8 /* RutinaWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B1A100012FE9B0310072D4E8 /* RutinaWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A100012FE9B0210072D4E8 /* RutinaWatchApp.swift */; };
+		B1A100012FE9B0320072D4E8 /* WatchAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A100012FE9B0220072D4E8 /* WatchAPI.swift */; };
+		B1A100012FE9B0330072D4E8 /* DashboardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A100012FE9B0230072D4E8 /* DashboardViews.swift */; };
+		B1A100012FE9B0340072D4E8 /* ActionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A100012FE9B0240072D4E8 /* ActionViews.swift */; };
+		B1A100012FE9B0360072D4E8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1A100012FE9B0260072D4E8 /* Assets.xcassets */; };
 		A1B2C3D40FE9A0010072D4E8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40FE9A0000072D4E8 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
@@ -32,6 +40,16 @@
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		A1B2C3D40FE9A0030072D4E8 /* AppViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewController.swift; sourceTree = "<group>"; };
+		A1B2C3D40FE9A0050072D4E8 /* HealthStepsPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthStepsPlugin.swift; sourceTree = "<group>"; };
+		B1A100012FE9A0010072D4E8 /* WatchSessionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSessionPlugin.swift; sourceTree = "<group>"; };
+		B1A100012FE9B0010072D4E8 /* RutinaWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RutinaWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B1A100012FE9B0100072D4E8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B1A100012FE9B0110072D4E8 /* RutinaWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RutinaWatch.entitlements; sourceTree = "<group>"; };
+		B1A100012FE9B0210072D4E8 /* RutinaWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RutinaWatchApp.swift; sourceTree = "<group>"; };
+		B1A100012FE9B0220072D4E8 /* WatchAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAPI.swift; sourceTree = "<group>"; };
+		B1A100012FE9B0230072D4E8 /* DashboardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViews.swift; sourceTree = "<group>"; };
+		B1A100012FE9B0240072D4E8 /* ActionViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionViews.swift; sourceTree = "<group>"; };
+		B1A100012FE9B0260072D4E8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A1B2C3D40FE9A0000072D4E8 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A1B2C3D40FE9A0020072D4E8 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
@@ -54,6 +72,7 @@
 			children = (
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
+				B1A100012FE9B0090072D4E8 /* RutinaWatch */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -62,6 +81,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				B1A100012FE9B0010072D4E8 /* RutinaWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -71,6 +91,8 @@
 			children = (
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				A1B2C3D40FE9A0030072D4E8 /* AppViewController.swift */,
+				A1B2C3D40FE9A0050072D4E8 /* HealthStepsPlugin.swift */,
+				B1A100012FE9A0010072D4E8 /* WatchSessionPlugin.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -85,6 +107,20 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		B1A100012FE9B0090072D4E8 /* RutinaWatch */ = {
+			isa = PBXGroup;
+			children = (
+				B1A100012FE9B0210072D4E8 /* RutinaWatchApp.swift */,
+				B1A100012FE9B0220072D4E8 /* WatchAPI.swift */,
+				B1A100012FE9B0230072D4E8 /* DashboardViews.swift */,
+				B1A100012FE9B0240072D4E8 /* ActionViews.swift */,
+				B1A100012FE9B0100072D4E8 /* Info.plist */,
+				B1A100012FE9B0110072D4E8 /* RutinaWatch.entitlements */,
+				B1A100012FE9B0260072D4E8 /* Assets.xcassets */,
+			);
+			path = RutinaWatch;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -95,10 +131,12 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				B1A100012FE9B0120072D4E8 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B1A100012FE9B0140072D4E8 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -106,6 +144,23 @@
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B1A100012FE9B0020072D4E8 /* RutinaWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B1A100012FE9B0060072D4E8 /* Build configuration list for PBXNativeTarget "RutinaWatch" */;
+			buildPhases = (
+				B1A100012FE9B0030072D4E8 /* Sources */,
+				B1A100012FE9B0040072D4E8 /* Frameworks */,
+				B1A100012FE9B0050072D4E8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RutinaWatch;
+			productName = RutinaWatch;
+			productReference = B1A100012FE9B0010072D4E8 /* RutinaWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -120,6 +175,10 @@
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
 						LastSwiftMigration = 1100;
+						ProvisioningStyle = Automatic;
+					};
+					B1A100012FE9B0020072D4E8 = {
+						CreatedOnToolsVersion = 16.0;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -141,6 +200,7 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				B1A100012FE9B0020072D4E8 /* RutinaWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -170,10 +230,70 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A1B2C3D40FE9A0040072D4E8 /* AppViewController.swift in Sources */,
+				A1B2C3D40FE9A0060072D4E8 /* HealthStepsPlugin.swift in Sources */,
+				B1A100012FE9A0020072D4E8 /* WatchSessionPlugin.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B1A100012FE9B0030072D4E8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1A100012FE9B0310072D4E8 /* RutinaWatchApp.swift in Sources */,
+				B1A100012FE9B0320072D4E8 /* WatchAPI.swift in Sources */,
+				B1A100012FE9B0330072D4E8 /* DashboardViews.swift in Sources */,
+				B1A100012FE9B0340072D4E8 /* ActionViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B1A100012FE9B0040072D4E8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B1A100012FE9B0050072D4E8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1A100012FE9B0360072D4E8 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B1A100012FE9B0120072D4E8 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				B1A100012FE9B0130072D4E8 /* RutinaWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B1A100012FE9B0140072D4E8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B1A100012FE9B0020072D4E8 /* RutinaWatch */;
+			targetProxy = B1A100012FE9B0150072D4E8 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXContainerItemProxy section */
+		B1A100012FE9B0150072D4E8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B1A100012FE9B0020072D4E8;
+			remoteInfo = RutinaWatch;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -352,6 +472,46 @@
 			};
 			name = Release;
 		};
+		B1A100012FE9B0070072D4E8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = RutinaWatch/RutinaWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 425G4U67A8;
+				INFOPLIST_FILE = RutinaWatch/Info.plist;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = al.rutina.app.watch;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		B1A100012FE9B0080072D4E8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = RutinaWatch/RutinaWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 425G4U67A8;
+				INFOPLIST_FILE = RutinaWatch/Info.plist;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = al.rutina.app.watch;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -369,6 +529,15 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B1A100012FE9B0060072D4E8 /* Build configuration list for PBXNativeTarget "RutinaWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B1A100012FE9B0070072D4E8 /* Debug */,
+				B1A100012FE9B0080072D4E8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

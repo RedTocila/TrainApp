@@ -112,6 +112,30 @@ export async function getWaterGoal(clientId: string): Promise<number> {
   return data?.water_goal_ml ?? 2500;
 }
 
+export async function updateStepGoal(stepGoal: number) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  if (!Number.isFinite(stepGoal) || stepGoal < 1000 || stepGoal > 100000) {
+    return { error: "Step goal must be between 1000 and 100000" };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ step_goal: Math.round(stepGoal) })
+    .eq("id", user.id);
+
+  if (error) {
+    console.error("updateStepGoal", error.message);
+    return { error: error.message };
+  }
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
 export async function updateWaterGoal(clientId: string, waterGoalMl: number) {
   const mutation = await requireSubscribedMutationAdmin(clientId);
   if ("error" in mutation) return { error: mutation.error };

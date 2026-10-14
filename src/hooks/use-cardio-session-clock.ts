@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { pullCardioTimerIntoLocal } from "@/lib/cardio-timer-sync";
 import {
   getCardioElapsedMs,
   getCardioTimerState,
@@ -23,7 +24,22 @@ export function useCardioSessionClock(
       setNowMs(Date.now());
     };
     refresh();
-    return subscribeCardioTimerChange(refresh);
+    const unsubscribe = subscribeCardioTimerChange(refresh);
+    if (!cardioId) return unsubscribe;
+
+    let cancelled = false;
+    const pull = () => {
+      void pullCardioTimerIntoLocal(dateKey, cardioId).then(() => {
+        if (!cancelled) refresh();
+      });
+    };
+    pull();
+    const poll = window.setInterval(pull, 20000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+      unsubscribe();
+    };
   }, [dateKey, cardioId, syncVersion]);
 
   useEffect(() => {

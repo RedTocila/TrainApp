@@ -24,6 +24,11 @@ import {
   minCardioSecondsForComplete,
 } from "@/lib/cardio-completion";
 import {
+  clearRemoteCardioTimer,
+  pullCardioTimerIntoLocal,
+  pushLocalCardioTimer,
+} from "@/lib/cardio-timer-sync";
+import {
   clearCardioTimerState,
   getCardioElapsedMs,
   getCardioTimerState,
@@ -101,25 +106,40 @@ export function ActiveCardioClient({
   const taskId = cardioTaskId(dateKey, cardioId);
 
   useEffect(() => {
-    setTimer(getCardioTimerState(dateKey, cardioId));
-    setHydrated(true);
+    let cancelled = false;
+    void (async () => {
+      if (cardioId) await pullCardioTimerIntoLocal(dateKey, cardioId);
+      if (cancelled) return;
+      setTimer(getCardioTimerState(dateKey, cardioId));
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [dateKey, cardioId]);
 
   const handleStart = () => {
     setError(null);
-    setTimer(startCardioTimer(dateKey, cardioId));
+    const next = startCardioTimer(dateKey, cardioId);
+    setTimer(next);
+    pushLocalCardioTimer(next);
   };
 
   const handlePause = () => {
-    setTimer(pauseCardioTimer(dateKey, cardioId));
+    const next = pauseCardioTimer(dateKey, cardioId);
+    setTimer(next);
+    if (next) pushLocalCardioTimer(next);
   };
 
   const handleResume = () => {
-    setTimer(resumeCardioTimer(dateKey, cardioId));
+    const next = resumeCardioTimer(dateKey, cardioId);
+    setTimer(next);
+    if (next) pushLocalCardioTimer(next);
   };
 
   const handleStop = () => {
     clearCardioTimerState(dateKey, cardioId);
+    clearRemoteCardioTimer(dateKey, cardioId);
     setTimer(null);
     router.push("/dashboard");
   };
@@ -181,6 +201,7 @@ export function ActiveCardioClient({
 
       patchDashboard({ dateKey, taskId, completed: true });
       clearCardioTimerState(dateKey, cardioId);
+      clearRemoteCardioTimer(dateKey, cardioId);
       notifySync();
       router.replace("/dashboard");
     } catch (err) {

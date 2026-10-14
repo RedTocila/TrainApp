@@ -11,7 +11,8 @@ export type DashboardCardTheme =
   | "weight"
   | "habits"
   | "lifestyle"
-  | "photos";
+  | "photos"
+  | "steps";
 
 const THEME: Record<
   DashboardCardTheme,
@@ -75,6 +76,12 @@ const THEME: Record<
     border: "border-fuchsia-500/40",
     wash: "from-fuchsia-500/18",
     glow: "bg-fuchsia-400/25",
+  },
+  steps: {
+    accent: "text-lime-800 dark:text-lime-300",
+    border: "border-lime-500/40",
+    wash: "from-lime-500/18",
+    glow: "bg-lime-400/25",
   },
 };
 
