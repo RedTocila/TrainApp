@@ -1,7 +1,7 @@
 "use client";
 import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
-import { Check, ChevronRight, Clock, Dumbbell, Flame, Layers, List, Loader2, Play, TriangleAlert } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, Clock, Dumbbell, Flame, Layers, List, Loader2, Play, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addDays } from "date-fns";
@@ -23,8 +23,14 @@ import { DASHBOARD_NAV_GLASS_CLASS } from "@/components/ai-coach-fab";
 import {
   estimateWorkoutCaloriesKcal,
   estimateWorkoutDurationSeconds,
+  formatElapsedClock,
   formatWorkoutDurationShort,
 } from "@/lib/workout-duration";
+import {
+  getWorkoutElapsedMs,
+  getWorkoutTimerState,
+  type WorkoutTimerState,
+} from "@/lib/workout-timer-storage";
 import {
   resolveWorkoutsForDate,
   getWorkoutCompletionStatusForDate,
@@ -78,6 +84,72 @@ const EMPTY_PATCHED_COMPLETIONS: Record<string, boolean> = {};
 
 function workoutNavKey(workout: TodaysWorkoutInfo) {
   return workout.scheduledWorkoutId ?? workout.taskId;
+}
+
+/** Live clock for a workout that is already open. Prefers the on-device timer. */
+function useOpenWorkoutClock(
+  sessionId: string | null,
+  startedAt: string | null
+) {
+  const [now, setNow] = useState<number | null>(null);
+  const [timer, setTimer] = useState<WorkoutTimerState | null>(null);
+
+  useEffect(() => {
+    if (!sessionId) {
+      setTimer(null);
+      setNow(null);
+      return;
+    }
+    const read = () => {
+      setTimer(getWorkoutTimerState(sessionId));
+      setNow(Date.now());
+    };
+    read();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") read();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key || event.key.includes(sessionId)) read();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [sessionId]);
+
+  const localActive =
+    timer?.status === "running" || timer?.status === "paused";
+  const running = timer?.status === "running" || (!localActive && Boolean(startedAt));
+
+  useEffect(() => {
+    if (!sessionId || !running) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [running, sessionId, startedAt, timer?.segmentStartedAt, timer?.status]);
+
+  if (!sessionId || now == null) {
+    return { elapsedLabel: null as string | null, paused: false };
+  }
+  if (localActive && timer) {
+    return {
+      elapsedLabel: formatElapsedClock(
+        Math.floor(getWorkoutElapsedMs(timer, now) / 1000)
+      ),
+      paused: timer.status === "paused",
+    };
+  }
+  if (startedAt) {
+    const ms = now - new Date(startedAt).getTime();
+    if (Number.isFinite(ms) && ms >= 0) {
+      return {
+        elapsedLabel: formatElapsedClock(Math.floor(ms / 1000)),
+        paused: false,
+      };
+    }
+  }
+  return { elapsedLabel: null as string | null, paused: false };
 }
 
 function WorkoutHeroBodySkeleton({ onPhoto = false }: { onPhoto?: boolean }) {
@@ -152,6 +224,7 @@ export function DashboardWorkoutCard({
   initialWorkoutCompleted = false,
   initialWorkoutResults = null,
   initialInProgressByTaskId = {},
+  initialInProgressStartedAtByTaskId = {},
   selectedWorkoutKey = null,
   variant = "full",
   schedule,
@@ -165,6 +238,7 @@ export function DashboardWorkoutCard({
   initialWorkoutCompleted?: boolean;
   initialWorkoutResults?: CompletedWorkoutResults | null;
   initialInProgressByTaskId?: Record<string, string>;
+  initialInProgressStartedAtByTaskId?: Record<string, string>;
   selectedWorkoutKey?: string | null;
   variant?: "full" | "compact" | "detail" | "hero";
   schedule?: ClientSchedule;
@@ -199,6 +273,8 @@ export function DashboardWorkoutCard({
   const [inProgressByTaskId, setInProgressByTaskId] = useState<
     Record<string, string | null>
   >(initialInProgressByTaskId);
+  const [inProgressStartedAtByTaskId, setInProgressStartedAtByTaskId] =
+    useState<Record<string, string | null>>(initialInProgressStartedAtByTaskId);
   const [workoutResults, setWorkoutResults] =
     useState<CompletedWorkoutResults | null>(initialWorkoutResults);
   const [loadedDateKey, setLoadedDateKey] = useState(() =>
@@ -446,6 +522,12 @@ export function DashboardWorkoutCard({
           entry.inProgressSessionId,
         ])
       );
+      const inProgressStartedMap = Object.fromEntries(
+        Object.entries(status).map(([taskId, entry]) => [
+          taskId,
+          entry.inProgressStartedAt,
+        ])
+      );
       const previous = workoutCacheRef.current.get(key);
 
       workoutCacheRef.current.set(key, {
@@ -463,6 +545,7 @@ export function DashboardWorkoutCard({
       setSkippedByTaskId(skippedMap);
       setSessionIdByTaskId(sessionMap);
       setInProgressByTaskId(inProgressMap);
+      setInProgressStartedAtByTaskId(inProgressStartedMap);
 
       if (!allCompleted || resolved.length === 0) {
         setWorkoutResults(null);
@@ -769,6 +852,10 @@ export function DashboardWorkoutCard({
   const liveSessionId = liveWorkout
     ? (inProgressByTaskId[liveWorkout.taskId] ?? null)
     : null;
+  const liveStartedAt = liveWorkout
+    ? (inProgressStartedAtByTaskId[liveWorkout.taskId] ?? null)
+    : null;
+  const openClock = useOpenWorkoutClock(liveSessionId, liveStartedAt);
 
   const { start: startFocusWorkout, isStarting: isStartingWorkout } = useStartWorkout(
     selectedDate,
@@ -936,7 +1023,9 @@ export function DashboardWorkoutCard({
           className={cn(
             "min-h-[18rem]",
             hasWorkout &&
-              "cursor-pointer transition-opacity hover:opacity-95 active:opacity-90"
+              "cursor-pointer transition-opacity hover:opacity-95 active:opacity-90",
+            liveSessionId &&
+              "border-2 border-emerald-300 shadow-[0_0_0_3px_rgba(52,211,153,0.45)]"
           )}
         >
           {hasWorkout ? (
@@ -948,7 +1037,7 @@ export function DashboardWorkoutCard({
               }
               ariaLabel={
                 liveSessionId
-                  ? platform.common.inProgress
+                  ? platform.workout.openWorkout
                   : platform.trainTabs.workout
               }
             />
@@ -966,6 +1055,22 @@ export function DashboardWorkoutCard({
                 >
                   {dayLabel}
                 </span>
+                {liveSessionId ? (
+                  <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-500 px-3 text-[11px] font-black uppercase tracking-[0.16em] text-white shadow-md shadow-emerald-900/40">
+                    <span className="relative flex h-2 w-2" aria-hidden>
+                      {openClock.paused ? null : (
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+                      )}
+                      <span
+                        className={cn(
+                          "relative inline-flex h-2 w-2 rounded-full",
+                          openClock.paused ? "bg-amber-200" : "bg-white"
+                        )}
+                      />
+                    </span>
+                    {platform.common.inProgress}
+                  </span>
+                ) : null}
                 {workout && exerciseCount > 0 ? (
                   <div className={dashboardInteractive}>
                     <WorkoutDifficultyInsightButton
@@ -1102,6 +1207,60 @@ export function DashboardWorkoutCard({
                         <Check className="h-5 w-5" strokeWidth={2.5} />
                       </span>
                     </div>
+                  ) : liveSessionId ? (
+                    <div
+                      className={cn(
+                        "flex items-center gap-3 rounded-2xl border px-3.5 py-3",
+                        onPhoto
+                          ? "border-emerald-200/80 bg-emerald-500/40 shadow-[0_10px_28px_rgba(0,0,0,0.35)] backdrop-blur-md"
+                          : "border-emerald-500/50 bg-emerald-500/15"
+                      )}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold leading-tight">
+                          {(liveWorkout ?? workout).dayTitle ||
+                            (liveWorkout ?? workout).planTitle}
+                        </p>
+                        <p
+                          className={cn(
+                            "mt-1 text-[11px] font-black uppercase tracking-[0.16em]",
+                            onPhoto
+                              ? "text-emerald-50"
+                              : "text-emerald-700 dark:text-emerald-300"
+                          )}
+                        >
+                          {platform.common.inProgress}
+                        </p>
+                        <p
+                          className="mt-0.5 min-h-9 font-mono text-3xl font-black leading-none tabular-nums tracking-tight"
+                          aria-label={platform.workout.elapsed}
+                        >
+                          {openClock.elapsedLabel}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-950/40 ring-2 ring-white/80 transition hover:brightness-110 disabled:opacity-60"
+                        disabled={readOnly || !isDayLoaded || isStartingWorkout}
+                        aria-label={
+                          isStartingWorkout
+                            ? platform.workout.starting
+                            : platform.workout.openWorkout
+                        }
+                        aria-busy={isStartingWorkout}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          startFocusWorkout();
+                        }}
+                      >
+                        {isStartingWorkout ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <ArrowUpRight className="h-6 w-6" strokeWidth={2.5} />
+                        )}
+                      </button>
+                    </div>
                   ) : (
                     <div
                       className={cn(
@@ -1111,27 +1270,11 @@ export function DashboardWorkoutCard({
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold leading-tight">
-                          {(liveWorkout ?? workout).dayTitle ||
-                            (liveWorkout ?? workout).planTitle}
+                          {workout.dayTitle || workout.planTitle}
                         </p>
                         <p className={cn("mt-0.5 truncate text-[11px]", softText)}>
-                          {liveSessionId ? (
-                            <span className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wide">
-                              <span
-                                className={cn(
-                                  "h-1.5 w-1.5 rounded-full animate-pulse",
-                                  onPhoto ? "bg-emerald-300" : "bg-primary"
-                                )}
-                                aria-hidden
-                              />
-                              {platform.common.inProgress}
-                            </span>
-                          ) : (
-                            <>
-                              {platform.workout.viewDayPlan}
-                              {durationLabel ? ` · ${durationLabel}` : null}
-                            </>
-                          )}
+                          {platform.workout.viewDayPlan}
+                          {durationLabel ? ` · ${durationLabel}` : null}
                         </p>
                       </div>
                       <button
@@ -1140,15 +1283,13 @@ export function DashboardWorkoutCard({
                         disabled={
                           readOnly ||
                           !isDayLoaded ||
-                          (!nextDayWorkout && !liveSessionId) ||
+                          !nextDayWorkout ||
                           isStartingWorkout
                         }
                         aria-label={
                           isStartingWorkout
                             ? platform.workout.starting
-                            : liveSessionId
-                              ? platform.common.inProgress
-                              : platform.workout.startWorkout
+                            : platform.workout.startWorkout
                         }
                         aria-busy={isStartingWorkout}
                         onClick={(event) => {

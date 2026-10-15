@@ -184,21 +184,43 @@ function NutritionMealsSkeleton() {
   );
 }
 
-function SessionSkeleton() {
+export function WorkoutOpenSkeleton() {
   return (
     <div
-      className="mx-auto max-w-lg space-y-4 pt-4"
+      className="mx-auto flex h-[100dvh] max-h-[100dvh] max-w-lg flex-col gap-3 bg-background px-2 pb-[max(0.75rem,var(--safe-area-bottom))] pt-[max(0.35rem,var(--safe-area-top))]"
       role="status"
       aria-busy="true"
       aria-live="polite"
     >
-      <Pulse className="mx-auto h-8 w-48 rounded-lg" />
-      <Pulse className="h-16 w-full rounded-2xl" />
-      <Pulse className="h-40 w-full rounded-2xl" />
-      <Pulse className="h-40 w-full rounded-2xl" />
-      <Pulse className="h-12 w-full rounded-full" />
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+        <Pulse className="h-9 w-24 rounded-full" />
+        <Pulse className="mx-auto h-8 w-20 rounded-full" />
+        <div className="flex justify-end gap-1.5">
+          <Pulse className="h-9 w-9 rounded-full" />
+          <Pulse className="h-9 w-9 rounded-full" />
+        </div>
+      </div>
+      <Pulse className="mx-auto h-3 w-28 rounded-md" />
+      <Pulse className="mx-auto h-6 w-56 rounded-md" />
+      <Pulse className="min-h-[11rem] w-full flex-1 rounded-[1.35rem] bg-white/80" />
+      <div className="flex items-center justify-between gap-3">
+        <Pulse className="h-4 w-24 rounded-md" />
+        <Pulse className="h-3 w-32 rounded-md" />
+      </div>
+      <div className="flex gap-2">
+        <Pulse className="h-24 flex-1 rounded-2xl" />
+        <Pulse className="h-24 flex-1 rounded-2xl" />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Pulse className="h-11 rounded-full" />
+        <Pulse className="h-11 rounded-full" />
+      </div>
     </div>
   );
+}
+
+function SessionSkeleton() {
+  return <WorkoutOpenSkeleton />;
 }
 
 function GenericSkeleton() {
@@ -221,6 +243,7 @@ export function DashboardPageSkeleton({ href }: { href?: string | null }) {
   if (!path || path === "/dashboard") return <HomeSkeleton />;
   if (
     path.startsWith("/dashboard/workout/session/") ||
+    path === "/dashboard/workout/live" ||
     path === "/dashboard/workout/cardio/session"
   ) {
     return <SessionSkeleton />;

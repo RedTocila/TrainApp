@@ -1087,7 +1087,7 @@ const inactiveLiveCard: LiveWorkoutCard = {
   weightKg: 20,
 };
 
-/** The set the Lock Screen and back-tap sheet should show for an in-progress workout. */
+/** The set the Lock Screen should show for an in-progress workout. */
 export async function loadLiveWorkout(
   ctx: WatchContext,
   date: string,

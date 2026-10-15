@@ -516,9 +516,6 @@ export const platformCopyAl = {
     noWorkoutInProgress: "Nuk ka stërvitje të nisur.",
     quickTimerWorkout: "Kjo stërvitje ecën me kohëmatës. Hape për të vazhduar.",
     openWorkout: "Hap stërvitjen",
-    backTapHint:
-      "Double Tap nuk e shfaq ende. Shto Current set, pastaj te Double Tap zbrit në fund dhe zgjidhe te Shortcuts.",
-    backTapAdd: "Shto Current set",
     previousExercise: "Mbrapa",
     giveUp: "hiq dorë",
     logSet: "Regjistro serinë",

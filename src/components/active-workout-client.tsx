@@ -45,7 +45,8 @@ import {
   suppressWorkoutMirror,
 } from "@/lib/watch-session";
 import { isPendingWorkoutSessionId } from "@/lib/staged-workout-open";
-import { BackTapSetup } from "@/components/back-tap-setup";
+import { WorkoutOpenSkeleton } from "@/components/dashboard-page-skeleton";
+import { WorkoutTypeBanner } from "@/components/workout-type-banner";
 import { findCatalogExercise } from "@/lib/exercise-catalog";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { useDashboardSync } from "@/components/dashboard-sync";
@@ -363,7 +364,7 @@ function ActiveExercisePanel({
 }) {
   const platform = usePlatformCopy();
   const units = useBodyUnits();
-  const [isAddingSet, setIsAddingSet] = useState(false);
+  const loggingSetId = useRef<string | null>(null);
   const [showHowTo, setShowHowTo] = useState(false);
   const [repsDraft, setRepsDraft] = useState("");
   const [weightDraft, setWeightDraft] = useState("");
@@ -378,6 +379,8 @@ function ActiveExercisePanel({
     (s) => s.reps != null || s.weight_kg != null
   );
   const sets = exercise.sets ?? [];
+  const setsRef = useRef(sets);
+  setsRef.current = sets;
   const completedSets = sets.filter(
     (set) => set.completed || set.reps != null || set.weight_kg != null
   ).length;
@@ -463,40 +466,50 @@ function ActiveExercisePanel({
   const parseWeightField = (rawValue: string) =>
     rawValue.trim() === "" ? null : parseSetWeightKg(rawValue);
 
-  const persistSet = async (
+  const applyLoggedSet = (
     setId: string,
     reps: number | null,
     weight_kg: number | null,
     setsSnapshot: WorkoutSessionSet[]
   ) => {
-    const completed = reps != null || weight_kg != null;
     const nextSets = setsSnapshot.map((set) =>
-      set.id === setId ? { ...set, reps, weight_kg, completed } : set
+      set.id === setId ? { ...set, reps, weight_kg, completed: true } : set
     );
     onSetsChange(nextSets);
-    const result = await updateSessionSet(setId, { reps, weight_kg, completed });
-    if (result.error) {
-      onSetsChange(setsSnapshot);
-      onSaveError?.(result.error);
-      return;
-    }
-    if (completed) {
-      onLoggedSet({
-        setId,
-        reps: reps ?? 0,
-        weightKg: weight_kg ?? 0,
-      });
-      const nextCompleted = nextSets.filter(
-        (set) => set.completed || set.reps != null || set.weight_kg != null
-      ).length;
-      if (nextCompleted >= targetSets) {
-        onAllSetsDone?.();
-      }
-    }
+    setRepsDraft("");
+    setWeightDraft("");
+    onLoggedSet({
+      setId,
+      reps: reps ?? 0,
+      weightKg: weight_kg ?? 0,
+    });
+    const nextCompleted = nextSets.filter(
+      (set) => set.completed || set.reps != null || set.weight_kg != null
+    ).length;
+    if (nextCompleted >= targetSets) onAllSetsDone?.();
+    return nextSets;
   };
 
-  const handleLogSet = async () => {
-    if (readOnly || isAddingSet) return;
+  const saveLoggedSet = (
+    setId: string,
+    reps: number | null,
+    weight_kg: number | null,
+    rollback: WorkoutSessionSet[]
+  ) => {
+    loggingSetId.current = setId;
+    void updateSessionSet(setId, { reps, weight_kg, completed: true }).then((result) => {
+      if (loggingSetId.current === setId) loggingSetId.current = null;
+      if (!result.error) return;
+      const previous = rollback.find((set) => set.id === setId);
+      onSetsChange(
+        setsRef.current.map((set) => (set.id === setId && previous ? previous : set))
+      );
+      onSaveError?.(result.error);
+    });
+  };
+
+  const handleLogSet = () => {
+    if (readOnly) return;
     let reps = parseRepsField(repsDraft);
     let weight_kg = parseWeightField(weightDraft);
     if (reps == null && previousForNextSet?.reps != null) {
@@ -515,27 +528,27 @@ function ActiveExercisePanel({
     if (weight_kg == null) weight_kg = 0;
     if (reps == null && repsDraft.trim() === "" && weightDraft.trim() === "") return;
 
-    setIsAddingSet(true);
-    try {
-      if (activeSet) {
-        await persistSet(activeSet.id, reps, weight_kg, sets);
-      } else {
-        const created = await addSessionSet(exercise.id);
-        if (created.error) {
-          onSaveError?.(created.error);
-          return;
-        }
-        if (created.data) {
-          const withNew = [...sets, created.data];
-          onSetsChange(withNew);
-          await persistSet(created.data.id, reps, weight_kg, withNew);
-        }
-      }
-      setRepsDraft("");
-      setWeightDraft("");
-    } finally {
-      setIsAddingSet(false);
+    if (activeSet) {
+      if (loggingSetId.current === activeSet.id) return;
+      const snapshot = sets;
+      applyLoggedSet(activeSet.id, reps, weight_kg, snapshot);
+      saveLoggedSet(activeSet.id, reps, weight_kg, snapshot);
+      return;
     }
+
+    if (loggingSetId.current === "new") return;
+    loggingSetId.current = "new";
+    const snapshot = sets;
+    void addSessionSet(exercise.id).then((created) => {
+      if (created.error || !created.data) {
+        if (loggingSetId.current === "new") loggingSetId.current = null;
+        onSaveError?.(created.error ?? "Couldn't add a set.");
+        return;
+      }
+      const withNew = [...snapshot, created.data];
+      applyLoggedSet(created.data.id, reps, weight_kg, withNew);
+      saveLoggedSet(created.data.id, reps, weight_kg, snapshot);
+    });
   };
 
   useEffect(() => {
@@ -676,14 +689,12 @@ function ActiveExercisePanel({
               value={weightDisplay}
               onDecrement={() => adjustWeight(-2.5)}
               onIncrement={() => adjustWeight(2.5)}
-              disabled={isAddingSet}
             />
             <WorkoutMetricCard
               label={platform.workout.reps}
               value={repsDisplay}
               onDecrement={() => adjustReps(-1)}
               onIncrement={() => adjustReps(1)}
-              disabled={isAddingSet}
             />
           </div>
 
@@ -804,20 +815,12 @@ function ActiveExercisePanel({
             <Button
               type="button"
               className="h-11 min-w-0 rounded-full bg-primary text-sm font-black uppercase tracking-[0.08em] text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90"
-              disabled={isAddingSet}
-              onClick={() => void handleLogSet()}
+              onClick={handleLogSet}
             >
-              {isAddingSet ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Check className="mr-1.5 h-4 w-4 shrink-0" strokeWidth={2.5} />
-                  {platform.workout.finishSet(currentSetNumber)}
-                </>
-              )}
+              <Check className="mr-1.5 h-4 w-4 shrink-0" strokeWidth={2.5} />
+              {platform.workout.finishSet(currentSetNumber)}
             </Button>
           </div>
-          <BackTapSetup />
         </div>
       ) : (
         <p className="shrink-0 pt-0.5 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -1124,13 +1127,16 @@ export function ActiveWorkoutClient({
     if (beginSentRef.current) return;
     beginSentRef.current = true;
     void beginWorkoutSession(session.id).then((result) => {
-      if (result.error) {
-        beginSentRef.current = false;
-        setStartedLocally(false);
-        setError(result.error);
+      if (!result.error) return;
+      beginSentRef.current = false;
+      if (result.error === "Workout is no longer in progress") {
+        router.replace("/dashboard");
+        return;
       }
+      setStartedLocally(false);
+      setError(result.error);
     });
-  }, [isStarted, session.id, session.started_at]);
+  }, [isStarted, router, session.id, session.started_at]);
 
   const leaveRef = useRef(leaveWorkout);
   useEffect(() => {
@@ -1198,12 +1204,21 @@ export function ActiveWorkoutClient({
     finishLockRef.current = true;
     setError(null);
     setIsFinishing(true);
+    const safety = window.setTimeout(() => {
+      finishLockRef.current = false;
+      setIsFinishing(false);
+    }, 12000);
     leaveHandledRef.current = true;
     try {
       const result = await completeWorkoutSession(session.id, null);
       if (result.error) {
+        window.clearTimeout(safety);
         leaveHandledRef.current = false;
-        setError(result.error);
+        if (result.error !== "Workout is no longer in progress") {
+          setError(result.error);
+        } else {
+          router.replace("/dashboard");
+        }
         finishLockRef.current = false;
         setIsFinishing(false);
         return;
@@ -1235,10 +1250,12 @@ export function ActiveWorkoutClient({
         nextWorkout: result.nextWorkout ?? null,
       });
       if (flow === "stretch_offer") {
+        window.clearTimeout(safety);
         finishLockRef.current = false;
         setIsFinishing(false);
       }
     } catch (err) {
+      window.clearTimeout(safety);
       leaveHandledRef.current = false;
       setError(formatUserError(err));
       finishLockRef.current = false;
@@ -1364,13 +1381,26 @@ export function ActiveWorkoutClient({
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-        {isLoadingExercises ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/60 p-8 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">
-              {platform.workout.starting}
+        {!isStarted ? (
+          <div className="flex flex-col gap-3 pt-1">
+            {isLoadingExercises ? (
+              <div className="aspect-[16/10] w-full animate-pulse rounded-3xl bg-secondary/80" />
+            ) : (
+              <WorkoutTypeBanner
+                planTitle={session.plan_title ?? headerTitle}
+                dayTitle={session.day_title ?? headerTitle}
+                planKind={planKind}
+                exercises={exercises.map((exercise) => ({ name: exercise.name }))}
+                gender={exerciseGender}
+                alt={headerTitle}
+              />
+            )}
+            <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              {platform.workout.readyToStart}
             </p>
           </div>
+        ) : isLoadingExercises ? (
+          <WorkoutOpenSkeleton />
         ) : exercises.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border/60 p-6 text-center">
             <p className="font-medium">{platform.workout.noExercisesTitle}</p>
@@ -1387,7 +1417,14 @@ export function ActiveWorkoutClient({
               histories[activeExercise.exercise_id ?? activeExercise.name] ?? null
             }
             onSetsChange={(sets) => patchExerciseSets(activeExercise.id, sets)}
-            onSaveError={setError}
+            onSaveError={(message) => {
+              if (leaveHandledRef.current) return;
+              if (message === "Workout is no longer in progress") {
+                router.replace("/dashboard");
+                return;
+              }
+              setError(message);
+            }}
             readOnly={!isStarted || isPendingWorkoutSessionId(session.id)}
             gender={exerciseGender}
             restClock={formatSessionClock(rest.displaySeconds)}

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
-import { CalendarDays, Loader2, Play } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Loader2, Play } from "lucide-react";
 import Link from "next/link";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
 import { usePlatformCopy } from "@/components/locale-provider";
@@ -180,6 +180,8 @@ export function StartWorkoutButton({
               <span className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-primary shadow-sm">
                 {isStarting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
+                ) : resumeSessionId ? (
+                  <ArrowUpRight className="h-4 w-4" strokeWidth={2.5} />
                 ) : (
                   <Play className="h-4 w-4 fill-current" />
                 )}
@@ -221,6 +223,8 @@ export function StartWorkoutButton({
           >
             {isStarting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : resumeSessionId ? (
+              <ArrowUpRight className="h-4 w-4" strokeWidth={2.5} />
             ) : (
               <Play className="h-4 w-4" />
             )}
@@ -239,6 +243,8 @@ export function StartWorkoutButton({
           >
             {isStarting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : resumeSessionId ? (
+              <ArrowUpRight className="h-4 w-4" strokeWidth={2.5} />
             ) : (
               <Play className="h-4 w-4 fill-current" />
             )}
@@ -255,6 +261,8 @@ export function StartWorkoutButton({
           >
             {isStarting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : resumeSessionId ? (
+              <ArrowUpRight className="h-4 w-4" strokeWidth={2.5} />
             ) : (
               <Play className="h-4 w-4" />
             )}

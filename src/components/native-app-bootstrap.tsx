@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { NATIVE_APP_COOKIE } from "@/lib/native-app-request";
 import { createClient } from "@/lib/supabase/client";
-import { consumeQuickWorkoutOpen, endLiveWorkoutIfIdle, flushLiveWorkoutLogs } from "@/lib/live-workout";
+import { endLiveWorkoutIfIdle, flushLiveWorkoutLogs } from "@/lib/live-workout";
 import { subscribeWorkoutMirror, syncWatchSession } from "@/lib/watch-session";
 
 type PullToRefreshBridge = {
@@ -123,14 +123,6 @@ export function NativeAppBootstrap() {
         }
         await SplashScreen.hide().catch(() => undefined);
 
-        const openQuickSheet = async () => {
-          const pending = await consumeQuickWorkoutOpen();
-          if (!pending?.open) return;
-          const target = `/dashboard/workout/quick?exercise=${pending.exerciseIndex}`;
-          const current = `${window.location.pathname}${window.location.search}`;
-          if (current !== target) window.location.assign(target);
-        };
-
         const openDeepLink = (url: string) => {
           try {
             const parsed = new URL(url);
@@ -146,7 +138,10 @@ export function NativeAppBootstrap() {
                 : `${parsed.pathname}${parsed.search}${parsed.hash}`;
             const normalized = path.startsWith("/") ? path : `/${path}`;
             const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-            if (normalized && normalized !== current) {
+            const alreadyInWorkout =
+              normalized.startsWith("/dashboard/workout/live") &&
+              window.location.pathname.startsWith("/dashboard/workout/session/");
+            if (normalized && normalized !== current && !alreadyInWorkout) {
               window.location.assign(normalized);
             }
           } catch {
@@ -158,7 +153,6 @@ export function NativeAppBootstrap() {
           if (!isActive) return;
           void flushLiveWorkoutLogs();
           void syncWatchSession();
-          void openQuickSheet();
           void endLiveWorkoutIfIdle();
         });
         removeStateListener = () => {
@@ -170,10 +164,6 @@ export function NativeAppBootstrap() {
         });
         const launch = await App.getLaunchUrl();
         if (launch?.url) openDeepLink(launch.url);
-        void openQuickSheet();
-        window.setTimeout(() => {
-          if (!cancelled) void openQuickSheet();
-        }, 800);
 
         removeUrlListener = () => {
           void handle.remove();

@@ -108,9 +108,13 @@ export async function loadDashboardToday(
   ]);
 
   const initialInProgressByTaskId: Record<string, string> = {};
+  const initialInProgressStartedAtByTaskId: Record<string, string> = {};
   for (const [taskId, entry] of Object.entries(workoutStatus)) {
     if (entry.inProgressSessionId) {
       initialInProgressByTaskId[taskId] = entry.inProgressSessionId;
+      if (entry.inProgressStartedAt) {
+        initialInProgressStartedAtByTaskId[taskId] = entry.inProgressStartedAt;
+      }
     }
   }
 
@@ -196,6 +200,7 @@ export async function loadDashboardToday(
     initialWorkoutCompleted,
     initialWorkoutResults,
     initialInProgressByTaskId,
+    initialInProgressStartedAtByTaskId,
     initialCardios,
     initialCardioCompletionById,
     hasAiAccess: hasAiAccess(profile),

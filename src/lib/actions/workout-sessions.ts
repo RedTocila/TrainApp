@@ -695,6 +695,7 @@ export async function getWorkoutCompletionStatusForDate(
       skipped: boolean;
       sessionId: string | null;
       inProgressSessionId: string | null;
+      inProgressStartedAt: string | null;
     }
   >
 > {
@@ -714,6 +715,7 @@ export async function getWorkoutCompletionStatusForDate(
       skipped: boolean;
       sessionId: string | null;
       inProgressSessionId: string | null;
+      inProgressStartedAt: string | null;
     }
   > = {};
 
@@ -724,19 +726,22 @@ export async function getWorkoutCompletionStatusForDate(
         skipped: false,
         sessionId: workout.historySessionId,
         inProgressSessionId: null,
+        inProgressStartedAt: null,
       };
       continue;
     }
     const sessionId = matchCompletedSessionId(workout, completedSessions);
     const skippedId = matchCompletedSessionId(workout, skippedSessions);
     const completed = !!sessionId || taskCompletions.has(workout.taskId);
+    const inProgress = completed
+      ? null
+      : matchInProgressSession(workout, inProgressSessions);
     status[workout.taskId] = {
       completed,
       skipped: !completed && !!skippedId,
       sessionId: sessionId ?? skippedId,
-      inProgressSessionId: completed
-        ? null
-        : matchInProgressSessionId(workout, inProgressSessions),
+      inProgressSessionId: inProgress?.id ?? null,
+      inProgressStartedAt: inProgress?.started_at ?? null,
     };
   }
 
@@ -803,24 +808,25 @@ async function loadInProgressSessions(
   return (data ?? []) as InProgressSessionRef[];
 }
 
-function matchInProgressSessionId(
+function matchInProgressSession(
   workout: TodaysWorkoutInfo,
   sessions: InProgressSessionRef[]
-): string | null {
-  const match = sessions.find((session) => {
-    if (
-      workout.scheduledWorkoutId &&
-      session.scheduled_workout_id === workout.scheduledWorkoutId
-    ) {
-      return true;
-    }
-    return (
-      session.plan_id === workout.planId &&
-      session.day_id === workout.dayId &&
-      (session.scheduled_date ?? null) === (workout.scheduledDate ?? null)
-    );
-  });
-  return match?.id ?? null;
+): InProgressSessionRef | null {
+  return (
+    sessions.find((session) => {
+      if (
+        workout.scheduledWorkoutId &&
+        session.scheduled_workout_id === workout.scheduledWorkoutId
+      ) {
+        return true;
+      }
+      return (
+        session.plan_id === workout.planId &&
+        session.day_id === workout.dayId &&
+        (session.scheduled_date ?? null) === (workout.scheduledDate ?? null)
+      );
+    }) ?? null
+  );
 }
 
 function matchCompletedSessionId(
@@ -1576,22 +1582,65 @@ export async function openWorkoutSession({
   };
 }
 
+/** Give-up and skip set these so a late save cannot reopen the session. */
+const CLOSED_WORKOUT_NOTES = new Set(["abandoned", "skipped"]);
+
+/**
+ * A cancelled session with no close note was dropped by a navigation race.
+ * The person is still in the workout, so put it back instead of erroring.
+ */
+async function reopenAccidentalCancel(
+  admin: Awaited<ReturnType<typeof requireMutationAdmin>>["admin"],
+  session: { status: string; started_at: string | null; notes: string | null },
+  sessionId: string,
+  userId: string
+): Promise<{ error: string } | { reopened: true } | null> {
+  if (session.status === "in_progress") return null;
+  if (
+    session.status !== "cancelled" ||
+    CLOSED_WORKOUT_NOTES.has(session.notes ?? "")
+  ) {
+    return { error: "Workout is no longer in progress" };
+  }
+
+  const { error } = await admin
+    .from("workout_sessions")
+    .update({
+      status: "in_progress",
+      started_at: session.started_at ?? new Date().toISOString(),
+      completed_at: null,
+      notes: null,
+    })
+    .eq("id", sessionId)
+    .eq("client_id", userId)
+    .eq("status", "cancelled");
+
+  if (error) return { error: error.message };
+  return { reopened: true };
+}
+
+function closedWorkoutMessage(
+  result: { error: string } | { reopened: true } | null
+): string | null {
+  return result && "error" in result ? result.error : null;
+}
+
 export async function beginWorkoutSession(sessionId: string) {
   const { admin, userId } = await requireMutationAdmin();
 
   const { data: session } = await admin
     .from("workout_sessions")
-    .select("id, client_id, status, started_at")
+    .select("id, client_id, status, started_at, notes")
     .eq("id", sessionId)
     .eq("client_id", userId)
     .single();
 
   if (!session) return { error: "Session not found" };
-  if (session.status !== "in_progress") {
-    return { error: "Workout is no longer in progress" };
-  }
-  if (session.started_at) {
-    return { success: true, alreadyStarted: true };
+  const reopened = await reopenAccidentalCancel(admin, session, sessionId, userId);
+  const closed = closedWorkoutMessage(reopened);
+  if (closed) return { error: closed };
+  if ((reopened && "reopened" in reopened) || session.started_at) {
+    return { success: true, alreadyStarted: Boolean(session.started_at) };
   }
 
   const startedAt = new Date().toISOString();
@@ -1881,18 +1930,28 @@ export async function updateSessionSet(
 
   const { data: session } = await admin
     .from("workout_sessions")
-    .select("client_id, status, started_at")
+    .select("client_id, status, started_at, notes")
     .eq("id", exercise.session_id)
     .single();
 
   if (!session || session.client_id !== userId) {
     return { error: "Set not found" };
   }
-  if (session.status !== "in_progress") {
-    return { error: "Workout is no longer in progress" };
-  }
-  if (!session.started_at) {
-    return { error: "Start the workout before logging sets" };
+  const reopened = await reopenAccidentalCancel(
+    admin,
+    session,
+    exercise.session_id,
+    userId
+  );
+  const closed = closedWorkoutMessage(reopened);
+  if (closed) return { error: closed };
+  if (!session.started_at && session.status !== "cancelled") {
+    await admin
+      .from("workout_sessions")
+      .update({ started_at: new Date().toISOString() })
+      .eq("id", exercise.session_id)
+      .eq("client_id", userId)
+      .is("started_at", null);
   }
 
   const { error } = await admin
@@ -1917,18 +1976,28 @@ export async function addSessionSet(sessionExerciseId: string) {
 
   const { data: session } = await admin
     .from("workout_sessions")
-    .select("client_id, status, started_at")
+    .select("client_id, status, started_at, notes")
     .eq("id", exercise.session_id)
     .single();
 
   if (!session || session.client_id !== userId) {
     return { error: "Exercise not found" };
   }
-  if (session.status !== "in_progress") {
-    return { error: "Workout is no longer in progress" };
-  }
-  if (!session.started_at) {
-    return { error: "Start the workout before logging sets" };
+  const reopened = await reopenAccidentalCancel(
+    admin,
+    session,
+    exercise.session_id,
+    userId
+  );
+  const closed = closedWorkoutMessage(reopened);
+  if (closed) return { error: closed };
+  if (!session.started_at && session.status !== "cancelled") {
+    await admin
+      .from("workout_sessions")
+      .update({ started_at: new Date().toISOString() })
+      .eq("id", exercise.session_id)
+      .eq("client_id", userId)
+      .is("started_at", null);
   }
 
   const { data: existingSets } = await admin
@@ -1962,16 +2031,16 @@ export async function addSessionExercise(sessionId: string, name: string) {
 
   const { data: session } = await admin
     .from("workout_sessions")
-    .select("id, status, started_at")
+    .select("id, status, started_at, notes")
     .eq("id", sessionId)
     .eq("client_id", userId)
     .single();
 
   if (!session) return { error: "Session not found" };
-  if (session.status !== "in_progress") {
-    return { error: "Workout is no longer in progress" };
-  }
-  if (!session.started_at) {
+  const reopened = await reopenAccidentalCancel(admin, session, sessionId, userId);
+  const closed = closedWorkoutMessage(reopened);
+  if (closed) return { error: closed };
+  if (!session.started_at && session.status === "in_progress") {
     return { error: "Start the workout before adding exercises" };
   }
 
@@ -2148,7 +2217,7 @@ export async function cancelWorkoutSession(sessionId: string) {
 
   const { error } = await admin
     .from("workout_sessions")
-    .update({ status: "cancelled" })
+    .update({ status: "cancelled", notes: "abandoned" })
     .eq("id", sessionId)
     .eq("client_id", userId)
     .eq("status", "in_progress");
@@ -2160,22 +2229,35 @@ export async function cancelWorkoutSession(sessionId: string) {
   return { success: true };
 }
 
+/** Drops an opener that never started. Leaves a started workout alone. */
+export async function abandonUnstartedWorkoutSession(sessionId: string) {
+  const { admin, userId } = await requireMutationAdmin();
+  await admin
+    .from("workout_sessions")
+    .update({ status: "cancelled" })
+    .eq("id", sessionId)
+    .eq("client_id", userId)
+    .eq("status", "in_progress")
+    .is("started_at", null);
+  return { success: true as const };
+}
+
 /** Restart the session clock without discarding logged sets. */
 export async function resetWorkoutSessionTimer(sessionId: string) {
   const { admin, userId } = await requireMutationAdmin();
 
   const { data: session } = await admin
     .from("workout_sessions")
-    .select("id, status, started_at")
+    .select("id, status, started_at, notes")
     .eq("id", sessionId)
     .eq("client_id", userId)
     .single();
 
   if (!session) return { error: "Session not found" };
-  if (session.status !== "in_progress") {
-    return { error: "Workout is no longer in progress" };
-  }
-  if (!session.started_at) {
+  const reopened = await reopenAccidentalCancel(admin, session, sessionId, userId);
+  const closed = closedWorkoutMessage(reopened);
+  if (closed) return { error: closed };
+  if (!session.started_at && session.status !== "cancelled") {
     return { error: "Start the workout before resetting the timer" };
   }
 

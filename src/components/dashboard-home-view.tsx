@@ -33,6 +33,7 @@ export function DashboardHomeView({
   initialWorkoutCompleted,
   initialWorkoutResults,
   initialInProgressByTaskId,
+  initialInProgressStartedAtByTaskId,
   initialLog,
   initialDailyMeals,
   hasAiAccess,
@@ -56,6 +57,7 @@ export function DashboardHomeView({
   initialWorkoutCompleted: WorkoutProps["initialWorkoutCompleted"];
   initialWorkoutResults: WorkoutProps["initialWorkoutResults"];
   initialInProgressByTaskId?: WorkoutProps["initialInProgressByTaskId"];
+  initialInProgressStartedAtByTaskId?: WorkoutProps["initialInProgressStartedAtByTaskId"];
   initialLog: OverviewProps["initialLog"];
   initialDailyMeals: OverviewProps["initialDailyMeals"];
   hasAiAccess: boolean;
@@ -110,6 +112,7 @@ export function DashboardHomeView({
           initialWorkoutCompleted={initialWorkoutCompleted}
           initialWorkoutResults={initialWorkoutResults}
           initialInProgressByTaskId={initialInProgressByTaskId}
+          initialInProgressStartedAtByTaskId={initialInProgressStartedAtByTaskId}
           variant="hero"
           schedule={schedule}
         />

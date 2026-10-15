@@ -514,9 +514,6 @@ export const platformCopyEn = {
     noWorkoutInProgress: "No workout is in progress.",
     quickTimerWorkout: "This workout runs on a timer. Open it to keep going.",
     openWorkout: "Open workout",
-    backTapHint:
-      "Double Tap does not list this yet. Add Current set, then in Double Tap scroll to the bottom and choose it under Shortcuts.",
-    backTapAdd: "Add Current set",
     previousExercise: "Back",
     giveUp: "give up",
     logSet: "Log set",

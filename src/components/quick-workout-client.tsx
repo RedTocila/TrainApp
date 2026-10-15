@@ -27,7 +27,6 @@ import {
   subscribeWorkoutMirror,
   suppressWorkoutMirror,
 } from "@/lib/watch-session";
-import { BackTapSetup } from "@/components/back-tap-setup";
 import type { WorkoutSessionExercise, WorkoutSessionSet } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -250,58 +249,70 @@ export function QuickWorkoutClient() {
     seed(exercises, next, null);
   };
 
-  const log = async () => {
+  const log = () => {
     if (!exercise || saving) return;
     setSaving(true);
     setError(null);
-    try {
-      let setId = current?.id ?? null;
-      let sets = exercise.sets ?? [];
-      if (!setId) {
-        const created = await addSessionSet(exercise.id);
-        if (created.error || !created.data) {
-          setError(created.error ?? "Couldn't add a set.");
+    const previousExercises = exercises;
+    const previousIndex = index;
+    void (async () => {
+      try {
+        let setId = current?.id ?? null;
+        let sets = exercise.sets ?? [];
+        if (!setId) {
+          const created = await addSessionSet(exercise.id);
+          if (created.error || !created.data) {
+            if (created.error !== "Workout is no longer in progress") {
+              setError(created.error ?? "Couldn't add a set.");
+            }
+            return;
+          }
+          sets = [...sets, created.data];
+          setId = created.data.id;
+        }
+        if (!setId) return;
+        const loggedSetId = setId;
+        const nextSets: WorkoutSessionSet[] = sets.map((set) =>
+          set.id === loggedSetId ? { ...set, reps, weight_kg: weightKg, completed: true } : set
+        );
+        const nextExercises = exercises.map((item) =>
+          item.id === exercise.id ? { ...item, sets: nextSets } : item
+        );
+        const done = nextSets.filter(
+          (set) => set.completed || set.reps != null || set.weight_kg != null
+        ).length;
+        const advance = done >= targetSets && index < nextExercises.length - 1;
+        const nextIndex = advance ? index + 1 : index;
+        setExercises(nextExercises);
+        setIndex(nextIndex);
+        seed(nextExercises, nextIndex, null);
+        setSaving(false);
+        const result = await updateSessionSet(loggedSetId, {
+          reps,
+          weight_kg: weightKg,
+          completed: true,
+        });
+        if (result.error) {
+          setExercises(previousExercises);
+          setIndex(previousIndex);
+          seed(previousExercises, previousIndex, null);
+          if (result.error !== "Workout is no longer in progress") setError(result.error);
           return;
         }
-        sets = [...sets, created.data];
-        setId = created.data.id;
+        void pushWorkoutMirror({
+          status: "live",
+          action: "log",
+          mode: "strength",
+          sessionId: sessionId ?? "",
+          exerciseIndex: nextIndex,
+          setId: loggedSetId,
+          reps,
+          weightKg,
+        });
+      } finally {
+        setSaving(false);
       }
-      const result = await updateSessionSet(setId, {
-        reps,
-        weight_kg: weightKg,
-        completed: true,
-      });
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      const nextSets: WorkoutSessionSet[] = sets.map((set) =>
-        set.id === setId ? { ...set, reps, weight_kg: weightKg, completed: true } : set
-      );
-      const nextExercises = exercises.map((item) =>
-        item.id === exercise.id ? { ...item, sets: nextSets } : item
-      );
-      const done = nextSets.filter(
-        (set) => set.completed || set.reps != null || set.weight_kg != null
-      ).length;
-      const advance = done >= targetSets && index < nextExercises.length - 1;
-      const nextIndex = advance ? index + 1 : index;
-      setExercises(nextExercises);
-      setIndex(nextIndex);
-      seed(nextExercises, nextIndex, null);
-      void pushWorkoutMirror({
-        status: "live",
-        action: "log",
-        mode: "strength",
-        sessionId: sessionId ?? "",
-        exerciseIndex: nextIndex,
-        setId,
-        reps,
-        weightKg,
-      });
-    } finally {
-      setSaving(false);
-    }
+    })();
   };
 
   const close = () => {
@@ -409,17 +420,10 @@ export function QuickWorkoutClient() {
             <Button
               type="button"
               className="h-11 rounded-full bg-primary text-sm font-black uppercase tracking-[0.08em]"
-              disabled={saving}
-              onClick={() => void log()}
+              onClick={log}
             >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Check className="mr-1.5 h-4 w-4" strokeWidth={2.5} />
-                  {platform.workout.finishSet(setNumber)}
-                </>
-              )}
+              <Check className="mr-1.5 h-4 w-4" strokeWidth={2.5} />
+              {platform.workout.finishSet(setNumber)}
             </Button>
             {sessionId ? (
               <button
@@ -430,7 +434,6 @@ export function QuickWorkoutClient() {
                 {platform.workout.openWorkout}
               </button>
             ) : null}
-            <BackTapSetup />
           </div>
         ) : null}
       </section>

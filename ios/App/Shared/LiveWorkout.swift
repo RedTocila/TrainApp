@@ -22,6 +22,14 @@ enum LiveWorkoutStore {
         UserDefaults(suiteName: suiteName) ?? .standard
     }
 
+    /// Disk flush stays off the button so Lock Screen taps are not waiting on it.
+    private static func flush() {
+        let store = defaults
+        DispatchQueue.global(qos: .utility).async {
+            store.synchronize()
+        }
+    }
+
     static var containerURL: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: suiteName)
     }
@@ -61,7 +69,7 @@ enum LiveWorkoutStore {
             forKey: draftKey
         )
         focusIndex = index
-        defaults.synchronize()
+        flush()
     }
 
     static func draft() -> [String: Any]? {
@@ -70,7 +78,7 @@ enum LiveWorkoutStore {
 
     static func clearDraft() {
         defaults.removeObject(forKey: draftKey)
-        defaults.synchronize()
+        flush()
     }
 
     /// Bumps on every Lock Screen edit so a stale phone publish cannot rewind it.
@@ -78,7 +86,7 @@ enum LiveWorkoutStore {
         get { defaults.integer(forKey: revisionKey) }
         set {
             defaults.set(newValue, forKey: revisionKey)
-            defaults.synchronize()
+            flush()
         }
     }
 
@@ -94,7 +102,7 @@ enum LiveWorkoutStore {
             } else {
                 defaults.removeObject(forKey: boardKey)
             }
-            defaults.synchronize()
+            flush()
         }
     }
 
@@ -128,7 +136,7 @@ enum LiveWorkoutStore {
         } else if let data = try? JSONEncoder().encode(logs) {
             defaults.set(data, forKey: pendingKey)
         }
-        defaults.synchronize()
+        flush()
     }
 
     /// Bumped when the workout ends so an in-flight sync cannot bring the card back.
@@ -245,6 +253,34 @@ struct LiveBoardExercise: Codable, Equatable {
     var name: String
     var gifUrl: String?
     var sets: [LiveBoardSet]
+    var restSeconds: Int
+
+    init(name: String, gifUrl: String?, sets: [LiveBoardSet], restSeconds: Int = 90) {
+        self.name = name
+        self.gifUrl = gifUrl
+        self.sets = sets
+        self.restSeconds = restSeconds
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        gifUrl = try container.decodeIfPresent(String.self, forKey: .gifUrl)
+        sets = try container.decode([LiveBoardSet].self, forKey: .sets)
+        restSeconds = try container.decodeIfPresent(Int.self, forKey: .restSeconds) ?? 90
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(gifUrl, forKey: .gifUrl)
+        try container.encode(sets, forKey: .sets)
+        try container.encode(restSeconds, forKey: .restSeconds)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name, gifUrl, sets, restSeconds
+    }
 }
 
 @available(iOS 16.2, *)
@@ -280,8 +316,16 @@ struct LiveBoard: Codable, Equatable {
             setId: open?.id ?? "",
             exerciseIndex: index,
             exerciseCount: max(exercises.count, 1),
-            imageToken: imageToken
+            imageToken: imageToken,
+            restSeconds: exercise.restSeconds
         )
+    }
+
+    func restSeconds(for setId: String) -> Int {
+        for exercise in exercises where exercise.sets.contains(where: { $0.id == setId }) {
+            return exercise.restSeconds
+        }
+        return 90
     }
 
     mutating func write(setId: String, reps: Int, weight: Double) -> Bool {
@@ -422,9 +466,95 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         var exerciseIndex: Int
         var exerciseCount: Int
         var imageToken: Int
+        var restSeconds: Int
+        var restEndsAt: Date?
+
+        var isResting: Bool {
+            guard let restEndsAt else { return false }
+            return restEndsAt.timeIntervalSinceNow > 0
+        }
+
+        init(
+            exerciseName: String,
+            setLabel: String,
+            reps: Int,
+            weightKg: Double,
+            setId: String,
+            exerciseIndex: Int,
+            exerciseCount: Int,
+            imageToken: Int,
+            restSeconds: Int = 90,
+            restEndsAt: Date? = nil
+        ) {
+            self.exerciseName = exerciseName
+            self.setLabel = setLabel
+            self.reps = reps
+            self.weightKg = weightKg
+            self.setId = setId
+            self.exerciseIndex = exerciseIndex
+            self.exerciseCount = exerciseCount
+            self.imageToken = imageToken
+            self.restSeconds = restSeconds
+            self.restEndsAt = restEndsAt
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            exerciseName = try container.decode(String.self, forKey: .exerciseName)
+            setLabel = try container.decode(String.self, forKey: .setLabel)
+            reps = try container.decode(Int.self, forKey: .reps)
+            weightKg = try container.decode(Double.self, forKey: .weightKg)
+            setId = try container.decode(String.self, forKey: .setId)
+            exerciseIndex = try container.decode(Int.self, forKey: .exerciseIndex)
+            exerciseCount = try container.decode(Int.self, forKey: .exerciseCount)
+            imageToken = try container.decode(Int.self, forKey: .imageToken)
+            restSeconds = try container.decodeIfPresent(Int.self, forKey: .restSeconds) ?? 90
+            restEndsAt = try container.decodeIfPresent(Date.self, forKey: .restEndsAt)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(exerciseName, forKey: .exerciseName)
+            try container.encode(setLabel, forKey: .setLabel)
+            try container.encode(reps, forKey: .reps)
+            try container.encode(weightKg, forKey: .weightKg)
+            try container.encode(setId, forKey: .setId)
+            try container.encode(exerciseIndex, forKey: .exerciseIndex)
+            try container.encode(exerciseCount, forKey: .exerciseCount)
+            try container.encode(imageToken, forKey: .imageToken)
+            try container.encode(restSeconds, forKey: .restSeconds)
+            try container.encodeIfPresent(restEndsAt, forKey: .restEndsAt)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case exerciseName, setLabel, reps, weightKg, setId
+            case exerciseIndex, exerciseCount, imageToken, restSeconds, restEndsAt
+        }
     }
 
     var title: String
+}
+
+@available(iOS 16.2, *)
+enum LiveRestClock {
+    private static var pending: DispatchWorkItem?
+
+    static func arm(until end: Date) {
+        cancel()
+        let item = DispatchWorkItem {
+            Task { await LiveWorkoutSync.finishRest(expectedEnd: end) }
+        }
+        pending = item
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(
+            deadline: .now() + max(0, end.timeIntervalSinceNow),
+            execute: item
+        )
+    }
+
+    static func cancel() {
+        pending?.cancel()
+        pending = nil
+    }
 }
 
 enum LiveWorkoutFormatting {
@@ -622,7 +752,8 @@ enum LiveWorkoutSync {
         setId: String,
         exerciseIndex: Int,
         exerciseCount: Int,
-        imageToken: Int
+        imageToken: Int,
+        restSeconds: Int = 90
     ) -> WorkoutActivityAttributes.ContentState {
         WorkoutActivityAttributes.ContentState(
             exerciseName: name,
@@ -632,7 +763,8 @@ enum LiveWorkoutSync {
             setId: setId,
             exerciseIndex: exerciseIndex,
             exerciseCount: max(exerciseCount, 1),
-            imageToken: imageToken
+            imageToken: imageToken,
+            restSeconds: min(600, max(0, restSeconds))
         )
     }
 
@@ -675,7 +807,7 @@ enum LiveWorkoutSync {
     }
 
     private static func publish(_ state: WorkoutActivityAttributes.ContentState) async {
-        let content = ActivityContent(state: state, staleDate: nil)
+        let content = ActivityContent(state: state, staleDate: state.isResting ? state.restEndsAt : nil)
         for activity in Activity<WorkoutActivityAttributes>.activities {
             await activity.update(content)
         }
@@ -691,6 +823,7 @@ enum LiveWorkoutSync {
         LiveWorkoutStore.clearDraft()
         LiveWorkoutStore.board = nil
         LiveWorkoutStore.revision = 0
+        LiveRestClock.cancel()
         await dismissAll(unlessGenerationChangesFrom: generation)
     }
 
@@ -724,6 +857,7 @@ enum LiveWorkoutSync {
 
     static func adjust(repsDelta: Int, weightDelta: Double) async {
         guard var state = Activity<WorkoutActivityAttributes>.activities.first?.content.state else { return }
+        if state.isResting { return }
         if repsDelta != 0 {
             state.reps = min(40, max(1, state.reps + repsDelta))
         }
@@ -739,49 +873,59 @@ enum LiveWorkoutSync {
 
     static func logCurrent() async {
         guard let state = Activity<WorkoutActivityAttributes>.activities.first?.content.state,
-              !state.setId.isEmpty else { return }
+              !state.setId.isEmpty,
+              !state.isResting else { return }
         LiveWorkoutQueue.enqueue(setId: state.setId, reps: state.reps, weight: state.weightKg)
         LiveWorkoutQueue.scheduleFlush()
         if var board = LiveWorkoutStore.board {
+            let rest = min(600, max(0, board.restSeconds(for: state.setId)))
             let logged = board.complete(setId: state.setId, reps: state.reps, weight: state.weightKg)
             if logged.found {
                 LiveWorkoutStore.board = board
                 if let nextIndex = logged.nextIndex,
-                   let next = board.contentState(index: nextIndex, imageToken: state.imageToken) {
+                   var next = board.contentState(index: nextIndex, imageToken: state.imageToken) {
+                    if rest > 0 {
+                        next.restSeconds = rest
+                        next.restEndsAt = Date().addingTimeInterval(TimeInterval(rest))
+                        if let end = next.restEndsAt {
+                            LiveRestClock.arm(until: end)
+                        }
+                    }
                     await pushLocal(next)
                 } else {
+                    LiveRestClock.cancel()
                     await endAll()
                 }
                 return
             }
         }
-        do {
-            try await LiveWorkoutAPI.logSet(setId: state.setId, reps: state.reps, weight: state.weightKg)
-            LiveWorkoutQueue.remove(setId: state.setId)
-            let live = try await LiveWorkoutAPI.live(exerciseIndex: state.exerciseIndex, advance: true)
-            await apply(live)
-        } catch {
-            // The queued log is retried when the app opens.
+        Task {
+            do {
+                try await LiveWorkoutAPI.logSet(setId: state.setId, reps: state.reps, weight: state.weightKg)
+                LiveWorkoutQueue.remove(setId: state.setId)
+                let live = try await LiveWorkoutAPI.live(exerciseIndex: state.exerciseIndex, advance: true)
+                await apply(live)
+            } catch {
+                // The queued log is retried when the app opens.
+            }
         }
     }
 
-    static func showNext() async {
-        guard let state = Activity<WorkoutActivityAttributes>.activities.first?.content.state,
-              state.exerciseCount > 1 else { return }
-        if let board = LiveWorkoutStore.board, !board.exercises.isEmpty {
-            let nextIndex = (state.exerciseIndex + 1) % board.exercises.count
-            if let next = board.contentState(index: nextIndex, imageToken: state.imageToken) {
-                await pushLocal(next)
-                return
-            }
-        }
-        do {
-            let next = (state.exerciseIndex + 1) % state.exerciseCount
-            let live = try await LiveWorkoutAPI.live(exerciseIndex: next, advance: false)
-            await apply(live)
-        } catch {
-            // Keep the card on the exercise that's already showing.
-        }
+    static func skipRest() async {
+        LiveRestClock.cancel()
+        guard var state = Activity<WorkoutActivityAttributes>.activities.first?.content.state,
+              state.restEndsAt != nil else { return }
+        state.restEndsAt = nil
+        await pushLocal(state)
+    }
+
+    static func finishRest(expectedEnd: Date) async {
+        guard var state = Activity<WorkoutActivityAttributes>.activities.first?.content.state,
+              let current = state.restEndsAt,
+              abs(current.timeIntervalSince(expectedEnd)) < 1 else { return }
+        state.restEndsAt = nil
+        LiveRestClock.cancel()
+        await pushLocal(state)
     }
 }
 
@@ -832,13 +976,13 @@ struct LogLiveSetIntent: LiveActivityIntent {
 }
 
 @available(iOS 16.2, *)
-struct NextLiveExerciseIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Next exercise"
+struct SkipLiveRestIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Skip rest"
     static var openAppWhenRun = false
     static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     func perform() async throws -> some IntentResult {
-        await LiveWorkoutSync.showNext()
+        await LiveWorkoutSync.skipRest()
         return .result()
     }
 }

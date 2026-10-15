@@ -140,15 +140,17 @@ struct WorkoutWatchView: View {
             if interval && (model.hiitRunning || model.hiitLeft > 0 || model.today?.workout.status == "in_progress") {
                 HiitWatchScreen()
             } else if !pages.isEmpty {
-                ExerciseLogPage(exercise: pages[min(index, pages.count - 1)], index: index, total: pages.count) {
-                    index = min(index + 1, pages.count - 1)
-                }
+                ExerciseLogPage(
+                    exercise: pages[min(index, pages.count - 1)],
+                    index: index,
+                    total: pages.count,
+                    onPrevious: { index = max(0, index - 1) },
+                    onNext: { index = min(index + 1, pages.count - 1) }
+                )
             } else {
                 cover
             }
         }
-        .navigationTitle(interval ? "HIIT" : "Workout")
-        .containerBackground(WatchTheme.ink, for: .navigation)
         .onChange(of: pages.count) { _, count in
             if index >= count { index = max(0, count - 1) }
         }
@@ -179,26 +181,68 @@ struct WorkoutWatchView: View {
     private var cover: some View {
         let workout = model.today?.workout
         let count = interval ? (workout?.phases.count ?? 0) : (workout?.exercises.count ?? 0)
-        return VStack(spacing: 8) {
-            Spacer(minLength: 0)
-            Image(systemName: interval ? "timer" : "dumbbell.fill")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(WatchTheme.red)
-                .frame(width: 52, height: 52)
-                .background(Circle().fill(WatchTheme.red.opacity(0.16)))
-            Text(workout?.title ?? "Rest day")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-            Text(coverDetail(workout, count: count))
-                .font(.system(size: 12))
-                .foregroundStyle(WatchTheme.mute)
-                .multilineTextAlignment(.center)
-            Spacer(minLength: 0)
+        let rows = coverRows
+        return VStack(spacing: 6) {
+            WatchHeader(title: "Workout", back: true)
+            ScrollView {
+                VStack(spacing: 6) {
+                    HStack(alignment: .center, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(workout?.title ?? "Rest day")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundStyle(.white)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.7)
+                            Text(coverDetail(workout, count: count))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Color.white.opacity(0.62))
+                                .lineLimit(2)
+                            Text(coverBadge(workout))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(WatchTheme.red)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(WatchTheme.red.opacity(0.16)))
+                        }
+                        Spacer(minLength: 0)
+                        coverArt
+                    }
+                    .padding(8)
+                    .watchCard(16)
+
+                    ForEach(Array(rows.enumerated()), id: \.offset) { offset, row in
+                        HStack(spacing: 8) {
+                            Image(systemName: interval ? "timer" : "figure.strengthtraining.traditional")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(WatchTheme.red)
+                                .frame(width: 32, height: 32)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(Color.white.opacity(0.06))
+                                )
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("\(offset + 1). \(row.title)")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.7)
+                                Text(row.detail)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(WatchTheme.mute)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 7)
+                        .watchCard(14)
+                    }
+                }
+                .padding(.bottom, 4)
+            }
+            .scrollIndicators(.hidden)
             if workout?.status == "scheduled" {
-                WatchAction(title: "Start") {
+                WatchAction(title: "Start Workout", symbol: "play.fill") {
                     if interval {
                         model.startHiit()
                     } else {
@@ -213,6 +257,43 @@ struct WorkoutWatchView: View {
                     .lineLimit(2)
             }
         }
+        .watchChrome()
+    }
+
+    private var coverArt: some View {
+        let gif = model.today?.workout.exercises.first?.gifUrl ?? model.today?.workout.phases.first?.gifUrl
+        return ExerciseMedia(gifUrl: gif)
+            .frame(width: 62, height: 62)
+    }
+
+    private var coverRows: [(title: String, detail: String)] {
+        let workout = model.today?.workout
+        if interval {
+            return (workout?.phases ?? []).map { phase in
+                let title = phase.name?.isEmpty == false ? (phase.name ?? phase.label) : phase.label
+                return (title, "\(max(phase.seconds, 1)) sec")
+            }
+        }
+        return (workout?.exercises ?? []).map { exercise in
+            (exercise.name, repsDetail(exercise))
+        }
+    }
+
+    private func coverBadge(_ workout: WatchWorkout?) -> String {
+        switch workout?.status {
+        case "completed": return "Done"
+        case "in_progress": return "In progress"
+        case "scheduled": return "Ready"
+        default: return "Rest day"
+        }
+    }
+
+    private func repsDetail(_ exercise: WatchExercise) -> String {
+        if let reps = exercise.targetReps, !reps.isEmpty {
+            return reps.lowercased().contains("rep") ? reps : "\(reps) reps"
+        }
+        let sets = max(exercise.setCount, 1)
+        return sets == 1 ? "1 set" : "\(sets) sets"
     }
 
     private func coverDetail(_ workout: WatchWorkout?, count: Int) -> String {
@@ -242,46 +323,41 @@ private struct HiitWatchScreen: View {
 
     var body: some View {
         let phases = model.hiitPhases
+        let total = max(phase?.seconds ?? 1, 1)
         GeometryReader { geo in
-            let gifHeight = min(geo.size.width, max(120, geo.size.height * 0.42))
-            ScrollView {
-            VStack(spacing: 5) {
-                Text(WatchTheme.clock(model.hiitLeft))
-                    .font(.system(size: min(44, geo.size.width * 0.26), weight: .black, design: .rounded))
-                    .foregroundStyle(tint)
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .frame(maxWidth: .infinity)
-                Text((phase?.label ?? (working ? "Work" : "Rest")).uppercased())
-                    .font(.system(size: 16, weight: .black))
-                    .tracking(1.4)
+            let ring = min(geo.size.width * 0.62, geo.size.height * 0.42)
+            VStack(spacing: 6) {
+                WatchHeader(title: working ? "Workout" : "Rest", back: true)
+                if phases.count > 0 {
+                    Text("\(model.hiitIndex + 1)/\(phases.count)")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.7))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                ZStack {
+                    WatchRing(
+                        progress: WatchTheme.fraction(Double(model.hiitLeft), Double(total)),
+                        size: ring,
+                        tint: tint,
+                        glow: true
+                    )
+                    Text(WatchTheme.clock(model.hiitLeft))
+                        .font(.system(size: ring * 0.28, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
+                Text(phase?.name?.isEmpty == false ? (phase?.name ?? phase?.label ?? "Work") : (phase?.label ?? "Work"))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.65)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 7)
-                    .background(Capsule().fill(tint))
-                if let name = phase?.name, !name.isEmpty {
-                    Text(name)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
-                if phases.count > 0 {
-                    Text("\(model.hiitIndex + 1) of \(phases.count)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(WatchTheme.mute)
-                }
-                if phase?.gifUrl != nil {
-                    ExerciseMedia(gifUrl: phase?.gifUrl, loopAnchor: model.hiitPhaseStart)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: gifHeight)
-                        .clipped()
-                }
+                    .minimumScaleFactor(0.7)
+                Spacer(minLength: 0)
                 HStack(spacing: 6) {
+                    watchPill("Skip", symbol: "forward.end.fill", fill: Color.white.opacity(0.12)) {
+                        model.skipHiit()
+                    }
                     watchPill(
                         model.hiitRunning ? "Pause" : "Play",
                         symbol: model.hiitRunning ? "pause.fill" : "play.fill",
@@ -295,31 +371,28 @@ private struct HiitWatchScreen: View {
                             model.startHiit()
                         }
                     }
-                    watchPill("Next", symbol: "arrow.right", fill: Color.white.opacity(0.16)) {
-                        model.skipHiit()
-                    }
                 }
-                HStack(spacing: 6) {
-                    watchPill("Restart", symbol: "arrow.counterclockwise", fill: tint.opacity(0.85)) {
-                        model.startHiit()
-                    }
-                    watchPill("Cancel", symbol: "xmark", fill: Color.white.opacity(0.16)) {
+                HStack(spacing: 16) {
+                    Button("Restart") { model.startHiit() }
+                    Button("End") {
                         model.endHiit()
                         Task { await model.cancelWorkout() }
                     }
                 }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.5))
+                .buttonStyle(.plain)
             }
-            .frame(maxWidth: .infinity)
-            }
-            .scrollIndicators(.hidden)
         }
-        .containerBackground(
-            working
-                ? Color(red: 0.18, green: 0.02, blue: 0.04)
-                : Color(red: 0.02, green: 0.08, blue: 0.16),
-            for: .navigation
-        )
+        .watchChrome()
     }
+}
+
+/// Holds the load without publishing it. The set page must not redraw on each tap.
+private final class LoadDraft {
+    var reps = 8
+    var weight = 20.0
+    var seededID = ""
 }
 
 private struct ExerciseLogPage: View {
@@ -327,86 +400,254 @@ private struct ExerciseLogPage: View {
     var exercise: WatchExercise
     var index: Int
     var total: Int
+    var onPrevious: () -> Void
     var onNext: () -> Void
+    @State private var draft = LoadDraft()
+    @State private var adjusting = false
+    @State private var resting = false
+    @State private var restLeft = 45
+    @State private var restToken = 0
+    @State private var advanceAfterRest = false
+    @State private var shownReps = 8
+    @State private var shownWeight = 20.0
+
+    var body: some View {
+        VStack(spacing: 6) {
+            WatchHeader(title: resting ? "Rest" : "Workout", back: true)
+            if resting {
+                restBody
+            } else {
+                activeBody
+            }
+        }
+        .watchChrome()
+        .onAppear(perform: seedShown)
+        .onChange(of: exercise.id) { _, _ in seedShown() }
+        .onChange(of: adjusting) { _, open in
+            guard !open else { return }
+            shownReps = draft.reps
+            shownWeight = draft.weight
+        }
+        .onChange(of: model.remoteStamp) { _, _ in
+            guard model.liveIndex == index else { return }
+            shownReps = model.liveReps
+            shownWeight = model.liveWeight
+            draft.reps = model.liveReps
+            draft.weight = model.liveWeight
+            draft.seededID = exercise.id
+        }
+        .task(id: restToken) { await runRest() }
+        .sheet(isPresented: $adjusting) {
+            AdjustLoadSheet(draft: draft, exercise: exercise, index: index)
+        }
+    }
+
+    private var activeBody: some View {
+        VStack(spacing: 5) {
+            Text("\(index + 1)/\(max(total, 1))")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.7))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            ExerciseMedia(gifUrl: exercise.gifUrl)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Text(exercise.name)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
+            Button {
+                adjusting = true
+            } label: {
+                HStack(spacing: 3) {
+                    Text(loadLine)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.62))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            }
+            .buttonStyle(.plain)
+            HStack(spacing: 10) {
+                roundIcon("chevron.left", fill: Color.white.opacity(0.14), size: 36, enabled: index > 0) {
+                    if index > 0 { onPrevious() }
+                }
+                roundIcon(
+                    "checkmark",
+                    fill: exercise.openSetId == nil ? Color.white.opacity(0.14) : WatchTheme.red,
+                    size: 46,
+                    enabled: exercise.openSetId != nil,
+                    glow: exercise.openSetId != nil
+                ) {
+                    log()
+                }
+                roundIcon("chevron.right", fill: Color.white.opacity(0.14), size: 36, enabled: index + 1 < total) {
+                    if index + 1 < total { onNext() }
+                }
+            }
+            Button("End") {
+                Task { await model.cancelWorkout() }
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(Color.white.opacity(0.45))
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var restBody: some View {
+        VStack(spacing: 8) {
+            Spacer(minLength: 0)
+            ZStack {
+                WatchRing(
+                    progress: WatchTheme.fraction(Double(restLeft), 45),
+                    size: 112,
+                    tint: WatchTheme.red,
+                    glow: true
+                )
+                Text(WatchTheme.clock(restLeft))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .monospacedDigit()
+            }
+            Spacer(minLength: 0)
+            HStack(spacing: 6) {
+                watchPill("Skip", symbol: "forward.end.fill", fill: Color.white.opacity(0.12)) {
+                    finishRest()
+                }
+                watchPill("Next", symbol: "play.fill", fill: WatchTheme.red) {
+                    finishRest()
+                }
+            }
+        }
+    }
+
+    private var loadLine: String {
+        let weight = shownWeight.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", shownWeight)
+            : String(format: "%.1f", shownWeight)
+        let load = "\(shownReps) × \(weight) kg"
+        if let number = exercise.openSetNumber {
+            return "Set \(number) · \(load)"
+        }
+        return load
+    }
+
+    private func log() {
+        guard let setId = exercise.openSetId else { return }
+        let finishes: Bool
+        if let number = exercise.openSetNumber {
+            finishes = number >= max(exercise.setCount, 1)
+        } else {
+            finishes = exercise.completedSets + 1 >= max(exercise.setCount, 1)
+        }
+        UserDefaults.standard.set(draft.weight, forKey: weightKey(exercise.name))
+        Task { await model.logSet(setId: setId, reps: draft.reps, weight: draft.weight) }
+        guard !finishes || index + 1 < total else { return }
+        advanceAfterRest = finishes && index + 1 < total
+        resting = true
+        restToken += 1
+    }
+
+    private func runRest() async {
+        guard resting else { return }
+        restLeft = 45
+        while resting && restLeft > 0 && !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(1))
+            guard resting, !Task.isCancelled else { return }
+            restLeft -= 1
+        }
+        if resting { finishRest() }
+    }
+
+    private func finishRest() {
+        guard resting else { return }
+        let advance = advanceAfterRest
+        resting = false
+        advanceAfterRest = false
+        if advance { onNext() }
+    }
+
+    private func seedShown() {
+        if draft.seededID != exercise.id {
+            let load = rememberedLoad(exercise)
+            draft.reps = load.reps
+            draft.weight = load.weight
+            draft.seededID = exercise.id
+        }
+        shownReps = draft.reps
+        shownWeight = draft.weight
+    }
+
+    private func weightKey(_ name: String) -> String {
+        "rutina.watch.kg.\(name.lowercased())"
+    }
+}
+
+private struct AdjustLoadSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    var draft: LoadDraft
+    var exercise: WatchExercise
+    var index: Int
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .buttonStyle(.plain)
+                Spacer(minLength: 28)
+            }
+            LoadSteppers(draft: draft, exercise: exercise, index: index)
+            Spacer(minLength: 0)
+            WatchAction(title: "Save") { dismiss() }
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(WatchTheme.ink)
+    }
+}
+
+/// Kg and reps live here so a tap does not rebuild the GIF or the rest of the set page.
+private struct LoadSteppers: View {
+    @EnvironmentObject private var model: WatchDashboardModel
+    var draft: LoadDraft
+    var exercise: WatchExercise
+    var index: Int
     @State private var reps = 8
     @State private var weight = 20.0
 
     var body: some View {
-        GeometryReader { geo in
-            let gifHeight = min(geo.size.width, max(132, geo.size.height * 0.5))
-            ScrollView {
-            VStack(spacing: 8) {
-                ExerciseMedia(gifUrl: exercise.gifUrl)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: gifHeight)
-                Text(exercise.name)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.7)
-                Text(setLabel)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(WatchTheme.mute)
-                HStack(spacing: 6) {
-                    stepper("Kg", value: weightLabel, down: { nudgeWeight(-2.5) }, up: { nudgeWeight(2.5) })
-                    stepper("Reps", value: "\(reps)", down: { nudgeReps(-1) }, up: { nudgeReps(1) })
-                }
-                HStack(spacing: 6) {
-                    setControl(
-                        "Close set",
-                        symbol: "checkmark",
-                        fill: exercise.openSetId == nil ? Color.white.opacity(0.16) : WatchTheme.red,
-                        enabled: exercise.openSetId != nil
-                    ) {
-                        log()
-                    }
-                    setControl(
-                        "Next",
-                        symbol: "arrow.right",
-                        fill: Color.white.opacity(0.16),
-                        enabled: index + 1 < total
-                    ) {
-                        if index + 1 < total { onNext() }
-                    }
-                }
-                HStack(spacing: 6) {
-                    setControl("Restart", symbol: "arrow.counterclockwise", fill: WatchTheme.red.opacity(0.85), enabled: true) {
-                        Task { await model.restartWorkout() }
-                    }
-                    setControl("Cancel", symbol: "xmark", fill: Color.white.opacity(0.16), enabled: true) {
-                        Task { await model.cancelWorkout() }
-                    }
-                }
-            }
-            .padding(.bottom, 8)
-            }
-            .scrollIndicators(.hidden)
+        VStack(spacing: 8) {
+            SetStepper(title: "Adjust Reps", value: "\(reps)", down: { nudgeReps(-1) }, up: { nudgeReps(1) })
+            SetStepper(title: "Adjust Weight", value: "\(weightLabel) kg", down: { nudgeWeight(-2.5) }, up: { nudgeWeight(2.5) })
         }
         .onAppear(perform: seed)
         .onChange(of: exercise.id) { _, _ in seed() }
         .onChange(of: model.remoteStamp) { _, _ in
             guard model.liveIndex == index else { return }
-            reps = min(40, max(1, model.liveReps))
-            weight = snap(model.liveWeight)
+            apply(reps: model.liveReps, weight: model.liveWeight)
         }
     }
 
     private func nudgeReps(_ delta: Int) {
         let next = min(40, max(1, reps + delta))
         guard next != reps else { return }
-        reps = next
-        publish()
+        apply(reps: next, weight: weight)
+        publish(reps: next, weight: weight)
     }
 
     private func nudgeWeight(_ delta: Double) {
-        let next = snap(weight + delta)
+        let next = snapWeight(weight + delta)
         guard next != weight else { return }
-        weight = next
-        publish()
+        apply(reps: reps, weight: next)
+        publish(reps: reps, weight: next)
     }
 
-    private func publish() {
+    private func publish(reps: Int, weight: Double) {
         model.noteSet(
             index: index,
             setId: exercise.openSetId ?? "",
@@ -421,78 +662,68 @@ private struct ExerciseLogPage: View {
             : String(format: "%.1f", weight)
     }
 
-    private var setLabel: String {
-        if let number = exercise.openSetNumber {
-            return "Set \(number) of \(max(exercise.setCount, number))"
-        }
-        return "\(exercise.completedSets)/\(exercise.setCount)"
-    }
-
     private func seed() {
-        reps = exercise.lastReps ?? suggestedReps(exercise.targetReps)
-        let remembered = UserDefaults.standard.object(forKey: weightKey(exercise.name)) == nil
-            ? nil
-            : UserDefaults.standard.double(forKey: weightKey(exercise.name))
-        weight = snap(exercise.lastWeightKg ?? remembered ?? 20)
+        if draft.seededID == exercise.id {
+            apply(reps: draft.reps, weight: draft.weight)
+            return
+        }
+        let load = rememberedLoad(exercise)
+        apply(reps: load.reps, weight: load.weight)
+        draft.seededID = exercise.id
     }
 
-    private func snap(_ value: Double) -> Double {
-        let stepped = (min(200, max(0, value)) / 2.5).rounded() * 2.5
-        return (stepped * 10).rounded() / 10
+    private func apply(reps: Int, weight: Double) {
+        let nextReps = min(40, max(1, reps))
+        let nextWeight = snapWeight(weight)
+        self.reps = nextReps
+        self.weight = nextWeight
+        draft.reps = nextReps
+        draft.weight = nextWeight
     }
+}
 
-    private func log() {
-        guard let setId = exercise.openSetId else { return }
-        UserDefaults.standard.set(weight, forKey: weightKey(exercise.name))
-        Task { await model.logSet(setId: setId, reps: reps, weight: weight) }
-    }
+private struct SetStepper: View {
+    var title: String
+    var value: String
+    var down: () -> Void
+    var up: () -> Void
 
-    private func weightKey(_ name: String) -> String {
-        "rutina.watch.kg.\(name.lowercased())"
-    }
-
-    private func setControl(
-        _ title: String,
-        symbol: String,
-        fill: Color,
-        enabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        watchPill(title, symbol: symbol, fill: fill, enabled: enabled, action: action)
-    }
-
-    private func stepper(
-        _ title: String,
-        value: String,
-        down: @escaping () -> Void,
-        up: @escaping () -> Void
-    ) -> some View {
-        VStack(spacing: 3) {
-            Text(title.uppercased())
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(WatchTheme.mute)
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
             HStack(spacing: 0) {
-                Button(action: down) {
-                    Image(systemName: "minus")
-                        .font(.system(size: 12, weight: .bold))
-                        .frame(width: 28, height: 36)
-                }
+                stepButton("minus", action: down)
                 Text(value)
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .frame(maxWidth: .infinity)
-                Button(action: up) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .bold))
-                        .frame(width: 28, height: 36)
-                }
+                stepButton("plus", action: up)
             }
-            .foregroundStyle(.white)
-            .buttonStyle(.plain)
-            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(4)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(WatchTheme.card)
+            )
         }
+    }
+
+    private func stepButton(_ symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -679,15 +910,39 @@ private func watchPill(
     .disabled(!enabled)
 }
 
-private func roundIcon(_ name: String, fill: Color, size: CGFloat = 44, action: @escaping () -> Void) -> some View {
+private func roundIcon(
+    _ name: String,
+    fill: Color,
+    size: CGFloat = 44,
+    enabled: Bool = true,
+    glow: Bool = false,
+    action: @escaping () -> Void
+) -> some View {
     Button(action: action) {
         Image(systemName: name)
             .font(.system(size: size * 0.38, weight: .bold))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(Circle().fill(fill))
+            .shadow(color: glow ? WatchTheme.red.opacity(0.55) : .clear, radius: glow ? 5 : 0)
+            .opacity(enabled ? 1 : 0.35)
     }
     .buttonStyle(.plain)
+    .disabled(!enabled)
+}
+
+private func snapWeight(_ value: Double) -> Double {
+    let stepped = (min(200, max(0, value)) / 2.5).rounded() * 2.5
+    return (stepped * 10).rounded() / 10
+}
+
+private func rememberedLoad(_ exercise: WatchExercise) -> (reps: Int, weight: Double) {
+    let key = "rutina.watch.kg.\(exercise.name.lowercased())"
+    let remembered = UserDefaults.standard.object(forKey: key) == nil
+        ? nil
+        : UserDefaults.standard.double(forKey: key)
+    let reps = min(40, max(1, exercise.lastReps ?? suggestedReps(exercise.targetReps)))
+    return (reps, snapWeight(exercise.lastWeightKg ?? remembered ?? 20))
 }
 
 private func suggestedReps(_ raw: String?) -> Int {
@@ -704,66 +959,166 @@ struct CardioWatchView: View {
         let cardio = model.today?.cardio
         let running = cardio?.status == "running"
         let paused = cardio?.status == "paused"
+        let elapsed = elapsedSeconds(cardio)
+        let minutes = elapsed / 60
+        let planned = cardio?.plannedMinutes ?? 0
         VStack(spacing: 6) {
-            Text(cardio?.title ?? "Cardio")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.7)
-            Text(clockText(cardio))
-                .font(.system(size: 52, weight: .bold, design: .rounded))
-                .foregroundStyle(running ? WatchTheme.red : .white)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-            Text(statusText(cardio))
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(WatchTheme.mute)
-            Spacer(minLength: 4)
-            HStack(spacing: 10) {
-                roundIcon("play.fill", fill: running ? Color.white.opacity(0.16) : WatchTheme.red, size: 48) {
-                    guard !running else { return }
-                    Task { await model.startCardio() }
+            WatchHeader(title: "Cardio", back: true)
+            ScrollView {
+                VStack(spacing: 8) {
+                    HStack(alignment: .center, spacing: 8) {
+                        ZStack {
+                            WatchRing(
+                                progress: planned > 0 ? WatchTheme.fraction(Double(minutes), Double(planned)) : (cardio?.completed == true ? 1 : 0),
+                                size: 96,
+                                tint: WatchTheme.cardio,
+                                glow: true
+                            )
+                            VStack(spacing: 0) {
+                                Image(systemName: "figure.run")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(WatchTheme.cardio)
+                                Text("\(minutes)")
+                                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.white)
+                                Text(planned > 0 ? "/ \(planned) min" : "min")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(WatchTheme.mute)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.7)
+                            }
+                        }
+                        .frame(width: 96, height: 96)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Today's Cardio")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            Text(planned > 0 ? "\(minutes) / \(planned) min" : "\(minutes) min")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Color.white.opacity(0.65))
+                            cardioStat("flame.fill", text: kcalText, tint: WatchTheme.kcal)
+                            cardioStat("heart.fill", text: heartText, tint: WatchTheme.red)
+                            cardioStat("shoeprints.fill", text: kmText, tint: WatchTheme.steps)
+                        }
+                    }
+                    .padding(8)
+                    .watchCard(16)
+
+                    sessionRow(cardio, elapsed: elapsed)
+                    if running || paused || cardio?.completed == true {
+                        WatchAction(title: "Reset", symbol: "arrow.counterclockwise", fill: Color.white.opacity(0.14)) {
+                            Task { await model.resetCardio() }
+                        }
+                    }
+                    if let error = model.error {
+                        Text(error)
+                            .font(.system(size: 10))
+                            .foregroundStyle(WatchTheme.red)
+                            .lineLimit(2)
+                    }
                 }
-                roundIcon("pause.fill", fill: running ? WatchTheme.red : Color.white.opacity(0.16), size: 48) {
-                    guard running else { return }
-                    Task { await model.pauseCardio() }
-                }
-                roundIcon("arrow.counterclockwise", fill: (running || paused || cardio?.completed == true) ? Color.white.opacity(0.16) : Color.white.opacity(0.08), size: 48) {
-                    Task { await model.resetCardio() }
-                }
+                .padding(.bottom, 6)
             }
-            if let error = model.error {
-                Text(error)
-                    .font(.system(size: 10))
-                    .foregroundStyle(WatchTheme.red)
-                    .lineLimit(2)
+            .scrollIndicators(.hidden)
+            if cardio?.status != "none" && cardio != nil {
+                WatchAction(
+                    title: running ? "Pause" : (paused ? "Resume" : "Start"),
+                    symbol: running ? "pause.fill" : "play.fill",
+                    fill: WatchTheme.cardio
+                ) {
+                    Task {
+                        if running {
+                            await model.pauseCardio()
+                        } else {
+                            await model.startCardio()
+                        }
+                    }
+                }
             }
         }
-        .navigationTitle("Cardio")
-        .containerBackground(WatchTheme.ink, for: .navigation)
+        .watchChrome()
         .onAppear { clock.setRunning(running) }
         .onChange(of: running) { _, isRunning in
             clock.setRunning(isRunning)
         }
     }
 
-    private func clockText(_ cardio: WatchCardio?) -> String {
+    private var kcalText: String {
+        guard let kcal = model.moveKcal else { return "— kcal" }
+        return "\(kcal.formatted()) kcal"
+    }
+
+    private var heartText: String {
+        guard let bpm = model.moveHeart else { return "— bpm" }
+        return "\(bpm) bpm avg"
+    }
+
+    private var kmText: String {
+        guard let km = model.moveKm else { return "— km" }
+        let text = String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), km)
+        return "\(text) km"
+    }
+
+    private func cardioStat(_ symbol: String, text: String, tint: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(tint)
+                .frame(width: 12)
+            Text(text)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+    }
+
+    private func sessionRow(_ cardio: WatchCardio?, elapsed: Int) -> some View {
+        let title = cardio?.title?.isEmpty == false ? (cardio?.title ?? "Cardio") : "Cardio"
+        let resting = cardio == nil || cardio?.status == "none"
+        return HStack(spacing: 8) {
+            Image(systemName: "figure.run")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(WatchTheme.cardio)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(WatchTheme.cardio.opacity(0.18)))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(resting ? "Rest day" : title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(resting ? "Nothing scheduled" : statusText(cardio))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(WatchTheme.mute)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Text(resting ? "0 min" : "\(elapsed / 60) min")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .watchCard(14)
+    }
+
+    private func elapsedSeconds(_ cardio: WatchCardio?) -> Int {
         if cardio?.status == "running" {
             let extra = max(0, Int(clock.now.timeIntervalSince(model.fetchedAt)))
-            return WatchTheme.clock((cardio?.elapsedSeconds ?? 0) + extra)
+            return (cardio?.elapsedSeconds ?? 0) + extra
         }
-        if cardio?.status == "paused" {
-            return WatchTheme.clock(cardio?.elapsedSeconds ?? model.cardioElapsed)
+        if cardio?.status == "paused" || cardio?.completed == true {
+            return cardio?.elapsedSeconds ?? model.cardioElapsed
         }
-        if let minutes = cardio?.plannedMinutes { return "\(minutes):00" }
-        return "0:00"
+        return cardio?.elapsedSeconds ?? 0
     }
 
     private func statusText(_ cardio: WatchCardio?) -> String {
         switch cardio?.status {
-        case "running": return "Running"
+        case "running": return "In progress"
         case "paused": return "Paused"
         case "completed": return "Done"
         case "none", nil: return "Rest day"

@@ -18,6 +18,7 @@ export type LiveBoardExercise = {
   name: string;
   gifUrl?: string | null;
   sets: LiveBoardSet[];
+  restSeconds: number;
 };
 
 export type LiveWorkoutPayload = {
@@ -54,7 +55,6 @@ type LiveWorkoutPlugin = {
   flush(): Promise<void>;
   consumeQuickOpen(): Promise<{ open: boolean; exerciseIndex: number }>;
   currentDraft(): Promise<LiveSnapshot>;
-  prepareBackTap(options: { title: string; message: string; dismiss: string }): Promise<void>;
 };
 
 const LiveWorkout = registerPlugin<LiveWorkoutPlugin>("LiveWorkout");
@@ -118,9 +118,15 @@ export function buildLiveBoard(
     const fallbackReps = suggestedReps(exercise.target_reps, lastDone?.reps ?? 8);
     const fallbackWeight =
       lastDone?.weight_kg != null ? Number(lastDone.weight_kg) : 20;
+    const plannedRest = exercise.rest_seconds;
+    const restSeconds =
+      plannedRest == null
+        ? 90
+        : Math.min(600, Math.max(0, Math.round(plannedRest)));
     return {
       name: exercise.name,
       gifUrl: gifFor(exercise) ?? null,
+      restSeconds,
       sets: sets.map((set) => {
         const done = Boolean(set.completed);
         const isCurrent = !done && current?.setId === set.id;
@@ -357,16 +363,6 @@ export function subscribeAppForeground(listener: () => void): () => void {
   };
 }
 
-/** Opens the system card that saves Current set into Shortcuts, so Back Tap can list it. */
-export async function prepareBackTapShortcut(copy: {
-  title: string;
-  message: string;
-  dismiss: string;
-}): Promise<void> {
-  if (!onIos()) return;
-  await LiveWorkout.prepareBackTap(copy).catch(() => undefined);
-}
-
 /** Debounced Lock Screen updates while a strength workout is started. */
 export function useLiveWorkoutPublisher(enabled: boolean) {
   const timer = useRef<number | null>(null);
@@ -387,7 +383,7 @@ export function useLiveWorkoutPublisher(enabled: boolean) {
       timer.current = null;
       if (!enabledRef.current || liveSuppressed || token !== liveToken) return;
       void syncLiveWorkout(payload, baseRevision);
-    }, 200);
+    }, 40);
   }, []);
 
   useEffect(() => {

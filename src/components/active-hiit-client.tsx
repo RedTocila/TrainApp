@@ -58,6 +58,7 @@ import { markReminderDone } from "@/lib/reminder-events";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { DayFlowProgress } from "@/components/day-flow-progress";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
+import { WorkoutTypeBanner } from "@/components/workout-type-banner";
 import { resolveProfileGender } from "@/lib/exercise-gif";
 import { isPendingWorkoutSessionId } from "@/lib/staged-workout-open";
 
@@ -389,6 +390,10 @@ export function ActiveHiitClient({
       if (!session.started_at) {
         void beginWorkoutSession(session.id).then((result) => {
           if (result && "error" in result && result.error) {
+            if (result.error === "Workout is no longer in progress") {
+              router.replace("/dashboard");
+              return;
+            }
             setError(formatUserError(result.error));
           }
         });
@@ -635,7 +640,13 @@ export function ActiveHiitClient({
     >
       <div className="flex shrink-0 flex-col gap-1.5 px-3 pb-1.5 pt-[max(0.35rem,var(--safe-area-top))]">
         <SessionTopBar
-          title={headerTitle}
+          title={
+            isIdle
+              ? session.day_title?.trim() ||
+                session.plan_title?.trim() ||
+                sessionLabel
+              : headerTitle
+          }
           onBack={handleCancel}
           backDisabled={isBusy}
           trailing={
@@ -690,7 +701,16 @@ export function ActiveHiitClient({
           }
         >
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-black">
-            {currentExerciseName ? (
+            {isIdle ? (
+              <WorkoutTypeBanner
+                fill
+                planTitle={session.plan_title ?? sessionLabel}
+                dayTitle={session.day_title ?? session.plan_title ?? sessionLabel}
+                planKind={planKind}
+                gender={exerciseGender}
+                alt={session.day_title || session.plan_title || sessionLabel}
+              />
+            ) : currentExerciseName ? (
               <div className="absolute inset-0">
                 <ExerciseDemoPlayer
                   name={currentExerciseName}

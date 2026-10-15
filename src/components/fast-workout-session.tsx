@@ -4,9 +4,10 @@ import { useLayoutEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ActiveHiitClient } from "@/components/active-hiit-client";
 import { ActiveWorkoutClient } from "@/components/active-workout-client";
+import { WorkoutOpenSkeleton } from "@/components/dashboard-page-skeleton";
 import { SessionTopBar } from "@/components/workout-session-ui";
 import {
-  cancelWorkoutSession,
+  abandonUnstartedWorkoutSession,
   getWorkoutSession,
   type OpenedWorkout,
   type TodaysWorkoutInfo,
@@ -87,13 +88,13 @@ export function FastWorkoutSession() {
     openWatchers += 1;
     const apply = (result: OpenedWorkout) => {
       if (cancelled) {
-        if (
-          openWatchers === 0 &&
-          result.session?.id &&
-          result.session.status === "in_progress" &&
-          !result.session.started_at
-        ) {
-          void cancelWorkoutSession(result.session.id);
+        const sessionId = result.session?.id;
+        const unstarted =
+          result.session?.status === "in_progress" && !result.session.started_at;
+        if (sessionId && unstarted) {
+          window.setTimeout(() => {
+            if (openWatchers === 0) void abandonUnstartedWorkoutSession(sessionId);
+          }, 1200);
         }
         return;
       }
@@ -159,12 +160,7 @@ export function FastWorkoutSession() {
   );
 
   if (!ready || !staged || !workout || !previewSession) {
-    return (
-      <div
-        data-native-pull-refresh="off"
-        className="fixed inset-0 bg-background"
-      />
-    );
+    return <WorkoutOpenSkeleton />;
   }
 
   if (live?.hiitConfig && live.session) {
@@ -184,6 +180,10 @@ export function FastWorkoutSession() {
     (workout.planKind === "hiit" ||
       ((workout.planKind === "warmup" || workout.planKind === "stretch") &&
         workout.exercises.length === 0));
+
+  if (waitingForInterval && !error) {
+    return <WorkoutOpenSkeleton />;
+  }
 
   if (waitingForInterval) {
     return (
