@@ -52,87 +52,42 @@ private final class IndexGate {
 
 struct WorkoutWatchView: View {
     @EnvironmentObject private var model: WatchDashboardModel
-    @State private var index = 0
-    @State private var gate = IndexGate()
+    /// Captured once. Updating this from Start removes the tapped control and watchOS kills the app.
+    @State private var showActive = false
+    @State private var decided = false
+    @State private var alreadyLive = false
+    @State private var startTitle = "Start Workout"
+    /// Frozen so starting a workout does not rebuild this screen under the tap.
+    @State private var coverWorkout: WatchWorkout?
 
     private var interval: Bool {
-        !(model.today?.workout.phases.isEmpty ?? true)
-    }
-
-    private var pages: [WatchExercise] {
-        let workout = model.today?.workout
-        if workout?.status == "in_progress", let exercises = workout?.exercises, !exercises.isEmpty {
-            return exercises
-        }
-        if workout?.status == "in_progress", let name = workout?.exerciseName {
-            return [
-                WatchExercise(
-                    id: workout?.setId ?? name,
-                    name: name,
-                    gifUrl: workout?.exercises.first?.gifUrl,
-                    targetReps: workout?.targetReps,
-                    setCount: max(workout?.setNumber ?? 1, 1),
-                    completedSets: max((workout?.setNumber ?? 1) - 1, 0),
-                    openSetId: workout?.setId,
-                    openSetNumber: workout?.setNumber,
-                    lastWeightKg: nil,
-                    lastReps: nil
-                )
-            ]
-        }
-        return []
+        !(coverWorkout?.phases.isEmpty ?? true)
     }
 
     var body: some View {
-        Group {
-            if interval && (model.hiitRunning || model.hiitLeft > 0 || model.today?.workout.status == "in_progress") {
-                HiitWatchScreen()
-            } else if !pages.isEmpty {
-                let safe = min(max(0, index), pages.count - 1)
-                ExerciseLogPage(
-                    exercise: pages[safe],
-                    index: safe,
-                    total: pages.count,
-                    onPrevious: { index = max(0, safe - 1) },
-                    onNext: { index = min(safe + 1, pages.count - 1) }
-                )
-            } else {
-                cover
-            }
-        }
-        .onChange(of: pages.count) { _, count in
-            if count <= 0 {
-                index = 0
-            } else {
-                index = min(max(0, index), count - 1)
+        ZStack {
+            cover
+                .opacity(showActive ? 0 : 1)
+                .allowsHitTesting(!showActive)
+                .accessibilityHidden(showActive)
+            if showActive {
+                WorkoutActiveScreen(autostart: !alreadyLive)
             }
         }
         .onAppear {
-            model.liveIndex = index
-        }
-        .onChange(of: model.remoteStamp) { _, _ in
-            let next = min(max(0, model.liveIndex), max(pages.count - 1, 0))
-            guard next != index else { return }
-            gate.remote = true
-            index = next
-        }
-        .onChange(of: index) { _, newIndex in
-            if gate.remote {
-                gate.remote = false
-                return
+            guard !decided else { return }
+            decided = true
+            coverWorkout = model.today?.workout
+            if coverWorkout?.status == "in_progress" || model.hiitRunning {
+                alreadyLive = true
+                showActive = true
+                startTitle = "Resume"
             }
-            let exercise = pages.indices.contains(newIndex) ? pages[newIndex] : nil
-            model.noteSet(
-                index: newIndex,
-                setId: exercise?.openSetId ?? model.liveSetId,
-                reps: exercise?.lastReps ?? model.liveReps,
-                weight: exercise?.lastWeightKg ?? model.liveWeight
-            )
         }
     }
 
     private var cover: some View {
-        let workout = model.today?.workout
+        let workout = coverWorkout
         let count = interval ? (workout?.phases.count ?? 0) : (workout?.exercises.count ?? 0)
         let rows = coverRows
         return VStack(spacing: 6) {
@@ -192,36 +147,38 @@ struct WorkoutWatchView: View {
                 .padding(.bottom, 4)
             }
             .scrollIndicators(.hidden)
-            if workout?.status == "scheduled" {
-                WatchAction(title: "Start Workout", symbol: "play.fill") {
-                    afterTap {
-                        if interval {
-                            model.startHiit()
-                        } else {
-                            Task { await model.startWorkout() }
-                        }
+            if workout?.status == "scheduled" || workout?.status == "in_progress" {
+                Button {
+                    afterTap { showActive = true }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 13, weight: .bold))
+                        Text(startTitle)
+                            .font(.system(size: 15, weight: .semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                     }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                    .background(Capsule().fill(WatchTheme.red))
                 }
-            }
-            if let error = model.error {
-                Text(error)
-                    .font(.system(size: 10))
-                    .foregroundStyle(WatchTheme.red)
-                    .lineLimit(2)
+                .buttonStyle(.plain)
             }
         }
         .watchChrome()
     }
 
     private var coverArt: some View {
-        let gif = model.today?.workout.exercises.first?.gifUrl ?? model.today?.workout.phases.first?.gifUrl
+        let gif = coverWorkout?.exercises.first?.gifUrl ?? coverWorkout?.phases.first?.gifUrl
         return ExerciseMedia(gifUrl: gif)
             .frame(maxWidth: .infinity)
             .frame(height: 84)
     }
 
     private var coverRows: [(title: String, detail: String)] {
-        let workout = model.today?.workout
+        let workout = coverWorkout
         if interval {
             return (workout?.phases ?? []).map { phase in
                 let title = phase.name?.isEmpty == false ? (phase.name ?? phase.label) : phase.label
@@ -262,6 +219,125 @@ struct WorkoutWatchView: View {
     }
 }
 
+private struct WorkoutActiveScreen: View {
+    @EnvironmentObject private var model: WatchDashboardModel
+    var autostart: Bool
+    @State private var index = 0
+    @State private var gate = IndexGate()
+    @State private var began = false
+    /// Keeps the set screen mounted after End. Dropping it removes the tapped button and crashes the watch.
+    @State private var lockedPages: [WatchExercise] = []
+
+    private var interval: Bool {
+        !(model.today?.workout.phases.isEmpty ?? true)
+    }
+
+    private var pages: [WatchExercise] {
+        let workout = model.today?.workout
+        if workout?.status == "in_progress", let exercises = workout?.exercises, !exercises.isEmpty {
+            return exercises
+        }
+        if workout?.status == "in_progress", let name = workout?.exerciseName {
+            return [
+                WatchExercise(
+                    id: workout?.setId ?? name,
+                    name: name,
+                    gifUrl: workout?.exercises.first?.gifUrl,
+                    targetReps: workout?.targetReps,
+                    setCount: max(workout?.setNumber ?? 1, 1),
+                    completedSets: max((workout?.setNumber ?? 1) - 1, 0),
+                    openSetId: workout?.setId,
+                    openSetNumber: workout?.setNumber,
+                    lastWeightKg: nil,
+                    lastReps: nil
+                )
+            ]
+        }
+        return []
+    }
+
+    private var displayPages: [WatchExercise] {
+        pages.isEmpty ? lockedPages : pages
+    }
+
+    var body: some View {
+        Group {
+            if interval {
+                HiitWatchScreen()
+            } else if !displayPages.isEmpty {
+                let safe = min(max(0, index), displayPages.count - 1)
+                ExerciseLogPage(
+                    exercise: displayPages[safe],
+                    index: safe,
+                    total: displayPages.count,
+                    onPrevious: { index = max(0, safe - 1) },
+                    onNext: { index = min(safe + 1, displayPages.count - 1) }
+                )
+            } else {
+                VStack(spacing: 8) {
+                    WatchHeader(title: "Workout", back: true)
+                    Text("Starting…")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Spacer(minLength: 0)
+                }
+                .watchChrome()
+            }
+        }
+        .task {
+            guard autostart, !began else { return }
+            began = true
+            // Let the push finish before the cover screen refreshes. Refreshing it mid-tap crashes the watch.
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            if interval {
+                if !model.hiitRunning && model.hiitLeft == 0 {
+                    model.startHiit()
+                }
+            } else if model.today?.workout.status != "in_progress" {
+                await model.startWorkout()
+            }
+        }
+        .onChange(of: pages) { _, next in
+            if !next.isEmpty {
+                lockedPages = next
+            }
+            let count = next.isEmpty ? lockedPages.count : next.count
+            if count <= 0 {
+                index = 0
+            } else {
+                index = min(max(0, index), count - 1)
+            }
+        }
+        .onAppear {
+            if lockedPages.isEmpty {
+                lockedPages = pages
+            }
+            model.liveIndex = index
+        }
+        .onChange(of: model.remoteStamp) { _, _ in
+            let count = displayPages.count
+            let next = min(max(0, model.liveIndex), max(count - 1, 0))
+            guard next != index else { return }
+            gate.remote = true
+            index = next
+        }
+        .onChange(of: index) { _, newIndex in
+            if gate.remote {
+                gate.remote = false
+                return
+            }
+            let exercise = displayPages.indices.contains(newIndex) ? displayPages[newIndex] : nil
+            model.noteSet(
+                index: newIndex,
+                setId: exercise?.openSetId ?? model.liveSetId,
+                reps: exercise?.lastReps ?? model.liveReps,
+                weight: exercise?.lastWeightKg ?? model.liveWeight
+            )
+        }
+    }
+}
+
 private struct HiitWatchScreen: View {
     @EnvironmentObject private var model: WatchDashboardModel
 
@@ -294,15 +370,10 @@ private struct HiitWatchScreen: View {
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .monospacedDigit()
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color.white.opacity(0.2))
-                            Capsule()
-                                .fill(tint)
-                                .frame(width: geo.size.width * WatchTheme.fraction(Double(model.hiitLeft), Double(total)))
-                        }
-                    }
-                    .frame(height: 4)
+                    WatchMeter(
+                        progress: WatchTheme.fraction(Double(model.hiitLeft), Double(total)),
+                        tint: tint
+                    )
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
@@ -965,42 +1036,35 @@ struct CardioWatchView: View {
                     }
                 }
                 Spacer(minLength: 0)
-                if !done {
-                    if running || paused {
-                        HStack(spacing: 8) {
-                            WatchAction(
-                                title: running ? "Pause" : "Resume",
-                                symbol: running ? "pause.fill" : "play.fill",
-                                fill: Color.white.opacity(0.14)
-                            ) {
-                                afterTap {
-                                    Task {
-                                        if running {
-                                            await model.pauseCardio()
-                                        } else {
-                                            await model.startCardio()
-                                        }
-                                    }
+                HStack(spacing: 8) {
+                    WatchAction(
+                        title: done ? "Done" : (running ? "Pause" : (paused ? "Resume" : "Start")),
+                        symbol: running ? "pause.fill" : "play.fill",
+                        fill: running ? Color.white.opacity(0.14) : WatchTheme.cardio
+                    ) {
+                        afterTap {
+                            Task {
+                                if running {
+                                    await model.pauseCardio()
+                                } else if !done {
+                                    await model.startCardio()
                                 }
                             }
-                            WatchAction(title: "Finish", symbol: "checkmark", fill: WatchTheme.cardio) {
-                                afterTap { Task { await model.stopCardio() } }
-                            }
-                        }
-                    } else {
-                        WatchAction(title: "Start", symbol: "play.fill", fill: WatchTheme.cardio) {
-                            afterTap { Task { await model.startCardio() } }
                         }
                     }
-                }
-                if running || paused {
-                    Button("Reset") {
-                        afterTap { Task { await model.resetCardio() } }
+                    .disabled(done)
+                    WatchAction(title: "Finish", symbol: "checkmark", fill: WatchTheme.cardio) {
+                        afterTap { Task { await model.stopCardio() } }
                     }
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.55))
-                    .buttonStyle(.plain)
+                    .disabled(done || (!running && !paused))
                 }
+                Button("Reset") {
+                    afterTap { Task { await model.resetCardio() } }
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.55))
+                .buttonStyle(.plain)
+                .disabled(!running && !paused)
                 if let note = model.notice ?? model.error {
                     Text(note)
                         .font(.system(size: 10, weight: .medium))

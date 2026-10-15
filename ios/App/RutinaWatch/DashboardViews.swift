@@ -724,10 +724,9 @@ private struct WatchChrome: ViewModifier {
     }
 }
 
-/// Runs after the tap ends. Updating the workout screen inside the button action crashes watchOS.
-/// A short delay keeps the update out of the same gesture turn, which `async` alone still hits.
+/// Runs after the tap has fully ended. watchOS closes the app if a tap updates or removes its own control.
 func afterTap(_ action: @escaping () -> Void) {
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: action)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: action)
 }
 
 /// HealthKit and Watch Connectivity callbacks can arrive twice. Resuming a continuation twice is fatal.

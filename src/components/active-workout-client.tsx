@@ -46,6 +46,7 @@ import {
 } from "@/lib/watch-session";
 import { isPendingWorkoutSessionId } from "@/lib/staged-workout-open";
 import { WorkoutOpenSkeleton } from "@/components/dashboard-page-skeleton";
+import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { WorkoutTypeBanner } from "@/components/workout-type-banner";
 import { findCatalogExercise } from "@/lib/exercise-catalog";
 import { StartWorkoutLoadingShell } from "@/components/start-workout-loading-shell";
@@ -54,7 +55,11 @@ import { DayFlowProgress } from "@/components/day-flow-progress";
 import { useDayWorkoutFlowContinue } from "@/components/day-workout-flow";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { cn, formatDateKey } from "@/lib/utils";
-import { formatElapsedClock } from "@/lib/workout-duration";
+import {
+  estimateWorkoutDurationSeconds,
+  formatElapsedClock,
+  formatWorkoutDurationShort,
+} from "@/lib/workout-duration";
 import { markReminderDone } from "@/lib/reminder-events";
 import {
   clearWorkoutTimerState,
@@ -831,6 +836,108 @@ function ActiveExercisePanel({
   );
 }
 
+function ReadyWorkoutDetails({
+  exercises,
+  histories,
+  gender,
+}: {
+  exercises: WorkoutSessionExercise[];
+  histories: Record<string, ExerciseHistoryEntry | null>;
+  gender?: string | null;
+}) {
+  const platform = usePlatformCopy();
+  const totalSets = exercises.reduce(
+    (sum, exercise) => sum + Math.max(1, exercise.target_sets || 1),
+    0
+  );
+  const duration = formatWorkoutDurationShort(
+    estimateWorkoutDurationSeconds(exercises)
+  );
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+      <p className="shrink-0 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {exercises.length} {platform.workout.exercisesTile} ·{" "}
+        {platform.workout.setsCount(totalSets)} · {platform.workout.estTotal(duration)}
+      </p>
+      <ul className="flex min-h-0 flex-1 flex-col gap-2">
+        {exercises.map((exercise, index) => {
+          const sets = Math.max(1, exercise.target_sets || 1);
+          const reps = exercise.target_reps?.trim() || "—";
+          const restSeconds = exercise.rest_seconds ?? 90;
+          const catalog = findCatalogExercise(exercise.name);
+          const detail =
+            exercise.notes?.trim() ||
+            catalog?.instructions?.[0]?.trim() ||
+            null;
+          const muscles = (catalog?.primary_muscles ?? [])
+            .slice(0, 2)
+            .map((muscle) => muscle.replace(/_/g, " "))
+            .join(" · ");
+          const history =
+            histories[exercise.exercise_id ?? exercise.name] ??
+            histories[exercise.name] ??
+            null;
+          const lastLabel = formatExerciseHistoryLabel(
+            history,
+            platform.workout.lastSets,
+            platform.workout.neverTried
+          );
+
+          return (
+            <li
+              key={exercise.id}
+              className="flex min-h-[6.5rem] flex-1 items-center gap-3 rounded-2xl border border-border/60 bg-secondary/35 px-3 py-3"
+            >
+              <ExerciseGifThumbnail
+                name={exercise.name}
+                imageUrl={exercise.image_url}
+                videoUrl={exercise.video_url}
+                gender={gender}
+                size="md"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="line-clamp-2 text-sm font-bold leading-snug">
+                    {exercise.name}
+                  </p>
+                  <span className="shrink-0 text-[10px] font-bold tabular-nums text-muted-foreground">
+                    {index + 1}/{exercises.length}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="rounded-lg bg-secondary px-2 py-0.5 text-xs font-semibold tabular-nums">
+                    {platform.workout.setsCount(sets)}
+                  </span>
+                  <span className="rounded-lg bg-secondary px-2 py-0.5 text-xs font-semibold tabular-nums">
+                    {platform.workout.repsTarget(reps)}
+                  </span>
+                  <span className="rounded-lg bg-secondary px-2 py-0.5 text-xs font-semibold tabular-nums">
+                    {platform.workout.rest} {formatSessionClock(restSeconds)}
+                  </span>
+                </div>
+                {muscles ? (
+                  <p className="mt-1.5 text-[11px] font-medium capitalize text-muted-foreground">
+                    {muscles}
+                  </p>
+                ) : null}
+                {detail ? (
+                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-foreground/80">
+                    {detail}
+                  </p>
+                ) : null}
+                <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-primary/90">
+                  {lastLabel}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export function ActiveWorkoutClient({
   session,
   exercises: initialExercises,
@@ -1382,9 +1489,9 @@ export function ActiveWorkoutClient({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
         {!isStarted ? (
-          <div className="flex flex-col gap-3 pt-1">
+          <div className="flex min-h-full flex-1 flex-col gap-3 pt-1">
             {isLoadingExercises ? (
-              <div className="aspect-[16/10] w-full animate-pulse rounded-3xl bg-secondary/80" />
+              <div className="aspect-[16/10] w-full shrink-0 animate-pulse rounded-3xl bg-secondary/80" />
             ) : (
               <WorkoutTypeBanner
                 planTitle={session.plan_title ?? headerTitle}
@@ -1395,9 +1502,16 @@ export function ActiveWorkoutClient({
                 alt={headerTitle}
               />
             )}
-            <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <p className="shrink-0 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               {platform.workout.readyToStart}
             </p>
+            {!isLoadingExercises && exercises.length > 0 ? (
+              <ReadyWorkoutDetails
+                exercises={exercises}
+                histories={histories}
+                gender={exerciseGender}
+              />
+            ) : null}
           </div>
         ) : isLoadingExercises ? (
           <WorkoutOpenSkeleton />

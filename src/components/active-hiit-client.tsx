@@ -13,8 +13,6 @@ import {
   Play,
   RotateCcw,
   SkipForward,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
 import {
   beginWorkoutSession,
@@ -30,12 +28,10 @@ import {
   type WorkoutPlanKind,
 } from "@/lib/hiit";
 import {
-  getHiitSoundsMuted,
   playHiitComplete,
   playHiitPhaseChange,
   playHiitStart,
   playHiitTick,
-  setHiitSoundsMuted,
   unlockHiitAudio,
 } from "@/lib/hiit-sounds";
 import {
@@ -139,7 +135,6 @@ export function ActiveHiitClient({
   const [timer, setTimer] = useState<HiitTimerState | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [muted, setMuted] = useState(false);
   const [busy, setBusy] = useState<
     "idle" | "saving" | "skipping" | "starting" | "leaving"
   >("idle");
@@ -234,7 +229,6 @@ export function ActiveHiitClient({
     } else if (existing) {
       clearHiitTimerState(session.id);
     }
-    setMuted(getHiitSoundsMuted());
     setHydrated(true);
   }, [session.id, hash]);
 
@@ -422,13 +416,6 @@ export function ActiveHiitClient({
   const handleSkip = () => {
     if (!timer || isDone || isBusy) return;
     goToPhase(timer.phaseIndex + 1);
-  };
-
-  const handleToggleMute = () => {
-    const next = !muted;
-    setMuted(next);
-    setHiitSoundsMuted(next);
-    if (!next) unlockHiitAudio();
   };
 
   const handleReset = () => {
@@ -684,12 +671,6 @@ export function ActiveHiitClient({
           className="mx-auto w-full max-w-[45dvh] shrink-0 [@media(max-height:700px)]:max-w-[38dvh]"
           sideActions={
             <>
-              <SessionSideIconButton
-                label={muted ? "Unmute sounds" : "Mute sounds"}
-                onClick={handleToggleMute}
-              >
-                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-              </SessionSideIconButton>
               <SessionSideIconButton
                 label="Reset"
                 onClick={handleReset}

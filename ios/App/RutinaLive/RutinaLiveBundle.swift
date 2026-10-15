@@ -13,7 +13,7 @@ struct RutinaLiveBundle: WidgetBundle {
 struct WorkoutLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
-            LiveSetView(state: context.state)
+            LiveSetView(state: context.state, isStale: context.isStale)
                 .padding(.vertical, 6)
                 .activityBackgroundTint(LivePalette.background)
                 .activitySystemActionForegroundColor(.white)
@@ -35,22 +35,30 @@ struct WorkoutLiveActivity: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    LiveCornerButton(state: context.state)
+                    RestAware(endsAt: context.state.restEndsAt, isStale: context.isStale) { resting in
+                        LiveCornerButton(state: context.state, resting: resting)
+                    }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    LiveActivityLoad(state: context.state)
+                    RestAware(endsAt: context.state.restEndsAt, isStale: context.isStale) { resting in
+                        LiveActivityLoad(state: context.state, resting: resting)
+                    }
                 }
             } compactLeading: {
                 Image(systemName: "dumbbell.fill")
             } compactTrailing: {
-                if let range = restRange(until: context.state.restEndsAt) {
-                    Text(timerInterval: range, countsDown: true)
-                        .font(.caption.weight(.semibold))
-                        .monospacedDigit()
-                        .frame(width: 46)
-                } else {
-                    Text(LiveWorkoutFormatting.weight(context.state.weightKg))
-                        .font(.caption.weight(.semibold))
+                RestAware(endsAt: context.state.restEndsAt, isStale: context.isStale) { resting in
+                    if resting, let end = context.state.restEndsAt {
+                        Text(timerInterval: countdownRange(until: end), countsDown: true)
+                            .font(.caption.weight(.semibold))
+                            .monospacedDigit()
+                            .frame(width: 46)
+                    } else {
+                        Text(LiveWorkoutFormatting.weight(context.state.weightKg))
+                            .font(.caption.weight(.semibold))
+                            .monospacedDigit()
+                            .contentTransition(.identity)
+                    }
                 }
             } minimal: {
                 Image(systemName: "dumbbell.fill")
@@ -64,11 +72,33 @@ private enum LiveWorkoutLink {
     static let url = URL(string: "rutina://dashboard/workout/live")
 }
 
-private func restRange(until end: Date?) -> ClosedRange<Date>? {
-    guard let end else { return nil }
-    let now = Date()
-    guard end > now else { return nil }
-    return now...end
+/// Widget `Date()` stays frozen at the last activity update, so rest must
+/// switch off the timeline date (and the stale flag), not `timeIntervalSinceNow`.
+private struct RestAware<Content: View>: View {
+    var endsAt: Date?
+    var isStale: Bool
+    @ViewBuilder var content: (Bool) -> Content
+
+    var body: some View {
+        if let endsAt, !isStale {
+            TimelineView(.explicit(Self.entries(until: endsAt))) { timeline in
+                content(timeline.date < endsAt)
+            }
+        } else {
+            content(false)
+        }
+    }
+
+    private static func entries(until end: Date) -> [Date] {
+        let now = Date()
+        if now >= end { return [now] }
+        return [now, end, end.addingTimeInterval(1)]
+    }
+}
+
+private func countdownRange(until end: Date) -> ClosedRange<Date> {
+    let start = min(Date(), end.addingTimeInterval(-1))
+    return start...end
 }
 
 private enum LivePalette {
@@ -80,38 +110,43 @@ private enum LivePalette {
 
 private struct LiveSetView: View {
     var state: WorkoutActivityAttributes.ContentState
+    var isStale: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 10) {
-                ExerciseThumb(index: state.exerciseIndex, token: state.imageToken)
-                    .frame(width: 44, height: 44)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(state.exerciseName)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.8)
-                    Text(state.setLabel)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(LivePalette.secondary)
+        RestAware(endsAt: state.restEndsAt, isStale: isStale) { resting in
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 10) {
+                    ExerciseThumb(index: state.exerciseIndex, token: state.imageToken)
+                        .frame(width: 44, height: 44)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(state.exerciseName)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                        Text(state.setLabel)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(LivePalette.secondary)
+                    }
+                    Spacer(minLength: 8)
+                    LiveCornerButton(state: state, resting: resting)
                 }
-                Spacer(minLength: 8)
-                LiveCornerButton(state: state)
+                LiveActivityLoad(state: state, resting: resting)
             }
-            LiveActivityLoad(state: state)
+            .padding(.horizontal, 14)
+            .padding(.top, 18)
+            .padding(.bottom, 18)
+            .padding(.trailing, 2)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 18)
-        .padding(.bottom, 18)
     }
 }
 
 private struct LiveCornerButton: View {
     var state: WorkoutActivityAttributes.ContentState
+    var resting: Bool
 
     var body: some View {
-        if state.isResting {
+        if resting {
             Button(intent: SkipLiveRestIntent()) {
                 Text("Skip")
                     .font(.system(size: 14, weight: .semibold))
@@ -124,30 +159,25 @@ private struct LiveCornerButton: View {
             .accessibilityLabel("Skip rest")
         } else if !state.setId.isEmpty {
             Button(intent: LogLiveSetIntent()) {
-                Text("Log set")
-                    .font(.system(size: 14, weight: .semibold))
+                Image(systemName: "checkmark")
+                    .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Capsule().fill(LivePalette.red))
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(LivePalette.red))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Log set")
         }
     }
 }
 
 private struct LiveActivityLoad: View {
     var state: WorkoutActivityAttributes.ContentState
+    var resting: Bool
 
     var body: some View {
-        if let end = state.restEndsAt {
-            TimelineView(.explicit([end])) { _ in
-                if end.timeIntervalSinceNow > 0, let range = restRange(until: end) {
-                    RestCountdown(range: range)
-                } else {
-                    LiveSetMetrics(state: state)
-                }
-            }
+        if resting, let end = state.restEndsAt {
+            RestCountdown(range: countdownRange(until: end))
         } else {
             LiveSetMetrics(state: state)
         }
@@ -206,6 +236,8 @@ private struct LiveSetMetrics: View {
                 .accessibilityLabel("Increase reps")
             }
         }
+        .animation(nil, value: state.reps)
+        .animation(nil, value: state.weightKg)
     }
 
     private func metric<Down: View, Up: View>(
@@ -225,8 +257,13 @@ private struct LiveSetMetrics: View {
                     .font(.system(size: 20, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white)
                     .monospacedDigit()
+                    .contentTransition(.identity)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                    .transaction { transaction in
+                        transaction.animation = nil
+                        transaction.disablesAnimations = true
+                    }
             }
             .frame(maxWidth: .infinity)
             up()
