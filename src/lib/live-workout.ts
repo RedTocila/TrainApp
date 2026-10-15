@@ -101,11 +101,8 @@ function clampWeight(value: number): number {
   return Math.min(200, Math.max(0, Number(value) || 0));
 }
 
-function suggestedReps(target: string | null | undefined, fallback: number): number {
-  const match = String(target ?? "").match(/\d+/);
-  const parsed = match ? parseInt(match[0], 10) : fallback;
-  return clampReps(Number.isFinite(parsed) ? parsed : fallback);
-}
+export const DEFAULT_SET_REPS = 6;
+export const DEFAULT_SET_KG = 10;
 
 export function buildLiveBoard(
   exercises: WorkoutSessionExercise[],
@@ -115,9 +112,9 @@ export function buildLiveBoard(
   return exercises.map((exercise) => {
     const sets = [...(exercise.sets ?? [])].sort((a, b) => a.set_number - b.set_number);
     const lastDone = [...sets].reverse().find((set) => set.completed);
-    const fallbackReps = suggestedReps(exercise.target_reps, lastDone?.reps ?? 8);
+    const fallbackReps = clampReps(lastDone?.reps ?? DEFAULT_SET_REPS);
     const fallbackWeight =
-      lastDone?.weight_kg != null ? Number(lastDone.weight_kg) : 20;
+      lastDone?.weight_kg != null ? Number(lastDone.weight_kg) : DEFAULT_SET_KG;
     const plannedRest = exercise.rest_seconds;
     const restSeconds =
       plannedRest == null

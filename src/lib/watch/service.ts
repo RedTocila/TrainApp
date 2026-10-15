@@ -1048,13 +1048,6 @@ export type LiveWorkoutCard = {
   weightKg: number;
 };
 
-function suggestedLiveReps(target: string | null): number {
-  const match = target?.match(/\d+/);
-  const reps = match ? Number(match[0]) : 8;
-  if (!Number.isFinite(reps) || reps < 1) return 8;
-  return Math.min(40, Math.round(reps));
-}
-
 function liveCard(
   exercise: WatchExercise,
   index: number,
@@ -1069,8 +1062,8 @@ function liveCard(
     setId: exercise.openSetId,
     setNumber: exercise.openSetNumber ?? Math.min(exercise.completedSets + 1, exercise.setCount),
     setCount: exercise.setCount,
-    reps: exercise.lastReps ?? suggestedLiveReps(exercise.targetReps),
-    weightKg: exercise.lastWeightKg ?? 20,
+    reps: exercise.lastReps ?? 6,
+    weightKg: exercise.lastWeightKg ?? 10,
   };
 }
 
@@ -1083,8 +1076,8 @@ const inactiveLiveCard: LiveWorkoutCard = {
   setId: null,
   setNumber: 0,
   setCount: 0,
-  reps: 8,
-  weightKg: 20,
+  reps: 6,
+  weightKg: 10,
 };
 
 /** The set the Lock Screen should show for an in-progress workout. */

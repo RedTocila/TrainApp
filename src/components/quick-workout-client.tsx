@@ -38,14 +38,9 @@ function openSet(exercise: WorkoutSessionExercise | undefined) {
   );
 }
 
-function suggestedReps(
-  exercise: WorkoutSessionExercise | undefined,
-  previous: number | null
-) {
-  if (previous != null) return previous;
-  const match = String(exercise?.target_reps ?? "").match(/\d+/);
-  const parsed = match ? parseInt(match[0], 10) : 8;
-  return Math.min(40, Math.max(1, Number.isFinite(parsed) ? parsed : 8));
+function suggestedReps(previous: number | null) {
+  if (previous != null) return Math.min(40, Math.max(1, previous));
+  return 6;
 }
 
 export function QuickWorkoutClient() {
@@ -60,8 +55,8 @@ export function QuickWorkoutClient() {
   const [timerOnly, setTimerOnly] = useState(false);
   const [exercises, setExercises] = useState<WorkoutSessionExercise[]>([]);
   const [index, setIndex] = useState(0);
-  const [reps, setReps] = useState(8);
-  const [weightKg, setWeightKg] = useState(20);
+  const [reps, setReps] = useState(6);
+  const [weightKg, setWeightKg] = useState(10);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gender, setGender] = useState<"male" | "female" | null>(null);
@@ -89,14 +84,14 @@ export function QuickWorkoutClient() {
       setReps(
         useDraft && draft
           ? draft.reps
-          : suggestedReps(item, previous?.reps ?? null)
+          : suggestedReps(previous?.reps ?? null)
       );
       setWeightKg(
         useDraft && draft
           ? draft.weightKg
           : previous?.weight_kg != null
             ? Number(previous.weight_kg)
-            : 20
+            : 10
       );
     },
     []

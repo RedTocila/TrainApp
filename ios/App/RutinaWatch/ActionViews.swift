@@ -4,8 +4,8 @@ import UIKit
 
 struct WorkoutWatchView: View {
     @EnvironmentObject private var model: WatchDashboardModel
-    @State private var reps = 8
-    @State private var weight = 20.0
+    @State private var reps = 6
+    @State private var weight = 10.0
 
     var body: some View {
         let workout = model.today?.workout
@@ -100,18 +100,8 @@ struct WorkoutWatchView: View {
     private func seed() {
         let workout = model.today?.workout
         let open = workout?.exercises.first { $0.openSetId != nil }
-        if let value = open?.lastReps ?? parsedReps(workout?.targetReps) {
-            reps = min(40, max(1, value))
-        }
-        if let value = open?.lastWeightKg {
-            weight = snap(value)
-        }
-    }
-
-    private func parsedReps(_ raw: String?) -> Int? {
-        guard let raw else { return nil }
-        let digits = raw.prefix { $0.isNumber }
-        return Int(digits)
+        reps = min(40, max(1, open?.lastReps ?? 6))
+        weight = snap(open?.lastWeightKg ?? 10)
     }
 
     private func snap(_ value: Double) -> Double {
@@ -370,19 +360,13 @@ private func snapWeight(_ value: Double) -> Double {
     return (stepped * 10).rounded() / 10
 }
 
-private func rememberedLoad(_ exercise: WatchExercise) -> (reps: Int, weight: Double) {
+    private func rememberedLoad(_ exercise: WatchExercise) -> (reps: Int, weight: Double) {
     let key = "rutina.watch.kg.\(exercise.name.lowercased())"
     let remembered = UserDefaults.standard.object(forKey: key) == nil
         ? nil
         : UserDefaults.standard.double(forKey: key)
-    let reps = min(40, max(1, exercise.lastReps ?? suggestedReps(exercise.targetReps)))
-    return (reps, snapWeight(exercise.lastWeightKg ?? remembered ?? 20))
-}
-
-private func suggestedReps(_ raw: String?) -> Int {
-    guard let raw else { return 8 }
-    let numbers = raw.split { !$0.isNumber }
-    return min(40, max(1, Int(numbers.first ?? "") ?? 8))
+    let reps = min(40, max(1, exercise.lastReps ?? 6))
+    return (reps, snapWeight(exercise.lastWeightKg ?? remembered ?? 10))
 }
 
 struct CardioWatchView: View {
@@ -425,7 +409,7 @@ struct CardioWatchView: View {
                             progress: plannedSeconds > 0
                                 ? WatchTheme.fraction(Double(elapsed), Double(plannedSeconds))
                                 : (done ? 1 : 0),
-                            size: 108,
+                            size: 96,
                             tint: WatchTheme.cardio
                         )
                         VStack(spacing: 4) {

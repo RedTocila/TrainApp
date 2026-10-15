@@ -423,10 +423,16 @@ final class SecondClock: ObservableObject {
     }
 }
 
+struct WatchScreenInset {
+    var top: CGFloat
+    var bottom: CGFloat
+    var side: CGFloat
+}
+
 enum WatchTheme {
     static let red = Color(red: 220 / 255, green: 38 / 255, blue: 38 / 255)
     static let crown = Color(red: 48 / 255, green: 209 / 255, blue: 88 / 255)
-    static let gap: CGFloat = 12
+    static let gap: CGFloat = 7
     static let ink = Color.black
     static let card = Color(red: 28 / 255, green: 28 / 255, blue: 30 / 255)
     static let mute = Color.white.opacity(0.48)
@@ -467,6 +473,16 @@ enum WatchTheme {
         }
         return "\(ml.formatted()) / \(goal.formatted()) ml"
     }
+
+    /// Clears the rounded bezel without leaving a band of empty screen.
+    static func screenInset(for size: CGSize) -> WatchScreenInset {
+        let radius = min(size.width, size.height) * 0.22
+        return WatchScreenInset(
+            top: max(18, radius * 0.5),
+            bottom: max(12, radius * 0.34),
+            side: max(10, radius * 0.26)
+        )
+    }
 }
 
 struct WatchRing: View {
@@ -474,7 +490,7 @@ struct WatchRing: View {
     var size: CGFloat = 46
     var tint: Color = WatchTheme.red
 
-    private var line: CGFloat { max(6, size * 0.13) }
+    private var line: CGFloat { min(9, max(5, size * 0.1)) }
 
     var body: some View {
         ZStack {
@@ -484,6 +500,7 @@ struct WatchRing: View {
                 .stroke(tint, style: StrokeStyle(lineWidth: line, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
+        .padding(line / 2)
         .frame(width: size, height: size)
     }
 }
@@ -539,7 +556,7 @@ struct WatchMacroRing: View {
     var fat: Int
     var size: CGFloat
 
-    private var line: CGFloat { max(8, size * 0.1) }
+    private var line: CGFloat { min(10, max(6, size * 0.09)) }
 
     var body: some View {
         let arcs = macroArcs(
@@ -561,23 +578,24 @@ struct WatchMacroRing: View {
                         .rotationEffect(.degrees(-90))
                 }
             }
-            VStack(spacing: 1) {
+            VStack(spacing: 0) {
                 Text(calories.formatted())
-                    .font(.system(size: size * 0.24, weight: .bold, design: .rounded))
+                    .font(.system(size: size * 0.22, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                 Text("kcal")
-                    .font(.system(size: max(9, size * 0.09), weight: .semibold))
+                    .font(.system(size: max(8, size * 0.09), weight: .semibold))
                     .foregroundStyle(WatchTheme.mute)
                 Text("of \(target.formatted())")
-                    .font(.system(size: max(8, size * 0.08), weight: .medium))
+                    .font(.system(size: max(8, size * 0.075), weight: .medium))
                     .foregroundStyle(WatchTheme.mute)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                    .minimumScaleFactor(0.5)
             }
-            .padding(.horizontal, size * 0.2)
+            .padding(.horizontal, line + 4)
         }
+        .padding(line / 2)
         .frame(width: size, height: size)
     }
 }
@@ -635,32 +653,31 @@ struct WatchHeader: View {
     var onRefresh: (() -> Void)? = nil
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 4) {
             if back {
                 Button { afterTap { dismiss() } } label: {
                     Image(systemName: "chevron.backward")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)
-                        .frame(width: 44, height: 36)
+                        .frame(width: 22, height: 26)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
             titleText
-            Spacer(minLength: 8)
             if let onRefresh {
                 Button { watchAct(onRefresh) } label: {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 22, height: 26)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-            } else if back {
-                Color.clear.frame(width: 36, height: 36)
             }
+            Spacer(minLength: 0)
         }
+        .frame(height: 26)
     }
 
     private var titleText: some View {
@@ -671,7 +688,7 @@ struct WatchHeader: View {
                 Text(title).foregroundColor(.white)
             }
         }
-        .font(.system(size: 18, weight: .bold))
+        .font(.system(size: 17, weight: .bold))
         .lineLimit(1)
         .minimumScaleFactor(0.7)
     }
@@ -679,17 +696,22 @@ struct WatchHeader: View {
 
 private struct WatchChrome: ViewModifier {
     func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 10)
-            .padding(.top, 12)
-            .padding(.bottom, 10)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(WatchTheme.ink.ignoresSafeArea())
-            .ignoresSafeArea(edges: .top)
-            .toolbar(.hidden, for: .navigationBar)
-            .navigationBarBackButtonHidden(true)
-            .persistentSystemOverlays(.hidden)
-            .containerBackground(WatchTheme.ink, for: .navigation)
+        GeometryReader { geo in
+            let inset = WatchTheme.screenInset(for: geo.size)
+            content
+                .padding(.horizontal, inset.side)
+                .padding(.top, inset.top)
+                .padding(.bottom, inset.bottom)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+        }
+        .ignoresSafeArea()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(WatchTheme.ink.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
+        .persistentSystemOverlays(.hidden)
+        .containerBackground(WatchTheme.ink, for: .navigation)
     }
 }
 
@@ -830,32 +852,31 @@ struct DashboardView: View {
                 WatchHeader(title: "Rutina", brand: true, onRefresh: {
                     Task { await model.refresh() }
                 })
-                ScrollView {
-                    VStack(spacing: WatchTheme.gap) {
-                        if let alert = alertLine {
-                            Text(alert)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(WatchTheme.red)
-                                .lineLimit(2)
-                                .minimumScaleFactor(0.7)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        destination(aspect: 2) { WorkoutWatchView() } label: { workoutCard }
-                        HStack(spacing: WatchTheme.gap) {
-                            destination(aspect: 1, columns: 2) { NutritionWatchView() } label: { nutritionTile }
-                            destination(aspect: 1, columns: 2) { WaterWatchView() } label: { waterTile }
-                        }
-                        HStack(spacing: WatchTheme.gap) {
-                            destination(aspect: 1, columns: 2) { StepsWatchView() } label: { stepsTile }
-                            destination(aspect: 1, columns: 2) { CardioWatchView() } label: { CardioDashTile() }
-                        }
-                    }
-                    .padding(.bottom, WatchTheme.gap)
+                if let alert = alertLine {
+                    Text(alert)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(WatchTheme.red)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .watchScroll()
+                destination { WorkoutWatchView() } label: { workoutCard }
+                    .frame(height: 58)
+                HStack(spacing: WatchTheme.gap) {
+                    destination { NutritionWatchView() } label: { nutritionTile }
+                    destination { WaterWatchView() } label: { waterTile }
+                }
+                .frame(maxHeight: .infinity)
+                HStack(spacing: WatchTheme.gap) {
+                    destination { StepsWatchView() } label: { stepsTile }
+                    destination { CardioWatchView() } label: { CardioDashTile() }
+                }
+                .frame(maxHeight: .infinity)
             }
             .watchChrome()
         }
+        .ignoresSafeArea()
+        .background(WatchTheme.ink.ignoresSafeArea())
         .tint(WatchTheme.crown)
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
@@ -899,17 +920,17 @@ struct DashboardView: View {
             ZStack {
                 Circle()
                     .fill(WatchTheme.red)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 30, height: 30)
                 Image(systemName: running ? "pause.fill" : "play.fill")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(.white)
                     .offset(x: running ? 0 : 1)
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 12)
+        .padding(.vertical, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .watchCard(18)
+        .watchCard(16)
     }
 
     private var nutritionTile: some View {
@@ -983,8 +1004,6 @@ struct DashboardView: View {
     }
 
     private func destination<Destination: View, Label: View>(
-        aspect: CGFloat,
-        columns: Int = 1,
         @ViewBuilder _ destination: () -> Destination,
         @ViewBuilder label: () -> Label
     ) -> some View {
@@ -993,8 +1012,7 @@ struct DashboardView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .buttonStyle(.plain)
-        .containerRelativeFrame(.horizontal, count: columns, spacing: WatchTheme.gap)
-        .aspectRatio(aspect, contentMode: .fit)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .disabled(session.credentials?.isUsable != true)
         .opacity(session.credentials?.isUsable == true ? 1 : 0.45)
     }
@@ -1227,53 +1245,68 @@ struct NutritionWatchView: View {
 
     var body: some View {
         let nutrition = model.today?.nutrition
-        ScrollView {
-            VStack(spacing: WatchTheme.gap) {
+        GeometryReader { geo in
+            let gap = WatchTheme.gap
+            let column = min(96, max(72, geo.size.width * 0.44))
+            let ring = max(0, min(geo.size.width - column - gap, geo.size.height * 0.48))
+            VStack(spacing: gap) {
                 WatchHeader(title: "Nutrition", back: true)
-                HStack(alignment: .center, spacing: WatchTheme.gap) {
+                HStack(alignment: .center, spacing: gap) {
                     WatchMacroRing(
                         calories: nutrition?.calories ?? 0,
                         target: nutrition?.targetCalories ?? 0,
                         protein: nutrition?.protein ?? 0,
                         carbs: nutrition?.carbs ?? 0,
                         fat: nutrition?.fat ?? 0,
-                        size: 108
+                        size: ring
                     )
-                    VStack(alignment: .leading, spacing: WatchTheme.gap) {
+                    VStack(alignment: .leading, spacing: 6) {
                         macroAmount(ProteinIcon(), nutrition?.protein, nutrition?.targetProtein, WatchTheme.protein)
                         macroAmount(CarbsIcon(), nutrition?.carbs, nutrition?.targetCarbs, WatchTheme.carbs)
                         macroAmount(FatIcon(), nutrition?.fat, nutrition?.targetFat, WatchTheme.fat)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(width: column, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                meals(nutrition?.meals ?? [])
-                if let error = model.error {
-                    Text(error)
-                        .font(.system(size: 10))
-                        .foregroundStyle(WatchTheme.red)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                ScrollView {
+                    VStack(spacing: gap) {
+                        meals(nutrition?.meals ?? [])
+                        if let error = model.error {
+                            Text(error)
+                                .font(.system(size: 10))
+                                .foregroundStyle(WatchTheme.red)
+                                .lineLimit(2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
                 }
+                .contentMargins(0, for: .scrollContent)
+                .scrollIndicators(.hidden)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.bottom, WatchTheme.gap)
         }
-        .watchScroll()
         .watchChrome()
     }
 
     private func macroAmount<Icon: View>(_ icon: Icon, _ value: Int?, _ target: Int?, _ tint: Color) -> some View {
         let current = value ?? 0
         let goal = target ?? 0
-        return HStack(spacing: 6) {
+        return HStack(alignment: .center, spacing: 5) {
             icon
                 .foregroundStyle(tint)
-                .frame(width: 18, height: 18)
-            Text("\(current)/\(goal)g")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+                .frame(width: 16, height: 16)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(current)g")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text("of \(goal)")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(WatchTheme.mute)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
             Spacer(minLength: 0)
         }
     }
@@ -1299,7 +1332,8 @@ struct NutritionWatchView: View {
                             Text(meal.name)
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(.white)
-                                .lineLimit(1)
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.85)
                             Text("\(meal.calories.formatted()) kcal")
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundStyle(WatchTheme.mute)
@@ -1322,29 +1356,31 @@ struct StepsWatchView: View {
         let goal = model.today?.steps.goal ?? 10000
         let steps = model.steps ?? 0
         let progress = WatchTheme.fraction(Double(steps), Double(max(goal, 1)))
-        let ring: CGFloat = 96
-        ScrollView {
-            VStack(spacing: WatchTheme.gap) {
+        GeometryReader { geo in
+            let gap = WatchTheme.gap
+            let stats = min(84, max(58, geo.size.width * 0.38))
+            let ring = max(0, min(geo.size.width - stats - gap, geo.size.height * 0.48))
+            VStack(spacing: gap) {
                 WatchHeader(title: "Steps", back: true)
-                HStack(alignment: .center, spacing: WatchTheme.gap) {
+                HStack(alignment: .center, spacing: gap) {
                     ZStack {
                         WatchRing(progress: progress, size: ring, tint: WatchTheme.steps)
-                        VStack(spacing: 2) {
+                        VStack(spacing: 1) {
                             Text(steps.formatted())
-                                .font(.system(size: ring * 0.22, weight: .bold, design: .rounded))
+                                .font(.system(size: ring * 0.2, weight: .bold, design: .rounded))
                                 .foregroundStyle(.white)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.5)
+                                .minimumScaleFactor(0.45)
                             Text("of \(goal.formatted())")
-                                .font(.system(size: max(8, ring * 0.1), weight: .medium))
+                                .font(.system(size: max(8, ring * 0.09), weight: .medium))
                                 .foregroundStyle(WatchTheme.mute)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.7)
+                                .minimumScaleFactor(0.55)
                         }
-                        .padding(.horizontal, ring * 0.16)
+                        .padding(.horizontal, ring * 0.2)
                     }
                     .frame(width: ring, height: ring)
-                    VStack(spacing: WatchTheme.gap) {
+                    VStack(spacing: gap) {
                         MoveStat(
                             symbol: "mappin",
                             value: kmText,
@@ -1358,16 +1394,14 @@ struct StepsWatchView: View {
                             tint: WatchTheme.kcal
                         )
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(width: stats)
                     .frame(height: ring)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 StepDayChart(hours: model.stepHours, tint: WatchTheme.steps)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 120)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.bottom, WatchTheme.gap)
         }
-        .watchScroll()
         .watchChrome()
     }
 
@@ -1461,8 +1495,11 @@ struct WaterWatchView: View {
         let goal = max(water?.goalMl ?? 2500, 1)
         GeometryReader { geo in
             let buttonHeight: CGFloat = 40
-            let headerHeight: CGFloat = 36
-            let ring = min(120, max(48, geo.size.height - headerHeight - buttonHeight - WatchTheme.gap * 2))
+            let headerHeight: CGFloat = 26
+            let ring = min(
+                geo.size.width - 4,
+                min(112, max(48, geo.size.height - headerHeight - buttonHeight - WatchTheme.gap * 2))
+            )
             VStack(spacing: WatchTheme.gap) {
                 WatchHeader(title: "Water", back: true)
                 ZStack {

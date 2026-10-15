@@ -11,7 +11,6 @@ import {
   Loader2,
   Pause,
   Play,
-  RotateCcw,
   SkipForward,
 } from "lucide-react";
 import {
@@ -43,7 +42,6 @@ import {
   getPhaseRemainingMs,
   hiitConfigHash,
   pauseHiitTimer,
-  resetHiitTimer,
   resumeHiitTimer,
   setHiitTimerState,
   startHiitTimer,
@@ -74,18 +72,49 @@ import {
 } from "@/components/day-workout-flow";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
-import { FitLabel } from "@/components/fit-label";
 import type { WorkoutSession } from "@/lib/types";
 import { cn, formatDateKey } from "@/lib/utils";
 import {
   SessionBusyOverlay,
   SessionCircleButton,
   SessionMediaStage,
-  SessionSideIconButton,
   SessionStat,
   SessionStatRow,
   SessionTopBar,
 } from "@/components/workout-session-ui";
+
+/** Fixed-width digits so a ticking clock cannot paint the old number on top of the new one. */
+function HiitBigClock({
+  value,
+  className,
+}: {
+  value: string;
+  className?: string;
+}) {
+  return (
+    <p
+      className={cn(
+        "flex items-center justify-center font-black leading-none tabular-nums",
+        "text-[min(22vw,11dvh)]",
+        className
+      )}
+      style={{ fontSynthesis: "none", fontVariantNumeric: "tabular-nums" }}
+      aria-live="off"
+    >
+      {value.split("").map((char, index) => (
+        <span
+          key={`${index}-${char}`}
+          className={cn(
+            "inline-flex items-center justify-center overflow-hidden",
+            char === ":" ? "w-[0.42em]" : "w-[0.68em]"
+          )}
+        >
+          {char}
+        </span>
+      ))}
+    </p>
+  );
+}
 
 function useHiitClock(state: HiitTimerState | null) {
   const [now, setNow] = useState(() => Date.now());
@@ -165,10 +194,6 @@ export function ActiveHiitClient({
   const finishCtaLabel =
     isWarmup && continuesToMain
       ? platform.workout.finishWarmupNextMain
-      : "Complete";
-  const finishCtaShortLabel =
-    isWarmup && continuesToMain
-      ? platform.workout.finishWarmupNextMainShort
       : "Complete";
   const doneBannerTitle =
     isWarmup && continuesToMain
@@ -418,14 +443,6 @@ export function ActiveHiitClient({
     goToPhase(timer.phaseIndex + 1);
   };
 
-  const handleReset = () => {
-    if (isBusy) return;
-    resetHiitTimer(session.id);
-    lastTickSecondRef.current = null;
-    lastPhaseSoundRef.current = null;
-    setTimer(null);
-  };
-
   const handleComplete = async () => {
     if (busyLockRef.current) return;
     busyLockRef.current = true;
@@ -591,16 +608,14 @@ export function ActiveHiitClient({
     : isIdle
       ? formatHiitClock(Math.floor(idlePreviewMs / 1000))
       : countdown;
-  const isFinalSeconds =
-    isRunning && !isDone && Math.ceil(remainingMs / 1000) <= 3;
   const phaseTone =
     isDone || isIdle
-      ? { text: "text-foreground", pill: "border-border bg-secondary/60 text-muted-foreground" }
+      ? "text-foreground"
       : phase?.type === "work"
-        ? { text: "text-primary", pill: "border-primary/40 bg-primary/15 text-primary" }
+        ? "text-primary"
         : phase?.type === "prepare"
-          ? { text: "text-amber-400", pill: "border-amber-400/40 bg-amber-400/15 text-amber-400" }
-          : { text: "text-emerald-400", pill: "border-emerald-400/40 bg-emerald-400/15 text-emerald-400" };
+          ? "text-amber-400"
+          : "text-emerald-400";
   const plannedStatSeconds = isRestPhase ? restSeconds : workSeconds;
   const plannedStatLabel = isRestPhase
     ? platform.workout.rest
@@ -668,20 +683,10 @@ export function ActiveHiitClient({
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-4 pb-1">
         <SessionMediaStage
-          className="mx-auto w-full max-w-[45dvh] shrink-0 [@media(max-height:700px)]:max-w-[38dvh]"
-          sideActions={
-            <>
-              <SessionSideIconButton
-                label="Reset"
-                onClick={handleReset}
-                disabled={isIdle || isBusy}
-              >
-                <RotateCcw className="h-4 w-4" />
-              </SessionSideIconButton>
-            </>
-          }
+          fill
+          className="min-h-0 w-full flex-1 [&>div]:border-0 [&>div]:bg-transparent [&>div]:shadow-none"
         >
-          <div className="relative aspect-[4/3] w-full overflow-hidden bg-black">
+          <div className="relative h-full min-h-0 w-full flex-1 overflow-hidden bg-black">
             {isIdle ? (
               <WorkoutTypeBanner
                 fill
@@ -714,27 +719,17 @@ export function ActiveHiitClient({
           </div>
         </SessionMediaStage>
 
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 text-center">
-          <span
+        <div className="flex shrink-0 flex-col items-center gap-1 text-center">
+          <p
             className={cn(
-              "rounded-full border px-3 py-0.5 text-xs font-black uppercase tracking-[0.18em]",
-              phaseTone.pill
+              "text-xs font-black uppercase tracking-[0.18em]",
+              phaseTone
             )}
           >
             {phaseEyebrow}
-          </span>
-          <p
-            className={cn(
-              "font-mono font-black leading-none tabular-nums tracking-tighter",
-              "text-[min(26vw,12dvh)]",
-              phaseTone.text,
-              isFinalSeconds && "animate-pulse"
-            )}
-            aria-live="off"
-          >
-            {bigClock}
           </p>
-          <h2 className="line-clamp-2 text-xl font-black leading-tight tracking-tight sm:text-2xl">
+          <HiitBigClock value={bigClock} className={phaseTone} />
+          <h2 className="max-w-full text-balance text-xl font-black leading-tight tracking-tight sm:text-2xl">
             {headline}
           </h2>
           {!isDone && nextPhase && nextPhase.type !== "done" ? (
@@ -745,7 +740,7 @@ export function ActiveHiitClient({
           ) : null}
         </div>
 
-        <SessionStatRow className="shrink-0 grid-cols-2 py-2">
+        <SessionStatRow className="shrink-0 grid-cols-2 border-0 py-1">
           <SessionStat
             value={formatHiitClock(plannedStatSeconds)}
             label={plannedStatLabel}
@@ -768,24 +763,13 @@ export function ActiveHiitClient({
         ) : null}
       </div>
 
-      <div className="flex shrink-0 flex-col gap-2 border-t border-border/50 px-4 pb-[max(0.5rem,var(--safe-area-bottom))] pt-2.5">
+      <div className="flex shrink-0 flex-col gap-2 px-4 pb-[max(0.5rem,var(--safe-area-bottom))] pt-2">
         {!isIdle && !isDone ? (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              className="h-11 shrink-0 gap-1.5 rounded-full px-4 text-sm font-semibold"
-              disabled={isBusy}
-              onClick={handleSkip}
-            >
-              <SkipForward className="h-4 w-4" />
-              {platform.workout.skipExercise}
-            </Button>
+          <>
             <Button
               type="button"
               size="lg"
-              className="h-11 min-w-0 flex-1 gap-2 rounded-full text-sm font-black uppercase tracking-wide"
+              className="h-auto min-h-11 w-full gap-2 whitespace-normal rounded-full px-4 py-2.5 text-center text-sm font-black uppercase leading-tight tracking-wide"
               disabled={isBusy}
               onClick={handleComplete}
             >
@@ -794,16 +778,27 @@ export function ActiveHiitClient({
               ) : (
                 <>
                   <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                  <FitLabel full={finishCtaLabel} short={finishCtaShortLabel} />
+                  {finishCtaLabel}
                 </>
               )}
             </Button>
-          </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              className="h-11 w-full gap-1.5 rounded-full px-4 text-sm font-semibold"
+              disabled={isBusy}
+              onClick={handleSkip}
+            >
+              <SkipForward className="h-4 w-4" />
+              {platform.workout.skipExercise}
+            </Button>
+          </>
         ) : !isIdle ? (
           <Button
             type="button"
             size="lg"
-            className="h-11 w-full shrink-0 gap-2 rounded-full text-sm font-black uppercase tracking-wide"
+            className="h-auto min-h-11 w-full shrink-0 gap-2 whitespace-normal rounded-full px-4 py-2.5 text-center text-sm font-black uppercase leading-tight tracking-wide"
             disabled={isBusy}
             onClick={handleComplete}
           >
@@ -812,7 +807,7 @@ export function ActiveHiitClient({
             ) : (
               <>
                 <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                <FitLabel full={finishCtaLabel} short={finishCtaShortLabel} />
+                {finishCtaLabel}
               </>
             )}
           </Button>

@@ -1,6 +1,7 @@
 import ActivityKit
 import Capacitor
 import Foundation
+import UIKit
 
 @objc(LiveWorkoutPlugin)
 public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -24,8 +25,8 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
         let exerciseCount = Self.int(call, "exerciseCount", fallback: 1)
         let setNumber = Self.int(call, "setNumber", fallback: 1)
         let setCount = Self.int(call, "setCount", fallback: 1)
-        let reps = Self.int(call, "reps", fallback: 8)
-        let weight = Self.double(call, "weightKg", fallback: 20)
+        let reps = Self.int(call, "reps", fallback: 6)
+        let weight = Self.double(call, "weightKg", fallback: 10)
         let setId = call.getString("setId") ?? ""
         let gifUrl = call.getString("gifUrl")
         let baseRevision = Self.int(call, "baseRevision", fallback: 0)
@@ -35,6 +36,9 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         let generation = LiveWorkoutStore.beginSync()
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
         Task {
             guard LiveWorkoutStore.isSyncCurrent(generation) else {
                 call.resolve()
@@ -95,6 +99,9 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
         Task {
             await LiveWorkoutQueue.flush()
             await LiveWorkoutSync.endAll()
+            await MainActor.run {
+                UIApplication.shared.isIdleTimerDisabled = false
+            }
             call.resolve()
         }
     }
@@ -154,6 +161,7 @@ enum LiveWorkoutActivity {
             outgoing.restEndsAt = end
             outgoing.restSeconds = current.restSeconds
         }
+        LiveWorkoutSync.remember(outgoing)
         let content = ActivityContent(state: outgoing, staleDate: outgoing.restEndsAt)
         if Activity<WorkoutActivityAttributes>.activities.isEmpty {
             guard let activity = try? Activity.request(

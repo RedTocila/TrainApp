@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import type { WorkoutPlanKind } from "@/lib/hiit";
 import { cn } from "@/lib/utils";
@@ -22,7 +22,7 @@ function normalizeStep(kind: string | null | undefined): WorkoutPlanKind {
   return "strength";
 }
 
-/** Warm-up → Main → Stretch — numbered steps with “Step X of 3”. */
+/** Warm-up → Main → Stretch, with an arrow between each step. */
 export function DayFlowProgress({
   currentKind,
   className,
@@ -62,68 +62,39 @@ export function DayFlowProgress({
         </p>
       ) : null}
 
-      <ol className={cn("grid grid-cols-3", compact ? "gap-1" : "gap-1.5")}>
+      <ol className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1">
         {STEPS.map((step, index) => {
           const done = index < currentIndex;
           const active = index === currentIndex;
           const label = stepShortLabel(step, platform);
           return (
-            <li key={step} className="min-w-0">
-              <div
+            <li key={step} className="flex min-w-0 items-center gap-1">
+              {index > 0 ? (
+                <ChevronRight
+                  className={cn(
+                    "h-3.5 w-3.5 shrink-0",
+                    variant === "dark" ? "text-white/45" : "text-muted-foreground"
+                  )}
+                  aria-hidden
+                />
+              ) : null}
+              <span
                 className={cn(
-                  "flex items-center transition-colors",
-                  compact
-                    ? "justify-center gap-1 rounded-lg border px-1.5 py-1"
-                    : "gap-1.5 rounded-xl border px-2 py-1.5",
+                  "whitespace-nowrap font-bold uppercase tracking-wide",
+                  compact ? "text-[11px]" : "text-xs",
                   active &&
-                    (variant === "dark"
-                      ? "border-white/35 bg-white text-black shadow-sm"
-                      : "border-primary/40 bg-primary text-primary-foreground shadow-sm"),
+                    (variant === "dark" ? "text-white" : "text-primary"),
                   done &&
                     !active &&
-                    (variant === "dark"
-                      ? "border-emerald-400/35 bg-emerald-500/15 text-emerald-200"
-                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"),
+                    (variant === "dark" ? "text-white/80" : "text-foreground"),
                   !done &&
                     !active &&
-                    (variant === "dark"
-                      ? "border-white/10 bg-white/5 text-white/45"
-                      : "border-border/60 bg-secondary/50 text-muted-foreground")
+                    (variant === "dark" ? "text-white/45" : "text-muted-foreground")
                 )}
                 aria-current={active ? "step" : undefined}
-                aria-label={label}
-                title={label}
               >
-                <span
-                  className={cn(
-                    "flex shrink-0 items-center justify-center rounded-full font-black tabular-nums",
-                    compact ? "h-4 w-4 text-[9px]" : "h-5 w-5 text-[10px]",
-                    active &&
-                      (variant === "dark" ? "bg-black/10" : "bg-white/20"),
-                    done &&
-                      !active &&
-                      (variant === "dark" ? "bg-emerald-400/20" : "bg-emerald-500/20"),
-                    !done &&
-                      !active &&
-                      (variant === "dark" ? "bg-white/10" : "bg-background/70")
-                  )}
-                >
-                  {done ? (
-                    <Check className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} strokeWidth={3} />
-                  ) : (
-                    index + 1
-                  )}
-                </span>
-                {!compact ? (
-                  <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-wide">
-                    {label}
-                  </span>
-                ) : (
-                  <span className="min-w-0 truncate text-[9px] font-bold uppercase tracking-wide">
-                    {label}
-                  </span>
-                )}
-              </div>
+                {index + 1} {label}
+              </span>
             </li>
           );
         })}

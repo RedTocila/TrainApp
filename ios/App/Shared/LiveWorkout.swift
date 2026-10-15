@@ -311,8 +311,8 @@ struct LiveBoard: Codable, Equatable {
             name: exercise.name,
             setNumber: open?.number ?? count,
             setCount: count,
-            reps: open?.reps ?? exercise.sets.last?.reps ?? 8,
-            weightKg: open?.weightKg ?? exercise.sets.last?.weightKg ?? 0,
+            reps: open?.reps ?? exercise.sets.last?.reps ?? 6,
+            weightKg: open?.weightKg ?? exercise.sets.last?.weightKg ?? 10,
             setId: open?.id ?? "",
             exerciseIndex: index,
             exerciseCount: max(exercises.count, 1),
@@ -743,6 +743,14 @@ private enum LiveWorkoutError: LocalizedError {
 
 @available(iOS 16.2, *)
 enum LiveWorkoutSync {
+    /// Latest numbers from a Lock Screen tap. Activity content lags behind the tap.
+    private static var pending: WorkoutActivityAttributes.ContentState?
+
+    static func remember(_ state: WorkoutActivityAttributes.ContentState) {
+        pending = state
+    }
+    private static var adjustChain: Task<Void, Never> = Task {}
+
     static func state(
         name: String,
         setNumber: Int,
@@ -784,26 +792,28 @@ enum LiveWorkoutSync {
 
     static func update(_ state: WorkoutActivityAttributes.ContentState) async {
         guard LiveWorkoutStore.isLive else { return }
+        pending = state
+        await publish(state)
         LiveWorkoutStore.saveDraft(
             index: state.exerciseIndex,
             setId: state.setId,
             reps: state.reps,
             weight: state.weightKg
         )
-        await publish(state)
     }
 
     /// Lock Screen edits apply locally first. The phone must not rewind them.
     static func pushLocal(_ state: WorkoutActivityAttributes.ContentState) async {
-        if Activity<WorkoutActivityAttributes>.activities.first?.content.state == state { return }
+        if pending == state { return }
+        pending = state
         LiveWorkoutStore.revision += 1
+        await publish(state)
         LiveWorkoutStore.saveDraft(
             index: state.exerciseIndex,
             setId: state.setId,
             reps: state.reps,
             weight: state.weightKg
         )
-        await publish(state)
     }
 
     private static func publish(_ state: WorkoutActivityAttributes.ContentState) async {
@@ -820,6 +830,7 @@ enum LiveWorkoutSync {
         }
         let generation = LiveWorkoutStore.syncGeneration
         guard !LiveWorkoutStore.isLive, LiveWorkoutStore.syncGeneration == generation else { return }
+        pending = nil
         LiveWorkoutStore.clearDraft()
         LiveWorkoutStore.board = nil
         LiveWorkoutStore.revision = 0
@@ -856,7 +867,17 @@ enum LiveWorkoutSync {
     }
 
     static func adjust(repsDelta: Int, weightDelta: Double) async {
-        guard var state = Activity<WorkoutActivityAttributes>.activities.first?.content.state else { return }
+        let previous = adjustChain
+        let task = Task {
+            await previous.value
+            await applyAdjust(repsDelta: repsDelta, weightDelta: weightDelta)
+        }
+        adjustChain = task
+        await task.value
+    }
+
+    private static func applyAdjust(repsDelta: Int, weightDelta: Double) async {
+        guard var state = pending ?? Activity<WorkoutActivityAttributes>.activities.first?.content.state else { return }
         if state.isResting { return }
         if repsDelta != 0 {
             state.reps = min(40, max(1, state.reps + repsDelta))
@@ -865,14 +886,14 @@ enum LiveWorkoutSync {
             let next = min(200, max(0, state.weightKg + weightDelta))
             state.weightKg = (next * 10).rounded() / 10
         }
+        await pushLocal(state)
         if var board = LiveWorkoutStore.board, board.write(setId: state.setId, reps: state.reps, weight: state.weightKg) {
             LiveWorkoutStore.board = board
         }
-        await pushLocal(state)
     }
 
     static func logCurrent() async {
-        guard let state = Activity<WorkoutActivityAttributes>.activities.first?.content.state,
+        guard let state = pending ?? Activity<WorkoutActivityAttributes>.activities.first?.content.state,
               !state.setId.isEmpty,
               !state.isResting else { return }
         LiveWorkoutQueue.enqueue(setId: state.setId, reps: state.reps, weight: state.weightKg)

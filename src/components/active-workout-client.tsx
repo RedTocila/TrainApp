@@ -403,46 +403,30 @@ function ActiveExercisePanel({
   // Match previous set by index for the set you're about to log.
   const previousForNextSet =
     previousSets[completedSets] ?? previousSets[previousSets.length - 1] ?? null;
-  const repsPlaceholder =
-    previousForNextSet?.reps != null
-      ? String(previousForNextSet.reps)
-      : platform.workout.reps;
   const currentSetNumber = Math.min(completedSets + 1, targetSets);
-  const repsDisplay =
-    repsDraft !== ""
-      ? repsDraft
-      : activeSet?.reps != null
-        ? String(activeSet.reps)
-        : repsPlaceholder;
+  const startingReps =
+    activeSet?.reps ?? previousForNextSet?.reps ?? 6;
+  const startingWeightKg =
+    activeSet?.weight_kg != null
+      ? Number(activeSet.weight_kg)
+      : previousForNextSet?.weight_kg != null
+        ? Number(previousForNextSet.weight_kg)
+        : 10;
+  const repsDisplay = repsDraft !== "" ? repsDraft : String(startingReps);
   const weightDisplay =
     weightDraft !== ""
       ? weightDraft
-      : activeSet?.weight_kg != null
-        ? units.formatWeightKg(Number(activeSet.weight_kg))
-        : previousForNextSet?.weight_kg != null
-          ? units.formatWeightKg(Number(previousForNextSet.weight_kg))
-          : units.formatWeightKg(0);
+      : units.formatWeightKg(startingWeightKg);
 
   const adjustReps = (delta: number) => {
     const parsed = parseRepsField(repsDraft);
-    const base =
-      parsed ??
-      activeSet?.reps ??
-      previousForNextSet?.reps ??
-      (typeof exercise.target_reps === "number"
-        ? exercise.target_reps
-        : parseInt(String(exercise.target_reps || 10), 10)) ??
-      10;
+    const base = parsed ?? startingReps;
     setRepsDraft(String(Math.max(0, base + delta)));
   };
 
   const adjustWeight = (deltaKg: number) => {
     const parsed = parseWeightField(weightDraft);
-    const baseKg =
-      parsed ??
-      activeSet?.weight_kg ??
-      previousForNextSet?.weight_kg ??
-      0;
+    const baseKg = parsed ?? startingWeightKg;
     const next = Math.max(0, Number(baseKg) + deltaKg);
     setWeightDraft(units.formatWeightKg(next));
   };
@@ -520,21 +504,14 @@ function ActiveExercisePanel({
     if (readOnly) return;
     let reps = parseRepsField(repsDraft);
     let weight_kg = parseWeightField(weightDraft);
-    if (reps == null && previousForNextSet?.reps != null) {
-      reps = previousForNextSet.reps;
-    }
-    if (weight_kg == null && previousForNextSet?.weight_kg != null) {
-      weight_kg = Number(previousForNextSet.weight_kg);
-    }
+    if (reps == null) reps = startingReps;
+    if (weight_kg == null) weight_kg = startingWeightKg;
     if (
       (repsDraft.trim() !== "" && (reps == null || Number.isNaN(reps))) ||
       (weightDraft.trim() !== "" && (weight_kg == null || Number.isNaN(weight_kg)))
     ) {
       return;
     }
-    // Untouched load is bodyweight. Explicit 0 stays 0.
-    if (weight_kg == null) weight_kg = 0;
-    if (reps == null && repsDraft.trim() === "" && weightDraft.trim() === "") return;
 
     if (activeSet) {
       if (loggingSetId.current === activeSet.id) return;
@@ -563,37 +540,27 @@ function ActiveExercisePanel({
     if (readOnly || !onLiveDraft || applyingRemote.current) return;
     const parsedReps = parseRepsField(repsDraft);
     const parsedWeight = parseWeightField(weightDraft);
-    const reps =
-      parsedReps ??
-      activeSet?.reps ??
-      previousForNextSet?.reps ??
-      (typeof exercise.target_reps === "number"
-        ? exercise.target_reps
-        : parseInt(String(exercise.target_reps || 8), 10));
-    const weight =
-      parsedWeight ??
-      (activeSet?.weight_kg != null ? Number(activeSet.weight_kg) : null) ??
-      (previousForNextSet?.weight_kg != null
-        ? Number(previousForNextSet.weight_kg)
-        : 20);
+    const reps = parsedReps ?? startingReps;
+    const weight = parsedWeight ?? startingWeightKg;
     onLiveDraft({
       setId: activeSet?.id ?? null,
       setNumber: currentSetNumber,
       setCount: targetSets,
-      reps: Math.min(40, Math.max(1, Number.isFinite(reps) ? reps : 8)),
-      weightKg: Math.min(200, Math.max(0, Number.isFinite(weight) ? weight : 0)),
+      reps: Math.min(40, Math.max(1, Number.isFinite(reps) ? reps : 6)),
+      weightKg: Math.min(200, Math.max(0, Number.isFinite(weight) ? weight : 10)),
     });
   }, [
     activeSet?.id,
     activeSet?.reps,
     activeSet?.weight_kg,
     currentSetNumber,
-    exercise.target_reps,
     onLiveDraft,
     previousForNextSet?.reps,
     previousForNextSet?.weight_kg,
     readOnly,
     repsDraft,
+    startingReps,
+    startingWeightKg,
     targetSets,
     weightDraft,
   ]);

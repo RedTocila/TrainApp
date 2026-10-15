@@ -211,6 +211,9 @@ struct RutinaWatchApp: App {
             DashboardView()
                 .environmentObject(session)
                 .environmentObject(model)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.ignoresSafeArea())
+                .persistentSystemOverlays(.hidden)
                 .onAppear {
                     session.onCardio = { payload in
                         model.applyCardioMirror(payload)
