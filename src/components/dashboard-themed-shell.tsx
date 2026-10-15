@@ -97,6 +97,7 @@ export const DASHBOARD_CARD_BACKGROUNDS = {
   photos: "/dashboard/progress-photos.jpg",
   weight: "/dashboard/body-weight.jpg",
   bmi: "/dashboard/bmi.jpg",
+  steps: "/dashboard/steps.jpg",
   lifestyle: "/dashboard/lifestyle.jpg",
   habits: "/dashboard/habits.jpg",
 } as const;
@@ -108,7 +109,8 @@ const PHOTO_OBJECT_POSITION: Partial<Record<DashboardCardTheme, string>> = {
   workout: "object-[68%_42%] scale-[1.22] origin-[68%_42%]",
   photos: "object-[40%_center]",
   weight: "object-[30%_center]",
-  bmi: "object-center",
+  bmi: "object-[center_32%]",
+  steps: "object-[center_28%]",
   lifestyle: "object-[20%_center]",
   habits: "object-center",
 };

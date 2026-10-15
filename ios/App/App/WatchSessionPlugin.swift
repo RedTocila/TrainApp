@@ -47,11 +47,19 @@ final class WatchConnectivityBridge: NSObject, WCSessionDelegate {
     }
 
     func sendWorkout(_ payload: [String: Any]) {
+        send(payload, channel: "workout")
+    }
+
+    func sendCardio(_ payload: [String: Any]) {
+        send(payload, channel: "cardio")
+    }
+
+    private func send(_ payload: [String: Any], channel: String) {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
         guard session.activationState == .activated else { return }
         var message = payload
-        message["channel"] = "workout"
+        message["channel"] = channel
         message["origin"] = "phone"
         if message["seq"] == nil {
             message["seq"] = Int(Date().timeIntervalSince1970 * 1000)
@@ -113,7 +121,8 @@ public class WatchSessionPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "sync", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clear", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "pushMirror", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "pushMirror", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pushCardio", returnType: CAPPluginReturnPromise)
     ]
 
     public override func load() {
@@ -139,6 +148,18 @@ public class WatchSessionPlugin: CAPPlugin, CAPBridgedPlugin {
         payload["hiitEndsAt"] = call.getDouble("hiitEndsAt") ?? 0
         WatchConnectivityBridge.shared.activate()
         WatchConnectivityBridge.shared.sendWorkout(payload)
+        call.resolve()
+    }
+
+    @objc func pushCardio(_ call: CAPPluginCall) {
+        var payload: [String: Any] = [:]
+        if let status = call.getString("status") { payload["status"] = status }
+        if let action = call.getString("action") { payload["action"] = action }
+        if let cardioId = call.getString("cardioId") { payload["cardioId"] = cardioId }
+        payload["elapsedSeconds"] = call.getInt("elapsedSeconds") ?? 0
+        payload["completed"] = call.getBool("completed") ?? false
+        WatchConnectivityBridge.shared.activate()
+        WatchConnectivityBridge.shared.sendCardio(payload)
         call.resolve()
     }
 

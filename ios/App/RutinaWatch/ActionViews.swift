@@ -9,94 +9,68 @@ struct WorkoutWatchView: View {
 
     var body: some View {
         let workout = model.today?.workout
-        VStack(spacing: 8) {
-            WatchHeader(title: "Workout", back: true)
-            ScrollView {
-                VStack(spacing: 8) {
-                    ExerciseMedia(gifUrl: gifURL(workout))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 96)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(workout?.title ?? "Rest day")
-                            .font(.system(size: 16, weight: .bold))
+        let inProgress = workout?.status == "in_progress"
+        ScrollView {
+            VStack(spacing: WatchTheme.gap) {
+                WatchHeader(title: "Workout", back: true)
+                ExerciseMedia(gifUrl: gifURL(workout))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 150)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(headline(workout))
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                    if inProgress {
+                        Text("Set \(workout?.setNumber ?? 1)")
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(.white)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.7)
-                        Text(detail(workout))
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(WatchTheme.mute)
-                            .lineLimit(2)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .watchCard(16)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                    if workout?.status == "in_progress", workout?.setId != nil {
-                        if let name = workout?.exerciseName {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Set \(workout?.setNumber ?? 1)")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(WatchTheme.red)
-                                Text(name)
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(2)
-                                    .minimumScaleFactor(0.7)
-                                if let target = workout?.targetReps, !target.isEmpty {
-                                    Text(target)
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundStyle(WatchTheme.mute)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
-                            .watchCard(16)
-                        }
-                        dial("Reps", value: "\(reps)", down: { reps = max(1, reps - 1) }, up: { reps = min(40, reps + 1) })
+                if inProgress {
+                    HStack(alignment: .top, spacing: WatchTheme.gap) {
                         dial("Weight", value: "\(weightText) kg", down: { weight = max(0, snap(weight - 2.5)) }, up: { weight = min(300, snap(weight + 2.5)) })
-                    } else if workout?.status == "completed" {
-                        Text("Done for today")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(WatchTheme.mute)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else if workout?.status == "in_progress" {
-                        Text("Open this one on your iPhone.")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(WatchTheme.mute)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else if workout?.title == nil {
-                        Text("Nothing scheduled.")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(WatchTheme.mute)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        dial("Reps", value: "\(reps)", down: { reps = max(1, reps - 1) }, up: { reps = min(40, reps + 1) })
                     }
-                    if let error = model.error {
-                        Text(error)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(WatchTheme.red)
-                            .lineLimit(3)
+                } else if workout?.status == "completed" {
+                    Text("Done for today")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(WatchTheme.mute)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else if workout?.title == nil {
+                    Text("Nothing scheduled.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(WatchTheme.mute)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if let error = model.error {
+                    Text(error)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(WatchTheme.red)
+                        .lineLimit(3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if inProgress {
+                    WatchAction(title: "Next set", symbol: "checkmark") {
+                        let loggedReps = reps
+                        let loggedWeight = weight
+                        watchAct { Task { await model.logSet(reps: loggedReps, weight: loggedWeight) } }
+                    }
+                    WatchAction(title: "Cancel", symbol: "xmark", fill: WatchTheme.card) {
+                        watchAct { Task { await model.cancelWorkout() } }
+                    }
+                } else if workout?.status == "scheduled" {
+                    WatchAction(title: "Start", symbol: "play.fill") {
+                        watchAct { Task { await model.startWorkout() } }
                     }
                 }
-                .padding(.bottom, 8)
             }
-            .scrollIndicators(.hidden)
-            if workout?.status == "in_progress", workout?.setId != nil {
-                WatchAction(title: "Log set", symbol: "checkmark") {
-                    let loggedReps = reps
-                    let loggedWeight = weight
-                    Task { await model.logSet(reps: loggedReps, weight: loggedWeight) }
-                }
-            }
-            if workout?.status == "in_progress" {
-                WatchAction(title: "Cancel", symbol: "xmark", fill: WatchTheme.card) {
-                    Task { await model.cancelWorkout() }
-                }
-            } else if workout?.status == "scheduled" {
-                WatchAction(title: "Start", symbol: "play.fill") {
-                    Task { await model.startWorkout() }
-                }
-            }
+            .padding(.bottom, 20)
         }
+        .watchScroll()
         .watchChrome()
         .onAppear(perform: seed)
         .onChange(of: model.today?.workout.setId) { _, _ in seed() }
@@ -115,17 +89,12 @@ struct WorkoutWatchView: View {
         return workout?.exercises.first?.gifUrl ?? workout?.phases.first?.gifUrl
     }
 
-    private func detail(_ workout: WatchWorkout?) -> String {
-        switch workout?.status {
-        case "completed": return "Done for today"
-        case "in_progress": return "Log this set, then the next one loads."
-        case "scheduled":
-            let count = workout?.exercises.count ?? workout?.phases.count ?? 0
-            if count == 1 { return "1 exercise" }
-            if count > 1 { return "\(count) exercises" }
-            return "Ready"
-        default: return "Nothing scheduled."
+    private func headline(_ workout: WatchWorkout?) -> String {
+        if workout?.status == "in_progress", let name = workout?.exerciseName, !name.isEmpty {
+            return name
         }
+        if let title = workout?.title, !title.isEmpty { return title }
+        return "Rest day"
     }
 
     private func seed() {
@@ -150,27 +119,31 @@ struct WorkoutWatchView: View {
     }
 
     private func dial(_ title: String, value: String, down: @escaping () -> Void, up: @escaping () -> Void) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             Text(title)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white)
-            HStack(spacing: 0) {
-                step("minus", action: down)
+                .lineLimit(1)
+            VStack(spacing: 8) {
+                step("plus", action: up)
                 Text(value)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .monospacedDigit()
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.55)
                     .frame(maxWidth: .infinity)
-                step("plus", action: up)
+                step("minus", action: down)
             }
-            .padding(4)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 4)
+            .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(WatchTheme.card)
             )
         }
+        .frame(maxWidth: .infinity)
     }
 
     private func step(_ symbol: String, action: @escaping () -> Void) -> some View {
@@ -307,7 +280,7 @@ private actor MotionLibrary {
         var delays: [Double] = []
         var index = 0
         let options: [CFString: Any] = [
-            kCGImageSourceThumbnailMaxPixelSize: 180,
+            kCGImageSourceThumbnailMaxPixelSize: 280,
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCache: false,
@@ -378,7 +351,6 @@ private func roundIcon(
     fill: Color,
     size: CGFloat = 44,
     enabled: Bool = true,
-    glow: Bool = false,
     action: @escaping () -> Void
 ) -> some View {
     Button(action: action) {
@@ -387,7 +359,6 @@ private func roundIcon(
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(Circle().fill(fill))
-            .shadow(color: glow ? WatchTheme.red.opacity(0.55) : .clear, radius: glow ? 5 : 0)
             .opacity(enabled ? 1 : 0.35)
     }
     .buttonStyle(.plain)
@@ -428,79 +399,82 @@ struct CardioWatchView: View {
         let planned = cardio?.plannedMinutes ?? 0
         let plannedSeconds = planned > 0 ? planned * 60 : 0
         let title = cardio?.title?.isEmpty == false ? (cardio?.title ?? "Cardio") : "Cardio"
-        VStack(spacing: 8) {
-            WatchHeader(title: "Cardio", back: true)
-            if !scheduled {
-                Spacer(minLength: 0)
-                Text("No cardio today")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                Text("Nothing scheduled")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(WatchTheme.mute)
-                Spacer(minLength: 0)
-            } else {
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.7)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                Spacer(minLength: 0)
-                ZStack {
-                    WatchRing(
-                        progress: plannedSeconds > 0
-                            ? WatchTheme.fraction(Double(elapsed), Double(plannedSeconds))
-                            : (done ? 1 : 0),
-                        size: 108,
-                        tint: WatchTheme.cardio,
-                        glow: running
-                    )
-                    VStack(spacing: 2) {
-                        Text(done ? "Done" : WatchTheme.clock(elapsed))
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-                        Text(running ? "Going" : (paused ? "Paused" : (done ? "Saved" : "Ready")))
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(WatchTheme.cardio)
-                    }
-                }
-                if plannedSeconds > 0 {
-                    HStack(spacing: 8) {
-                        cardioChip("Planned", WatchTheme.clock(plannedSeconds))
-                        cardioChip(
-                            elapsed >= plannedSeconds ? "Over" : "Left",
-                            elapsed >= plannedSeconds
-                                ? "+\(WatchTheme.clock(elapsed - plannedSeconds))"
-                                : WatchTheme.clock(plannedSeconds - elapsed)
-                        )
-                    }
-                }
-                Spacer(minLength: 0)
-                if running || paused {
-                    WatchAction(title: "Stop", symbol: "stop.fill", fill: WatchTheme.cardio) {
-                        Task { await model.stopCardio() }
-                    }
-                } else if !done {
-                    WatchAction(title: "Start", symbol: "play.fill", fill: WatchTheme.cardio) {
-                        Task { await model.startCardio() }
-                    }
-                }
-                if let note = model.notice ?? model.error {
-                    Text(note)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(model.error == nil ? WatchTheme.mute : WatchTheme.red)
+        ScrollView {
+            VStack(spacing: WatchTheme.gap) {
+                WatchHeader(title: "Cardio", back: true)
+                if !scheduled {
+                    Text("No cardio today")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
-                        .lineLimit(3)
+                        .frame(maxWidth: .infinity)
+                    Text("Nothing scheduled")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(WatchTheme.mute)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
                         .minimumScaleFactor(0.7)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                    ZStack {
+                        WatchRing(
+                            progress: plannedSeconds > 0
+                                ? WatchTheme.fraction(Double(elapsed), Double(plannedSeconds))
+                                : (done ? 1 : 0),
+                            size: 108,
+                            tint: WatchTheme.cardio
+                        )
+                        VStack(spacing: 4) {
+                            Text(done ? "Done" : WatchTheme.clock(elapsed))
+                                .font(.system(size: 26, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .monospacedDigit()
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                            Text(running ? "Going" : (paused ? "Paused" : (done ? "Saved" : "Ready")))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(WatchTheme.cardio)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    if plannedSeconds > 0 {
+                        HStack(spacing: WatchTheme.gap) {
+                            cardioChip("Planned", WatchTheme.clock(plannedSeconds))
+                            cardioChip(
+                                elapsed >= plannedSeconds ? "Over" : "Left",
+                                elapsed >= plannedSeconds
+                                    ? "+\(WatchTheme.clock(elapsed - plannedSeconds))"
+                                    : WatchTheme.clock(plannedSeconds - elapsed)
+                            )
+                        }
+                    }
+                    if running || paused {
+                        WatchAction(title: "Stop", symbol: "stop.fill", fill: WatchTheme.cardio) {
+                            watchAct { Task { await model.stopCardio() } }
+                        }
+                    } else if !done {
+                        WatchAction(title: "Start", symbol: "play.fill", fill: WatchTheme.cardio) {
+                            watchAct { Task { await model.startCardio() } }
+                        }
+                    }
+                    if let note = model.notice ?? model.error {
+                        Text(note)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(model.error == nil ? WatchTheme.mute : WatchTheme.red)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(3)
+                            .minimumScaleFactor(0.7)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
             }
+            .padding(.bottom, 20)
         }
+        .watchScroll()
         .watchChrome()
         .onAppear { clock.setRunning(running) }
         .onChange(of: running) { _, isRunning in

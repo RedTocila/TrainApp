@@ -8,7 +8,10 @@ import { Footprints, Pencil } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { dashboard } from "@/components/dashboard-ui";
-import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import {
+  DashboardThemedShell,
+  DASHBOARD_CARD_BACKGROUNDS,
+} from "@/components/dashboard-themed-shell";
 import { dashboardInteractive } from "@/components/dashboard-card-nav-link";
 import { AppDialog } from "@/components/app-dialog";
 import { Button } from "@/components/ui/button";
@@ -147,6 +150,8 @@ export function DashboardStepsCard({
     <DashboardThemedShell
       id="dashboard-steps"
       theme="steps"
+      backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.steps}
+      backgroundAlt={title}
       className={cn(dashboard.pairTile, "relative isolate")}
     >
       <div className="flex h-7 shrink-0 items-center gap-1.5">

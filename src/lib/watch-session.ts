@@ -43,6 +43,13 @@ type WatchSessionPlugin = {
     hiitLeft?: number;
     hiitEndsAt?: number;
   }): Promise<void>;
+  pushCardio(options: {
+    status: string;
+    action: string;
+    cardioId: string;
+    elapsedSeconds: number;
+    completed: boolean;
+  }): Promise<void>;
   addListener(
     event: "workoutMirror",
     handler: (payload: Record<string, unknown>) => void
@@ -166,5 +173,23 @@ export async function pushWorkoutMirror(input: {
     hiitRunning: input.hiitRunning ?? false,
     hiitLeft: input.hiitLeft ?? 0,
     hiitEndsAt: input.hiitEndsAt ?? 0,
+  }).catch(() => undefined);
+}
+
+/** Tell the open Apple Watch that cardio started, paused, resumed, or stopped. */
+export async function pushCardioMirror(input: {
+  status: "idle" | "running" | "paused" | "completed";
+  action: string;
+  cardioId: string;
+  elapsedSeconds: number;
+  completed?: boolean;
+}): Promise<void> {
+  if (!onIos() || !input.cardioId) return;
+  await WatchSession.pushCardio({
+    status: input.status,
+    action: input.action,
+    cardioId: input.cardioId,
+    elapsedSeconds: Math.max(0, Math.round(input.elapsedSeconds)),
+    completed: input.completed ?? input.status === "completed",
   }).catch(() => undefined);
 }

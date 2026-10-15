@@ -6,6 +6,7 @@ final class WatchSessionBridge: NSObject, WCSessionDelegate, ObservableObject {
     static let shared = WatchSessionBridge()
 
     @Published var credentials: WatchCredentials?
+    var onCardio: (([String: Any]) -> Void)?
     private let defaultsKey = "rutina.watch.credentials"
 
     private override init() {
@@ -192,6 +193,10 @@ final class WatchSessionBridge: NSObject, WCSessionDelegate, ObservableObject {
 
     private func deliver(_ payload: [String: Any]) {
         if payload["channel"] as? String == "workout" { return }
+        if payload["channel"] as? String == "cardio" {
+            onCardio?(payload)
+            return
+        }
         apply(payload)
     }
 }
@@ -206,8 +211,16 @@ struct RutinaWatchApp: App {
             DashboardView()
                 .environmentObject(session)
                 .environmentObject(model)
+                .onAppear {
+                    session.onCardio = { payload in
+                        model.applyCardioMirror(payload)
+                    }
+                }
                 .task {
                     session.activate()
+                    session.onCardio = { payload in
+                        model.applyCardioMirror(payload)
+                    }
                     await model.refresh()
                 }
         }

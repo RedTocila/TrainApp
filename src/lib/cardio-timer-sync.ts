@@ -6,10 +6,12 @@ import {
 } from "@/lib/actions/cardio-timer";
 import {
   clearCardioTimerState,
+  getCardioElapsedMs,
   getCardioTimerState,
   setCardioTimerState,
   type CardioTimerState,
 } from "@/lib/cardio-timer-storage";
+import { pushCardioMirror } from "@/lib/watch-session";
 
 function sameTimer(local: CardioTimerState | null, next: CardioTimerState) {
   if (!local) return false;
@@ -29,9 +31,20 @@ export function pushLocalCardioTimer(state: CardioTimerState) {
     accumulatedMs: state.accumulatedMs,
     segmentStartedAt: state.segmentStartedAt,
   }).catch(() => undefined);
+  const status = state.status === "idle" ? "idle" : state.status;
+  void pushCardioMirror({
+    status,
+    action: status === "paused" ? "pause" : "start",
+    cardioId: state.cardioId,
+    elapsedSeconds: Math.floor(getCardioElapsedMs(state) / 1000),
+  });
 }
 
-export function clearRemoteCardioTimer(dateKey: string, cardioId: string | null | undefined) {
+export function clearRemoteCardioTimer(
+  dateKey: string,
+  cardioId: string | null | undefined,
+  outcome: { completed?: boolean; elapsedSeconds?: number } = {}
+) {
   if (!cardioId) return;
   void saveRemoteCardioTimer({
     date: dateKey,
@@ -40,6 +53,13 @@ export function clearRemoteCardioTimer(dateKey: string, cardioId: string | null 
     accumulatedMs: 0,
     segmentStartedAt: null,
   }).catch(() => undefined);
+  void pushCardioMirror({
+    status: outcome.completed ? "completed" : "idle",
+    action: outcome.completed ? "finish" : "stop",
+    cardioId,
+    elapsedSeconds: outcome.elapsedSeconds ?? 0,
+    completed: Boolean(outcome.completed),
+  });
 }
 
 /** Pull the shared clock. A brand-new local start is published instead of wiped. */

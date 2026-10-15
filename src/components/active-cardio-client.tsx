@@ -201,7 +201,10 @@ export function ActiveCardioClient({
 
       patchDashboard({ dateKey, taskId, completed: true });
       clearCardioTimerState(dateKey, cardioId);
-      clearRemoteCardioTimer(dateKey, cardioId);
+      clearRemoteCardioTimer(dateKey, cardioId, {
+        completed: true,
+        elapsedSeconds,
+      });
       notifySync();
       router.replace("/dashboard");
     } catch (err) {
