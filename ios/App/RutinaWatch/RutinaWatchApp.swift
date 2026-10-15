@@ -191,10 +191,7 @@ final class WatchSessionBridge: NSObject, WCSessionDelegate, ObservableObject {
     }
 
     private func deliver(_ payload: [String: Any]) {
-        if payload["channel"] as? String == "workout" {
-            WatchDashboardModel.current?.applyMirror(payload)
-            return
-        }
+        if payload["channel"] as? String == "workout" { return }
         apply(payload)
     }
 }

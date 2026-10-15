@@ -3,8 +3,6 @@ import HealthKit
 
 @MainActor
 final class WatchDashboardModel: ObservableObject {
-    static weak var current: WatchDashboardModel?
-
     @Published var today: WatchToday?
     @Published var steps: Int?
     @Published var moveKcal: Int?
@@ -15,25 +13,6 @@ final class WatchDashboardModel: ObservableObject {
     @Published var notice: String?
     @Published var busy = false
     @Published var fetchedAt = Date()
-    @Published var mirrorGeneration = 0
-    @Published var mirrorAction = ""
-    @Published var remoteStamp = 0
-    /// Mirror fields stay unpublished. Publishing them on every tap rebuilt the
-    /// whole watch UI mid-gesture and crashed the set screen.
-    var liveIndex = 0
-    var liveReps = 8
-    var liveWeight = 20.0
-    var liveSetId = ""
-
-    private var lastMirrorSeq = 0
-    private var lastSentKey = ""
-    private var echoing = false
-    private var mirrorTask: Task<Void, Never>?
-    private var localEditAt = Date.distantPast
-
-    init() {
-        WatchDashboardModel.current = self
-    }
 
     private let health = HKHealthStore()
 
@@ -56,265 +35,6 @@ final class WatchDashboardModel: ObservableObject {
         return cardio.elapsedSeconds + max(0, Int(moment.timeIntervalSince(fetchedAt)))
     }
 
-    @Published var hiitIndex = 0
-    @Published var hiitRunning = false
-    @Published var hiitLeft = 0
-    private var hiitEndsAt: Date?
-    private var hiitPausedLeft = 0
-    private var hiitBeepSecond: Int?
-    private var hiitTicker: Timer?
-
-    var hiitPhases: [WatchHiitPhase] { today?.workout.phases ?? [] }
-
-    /// When this phase began, so the demo can stay on the same beat as the countdown.
-    var hiitPhaseStart: Date? {
-        guard hiitPhases.indices.contains(hiitIndex), let end = hiitEndsAt else { return nil }
-        return end.addingTimeInterval(-TimeInterval(max(hiitPhases[hiitIndex].seconds, 1)))
-    }
-
-    func startHiit() {
-        let phases = hiitPhases
-        guard let first = phases.first else { return }
-        hiitIndex = 0
-        hiitRunning = true
-        hiitPausedLeft = first.seconds
-        hiitEndsAt = Date().addingTimeInterval(TimeInterval(first.seconds))
-        hiitLeft = first.seconds
-        hiitBeepSecond = nil
-        WatchTone.prepare()
-        WatchTone.playStart()
-        armHiitTicker()
-        broadcast("hiit")
-        if today?.workout.status != "in_progress" {
-            Task { await startWorkout() }
-        }
-    }
-
-    func pauseHiit() {
-        hiitPausedLeft = hiitRemaining()
-        hiitLeft = hiitPausedLeft
-        hiitRunning = false
-        hiitEndsAt = nil
-        broadcast("hiit")
-    }
-
-    func endHiit() {
-        hiitRunning = false
-        hiitEndsAt = nil
-        hiitLeft = 0
-        hiitPausedLeft = 0
-        hiitTicker?.invalidate()
-        hiitTicker = nil
-    }
-
-    func resumeHiit() {
-        let left = max(hiitPausedLeft, 1)
-        hiitRunning = true
-        hiitEndsAt = Date().addingTimeInterval(TimeInterval(left))
-        hiitLeft = left
-        hiitBeepSecond = nil
-        WatchTone.prepare()
-        armHiitTicker()
-        broadcast("hiit")
-    }
-
-    func skipHiit() {
-        advanceHiit()
-    }
-
-    private func armHiitTicker() {
-        hiitTicker?.invalidate()
-        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.tickHiit()
-            }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        hiitTicker = timer
-    }
-
-    private func hiitRemaining(at now: Date = Date()) -> Int {
-        if hiitRunning, let end = hiitEndsAt {
-            return max(0, Int(ceil(end.timeIntervalSince(now))))
-        }
-        return hiitPausedLeft
-    }
-
-    private func tickHiit() {
-        guard hiitRunning, let end = hiitEndsAt else { return }
-        let now = Date()
-        let left = hiitRemaining(at: now)
-        if hiitLeft != left { hiitLeft = left }
-        if left <= 5 && left >= 1 && hiitBeepSecond != left {
-            hiitBeepSecond = left
-            WatchTone.tick(left)
-        }
-        if now >= end {
-            advanceHiit()
-        }
-    }
-
-    private func advanceHiit() {
-        let phases = hiitPhases
-        let next = hiitIndex + 1
-        hiitBeepSecond = nil
-        guard next < phases.count else {
-            hiitRunning = false
-            hiitEndsAt = nil
-            hiitLeft = 0
-            hiitTicker?.invalidate()
-            WatchTone.playDone()
-            return
-        }
-        hiitIndex = next
-        let seconds = max(phases[next].seconds, 1)
-        hiitPausedLeft = seconds
-        hiitLeft = seconds
-        if hiitRunning {
-            hiitEndsAt = Date().addingTimeInterval(TimeInterval(seconds))
-        }
-        WatchTone.playPhase(phases[next].type)
-        broadcast("hiit")
-    }
-
-    /// Starts the session on the watch and tells the iPhone immediately.
-    func beginFromWatch() {
-        if hiitPhases.isEmpty {
-            Task { await startWorkout() }
-        } else {
-            startHiit()
-        }
-        broadcast("start")
-    }
-
-    func noteSet(index: Int, setId: String, reps: Int, weight: Double) {
-        let same = liveIndex == index
-            && liveSetId == setId
-            && liveReps == reps
-            && abs(liveWeight - weight) < 0.05
-        localEditAt = Date()
-        liveIndex = index
-        liveSetId = setId
-        liveReps = reps
-        liveWeight = weight
-        guard !same else { return }
-        let key = mirrorKey(action: "move")
-        guard key != lastSentKey else { return }
-        mirrorTask?.cancel()
-        mirrorTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(160))
-            guard !Task.isCancelled else { return }
-            self?.broadcast("move")
-        }
-    }
-
-    func applyMirror(_ payload: [String: Any]) {
-        guard payload["origin"] as? String == "phone" else { return }
-        let seq = Self.mirrorInt(payload["seq"])
-        if seq > 0, seq <= lastMirrorSeq { return }
-        if seq > 0 { lastMirrorSeq = seq }
-        let action = payload["action"] as? String ?? "move"
-        echoing = true
-        defer { echoing = false }
-
-        if action == "move" || action == "log" {
-            let nextIndex = Self.mirrorInt(payload["exerciseIndex"], fallback: liveIndex)
-            let nextReps = max(1, Self.mirrorInt(payload["reps"], fallback: liveReps))
-            let nextWeight = Self.mirrorDouble(payload["weightKg"], fallback: liveWeight)
-            let nextSetId = (payload["setId"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? liveSetId
-            let echoingOwnEdit = action == "move"
-                && Date().timeIntervalSince(localEditAt) < 1.5
-                && nextIndex == liveIndex
-                && nextSetId == liveSetId
-            if echoingOwnEdit {
-                lastSentKey = mirrorKey(action: action)
-                return
-            }
-            let changed = nextIndex != liveIndex
-                || nextReps != liveReps
-                || abs(nextWeight - liveWeight) > 0.05
-                || nextSetId != liveSetId
-            liveIndex = nextIndex
-            liveReps = nextReps
-            liveWeight = nextWeight
-            liveSetId = nextSetId
-            if changed { remoteStamp += 1 }
-        }
-        lastSentKey = mirrorKey(action: action)
-
-        if payload["mode"] as? String == "hiit" || action == "hiit" {
-            let index = Self.mirrorInt(payload["hiitIndex"])
-            let running = (payload["hiitRunning"] as? Bool) ?? (payload["hiitRunning"] as? NSNumber)?.boolValue ?? false
-            let left = Self.mirrorInt(payload["hiitLeft"])
-            let ends = Self.mirrorDouble(payload["hiitEndsAt"])
-            if hiitPhases.indices.contains(index) || action == "start" {
-                hiitIndex = index
-                hiitRunning = running
-                hiitLeft = left
-                hiitPausedLeft = left
-                hiitBeepSecond = nil
-                if running, ends > 0 {
-                    hiitEndsAt = Date(timeIntervalSince1970: ends)
-                    armHiitTicker()
-                } else {
-                    hiitEndsAt = nil
-                }
-            }
-        }
-
-        mirrorAction = action
-        mirrorGeneration += 1
-
-        if action == "cancel" {
-            endHiit()
-            Task { await refresh() }
-        } else if action == "start" || action == "log" {
-            Task { await refresh() }
-        }
-    }
-
-    private func broadcast(_ action: String) {
-        guard !echoing else { return }
-        let key = mirrorKey(action: action)
-        if action == "move", key == lastSentKey { return }
-        lastSentKey = key
-        var payload: [String: Any] = [
-            "status": action == "cancel" ? "idle" : "live",
-            "mode": hiitPhases.isEmpty ? "strength" : "hiit",
-            "action": action,
-            "exerciseIndex": liveIndex,
-            "setId": liveSetId,
-            "reps": liveReps,
-            "weightKg": liveWeight,
-            "hiitIndex": hiitIndex,
-            "hiitRunning": hiitRunning,
-            "hiitLeft": hiitRunning ? hiitRemaining() : hiitLeft,
-            "hiitEndsAt": hiitEndsAt?.timeIntervalSince1970 ?? 0,
-            "sessionId": today?.workout.sessionId ?? ""
-        ]
-        payload["channel"] = "workout"
-        WatchSessionBridge.shared.sendWorkout(payload)
-    }
-
-    private func mirrorKey(action: String) -> String {
-        let weight = String(format: "%.1f", liveWeight)
-        return "\(action)|\(liveIndex)|\(liveSetId)|\(liveReps)|\(weight)|\(hiitIndex)|\(hiitRunning)|\(hiitLeft)"
-    }
-
-    private static func mirrorInt(_ value: Any?, fallback: Int = 0) -> Int {
-        if let number = value as? Int { return number }
-        if let number = value as? Double { return Int(number.rounded()) }
-        if let number = value as? NSNumber { return number.intValue }
-        return fallback
-    }
-
-    private static func mirrorDouble(_ value: Any?, fallback: Double = 0) -> Double {
-        if let number = value as? Double { return number }
-        if let number = value as? Int { return Double(number) }
-        if let number = value as? NSNumber { return number.doubleValue }
-        return fallback
-    }
-
     func refresh() async {
         await run {
             let today = try await WatchAPI.today(date: dateKey)
@@ -325,38 +45,22 @@ final class WatchDashboardModel: ObservableObject {
     }
 
     func addWater(_ amount: Int) async {
-        if var today {
-            today.water.ml = max(0, today.water.ml + amount)
-            self.today = today
-        }
         await mutate("water.add", extra: ["amount": amount])
     }
 
     func startWorkout() async {
-        if var today, today.workout.status != "in_progress" {
-            today.workout.status = "in_progress"
-            self.today = today
-        }
         await mutate("workout.start")
     }
 
     func cancelWorkout() async {
-        broadcast("cancel")
-        endHiit()
         await mutate("workout.cancel")
     }
 
-    func restartWorkout() async {
-        await cancelWorkout()
-        await startWorkout()
-    }
-
-    func logSet(setId: String, reps: Int, weight: Double) async {
-        liveSetId = setId
-        liveReps = reps
-        liveWeight = weight
-        markSetDone(setId, reps: reps, weight: weight)
-        broadcast("log")
+    func logSet(reps: Int, weight: Double) async {
+        guard let setId = today?.workout.setId else {
+            error = "No set to log."
+            return
+        }
         await mutate("workout.logSet", extra: [
             "setId": setId,
             "reps": reps,
@@ -365,69 +69,11 @@ final class WatchDashboardModel: ObservableObject {
     }
 
     func startCardio() async {
-        patchCardio(status: "running")
         await mutate("cardio.start")
     }
 
-    func pauseCardio() async {
-        patchCardio(status: "paused")
-        await mutate("cardio.pause")
-    }
-
-    func resetCardio() async {
-        patchCardio(status: "idle", reset: true)
-        await mutate("cardio.reset")
-    }
-
     func stopCardio() async {
-        await pauseCardio()
-    }
-
-    private func patchCardio(status: String, reset: Bool = false) {
-        guard var today else { return }
-        var cardio = today.cardio
-        if reset {
-            cardio.status = "idle"
-            cardio.elapsedSeconds = 0
-            cardio.completed = false
-        } else if status == "paused" {
-            cardio.elapsedSeconds = cardioElapsed
-            cardio.status = "paused"
-        } else if status == "running" {
-            if cardio.status != "running" {
-                cardio.elapsedSeconds = cardio.status == "paused" ? cardioElapsed : cardio.elapsedSeconds
-            }
-            cardio.status = "running"
-            cardio.completed = false
-        }
-        today.cardio = cardio
-        self.today = today
-        self.fetchedAt = Date()
-    }
-
-    private func markSetDone(_ setId: String, reps: Int, weight: Double) {
-        guard var today else { return }
-        guard let index = today.workout.exercises.firstIndex(where: { exercise in
-            exercise.openSetId == setId || exercise.sets.contains(where: { $0.id == setId })
-        }) else { return }
-        var exercise = today.workout.exercises[index]
-        if let setIndex = exercise.sets.firstIndex(where: { $0.id == setId }) {
-            exercise.sets[setIndex].done = true
-        }
-        let done = exercise.sets.filter(\.done).count
-        exercise.completedSets = max(exercise.completedSets, done)
-        if let next = exercise.sets.first(where: { !$0.done }) {
-            exercise.openSetId = next.id
-            exercise.openSetNumber = next.number
-        } else {
-            exercise.openSetId = nil
-            exercise.openSetNumber = nil
-            exercise.completedSets = max(exercise.completedSets, exercise.setCount)
-        }
-        exercise.lastReps = reps
-        exercise.lastWeightKg = weight
-        today.workout.exercises[index] = exercise
-        self.today = today
+        await mutate("cardio.stop")
     }
 
     private func mutate(_ action: String, extra: [String: Any] = [:]) async {
@@ -877,7 +523,7 @@ struct DashboardView: View {
     }
 
     private var workoutCard: some View {
-        let running = model.today?.workout.status == "in_progress" || model.hiitRunning
+        let running = model.today?.workout.status == "in_progress"
         return HStack(spacing: 8) {
             Image(systemName: "dumbbell.fill")
                 .font(.system(size: 20, weight: .bold))
@@ -967,7 +613,7 @@ struct DashboardView: View {
     private var workoutMeta: String {
         guard let workout = model.today?.workout, workout.status != "none" else { return "Nothing scheduled" }
         if workoutFinished { return "Done" }
-        if workout.status == "in_progress" || model.hiitRunning { return "In progress" }
+        if workout.status == "in_progress" { return "In progress" }
         let count = workout.phases.isEmpty ? workout.exercises.count : workout.phases.count
         if count == 1 { return "1 exercise" }
         if count > 1 { return "\(count) exercises" }

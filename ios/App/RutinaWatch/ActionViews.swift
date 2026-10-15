@@ -1,715 +1,161 @@
 import ImageIO
 import SwiftUI
 import UIKit
-import WatchKit
-
-enum WatchTone {
-    static func prepare() {}
-
-    /// Haptics only. AVAudioEngine connect/play raises an uncatchable exception on watchOS
-    /// and closed the app on every workout beep.
-    static func tone(_ frequency: Double, milliseconds: Double) {
-        haptic(milliseconds > 100 ? .notification : .click)
-    }
-
-    static func countdown(_ secondsLeft: Int) {
-        tone(secondsLeft <= 1 ? 980 : 760, milliseconds: 150)
-    }
-
-    static func tick(_ secondsLeft: Int) {
-        tone(secondsLeft <= 1 ? 980 : secondsLeft <= 2 ? 820 : 660, milliseconds: secondsLeft <= 1 ? 90 : 55)
-    }
-
-    static func playStart() {
-        tone(440, milliseconds: 70)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-            tone(660, milliseconds: 100)
-        }
-    }
-
-    static func playPhase(_ type: String) {
-        if type == "work" {
-            tone(780, milliseconds: 110)
-        } else {
-            tone(360, milliseconds: 130)
-        }
-    }
-
-    static func playDone() {
-        haptic(.success)
-    }
-
-    private static func haptic(_ type: WKHapticType) {
-        DispatchQueue.main.async {
-            WKInterfaceDevice.current().play(type)
-        }
-    }
-}
-
-private final class IndexGate {
-    var remote = false
-}
 
 struct WorkoutWatchView: View {
     @EnvironmentObject private var model: WatchDashboardModel
-    /// Captured once. Updating this from Start removes the tapped control and watchOS kills the app.
-    @State private var showActive = false
-    @State private var decided = false
-    @State private var alreadyLive = false
-    @State private var startTitle = "Start Workout"
-    /// Frozen so starting a workout does not rebuild this screen under the tap.
-    @State private var coverWorkout: WatchWorkout?
-
-    private var interval: Bool {
-        !(coverWorkout?.phases.isEmpty ?? true)
-    }
+    @State private var reps = 8
+    @State private var weight = 20.0
 
     var body: some View {
-        ZStack {
-            cover
-                .opacity(showActive ? 0 : 1)
-                .allowsHitTesting(!showActive)
-                .accessibilityHidden(showActive)
-            if showActive {
-                WorkoutActiveScreen(autostart: !alreadyLive)
-            }
-        }
-        .onAppear {
-            guard !decided else { return }
-            decided = true
-            coverWorkout = model.today?.workout
-            if coverWorkout?.status == "in_progress" || model.hiitRunning {
-                alreadyLive = true
-                showActive = true
-                startTitle = "Resume"
-            }
-        }
-    }
-
-    private var cover: some View {
-        let workout = coverWorkout
-        let count = interval ? (workout?.phases.count ?? 0) : (workout?.exercises.count ?? 0)
-        let rows = coverRows
-        return VStack(spacing: 6) {
+        let workout = model.today?.workout
+        VStack(spacing: 8) {
             WatchHeader(title: "Workout", back: true)
             ScrollView {
-                VStack(spacing: 6) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        coverArt
+                VStack(spacing: 8) {
+                    ExerciseMedia(gifUrl: gifURL(workout))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 96)
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(workout?.title ?? "Rest day")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(.white)
                             .lineLimit(2)
                             .minimumScaleFactor(0.7)
-                        Text(coverDetail(workout, count: count))
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.62))
+                        Text(detail(workout))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(WatchTheme.mute)
                             .lineLimit(2)
-                        Text(coverBadge(workout))
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(WatchTheme.red)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(WatchTheme.red.opacity(0.16)))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
                     .watchCard(16)
 
-                    ForEach(Array(rows.enumerated()), id: \.offset) { offset, row in
-                        HStack(spacing: 8) {
-                            Image(systemName: interval ? "timer" : "figure.strengthtraining.traditional")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(WatchTheme.red)
-                                .frame(width: 32, height: 32)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(Color.white.opacity(0.06))
-                                )
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text("\(offset + 1). \(row.title)")
-                                    .font(.system(size: 12, weight: .semibold))
+                    if workout?.status == "in_progress", workout?.setId != nil {
+                        if let name = workout?.exerciseName {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Set \(workout?.setNumber ?? 1)")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(WatchTheme.red)
+                                Text(name)
+                                    .font(.system(size: 15, weight: .semibold))
                                     .foregroundStyle(.white)
-                                    .lineLimit(1)
+                                    .lineLimit(2)
                                     .minimumScaleFactor(0.7)
-                                Text(row.detail)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(WatchTheme.mute)
-                                    .lineLimit(1)
+                                if let target = workout?.targetReps, !target.isEmpty {
+                                    Text(target)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(WatchTheme.mute)
+                                }
                             }
-                            Spacer(minLength: 0)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                            .watchCard(16)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 7)
-                        .watchCard(14)
+                        dial("Reps", value: "\(reps)", down: { reps = max(1, reps - 1) }, up: { reps = min(40, reps + 1) })
+                        dial("Weight", value: "\(weightText) kg", down: { weight = max(0, snap(weight - 2.5)) }, up: { weight = min(300, snap(weight + 2.5)) })
+                    } else if workout?.status == "completed" {
+                        Text("Done for today")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(WatchTheme.mute)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if workout?.status == "in_progress" {
+                        Text("Open this one on your iPhone.")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(WatchTheme.mute)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if workout?.title == nil {
+                        Text("Nothing scheduled.")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(WatchTheme.mute)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    if let error = model.error {
+                        Text(error)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(WatchTheme.red)
+                            .lineLimit(3)
                     }
                 }
-                .padding(.bottom, 4)
+                .padding(.bottom, 8)
             }
             .scrollIndicators(.hidden)
-            if workout?.status == "scheduled" || workout?.status == "in_progress" {
-                Button {
-                    afterTap { showActive = true }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 13, weight: .bold))
-                        Text(startTitle)
-                            .font(.system(size: 15, weight: .semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .background(Capsule().fill(WatchTheme.red))
+            if workout?.status == "in_progress", workout?.setId != nil {
+                WatchAction(title: "Log set", symbol: "checkmark") {
+                    let loggedReps = reps
+                    let loggedWeight = weight
+                    Task { await model.logSet(reps: loggedReps, weight: loggedWeight) }
                 }
-                .buttonStyle(.plain)
+            }
+            if workout?.status == "in_progress" {
+                WatchAction(title: "Cancel", symbol: "xmark", fill: WatchTheme.card) {
+                    Task { await model.cancelWorkout() }
+                }
+            } else if workout?.status == "scheduled" {
+                WatchAction(title: "Start", symbol: "play.fill") {
+                    Task { await model.startWorkout() }
+                }
             }
         }
         .watchChrome()
-    }
-
-    private var coverArt: some View {
-        let gif = coverWorkout?.exercises.first?.gifUrl ?? coverWorkout?.phases.first?.gifUrl
-        return ExerciseMedia(gifUrl: gif)
-            .frame(maxWidth: .infinity)
-            .frame(height: 84)
-    }
-
-    private var coverRows: [(title: String, detail: String)] {
-        let workout = coverWorkout
-        if interval {
-            return (workout?.phases ?? []).map { phase in
-                let title = phase.name?.isEmpty == false ? (phase.name ?? phase.label) : phase.label
-                return (title, "\(max(phase.seconds, 1)) sec")
-            }
-        }
-        return (workout?.exercises ?? []).map { exercise in
-            (exercise.name, repsDetail(exercise))
-        }
-    }
-
-    private func coverBadge(_ workout: WatchWorkout?) -> String {
-        switch workout?.status {
-        case "completed": return "Done"
-        case "in_progress": return "In progress"
-        case "scheduled": return "Ready"
-        default: return "Rest day"
-        }
-    }
-
-    private func repsDetail(_ exercise: WatchExercise) -> String {
-        if let reps = exercise.targetReps, !reps.isEmpty {
-            return reps.lowercased().contains("rep") ? reps : "\(reps) reps"
-        }
-        let sets = max(exercise.setCount, 1)
-        return sets == 1 ? "1 set" : "\(sets) sets"
-    }
-
-    private func coverDetail(_ workout: WatchWorkout?, count: Int) -> String {
-        if workout?.status == "completed" { return "Done for today" }
-        if interval { return count > 0 ? "Runs on its own" : "Ready" }
-        if workout?.canLogSets == false && workout?.status == "in_progress" {
-            return "Open this one on your iPhone."
-        }
-        if count > 0 { return count == 1 ? "1 exercise" : "\(count) exercises" }
-        if workout?.title == nil { return "Nothing scheduled." }
-        return "Ready"
-    }
-}
-
-private struct WorkoutActiveScreen: View {
-    @EnvironmentObject private var model: WatchDashboardModel
-    var autostart: Bool
-    @State private var index = 0
-    @State private var gate = IndexGate()
-    @State private var began = false
-    /// Keeps the set screen mounted after End. Dropping it removes the tapped button and crashes the watch.
-    @State private var lockedPages: [WatchExercise] = []
-
-    private var interval: Bool {
-        !(model.today?.workout.phases.isEmpty ?? true)
-    }
-
-    private var pages: [WatchExercise] {
-        let workout = model.today?.workout
-        if workout?.status == "in_progress", let exercises = workout?.exercises, !exercises.isEmpty {
-            return exercises
-        }
-        if workout?.status == "in_progress", let name = workout?.exerciseName {
-            return [
-                WatchExercise(
-                    id: workout?.setId ?? name,
-                    name: name,
-                    gifUrl: workout?.exercises.first?.gifUrl,
-                    targetReps: workout?.targetReps,
-                    setCount: max(workout?.setNumber ?? 1, 1),
-                    completedSets: max((workout?.setNumber ?? 1) - 1, 0),
-                    openSetId: workout?.setId,
-                    openSetNumber: workout?.setNumber,
-                    lastWeightKg: nil,
-                    lastReps: nil
-                )
-            ]
-        }
-        return []
-    }
-
-    private var displayPages: [WatchExercise] {
-        pages.isEmpty ? lockedPages : pages
-    }
-
-    var body: some View {
-        Group {
-            if interval {
-                HiitWatchScreen()
-            } else if !displayPages.isEmpty {
-                let safe = min(max(0, index), displayPages.count - 1)
-                ExerciseLogPage(
-                    exercise: displayPages[safe],
-                    index: safe,
-                    total: displayPages.count,
-                    onPrevious: { index = max(0, safe - 1) },
-                    onNext: { index = min(safe + 1, displayPages.count - 1) }
-                )
-            } else {
-                VStack(spacing: 8) {
-                    WatchHeader(title: "Workout", back: true)
-                    Text("Starting…")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Spacer(minLength: 0)
-                }
-                .watchChrome()
-            }
-        }
-        .task {
-            guard autostart, !began else { return }
-            began = true
-            // Let the push finish before the cover screen refreshes. Refreshing it mid-tap crashes the watch.
-            try? await Task.sleep(for: .milliseconds(400))
-            guard !Task.isCancelled else { return }
-            if interval {
-                if !model.hiitRunning && model.hiitLeft == 0 {
-                    model.startHiit()
-                }
-            } else if model.today?.workout.status != "in_progress" {
-                await model.startWorkout()
-            }
-        }
-        .onChange(of: pages) { _, next in
-            if !next.isEmpty {
-                lockedPages = next
-            }
-            let count = next.isEmpty ? lockedPages.count : next.count
-            if count <= 0 {
-                index = 0
-            } else {
-                index = min(max(0, index), count - 1)
-            }
-        }
-        .onAppear {
-            if lockedPages.isEmpty {
-                lockedPages = pages
-            }
-            model.liveIndex = index
-        }
-        .onChange(of: model.remoteStamp) { _, _ in
-            let count = displayPages.count
-            let next = min(max(0, model.liveIndex), max(count - 1, 0))
-            guard next != index else { return }
-            gate.remote = true
-            index = next
-        }
-        .onChange(of: index) { _, newIndex in
-            if gate.remote {
-                gate.remote = false
-                return
-            }
-            let exercise = displayPages.indices.contains(newIndex) ? displayPages[newIndex] : nil
-            model.noteSet(
-                index: newIndex,
-                setId: exercise?.openSetId ?? model.liveSetId,
-                reps: exercise?.lastReps ?? model.liveReps,
-                weight: exercise?.lastWeightKg ?? model.liveWeight
-            )
-        }
-    }
-}
-
-private struct HiitWatchScreen: View {
-    @EnvironmentObject private var model: WatchDashboardModel
-
-    private var phase: WatchHiitPhase? {
-        let phases = model.hiitPhases
-        guard phases.indices.contains(model.hiitIndex) else { return nil }
-        return phases[model.hiitIndex]
-    }
-
-    private var working: Bool { phase?.type == "work" }
-
-    private var tint: Color { working ? WatchTheme.red : WatchTheme.water }
-
-    var body: some View {
-        let phases = model.hiitPhases
-        let total = max(phase?.seconds ?? 1, 1)
-        let gif = phase?.gifUrl
-        VStack(spacing: 6) {
-            WatchHeader(title: working ? "Workout" : "Rest", back: true)
-            ZStack(alignment: .bottom) {
-                ExerciseMedia(gifUrl: gif)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                VStack(spacing: 4) {
-                    if phases.count > 0 {
-                        Text("\(model.hiitIndex + 1)/\(phases.count)")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.85))
-                    }
-                    Text(WatchTheme.clock(model.hiitLeft))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .monospacedDigit()
-                    WatchMeter(
-                        progress: WatchTheme.fraction(Double(model.hiitLeft), Double(total)),
-                        tint: tint
-                    )
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity)
-                .background(.black.opacity(0.55))
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            Text(phase?.name?.isEmpty == false ? (phase?.name ?? phase?.label ?? "Work") : (phase?.label ?? "Work"))
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            HStack(spacing: 8) {
-                watchPill("Skip", symbol: "forward.end.fill", fill: Color.white.opacity(0.12)) {
-                    afterTap { model.skipHiit() }
-                }
-                watchPill(
-                    model.hiitRunning ? "Pause" : "Play",
-                    symbol: model.hiitRunning ? "pause.fill" : "play.fill",
-                    fill: tint
-                ) {
-                    afterTap {
-                        if model.hiitRunning {
-                            model.pauseHiit()
-                        } else if model.hiitLeft > 0 {
-                            model.resumeHiit()
-                        } else {
-                            model.startHiit()
-                        }
-                    }
-                }
-            }
-            HStack(spacing: 16) {
-                Button("Restart") { afterTap { model.startHiit() } }
-                Button("End") {
-                    afterTap {
-                        model.endHiit()
-                        Task { await model.cancelWorkout() }
-                    }
-                }
-            }
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(Color.white.opacity(0.5))
-            .buttonStyle(.plain)
-        }
-        .watchChrome()
-    }
-}
-
-/// Holds the load without publishing it. The set page must not redraw on each tap.
-private final class LoadDraft {
-    var reps = 8
-    var weight = 20.0
-    var seededID = ""
-}
-
-private struct ExerciseLogPage: View {
-    @EnvironmentObject private var model: WatchDashboardModel
-    var exercise: WatchExercise
-    var index: Int
-    var total: Int
-    var onPrevious: () -> Void
-    var onNext: () -> Void
-    @State private var draft = LoadDraft()
-    @State private var adjusting = false
-    @State private var resting = false
-    @State private var restLeft = 45
-    @State private var restToken = 0
-    @State private var advanceAfterRest = false
-    @State private var shownReps = 8
-    @State private var shownWeight = 20.0
-
-    var body: some View {
-        VStack(spacing: 6) {
-            WatchHeader(title: resting ? "Rest" : "Workout", back: true)
-            ZStack(alignment: .bottom) {
-                ExerciseMedia(gifUrl: exercise.gifUrl)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                VStack(spacing: 2) {
-                    Text("\(index + 1)/\(max(total, 1))")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.8))
-                    Text(exercise.name)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    if resting {
-                        Text(WatchTheme.clock(restLeft))
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .monospacedDigit()
-                    }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity)
-                .background(.black.opacity(0.55))
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            Button {
-                afterTap { adjusting = true }
-            } label: {
-                Text(resting ? "Rest" : loadLine)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.plain)
-            .disabled(resting)
-            HStack(spacing: 10) {
-                roundIcon("chevron.left", fill: Color.white.opacity(0.14), size: 36, enabled: !resting && index > 0) {
-                    afterTap { if index > 0 { onPrevious() } }
-                }
-                roundIcon(
-                    resting ? "forward.end.fill" : "checkmark",
-                    fill: (resting || exercise.openSetId != nil) ? WatchTheme.red : Color.white.opacity(0.14),
-                    size: 48,
-                    enabled: resting || exercise.openSetId != nil,
-                    glow: resting || exercise.openSetId != nil
-                ) {
-                    afterTap {
-                        if resting {
-                            finishRest()
-                        } else {
-                            log()
-                        }
-                    }
-                }
-                roundIcon("chevron.right", fill: Color.white.opacity(0.14), size: 36, enabled: !resting && index + 1 < total) {
-                    afterTap { if index + 1 < total { onNext() } }
-                }
-            }
-            Button("End") {
-                afterTap { Task { await model.cancelWorkout() } }
-            }
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(Color.white.opacity(0.45))
-            .buttonStyle(.plain)
-        }
-        .watchChrome()
-        .onAppear(perform: seedShown)
-        .onChange(of: exercise.id) { _, _ in seedShown() }
-        .onChange(of: adjusting) { _, open in
-            guard !open else { return }
-            shownReps = draft.reps
-            shownWeight = draft.weight
-        }
-        .onChange(of: model.remoteStamp) { _, _ in
-            guard model.liveIndex == index else { return }
-            shownReps = model.liveReps
-            shownWeight = model.liveWeight
-            draft.reps = model.liveReps
-            draft.weight = model.liveWeight
-            draft.seededID = exercise.id
-        }
-        .task(id: restToken) { await runRest() }
-        .sheet(isPresented: $adjusting) {
-            AdjustLoadSheet(draft: draft, exercise: exercise, index: index)
-        }
-    }
-
-    private var loadLine: String {
-        let weight = shownWeight.truncatingRemainder(dividingBy: 1) == 0
-            ? String(format: "%.0f", shownWeight)
-            : String(format: "%.1f", shownWeight)
-        let load = "\(shownReps) × \(weight) kg"
-        if let number = exercise.openSetNumber {
-            return "Set \(number) · \(load)"
-        }
-        return load
-    }
-
-    private func log() {
-        guard let setId = exercise.openSetId else { return }
-        let finishes: Bool
-        if let number = exercise.openSetNumber {
-            finishes = number >= max(exercise.setCount, 1)
-        } else {
-            finishes = exercise.completedSets + 1 >= max(exercise.setCount, 1)
-        }
-        UserDefaults.standard.set(draft.weight, forKey: weightKey(exercise.name))
-        Task { await model.logSet(setId: setId, reps: draft.reps, weight: draft.weight) }
-        guard !finishes || index + 1 < total else { return }
-        advanceAfterRest = finishes && index + 1 < total
-        resting = true
-        restToken += 1
-    }
-
-    private func runRest() async {
-        guard resting else { return }
-        restLeft = 45
-        while resting && restLeft > 0 && !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(1))
-            guard resting, !Task.isCancelled else { return }
-            restLeft -= 1
-        }
-        if resting { finishRest() }
-    }
-
-    private func finishRest() {
-        guard resting else { return }
-        let advance = advanceAfterRest
-        resting = false
-        advanceAfterRest = false
-        if advance { onNext() }
-    }
-
-    private func seedShown() {
-        if draft.seededID != exercise.id {
-            let load = rememberedLoad(exercise)
-            draft.reps = load.reps
-            draft.weight = load.weight
-            draft.seededID = exercise.id
-        }
-        shownReps = draft.reps
-        shownWeight = draft.weight
-    }
-
-    private func weightKey(_ name: String) -> String {
-        "rutina.watch.kg.\(name.lowercased())"
-    }
-}
-
-private struct AdjustLoadSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    var draft: LoadDraft
-    var exercise: WatchExercise
-    var index: Int
-
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Button("Cancel") { afterTap { dismiss() } }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .buttonStyle(.plain)
-                Spacer(minLength: 28)
-            }
-            LoadSteppers(draft: draft, exercise: exercise, index: index)
-            Spacer(minLength: 0)
-            WatchAction(title: "Save") { afterTap { dismiss() } }
-        }
-        .padding(.horizontal, 4)
-        .padding(.top, 8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(WatchTheme.ink)
-    }
-}
-
-/// Kg and reps live here so a tap does not rebuild the GIF or the rest of the set page.
-private struct LoadSteppers: View {
-    @EnvironmentObject private var model: WatchDashboardModel
-    var draft: LoadDraft
-    var exercise: WatchExercise
-    var index: Int
-    @State private var reps = 8
-    @State private var weight = 20.0
-
-    var body: some View {
-        VStack(spacing: 8) {
-            SetStepper(title: "Adjust Reps", value: "\(reps)", down: { nudgeReps(-1) }, up: { nudgeReps(1) })
-            SetStepper(title: "Adjust Weight", value: "\(weightLabel) kg", down: { nudgeWeight(-2.5) }, up: { nudgeWeight(2.5) })
-        }
         .onAppear(perform: seed)
-        .onChange(of: exercise.id) { _, _ in seed() }
-        .onChange(of: model.remoteStamp) { _, _ in
-            guard model.liveIndex == index else { return }
-            apply(reps: model.liveReps, weight: model.liveWeight)
-        }
+        .onChange(of: model.today?.workout.setId) { _, _ in seed() }
     }
 
-    private func nudgeReps(_ delta: Int) {
-        let next = min(40, max(1, reps + delta))
-        guard next != reps else { return }
-        apply(reps: next, weight: weight)
-        publish(reps: next, weight: weight)
-    }
-
-    private func nudgeWeight(_ delta: Double) {
-        let next = snapWeight(weight + delta)
-        guard next != weight else { return }
-        apply(reps: reps, weight: next)
-        publish(reps: reps, weight: next)
-    }
-
-    private func publish(reps: Int, weight: Double) {
-        model.noteSet(
-            index: index,
-            setId: exercise.openSetId ?? "",
-            reps: reps,
-            weight: weight
-        )
-    }
-
-    private var weightLabel: String {
+    private var weightText: String {
         weight.truncatingRemainder(dividingBy: 1) == 0
             ? String(format: "%.0f", weight)
             : String(format: "%.1f", weight)
     }
 
-    private func seed() {
-        if draft.seededID == exercise.id {
-            apply(reps: draft.reps, weight: draft.weight)
-            return
+    private func gifURL(_ workout: WatchWorkout?) -> String? {
+        if let open = workout?.exercises.first(where: { $0.openSetId != nil })?.gifUrl {
+            return open
         }
-        let load = rememberedLoad(exercise)
-        apply(reps: load.reps, weight: load.weight)
-        draft.seededID = exercise.id
+        return workout?.exercises.first?.gifUrl ?? workout?.phases.first?.gifUrl
     }
 
-    private func apply(reps: Int, weight: Double) {
-        let nextReps = min(40, max(1, reps))
-        let nextWeight = snapWeight(weight)
-        self.reps = nextReps
-        self.weight = nextWeight
-        draft.reps = nextReps
-        draft.weight = nextWeight
+    private func detail(_ workout: WatchWorkout?) -> String {
+        switch workout?.status {
+        case "completed": return "Done for today"
+        case "in_progress": return "Log this set, then the next one loads."
+        case "scheduled":
+            let count = workout?.exercises.count ?? workout?.phases.count ?? 0
+            if count == 1 { return "1 exercise" }
+            if count > 1 { return "\(count) exercises" }
+            return "Ready"
+        default: return "Nothing scheduled."
+        }
     }
-}
 
-private struct SetStepper: View {
-    var title: String
-    var value: String
-    var down: () -> Void
-    var up: () -> Void
+    private func seed() {
+        let workout = model.today?.workout
+        let open = workout?.exercises.first { $0.openSetId != nil }
+        if let value = open?.lastReps ?? parsedReps(workout?.targetReps) {
+            reps = min(40, max(1, value))
+        }
+        if let value = open?.lastWeightKg {
+            weight = snap(value)
+        }
+    }
 
-    var body: some View {
+    private func parsedReps(_ raw: String?) -> Int? {
+        guard let raw else { return nil }
+        let digits = raw.prefix { $0.isNumber }
+        return Int(digits)
+    }
+
+    private func snap(_ value: Double) -> Double {
+        (value / 2.5).rounded() * 2.5
+    }
+
+    private func dial(_ title: String, value: String, down: @escaping () -> Void, up: @escaping () -> Void) -> some View {
         VStack(spacing: 6) {
             Text(title)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.white)
             HStack(spacing: 0) {
-                stepButton("minus", action: down)
+                step("minus", action: down)
                 Text(value)
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
@@ -717,7 +163,7 @@ private struct SetStepper: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .frame(maxWidth: .infinity)
-                stepButton("plus", action: up)
+                step("plus", action: up)
             }
             .padding(4)
             .background(
@@ -727,8 +173,8 @@ private struct SetStepper: View {
         }
     }
 
-    private func stepButton(_ symbol: String, action: @escaping () -> Void) -> some View {
-        Button { afterTap(action) } label: {
+    private func step(_ symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(.white)
@@ -1036,35 +482,15 @@ struct CardioWatchView: View {
                     }
                 }
                 Spacer(minLength: 0)
-                HStack(spacing: 8) {
-                    WatchAction(
-                        title: done ? "Done" : (running ? "Pause" : (paused ? "Resume" : "Start")),
-                        symbol: running ? "pause.fill" : "play.fill",
-                        fill: running ? Color.white.opacity(0.14) : WatchTheme.cardio
-                    ) {
-                        afterTap {
-                            Task {
-                                if running {
-                                    await model.pauseCardio()
-                                } else if !done {
-                                    await model.startCardio()
-                                }
-                            }
-                        }
+                if running || paused {
+                    WatchAction(title: "Stop", symbol: "stop.fill", fill: WatchTheme.cardio) {
+                        Task { await model.stopCardio() }
                     }
-                    .disabled(done)
-                    WatchAction(title: "Finish", symbol: "checkmark", fill: WatchTheme.cardio) {
-                        afterTap { Task { await model.stopCardio() } }
+                } else if !done {
+                    WatchAction(title: "Start", symbol: "play.fill", fill: WatchTheme.cardio) {
+                        Task { await model.startCardio() }
                     }
-                    .disabled(done || (!running && !paused))
                 }
-                Button("Reset") {
-                    afterTap { Task { await model.resetCardio() } }
-                }
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.55))
-                .buttonStyle(.plain)
-                .disabled(!running && !paused)
                 if let note = model.notice ?? model.error {
                     Text(note)
                         .font(.system(size: 10, weight: .medium))

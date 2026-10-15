@@ -45,7 +45,10 @@ import {
   suppressWorkoutMirror,
 } from "@/lib/watch-session";
 import { isPendingWorkoutSessionId } from "@/lib/staged-workout-open";
-import { WorkoutOpenSkeleton } from "@/components/dashboard-page-skeleton";
+import {
+  WorkoutOpenSkeleton,
+  WorkoutReadyBodySkeleton,
+} from "@/components/dashboard-page-skeleton";
 import { ExerciseGifThumbnail } from "@/components/exercise-gif-thumbnail";
 import { WorkoutTypeBanner } from "@/components/workout-type-banner";
 import { findCatalogExercise } from "@/lib/exercise-catalog";
@@ -836,6 +839,41 @@ function ActiveExercisePanel({
   );
 }
 
+function splitRepsTarget(raw: string): { value: string; note: string | null } {
+  const text = raw.trim();
+  const match = text.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (match?.[1]?.trim() && match[2]?.trim()) {
+    return { value: match[1].trim(), note: match[2].trim() };
+  }
+  return { value: text || "—", note: null };
+}
+
+function ReadyStat({
+  value,
+  label,
+  caps = true,
+}: {
+  value: string;
+  label: string;
+  caps?: boolean;
+}) {
+  return (
+    <div className="flex h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg bg-secondary px-1.5">
+      <span className="w-full truncate text-center text-[12px] font-bold leading-none tabular-nums">
+        {value}
+      </span>
+      <span
+        className={cn(
+          "w-full truncate text-center text-[9px] font-semibold leading-none tracking-[0.06em] text-muted-foreground",
+          caps && "uppercase"
+        )}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
 function ReadyWorkoutDetails({
   exercises,
   histories,
@@ -855,15 +893,15 @@ function ReadyWorkoutDetails({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2.5">
-      <p className="shrink-0 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+    <div className="flex shrink-0 flex-col gap-2.5">
+      <p className="text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {exercises.length} {platform.workout.exercisesTile} ·{" "}
         {platform.workout.setsCount(totalSets)} · {platform.workout.estTotal(duration)}
       </p>
-      <ul className="flex min-h-0 flex-1 flex-col gap-2">
+      <ul className="flex shrink-0 flex-col gap-2">
         {exercises.map((exercise, index) => {
           const sets = Math.max(1, exercise.target_sets || 1);
-          const reps = exercise.target_reps?.trim() || "—";
+          const reps = splitRepsTarget(exercise.target_reps?.trim() || "—");
           const restSeconds = exercise.rest_seconds ?? 90;
           const catalog = findCatalogExercise(exercise.name);
           const detail =
@@ -883,52 +921,60 @@ function ReadyWorkoutDetails({
             platform.workout.lastSets,
             platform.workout.neverTried
           );
+          const setsLabel = platform.workout
+            .setsCount(sets)
+            .replace(/^\d+\s*/, "")
+            .trim();
 
           return (
             <li
               key={exercise.id}
-              className="flex min-h-[6.5rem] flex-1 items-center gap-3 rounded-2xl border border-border/60 bg-secondary/35 px-3 py-3"
+              className="shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-secondary/35"
             >
-              <ExerciseGifThumbnail
-                name={exercise.name}
-                imageUrl={exercise.image_url}
-                videoUrl={exercise.video_url}
-                gender={gender}
-                size="md"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="line-clamp-2 text-sm font-bold leading-snug">
-                    {exercise.name}
+              <div className="flex items-start gap-3 p-3">
+                <ExerciseGifThumbnail
+                  name={exercise.name}
+                  imageUrl={exercise.image_url}
+                  videoUrl={exercise.video_url}
+                  gender={gender}
+                  size="md"
+                  className="size-14 shrink-0"
+                />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex h-5 items-center gap-2">
+                    <p className="min-w-0 flex-1 truncate text-sm font-bold leading-5">
+                      {exercise.name}
+                    </p>
+                    <span className="shrink-0 text-[10px] font-bold tabular-nums leading-none text-muted-foreground">
+                      {index + 1}/{exercises.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1">
+                    <ReadyStat value={String(sets)} label={setsLabel || platform.workout.set} />
+                    <ReadyStat
+                      value={reps.value}
+                      label={reps.note ?? platform.workout.reps}
+                      caps={!reps.note}
+                    />
+                    <ReadyStat
+                      value={formatSessionClock(restSeconds)}
+                      label={platform.workout.rest}
+                    />
+                  </div>
+                  {muscles ? (
+                    <p className="truncate text-[11px] font-medium capitalize leading-4 text-muted-foreground">
+                      {muscles}
+                    </p>
+                  ) : null}
+                  {detail ? (
+                    <p className="line-clamp-2 overflow-hidden text-xs leading-4 text-foreground/80">
+                      {detail}
+                    </p>
+                  ) : null}
+                  <p className="truncate text-xs font-medium leading-4 text-primary/90">
+                    {lastLabel}
                   </p>
-                  <span className="shrink-0 text-[10px] font-bold tabular-nums text-muted-foreground">
-                    {index + 1}/{exercises.length}
-                  </span>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <span className="rounded-lg bg-secondary px-2 py-0.5 text-xs font-semibold tabular-nums">
-                    {platform.workout.setsCount(sets)}
-                  </span>
-                  <span className="rounded-lg bg-secondary px-2 py-0.5 text-xs font-semibold tabular-nums">
-                    {platform.workout.repsTarget(reps)}
-                  </span>
-                  <span className="rounded-lg bg-secondary px-2 py-0.5 text-xs font-semibold tabular-nums">
-                    {platform.workout.rest} {formatSessionClock(restSeconds)}
-                  </span>
-                </div>
-                {muscles ? (
-                  <p className="mt-1.5 text-[11px] font-medium capitalize text-muted-foreground">
-                    {muscles}
-                  </p>
-                ) : null}
-                {detail ? (
-                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-foreground/80">
-                    {detail}
-                  </p>
-                ) : null}
-                <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-primary/90">
-                  {lastLabel}
-                </p>
               </div>
             </li>
           );
@@ -1489,32 +1535,34 @@ export function ActiveWorkoutClient({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
         {!isStarted ? (
-          <div className="flex min-h-full flex-1 flex-col gap-3 pt-1">
+          <div className="flex shrink-0 flex-col gap-3 pb-3 pt-1">
             {isLoadingExercises ? (
-              <div className="aspect-[16/10] w-full shrink-0 animate-pulse rounded-3xl bg-secondary/80" />
+              <WorkoutReadyBodySkeleton />
             ) : (
-              <WorkoutTypeBanner
-                planTitle={session.plan_title ?? headerTitle}
-                dayTitle={session.day_title ?? headerTitle}
-                planKind={planKind}
-                exercises={exercises.map((exercise) => ({ name: exercise.name }))}
-                gender={exerciseGender}
-                alt={headerTitle}
-              />
+              <>
+                <WorkoutTypeBanner
+                  planTitle={session.plan_title ?? headerTitle}
+                  dayTitle={session.day_title ?? headerTitle}
+                  planKind={planKind}
+                  exercises={exercises.map((exercise) => ({ name: exercise.name }))}
+                  gender={exerciseGender}
+                  alt={headerTitle}
+                />
+                <p className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  {platform.workout.readyToStart}
+                </p>
+                {exercises.length > 0 ? (
+                  <ReadyWorkoutDetails
+                    exercises={exercises}
+                    histories={histories}
+                    gender={exerciseGender}
+                  />
+                ) : null}
+              </>
             )}
-            <p className="shrink-0 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              {platform.workout.readyToStart}
-            </p>
-            {!isLoadingExercises && exercises.length > 0 ? (
-              <ReadyWorkoutDetails
-                exercises={exercises}
-                histories={histories}
-                gender={exerciseGender}
-              />
-            ) : null}
           </div>
         ) : isLoadingExercises ? (
-          <WorkoutOpenSkeleton />
+          <WorkoutOpenSkeleton variant="panel" />
         ) : exercises.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border/60 p-6 text-center">
             <p className="font-medium">{platform.workout.noExercisesTitle}</p>

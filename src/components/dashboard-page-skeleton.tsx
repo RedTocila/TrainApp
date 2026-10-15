@@ -184,36 +184,88 @@ function NutritionMealsSkeleton() {
   );
 }
 
-export function WorkoutOpenSkeleton() {
+function WorkoutBone({ className }: { className?: string }) {
   return (
     <div
-      className="mx-auto flex h-[100dvh] max-h-[100dvh] max-w-lg flex-col gap-3 bg-background px-2 pb-[max(0.75rem,var(--safe-area-bottom))] pt-[max(0.35rem,var(--safe-area-top))]"
+      className={cn(
+        "animate-pulse rounded-md bg-white/[0.08]",
+        className
+      )}
+    />
+  );
+}
+
+function WorkoutPreviewCardSkeleton() {
+  return (
+    <div className="flex shrink-0 items-start gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+      <WorkoutBone className="h-14 w-14 shrink-0 rounded-xl" />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex h-5 items-center justify-between gap-3">
+          <WorkoutBone className="h-3.5 w-[62%]" />
+          <WorkoutBone className="h-2.5 w-7 shrink-0" />
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          <WorkoutBone className="h-11 rounded-lg" />
+          <WorkoutBone className="h-11 rounded-lg" />
+          <WorkoutBone className="h-11 rounded-lg" />
+        </div>
+        <WorkoutBone className="h-2.5 w-14" />
+        <WorkoutBone className="h-2.5 w-[88%]" />
+        <WorkoutBone className="h-2.5 w-36" />
+      </div>
+    </div>
+  );
+}
+
+/** Banner, summary line, and exercise rows — same stack as the ready screen. */
+export function WorkoutReadyBodySkeleton() {
+  return (
+    <div className="flex shrink-0 flex-col gap-3">
+      <WorkoutBone className="aspect-[16/10] w-full shrink-0 rounded-3xl bg-zinc-800" />
+      <WorkoutBone className="mx-auto h-2.5 w-28" />
+      <WorkoutBone className="mx-auto h-2.5 w-52" />
+      <div className="flex flex-col gap-2">
+        <WorkoutPreviewCardSkeleton />
+        <WorkoutPreviewCardSkeleton />
+        <WorkoutPreviewCardSkeleton />
+      </div>
+    </div>
+  );
+}
+
+export function WorkoutOpenSkeleton({
+  variant = "page",
+}: {
+  /** `panel` sits inside an already-mounted session (no second page chrome). */
+  variant?: "page" | "panel";
+} = {}) {
+  if (variant === "panel") {
+    return (
+      <div role="status" aria-busy="true" aria-live="polite">
+        <WorkoutReadyBodySkeleton />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="mx-auto flex h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] max-w-lg flex-col gap-2 overflow-hidden bg-background px-2 pb-[max(0.75rem,var(--safe-area-bottom))] pt-[max(0.35rem,var(--safe-area-top))]"
       role="status"
       aria-busy="true"
       aria-live="polite"
     >
-      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
-        <Pulse className="h-9 w-24 rounded-full" />
-        <Pulse className="mx-auto h-8 w-20 rounded-full" />
-        <div className="flex justify-end gap-1.5">
-          <Pulse className="h-9 w-9 rounded-full" />
-          <Pulse className="h-9 w-9 rounded-full" />
-        </div>
+      <div className="flex shrink-0 items-center gap-2 px-1">
+        <WorkoutBone className="h-11 w-11 shrink-0 rounded-full" />
+        <WorkoutBone className="mx-auto h-4 w-44 max-w-[58%]" />
+        <WorkoutBone className="h-11 w-11 shrink-0 rounded-full bg-primary/25" />
       </div>
-      <Pulse className="mx-auto h-3 w-28 rounded-md" />
-      <Pulse className="mx-auto h-6 w-56 rounded-md" />
-      <Pulse className="min-h-[11rem] w-full flex-1 rounded-[1.35rem] bg-white/80" />
-      <div className="flex items-center justify-between gap-3">
-        <Pulse className="h-4 w-24 rounded-md" />
-        <Pulse className="h-3 w-32 rounded-md" />
+      <div className="grid shrink-0 grid-cols-3 gap-1">
+        <WorkoutBone className="h-7 rounded-lg" />
+        <WorkoutBone className="h-7 rounded-lg bg-primary/20" />
+        <WorkoutBone className="h-7 rounded-lg" />
       </div>
-      <div className="flex gap-2">
-        <Pulse className="h-24 flex-1 rounded-2xl" />
-        <Pulse className="h-24 flex-1 rounded-2xl" />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Pulse className="h-11 rounded-full" />
-        <Pulse className="h-11 rounded-full" />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pt-1">
+        <WorkoutReadyBodySkeleton />
       </div>
     </div>
   );
