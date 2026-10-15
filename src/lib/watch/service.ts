@@ -23,6 +23,7 @@ import {
   isIntervalPlan,
   normalizeHiitConfig,
   normalizeWorkoutPlanKind,
+  sessionKindSortOrder,
 } from "@/lib/hiit";
 import { sumMealMacros } from "@/lib/meal-utils";
 import { workoutTaskId } from "@/lib/workout-task-id";
@@ -239,19 +240,11 @@ export async function loadWatchToday(
     plan_id: string | null;
     day_id: string | null;
   }>;
-  const isClosed = (row: ScheduledRow) => {
-    if (completedTaskIds.has(workoutTaskId(date, row.id))) return true;
-    return skipped.some(
-      (item) =>
-        item.scheduled_workout_id === row.id ||
-        (item.plan_id != null &&
-          item.day_id != null &&
-          item.plan_id === row.plan_id &&
-          item.day_id === row.day_id)
-    );
-  };
-  const nextScheduled = scheduled.find((row) => !isClosed(row));
-  const allScheduledDone = scheduled.length > 0 && scheduled.every((row) => isClosed(row));
+  const isClosed = (row: ScheduledRow) =>
+    workoutRowClosed(row, date, completedTaskIds, skipped);
+  const ordered = [...scheduled].sort(bySessionOrder);
+  const nextScheduled = ordered.find((row) => !isClosed(row));
+  const allScheduledDone = ordered.length > 0 && ordered.every((row) => isClosed(row));
 
   const session = sessionResult.data;
   let exercises: SessionExercise[] = [];
@@ -267,8 +260,9 @@ export async function loadWatchToday(
   }
 
   const open = currentOpenSet(exercises);
-  const focusPlan = planFor(scheduled, session?.day_id, nextScheduled);
-  const focusExercises = planExercisesFor(scheduled, session?.day_id, nextScheduled);
+  const focusRow = rowForSession(ordered, session, nextScheduled);
+  const focusPlan = one(focusRow?.workout_plans);
+  const focusExercises = one(focusRow?.workout_days)?.exercises ?? [];
   const timed = watchInterval(focusPlan, focusExercises);
   const rawKind = normalizeWorkoutPlanKind(focusPlan?.kind);
   const kind: WatchToday["workout"]["kind"] =
@@ -278,11 +272,10 @@ export async function loadWatchToday(
         ? "hiit"
         : "strength";
   const workoutTitle =
+    one(focusRow?.workout_days)?.title ||
+    one(focusRow?.workout_plans)?.title ||
     session?.day_title ||
     session?.plan_title ||
-    one(nextScheduled?.workout_days)?.title ||
-    one(nextScheduled?.workout_plans)?.title ||
-    one(scheduled[0]?.workout_days)?.title ||
     null;
 
   let workoutStatus: WatchWorkoutStatus = "none";
@@ -347,9 +340,9 @@ export async function loadWatchToday(
       mode: kind === "strength" ? "strength" : "interval",
       kind,
       phases: kind === "strength" ? [] : timed.phases,
-      planId: session?.plan_id ?? nextScheduled?.plan_id ?? null,
-      dayId: session?.day_id ?? nextScheduled?.day_id ?? null,
-      scheduledWorkoutId: session?.scheduled_workout_id ?? nextScheduled?.id ?? null,
+      planId: focusRow?.plan_id ?? session?.plan_id ?? null,
+      dayId: focusRow?.day_id ?? session?.day_id ?? null,
+      scheduledWorkoutId: focusRow?.id ?? session?.scheduled_workout_id ?? null,
     },
     nutrition: {
       calories: Math.round(macros.calories),
@@ -382,31 +375,57 @@ export async function loadWatchToday(
   };
 }
 
-function planFor(
-  scheduled: ScheduledRow[],
-  dayId: string | null | undefined,
-  nextScheduled: ScheduledRow | undefined
-) {
-  const match = dayId ? scheduled.find((row) => row.day_id === dayId) : null;
+type SkippedWorkoutRef = {
+  scheduled_workout_id: string | null;
+  plan_id: string | null;
+  day_id: string | null;
+};
+
+function scheduledKind(row: ScheduledRow): string {
+  return normalizeWorkoutPlanKind(one(row.workout_plans)?.kind);
+}
+
+function bySessionOrder(a: ScheduledRow, b: ScheduledRow): number {
   return (
-    one(match?.workout_plans) ??
-    one(nextScheduled?.workout_plans) ??
-    one(scheduled[0]?.workout_plans)
+    sessionKindSortOrder(scheduledKind(a)) - sessionKindSortOrder(scheduledKind(b)) ||
+    (a.order_index ?? 0) - (b.order_index ?? 0)
   );
 }
 
-function planExercisesFor(
+function workoutRowClosed(
+  row: ScheduledRow,
+  date: string,
+  completedTaskIds: Set<string>,
+  skipped: SkippedWorkoutRef[]
+): boolean {
+  if (completedTaskIds.has(workoutTaskId(date, row.id))) return true;
+  return skipped.some((item) => {
+    if (item.scheduled_workout_id) return item.scheduled_workout_id === row.id;
+    return item.plan_id === row.plan_id && item.day_id === row.day_id;
+  });
+}
+
+function rowForSession(
   scheduled: ScheduledRow[],
-  dayId: string | null | undefined,
+  session: {
+    scheduled_workout_id?: string | null;
+    plan_id?: string | null;
+    day_id?: string | null;
+  } | null,
   nextScheduled: ScheduledRow | undefined
-): PlanExercise[] {
-  const match = dayId ? scheduled.find((row) => row.day_id === dayId) : null;
-  return (
-    one(match?.workout_days)?.exercises ??
-    one(nextScheduled?.workout_days)?.exercises ??
-    one(scheduled[0]?.workout_days)?.exercises ??
-    []
-  );
+): ScheduledRow | undefined {
+  if (!session) return nextScheduled;
+  if (session.scheduled_workout_id) {
+    const byId = scheduled.find((row) => row.id === session.scheduled_workout_id);
+    if (byId) return byId;
+  }
+  if (session.plan_id && session.day_id) {
+    const byPlan = scheduled.find(
+      (row) => row.plan_id === session.plan_id && row.day_id === session.day_id
+    );
+    if (byPlan) return byPlan;
+  }
+  return nextScheduled;
 }
 
 function asNumber(value: unknown): number | null {
@@ -625,19 +644,27 @@ export async function startWatchWorkout(
 
   const { data: scheduledRows } = await admin
     .from("scheduled_workouts")
-    .select("id, plan_id, day_id")
+    .select("id, plan_id, day_id, order_index, workout_plans(title, kind)")
     .eq("client_id", userId)
     .eq("scheduled_date", date)
     .order("order_index");
 
+  const scheduled = (scheduledRows ?? []) as ScheduledRow[];
+  const ordered = [...scheduled].sort(bySessionOrder);
+  const skipped = await skippedWorkoutRefs(
+    admin,
+    userId,
+    date,
+    ordered.map((row) => row.id)
+  );
   const { data: doneRows } = await admin
     .from("schedule_task_completions")
     .select("task_id")
     .eq("client_id", userId)
     .eq("date", date);
   const done = new Set((doneRows ?? []).map((row) => row.task_id as string));
-  const target = (scheduledRows ?? []).find(
-    (row) => row.plan_id && row.day_id && !done.has(workoutTaskId(date, row.id))
+  const target = ordered.find(
+    (row) => row.plan_id && row.day_id && !workoutRowClosed(row, date, done, skipped)
   );
 
   if (existing) {
@@ -670,6 +697,19 @@ export async function startWatchWorkout(
     return { error: "No workout scheduled today." };
   }
 
+  return beginScheduledWorkout(ctx, date, {
+    id: target.id,
+    plan_id: target.plan_id,
+    day_id: target.day_id,
+  });
+}
+
+async function beginScheduledWorkout(
+  ctx: WatchContext,
+  date: string,
+  target: { id: string; plan_id: string; day_id: string }
+): Promise<WatchResult> {
+  const { admin, userId } = ctx;
   const { data: day } = await admin
     .from("workout_days")
     .select("title, workout_plans(title)")
@@ -705,6 +745,29 @@ export async function startWatchWorkout(
   await seedSession(ctx, session.id, target.plan_id, target.day_id);
   revalidateDashboard();
   return { today: await loadWatchToday(ctx, date) };
+}
+
+async function skippedWorkoutRefs(
+  admin: WatchContext["admin"],
+  userId: string,
+  date: string,
+  scheduledIds: string[]
+): Promise<SkippedWorkoutRef[]> {
+  let query = admin
+    .from("workout_sessions")
+    .select("scheduled_workout_id, plan_id, day_id")
+    .eq("client_id", userId)
+    .eq("status", "cancelled")
+    .eq("notes", "skipped");
+  if (scheduledIds.length > 0) {
+    query = query.or(
+      `scheduled_date.eq.${date},scheduled_workout_id.in.(${scheduledIds.join(",")})`
+    );
+  } else {
+    query = query.eq("scheduled_date", date);
+  }
+  const { data } = await query;
+  return (data ?? []) as SkippedWorkoutRef[];
 }
 
 export async function cancelWatchWorkout(
@@ -781,37 +844,104 @@ export async function skipWatchWorkout(
   ctx: WatchContext,
   date: string
 ): Promise<WatchResult> {
-  const snapshot = await loadWatchToday(ctx, date);
-  const kind = snapshot.workout.kind;
-  if (kind !== "warmup" && kind !== "stretch") {
+  const { admin, userId } = ctx;
+  const { data: scheduledRows } = await admin
+    .from("scheduled_workouts")
+    .select("id, plan_id, day_id, order_index, workout_days(title), workout_plans(title, kind)")
+    .eq("client_id", userId)
+    .eq("scheduled_date", date)
+    .order("order_index");
+  const ordered = ([...(scheduledRows ?? [])] as ScheduledRow[]).sort(bySessionOrder);
+  const skipped = await skippedWorkoutRefs(
+    admin,
+    userId,
+    date,
+    ordered.map((row) => row.id)
+  );
+  const { data: doneRows } = await admin
+    .from("schedule_task_completions")
+    .select("task_id")
+    .eq("client_id", userId)
+    .eq("date", date);
+  const done = new Set((doneRows ?? []).map((row) => row.task_id as string));
+
+  const { data: existing } = await admin
+    .from("workout_sessions")
+    .select("id, plan_id, day_id, scheduled_workout_id, scheduled_date, day_title, plan_title")
+    .eq("client_id", userId)
+    .eq("status", "in_progress")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const current = existing
+    ? rowForSession(ordered, existing, ordered.find((row) => !workoutRowClosed(row, date, done, skipped)))
+    : ordered.find((row) => !workoutRowClosed(row, date, done, skipped));
+  const kind = current ? scheduledKind(current) : "strength";
+  if (!current?.plan_id || !current.day_id || (kind !== "warmup" && kind !== "stretch")) {
     return { error: "Only warm-up and stretching can be skipped." };
   }
-  if (!snapshot.workout.planId || !snapshot.workout.dayId) {
-    return { error: "Nothing to skip." };
-  }
 
-  const { admin, userId } = ctx;
-  if (snapshot.workout.status === "in_progress" && snapshot.workout.sessionId) {
-    const { error } = await admin
+  if (
+    existing &&
+    (existing.scheduled_workout_id === current.id ||
+      (existing.plan_id === current.plan_id && existing.day_id === current.day_id))
+  ) {
+    const { data: updated, error } = await admin
       .from("workout_sessions")
-      .update({ status: "cancelled", notes: "skipped" })
-      .eq("id", snapshot.workout.sessionId)
+      .update({
+        status: "cancelled",
+        notes: "skipped",
+        scheduled_date: existing.scheduled_date ?? date,
+        scheduled_workout_id: existing.scheduled_workout_id ?? current.id,
+      })
+      .eq("id", existing.id)
       .eq("client_id", userId)
-      .eq("status", "in_progress");
+      .eq("status", "in_progress")
+      .select("id")
+      .maybeSingle();
     if (error) return { error: error.message };
+    if (!updated) {
+      revalidateDashboard();
+      return { today: await loadWatchToday(ctx, date) };
+    }
   } else {
     const { error } = await admin.from("workout_sessions").insert({
       client_id: userId,
-      plan_id: snapshot.workout.planId,
-      day_id: snapshot.workout.dayId,
+      plan_id: current.plan_id,
+      day_id: current.day_id,
       scheduled_date: date,
-      scheduled_workout_id: snapshot.workout.scheduledWorkoutId,
-      day_title: snapshot.workout.title,
-      plan_title: snapshot.workout.title,
+      scheduled_workout_id: current.id,
+      day_title: one(current.workout_days)?.title ?? null,
+      plan_title: one(current.workout_plans)?.title ?? null,
       status: "cancelled",
       notes: "skipped",
     });
     if (error) return { error: error.message };
+  }
+
+  const skippedNow: SkippedWorkoutRef[] = [
+    ...skipped,
+    {
+      scheduled_workout_id: current.id,
+      plan_id: current.plan_id,
+      day_id: current.day_id,
+    },
+  ];
+  const next = ordered.find(
+    (row) =>
+      sessionKindSortOrder(scheduledKind(row)) > sessionKindSortOrder(kind) &&
+      row.plan_id &&
+      row.day_id &&
+      !workoutRowClosed(row, date, done, skippedNow)
+  );
+
+  if (next?.plan_id && next.day_id) {
+    return beginScheduledWorkout(ctx, date, {
+      id: next.id,
+      plan_id: next.plan_id,
+      day_id: next.day_id,
+    });
   }
 
   revalidateDashboard();

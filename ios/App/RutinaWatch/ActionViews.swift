@@ -12,6 +12,7 @@ struct WorkoutWatchView: View {
     var body: some View {
         if model.today?.workout.mode == "interval" {
             IntervalWatchView()
+                .id(model.today?.workout.sessionId ?? model.today?.workout.scheduledWorkoutId ?? "interval")
         } else if let restEndsAt {
             RestCountdownView(endsAt: restEndsAt, total: max(restTotal, 1)) {
                 self.restEndsAt = nil
@@ -24,7 +25,7 @@ struct WorkoutWatchView: View {
     private var strengthBody: some View {
         let workout = model.today?.workout
         let inProgress = workout?.status == "in_progress"
-        ScrollView {
+        return ScrollView {
             VStack(spacing: WatchTheme.gap) {
                 WatchHeader(title: "Workout", back: true)
                 ExerciseMedia(gifUrl: gifURL(workout))
