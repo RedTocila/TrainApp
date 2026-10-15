@@ -93,20 +93,14 @@ final class WatchSessionBridge: NSObject, WCSessionDelegate, ObservableObject {
         guard session.activationState == .activated, session.isReachable else { return false }
 
         return await withCheckedContinuation { continuation in
-            var resumed = false
+            let gate = WatchResumeOnce<Bool>()
             session.sendMessage(["request": "credentials"], replyHandler: { payload in
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.apply(payload)
-                    if !resumed {
-                        resumed = true
-                        continuation.resume(returning: self.credentials?.isUsable == true)
-                    }
+                    gate.resume(continuation, returning: self.credentials?.isUsable == true)
                 }
             }, errorHandler: { _ in
-                if !resumed {
-                    resumed = true
-                    continuation.resume(returning: false)
-                }
+                gate.resume(continuation, returning: false)
             })
         }
     }
