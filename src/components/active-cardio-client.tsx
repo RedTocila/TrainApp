@@ -11,6 +11,7 @@ import {
   Pause,
   Play,
   Square,
+  X,
 } from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { useDashboardSync } from "@/components/dashboard-sync";
@@ -24,6 +25,7 @@ import {
   minCardioSecondsForComplete,
 } from "@/lib/cardio-completion";
 import {
+  clearCardioStopHold,
   clearRemoteCardioTimer,
   pullCardioTimerIntoLocal,
   pushLocalCardioTimer,
@@ -83,6 +85,7 @@ export function ActiveCardioClient({
   const [isPending, startTransition] = useTransition();
   const [isFinishing, setIsFinishing] = useState(false);
   const finishLockRef = useRef(false);
+  const stoppedRef = useRef(false);
   const elapsedMs = useElapsedMs(timer);
   const elapsedSeconds = Math.floor(elapsedMs / 1000);
 
@@ -109,7 +112,7 @@ export function ActiveCardioClient({
     let cancelled = false;
     void (async () => {
       if (cardioId) await pullCardioTimerIntoLocal(dateKey, cardioId);
-      if (cancelled) return;
+      if (cancelled || stoppedRef.current) return;
       setTimer(getCardioTimerState(dateKey, cardioId));
       setHydrated(true);
     })();
@@ -120,6 +123,8 @@ export function ActiveCardioClient({
 
   const handleStart = () => {
     setError(null);
+    stoppedRef.current = false;
+    clearCardioStopHold(dateKey, cardioId);
     const next = startCardioTimer(dateKey, cardioId);
     setTimer(next);
     pushLocalCardioTimer(next);
@@ -137,11 +142,20 @@ export function ActiveCardioClient({
     if (next) pushLocalCardioTimer(next);
   };
 
-  const handleStop = () => {
+  const abandonSession = (leave: boolean) => {
+    stoppedRef.current = true;
     clearCardioTimerState(dateKey, cardioId);
-    clearRemoteCardioTimer(dateKey, cardioId);
     setTimer(null);
-    router.push("/dashboard");
+    void clearRemoteCardioTimer(dateKey, cardioId);
+    if (leave) router.push("/dashboard");
+  };
+
+  const handleStop = () => {
+    abandonSession(true);
+  };
+
+  const handleCancel = () => {
+    abandonSession(false);
   };
 
   const handleFinish = async () => {
@@ -281,7 +295,7 @@ export function ActiveCardioClient({
                   size="sm"
                   variant="outline"
                   className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold"
-                  disabled={isPending}
+                  disabled={isPending || isFinishing}
                   onClick={handleStop}
                   aria-label={platform.workout.stop}
                 >
@@ -449,6 +463,17 @@ export function ActiveCardioClient({
                 )}
               </Button>
             </div>
+            <Button
+              type="button"
+              size="lg"
+              variant="ghost"
+              className="w-full"
+              onClick={handleCancel}
+              disabled={isPending || isFinishing}
+            >
+              <X className="h-4 w-4" />
+              {platform.common.cancel}
+            </Button>
 
             {!canComplete && minSeconds != null ? (
               <p className="text-center text-xs text-muted-foreground">

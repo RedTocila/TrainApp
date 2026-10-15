@@ -40,19 +40,57 @@ export function pushLocalCardioTimer(state: CardioTimerState) {
   });
 }
 
-export function clearRemoteCardioTimer(
+const STOP_HOLD_MS = 20_000;
+
+function stopHoldKey(dateKey: string, cardioId?: string | null) {
+  return `cardio-stop-hold:${dateKey}:${cardioId ?? ""}`;
+}
+
+/** Keeps a just-stopped clock from being restored by a slower remote read. */
+export function holdCardioStopped(dateKey: string, cardioId?: string | null) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(
+    stopHoldKey(dateKey, cardioId),
+    String(Date.now() + STOP_HOLD_MS)
+  );
+}
+
+export function clearCardioStopHold(dateKey: string, cardioId?: string | null) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(stopHoldKey(dateKey, cardioId));
+}
+
+function cardioStopHeld(dateKey: string, cardioId?: string | null) {
+  if (typeof window === "undefined") return false;
+  const until = Number(
+    window.sessionStorage.getItem(stopHoldKey(dateKey, cardioId))
+  );
+  if (!Number.isFinite(until)) return false;
+  if (Date.now() >= until) {
+    window.sessionStorage.removeItem(stopHoldKey(dateKey, cardioId));
+    return false;
+  }
+  return true;
+}
+
+export async function clearRemoteCardioTimer(
   dateKey: string,
   cardioId: string | null | undefined,
   outcome: { completed?: boolean; elapsedSeconds?: number } = {}
 ) {
   if (!cardioId) return;
-  void saveRemoteCardioTimer({
-    date: dateKey,
-    cardioId,
-    status: "idle",
-    accumulatedMs: 0,
-    segmentStartedAt: null,
-  }).catch(() => undefined);
+  holdCardioStopped(dateKey, cardioId);
+  try {
+    await saveRemoteCardioTimer({
+      date: dateKey,
+      cardioId,
+      status: "idle",
+      accumulatedMs: 0,
+      segmentStartedAt: null,
+    });
+  } catch {
+    // The hold still blocks a stale running clock from coming back.
+  }
   void pushCardioMirror({
     status: outcome.completed ? "completed" : "idle",
     action: outcome.completed ? "finish" : "stop",
@@ -75,6 +113,14 @@ export async function pullCardioTimerIntoLocal(dateKey: string, cardioId: string
 
   const local = getCardioTimerState(dateKey, cardioId);
   const timer = remote.timer;
+
+  if (cardioStopHeld(dateKey, cardioId)) {
+    if (timer.status === "idle") {
+      clearCardioTimerState(dateKey, cardioId);
+      clearCardioStopHold(dateKey, cardioId);
+    }
+    return;
+  }
 
   if (timer.status === "idle") {
     if (local && (local.status === "running" || local.status === "paused")) {
@@ -113,6 +159,7 @@ export async function pullCardioTimerIntoLocal(dateKey: string, cardioId: string
     return;
   }
 
+  if (cardioStopHeld(dateKey, cardioId)) return;
   if (sameTimer(local, next)) return;
   setCardioTimerState(next);
 }

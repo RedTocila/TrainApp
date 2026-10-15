@@ -9,10 +9,7 @@ import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
 import { isAiConfigured, runChatCompletion } from "@/lib/ai/providers";
 import type { Profile } from "@/lib/types";
 import { transcribeAudioBytes } from "@/lib/ai/transcribe-audio";
-import {
-  isCardioDurationComplete,
-  minCardioSecondsForComplete,
-} from "@/lib/cardio-completion";
+import { isCardioDurationComplete } from "@/lib/cardio-completion";
 import { cardioTaskId } from "@/lib/cardio-task-id";
 import {
   readCardioTimer,
@@ -21,7 +18,12 @@ import {
   type RemoteCardioTimer,
 } from "@/lib/cardio-timer-db";
 import { resolveExerciseGifUrl } from "@/lib/exercise-gif";
-import { buildHiitPhases, isIntervalPlan, normalizeHiitConfig } from "@/lib/hiit";
+import {
+  buildHiitPhases,
+  isIntervalPlan,
+  normalizeHiitConfig,
+  normalizeWorkoutPlanKind,
+} from "@/lib/hiit";
 import { sumMealMacros } from "@/lib/meal-utils";
 import { workoutTaskId } from "@/lib/workout-task-id";
 import type { WatchContext } from "@/lib/watch/auth";
@@ -43,7 +45,11 @@ export type WatchToday = {
     targetReps: string | null;
     exercises: WatchExercise[];
     mode: "strength" | "interval";
+    kind: "strength" | "hiit" | "warmup" | "stretch";
     phases: WatchHiitPhase[];
+    planId: string | null;
+    dayId: string | null;
+    scheduledWorkoutId: string | null;
   };
   nutrition: {
     calories: number;
@@ -82,6 +88,7 @@ export type WatchExercise = {
   lastWeightKg: number | null;
   lastReps: number | null;
   videoUrl: string | null;
+  restSeconds: number;
   sets: WatchSet[];
 };
 
@@ -109,6 +116,7 @@ type PlanExercise = {
   notes: string | null;
   image_url: string | null;
   video_url: string | null;
+  rest_seconds?: number | null;
   order_index: number;
 };
 
@@ -168,12 +176,12 @@ export async function loadWatchToday(
   const { admin, userId, profile } = ctx;
   const locale = profile.preferred_locale === "en" ? "en" : "al";
 
-  const [scheduledResult, sessionResult, mealsResult, logResult, completionsResult, cardioResult] =
+  const [scheduledResult, sessionResult, mealsResult, logResult, completionsResult, cardioResult, skippedResult] =
     await Promise.all([
       admin
         .from("scheduled_workouts")
         .select(
-          "id, plan_id, day_id, order_index, workout_days(title, exercises(id, name, sets, reps, notes, image_url, video_url, order_index)), workout_plans(title, kind, hiit_config)"
+          "id, plan_id, day_id, order_index, workout_days(title, exercises(id, name, sets, reps, rest_seconds, notes, image_url, video_url, order_index)), workout_plans(title, kind, hiit_config)"
         )
         .eq("client_id", userId)
         .eq("scheduled_date", date)
@@ -213,19 +221,37 @@ export async function loadWatchToday(
         .order("order_index")
         .limit(1)
         .maybeSingle(),
+      admin
+        .from("workout_sessions")
+        .select("scheduled_workout_id, plan_id, day_id")
+        .eq("client_id", userId)
+        .eq("scheduled_date", date)
+        .eq("status", "cancelled")
+        .eq("notes", "skipped"),
     ]);
 
   const scheduled = (scheduledResult.data ?? []) as ScheduledRow[];
   const completedTaskIds = new Set(
     (completionsResult.data ?? []).map((row) => row.task_id as string)
   );
-  const nextScheduled = scheduled.find((row) => {
-    const taskId = workoutTaskId(date, row.id);
-    return !completedTaskIds.has(taskId);
-  });
-  const allScheduledDone =
-    scheduled.length > 0 &&
-    scheduled.every((row) => completedTaskIds.has(workoutTaskId(date, row.id)));
+  const skipped = (skippedResult.data ?? []) as Array<{
+    scheduled_workout_id: string | null;
+    plan_id: string | null;
+    day_id: string | null;
+  }>;
+  const isClosed = (row: ScheduledRow) => {
+    if (completedTaskIds.has(workoutTaskId(date, row.id))) return true;
+    return skipped.some(
+      (item) =>
+        item.scheduled_workout_id === row.id ||
+        (item.plan_id != null &&
+          item.day_id != null &&
+          item.plan_id === row.plan_id &&
+          item.day_id === row.day_id)
+    );
+  };
+  const nextScheduled = scheduled.find((row) => !isClosed(row));
+  const allScheduledDone = scheduled.length > 0 && scheduled.every((row) => isClosed(row));
 
   const session = sessionResult.data;
   let exercises: SessionExercise[] = [];
@@ -241,6 +267,16 @@ export async function loadWatchToday(
   }
 
   const open = currentOpenSet(exercises);
+  const focusPlan = planFor(scheduled, session?.day_id, nextScheduled);
+  const focusExercises = planExercisesFor(scheduled, session?.day_id, nextScheduled);
+  const timed = watchInterval(focusPlan, focusExercises);
+  const rawKind = normalizeWorkoutPlanKind(focusPlan?.kind);
+  const kind: WatchToday["workout"]["kind"] =
+    rawKind === "hiit" || rawKind === "warmup" || rawKind === "stretch"
+      ? rawKind
+      : timed.mode === "interval"
+        ? "hiit"
+        : "strength";
   const workoutTitle =
     session?.day_title ||
     session?.plan_title ||
@@ -307,11 +343,13 @@ export async function loadWatchToday(
       setNumber: open?.setNumber ?? null,
       setId: open?.setId ?? null,
       targetReps: open?.targetReps ?? null,
-      exercises: watchExercises(exercises, planExercisesFor(scheduled, session?.day_id, nextScheduled)),
-      ...watchInterval(
-        planFor(scheduled, session?.day_id, nextScheduled),
-        planExercisesFor(scheduled, session?.day_id, nextScheduled)
-      ),
+      exercises: watchExercises(exercises, focusExercises),
+      mode: kind === "strength" ? "strength" : "interval",
+      kind,
+      phases: kind === "strength" ? [] : timed.phases,
+      planId: session?.plan_id ?? nextScheduled?.plan_id ?? null,
+      dayId: session?.day_id ?? nextScheduled?.day_id ?? null,
+      scheduledWorkoutId: session?.scheduled_workout_id ?? nextScheduled?.id ?? null,
     },
     nutrition: {
       calories: Math.round(macros.calories),
@@ -459,6 +497,7 @@ function watchExercises(
             const reps = asNumber(open?.reps ?? previous?.reps);
             return reps == null ? null : Math.round(reps);
           })(),
+          restSeconds: restSecondsFor(exercise.name, planExercises),
           sets: sets.map((set) => ({
             id: set.id,
             number: set.set_number,
@@ -482,8 +521,18 @@ function watchExercises(
       openSetNumber: null,
       lastWeightKg: null,
       lastReps: null,
+      restSeconds: restSecondsFor(exercise.name, [exercise]),
       sets: [],
     }));
+}
+
+function restSecondsFor(name: string, planExercises: PlanExercise[]): number {
+  const match = planExercises.find(
+    (exercise) => exercise.name.trim().toLowerCase() === name.trim().toLowerCase()
+  );
+  const rest = Number(match?.rest_seconds);
+  if (!Number.isFinite(rest)) return 90;
+  return Math.min(600, Math.max(0, Math.round(rest)));
 }
 
 function currentOpenSet(exercises: SessionExercise[]) {
@@ -684,6 +733,91 @@ export async function cancelWatchWorkout(
   return { today: await loadWatchToday(ctx, date) };
 }
 
+export async function finishWatchWorkout(
+  ctx: WatchContext,
+  date: string
+): Promise<WatchResult> {
+  const { admin, userId } = ctx;
+  const { data: session } = await admin
+    .from("workout_sessions")
+    .select("id, scheduled_date, scheduled_workout_id")
+    .eq("client_id", userId)
+    .eq("status", "in_progress")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!session) return { error: "No workout is in progress." };
+
+  const completedAt = new Date().toISOString();
+  const scheduledDate = session.scheduled_date ?? date;
+  const taskId = workoutTaskId(scheduledDate, session.scheduled_workout_id);
+  const { error } = await admin
+    .from("workout_sessions")
+    .update({
+      status: "completed",
+      completed_at: completedAt,
+      scheduled_date: scheduledDate,
+    })
+    .eq("id", session.id)
+    .eq("client_id", userId)
+    .eq("status", "in_progress");
+  if (error) return { error: error.message };
+
+  const { error: completionError } = await admin.from("schedule_task_completions").upsert(
+    {
+      client_id: userId,
+      date: scheduledDate,
+      task_id: taskId,
+      completed_at: completedAt,
+    },
+    { onConflict: "client_id,date,task_id" }
+  );
+  if (completionError) return { error: completionError.message };
+  revalidateDashboard();
+  return { today: await loadWatchToday(ctx, date), message: "Workout saved." };
+}
+
+export async function skipWatchWorkout(
+  ctx: WatchContext,
+  date: string
+): Promise<WatchResult> {
+  const snapshot = await loadWatchToday(ctx, date);
+  const kind = snapshot.workout.kind;
+  if (kind !== "warmup" && kind !== "stretch") {
+    return { error: "Only warm-up and stretching can be skipped." };
+  }
+  if (!snapshot.workout.planId || !snapshot.workout.dayId) {
+    return { error: "Nothing to skip." };
+  }
+
+  const { admin, userId } = ctx;
+  if (snapshot.workout.status === "in_progress" && snapshot.workout.sessionId) {
+    const { error } = await admin
+      .from("workout_sessions")
+      .update({ status: "cancelled", notes: "skipped" })
+      .eq("id", snapshot.workout.sessionId)
+      .eq("client_id", userId)
+      .eq("status", "in_progress");
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await admin.from("workout_sessions").insert({
+      client_id: userId,
+      plan_id: snapshot.workout.planId,
+      day_id: snapshot.workout.dayId,
+      scheduled_date: date,
+      scheduled_workout_id: snapshot.workout.scheduledWorkoutId,
+      day_title: snapshot.workout.title,
+      plan_title: snapshot.workout.title,
+      status: "cancelled",
+      notes: "skipped",
+    });
+    if (error) return { error: error.message };
+  }
+
+  revalidateDashboard();
+  return { today: await loadWatchToday(ctx, date), message: "Skipped." };
+}
+
 export async function logWatchSet(
   ctx: WatchContext,
   date: string,
@@ -820,23 +954,18 @@ export async function stopWatchCardio(
 
   const elapsedSeconds = Math.floor(remoteCardioElapsedMs(current.timer) / 1000);
   if (!isCardioDurationComplete(elapsedSeconds, cardio.plannedMinutes)) {
-    const paused = await writeCardioTimer(ctx.admin, ctx.userId, {
+    const cleared = await writeCardioTimer(ctx.admin, ctx.userId, {
       date,
       cardioId: cardio.id,
-      status: "paused",
-      accumulatedMs: elapsedSeconds * 1000,
+      status: "idle",
+      accumulatedMs: 0,
       segmentStartedAt: null,
     });
-    if ("error" in paused) return { error: paused.error };
-    const remaining = Math.max(
-      0,
-      minCardioSecondsForComplete(cardio.plannedMinutes) - elapsedSeconds
-    );
-    const minutes = Math.ceil(remaining / 60);
+    if ("error" in cleared) return { error: cleared.error };
     revalidateDashboard();
     return {
       today: await loadWatchToday(ctx, date),
-      message: `Paused. About ${minutes} min left to count it.`,
+      message: "Stopped. Too short to count.",
     };
   }
 
@@ -1148,6 +1277,10 @@ export async function handleWatchAction(
       return startWatchWorkout(ctx, date);
     case "workout.cancel":
       return cancelWatchWorkout(ctx, date);
+    case "workout.finish":
+      return finishWatchWorkout(ctx, date);
+    case "workout.skip":
+      return skipWatchWorkout(ctx, date);
     case "workout.live": {
       const raw = Number(body.exerciseIndex);
       return loadLiveWorkout(

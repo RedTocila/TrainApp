@@ -191,12 +191,48 @@ final class WatchDashboardModel: ObservableObject {
         }
     }
 
+    func finishWorkout() async {
+        await mutate("workout.finish")
+    }
+
+    func skipWorkout() async {
+        await mutate("workout.skip")
+    }
+
     func startCardio() async {
         await mutate("cardio.start")
     }
 
     func stopCardio() async {
+        let elapsed = cardioElapsed
+        let planned = today?.cardio.plannedMinutes ?? 0
+        let minimum = planned > 0 ? Int((Double(planned * 60) * 0.8).rounded(.up)) : 60
+        endCardioLocally(completed: elapsed >= minimum && elapsed > 0)
         await mutate("cardio.stop")
+    }
+
+    func cancelCardio() async {
+        endCardioLocally(completed: false)
+        await mutate("cardio.reset")
+    }
+
+    private func endCardioLocally(completed: Bool) {
+        guard var snapshot = today, snapshot.cardio.status != "none" else { return }
+        var cardio = snapshot.cardio
+        if completed {
+            cardio.status = "completed"
+            cardio.completed = true
+            cardio.elapsedSeconds = max(cardio.elapsedSeconds, cardioElapsed)
+        } else {
+            cardio.status = "idle"
+            cardio.completed = false
+            cardio.elapsedSeconds = 0
+        }
+        snapshot.cardio = cardio
+        today = snapshot
+        fetchedAt = Date()
+        cardioHeldUntil = Date().addingTimeInterval(12)
+        error = nil
     }
 
     private func mutate(_ action: String, extra: [String: Any] = [:]) async {
@@ -981,6 +1017,9 @@ struct DashboardView: View {
         guard let workout = model.today?.workout, workout.status != "none" else { return "Nothing scheduled" }
         if workoutFinished { return "Done" }
         if workout.status == "in_progress" { return "In progress" }
+        if workout.kind == "warmup" { return "Warm-up" }
+        if workout.kind == "stretch" { return "Stretch" }
+        if workout.kind == "hiit" { return "HIIT" }
         let count = workout.phases.isEmpty ? workout.exercises.count : workout.phases.count
         if count == 1 { return "1 exercise" }
         if count > 1 { return "\(count) exercises" }
@@ -1247,43 +1286,43 @@ struct NutritionWatchView: View {
         let nutrition = model.today?.nutrition
         GeometryReader { geo in
             let gap = WatchTheme.gap
-            let column = min(96, max(72, geo.size.width * 0.44))
-            let ring = max(0, min(geo.size.width - column - gap, geo.size.height * 0.48))
-            VStack(spacing: gap) {
-                WatchHeader(title: "Nutrition", back: true)
-                HStack(alignment: .center, spacing: gap) {
-                    WatchMacroRing(
-                        calories: nutrition?.calories ?? 0,
-                        target: nutrition?.targetCalories ?? 0,
-                        protein: nutrition?.protein ?? 0,
-                        carbs: nutrition?.carbs ?? 0,
-                        fat: nutrition?.fat ?? 0,
-                        size: ring
-                    )
-                    VStack(alignment: .leading, spacing: 6) {
-                        macroAmount(ProteinIcon(), nutrition?.protein, nutrition?.targetProtein, WatchTheme.protein)
-                        macroAmount(CarbsIcon(), nutrition?.carbs, nutrition?.targetCarbs, WatchTheme.carbs)
-                        macroAmount(FatIcon(), nutrition?.fat, nutrition?.targetFat, WatchTheme.fat)
-                    }
-                    .frame(width: column, alignment: .leading)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                ScrollView {
-                    VStack(spacing: gap) {
-                        meals(nutrition?.meals ?? [])
-                        if let error = model.error {
-                            Text(error)
-                                .font(.system(size: 10))
-                                .foregroundStyle(WatchTheme.red)
-                                .lineLimit(2)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+            let leading = gap + 8
+            let column = min(96, max(68, (geo.size.width - leading) * 0.42))
+            let ring = max(64, min(112, geo.size.width - column - gap - leading))
+            ScrollView {
+                VStack(spacing: gap) {
+                    WatchHeader(title: "Nutrition", back: true)
+                    HStack(alignment: .center, spacing: gap) {
+                        WatchMacroRing(
+                            calories: nutrition?.calories ?? 0,
+                            target: nutrition?.targetCalories ?? 0,
+                            protein: nutrition?.protein ?? 0,
+                            carbs: nutrition?.carbs ?? 0,
+                            fat: nutrition?.fat ?? 0,
+                            size: ring
+                        )
+                        .padding(.leading, leading)
+                        VStack(alignment: .leading, spacing: 6) {
+                            macroAmount(ProteinIcon(), nutrition?.protein, nutrition?.targetProtein, WatchTheme.protein)
+                            macroAmount(CarbsIcon(), nutrition?.carbs, nutrition?.targetCarbs, WatchTheme.carbs)
+                            macroAmount(FatIcon(), nutrition?.fat, nutrition?.targetFat, WatchTheme.fat)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.trailing, leading)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    meals(nutrition?.meals ?? [])
+                    if let error = model.error {
+                        Text(error)
+                            .font(.system(size: 10))
+                            .foregroundStyle(WatchTheme.red)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .contentMargins(0, for: .scrollContent)
-                .scrollIndicators(.hidden)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.bottom, 20)
             }
+            .watchScroll()
         }
         .watchChrome()
     }

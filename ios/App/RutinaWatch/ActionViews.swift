@@ -6,8 +6,22 @@ struct WorkoutWatchView: View {
     @EnvironmentObject private var model: WatchDashboardModel
     @State private var reps = 6
     @State private var weight = 10.0
+    @State private var restEndsAt: Date?
+    @State private var restTotal = 0
 
     var body: some View {
+        if model.today?.workout.mode == "interval" {
+            IntervalWatchView()
+        } else if let restEndsAt {
+            RestCountdownView(endsAt: restEndsAt, total: max(restTotal, 1)) {
+                self.restEndsAt = nil
+            }
+        } else {
+            strengthBody
+        }
+    }
+
+    private var strengthBody: some View {
         let workout = model.today?.workout
         let inProgress = workout?.status == "in_progress"
         ScrollView {
@@ -22,13 +36,11 @@ struct WorkoutWatchView: View {
                         .foregroundStyle(.white)
                         .lineLimit(2)
                         .minimumScaleFactor(0.7)
-                    if inProgress {
-                        Text("Set \(workout?.setNumber ?? 1)")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                if inProgress {
+                    setBanner(workout)
+                }
 
                 if inProgress {
                     HStack(alignment: .top, spacing: WatchTheme.gap) {
@@ -57,7 +69,14 @@ struct WorkoutWatchView: View {
                     WatchAction(title: "Next set", symbol: "checkmark") {
                         let loggedReps = reps
                         let loggedWeight = weight
-                        watchAct { Task { await model.logSet(reps: loggedReps, weight: loggedWeight) } }
+                        let rest = nextRestSeconds()
+                        afterTap {
+                            if let rest {
+                                restTotal = rest
+                                restEndsAt = Date().addingTimeInterval(TimeInterval(rest))
+                            }
+                            Task { await model.logSet(reps: loggedReps, weight: loggedWeight) }
+                        }
                     }
                     WatchAction(title: "Cancel", symbol: "xmark", fill: WatchTheme.card) {
                         watchAct { Task { await model.cancelWorkout() } }
@@ -74,6 +93,63 @@ struct WorkoutWatchView: View {
         .watchChrome()
         .onAppear(perform: seed)
         .onChange(of: model.today?.workout.setId) { _, _ in seed() }
+    }
+
+    private func setBanner(_ workout: WatchWorkout?) -> some View {
+        let exercise = openExercise(workout)
+        let total = max(exercise?.setCount ?? 1, 1)
+        let number = min(total, max(1, workout?.setNumber ?? exercise?.openSetNumber ?? 1))
+        return VStack(spacing: 4) {
+            Text("SET \(number)")
+                .font(.system(size: 28, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+            Text("of \(total)")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(WatchTheme.mute)
+            HStack(spacing: 5) {
+                ForEach(1...min(total, 8), id: \.self) { index in
+                    Circle()
+                        .fill(index < number ? WatchTheme.crown : (index == number ? WatchTheme.red : Color.white.opacity(0.22)))
+                        .frame(width: index == number ? 11 : 7, height: index == number ? 11 : 7)
+                }
+                if total > 8 {
+                    Text("\(number)/\(total)")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(WatchTheme.mute)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 2)
+    }
+
+    private func openExercise(_ workout: WatchWorkout?) -> WatchExercise? {
+        guard let workout else { return nil }
+        if let setId = workout.setId {
+            return workout.exercises.first { $0.openSetId == setId || $0.sets.contains { $0.id == setId } }
+        }
+        return workout.exercises.first { $0.openSetId != nil }
+    }
+
+    /// Rest before the following set. Nil on the last set of the workout.
+    private func nextRestSeconds() -> Int? {
+        guard let workout = model.today?.workout else { return nil }
+        guard let index = workout.exercises.firstIndex(where: { exercise in
+            if let setId = workout.setId {
+                return exercise.openSetId == setId || exercise.sets.contains { $0.id == setId }
+            }
+            return exercise.openSetId != nil
+        }) else { return nil }
+        let exercise = workout.exercises[index]
+        let openLeft = exercise.sets.filter { !$0.done }.count
+        let moreHere = openLeft > 1
+        let moreLater = workout.exercises.dropFirst(index + 1).contains { item in
+            if item.sets.isEmpty { return item.completedSets < item.setCount }
+            return item.sets.contains { !$0.done }
+        }
+        guard moreHere || moreLater else { return nil }
+        let rest = exercise.restSeconds
+        return rest > 0 ? rest : nil
     }
 
     private var weightText: String {
@@ -369,6 +445,264 @@ private func snapWeight(_ value: Double) -> Double {
     return (reps, snapWeight(exercise.lastWeightKg ?? remembered ?? 10))
 }
 
+private struct RestCountdownView: View {
+    var endsAt: Date
+    var total: Int
+    var onDone: () -> Void
+    @StateObject private var clock = SecondClock()
+    @State private var finished = false
+
+    private var remaining: Int {
+        max(0, Int(endsAt.timeIntervalSince(clock.now).rounded(.up)))
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let size = min(geo.size.width, geo.size.height) - 4
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                Button {
+                    afterTap(finish)
+                } label: {
+                    ZStack {
+                        WatchRing(
+                            progress: total > 0 ? Double(remaining) / Double(max(total, 1)) : 0,
+                            size: size,
+                            tint: WatchTheme.red
+                        )
+                        VStack(spacing: 2) {
+                            Text(WatchTheme.clock(remaining))
+                                .font(.system(size: min(36, size * 0.28), weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .monospacedDigit()
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                            Text("Rest")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(WatchTheme.mute)
+                            Text("Skip")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .padding(.horizontal, size * 0.18)
+                    }
+                }
+                .buttonStyle(.plain)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .watchChrome()
+        .onAppear {
+            clock.setRunning(true)
+            if remaining <= 0 { finish() }
+        }
+        .onDisappear { clock.setRunning(false) }
+        .onChange(of: remaining) { _, value in
+            if value <= 0 { finish() }
+        }
+    }
+
+    private func finish() {
+        guard !finished else { return }
+        finished = true
+        onDone()
+    }
+}
+
+private struct IntervalWatchView: View {
+    @EnvironmentObject private var model: WatchDashboardModel
+    @StateObject private var clock = SecondClock()
+    @State private var phaseIndex = 0
+    @State private var running = false
+    @State private var phaseStartedAt: Date?
+    @State private var finishing = false
+
+    private var workout: WatchWorkout? { model.today?.workout }
+    private var phases: [WatchHiitPhase] { workout?.phases ?? [] }
+    private var phase: WatchHiitPhase? {
+        phases.indices.contains(phaseIndex) ? phases[phaseIndex] : nil
+    }
+
+    private var remaining: Int {
+        guard let phase else { return 0 }
+        guard running, let phaseStartedAt else { return phase.seconds }
+        let elapsed = Int(clock.now.timeIntervalSince(phaseStartedAt))
+        return max(0, phase.seconds - elapsed)
+    }
+
+    private var kindTitle: String {
+        switch workout?.kind {
+        case "warmup": return "Warm-up"
+        case "stretch": return "Stretch"
+        case "hiit": return "HIIT"
+        default: return "Timer"
+        }
+    }
+
+    private var canSkipSession: Bool {
+        workout?.kind == "warmup" || workout?.kind == "stretch"
+    }
+
+    var body: some View {
+        let started = workout?.status == "in_progress" || running
+        let done = workout?.status == "completed" || finishing
+        ScrollView {
+            VStack(spacing: WatchTheme.gap) {
+                WatchHeader(title: kindTitle, back: true)
+                if workout?.title == nil && phases.isEmpty {
+                    Text("Nothing scheduled.")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(WatchTheme.mute)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else if done {
+                    Text("Done for today")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else if started, let phase {
+                    phaseTimer(phase)
+                } else {
+                    Text(workout?.title ?? kindTitle)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(summary)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(WatchTheme.mute)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if workout?.status == "scheduled" || workout?.status == "in_progress" {
+                        WatchAction(title: "Start", symbol: "play.fill") {
+                            afterTap { begin() }
+                        }
+                    }
+                }
+                if canSkipSession && !done && workout?.status != "none" && workout?.status != "completed" {
+                    WatchAction(
+                        title: workout?.kind == "warmup" ? "Skip warm-up" : "Skip stretch",
+                        symbol: "forward.fill",
+                        fill: WatchTheme.card
+                    ) {
+                        afterTap { Task { await model.skipWorkout() } }
+                    }
+                }
+                if started && !done && workout?.status == "in_progress" {
+                    WatchAction(title: "Cancel", symbol: "xmark", fill: WatchTheme.card) {
+                        afterTap {
+                            running = false
+                            clock.setRunning(false)
+                            Task { await model.cancelWorkout() }
+                        }
+                    }
+                }
+                if let error = model.error {
+                    Text(error)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(WatchTheme.red)
+                        .lineLimit(3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.bottom, 20)
+        }
+        .watchScroll()
+        .watchChrome()
+        .onAppear {
+            if workout?.status == "in_progress", !running, !finishing, !phases.isEmpty {
+                beginClock()
+            }
+        }
+        .onChange(of: remaining) { _, value in
+            guard running, value <= 0 else { return }
+            advance()
+        }
+    }
+
+    private var summary: String {
+        let seconds = phases.reduce(0) { $0 + max(0, $1.seconds) }
+        if seconds <= 0 { return kindTitle }
+        return "\(WatchTheme.clock(seconds)) · timer"
+    }
+
+    private func phaseTimer(_ phase: WatchHiitPhase) -> some View {
+        let total = max(phase.seconds, 1)
+        let resting = phase.type == "rest" || phase.type == "round_rest" || phase.type == "cycle_rest"
+        return VStack(spacing: 8) {
+            if !resting, let gif = phase.gifUrl, !gif.isEmpty {
+                ExerciseMedia(gifUrl: gif, loopAnchor: phaseStartedAt)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 72)
+            }
+            Button {
+                afterTap { advance() }
+            } label: {
+                ZStack {
+                    WatchRing(
+                        progress: Double(remaining) / Double(total),
+                        size: resting ? 132 : 108,
+                        tint: resting ? WatchTheme.crown : WatchTheme.red
+                    )
+                    VStack(spacing: 1) {
+                        Text(WatchTheme.clock(remaining))
+                            .font(.system(size: resting ? 28 : 24, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                        Text(phase.label)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(resting ? WatchTheme.crown : WatchTheme.red)
+                            .lineLimit(1)
+                        Text("Skip")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(WatchTheme.mute)
+                    }
+                    .padding(.horizontal, 28)
+                }
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+            Text(phase.name ?? phase.label)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func begin() {
+        beginClock()
+        if workout?.status != "in_progress" {
+            Task { await model.startWorkout() }
+        }
+    }
+
+    private func beginClock() {
+        guard !phases.isEmpty else { return }
+        phaseIndex = min(phaseIndex, phases.count - 1)
+        phaseStartedAt = Date()
+        running = true
+        clock.setRunning(true)
+    }
+
+    private func advance() {
+        guard !finishing else { return }
+        if phaseIndex + 1 < phases.count {
+            phaseIndex += 1
+            phaseStartedAt = Date()
+            return
+        }
+        finishing = true
+        running = false
+        clock.setRunning(false)
+        Task { await model.finishWorkout() }
+    }
+}
+
 struct CardioWatchView: View {
     @EnvironmentObject private var model: WatchDashboardModel
     @StateObject private var clock = SecondClock()
@@ -438,7 +772,10 @@ struct CardioWatchView: View {
                     }
                     if running || paused {
                         WatchAction(title: "Stop", symbol: "stop.fill", fill: WatchTheme.cardio) {
-                            watchAct { Task { await model.stopCardio() } }
+                            afterTap { Task { await model.stopCardio() } }
+                        }
+                        WatchAction(title: "Cancel", symbol: "xmark", fill: WatchTheme.card) {
+                            afterTap { Task { await model.cancelCardio() } }
                         }
                     } else if !done {
                         WatchAction(title: "Start", symbol: "play.fill", fill: WatchTheme.cardio) {

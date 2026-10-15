@@ -65,6 +65,7 @@ struct WatchExercise: Decodable, Equatable, Identifiable {
     var openSetNumber: Int?
     var lastWeightKg: Double?
     var lastReps: Int?
+    var restSeconds: Int
     var sets: [WatchSet]
 
     init(
@@ -79,6 +80,7 @@ struct WatchExercise: Decodable, Equatable, Identifiable {
         openSetNumber: Int?,
         lastWeightKg: Double?,
         lastReps: Int?,
+        restSeconds: Int = 90,
         sets: [WatchSet] = []
     ) {
         self.id = id
@@ -92,12 +94,13 @@ struct WatchExercise: Decodable, Equatable, Identifiable {
         self.openSetNumber = openSetNumber
         self.lastWeightKg = lastWeightKg
         self.lastReps = lastReps
+        self.restSeconds = restSeconds
         self.sets = sets
     }
 
     enum CodingKeys: String, CodingKey {
         case id, name, gifUrl, videoUrl, targetReps, setCount, completedSets
-        case openSetId, openSetNumber, lastWeightKg, lastReps, sets
+        case openSetId, openSetNumber, lastWeightKg, lastReps, restSeconds, sets
     }
 
     init(from decoder: Decoder) throws {
@@ -113,6 +116,7 @@ struct WatchExercise: Decodable, Equatable, Identifiable {
         openSetNumber = try container.decodeIfPresent(Int.self, forKey: .openSetNumber)
         lastWeightKg = try container.decodeIfPresent(Double.self, forKey: .lastWeightKg)
         lastReps = try container.decodeIfPresent(Int.self, forKey: .lastReps)
+        restSeconds = try container.decodeIfPresent(Int.self, forKey: .restSeconds) ?? 90
         sets = try container.decodeIfPresent([WatchSet].self, forKey: .sets) ?? []
     }
 }
@@ -128,10 +132,15 @@ struct WatchWorkout: Decodable, Equatable {
     var targetReps: String?
     var exercises: [WatchExercise]
     var mode: String
+    var kind: String
     var phases: [WatchHiitPhase]
+    var planId: String?
+    var dayId: String?
+    var scheduledWorkoutId: String?
 
     enum CodingKeys: String, CodingKey {
-        case title, status, canLogSets, sessionId, exerciseName, setNumber, setId, targetReps, exercises, mode, phases
+        case title, status, canLogSets, sessionId, exerciseName, setNumber, setId, targetReps, exercises, mode, kind, phases
+        case planId, dayId, scheduledWorkoutId
     }
 
     init(from decoder: Decoder) throws {
@@ -146,7 +155,11 @@ struct WatchWorkout: Decodable, Equatable {
         targetReps = try container.decodeIfPresent(String.self, forKey: .targetReps)
         exercises = try container.decodeIfPresent([WatchExercise].self, forKey: .exercises) ?? []
         mode = try container.decodeIfPresent(String.self, forKey: .mode) ?? "strength"
+        kind = try container.decodeIfPresent(String.self, forKey: .kind) ?? "strength"
         phases = try container.decodeIfPresent([WatchHiitPhase].self, forKey: .phases) ?? []
+        planId = try container.decodeIfPresent(String.self, forKey: .planId)
+        dayId = try container.decodeIfPresent(String.self, forKey: .dayId)
+        scheduledWorkoutId = try container.decodeIfPresent(String.self, forKey: .scheduledWorkoutId)
     }
 }
 
