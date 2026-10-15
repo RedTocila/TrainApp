@@ -13,6 +13,8 @@ import {
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import { formatDateKey } from "@/lib/utils";
 import {
+  openWorkoutSessionCached,
+  readStagedWorkoutOpen,
   stageWorkoutOpen,
   WORKOUT_SESSION_OPEN_PATH,
 } from "@/lib/staged-workout-open";
@@ -62,6 +64,8 @@ export function useStartWorkout(
     if (workout?.planId && workout.dayId) {
       const opened = stageWorkoutOpen(workout, { gender, continuesToMain });
       if (!opened) return;
+      const snapshot = readStagedWorkoutOpen();
+      if (snapshot) void openWorkoutSessionCached(snapshot);
       setIsStarting(true);
       router.push(WORKOUT_SESSION_OPEN_PATH);
       return;

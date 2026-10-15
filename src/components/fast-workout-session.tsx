@@ -70,11 +70,8 @@ export function FastWorkoutSession() {
   const [error, setError] = useState<string | null>(null);
 
   useLayoutEffect(() => {
-    const id = window.setTimeout(() => {
-      setStaged(readStagedWorkoutOpen());
-      setReady(true);
-    }, 0);
-    return () => window.clearTimeout(id);
+    setStaged(readStagedWorkoutOpen());
+    setReady(true);
   }, []);
 
   useLayoutEffect(() => {

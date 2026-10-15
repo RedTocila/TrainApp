@@ -455,11 +455,11 @@ final class WatchDashboardModel: ObservableObject {
 
     private func loadSteps() async {
         guard HKHealthStore.isHealthDataAvailable() else { return }
+        // Heart rate is disallowed here. Requesting it throws and closes the app on launch.
         let stepType = HKObjectType.quantityType(forIdentifier: .stepCount)
         let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)
         let distanceType = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)
-        let heartType = HKObjectType.quantityType(forIdentifier: .heartRate)
-        let readTypes = [stepType, energyType, distanceType, heartType].compactMap { $0 }
+        let readTypes = [stepType, energyType, distanceType].compactMap { $0 }
         guard !readTypes.isEmpty else { return }
 
         let allowed = await withCheckedContinuation { continuation in
@@ -474,8 +474,7 @@ final class WatchDashboardModel: ObservableObject {
             let end = Calendar.current.date(byAdding: .day, value: 1, to: start),
             let stepType,
             let energyType,
-            let distanceType,
-            let heartType
+            let distanceType
         else { return }
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
 
@@ -483,13 +482,11 @@ final class WatchDashboardModel: ObservableObject {
         async let hours = hourlySteps(stepType, start: start, end: end, predicate: predicate)
         async let energy = cumulative(energyType, unit: .kilocalorie(), predicate: predicate)
         async let distance = cumulative(distanceType, unit: .meter(), predicate: predicate)
-        async let heart = averageHeart(heartType, predicate: predicate)
 
         steps = Int((await stepCount).rounded())
         stepHours = await hours
         moveKcal = Int((await energy).rounded())
         moveKm = await distance / 1000
-        moveHeart = await heart
     }
 
     private func cumulative(_ type: HKQuantityType, unit: HKUnit, predicate: NSPredicate) async -> Double {
@@ -527,24 +524,6 @@ final class WatchDashboardModel: ObservableObject {
                     if hours.indices.contains(hour) { hours[hour] = value }
                 }
                 continuation.resume(returning: hours)
-            }
-            health.execute(query)
-        }
-    }
-
-    private func averageHeart(_ type: HKQuantityType, predicate: NSPredicate) async -> Int? {
-        await withCheckedContinuation { continuation in
-            let query = HKStatisticsQuery(
-                quantityType: type,
-                quantitySamplePredicate: predicate,
-                options: .discreteAverage
-            ) { _, result, _ in
-                let unit = HKUnit.count().unitDivided(by: .minute())
-                if let bpm = result?.averageQuantity()?.doubleValue(for: unit), bpm > 0 {
-                    continuation.resume(returning: Int(bpm.rounded()))
-                } else {
-                    continuation.resume(returning: nil)
-                }
             }
             health.execute(query)
         }

@@ -36,7 +36,6 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         let generation = LiveWorkoutStore.beginSync()
         Task {
-            let token = await LiveWorkoutStore.cacheImage(from: gifUrl, index: exerciseIndex)
             guard LiveWorkoutStore.isSyncCurrent(generation) else {
                 call.resolve()
                 return
@@ -45,6 +44,7 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.resolve()
                 return
             }
+            let token = LiveWorkoutStore.imageToken
             let state = board?.contentState(index: exerciseIndex, imageToken: token) ?? LiveWorkoutSync.state(
                 name: name,
                 setNumber: setNumber,
@@ -57,14 +57,21 @@ public class LiveWorkoutPlugin: CAPPlugin, CAPBridgedPlugin {
                 imageToken: token
             )
             await LiveWorkoutActivity.start(state, generation: generation, board: board)
-            if let board {
-                Task.detached {
-                    for (index, exercise) in board.exercises.enumerated() where index != exerciseIndex {
-                        _ = await LiveWorkoutStore.cacheImage(from: exercise.gifUrl, index: index)
-                    }
-                }
-            }
             call.resolve()
+            let nextToken = await LiveWorkoutStore.cacheImage(from: gifUrl, index: exerciseIndex)
+            guard LiveWorkoutStore.isSyncCurrent(generation), nextToken != token else { return }
+            let pictured = board?.contentState(index: exerciseIndex, imageToken: nextToken) ?? LiveWorkoutSync.state(
+                name: name,
+                setNumber: setNumber,
+                setCount: setCount,
+                reps: reps,
+                weightKg: weight,
+                setId: setId,
+                exerciseIndex: exerciseIndex,
+                exerciseCount: exerciseCount,
+                imageToken: nextToken
+            )
+            await LiveWorkoutActivity.start(pictured, generation: generation)
         }
     }
 
