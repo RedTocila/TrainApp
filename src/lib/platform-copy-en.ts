@@ -172,16 +172,17 @@ export const platformCopyEn = {
   reminders: {
     title: "Notifications & reminders",
     subtitle:
-      "Get nudged when today’s workout, meals, cardio, water, or habits are still open.",
+      "Get a nudge during the day while today’s workout, meals, cardio, water, or habits are still open.",
     masterLabel: "Enable reminders",
-    masterHint: "Only fires if that item is still incomplete at the reminder time.",
+    masterHint:
+      "Up to three times during the day. Stops once everything you turned on is done.",
     nativeOnlyHint:
-      "Reminders deliver on the RUTINA iOS/Android app. Settings save here for when you use the app.",
+      "Reminders are sent to the RUTINA iOS and Android app. Turn them on here, then open the app and allow notifications.",
     permissionDenied:
       "Notification permission is off. Enable it in system settings to receive reminders.",
     timeLabel: "Reminder time",
     saved: "Reminder settings saved",
-    resync: "Refresh scheduled reminders",
+    resync: "Allow notifications on this phone",
     networkError: "Couldn’t reach the server. Check your connection and try again.",
     channelName: "Daily reminders",
     channelDescription:
@@ -193,6 +194,16 @@ export const platformCopyEn = {
       water: "Drink water",
       habits: "Daily habits",
     },
+    shortTypes: {
+      workout: "Workout",
+      meals: "Meals",
+      cardio: "Cardio",
+      water: "Water",
+      habits: "Habits",
+    },
+    digestTitle: "Still open today",
+    digestAnd: "and",
+    digestStillOpen: (list: string) => `${list} are still open.`,
     typeHints: {
       workout: "If today’s workout is still open",
       meals: "If you haven’t logged any meals yet",

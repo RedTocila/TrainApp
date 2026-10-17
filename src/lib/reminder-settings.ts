@@ -32,7 +32,7 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
   habits: { enabled: true, time: "20:00" },
 };
 
-/** Stable numeric ids for Capacitor Local Notifications (type × 100 + day offset). */
+/** Older local reminders used one id per type per day. Cancel these so they stop firing. */
 export const REMINDER_NOTIFICATION_BASE: Record<ReminderType, number> = {
   workout: 1100,
   meals: 1200,
@@ -43,6 +43,9 @@ export const REMINDER_NOTIFICATION_BASE: Record<ReminderType, number> = {
 
 export const REMINDER_SCHEDULE_DAYS = 14;
 
+/** One local notification per daytime slot (fallback when remote push is not configured). */
+export const REMINDER_SLOT_NOTIFICATION_IDS = [1701, 1702, 1703] as const;
+
 export function reminderNotificationId(
   type: ReminderType,
   dayOffset: number
@@ -51,7 +54,7 @@ export function reminderNotificationId(
 }
 
 export function allReminderNotificationIds(): number[] {
-  const ids: number[] = [];
+  const ids: number[] = [...REMINDER_SLOT_NOTIFICATION_IDS];
   for (const type of REMINDER_TYPES) {
     for (let i = 0; i < REMINDER_SCHEDULE_DAYS; i++) {
       ids.push(reminderNotificationId(type, i));

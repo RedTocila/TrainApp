@@ -3,16 +3,11 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Bell, BellOff } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
-import { usePlatformCopy } from "@/components/locale-provider";
+import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { updateReminderSettings, getTodayReminderPendingStatus } from "@/lib/actions/reminders";
-import {
-  buildReminderCopy,
-  ensureReminderPermissions,
-  syncReminderNotifications,
-} from "@/lib/native-reminders";
+import { updateReminderSettings } from "@/lib/actions/reminders";
+import { syncReminderDelivery } from "@/lib/reminder-delivery";
 import {
   DEFAULT_REMINDER_SETTINGS,
   parseReminderSettings,
@@ -72,6 +67,7 @@ export function ReminderSettingsCard({
 }: {
   initialSettings?: unknown;
 }) {
+  const locale = useLocale();
   const platform = usePlatformCopy();
   const [settings, setSettings] = useState(() =>
     parseReminderSettings(initialSettings ?? DEFAULT_REMINDER_SETTINGS)
@@ -101,13 +97,6 @@ export function ReminderSettingsCard({
 
     startTransition(async () => {
       try {
-        if (next.enabled && isNative) {
-          const granted = await ensureReminderPermissions();
-          if (!granted) {
-            setPermissionHint(platform.reminders.permissionDenied);
-          }
-        }
-
         const result = await updateReminderSettings(next);
         if (result.error) {
           setError(result.error);
@@ -122,14 +111,7 @@ export function ReminderSettingsCard({
 
         if (isNative) {
           try {
-            const pendingToday = await getTodayReminderPendingStatus(
-              new Date().getTimezoneOffset()
-            );
-            const sync = await syncReminderNotifications({
-              settings: saved,
-              pendingToday,
-              copy: buildReminderCopy(platform),
-            });
+            const sync = await syncReminderDelivery(saved, locale);
             if (saved.enabled && !sync.permissionGranted) {
               setPermissionHint(platform.reminders.permissionDenied);
             }
@@ -158,13 +140,6 @@ export function ReminderSettingsCard({
     persist({
       ...settings,
       [type]: { ...settings[type], enabled },
-    });
-  };
-
-  const setTypeTime = (type: ReminderType, time: string) => {
-    persist({
-      ...settings,
-      [type]: { ...settings[type], time },
     });
   };
 
@@ -223,22 +198,12 @@ export function ReminderSettingsCard({
                   {platform.reminders.typeHints[TYPE_LABEL_KEY[type]]}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="time"
-                  value={settings[type].time}
-                  disabled={!settings.enabled || isPending}
-                  onChange={(e) => setTypeTime(type, e.target.value)}
-                  aria-label={platform.reminders.timeLabel}
-                  className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-                />
-                <Toggle
-                  checked={settings[type].enabled}
-                  onChange={(enabled) => setTypeEnabled(type, enabled)}
-                  disabled={!settings.enabled || isPending}
-                  label={platform.reminders.types[TYPE_LABEL_KEY[type]]}
-                />
-              </div>
+              <Toggle
+                checked={settings[type].enabled}
+                onChange={(enabled) => setTypeEnabled(type, enabled)}
+                disabled={!settings.enabled || isPending}
+                label={platform.reminders.types[TYPE_LABEL_KEY[type]]}
+              />
             </div>
           ))}
         </div>

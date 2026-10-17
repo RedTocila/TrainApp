@@ -25,6 +25,10 @@
     {
       "path": "/api/cron/expire-meal-photos",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/reminder-pushes",
+      "schedule": "0 9,10,14,15,18,19 * * *"
     }
   ]
 }

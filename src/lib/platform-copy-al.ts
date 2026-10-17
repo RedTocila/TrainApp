@@ -173,17 +173,17 @@ export const platformCopyAl = {
   reminders: {
     title: "Njoftimet & kujtesat",
     subtitle:
-      "Merr një kujtesë kur stërvitja, vaktet, kardio, uji ose zakonet e sotme janë ende hapur.",
+      "Merr një kujtesë gjatë ditës kur stërvitja, vaktet, kardio, uji ose zakonet e sotme janë ende hapur.",
     masterLabel: "Aktivizo kujtesat",
     masterHint:
-      "Dërgohet vetëm nëse ajo gjë është ende e papërfunduar në orën e kujtesës.",
+      "Deri në tri herë gjatë ditës. Ndalon sapo të mbarojë gjithçka që ke ndezur.",
     nativeOnlyHint:
-      "Kujtesat dërgohen në aplikacionin RUTINA (iOS/Android). Cilësimet ruhen këtu për kur e përdor aplikacionin.",
+      "Kujtesat dërgohen te aplikacioni RUTINA në iOS dhe Android. Aktivizoji këtu, pastaj hape aplikacionin dhe lejo njoftimet.",
     permissionDenied:
       "Leja për njoftime është e fikur. Aktivizoje te cilësimet e sistemit.",
     timeLabel: "Ora e kujtesës",
     saved: "Cilësimet e kujtesave u ruajtën",
-    resync: "Rifresko kujtesat e planifikuara",
+    resync: "Lejo njoftimet në këtë telefon",
     networkError: "Nuk u lidh me serverin. Kontrollo lidhjen dhe provo përsëri.",
     channelName: "Kujtesa ditore",
     channelDescription:
@@ -195,6 +195,16 @@ export const platformCopyAl = {
       water: "Pi ujë",
       habits: "Zakonet ditore",
     },
+    shortTypes: {
+      workout: "Stërvitja",
+      meals: "Vaktet",
+      cardio: "Kardio",
+      water: "Uji",
+      habits: "Zakonet",
+    },
+    digestTitle: "Ende hapur sot",
+    digestAnd: "dhe",
+    digestStillOpen: (list: string) => `${list} janë ende hapur.`,
     typeHints: {
       workout: "Nëse stërvitja e sotme është ende e hapur",
       meals: "Nëse nuk ke regjistruar asnjë vakt",

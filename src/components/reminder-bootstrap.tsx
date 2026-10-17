@@ -2,24 +2,17 @@
 
 import { useEffect, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
-import { usePlatformCopy } from "@/components/locale-provider";
-import {
-  getReminderSettings,
-  getTodayReminderPendingStatus,
-} from "@/lib/actions/reminders";
-import {
-  buildReminderCopy,
-  syncReminderNotifications,
-} from "@/lib/native-reminders";
+import { useLocale } from "@/components/locale-provider";
+import { getReminderSettings } from "@/lib/actions/reminders";
+import { syncReminderDelivery } from "@/lib/reminder-delivery";
 import { onReminderDone } from "@/lib/reminder-events";
-import { reminderDeepLinkPath, type ReminderType } from "@/lib/reminder-settings";
 
 /**
- * On native: keep local reminder notifications in sync with settings + today's completion.
- * Handles notification taps (deep-link into the relevant dashboard section).
+ * On the native app, register reminder push and keep a local fallback in sync.
+ * Notification taps open the dashboard section named in the payload.
  */
 export function ReminderBootstrap() {
-  const platform = usePlatformCopy();
+  const locale = useLocale();
   const syncing = useRef(false);
 
   useEffect(() => {
@@ -34,17 +27,9 @@ export function ReminderBootstrap() {
       if (cancelled || syncing.current) return;
       syncing.current = true;
       try {
-        const timezoneOffsetMinutes = new Date().getTimezoneOffset();
-        const [settings, pendingToday] = await Promise.all([
-          getReminderSettings(),
-          getTodayReminderPendingStatus(timezoneOffsetMinutes),
-        ]);
+        const settings = await getReminderSettings();
         if (cancelled) return;
-        await syncReminderNotifications({
-          settings,
-          pendingToday,
-          copy: buildReminderCopy(platform),
-        });
+        await syncReminderDelivery(settings, locale);
       } catch {
         // ignore sync failures (offline / permissions)
       } finally {
@@ -62,22 +47,15 @@ export function ReminderBootstrap() {
           import("@capacitor/local-notifications"),
           import("@capacitor/app"),
         ]);
-
         if (cancelled) return;
 
         const actionHandle = await LocalNotifications.addListener(
           "localNotificationActionPerformed",
           (event) => {
-            const extra = event.notification.extra as
-              | { type?: ReminderType; path?: string }
-              | undefined;
-            const path =
-              extra?.path ??
-              (extra?.type ? reminderDeepLinkPath(extra.type) : "/dashboard");
+            const extra = event.notification.extra as { path?: string } | undefined;
+            const path = extra?.path ?? "/dashboard";
             const current = `${window.location.pathname}${window.location.search}`;
-            if (path && path !== current) {
-              window.location.assign(path);
-            }
+            if (path !== current) window.location.assign(path);
           }
         );
         removeAction = () => {
@@ -93,7 +71,7 @@ export function ReminderBootstrap() {
 
         await sync();
       } catch {
-        // Plugins unavailable
+        // Plugin unavailable
       }
     })();
 
@@ -103,7 +81,7 @@ export function ReminderBootstrap() {
       removeResume?.();
       removeDone?.();
     };
-  }, [platform]);
+  }, [locale]);
 
   return null;
 }

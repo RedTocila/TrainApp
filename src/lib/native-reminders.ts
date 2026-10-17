@@ -1,48 +1,25 @@
 import { Capacitor } from "@capacitor/core";
+import type { CheckoutLocale } from "@/lib/checkout-i18n";
+import { REMINDER_PUSH_HOURS } from "@/lib/reminder-clock";
+import { reminderPushMessage } from "@/lib/reminder-message";
+import { getPlatformCopy } from "@/lib/platform-copy";
 import {
   allReminderNotificationIds,
-  parseReminderSettings,
-  reminderDeepLinkPath,
-  reminderNotificationId,
-  REMINDER_SCHEDULE_DAYS,
+  REMINDER_SLOT_NOTIFICATION_IDS,
   REMINDER_TYPES,
   type ReminderSettings,
   type ReminderType,
 } from "@/lib/reminder-settings";
-
-export type ReminderCopy = {
-  channelName: string;
-  channelDescription: string;
-  titles: Record<ReminderType, string>;
-  bodies: Record<ReminderType, string>;
-};
-
-function parseHourMinute(time: string): { hour: number; minute: number } {
-  const [h, m] = time.slice(0, 5).split(":").map(Number);
-  return {
-    hour: Number.isFinite(h) ? h : 0,
-    minute: Number.isFinite(m) ? m : 0,
-  };
-}
-
-function atLocalTime(base: Date, hour: number, minute: number): Date {
-  const d = new Date(base);
-  d.setHours(hour, minute, 0, 0);
-  return d;
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
 
 async function getLocalNotifications() {
   const { LocalNotifications } = await import("@capacitor/local-notifications");
   return LocalNotifications;
 }
 
-export async function ensureReminderPermissions(): Promise<boolean> {
+export async function ensureReminderPermissions(channel?: {
+  name: string;
+  description: string;
+}): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) {
     if (typeof Notification === "undefined") return false;
     if (Notification.permission === "granted") return true;
@@ -60,8 +37,10 @@ export async function ensureReminderPermissions(): Promise<boolean> {
     if (status.display === "granted" && Capacitor.getPlatform() === "android") {
       await LocalNotifications.createChannel({
         id: "reminders",
-        name: "Daily reminders",
-        description: "Nudges when workouts, meals, water, or habits are pending",
+        name: channel?.name ?? "Daily reminders",
+        description:
+          channel?.description ??
+          "Nudges when workouts, meals, water, or habits are pending",
         importance: 4,
         visibility: 1,
         sound: "default",
@@ -85,81 +64,66 @@ export async function cancelAllReminderNotifications(): Promise<void> {
   }
 }
 
-export async function cancelReminderTypeForToday(
-  type: ReminderType
-): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
-  try {
-    const LocalNotifications = await getLocalNotifications();
-    await LocalNotifications.cancel({
-      notifications: [{ id: reminderNotificationId(type, 0) }],
-    });
-  } catch {
-    // ignore
-  }
-}
-
 /**
- * Schedule local notifications for the next N days.
- * Today is skipped for a type when it is already done or the reminder time passed.
+ * Local fallback for today only: 11:00, 16:00, and 20:00 if something is still open.
+ * Remote push replaces this once the server can deliver to this platform.
  */
-export async function syncReminderNotifications(options: {
+export async function syncTodaySlotReminders(options: {
   settings: ReminderSettings;
   pendingToday: Record<ReminderType, boolean>;
-  copy: ReminderCopy;
+  locale: CheckoutLocale;
 }): Promise<{ scheduled: number; permissionGranted: boolean }> {
-  const settings = parseReminderSettings(options.settings);
-
   if (!Capacitor.isNativePlatform()) {
     return { scheduled: 0, permissionGranted: false };
   }
 
   await cancelAllReminderNotifications();
 
-  if (!settings.enabled) {
+  if (!options.settings.enabled) {
     return { scheduled: 0, permissionGranted: true };
   }
 
-  const granted = await ensureReminderPermissions();
+  const open = REMINDER_TYPES.filter(
+    (type) => options.settings[type].enabled && options.pendingToday[type]
+  );
+  if (open.length === 0) {
+    return { scheduled: 0, permissionGranted: true };
+  }
+
+  const copy = getPlatformCopy(options.locale).reminders;
+  const granted = await ensureReminderPermissions({
+    name: copy.channelName,
+    description: copy.channelDescription,
+  });
   if (!granted) {
     return { scheduled: 0, permissionGranted: false };
   }
 
+  const message = reminderPushMessage(open, options.locale);
   const LocalNotifications = await getLocalNotifications();
-  const now = new Date();
+  const now = Date.now();
   const notifications: {
     id: number;
     title: string;
     body: string;
     schedule: { at: Date; allowWhileIdle: boolean };
-    extra: { type: ReminderType; path: string };
+    extra: { path: string };
     channelId?: string;
   }[] = [];
 
-  for (const type of REMINDER_TYPES) {
-    const config = settings[type];
-    if (!config.enabled) continue;
-
-    const { hour, minute } = parseHourMinute(config.time);
-    for (let dayOffset = 0; dayOffset < REMINDER_SCHEDULE_DAYS; dayOffset++) {
-      const day = addDays(now, dayOffset);
-      const at = atLocalTime(day, hour, minute);
-
-      if (at.getTime() <= now.getTime() + 15_000) continue;
-      if (dayOffset === 0 && !options.pendingToday[type]) continue;
-
-      notifications.push({
-        id: reminderNotificationId(type, dayOffset),
-        title: options.copy.titles[type],
-        body: options.copy.bodies[type],
-        schedule: { at, allowWhileIdle: true },
-        extra: { type, path: reminderDeepLinkPath(type) },
-        ...(Capacitor.getPlatform() === "android"
-          ? { channelId: "reminders" }
-          : {}),
-      });
-    }
-  }
+  REMINDER_PUSH_HOURS.forEach((hour, index) => {
+    const at = new Date();
+    at.setHours(hour, 0, 0, 0);
+    if (at.getTime() <= now + 15_000) return;
+    notifications.push({
+      id: REMINDER_SLOT_NOTIFICATION_IDS[index],
+      title: message.title,
+      body: message.body,
+      schedule: { at, allowWhileIdle: true },
+      extra: { path: message.path },
+      ...(Capacitor.getPlatform() === "android" ? { channelId: "reminders" } : {}),
+    });
+  });
 
   if (notifications.length === 0) {
     return { scheduled: 0, permissionGranted: true };
@@ -167,20 +131,4 @@ export async function syncReminderNotifications(options: {
 
   await LocalNotifications.schedule({ notifications });
   return { scheduled: notifications.length, permissionGranted: true };
-}
-
-export function buildReminderCopy(platform: {
-  reminders: {
-    notifTitles: Record<ReminderType, string>;
-    notifBodies: Record<ReminderType, string>;
-    channelName: string;
-    channelDescription: string;
-  };
-}): ReminderCopy {
-  return {
-    channelName: platform.reminders.channelName,
-    channelDescription: platform.reminders.channelDescription,
-    titles: platform.reminders.notifTitles,
-    bodies: platform.reminders.notifBodies,
-  };
 }
