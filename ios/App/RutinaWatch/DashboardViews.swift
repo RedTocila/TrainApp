@@ -469,6 +469,8 @@ enum WatchTheme {
     static let red = Color(red: 220 / 255, green: 38 / 255, blue: 38 / 255)
     static let crown = Color(red: 48 / 255, green: 209 / 255, blue: 88 / 255)
     static let gap: CGFloat = 7
+    /// One dashboard card. Tall enough for a title, value, and meter on its own row.
+    static let dashRow: CGFloat = 64
     static let ink = Color.black
     static let card = Color(red: 28 / 255, green: 28 / 255, blue: 30 / 255)
     static let mute = Color.white.opacity(0.48)
@@ -691,7 +693,8 @@ struct WatchHeader: View {
     var body: some View {
         HStack(spacing: 4) {
             if back {
-                Button { afterTap { dismiss() } } label: {
+                // Button actions already run after the tap ends. Waiting here only delays the pop.
+                Button { watchAct { dismiss() } } label: {
                     Image(systemName: "chevron.backward")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)
@@ -884,31 +887,32 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: WatchTheme.gap) {
-                WatchHeader(title: "Rutina", brand: true, onRefresh: {
-                    Task { await model.refresh() }
-                })
-                if let alert = alertLine {
-                    Text(alert)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(WatchTheme.red)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.7)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                destination { WorkoutWatchView() } label: { workoutCard }
-                    .frame(height: 58)
-                HStack(spacing: WatchTheme.gap) {
+            ScrollView {
+                VStack(spacing: WatchTheme.gap) {
+                    WatchHeader(title: "Rutina", brand: true, onRefresh: {
+                        Task { await model.refresh() }
+                    })
+                    if let alert = alertLine {
+                        Text(alert)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(WatchTheme.red)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.7)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    destination { WorkoutWatchView() } label: { workoutCard }
+                        .frame(height: WatchTheme.dashRow)
                     destination { NutritionWatchView() } label: { nutritionTile }
+                        .frame(height: WatchTheme.dashRow)
                     destination { WaterWatchView() } label: { waterTile }
-                }
-                .frame(maxHeight: .infinity)
-                HStack(spacing: WatchTheme.gap) {
+                        .frame(height: WatchTheme.dashRow)
                     destination { StepsWatchView() } label: { stepsTile }
+                        .frame(height: WatchTheme.dashRow)
                     destination { CardioWatchView() } label: { CardioDashTile() }
+                        .frame(height: WatchTheme.dashRow)
                 }
-                .frame(maxHeight: .infinity)
             }
+            .watchScroll()
             .watchChrome()
         }
         .ignoresSafeArea()

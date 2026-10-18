@@ -68,12 +68,13 @@ export async function GET(
     return NextResponse.json({ error: "GIF not found" }, { status: 404 });
   }
 
-  const bytes = await gifRes.arrayBuffer();
-
-  return new NextResponse(bytes, {
-    headers: {
-      "Content-Type": gifRes.headers.get("content-type") ?? "image/gif",
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
-    },
-  });
+  const headers = {
+    "Content-Type": gifRes.headers.get("content-type") ?? "image/gif",
+    "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+  };
+  if (!gifRes.body) {
+    const bytes = await gifRes.arrayBuffer();
+    return new NextResponse(bytes, { headers });
+  }
+  return new NextResponse(gifRes.body, { headers });
 }

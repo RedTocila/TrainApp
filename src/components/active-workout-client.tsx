@@ -595,12 +595,11 @@ function ActiveExercisePanel({
             <ExerciseDemoPlayer
               name={exercise.name}
               imageUrl={exercise.image_url}
-              videoUrl={exercise.video_url}
               gender={gender}
-              autoplay
               paused={mediaPaused}
               fill
-              deferMedia={readOnly}
+              deferMedia
+              resolveOverride={false}
             />
           </div>
           <button

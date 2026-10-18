@@ -22,13 +22,9 @@ enum LiveWorkoutStore {
         UserDefaults(suiteName: suiteName) ?? .standard
     }
 
-    /// Disk flush stays off the button so Lock Screen taps are not waiting on it.
-    private static func flush() {
-        let store = defaults
-        DispatchQueue.global(qos: .utility).async {
-            store.synchronize()
-        }
-    }
+    /// `synchronize()` blocks the app-group store for a long time and holds
+    /// Lock Screen taps (and in-workout updates) until it finishes.
+    private static func flush() {}
 
     static var containerURL: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: suiteName)
@@ -187,7 +183,16 @@ enum LiveWorkoutStore {
         return UIImage(data: data)
     }
 
+    private static func imageExists(_ name: String) -> Bool {
+        guard let url = containerURL?.appendingPathComponent(name) else { return false }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
     /// Writes the first frame of the exercise GIF for the Lock Screen card.
+    /// Rep taps repeat the same URL. Pulling that GIF into memory each time
+    /// stalled the workout and jetsammed the web view.
+    private static var inflightURL: String?
+
     static func cacheImage(from urlString: String?, index: Int? = nil) async -> Int {
         guard
             let urlString,
@@ -195,15 +200,33 @@ enum LiveWorkoutStore {
             let folder = containerURL
         else { return imageToken }
 
+        let cacheKey = "cachedGifURL-\(index ?? -1)"
+        let fileName = index.map { "live-\($0).jpg" } ?? imageName
+        if defaults.string(forKey: cacheKey) == urlString, imageExists(fileName) {
+            return imageToken
+        }
+        if inflightURL == urlString { return imageToken }
+        inflightURL = urlString
+        defer { if inflightURL == urlString { inflightURL = nil } }
+
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (fileURL, response) = try await URLSession.shared.download(from: url)
+            defer { try? FileManager.default.removeItem(at: fileURL) }
+            let bytes = (try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
             guard (response as? HTTPURLResponse)?.statusCode ?? 500 < 300,
-                  data.count < 8_000_000,
-                  let image = stillImage(data) else { return imageToken }
+                  bytes > 0, bytes < 8_000_000,
+                  let image = stillImage(at: fileURL) else {
+                if bytes >= 8_000_000 {
+                    defaults.set(urlString, forKey: cacheKey)
+                }
+                return imageToken
+            }
             let longest = max(image.size.width, image.size.height)
             let scale = longest > 240 ? 240 / longest : 1
             let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-            let renderer = UIGraphicsImageRenderer(size: size)
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let renderer = UIGraphicsImageRenderer(size: size, format: format)
             let scaled = renderer.image { _ in
                 image.draw(in: CGRect(origin: .zero, size: size))
             }
@@ -212,6 +235,7 @@ enum LiveWorkoutStore {
                 try jpeg.write(to: folder.appendingPathComponent("live-\(index).jpg"), options: .atomic)
             }
             try jpeg.write(to: folder.appendingPathComponent(imageName), options: .atomic)
+            defaults.set(urlString, forKey: cacheKey)
             imageToken += 1
             return imageToken
         } catch {
@@ -219,13 +243,15 @@ enum LiveWorkoutStore {
         }
     }
 
-    /// First frame only. `UIImage(data:)` expands every frame of an exercise GIF.
-    private static func stillImage(_ data: Data) -> UIImage? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+    /// First frame only, from a file. `Data(contentsOf:)` plus `UIImage(data:)` expands every GIF frame.
+    private static func stillImage(at url: URL) -> UIImage? {
+        let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions as CFDictionary) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceThumbnailMaxPixelSize: 240,
             kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: false
         ]
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
         return UIImage(cgImage: image)
@@ -457,7 +483,7 @@ enum LiveWorkoutQueue {
 
 @available(iOS 16.2, *)
 struct WorkoutActivityAttributes: ActivityAttributes {
-    struct ContentState: Codable, Hashable {
+    struct ContentState: Codable, Hashable, Sendable {
         var exerciseName: String
         var setLabel: String
         var reps: Int
@@ -749,7 +775,10 @@ enum LiveWorkoutSync {
     static func remember(_ state: WorkoutActivityAttributes.ContentState) {
         pending = state
     }
-    private static var adjustChain: Task<Void, Never> = Task {}
+    /// Serializes card paints. The button intent must not await them: the widget
+    /// is the process drawing the card, so waiting deadlocks for about a second.
+    private static let publishLock = NSLock()
+    private static var publishChain: Task<Void, Never> = Task {}
 
     static func state(
         name: String,
@@ -802,18 +831,31 @@ enum LiveWorkoutSync {
         )
     }
 
-    /// Lock Screen edits apply locally first. The phone must not rewind them.
+    /// Lock Screen edits schedule the card update and return. Awaiting it here
+    /// deadlocks the widget until the system gives up, about a second later.
     static func pushLocal(_ state: WorkoutActivityAttributes.ContentState) async {
-        if pending == state { return }
-        pending = state
+        let shouldPaint = enqueue(state)
+        guard shouldPaint else { return }
         LiveWorkoutStore.revision += 1
-        await publish(state)
         LiveWorkoutStore.saveDraft(
             index: state.exerciseIndex,
             setId: state.setId,
             reps: state.reps,
             weight: state.weightKg
         )
+    }
+
+    private static func enqueue(_ state: WorkoutActivityAttributes.ContentState) -> Bool {
+        publishLock.lock()
+        defer { publishLock.unlock() }
+        if pending == state { return false }
+        pending = state
+        let previous = publishChain
+        publishChain = Task.detached(priority: .userInitiated) {
+            _ = await previous.value
+            await publish(state)
+        }
+        return true
     }
 
     private static func publish(_ state: WorkoutActivityAttributes.ContentState) async {
@@ -867,18 +909,14 @@ enum LiveWorkoutSync {
     }
 
     static func adjust(repsDelta: Int, weightDelta: Double) async {
-        let previous = adjustChain
-        let task = Task {
-            await previous.value
-            await applyAdjust(repsDelta: repsDelta, weightDelta: weightDelta)
+        if pending == nil {
+            pending = Activity<WorkoutActivityAttributes>.activities.first?.content.state
         }
-        adjustChain = task
-        await task.value
-    }
-
-    private static func applyAdjust(repsDelta: Int, weightDelta: Double) async {
-        guard var state = pending ?? Activity<WorkoutActivityAttributes>.activities.first?.content.state else { return }
-        if state.isResting { return }
+        publishLock.lock()
+        guard var state = pending, !state.isResting else {
+            publishLock.unlock()
+            return
+        }
         if repsDelta != 0 {
             state.reps = min(40, max(1, state.reps + repsDelta))
         }
@@ -886,8 +924,22 @@ enum LiveWorkoutSync {
             let next = min(200, max(0, state.weightKg + weightDelta))
             state.weightKg = (next * 10).rounded() / 10
         }
-        await pushLocal(state)
-        if var board = LiveWorkoutStore.board, board.write(setId: state.setId, reps: state.reps, weight: state.weightKg) {
+        let previous = publishChain
+        pending = state
+        let snapshot = state
+        publishChain = Task.detached(priority: .userInitiated) {
+            _ = await previous.value
+            await publish(snapshot)
+        }
+        publishLock.unlock()
+        LiveWorkoutStore.revision += 1
+        LiveWorkoutStore.saveDraft(
+            index: snapshot.exerciseIndex,
+            setId: snapshot.setId,
+            reps: snapshot.reps,
+            weight: snapshot.weightKg
+        )
+        if var board = LiveWorkoutStore.board, board.write(setId: snapshot.setId, reps: snapshot.reps, weight: snapshot.weightKg) {
             LiveWorkoutStore.board = board
         }
     }
@@ -950,6 +1002,7 @@ enum LiveWorkoutSync {
     }
 }
 
+#if WIDGET_EXTENSION
 @available(iOS 16.2, *)
 struct AdjustRepsIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Change reps"
@@ -1007,3 +1060,4 @@ struct SkipLiveRestIntent: LiveActivityIntent {
         return .result()
     }
 }
+#endif
