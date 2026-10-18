@@ -111,7 +111,7 @@ function enforceNamedExercises<T extends { name: string }>(
     const canonName = canonicalizeAiExerciseName(exercise.name, {
       equipment: constraint,
     });
-    let catalog = findCatalogExercise(canonName, { equipment: constraint });
+    const catalog = findCatalogExercise(canonName, { equipment: constraint });
 
     // If canonicalize stayed on a free-form / gym name, try unrestricted lookup
     // to detect the violation, then repair.

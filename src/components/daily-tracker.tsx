@@ -145,7 +145,7 @@ export function DailyTracker({
       dateKey,
       nutritionPlan.activeSlots
     );
-  }, [nutritionPlan?.meals, nutritionPlan?.activeSlots, dailyMeals, dateKey]);
+  }, [nutritionPlan, dailyMeals, dateKey]);
 
   const hasMealPlan = plannedMealSlots.length > 0;
   const showMealPlanButton = hasMealPlan;

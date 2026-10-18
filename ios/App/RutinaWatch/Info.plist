@@ -21,9 +21,9 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>RUTINA reads steps, distance, active energy, and heart rate from Apple Health to show today's activity.</string>
+	<string>RUTINA reads your step count, walking and running distance, and active energy from Apple Health to show today's activity on your watch.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>RUTINA does not write health data. Apple Health access is only used to read today's activity.</string>
+	<string>RUTINA does not write health data. Apple Health access is only used to read today's steps, distance, and active energy.</string>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>

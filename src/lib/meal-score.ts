@@ -66,7 +66,7 @@ export function scoreMeal({
     clamp(diffs.carbs, 0, 1.5) * 40 * bias.carbs +
     clamp(diffs.fat, 0, 1.5) * 40 * bias.fat;
 
-  let score = Math.round(clamp(100 - penalty, 0, 100));
+  const score = Math.round(clamp(100 - penalty, 0, 100));
 
   const reasons: string[] = [];
   if (meal.macros.protein >= baseTargets.protein * 0.9) reasons.push("Strong protein for your goal");

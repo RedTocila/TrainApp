@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dumbbell, Play } from "lucide-react";
 import { ExerciseGifImage } from "@/components/exercise-gif-image";
 import { ExerciseDemoDialog } from "@/components/exercise-demo-dialog";
@@ -70,9 +70,9 @@ export function ExerciseGifThumbnail({
   const [youtubeFailed, setYoutubeFailed] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const onGifFailed = useEffectEvent(() => {
+  const onGifFailed = useCallback(() => {
     setGifFailed(true);
-  });
+  }, []);
 
   useEffect(() => {
     setGifFailed(false);

@@ -14,7 +14,7 @@ export default function PrivacyPage() {
   return (
     <LegalPageShell
       title="Privacy Policy"
-      description="Last updated: July 31, 2026"
+      description="Last updated: October 18, 2026"
     >
       <section className="space-y-4">
         <h2>1. Overview</h2>
@@ -109,6 +109,28 @@ export default function PrivacyPage() {
             features you use (logging, AI review, coaching).
           </li>
         </ul>
+        <h3>Apple Health</h3>
+        <p>
+          On iPhone, RUTINA reads one HealthKit sample type: step count
+          (HKQuantityTypeIdentifierStepCount). The only purpose is to show the
+          step total for the day you are viewing. The iPhone app asks for read
+          access and does not ask to write Health data.
+        </p>
+        <p>
+          On Apple Watch, RUTINA reads three HealthKit sample types for the
+          current day and shows them on the watch: step count
+          (HKQuantityTypeIdentifierStepCount), active energy burned
+          (HKQuantityTypeIdentifierActiveEnergyBurned), and walking and running
+          distance (HKQuantityTypeIdentifierDistanceWalkingRunning). The watch
+          app does not read heart rate and does not write Health data.
+        </p>
+        <p>
+          Those HealthKit samples stay on the device that read them. RUTINA does
+          not upload step counts, active energy, or walking and running distance
+          to its servers. A step goal you type yourself is saved with your
+          account; that goal is a number you enter, not a HealthKit sample. The
+          app does not write workouts, steps, or any other data into Apple Health.
+        </p>
         <h3>Technical &amp; diagnostic data</h3>
         <ul>
           <li>Device/browser information, IP address, and approximate location derived from network data</li>
@@ -144,6 +166,7 @@ export default function PrivacyPage() {
           </li>
           <li>Run live classes, challenges, rankings, and progress features</li>
           <li>Send service notices (for example plan delivery, billing, or security alerts)</li>
+          <li>Show your Apple Health step count on iPhone, and today&apos;s steps, active energy, and walking and running distance on Apple Watch, without sending those samples to our servers</li>
           <li>Improve product quality, prevent abuse, and fix bugs</li>
           <li>Comply with legal obligations</li>
         </ul>

@@ -23,6 +23,7 @@ export function CheckoutSuccessClient({
   const [message, setMessage] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const attemptRef = useRef(0);
+  const activateRef = useRef<() => void>(() => {});
 
   const activate = useCallback(() => {
     if (!localOrderId) {
@@ -37,7 +38,7 @@ export function CheckoutSuccessClient({
         const pending = /not completed yet|not started/i.test(result.error);
         attemptRef.current += 1;
         if (pending && attemptRef.current < MAX_ATTEMPTS) {
-          window.setTimeout(() => activate(), RETRY_MS);
+          window.setTimeout(() => activateRef.current(), RETRY_MS);
           return;
         }
         setStatus("error");
@@ -47,6 +48,10 @@ export function CheckoutSuccessClient({
       setStatus("success");
     });
   }, [localOrderId, copy.missingOrder, startTransition]);
+
+  useEffect(() => {
+    activateRef.current = activate;
+  }, [activate]);
 
   useEffect(() => {
     attemptRef.current = 0;

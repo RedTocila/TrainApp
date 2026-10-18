@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/cached-profile";
+import {
+  ACCOUNT_STORAGE_CLEANUP_ERROR,
+  deleteUserOwnedStorage,
+  userStorageClientFromAdmin,
+} from "@/lib/account-storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseCheckoutLocale, type CheckoutLocale } from "@/lib/checkout-i18n";
 import { PROFILE_GOAL_KEYS } from "@/lib/goal-coaching";
@@ -154,7 +159,9 @@ const DELETE_CONFIRM_PHRASES = new Set(["I GIVE UP!", "JAP DOREHEQJE!"]);
 
 /**
  * Client self-service account deletion. Requires exact confirmation phrase.
- * Cleans personal plans then deletes the auth user (cascade profile).
+ * Removes that account's storage files first, then personal plans, then the
+ * auth user (profile and related rows cascade). Storage failure leaves the
+ * account in place so deletion can be retried.
  */
 export async function deleteOwnAccount(
   confirmation: string
@@ -181,6 +188,14 @@ export async function deleteOwnAccount(
 
   const admin = createAdminClient();
   const userId = user.id;
+
+  const storageResult = await deleteUserOwnedStorage(
+    userStorageClientFromAdmin(admin),
+    userId
+  );
+  if ("error" in storageResult) {
+    return { error: storageResult.error || ACCOUNT_STORAGE_CLEANUP_ERROR };
+  }
 
   const { error: workoutPlansError } = await admin
     .from("workout_plans")

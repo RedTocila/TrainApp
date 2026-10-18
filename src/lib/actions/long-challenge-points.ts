@@ -28,7 +28,7 @@ function dateKeyFromIso(iso: string): string {
 
 function enumerateDateKeys(fromKey: string, toKey: string): string[] {
   const result: string[] = [];
-  let cursor = new Date(`${fromKey}T12:00:00`);
+  const cursor = new Date(`${fromKey}T12:00:00`);
   const end = new Date(`${toKey}T12:00:00`);
   while (cursor <= end) {
     result.push(formatDateKey(cursor));

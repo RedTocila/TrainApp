@@ -139,12 +139,13 @@ function MacroCalorieRing({
   const usableFill = Math.max(0, fillLength - gapCount * RING_GAP);
   const segmentTotal = segments.reduce((sum, s) => sum + s.weight, 0);
 
-  let cursor = 0;
-  const arcs = segments.map((segment) => {
+  const arcs = segments.map((segment, index) => {
     const share = segmentTotal > 0 ? segment.weight / segmentTotal : 0;
     const length = usableFill * share;
-    const offset = cursor;
-    cursor += length + RING_GAP;
+    const offset = segments.slice(0, index).reduce((sum, previous) => {
+      const previousShare = segmentTotal > 0 ? previous.weight / segmentTotal : 0;
+      return sum + usableFill * previousShare + RING_GAP;
+    }, 0);
     return { color: segment.color, length, offset };
   });
 

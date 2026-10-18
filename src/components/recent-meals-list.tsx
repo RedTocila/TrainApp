@@ -30,8 +30,11 @@ function formatLoggedTime(loggedAt: string | null | undefined): string | null {
   return format(parsed, "h:mm a");
 }
 
-function mealIcon(index: number) {
-  return MEAL_ICONS[index % MEAL_ICONS.length];
+function MealTypeIcon({ index, className }: { index: number; className: string }) {
+  const iconIndex = index % MEAL_ICONS.length;
+  if (iconIndex === 1) return <Apple className={className} />;
+  if (iconIndex === 2) return <UtensilsCrossed className={className} />;
+  return <Salad className={className} />;
 }
 
 function MealListAvatar({
@@ -44,8 +47,6 @@ function MealListAvatar({
   /** Flush-left full-height thumb — bigger image without growing the card. */
   edge?: boolean;
 }) {
-  const Icon = mealIcon(index);
-
   if (meal.photo_url) {
     return (
       <div
@@ -76,7 +77,7 @@ function MealListAvatar({
           : "size-14 rounded-xl"
       )}
     >
-      <Icon className="h-5 w-5 text-primary" />
+      <MealTypeIcon index={index} className="h-5 w-5 text-primary" />
     </div>
   );
 }
@@ -319,10 +320,7 @@ export function RecentMealsList({
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center">
-                            {(() => {
-                              const Icon = mealIcon(index);
-                              return <Icon className="h-5 w-5 text-primary" />;
-                            })()}
+                            <MealTypeIcon index={index} className="h-5 w-5 text-primary" />
                           </div>
                         )}
                       </div>

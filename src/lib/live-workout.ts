@@ -364,11 +364,12 @@ export function subscribeAppForeground(listener: () => void): () => void {
 export function useLiveWorkoutPublisher(enabled: boolean) {
   const timer = useRef<number | null>(null);
   const enabledRef = useRef(enabled);
-  const wasEnabled = useRef(false);
   const latest = useRef<LiveWorkoutPayload | null>(null);
-  enabledRef.current = enabled;
-  if (enabled && !wasEnabled.current) resumeLivePublishing();
-  wasEnabled.current = enabled;
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+    if (enabled) resumeLivePublishing();
+  }, [enabled]);
 
   const publish = useCallback((payload: LiveWorkoutPayload) => {
     latest.current = payload;

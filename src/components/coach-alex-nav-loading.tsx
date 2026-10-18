@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { getAiCoachAvatarSrc } from "@/components/ai-coach-avatar";
 import { useCoachCopy } from "@/components/locale-provider";
@@ -10,10 +10,10 @@ export function CoachAlexNavLoading() {
   const coachCopy = useCoachCopy();
   const { accentColor } = useTheme();
   const avatarSrc = getAiCoachAvatarSrc(accentColor);
-  const quip = useMemo(() => {
+  const [quip] = useState(() => {
     const quips = coachCopy.navLoading.quips;
-    return quips[Math.floor(Math.random() * quips.length)];
-  }, [coachCopy.navLoading.quips]);
+    return quips[Math.floor(Math.random() * quips.length)] ?? "";
+  });
 
   return (
     <div

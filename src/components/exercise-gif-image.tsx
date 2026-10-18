@@ -73,7 +73,7 @@ export function ExerciseGifImage({
             return;
           }
           setFailed(true);
-          notifyFailed();
+          onFailed?.();
         }}
       />
     </div>

@@ -21,7 +21,6 @@ export function ReminderBootstrap() {
     let cancelled = false;
     let removeAction: (() => void) | undefined;
     let removeResume: (() => void) | undefined;
-    let removeDone: (() => void) | undefined;
 
     const sync = async () => {
       if (cancelled || syncing.current) return;
@@ -37,7 +36,7 @@ export function ReminderBootstrap() {
       }
     };
 
-    removeDone = onReminderDone(() => {
+    const removeDone = onReminderDone(() => {
       void sync();
     });
 

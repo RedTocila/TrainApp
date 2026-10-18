@@ -3,12 +3,19 @@ import type { Profile } from "@/lib/types";
 /**
  * Native app (iOS/Android shell) is free: no packages or paywalls, and every
  * signed-in client is granted Elite while using the app. The website keeps paid plans.
+ *
+ * This build does not sell App Store subscriptions, so account deletion does not
+ * mention Apple billing. If this flag is turned off, tell the user before they
+ * confirm deletion that Apple may keep billing, and offer Apple's subscription
+ * management screen. The app cannot cancel Apple billing itself.
  */
 export const NATIVE_APP_FREE = true;
 
 /**
  * When true, the native app hides the challenges entry and blocks challenge routes.
  * Temporary for App Store review — turn this off when challenges go back in.
+ * If challenges return, review their official rules, prizes, and Apple's
+ * sponsorship disclaimer before the next submission.
  */
 export const NATIVE_HIDE_CHALLENGES = true;
 
