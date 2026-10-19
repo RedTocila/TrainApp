@@ -469,8 +469,8 @@ enum WatchTheme {
     static let red = Color(red: 220 / 255, green: 38 / 255, blue: 38 / 255)
     static let crown = Color(red: 48 / 255, green: 209 / 255, blue: 88 / 255)
     static let gap: CGFloat = 7
-    /// One dashboard card. Tall enough for a title, value, and meter on its own row.
-    static let dashRow: CGFloat = 64
+    /// One dashboard card. Tall enough for a title, value, and diagram on its own row.
+    static let dashRow: CGFloat = 70
     static let ink = Color.black
     static let card = Color(red: 28 / 255, green: 28 / 255, blue: 30 / 255)
     static let mute = Color.white.opacity(0.48)
@@ -593,6 +593,7 @@ struct WatchMacroRing: View {
     var carbs: Int
     var fat: Int
     var size: CGFloat
+    var labeled = true
 
     private var line: CGFloat { min(10, max(6, size * 0.09)) }
 
@@ -616,43 +617,27 @@ struct WatchMacroRing: View {
                         .rotationEffect(.degrees(-90))
                 }
             }
-            VStack(spacing: 0) {
-                Text(calories.formatted())
-                    .font(.system(size: size * 0.22, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                Text("kcal")
-                    .font(.system(size: max(8, size * 0.09), weight: .semibold))
-                    .foregroundStyle(WatchTheme.mute)
-                Text("of \(target.formatted())")
-                    .font(.system(size: max(8, size * 0.075), weight: .medium))
-                    .foregroundStyle(WatchTheme.mute)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
+            if labeled {
+                VStack(spacing: 0) {
+                    Text(calories.formatted())
+                        .font(.system(size: size * 0.22, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                    Text("kcal")
+                        .font(.system(size: max(8, size * 0.09), weight: .semibold))
+                        .foregroundStyle(WatchTheme.mute)
+                    Text("of \(target.formatted())")
+                        .font(.system(size: max(8, size * 0.075), weight: .medium))
+                        .foregroundStyle(WatchTheme.mute)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                }
+                .padding(.horizontal, line + 4)
             }
-            .padding(.horizontal, line + 4)
         }
         .padding(line / 2)
         .frame(width: size, height: size)
-    }
-}
-
-struct WatchMeter: View {
-    var progress: Double
-    var tint: Color
-
-    var body: some View {
-        GeometryReader { geo in
-            let width = geo.size.width * WatchTheme.fraction(progress, 1)
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.12))
-                Capsule()
-                    .fill(tint)
-                    .frame(width: progress > 0 ? max(5, width) : 0)
-            }
-        }
-        .frame(height: 5)
     }
 }
 
@@ -695,15 +680,19 @@ struct WatchHeader: View {
             if back {
                 // Button actions already run after the tap ends. Waiting here only delays the pop.
                 Button { watchAct { dismiss() } } label: {
-                    Image(systemName: "chevron.backward")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 22, height: 26)
-                        .contentShape(Rectangle())
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.backward")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 22, height: 26)
+                        titleText
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+            } else {
+                titleText
             }
-            titleText
             if let onRefresh {
                 Button { watchAct(onRefresh) } label: {
                     Image(systemName: "arrow.clockwise")
@@ -797,41 +786,74 @@ extension View {
     }
 }
 
-private struct MetricTile: View {
+private struct DoneDot: View {
+    var done: Bool
+    var tint: Color
+
+    var body: some View {
+        Circle()
+            .fill(done ? tint : Color.white.opacity(0.28))
+            .frame(width: 7, height: 7)
+    }
+}
+
+private struct MetricTile<Diagram: View>: View {
     var title: String
     var value: String
     var symbol: String
     var tint: Color
-    var progress: Double
+    var done: Bool
+    @ViewBuilder var diagram: () -> Diagram
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: 5) {
-                Image(systemName: symbol)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(tint)
-                    .frame(width: 16)
-                VStack(alignment: .leading, spacing: 0) {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 5) {
+                    Image(systemName: symbol)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(tint)
+                        .frame(width: 16)
                     Text(title)
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    Text(value)
-                        .font(.system(size: 10, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.white.opacity(0.7))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
+                    DoneDot(done: done, tint: tint)
                 }
-                Spacer(minLength: 0)
+                Text(value)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
-            Spacer(minLength: 5)
-            WatchMeter(progress: progress, tint: tint)
+            Spacer(minLength: 4)
+            diagram()
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .watchCard(16)
+    }
+}
+
+/// Hour-by-hour bars for the steps card. Empty hours stay as a faint baseline.
+private struct StepSpark: View {
+    var hours: [Int]
+    var tint: Color
+
+    var body: some View {
+        let peak = max(hours.max() ?? 0, 1)
+        HStack(alignment: .bottom, spacing: 1) {
+            ForEach(0..<24, id: \.self) { hour in
+                let value = hours.indices.contains(hour) ? hours[hour] : 0
+                RoundedRectangle(cornerRadius: 1, style: .continuous)
+                    .fill(value > 0 ? tint : Color.white.opacity(0.16))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: value > 0 ? max(3, 36 * CGFloat(value) / CGFloat(peak)) : 2)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+            }
+        }
+        .frame(width: 78, height: 42)
     }
 }
 
@@ -871,8 +893,10 @@ private struct CardioDashTile: View {
             value: value,
             symbol: "heart.fill",
             tint: WatchTheme.cardio,
-            progress: progress
-        )
+            done: cardio?.completed == true || cardio?.status == "completed"
+        ) {
+            WatchRing(progress: progress, size: 46, tint: WatchTheme.cardio)
+        }
         .onAppear { clock.setRunning(running) }
         .onChange(of: running) { _, isRunning in
             clock.setRunning(isRunning)
@@ -940,11 +964,14 @@ struct DashboardView: View {
                 .foregroundStyle(WatchTheme.red)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Today's Workout")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                HStack(spacing: 5) {
+                    Text("Today's Workout")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    DoneDot(done: workoutFinished, tint: WatchTheme.red)
+                }
                 Text(workoutTitle)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.72))
@@ -982,8 +1009,18 @@ struct DashboardView: View {
             value: "\(calories.formatted()) kcal",
             symbol: "flame.fill",
             tint: WatchTheme.nutrition,
-            progress: WatchTheme.fraction(Double(calories), Double(max(target, 1)))
-        )
+            done: nutritionDone(nutrition)
+        ) {
+            WatchMacroRing(
+                calories: calories,
+                target: target,
+                protein: nutrition?.protein ?? 0,
+                carbs: nutrition?.carbs ?? 0,
+                fat: nutrition?.fat ?? 0,
+                size: 46,
+                labeled: false
+            )
+        }
     }
 
     private var waterTile: some View {
@@ -995,8 +1032,14 @@ struct DashboardView: View {
             value: WatchTheme.volume(ml, of: goal),
             symbol: "drop.fill",
             tint: WatchTheme.water,
-            progress: WatchTheme.fraction(Double(ml), Double(max(goal, 1)))
-        )
+            done: waterDone(ml: ml, goal: goal)
+        ) {
+            WatchRing(
+                progress: WatchTheme.fraction(Double(ml), Double(max(goal, 1))),
+                size: 46,
+                tint: WatchTheme.water
+            )
+        }
     }
 
     private var stepsTile: some View {
@@ -1007,8 +1050,10 @@ struct DashboardView: View {
             value: steps.formatted(),
             symbol: "shoeprints.fill",
             tint: WatchTheme.steps,
-            progress: WatchTheme.fraction(Double(steps), Double(max(goal, 1)))
-        )
+            done: goal > 0 && steps >= goal
+        ) {
+            StepSpark(hours: model.stepHours, tint: WatchTheme.steps)
+        }
     }
 
     private var workoutTitle: String {
@@ -1028,6 +1073,33 @@ struct DashboardView: View {
         if count == 1 { return "1 exercise" }
         if count > 1 { return "\(count) exercises" }
         return "Ready"
+    }
+
+    /// Calories stay inside ±300. Protein, carbs, and fat stay inside ±20%.
+    private func nutritionDone(_ nutrition: WatchNutrition?) -> Bool {
+        guard let nutrition else { return false }
+        let hasTarget = nutrition.targetCalories > 0
+            || nutrition.targetProtein > 0
+            || nutrition.targetCarbs > 0
+            || nutrition.targetFat > 0
+        guard hasTarget else { return false }
+        return macroInBand(nutrition.calories, nutrition.targetCalories, slack: 300)
+            && macroInBand(nutrition.protein, nutrition.targetProtein, ratio: 0.2, floor: 5)
+            && macroInBand(nutrition.carbs, nutrition.targetCarbs, ratio: 0.2, floor: 10)
+            && macroInBand(nutrition.fat, nutrition.targetFat, ratio: 0.2, floor: 5)
+    }
+
+    private func macroInBand(_ actual: Int, _ target: Int, slack: Int = 0, ratio: Double = 0, floor: Int = 0) -> Bool {
+        guard target > 0 else { return true }
+        let delta = slack > 0 ? slack : max(Int((Double(target) * ratio).rounded()), floor)
+        return actual >= max(0, target - delta) && actual <= target + delta
+    }
+
+    /// Enough once intake reaches the lower edge of the ±20% band, at least 250 ml under the goal.
+    private func waterDone(ml: Int, goal: Int) -> Bool {
+        guard goal > 0 else { return false }
+        let delta = max(Int((Double(goal) * 0.2).rounded()), 250)
+        return ml >= max(0, goal - delta)
     }
 
     private var workoutFinished: Bool {

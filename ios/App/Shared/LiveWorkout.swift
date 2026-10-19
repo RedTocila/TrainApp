@@ -767,6 +767,25 @@ private enum LiveWorkoutError: LocalizedError {
     }
 }
 
+private final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func arm(_ continuation: CheckedContinuation<Void, Never>) {
+        lock.lock()
+        self.continuation = continuation
+        lock.unlock()
+    }
+
+    func fire() {
+        lock.lock()
+        let continuation = self.continuation
+        self.continuation = nil
+        lock.unlock()
+        continuation?.resume()
+    }
+}
+
 @available(iOS 16.2, *)
 enum LiveWorkoutSync {
     /// Latest numbers from a Lock Screen tap. Activity content lags behind the tap.
@@ -775,10 +794,11 @@ enum LiveWorkoutSync {
     static func remember(_ state: WorkoutActivityAttributes.ContentState) {
         pending = state
     }
-    /// Serializes card paints. The button intent must not await them: the widget
-    /// is the process drawing the card, so waiting deadlocks for about a second.
+    /// One in-flight card update. Newer taps replace `pending` and that update
+    /// sends the latest numbers, so a slow save never blocks the Lock Screen.
     private static let publishLock = NSLock()
-    private static var publishChain: Task<Void, Never> = Task {}
+    private static var paintFlight: Task<Void, Never>?
+    private static var lastPainted: WorkoutActivityAttributes.ContentState?
 
     static func state(
         name: String,
@@ -821,48 +841,102 @@ enum LiveWorkoutSync {
 
     static func update(_ state: WorkoutActivityAttributes.ContentState) async {
         guard LiveWorkoutStore.isLive else { return }
-        pending = state
-        await publish(state)
-        LiveWorkoutStore.saveDraft(
-            index: state.exerciseIndex,
-            setId: state.setId,
-            reps: state.reps,
-            weight: state.weightKg
-        )
+        publishLock.withLock { pending = state }
+        await paint(state)
+        rememberDraft(state)
     }
 
-    /// Lock Screen edits schedule the card update and return. Awaiting it here
-    /// deadlocks the widget until the system gives up, about a second later.
+    /// Shows the new card, then stores the draft. Callers await this so the
+    /// Lock Screen changes before the button action ends.
     static func pushLocal(_ state: WorkoutActivityAttributes.ContentState) async {
-        let shouldPaint = enqueue(state)
-        guard shouldPaint else { return }
+        let changed = publishLock.withLock { () -> Bool in
+            if pending == state { return false }
+            pending = state
+            return true
+        }
+        guard changed else { return }
+        await paint(state)
         LiveWorkoutStore.revision += 1
-        LiveWorkoutStore.saveDraft(
-            index: state.exerciseIndex,
-            setId: state.setId,
-            reps: state.reps,
-            weight: state.weightKg
-        )
+        rememberDraft(state)
     }
 
-    private static func enqueue(_ state: WorkoutActivityAttributes.ContentState) -> Bool {
-        publishLock.lock()
-        defer { publishLock.unlock() }
-        if pending == state { return false }
-        pending = state
-        let previous = publishChain
-        publishChain = Task.detached(priority: .userInitiated) {
-            _ = await previous.value
-            await publish(state)
+    /// Sends the newest card. Returns when ActivityKit accepts it, or after a
+    /// short wait so a redraw that needs this button to finish can still happen.
+    private static func paint(_ state: WorkoutActivityAttributes.ContentState) async {
+        let flight: Task<Void, Never> = publishLock.withLock {
+            if pending == nil { pending = state }
+            if let paintFlight { return paintFlight }
+            let flight = Task.detached(priority: .userInitiated) {
+                await publishLatest()
+            }
+            paintFlight = flight
+            return flight
         }
-        return true
+        #if WIDGET_EXTENSION
+        await finishSoon(flight)
+        #else
+        await flight.value
+        #endif
+    }
+
+    private static func publishLatest() async {
+        while true {
+            let next: WorkoutActivityAttributes.ContentState? = publishLock.withLock {
+                guard let pending, pending != lastPainted else {
+                    paintFlight = nil
+                    return nil
+                }
+                return pending
+            }
+            guard let next else { return }
+            await publish(next)
+            publishLock.withLock { lastPainted = next }
+        }
+    }
+
+    private static func finishSoon(_ flight: Task<Void, Never>) async {
+        let gate = ResumeOnce()
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            gate.arm(continuation)
+            Task.detached(priority: .userInitiated) {
+                await flight.value
+                gate.fire()
+            }
+            Task.detached(priority: .userInitiated) {
+                try? await Task.sleep(nanoseconds: 60_000_000)
+                gate.fire()
+            }
+        }
     }
 
     private static func publish(_ state: WorkoutActivityAttributes.ContentState) async {
         let content = ActivityContent(state: state, staleDate: state.isResting ? state.restEndsAt : nil)
-        for activity in Activity<WorkoutActivityAttributes>.activities {
+        let activities = Activity<WorkoutActivityAttributes>.activities
+        for activity in activities {
             await activity.update(content)
         }
+    }
+
+    private static func rememberDraft(_ state: WorkoutActivityAttributes.ContentState) {
+        LiveWorkoutStore.saveDraft(
+            index: state.exerciseIndex,
+            setId: state.setId,
+            reps: state.reps,
+            weight: state.weightKg
+        )
+    }
+
+    private static func latestState() -> WorkoutActivityAttributes.ContentState? {
+        publishLock.lock()
+        let cached = pending
+        publishLock.unlock()
+        if let cached { return cached }
+        let activity = Activity<WorkoutActivityAttributes>.activities.first?.content.state
+        publishLock.lock()
+        if pending == nil { pending = activity }
+        let resolved = pending
+        publishLock.unlock()
+        return resolved
     }
 
     @MainActor
@@ -909,45 +983,32 @@ enum LiveWorkoutSync {
     }
 
     static func adjust(repsDelta: Int, weightDelta: Double) async {
-        if pending == nil {
-            pending = Activity<WorkoutActivityAttributes>.activities.first?.content.state
-        }
-        publishLock.lock()
-        guard var state = pending, !state.isResting else {
-            publishLock.unlock()
-            return
-        }
-        if repsDelta != 0 {
-            state.reps = min(40, max(1, state.reps + repsDelta))
-        }
-        if weightDelta != 0 {
-            let next = min(200, max(0, state.weightKg + weightDelta))
-            state.weightKg = (next * 10).rounded() / 10
-        }
-        let previous = publishChain
-        pending = state
-        let snapshot = state
-        publishChain = Task.detached(priority: .userInitiated) {
-            _ = await previous.value
-            await publish(snapshot)
-        }
-        publishLock.unlock()
+        let snapshot: WorkoutActivityAttributes.ContentState? = {
+            if latestState() == nil { return nil }
+            publishLock.lock()
+            defer { publishLock.unlock() }
+            guard var state = pending, !state.isResting else { return nil }
+            if repsDelta != 0 {
+                state.reps = min(40, max(1, state.reps + repsDelta))
+            }
+            if weightDelta != 0 {
+                let next = min(200, max(0, state.weightKg + weightDelta))
+                state.weightKg = (next * 10).rounded() / 10
+            }
+            pending = state
+            return state
+        }()
+        guard let snapshot else { return }
+        await paint(snapshot)
         LiveWorkoutStore.revision += 1
-        LiveWorkoutStore.saveDraft(
-            index: snapshot.exerciseIndex,
-            setId: snapshot.setId,
-            reps: snapshot.reps,
-            weight: snapshot.weightKg
-        )
+        rememberDraft(snapshot)
         if var board = LiveWorkoutStore.board, board.write(setId: snapshot.setId, reps: snapshot.reps, weight: snapshot.weightKg) {
             LiveWorkoutStore.board = board
         }
     }
 
     static func logCurrent() async {
-        guard let state = pending ?? Activity<WorkoutActivityAttributes>.activities.first?.content.state,
-              !state.setId.isEmpty,
-              !state.isResting else { return }
+        guard let state = latestState(), !state.setId.isEmpty, !state.isResting else { return }
         LiveWorkoutQueue.enqueue(setId: state.setId, reps: state.reps, weight: state.weightKg)
         LiveWorkoutQueue.scheduleFlush()
         if var board = LiveWorkoutStore.board {
@@ -986,8 +1047,7 @@ enum LiveWorkoutSync {
 
     static func skipRest() async {
         LiveRestClock.cancel()
-        guard var state = Activity<WorkoutActivityAttributes>.activities.first?.content.state,
-              state.restEndsAt != nil else { return }
+        guard var state = latestState(), state.restEndsAt != nil else { return }
         state.restEndsAt = nil
         await pushLocal(state)
     }
@@ -1002,7 +1062,6 @@ enum LiveWorkoutSync {
     }
 }
 
-#if WIDGET_EXTENSION
 @available(iOS 16.2, *)
 struct AdjustRepsIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Change reps"
@@ -1060,4 +1119,3 @@ struct SkipLiveRestIntent: LiveActivityIntent {
         return .result()
     }
 }
-#endif

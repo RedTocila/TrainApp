@@ -15,7 +15,6 @@ import {
   ChevronLeft,
   Loader2,
   Minus,
-  Pause,
   Play,
   Plus,
 } from "lucide-react";
@@ -69,7 +68,6 @@ import {
   getWorkoutElapsedMs,
   getWorkoutResumeIndex,
   getWorkoutTimerState,
-  pauseWorkoutTimer,
   resumeWorkoutTimer,
   setWorkoutResumeIndex,
   setWorkoutTimerState,
@@ -126,10 +124,13 @@ function useWorkoutTimer(
       return;
     }
     const existing = getWorkoutTimerState(sessionId);
-    if (
-      existing &&
-      (existing.status === "running" || existing.status === "paused")
-    ) {
+    if (existing && existing.status === "paused") {
+      const resumed = resumeWorkoutTimer(sessionId);
+      setTimer(resumed);
+      setNow(Date.now());
+      return;
+    }
+    if (existing && existing.status === "running") {
       setTimer(existing);
       setNow(Date.now());
       return;
@@ -167,7 +168,6 @@ function useWorkoutTimer(
   }, [timer]);
 
   const elapsedSeconds = Math.floor(getWorkoutElapsedMs(timer, now) / 1000);
-  const paused = timer?.status === "paused";
 
   const resetTimer = () => {
     clearWorkoutTimerState(sessionId);
@@ -175,20 +175,11 @@ function useWorkoutTimer(
     setNow(Date.now());
   };
 
-  const togglePause = () => {
-    if (paused) {
-      setTimer(resumeWorkoutTimer(sessionId));
-    } else {
-      setTimer(pauseWorkoutTimer(sessionId));
-    }
-    setNow(Date.now());
-  };
-
-  return { elapsedSeconds, paused, resetTimer, togglePause };
+  return { elapsedSeconds, resetTimer };
 }
 
 /** Rest countdown via wall-clock deadline (avoids setInterval remaining-1 drift). */
-function useRestCountdown(restSeconds: number | null, workoutPaused: boolean) {
+function useRestCountdown(restSeconds: number | null) {
   const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
   const [frozenRemainingMs, setFrozenRemainingMs] = useState<number | null>(
     null
@@ -197,22 +188,7 @@ function useRestCountdown(restSeconds: number | null, workoutPaused: boolean) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (!running) return;
-    if (workoutPaused) {
-      if (deadlineMs != null) {
-        setFrozenRemainingMs(Math.max(0, deadlineMs - Date.now()));
-        setDeadlineMs(null);
-      }
-      return;
-    }
-    if (deadlineMs == null && frozenRemainingMs != null) {
-      setDeadlineMs(Date.now() + frozenRemainingMs);
-      setFrozenRemainingMs(null);
-    }
-  }, [running, workoutPaused, deadlineMs, frozenRemainingMs]);
-
-  useEffect(() => {
-    if (!running || workoutPaused || deadlineMs == null) return;
+    if (!running || deadlineMs == null) return;
     const tick = () => {
       const left = deadlineMs - Date.now();
       setNow(Date.now());
@@ -225,7 +201,7 @@ function useRestCountdown(restSeconds: number | null, workoutPaused: boolean) {
     tick();
     const id = window.setInterval(tick, 250);
     return () => window.clearInterval(id);
-  }, [running, workoutPaused, deadlineMs]);
+  }, [running, deadlineMs]);
 
   const remainingMs =
     deadlineMs != null
@@ -259,7 +235,7 @@ function useRestCountdown(restSeconds: number | null, workoutPaused: boolean) {
 
   return {
     remaining,
-    running: running && !workoutPaused,
+    running,
     displaySeconds: remaining ?? restSeconds ?? 90,
     start,
     reset,
@@ -998,9 +974,7 @@ export function ActiveWorkoutClient({
   const isStarted = startedLocally || session.started_at != null;
   const {
     elapsedSeconds,
-    paused: workoutPaused,
     resetTimer,
-    togglePause,
   } = useWorkoutTimer(session.id, isStarted, session.started_at);
   const exerciseGender = resolveProfileGender(gender);
   const publishLive = useLiveWorkoutPublisher(isStarted);
@@ -1100,10 +1074,7 @@ export function ActiveWorkoutClient({
       stop();
     };
   }, [isStarted, session.id]);
-  const rest = useRestCountdown(
-    activeExercise?.rest_seconds ?? 90,
-    workoutPaused
-  );
+  const rest = useRestCountdown(activeExercise?.rest_seconds ?? 90);
 
   useEffect(() => {
     rest.reset();
@@ -1417,10 +1388,7 @@ export function ActiveWorkoutClient({
             <div className="flex justify-center">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-secondary/60 px-3 py-1 font-mono text-xs font-bold tabular-nums text-foreground">
                 <span
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full",
-                    workoutPaused ? "bg-amber-400" : "bg-primary animate-pulse"
-                  )}
+                  className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"
                   aria-hidden
                 />
                 {formatElapsedClock(elapsedSeconds)}
@@ -1435,22 +1403,6 @@ export function ActiveWorkoutClient({
               >
                 <Plus className="h-4 w-4" />
               </button>
-              <SessionCircleButton
-                label={workoutPaused ? platform.cardio.resume : platform.cardio.pause}
-                onClick={togglePause}
-                className={cn(
-                  "!h-9 !w-9",
-                  workoutPaused
-                    ? undefined
-                    : "bg-emerald-500 text-white shadow-[0_0_0_3px_rgba(16,185,129,0.22)]"
-                )}
-              >
-                {workoutPaused ? (
-                  <Play className="h-4 w-4 fill-current" />
-                ) : (
-                  <Pause className="h-4 w-4 fill-current" />
-                )}
-              </SessionCircleButton>
             </div>
           </header>
           <div
@@ -1580,7 +1532,6 @@ export function ActiveWorkoutClient({
                 void handleFinishWorkout();
               }
             }}
-            mediaPaused={workoutPaused}
             canGoBack={activeIndex > 0}
             onBackExercise={() => setActiveIndex((i) => Math.max(0, i - 1))}
             onLiveDraft={isStarted ? reportLiveDraft : undefined}

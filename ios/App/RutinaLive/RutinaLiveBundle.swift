@@ -17,7 +17,6 @@ struct WorkoutLiveActivity: Widget {
                 .padding(.vertical, 6)
                 .activityBackgroundTint(LivePalette.background)
                 .activitySystemActionForegroundColor(.white)
-                .widgetURL(LiveWorkoutLink.url)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -33,6 +32,7 @@ struct WorkoutLiveActivity: Widget {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    .widgetURL(LiveWorkoutLink.url)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     RestAware(endsAt: context.state.restEndsAt, isStale: context.isStale) { resting in
@@ -46,6 +46,7 @@ struct WorkoutLiveActivity: Widget {
                 }
             } compactLeading: {
                 Image(systemName: "dumbbell.fill")
+                    .widgetURL(LiveWorkoutLink.url)
             } compactTrailing: {
                 RestAware(endsAt: context.state.restEndsAt, isStale: context.isStale) { resting in
                     if resting, let end = context.state.restEndsAt {
@@ -60,10 +61,11 @@ struct WorkoutLiveActivity: Widget {
                             .contentTransition(.identity)
                     }
                 }
+                .widgetURL(LiveWorkoutLink.url)
             } minimal: {
                 Image(systemName: "dumbbell.fill")
+                    .widgetURL(LiveWorkoutLink.url)
             }
-            .widgetURL(LiveWorkoutLink.url)
         }
     }
 }
@@ -128,6 +130,7 @@ private struct LiveSetView: View {
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(LivePalette.secondary)
                     }
+                    .widgetURL(LiveWorkoutLink.url)
                     Spacer(minLength: 8)
                     LiveCornerButton(state: state, resting: resting)
                 }
@@ -213,26 +216,26 @@ private struct LiveSetMetrics: View {
                 Button(intent: AdjustWeightIntent(tenths: -25)) {
                     StepIcon(systemName: "minus")
                 }
-                .liveCircle()
+                .buttonStyle(.plain)
                 .accessibilityLabel("Decrease weight")
             } up: {
                 Button(intent: AdjustWeightIntent(tenths: 25)) {
                     StepIcon(systemName: "plus")
                 }
-                .liveCircle()
+                .buttonStyle(.plain)
                 .accessibilityLabel("Increase weight")
             }
             metric(title: "REPS", value: "\(state.reps)") {
                 Button(intent: AdjustRepsIntent(delta: -1)) {
                     StepIcon(systemName: "minus")
                 }
-                .liveCircle()
+                .buttonStyle(.plain)
                 .accessibilityLabel("Decrease reps")
             } up: {
                 Button(intent: AdjustRepsIntent(delta: 1)) {
                     StepIcon(systemName: "plus")
                 }
-                .liveCircle()
+                .buttonStyle(.plain)
                 .accessibilityLabel("Increase reps")
             }
         }
@@ -280,13 +283,6 @@ private struct StepIcon: View {
         Image(systemName: systemName)
             .font(.system(size: 15, weight: .semibold))
             .foregroundStyle(.white)
-            .frame(width: 22, height: 22)
-    }
-}
-
-private extension View {
-    func liveCircle() -> some View {
-        buttonStyle(.plain)
             .frame(width: 42, height: 42)
             .background(Circle().fill(LivePalette.control))
             .contentShape(Circle())
