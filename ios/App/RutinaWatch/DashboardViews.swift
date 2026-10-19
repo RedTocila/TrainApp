@@ -17,6 +17,9 @@ final class WatchDashboardModel: ObservableObject {
     private let health = HKHealthStore()
     private var actionToken = 0
     private var pendingLog: (reps: Int, weight: Double)?
+    /// Local +250 stays on screen until the server has caught up.
+    private var pendingWaterMl: Int?
+    private var pendingWaterUntil: Date?
     /// Phone start/stop can arrive before the server write is visible.
     private var cardioHeldUntil: Date?
 
@@ -49,7 +52,7 @@ final class WatchDashboardModel: ObservableObject {
         do {
             let today = try await WatchAPI.today(date: dateKey)
             guard token == actionToken else { return }
-            self.today = today
+            self.today = preservingWater(today)
             self.fetchedAt = Date()
             self.cardioHeldUntil = nil
         } catch {
@@ -107,28 +110,39 @@ final class WatchDashboardModel: ObservableObject {
     }
 
     private func applyFetched(_ next: WatchToday) {
-        if let until = cardioHeldUntil, Date() < until, let current = today {
-            let agreed =
-                next.cardio.status == current.cardio.status &&
-                next.cardio.completed == current.cardio.completed
-            if agreed || next.cardio.completed {
-                today = next
-                fetchedAt = Date()
-                cardioHeldUntil = nil
-                return
-            }
-            var merged = next
-            var cardio = current.cardio
-            if cardio.status == "running" {
-                cardio.elapsedSeconds = cardioElapsed(at: Date())
-            }
-            merged.cardio = cardio
-            today = merged
-            fetchedAt = Date()
-            return
-        }
-        today = next
+        today = preservingWater(mergingHeldCardio(next))
         fetchedAt = Date()
+    }
+
+    /// Keeps a start or stop on screen while an older refresh is still in flight.
+    private func mergingHeldCardio(_ next: WatchToday) -> WatchToday {
+        guard let until = cardioHeldUntil, Date() < until, let current = today else { return next }
+        let agreed =
+            next.cardio.status == current.cardio.status &&
+            next.cardio.completed == current.cardio.completed
+        if agreed || next.cardio.completed {
+            return next
+        }
+        var merged = next
+        var cardio = current.cardio
+        if cardio.status == "running" {
+            cardio.elapsedSeconds = cardioElapsed(at: Date())
+        }
+        merged.cardio = cardio
+        return merged
+    }
+
+    private func preservingWater(_ next: WatchToday) -> WatchToday {
+        guard let pending = pendingWaterMl else { return next }
+        let expired = pendingWaterUntil.map { Date() >= $0 } ?? true
+        if expired || next.water.ml >= pending {
+            pendingWaterMl = nil
+            pendingWaterUntil = nil
+            return next
+        }
+        var merged = next
+        merged.water.ml = pending
+        return merged
     }
 
     private func mirrorString(_ value: Any?) -> String? {
@@ -149,7 +163,31 @@ final class WatchDashboardModel: ObservableObject {
     }
 
     func addWater(_ amount: Int) async {
-        await mutate("water.add", extra: ["amount": amount])
+        applyWaterDelta(amount)
+        actionToken += 1
+        let token = actionToken
+        do {
+            let response = try await WatchAPI.perform("water.add", date: dateKey, extra: ["amount": amount])
+            guard token == actionToken else { return }
+            if let today = response.today {
+                self.today = preservingWater(mergingHeldCardio(today))
+                fetchedAt = Date()
+            }
+            notice = response.message
+            error = nil
+        } catch {
+            guard token == actionToken else { return }
+            applyWaterDelta(-amount)
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func applyWaterDelta(_ amount: Int) {
+        guard var snapshot = today else { return }
+        snapshot.water.ml = max(0, snapshot.water.ml + amount)
+        pendingWaterMl = snapshot.water.ml
+        pendingWaterUntil = Date().addingTimeInterval(8)
+        today = snapshot
     }
 
     func startWorkout() async {
@@ -200,7 +238,21 @@ final class WatchDashboardModel: ObservableObject {
     }
 
     func startCardio() async {
+        beginCardioLocally()
         await mutate("cardio.start")
+    }
+
+    private func beginCardioLocally() {
+        guard var snapshot = today, snapshot.cardio.status != "none" else { return }
+        var cardio = snapshot.cardio
+        if cardio.completed || cardio.status == "completed" || cardio.status == "running" { return }
+        cardio.status = "running"
+        cardio.completed = false
+        snapshot.cardio = cardio
+        today = snapshot
+        fetchedAt = Date()
+        cardioHeldUntil = Date().addingTimeInterval(12)
+        error = nil
     }
 
     func stopCardio() async {
@@ -242,8 +294,7 @@ final class WatchDashboardModel: ObservableObject {
             let response = try await WatchAPI.perform(action, date: dateKey, extra: extra)
             guard token == self.actionToken else { return }
             if let today = response.today {
-                self.cardioHeldUntil = nil
-                self.today = today
+                self.today = self.preservingWater(self.mergingHeldCardio(today))
                 self.fetchedAt = Date()
             }
             self.notice = response.message
@@ -255,8 +306,7 @@ final class WatchDashboardModel: ObservableObject {
             let response = try await work()
             guard token == actionToken else { return }
             if let today = response.today {
-                cardioHeldUntil = nil
-                self.today = today
+                self.today = preservingWater(mergingHeldCardio(today))
                 self.fetchedAt = Date()
             }
             notice = response.message
@@ -265,7 +315,7 @@ final class WatchDashboardModel: ObservableObject {
             guard token == actionToken else { return }
             self.error = error.localizedDescription
             if let today = try? await WatchAPI.today(date: dateKey), token == actionToken {
-                self.today = today
+                self.today = preservingWater(mergingHeldCardio(today))
                 self.fetchedAt = Date()
             }
         }
@@ -786,39 +836,38 @@ extension View {
     }
 }
 
-private struct DoneDot: View {
-    var done: Bool
-    var tint: Color
+private struct RingDigit: View {
+    var text: String
+    var size: CGFloat
 
     var body: some View {
-        Circle()
-            .fill(done ? tint : Color.white.opacity(0.28))
-            .frame(width: 7, height: 7)
+        Text(text)
+            .font(.system(size: max(9, size * 0.24), weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.4)
+            .frame(width: size * 0.62)
     }
 }
 
-private struct MetricTile<Diagram: View>: View {
+private struct MetricTile<Icon: View, Diagram: View>: View {
     var title: String
     var value: String
-    var symbol: String
-    var tint: Color
-    var done: Bool
+    @ViewBuilder var icon: () -> Icon
     @ViewBuilder var diagram: () -> Diagram
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 5) {
-                    Image(systemName: symbol)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(tint)
-                        .frame(width: 16)
+                    icon()
+                        .frame(width: 16, height: 16)
                     Text(title)
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.white)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    DoneDot(done: done, tint: tint)
                 }
                 Text(value)
                     .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -880,23 +929,60 @@ private struct CardioDashTile: View {
         return "Ready"
     }
 
-    private var progress: Double {
-        if cardio?.completed == true || cardio?.status == "completed" { return 1 }
-        let planned = Double(cardio?.plannedMinutes ?? 0)
-        guard planned > 0 else { return 0 }
-        return WatchTheme.fraction(Double(elapsed) / 60, planned)
+    private var canStart: Bool {
+        guard let cardio, cardio.status != "none" else { return false }
+        if cardio.completed || cardio.status == "completed" { return false }
+        if cardio.status == "running" || cardio.status == "paused" { return false }
+        return true
     }
 
     var body: some View {
-        MetricTile(
-            title: "Cardio",
-            value: value,
-            symbol: "heart.fill",
-            tint: WatchTheme.cardio,
-            done: cardio?.completed == true || cardio?.status == "completed"
-        ) {
-            WatchRing(progress: progress, size: 46, tint: WatchTheme.cardio)
+        HStack(alignment: .center, spacing: 8) {
+            NavigationLink {
+                CardioWatchView()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(WatchTheme.cardio)
+                        .frame(width: 16, height: 16)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Cardio")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                        Text(value)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if canStart {
+                Button {
+                    afterTap { Task { await model.startCardio() } }
+                } label: {
+                    Text("Start")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(WatchTheme.cardio))
+                }
+                .buttonStyle(.plain)
+            }
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .watchCard(16)
         .onAppear { clock.setRunning(running) }
         .onChange(of: running) { _, isRunning in
             clock.setRunning(isRunning)
@@ -932,8 +1018,10 @@ struct DashboardView: View {
                         .frame(height: WatchTheme.dashRow)
                     destination { StepsWatchView() } label: { stepsTile }
                         .frame(height: WatchTheme.dashRow)
-                    destination { CardioWatchView() } label: { CardioDashTile() }
+                    CardioDashTile()
                         .frame(height: WatchTheme.dashRow)
+                        .disabled(session.credentials?.isUsable != true)
+                        .opacity(session.credentials?.isUsable == true ? 1 : 0.45)
                 }
             }
             .watchScroll()
@@ -964,14 +1052,11 @@ struct DashboardView: View {
                 .foregroundStyle(WatchTheme.red)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 5) {
-                    Text("Today's Workout")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    DoneDot(done: workoutFinished, tint: WatchTheme.red)
-                }
+                Text("Today's Workout")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Text(workoutTitle)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.72))
@@ -1004,22 +1089,22 @@ struct DashboardView: View {
         let nutrition = model.today?.nutrition
         let calories = nutrition?.calories ?? 0
         let target = nutrition?.targetCalories ?? 0
-        return MetricTile(
-            title: "Nutrition",
-            value: "\(calories.formatted()) kcal",
-            symbol: "flame.fill",
-            tint: WatchTheme.nutrition,
-            done: nutritionDone(nutrition)
-        ) {
-            WatchMacroRing(
-                calories: calories,
-                target: target,
-                protein: nutrition?.protein ?? 0,
-                carbs: nutrition?.carbs ?? 0,
-                fat: nutrition?.fat ?? 0,
-                size: 46,
-                labeled: false
-            )
+        return MetricTile(title: "Nutrition", value: "\(calories.formatted()) kcal") {
+            AppleIcon()
+                .foregroundStyle(WatchTheme.nutrition)
+        } diagram: {
+            ZStack {
+                WatchMacroRing(
+                    calories: calories,
+                    target: target,
+                    protein: nutrition?.protein ?? 0,
+                    carbs: nutrition?.carbs ?? 0,
+                    fat: nutrition?.fat ?? 0,
+                    size: 46,
+                    labeled: false
+                )
+                RingDigit(text: String(calories), size: 46)
+            }
         }
     }
 
@@ -1027,31 +1112,29 @@ struct DashboardView: View {
         let water = model.today?.water
         let ml = water?.ml ?? 0
         let goal = water?.goalMl ?? 0
-        return MetricTile(
-            title: "Water",
-            value: WatchTheme.volume(ml, of: goal),
-            symbol: "drop.fill",
-            tint: WatchTheme.water,
-            done: waterDone(ml: ml, goal: goal)
-        ) {
-            WatchRing(
-                progress: WatchTheme.fraction(Double(ml), Double(max(goal, 1))),
-                size: 46,
-                tint: WatchTheme.water
-            )
+        return MetricTile(title: "Water", value: WatchTheme.volume(ml, of: goal)) {
+            Image(systemName: "drop.fill")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(WatchTheme.water)
+        } diagram: {
+            ZStack {
+                WatchRing(
+                    progress: WatchTheme.fraction(Double(ml), Double(max(goal, 1))),
+                    size: 46,
+                    tint: WatchTheme.water
+                )
+                RingDigit(text: String(ml), size: 46)
+            }
         }
     }
 
     private var stepsTile: some View {
         let steps = model.steps ?? 0
-        let goal = model.today?.steps.goal ?? 10000
-        return MetricTile(
-            title: "Steps",
-            value: steps.formatted(),
-            symbol: "shoeprints.fill",
-            tint: WatchTheme.steps,
-            done: goal > 0 && steps >= goal
-        ) {
+        return MetricTile(title: "Steps", value: steps.formatted()) {
+            Image(systemName: "shoeprints.fill")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(WatchTheme.steps)
+        } diagram: {
             StepSpark(hours: model.stepHours, tint: WatchTheme.steps)
         }
     }
@@ -1073,33 +1156,6 @@ struct DashboardView: View {
         if count == 1 { return "1 exercise" }
         if count > 1 { return "\(count) exercises" }
         return "Ready"
-    }
-
-    /// Calories stay inside ±300. Protein, carbs, and fat stay inside ±20%.
-    private func nutritionDone(_ nutrition: WatchNutrition?) -> Bool {
-        guard let nutrition else { return false }
-        let hasTarget = nutrition.targetCalories > 0
-            || nutrition.targetProtein > 0
-            || nutrition.targetCarbs > 0
-            || nutrition.targetFat > 0
-        guard hasTarget else { return false }
-        return macroInBand(nutrition.calories, nutrition.targetCalories, slack: 300)
-            && macroInBand(nutrition.protein, nutrition.targetProtein, ratio: 0.2, floor: 5)
-            && macroInBand(nutrition.carbs, nutrition.targetCarbs, ratio: 0.2, floor: 10)
-            && macroInBand(nutrition.fat, nutrition.targetFat, ratio: 0.2, floor: 5)
-    }
-
-    private func macroInBand(_ actual: Int, _ target: Int, slack: Int = 0, ratio: Double = 0, floor: Int = 0) -> Bool {
-        guard target > 0 else { return true }
-        let delta = slack > 0 ? slack : max(Int((Double(target) * ratio).rounded()), floor)
-        return actual >= max(0, target - delta) && actual <= target + delta
-    }
-
-    /// Enough once intake reaches the lower edge of the ±20% band, at least 250 ml under the goal.
-    private func waterDone(ml: Int, goal: Int) -> Bool {
-        guard goal > 0 else { return false }
-        let delta = max(Int((Double(goal) * 0.2).rounded()), 250)
-        return ml >= max(0, goal - delta)
     }
 
     private var workoutFinished: Bool {
@@ -1130,6 +1186,15 @@ struct DashboardView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .disabled(session.credentials?.isUsable != true)
         .opacity(session.credentials?.isUsable == true ? 1 : 0.45)
+    }
+}
+
+private struct AppleIcon: View {
+    var body: some View {
+        RutinaStrokeIcon(paths: [
+            "M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z",
+            "M10 2c1 .5 2 2 2 5",
+        ])
     }
 }
 
@@ -1658,7 +1723,7 @@ struct WaterWatchView: View {
 
     private func addButton(_ title: String, _ amount: Int) -> some View {
         Button {
-            afterTap { Task { await model.addWater(amount) } }
+            watchAct { Task { await model.addWater(amount) } }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "drop.fill")

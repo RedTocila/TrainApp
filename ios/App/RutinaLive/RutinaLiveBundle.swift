@@ -158,7 +158,7 @@ private struct LiveCornerButton: View {
                     .padding(.vertical, 8)
                     .background(Capsule().fill(LivePalette.control))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(LiveScaleStyle())
             .accessibilityLabel("Skip rest")
         } else if !state.setId.isEmpty {
             Button(intent: LogLiveSetIntent()) {
@@ -168,7 +168,7 @@ private struct LiveCornerButton: View {
                     .frame(width: 44, height: 44)
                     .background(Circle().fill(LivePalette.red))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(LiveScaleStyle())
             .accessibilityLabel("Log set")
         }
     }
@@ -212,67 +212,155 @@ private struct LiveSetMetrics: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            metric(title: "KG", value: LiveWorkoutFormatting.weight(state.weightKg)) {
-                Button(intent: AdjustWeightIntent(tenths: -25)) {
-                    StepIcon(systemName: "minus")
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Decrease weight")
-            } up: {
-                Button(intent: AdjustWeightIntent(tenths: 25)) {
-                    StepIcon(systemName: "plus")
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Increase weight")
-            }
-            metric(title: "REPS", value: "\(state.reps)") {
-                Button(intent: AdjustRepsIntent(delta: -1)) {
-                    StepIcon(systemName: "minus")
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Decrease reps")
-            } up: {
-                Button(intent: AdjustRepsIntent(delta: 1)) {
-                    StepIcon(systemName: "plus")
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Increase reps")
-            }
+            metric(
+                title: "KG",
+                value: LiveWorkoutFormatting.weight(state.weightKg),
+                downPreview: steppedWeight(-2.5),
+                upPreview: steppedWeight(2.5),
+                down: AdjustWeightIntent(tenths: -25),
+                up: AdjustWeightIntent(tenths: 25),
+                downLabel: "Decrease weight",
+                upLabel: "Increase weight",
+                space: "liveMetricKG"
+            )
+            metric(
+                title: "REPS",
+                value: "\(state.reps)",
+                downPreview: "\(steppedReps(-1))",
+                upPreview: "\(steppedReps(1))",
+                down: AdjustRepsIntent(delta: -1),
+                up: AdjustRepsIntent(delta: 1),
+                downLabel: "Decrease reps",
+                upLabel: "Increase reps",
+                space: "liveMetricReps"
+            )
         }
         .animation(nil, value: state.reps)
         .animation(nil, value: state.weightKg)
     }
 
-    private func metric<Down: View, Up: View>(
+    private func steppedWeight(_ delta: Double) -> String {
+        let next = min(200, max(0, state.weightKg + delta))
+        return LiveWorkoutFormatting.weight((next * 10).rounded() / 10)
+    }
+
+    private func steppedReps(_ delta: Int) -> Int {
+        min(40, max(1, state.reps + delta))
+    }
+
+    private func metric(
         title: String,
         value: String,
-        @ViewBuilder down: () -> Down,
-        @ViewBuilder up: () -> Up
+        downPreview: String,
+        upPreview: String,
+        down: some AppIntent,
+        up: some AppIntent,
+        downLabel: String,
+        upLabel: String,
+        space: String
     ) -> some View {
-        HStack(spacing: 0) {
-            down()
-            VStack(spacing: 1) {
-                Text(title)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(LivePalette.secondary)
-                    .tracking(0.6)
-                Text(value)
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .monospacedDigit()
-                    .contentTransition(.identity)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .transaction { transaction in
-                        transaction.animation = nil
-                        transaction.disablesAnimations = true
+        GeometryReader { geo in
+            let center = geo.size.width / 2
+            HStack(spacing: 0) {
+                Button(intent: down) {
+                    StepIcon(systemName: "minus")
+                }
+                .buttonStyle(LivePressStyle(preview: downPreview, numberCenterX: center, space: space))
+                .zIndex(1)
+                .accessibilityLabel(downLabel)
+                VStack(spacing: 1) {
+                    Text(title)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(LivePalette.secondary)
+                        .tracking(0.6)
+                    Text(value)
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .monospacedDigit()
+                        .contentTransition(.identity)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .transaction { transaction in
+                            transaction.animation = nil
+                            transaction.disablesAnimations = true
+                        }
+                }
+                .frame(maxWidth: .infinity)
+                .allowsHitTesting(false)
+                Button(intent: up) {
+                    StepIcon(systemName: "plus")
+                }
+                .buttonStyle(LivePressStyle(preview: upPreview, numberCenterX: center, space: space))
+                .zIndex(1)
+                .accessibilityLabel(upLabel)
+            }
+            .padding(4)
+            .frame(width: geo.size.width, height: geo.size.height)
+            .coordinateSpace(name: space)
+            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+        .frame(height: 50)
+    }
+}
+
+/// Shrinks on touch, and draws the next number over the middle while the card catches up.
+private struct LivePressStyle: ButtonStyle {
+    var preview: String
+    var numberCenterX: CGFloat
+    var space: String
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.84 : 1)
+            .animation(.spring(response: 0.2, dampingFraction: 0.62), value: configuration.isPressed)
+            .overlay {
+                GeometryReader { geo in
+                    let frame = geo.frame(in: .named(space))
+                    LivePreviewNumber(text: preview)
+                        .position(
+                            x: numberCenterX - frame.minX,
+                            y: geo.size.height / 2 + 7
+                        )
+                        .opacity(configuration.isPressed ? 1 : 0)
+                        .transaction { transaction in
+                            transaction.animation = nil
+                            transaction.disablesAnimations = true
+                        }
+                }
+                .allowsHitTesting(false)
+            }
+    }
+}
+
+private struct LiveScaleStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.86 : 1)
+            .animation(.spring(response: 0.2, dampingFraction: 0.62), value: configuration.isPressed)
+    }
+}
+
+private struct LivePreviewNumber: View {
+    var text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 20, weight: .semibold, design: .rounded))
+            .foregroundStyle(.white)
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 8)
+            .frame(minWidth: 52)
+            .background {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(LivePalette.background)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(Color.white.opacity(0.06))
                     }
             }
-            .frame(maxWidth: .infinity)
-            up()
-        }
-        .padding(4)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 }
 
