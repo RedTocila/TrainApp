@@ -13,6 +13,20 @@ export type PushRegisterResult = {
 };
 
 let listening = false;
+let resolveTokenSaved: ((saved: boolean) => void) | null = null;
+
+function armTokenSave(): Promise<boolean> {
+  resolveTokenSaved?.(false);
+  return new Promise((resolve) => {
+    resolveTokenSaved = resolve;
+  });
+}
+
+function settleTokenSave(saved: boolean) {
+  const resolve = resolveTokenSaved;
+  resolveTokenSaved = null;
+  resolve?.(saved);
+}
 
 function currentPath(): string {
   return `${window.location.pathname}${window.location.search}`;
@@ -33,7 +47,12 @@ export async function listenForReminderPushes(): Promise<boolean> {
       Capacitor.getPlatform() === "ios" ? "ios" : "android";
 
     await PushNotifications.addListener("registration", (token) => {
-      void registerPushDevice(token.value, platform);
+      void registerPushDevice(token.value, platform).then((result) => {
+        settleTokenSave(Boolean(result.success));
+      });
+    });
+    await PushNotifications.addListener("registrationError", () => {
+      settleTokenSave(false);
     });
     await PushNotifications.addListener("pushNotificationActionPerformed", (event) => {
       const data = event.notification.data as { path?: string } | undefined;
@@ -80,12 +99,20 @@ export async function registerReminderPush(): Promise<PushRegisterResult> {
       }).catch(() => undefined);
     }
 
+    const tokenSaved = armTokenSave();
     await PushNotifications.register();
+    const saved = await Promise.race([
+      tokenSaved,
+      new Promise<boolean>((resolve) => {
+        setTimeout(() => resolve(false), 8000);
+      }),
+    ]);
     const ready = await getPushDeliveryReady();
+    const serverReady = platform === "ios" ? ready.ios : ready.android;
     return {
       pluginAvailable: true,
       permissionGranted: true,
-      deliveryReady: platform === "ios" ? ready.ios : ready.android,
+      deliveryReady: serverReady && saved,
     };
   } catch {
     return { pluginAvailable: false, permissionGranted: false, deliveryReady: false };

@@ -207,127 +207,182 @@ private struct RestCountdown: View {
     }
 }
 
+/// Survives the lock-screen view being rebuilt when the finger lifts, before ActivityKit catches up.
+private enum LiveNumberLead {
+    static var setId: String?
+    static var reps: Int?
+    static var weight: Double?
+}
+
 private struct LiveSetMetrics: View {
     var state: WorkoutActivityAttributes.ContentState
+    @State private var shownReps: Int
+    @State private var shownWeight: Double
+
+    init(state: WorkoutActivityAttributes.ContentState) {
+        self.state = state
+        let sameSet = LiveNumberLead.setId == state.setId
+        _shownReps = State(initialValue: sameSet ? (LiveNumberLead.reps ?? state.reps) : state.reps)
+        _shownWeight = State(initialValue: sameSet ? (LiveNumberLead.weight ?? state.weightKg) : state.weightKg)
+    }
+
+    private var displayReps: Int {
+        if LiveNumberLead.setId == state.setId, let lead = LiveNumberLead.reps {
+            return lead
+        }
+        return shownReps
+    }
+
+    private var displayWeight: Double {
+        if LiveNumberLead.setId == state.setId, let lead = LiveNumberLead.weight {
+            return lead
+        }
+        return shownWeight
+    }
 
     var body: some View {
         HStack(spacing: 8) {
             metric(
                 title: "KG",
-                value: LiveWorkoutFormatting.weight(state.weightKg),
-                downPreview: steppedWeight(-2.5),
-                upPreview: steppedWeight(2.5),
+                text: LiveWorkoutFormatting.weight(displayWeight),
+                value: displayWeight,
                 down: AdjustWeightIntent(tenths: -25),
                 up: AdjustWeightIntent(tenths: 25),
                 downLabel: "Decrease weight",
                 upLabel: "Increase weight",
-                space: "liveMetricKG"
+                onDown: { bumpWeight(-2.5) },
+                onUp: { bumpWeight(2.5) }
             )
             metric(
                 title: "REPS",
-                value: "\(state.reps)",
-                downPreview: "\(steppedReps(-1))",
-                upPreview: "\(steppedReps(1))",
+                text: "\(displayReps)",
+                value: Double(displayReps),
                 down: AdjustRepsIntent(delta: -1),
                 up: AdjustRepsIntent(delta: 1),
                 downLabel: "Decrease reps",
                 upLabel: "Increase reps",
-                space: "liveMetricReps"
+                onDown: { bumpReps(-1) },
+                onUp: { bumpReps(1) }
             )
         }
-        .animation(nil, value: state.reps)
-        .animation(nil, value: state.weightKg)
+        .onChange(of: state.reps) { _, newValue in
+            adoptReps(newValue)
+        }
+        .onChange(of: state.weightKg) { _, newValue in
+            adoptWeight(newValue)
+        }
+        .onChange(of: state.setId) { _, _ in
+            LiveNumberLead.reps = nil
+            LiveNumberLead.weight = nil
+            LiveNumberLead.setId = nil
+            roll {
+                shownReps = state.reps
+                shownWeight = state.weightKg
+            }
+        }
     }
 
-    private func steppedWeight(_ delta: Double) -> String {
-        let next = min(200, max(0, state.weightKg + delta))
-        return LiveWorkoutFormatting.weight((next * 10).rounded() / 10)
+    private func bumpReps(_ delta: Int) {
+        let next = min(40, max(1, displayReps + delta))
+        guard next != displayReps else { return }
+        LiveNumberLead.setId = state.setId
+        LiveNumberLead.reps = next
+        roll { shownReps = next }
     }
 
-    private func steppedReps(_ delta: Int) -> Int {
-        min(40, max(1, state.reps + delta))
+    private func bumpWeight(_ delta: Double) {
+        let next = min(200, max(0, ((displayWeight + delta) * 10).rounded() / 10))
+        guard abs(next - displayWeight) > 0.001 else { return }
+        LiveNumberLead.setId = state.setId
+        LiveNumberLead.weight = next
+        roll { shownWeight = next }
+    }
+
+    private func adoptReps(_ newValue: Int) {
+        if LiveNumberLead.setId == state.setId, let lead = LiveNumberLead.reps {
+            guard newValue == lead else { return }
+            LiveNumberLead.reps = nil
+            if LiveNumberLead.weight == nil { LiveNumberLead.setId = nil }
+            return
+        }
+        guard shownReps != newValue else { return }
+        roll { shownReps = newValue }
+    }
+
+    private func adoptWeight(_ newValue: Double) {
+        if LiveNumberLead.setId == state.setId, let lead = LiveNumberLead.weight {
+            guard abs(newValue - lead) < 0.001 else { return }
+            LiveNumberLead.weight = nil
+            if LiveNumberLead.reps == nil { LiveNumberLead.setId = nil }
+            return
+        }
+        guard abs(shownWeight - newValue) > 0.001 else { return }
+        roll { shownWeight = newValue }
+    }
+
+    private func roll(_ change: () -> Void) {
+        withAnimation(.smooth(duration: 0.32)) {
+            change()
+        }
     }
 
     private func metric(
         title: String,
-        value: String,
-        downPreview: String,
-        upPreview: String,
+        text: String,
+        value: Double,
         down: some AppIntent,
         up: some AppIntent,
         downLabel: String,
         upLabel: String,
-        space: String
+        onDown: @escaping () -> Void,
+        onUp: @escaping () -> Void
     ) -> some View {
-        GeometryReader { geo in
-            let center = geo.size.width / 2
-            HStack(spacing: 0) {
-                Button(intent: down) {
-                    StepIcon(systemName: "minus")
-                }
-                .buttonStyle(LivePressStyle(preview: downPreview, numberCenterX: center, space: space))
-                .zIndex(1)
-                .accessibilityLabel(downLabel)
-                VStack(spacing: 1) {
-                    Text(title)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(LivePalette.secondary)
-                        .tracking(0.6)
-                    Text(value)
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .monospacedDigit()
-                        .contentTransition(.identity)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .transaction { transaction in
-                            transaction.animation = nil
-                            transaction.disablesAnimations = true
-                        }
-                }
-                .frame(maxWidth: .infinity)
-                .allowsHitTesting(false)
-                Button(intent: up) {
-                    StepIcon(systemName: "plus")
-                }
-                .buttonStyle(LivePressStyle(preview: upPreview, numberCenterX: center, space: space))
-                .zIndex(1)
-                .accessibilityLabel(upLabel)
+        HStack(spacing: 0) {
+            Button(intent: down) {
+                StepIcon(systemName: "minus")
             }
-            .padding(4)
-            .frame(width: geo.size.width, height: geo.size.height)
-            .coordinateSpace(name: space)
-            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .buttonStyle(LivePressStyle(onPress: onDown))
+            .accessibilityLabel(downLabel)
+            VStack(spacing: 1) {
+                Text(title)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(LivePalette.secondary)
+                    .tracking(0.6)
+                Text(text)
+                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .monospacedDigit()
+                    .contentTransition(.numericText(value: value))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity)
+            .allowsHitTesting(false)
+            Button(intent: up) {
+                StepIcon(systemName: "plus")
+            }
+            .buttonStyle(LivePressStyle(onPress: onUp))
+            .accessibilityLabel(upLabel)
         }
+        .padding(4)
+        .frame(maxWidth: .infinity)
         .frame(height: 50)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 }
 
-/// Shrinks on touch, and draws the next number over the middle while the card catches up.
+/// Shrinks while the finger is down. The number itself updates in the middle and stays there.
 private struct LivePressStyle: ButtonStyle {
-    var preview: String
-    var numberCenterX: CGFloat
-    var space: String
+    var onPress: () -> Void
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.84 : 1)
             .animation(.spring(response: 0.2, dampingFraction: 0.62), value: configuration.isPressed)
-            .overlay {
-                GeometryReader { geo in
-                    let frame = geo.frame(in: .named(space))
-                    LivePreviewNumber(text: preview)
-                        .position(
-                            x: numberCenterX - frame.minX,
-                            y: geo.size.height / 2 + 7
-                        )
-                        .opacity(configuration.isPressed ? 1 : 0)
-                        .transaction { transaction in
-                            transaction.animation = nil
-                            transaction.disablesAnimations = true
-                        }
-                }
-                .allowsHitTesting(false)
+            .onChange(of: configuration.isPressed) { _, pressed in
+                // Next turn, so lifting the finger cannot roll the number back with the press.
+                guard pressed else { return }
+                DispatchQueue.main.async(execute: onPress)
             }
     }
 }
@@ -337,30 +392,6 @@ private struct LiveScaleStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.86 : 1)
             .animation(.spring(response: 0.2, dampingFraction: 0.62), value: configuration.isPressed)
-    }
-}
-
-private struct LivePreviewNumber: View {
-    var text: String
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 20, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white)
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 8)
-            .frame(minWidth: 52)
-            .background {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(LivePalette.background)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .fill(Color.white.opacity(0.06))
-                    }
-            }
     }
 }
 
