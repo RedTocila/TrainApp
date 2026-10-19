@@ -161,8 +161,14 @@ export const platformCopyAl = {
     switchToDark: "Kalo në modalitetin e errët",
     switchToLight: "Kalo në modalitetin e ndritshëm",
     accentColor: "Ngjyra e theksit",
+    changePassword: "Ndrysho fjalëkalimin",
+    currentPassword: "Fjalëkalimi aktual",
     newPassword: "Fjalëkalimi i ri",
     confirmPassword: "Konfirmo fjalëkalimin",
+    confirmPasswordAgain: "Konfirmoje përsëri",
+    forgotPassword: "Harrove fjalëkalimin?",
+    resetEmailSent: "Kontrollo emailin për linkun e rivendosjes.",
+    sendingReset: "Duke dërguar...",
     saveChanges: "Ruaj ndryshimet",
     saving: "Duke ruajtur...",
     profileUpdated: "Profili u përditësua",
@@ -176,7 +182,7 @@ export const platformCopyAl = {
       "Merr një kujtesë gjatë ditës kur stërvitja, vaktet, kardio, uji ose zakonet e sotme janë ende hapur.",
     masterLabel: "Aktivizo kujtesat",
     masterHint:
-      "Deri në tri herë gjatë ditës. Ndalon sapo të mbarojë gjithçka që ke ndezur.",
+      "11:00, 16:00, 20:00, dhe 23:00 nëse dita është ende bosh. Ndalon sapo të mbarojë gjithçka që ke ndezur.",
     nativeOnlyHint:
       "Kujtesat dërgohen te aplikacioni RUTINA në iOS dhe Android. Aktivizoji këtu, pastaj hape aplikacionin dhe lejo njoftimet.",
     permissionDenied:

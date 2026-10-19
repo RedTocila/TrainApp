@@ -28,6 +28,11 @@ import type { ClientHabit } from "@/lib/types";
 
 export type ReminderPendingStatus = Record<ReminderType, boolean>;
 
+export type ReminderDayStatus = {
+  open: ReminderPendingStatus;
+  due: ReminderPendingStatus;
+};
+
 function weekdayIndex(dateKey: string): number {
   return new Date(`${dateKey}T12:00:00`).getDay();
 }
@@ -88,19 +93,21 @@ export async function updateReminderSettings(
 }
 
 /**
- * Which reminder types still need attention today.
- * Types with nothing scheduled (workout/cardio/habits) return false.
+ * What was due today and what is still open.
+ * Workout, cardio, and habits are due only when something is scheduled.
+ * Meals and water are always due.
  */
 export async function getTodayReminderPendingStatus(
   timezoneOffsetMinutes = 0
-): Promise<ReminderPendingStatus> {
-  const empty: ReminderPendingStatus = {
+): Promise<ReminderDayStatus> {
+  const emptyFlags: ReminderPendingStatus = {
     workout: false,
     meals: false,
     cardio: false,
     water: false,
     habits: false,
   };
+  const empty: ReminderDayStatus = { open: emptyFlags, due: { ...emptyFlags } };
 
   const supabase = await createClient();
   const {
@@ -166,10 +173,19 @@ export async function getTodayReminderPendingStatus(
     todayHabits.some((habit) => !completedHabitIds.has(habit.id));
 
   return {
-    workout: workoutPending,
-    meals: mealsPending,
-    cardio: cardioPending,
-    water: waterPending,
-    habits: habitsPending,
+    open: {
+      workout: workoutPending,
+      meals: mealsPending,
+      cardio: cardioPending,
+      water: waterPending,
+      habits: habitsPending,
+    },
+    due: {
+      workout: workouts.length > 0,
+      meals: true,
+      cardio: cardios.length > 0,
+      water: true,
+      habits: todayHabits.length > 0,
+    },
   };
 }

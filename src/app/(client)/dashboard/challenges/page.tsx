@@ -4,6 +4,7 @@ import {
   getPublishedChallenges,
   getUserChallengeMemberships,
 } from "@/lib/actions/challenges";
+import { ChallengesCatalogBackButton } from "@/components/challenges-back-button";
 import { ChallengesCatalog } from "@/components/challenges-catalog";
 import { PageTransition } from "@/components/page-transition";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
@@ -26,6 +27,7 @@ export default async function ChallengesPage() {
     <PageTransition>
       <div className="mx-auto w-full min-w-0 max-w-5xl space-y-6">
         <header className="flex items-center gap-2">
+          <ChallengesCatalogBackButton />
           <Trophy className="h-6 w-6 text-violet-400" aria-hidden />
           <h1 className="text-lg font-black leading-none">{platform.eliteUpgrade.challenges}</h1>
         </header>

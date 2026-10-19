@@ -160,8 +160,14 @@ export const platformCopyEn = {
     switchToDark: "Switch to dark mode",
     switchToLight: "Switch to light mode",
     accentColor: "Accent color",
+    changePassword: "Change password",
+    currentPassword: "Current password",
     newPassword: "New password",
     confirmPassword: "Confirm password",
+    confirmPasswordAgain: "Confirm password again",
+    forgotPassword: "Forgot password?",
+    resetEmailSent: "Check your email for a reset link.",
+    sendingReset: "Sending...",
     saveChanges: "Save changes",
     saving: "Saving...",
     profileUpdated: "Profile updated",
@@ -175,7 +181,7 @@ export const platformCopyEn = {
       "Get a nudge during the day while today’s workout, meals, cardio, water, or habits are still open.",
     masterLabel: "Enable reminders",
     masterHint:
-      "Up to three times during the day. Stops once everything you turned on is done.",
+      "11:00, 16:00, 20:00, and 23:00 if the day is still blank. Stops once everything you turned on is done.",
     nativeOnlyHint:
       "Reminders are sent to the RUTINA iOS and Android app. Turn them on here, then open the app and allow notifications.",
     permissionDenied:

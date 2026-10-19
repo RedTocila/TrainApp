@@ -101,6 +101,31 @@ export function habitsStillOpen(input: {
   );
 }
 
+/**
+ * Split today's enabled tasks into due, still open, and already done.
+ * A type with nothing scheduled (no workout, cardio, or habit today) is not due.
+ * Meals and water count whenever that reminder is on.
+ */
+export function reminderDaySplit(input: {
+  settings: ReminderSettings;
+  due: Record<ReminderType, boolean>;
+  open: Record<ReminderType, boolean>;
+}): { due: ReminderType[]; open: ReminderType[]; done: ReminderType[] } {
+  const due: ReminderType[] = [];
+  const open: ReminderType[] = [];
+  if (!input.settings.enabled) return { due, open, done: [] };
+  for (const type of REMINDER_TYPES) {
+    if (!input.settings[type].enabled || !input.due[type]) continue;
+    due.push(type);
+    if (input.open[type]) open.push(type);
+  }
+  return {
+    due,
+    open,
+    done: due.filter((type) => !open.includes(type)),
+  };
+}
+
 /** Enabled reminder types that are still unfinished. Empty means do not notify. */
 export function openReminderTypes(facts: DayReminderFacts): ReminderType[] {
   if (!facts.settings.enabled) return [];

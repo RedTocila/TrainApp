@@ -43,8 +43,8 @@ export const REMINDER_NOTIFICATION_BASE: Record<ReminderType, number> = {
 
 export const REMINDER_SCHEDULE_DAYS = 14;
 
-/** One local notification per daytime slot (fallback when remote push is not configured). */
-export const REMINDER_SLOT_NOTIFICATION_IDS = [1701, 1702, 1703] as const;
+/** One local notification per slot (fallback when remote push is not configured). */
+export const REMINDER_SLOT_NOTIFICATION_IDS = [1701, 1702, 1703, 1704] as const;
 
 export function reminderNotificationId(
   type: ReminderType,

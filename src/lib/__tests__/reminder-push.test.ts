@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { reminderSlotForHour, tiraneClock } from "../reminder-clock";
-import { reminderPushMessage } from "../reminder-message";
+import { reminderMessageBand, reminderPushMessage } from "../reminder-message";
 import {
   cardioStillOpen,
   habitsStillOpen,
@@ -22,6 +22,16 @@ describe("reminder push windows", () => {
     assert.equal(winter.hour, 11);
     assert.equal(reminderSlotForHour(winter.hour), 1);
     assert.equal(reminderSlotForHour(10), null);
+  });
+
+  it("uses 23:00 Tirane in summer and winter", () => {
+    const summer = tiraneClock(new Date("2026-10-17T21:00:00.000Z"));
+    assert.equal(summer.hour, 23);
+    assert.equal(reminderSlotForHour(summer.hour), 4);
+
+    const winter = tiraneClock(new Date("2026-11-17T22:00:00.000Z"));
+    assert.equal(winter.hour, 23);
+    assert.equal(reminderSlotForHour(winter.hour), 4);
   });
 });
 
@@ -100,16 +110,91 @@ describe("open reminder types", () => {
 });
 
 describe("reminder push copy", () => {
-  it("uses one line when several things are open", () => {
-    const message = reminderPushMessage(["workout", "water"], "en");
-    assert.equal(message.title, "Still open today");
-    assert.equal(message.body, "Workout and Water are still open.");
-    assert.equal(message.path, "/dashboard");
+  const open = ["workout", "water"] as const;
+
+  it("picks a stable Alex line and varies it by seed", () => {
+    const first = reminderPushMessage({
+      open: [...open],
+      done: [],
+      locale: "en",
+      slot: 1,
+      seed: "user-a",
+    });
+    const again = reminderPushMessage({
+      open: [...open],
+      done: [],
+      locale: "en",
+      slot: 1,
+      seed: "user-a",
+    });
+    assert.ok(first);
+    assert.equal(first.title, again?.title);
+    assert.match(first.body, /Workout and Water/);
+    assert.equal(first.path, "/dashboard");
+    assert.equal(reminderMessageBand({ openCount: 2, doneCount: 0, slot: 1 }), "none");
+
+    let differed = false;
+    for (let i = 0; i < 24; i++) {
+      const next = reminderPushMessage({
+        open: [...open],
+        done: [],
+        locale: "en",
+        slot: 1,
+        seed: `user-${i}`,
+      });
+      if (next?.title !== first.title) differed = true;
+    }
+    assert.equal(differed, true);
+  });
+
+  it("encourages when some of the day is already done", () => {
+    assert.equal(
+      reminderMessageBand({ openCount: 1, doneCount: 2, slot: 2 }),
+      "almost"
+    );
+    const message = reminderPushMessage({
+      open: ["habits"],
+      done: ["workout", "water"],
+      locale: "en",
+      slot: 2,
+      seed: "almost",
+    });
+    assert.equal(message?.path, "/dashboard");
+    assert.match(message?.body ?? "", /Habits/);
   });
 
   it("deep-links a single open item", () => {
-    const message = reminderPushMessage(["meals"], "al");
-    assert.equal(message.title, "Vaktet pa u regjistruar");
-    assert.equal(message.path, "/dashboard/nutrition");
+    const message = reminderPushMessage({
+      open: ["meals"],
+      done: [],
+      locale: "al",
+      slot: 1,
+      seed: "meals",
+    });
+    assert.match(message?.body ?? "", /Vaktet/);
+    assert.equal(message?.path, "/dashboard/nutrition");
+  });
+
+  it("sends the 23:00 line only when nothing is done", () => {
+    const shame = reminderPushMessage({
+      open: ["workout", "meals", "water"],
+      done: [],
+      locale: "en",
+      slot: 4,
+      seed: "night",
+    });
+    assert.equal(reminderMessageBand({ openCount: 3, doneCount: 0, slot: 4 }), "shame");
+    assert.match(shame?.body ?? "", /Workout, Meals and Water/);
+
+    assert.equal(
+      reminderPushMessage({
+        open: ["workout"],
+        done: ["water"],
+        locale: "en",
+        slot: 4,
+        seed: "night",
+      }),
+      null
+    );
   });
 });

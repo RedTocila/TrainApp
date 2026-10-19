@@ -34,12 +34,12 @@ export async function syncReminderDelivery(
     return { permissionGranted: true };
   }
 
-  const pendingToday = await getTodayReminderPendingStatus(
+  const today = await getTodayReminderPendingStatus(
     new Date().getTimezoneOffset()
   );
   const local = await syncTodaySlotReminders({
     settings,
-    pendingToday,
+    today,
     locale,
   });
   return { permissionGranted: local.permissionGranted };

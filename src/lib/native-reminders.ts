@@ -1,14 +1,14 @@
 import { Capacitor } from "@capacitor/core";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
-import { REMINDER_PUSH_HOURS } from "@/lib/reminder-clock";
+import type { ReminderDayStatus } from "@/lib/actions/reminders";
+import { REMINDER_PUSH_HOURS, type ReminderSlot } from "@/lib/reminder-clock";
 import { reminderPushMessage } from "@/lib/reminder-message";
+import { reminderDaySplit } from "@/lib/reminder-pending";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import {
   allReminderNotificationIds,
   REMINDER_SLOT_NOTIFICATION_IDS,
-  REMINDER_TYPES,
   type ReminderSettings,
-  type ReminderType,
 } from "@/lib/reminder-settings";
 
 async function getLocalNotifications() {
@@ -65,12 +65,12 @@ export async function cancelAllReminderNotifications(): Promise<void> {
 }
 
 /**
- * Local fallback for today only: 11:00, 16:00, and 20:00 if something is still open.
+ * Local fallback for today: 11:00, 16:00, 20:00, and 23:00 if nothing is done.
  * Remote push replaces this once the server can deliver to this platform.
  */
 export async function syncTodaySlotReminders(options: {
   settings: ReminderSettings;
-  pendingToday: Record<ReminderType, boolean>;
+  today: ReminderDayStatus;
   locale: CheckoutLocale;
 }): Promise<{ scheduled: number; permissionGranted: boolean }> {
   if (!Capacitor.isNativePlatform()) {
@@ -83,10 +83,12 @@ export async function syncTodaySlotReminders(options: {
     return { scheduled: 0, permissionGranted: true };
   }
 
-  const open = REMINDER_TYPES.filter(
-    (type) => options.settings[type].enabled && options.pendingToday[type]
-  );
-  if (open.length === 0) {
+  const progress = reminderDaySplit({
+    settings: options.settings,
+    due: options.today.due,
+    open: options.today.open,
+  });
+  if (progress.open.length === 0) {
     return { scheduled: 0, permissionGranted: true };
   }
 
@@ -99,9 +101,9 @@ export async function syncTodaySlotReminders(options: {
     return { scheduled: 0, permissionGranted: false };
   }
 
-  const message = reminderPushMessage(open, options.locale);
   const LocalNotifications = await getLocalNotifications();
-  const now = Date.now();
+  const now = new Date();
+  const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const notifications: {
     id: number;
     title: string;
@@ -112,11 +114,21 @@ export async function syncTodaySlotReminders(options: {
   }[] = [];
 
   REMINDER_PUSH_HOURS.forEach((hour, index) => {
+    const slot = (index + 1) as ReminderSlot;
+    if (slot === 4 && progress.done.length > 0) return;
     const at = new Date();
     at.setHours(hour, 0, 0, 0);
-    if (at.getTime() <= now + 15_000) return;
+    if (at.getTime() <= now.getTime() + 15_000) return;
+    const message = reminderPushMessage({
+      open: progress.open,
+      done: progress.done,
+      locale: options.locale,
+      slot,
+      seed: `${dateKey}:${slot}`,
+    });
+    if (!message) return;
     notifications.push({
-      id: REMINDER_SLOT_NOTIFICATION_IDS[index],
+      id: REMINDER_SLOT_NOTIFICATION_IDS[index]!,
       title: message.title,
       body: message.body,
       schedule: { at, allowWhileIdle: true },

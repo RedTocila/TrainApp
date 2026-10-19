@@ -1,15 +1,14 @@
-/** Daytime checks in Albania local time. Users do not pick these. */
-export const REMINDER_PUSH_HOURS = [11, 16, 20] as const;
+/** Checks in Albania local time. 23:00 is the end-of-day nudge. Users do not pick these. */
+export const REMINDER_PUSH_HOURS = [11, 16, 20, 23] as const;
 
 export const REMINDER_TIMEZONE = "Europe/Tirane";
 
-export type ReminderSlot = 1 | 2 | 3;
+export type ReminderSlot = 1 | 2 | 3 | 4;
 
 export function reminderSlotForHour(hour: number): ReminderSlot | null {
-  if (hour === REMINDER_PUSH_HOURS[0]) return 1;
-  if (hour === REMINDER_PUSH_HOURS[1]) return 2;
-  if (hour === REMINDER_PUSH_HOURS[2]) return 3;
-  return null;
+  const index = (REMINDER_PUSH_HOURS as readonly number[]).indexOf(hour);
+  if (index === -1) return null;
+  return (index + 1) as ReminderSlot;
 }
 
 export function tiraneClock(at: Date = new Date()): {

@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { Beef, Droplet, Flame, Loader2, Pencil, Save, Wheat } from "lucide-react";
 import { CHECKOUT_LOCALES } from "@/lib/checkout-i18n";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
+import { requestPasswordReset } from "@/lib/actions/auth";
 import { updateCalorieTarget, updateProfile, updatePassword } from "@/lib/actions/profile";
 import {
   useLocalePreview,
   usePlatformCopy,
 } from "@/components/locale-provider";
 import { AccentColorPicker } from "@/components/accent-color-picker";
+import { AppDialog } from "@/components/app-dialog";
 import { CalorieTargetEditDialog } from "@/components/calorie-target-edit-dialog";
 import { SegmentedToggle } from "@/components/segmented-toggle";
 import { useTheme } from "@/components/theme-provider";
@@ -127,10 +129,17 @@ export function ProfileSettings({
 
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPasswordAgain, setConfirmPasswordAgain] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [isProfilePending, startProfileTransition] = useTransition();
   const [isPasswordPending, startPasswordTransition] = useTransition();
+  const [isResetPending, startResetTransition] = useTransition();
 
   const handleLocaleChange = (next: CheckoutLocale) => {
     setLocale(next);
@@ -166,16 +175,51 @@ export function ProfileSettings({
     });
   };
 
-  const handlePasswordSubmit = (formData: FormData) => {
+  const openPasswordDrawer = () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setConfirmPasswordAgain("");
+    setPasswordError(null);
+    setResetSent(false);
+    setPasswordSuccess(false);
+    setPasswordOpen(true);
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setPasswordError(null);
     setPasswordSuccess(false);
+    setResetSent(false);
+
+    const formData = new FormData(e.currentTarget);
     startPasswordTransition(async () => {
       const result = await updatePassword(formData);
       if (result?.error) {
         setPasswordError(result.error);
-      } else {
-        setPasswordSuccess(true);
+        return;
       }
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setConfirmPasswordAgain("");
+      setPasswordOpen(false);
+      setPasswordSuccess(true);
+    });
+  };
+
+  const handleForgotPassword = () => {
+    setPasswordError(null);
+    setResetSent(false);
+    const formData = new FormData();
+    formData.set("email", email);
+    startResetTransition(async () => {
+      const result = await requestPasswordReset(formData);
+      if (result?.error) {
+        setPasswordError(result.error);
+        return;
+      }
+      setResetSent(true);
     });
   };
 
@@ -374,43 +418,98 @@ export function ProfileSettings({
         <CardHeader>
           <CardTitle className="text-base">{platform.profile.password}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form action={handlePasswordSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="new_password">{platform.settings.newPassword}</Label>
-              <PasswordInput
-                id="new_password"
-                name="new_password"
-                minLength={6}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm_password">{platform.settings.confirmPassword}</Label>
-              <PasswordInput
-                id="confirm_password"
-                name="confirm_password"
-                minLength={6}
-                required
-              />
-            </div>
-            {passwordError && (
-              <p className="text-sm text-red-400">{passwordError}</p>
-            )}
-            {passwordSuccess && (
-              <p className="text-sm text-green-400">{platform.settings.passwordUpdated}</p>
-            )}
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={isPasswordPending}
-              className="w-full"
-            >
-              {isPasswordPending ? platform.settings.updating : platform.settings.updatePassword}
-            </Button>
-          </form>
+        <CardContent className="space-y-3">
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            onClick={openPasswordDrawer}
+          >
+            {platform.settings.changePassword}
+          </Button>
+          {passwordSuccess && (
+            <p className="text-sm text-green-400">{platform.settings.passwordUpdated}</p>
+          )}
         </CardContent>
       </Card>
+
+      <AppDialog
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        title={platform.settings.changePassword}
+        ariaLabel={platform.settings.changePassword}
+        maxWidth="max-w-md"
+      >
+        <form
+          onSubmit={handlePasswordSubmit}
+          className="space-y-4 px-5 pb-[calc(var(--dashboard-mobile-nav-height)+1rem)] pt-1 sm:pb-5"
+        >
+          <div className="space-y-2">
+            <Label htmlFor="current_password">{platform.settings.currentPassword}</Label>
+            <PasswordInput
+              id="current_password"
+              name="current_password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="new_password">{platform.settings.newPassword}</Label>
+            <PasswordInput
+              id="new_password"
+              name="new_password"
+              autoComplete="new-password"
+              minLength={6}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm_password">{platform.settings.confirmPassword}</Label>
+            <PasswordInput
+              id="confirm_password"
+              name="confirm_password"
+              autoComplete="new-password"
+              minLength={6}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm_password_again">
+              {platform.settings.confirmPasswordAgain}
+            </Label>
+            <PasswordInput
+              id="confirm_password_again"
+              name="confirm_password_again"
+              autoComplete="new-password"
+              minLength={6}
+              value={confirmPasswordAgain}
+              onChange={(e) => setConfirmPasswordAgain(e.target.value)}
+              required
+            />
+          </div>
+          {passwordError && <p className="text-sm text-red-400">{passwordError}</p>}
+          {resetSent && (
+            <p className="text-sm text-green-400">{platform.settings.resetEmailSent}</p>
+          )}
+          <Button type="submit" className="w-full" disabled={isPasswordPending}>
+            {isPasswordPending ? platform.settings.updating : platform.settings.updatePassword}
+          </Button>
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={isResetPending}
+            className="w-full text-center text-sm text-primary hover:underline disabled:opacity-60"
+          >
+            {isResetPending ? platform.settings.sendingReset : platform.settings.forgotPassword}
+          </button>
+        </form>
+      </AppDialog>
 
       <CalorieTargetEditDialog
         open={calorieEditOpen}

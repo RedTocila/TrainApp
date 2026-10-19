@@ -4,12 +4,13 @@ import {
   cardioStillOpen,
   habitsStillOpen,
   legacyWorkoutStillOpen,
-  openReminderTypes,
+  reminderDaySplit,
   scheduledWorkoutsStillOpen,
   type WorkoutSessionRef,
 } from "@/lib/reminder-pending";
 import { reminderSlotForHour, tiraneClock, type ReminderSlot } from "@/lib/reminder-clock";
-import { parseReminderSettings, type ReminderType } from "@/lib/reminder-settings";
+import { parseReminderSettings } from "@/lib/reminder-settings";
+import { waterMetDailyMinimum } from "@/lib/water-targets";
 import { createPushSender, apnsConfigured, fcmConfigured, type PushPlatform } from "@/lib/push-delivery";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -308,18 +309,22 @@ export async function runReminderPushJob(
         dayId: row.day_id,
       }));
 
-      let workoutsOpen = scheduledWorkoutsStillOpen({
-        dateKey,
-        scheduled,
-        sessions,
-        taskIds,
-      });
-      if (!workoutsOpen && scheduled.length === 0 && !explicitUsers.has(profile.id)) {
+      let workoutDue = scheduled.length > 0;
+      let workoutsOpen = workoutDue
+        ? scheduledWorkoutsStillOpen({
+            dateKey,
+            scheduled,
+            sessions,
+            taskIds,
+          })
+        : false;
+      if (!workoutDue && !explicitUsers.has(profile.id)) {
         const planId = assignmentByUser.get(profile.id);
         const days = planId
           ? [...(daysByPlan.get(planId) ?? [])].sort((a, b) => a.day_index - b.day_index)
           : [];
         if (planId && days.length > 0) {
+          workoutDue = true;
           const day = days[clock.weekday % days.length];
           workoutsOpen = legacyWorkoutStillOpen({
             dateKey,
@@ -339,25 +344,32 @@ export async function runReminderPushJob(
           : allHabits
               .filter((habit) => (habit.weekdays ?? [0, 1, 2, 3, 4, 5, 6]).includes(clock.weekday))
               .map((habit) => habit.id);
+      const cardioIds = (cardioByUser.get(profile.id) ?? []).map((row) => row.cardio_id);
+      const waterMl = waterByUser.get(profile.id) ?? 0;
+      const waterGoalMl = profile.water_goal_ml ?? 2500;
 
-      const types: ReminderType[] = openReminderTypes({
+      const progress = reminderDaySplit({
         settings,
-        mealsLogged: mealsLogged.has(profile.id),
-        waterMl: waterByUser.get(profile.id) ?? 0,
-        waterGoalMl: profile.water_goal_ml ?? 2500,
-        workoutsOpen,
-        cardioOpen: cardioStillOpen({
-          dateKey,
-          cardioIds: (cardioByUser.get(profile.id) ?? []).map((row) => row.cardio_id),
-          taskIds,
-        }),
-        habitsOpen: habitsStillOpen({
-          habitIds,
-          completedHabitIds: habitDoneByUser.get(profile.id) ?? new Set(),
-        }),
+        due: {
+          workout: workoutDue,
+          meals: true,
+          cardio: cardioIds.length > 0,
+          water: true,
+          habits: habitIds.length > 0,
+        },
+        open: {
+          workout: workoutsOpen,
+          meals: !mealsLogged.has(profile.id),
+          cardio: cardioStillOpen({ dateKey, cardioIds, taskIds }),
+          water: !waterMetDailyMinimum(waterMl, waterGoalMl),
+          habits: habitsStillOpen({
+            habitIds,
+            completedHabitIds: habitDoneByUser.get(profile.id) ?? new Set(),
+          }),
+        },
       });
 
-      if (types.length === 0) {
+      if (progress.open.length === 0 || (slot === 4 && progress.done.length > 0)) {
         base.skippedComplete += 1;
         continue;
       }
@@ -369,17 +381,30 @@ export async function runReminderPushJob(
         user_id: profile.id,
         date_key: dateKey,
         slot,
-        types,
+        types: progress.open,
       });
       if (claimError) {
         if (claimError.code === "23505") continue;
         throw new Error(claimError.message);
       }
 
-      const message = reminderPushMessage(
-        types,
-        parseCheckoutLocale(profile.preferred_locale)
-      );
+      const message = reminderPushMessage({
+        open: progress.open,
+        done: progress.done,
+        locale: parseCheckoutLocale(profile.preferred_locale),
+        slot,
+        seed: `${profile.id}:${dateKey}:${slot}`,
+      });
+      if (!message) {
+        base.skippedComplete += 1;
+        await admin
+          .from("reminder_push_sends")
+          .delete()
+          .eq("user_id", profile.id)
+          .eq("date_key", dateKey)
+          .eq("slot", slot);
+        continue;
+      }
       let delivered = false;
       for (const device of userDevices) {
         try {

@@ -28,7 +28,7 @@
     },
     {
       "path": "/api/cron/reminder-pushes",
-      "schedule": "0 9,10,14,15,18,19 * * *"
+      "schedule": "0 9,10,14,15,18,19,21,22 * * *"
     }
   ]
 }

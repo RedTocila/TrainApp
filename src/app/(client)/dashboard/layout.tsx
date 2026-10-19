@@ -14,6 +14,7 @@ import { FullCalendarProvider } from "@/components/full-calendar-provider";
 import { DashboardMainReset } from "@/components/dashboard-main-reset";
 import { DashboardDayRollover } from "@/components/dashboard-day-rollover";
 import { DashboardDateLoadingProvider } from "@/components/dashboard-date-loading";
+import { ChallengesReturnTracker } from "@/components/challenges-back-button";
 import { DashboardNavPendingProvider } from "@/components/dashboard-nav-pending";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
@@ -65,6 +66,7 @@ export default async function DashboardLayout({
       <NativeAppAccessSync />
       <ReminderBootstrap />
       <DashboardMainReset />
+      <ChallengesReturnTracker />
       <DateProvider>
         <DashboardDayRollover />
         <DashboardSyncProvider>

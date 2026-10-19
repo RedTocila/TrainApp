@@ -1,14 +1,12 @@
-import Link from "next/link";
+import { ChallengeDetailBackButton } from "@/components/challenges-back-button";
 import { ChallengeMediaFrame } from "@/components/challenge-media-frame";
 import { ChallengeShareButton } from "@/components/challenge-share-button";
 import { ChallengeRulesButton } from "@/components/challenge-rules-panel";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { getChallengeCardVisual } from "@/lib/challenge-card-covers";
 import { getChallengeLeagueTag } from "@/lib/challenge-platform-copy";
 import type { PlatformCopy } from "@/lib/platform-copy";
 import type { Challenge } from "@/lib/types";
-import { ArrowLeft } from "lucide-react";
 
 export function ChallengeDetailHero({
   challenge,
@@ -25,12 +23,7 @@ export function ChallengeDetailHero({
   return (
     <header className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/dashboard/classes">
-          <Button variant="ghost" size="sm" className="-ml-2">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Live
-          </Button>
-        </Link>
+        <ChallengeDetailBackButton />
         <div className="flex flex-wrap items-center gap-2">
           <ChallengeShareButton slug={challenge.slug} title={challenge.title} />
           <ChallengeRulesButton copy={copy} slug={challenge.slug} />

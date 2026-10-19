@@ -8,6 +8,7 @@ import { InstantNavLink } from "@/components/instant-nav-link";
 import { useHidesChallengesInApp } from "@/components/ios/use-native-app";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { getHasLivePublishedChallenge } from "@/lib/actions/challenges";
+import { rememberChallengesReturnPath } from "@/lib/challenges-return-path";
 import { cn } from "@/lib/utils";
 
 export function ChallengesHeaderLink({ className }: { className?: string }) {
@@ -35,7 +36,10 @@ export function ChallengesHeaderLink({ className }: { className?: string }) {
   return (
     <InstantNavLink
       href="/dashboard/challenges"
-      onNavigateStart={setPendingHref}
+      onNavigateStart={(href) => {
+        rememberChallengesReturnPath(pathname);
+        setPendingHref(href);
+      }}
       aria-label={platform.eliteUpgrade.challenges}
       aria-current={active ? "page" : undefined}
       className={cn(

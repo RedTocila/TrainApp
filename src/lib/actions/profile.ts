@@ -133,15 +133,34 @@ export async function updateCalorieTarget(input: {
 
 export async function updatePassword(formData: FormData) {
   const supabase = await createClient();
-  const newPassword = formData.get("new_password") as string;
-  const confirmPassword = formData.get("confirm_password") as string;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return { error: "Not authenticated" };
+
+  const currentPassword = String(formData.get("current_password") ?? "");
+  const newPassword = String(formData.get("new_password") ?? "");
+  const confirmPassword = String(formData.get("confirm_password") ?? "");
+  const confirmPasswordAgain = String(formData.get("confirm_password_again") ?? "");
+
+  if (!currentPassword) {
+    return { error: "Enter your current password" };
+  }
 
   if (!newPassword || newPassword.length < 6) {
     return { error: "Password must be at least 6 characters" };
   }
 
-  if (newPassword !== confirmPassword) {
+  if (newPassword !== confirmPassword || newPassword !== confirmPasswordAgain) {
     return { error: "Passwords do not match" };
+  }
+
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (verifyError) {
+    return { error: "Current password is incorrect" };
   }
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
