@@ -9,6 +9,9 @@ const wordmarkSizeStyles = {
   lg: "text-3xl",
 } as const;
 
+/** Brand red. Independent of the user accent so the R never changes color. */
+const BRAND_R_COLOR = "#dc2626";
+
 const textSizeStyles = {
   sm: "text-2xl",
   default: "text-3xl",
@@ -30,7 +33,7 @@ function LogoWordmark({
         className
       )}
     >
-      <span className="text-primary">{PLATFORM_NAME.slice(0, 1)}</span>
+      <span style={{ color: BRAND_R_COLOR }}>{PLATFORM_NAME.slice(0, 1)}</span>
       {PLATFORM_NAME.slice(1)}
     </span>
   );
@@ -82,7 +85,7 @@ export function AppLogo({
           className
         )}
       >
-        <span className="text-primary">{PLATFORM_NAME.slice(0, 1)}</span>
+        <span style={{ color: BRAND_R_COLOR }}>{PLATFORM_NAME.slice(0, 1)}</span>
         {PLATFORM_NAME.slice(1)}
       </span>
     ) : (

@@ -350,7 +350,160 @@ export function toBodyHighlighterData(
 export function resolveBodyMapGender(
   gender: string | null | undefined
 ): "male" | "female" {
-  return gender === "female" ? "female" : "male";
+  const value = gender?.trim().toLowerCase();
+  if (value === "female" || value === "f" || value === "woman") return "female";
+  return "male";
+}
+
+/**
+ * How strongly a muscle pulls the card toward the front or back figure.
+ * Quads outweigh glutes/hamstrings so a leg day stays on the front.
+ * Lats outweigh biceps so a back day stays on the back.
+ */
+const MUSCLE_SIDE_WEIGHT: Record<
+  BodyMuscleSlug,
+  { front: number; back: number }
+> = {
+  chest: { front: 6, back: 0 },
+  abs: { front: 5, back: 0 },
+  obliques: { front: 5, back: 0 },
+  biceps: { front: 4, back: 0 },
+  quadriceps: { front: 8, back: 0 },
+  adductors: { front: 2, back: 1 },
+  forearm: { front: 1, back: 1 },
+  deltoids: { front: 4, back: 1 },
+  neck: { front: 1, back: 1 },
+  calves: { front: 1, back: 1 },
+  "upper-back": { front: 0, back: 6 },
+  "lower-back": { front: 0, back: 5 },
+  trapezius: { front: 1, back: 5 },
+  triceps: { front: 0, back: 4 },
+  gluteal: { front: 0, back: 3 },
+  hamstring: { front: 0, back: 3 },
+};
+
+function sideEmphasis(intensity: MuscleIntensity): number {
+  if (intensity === INTENSITY_PRIMARY_FOCUS) return 1;
+  if (intensity === INTENSITY_MODERATE_LOAD) return 0.35;
+  return 0.12;
+}
+
+/** One figure for a session: chest and legs face forward, back faces away. */
+export function resolveMuscleMapSide(
+  highlights: WorkoutMuscleHighlight[]
+): "front" | "back" {
+  let front = 0;
+  let back = 0;
+  for (const item of highlights) {
+    const emphasis = sideEmphasis(item.intensity);
+    const weight = MUSCLE_SIDE_WEIGHT[item.slug];
+    front += weight.front * emphasis;
+    back += weight.back * emphasis;
+  }
+  return back > front ? "back" : "front";
+}
+
+/**
+ * Day-title cues win over mixed exercise tags.
+ * "Pull" / "back" face away; "chest", "push", and "legs" face forward.
+ */
+const TITLE_MUSCLE_VIEWS: {
+  pattern: RegExp;
+  side: "front" | "back";
+  focus: BodyMuscleSlug[];
+}[] = [
+  {
+    pattern: /\b(pull|back|lat|lats|row|chin-?up|pulldown)\b/i,
+    side: "back",
+    focus: ["upper-back"],
+  },
+  {
+    pattern: /\b(chest|pecs?|pectoral|push)\b/i,
+    side: "front",
+    focus: ["chest"],
+  },
+  {
+    pattern: /\b(legs?|squat|lunges?|quads?|quadriceps)\b/i,
+    side: "front",
+    focus: ["quadriceps"],
+  },
+  {
+    pattern: /\b(glutes?)\b/i,
+    side: "back",
+    focus: ["gluteal"],
+  },
+  {
+    pattern: /\b(hamstrings?)\b/i,
+    side: "back",
+    focus: ["hamstring"],
+  },
+  {
+    pattern: /\b(core|abs|obliques?|plank)\b/i,
+    side: "front",
+    focus: ["abs"],
+  },
+  {
+    pattern: /\b(shoulders?|delts?|deltoids?)\b/i,
+    side: "front",
+    focus: ["deltoids"],
+  },
+  {
+    pattern: /\b(biceps?)\b/i,
+    side: "front",
+    focus: ["biceps"],
+  },
+  {
+    pattern: /\b(triceps?)\b/i,
+    side: "back",
+    focus: ["triceps"],
+  },
+  {
+    pattern: /\b(calves|calf)\b/i,
+    side: "back",
+    focus: ["calves"],
+  },
+];
+
+export function resolveMuscleMapView(
+  highlights: WorkoutMuscleHighlight[],
+  dayTitle?: string
+): { side: "front" | "back"; focus: BodyMuscleSlug[] } {
+  const title = dayTitle?.trim() ?? "";
+  if (title) {
+    const match = TITLE_MUSCLE_VIEWS.find((entry) => entry.pattern.test(title));
+    if (match) return { side: match.side, focus: match.focus };
+  }
+
+  const side = resolveMuscleMapSide(highlights);
+  return { side, focus: resolveMuscleMapFocusSlugs(highlights, side) };
+}
+
+/** Muscles to frame on the chosen side — the ones that decided the view. */
+export function resolveMuscleMapFocusSlugs(
+  highlights: WorkoutMuscleHighlight[],
+  side: "front" | "back"
+): BodyMuscleSlug[] {
+  const primary = highlights.filter(
+    (item) => item.intensity === INTENSITY_PRIMARY_FOCUS
+  );
+  const pool = primary.length > 0 ? primary : highlights;
+  const scored = pool
+    .map((item) => ({
+      slug: item.slug,
+      score:
+        side === "front"
+          ? MUSCLE_SIDE_WEIGHT[item.slug].front
+          : MUSCLE_SIDE_WEIGHT[item.slug].back,
+    }))
+    .filter((item) => item.score > 0);
+
+  if (scored.length === 0) return pool.map((item) => item.slug);
+
+  const top = Math.max(...scored.map((item) => item.score));
+  const focused = scored
+    .filter((item) => item.score >= top - 1)
+    .map((item) => item.slug);
+  return focused.length > 0 ? focused : scored.map((item) => item.slug);
 }
 
 /** Coarse muscle groups for card subtitles (e.g. Arms · Shoulders · Chest). */

@@ -96,7 +96,7 @@ export function NutritionDetailView({
   const over = calorieTarget > 0 && calorieCurrent > calorieTarget;
   const remaining = Math.max(0, calorieTarget - calorieCurrent);
   const display = over ? calorieCurrent - calorieTarget : remaining;
-  const ratio = calorieTarget > 0 ? remaining / calorieTarget : 0;
+  const ratio = calorieTarget > 0 ? calorieCurrent / calorieTarget : 0;
   const calorieTone = macroOverageSeverity(
     current.calories,
     targets.calories,

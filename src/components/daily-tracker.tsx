@@ -33,7 +33,7 @@ import { RecentMealsList } from "@/components/recent-meals-list";
 import { NutritionDetailView } from "@/components/nutrition-detail-view";
 import { useRegisterNutritionPageChrome } from "@/components/nutrition-page-chrome-context";
 import { NutritionRemainingCard } from "@/components/nutrition-remaining-card";
-import { DashboardSolidCard } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import {
   estimateDailyMicros,
   getNutritionDayStatuses,
@@ -385,10 +385,11 @@ export function DailyTracker({
     );
     return (
       <>
-      <DashboardSolidCard
+      <DashboardThemedShell
         id="dashboard-nutrition"
         theme="nutrition"
-        className="cursor-pointer transition-opacity hover:opacity-95 active:opacity-90"
+        solid
+        className="relative w-full cursor-pointer transition-opacity hover:opacity-95 active:opacity-90"
       >
         <DashboardCardNavLink
           href={DASHBOARD_DAY_NUTRITION_PATH}
@@ -409,7 +410,7 @@ export function DailyTracker({
             }
           />
         </DashboardCardNavBody>
-      </DashboardSolidCard>
+      </DashboardThemedShell>
         {nutritionDialogs}
       </>
     );

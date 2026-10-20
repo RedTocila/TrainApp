@@ -114,7 +114,7 @@ export function NutritionRemainingCard({
   const over = calorieTarget > 0 && calorieCurrent > calorieTarget;
   const remaining = Math.max(0, Math.round(calorieTarget - calorieCurrent));
   const display = over ? Math.round(calorieCurrent - calorieTarget) : remaining;
-  const ratio = calorieTarget > 0 ? remaining / calorieTarget : 0;
+  const ratio = calorieTarget > 0 ? calorieCurrent / calorieTarget : 0;
 
   return (
     <div className="flex flex-col gap-1 px-3.5 pb-3.5 pt-3.5">

@@ -41,7 +41,8 @@ import {
 } from "@/lib/actions/workout-sessions";
 import { formatLocalized } from "@/lib/date-locale";
 import { formatDateKey, cn } from "@/lib/utils";
-import { resolveDashboardWorkoutBackground, getDashboardRestDayBackgroundSrc } from "@/lib/workout-visual-categories";
+import { getDashboardRestDayBackgroundSrc } from "@/lib/workout-visual-categories";
+import { FocusedWorkoutMuscleMap } from "@/components/workout-muscle-map";
 import { DASHBOARD_DAY_WORKOUT_PATH } from "@/lib/dashboard-day-routes";
 import {
   rememberWorkoutGender,
@@ -991,16 +992,20 @@ export function DashboardWorkoutCard({
     const mainDone = mainWorkout
       ? isTaskCompleted(mainWorkout.taskId)
       : showCompletedState;
+    const showMuscleMap = Boolean(
+      hasWorkout && workout && workout.exercises.length > 0
+    );
     const backgroundSrc =
-      hasWorkout && workout
-        ? resolveDashboardWorkoutBackground(workout, gender)
-        : getDashboardRestDayBackgroundSrc(gender);
+      hasWorkout ? null : getDashboardRestDayBackgroundSrc(gender);
     const onPhoto = Boolean(backgroundSrc);
-    const metaText = onPhoto ? "text-white/90" : "text-foreground/90";
-    const softText = onPhoto ? "text-white/65" : "text-muted-foreground";
+    const onSolid = hasWorkout;
+    const metaText = onPhoto || onSolid ? "text-white/90" : "text-foreground/90";
+    const softText = onPhoto || onSolid ? "text-white/65" : "text-muted-foreground";
     const footerBar = onPhoto
       ? "rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm"
-      : "rounded-2xl border border-border/60 bg-secondary/40";
+      : onSolid
+        ? "rounded-2xl bg-white/[0.07]"
+        : "rounded-2xl border border-border/60 bg-secondary/40";
     const isRestDayPhoto = onPhoto && !hasWorkout;
 
     return (
@@ -1020,8 +1025,10 @@ export function DashboardWorkoutCard({
               : undefined
           }
           backgroundPriority
+          solid={hasWorkout}
+          hideCornerGlow={showMuscleMap}
           className={cn(
-            "min-h-[18rem]",
+            "min-h-[20rem]",
             hasWorkout &&
               "cursor-pointer transition-opacity hover:opacity-95 active:opacity-90",
             liveSessionId &&
@@ -1042,15 +1049,46 @@ export function DashboardWorkoutCard({
               }
             />
           ) : null}
-          <DashboardCardNavBody className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
+          <DashboardCardNavBody
+            className={cn(
+              "flex flex-1 flex-col gap-3",
+              hasWorkout ? "px-3.5 pb-3.5 pt-3.5" : "p-4 sm:p-5"
+            )}
+          >
+            {showMuscleMap && workout ? (
+              <FocusedWorkoutMuscleMap
+                exercises={workout.exercises}
+                dayTitle={workout.dayTitle || workout.planTitle}
+                gender={gender}
+              />
+            ) : null}
+            {showMuscleMap ? (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-[1]"
+                style={{
+                  background:
+                    "radial-gradient(ellipse 78% 62% at 100% 0%, color-mix(in srgb, var(--primary) 40%, transparent) 0%, transparent 72%)",
+                }}
+              />
+            ) : null}
+            <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {hasWorkout ? (
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
+                    <Dumbbell className="h-4 w-4 text-primary" aria-hidden />
+                  </span>
+                ) : null}
                 <span
                   className={cn(
-                    "inline-flex h-8 items-center rounded-full border px-3 text-xs font-black uppercase tracking-[0.14em]",
-                    onPhoto
-                      ? "border-white/35 bg-black/25 text-white"
-                      : "border-primary/45 bg-primary/15 text-primary"
+                    hasWorkout
+                      ? "truncate text-[11px] font-bold uppercase tracking-[0.16em] text-white/80"
+                      : "inline-flex h-8 items-center rounded-full border px-3 text-xs font-black uppercase tracking-[0.14em]",
+                    !hasWorkout &&
+                      (onPhoto
+                        ? "border-white/35 bg-black/25 text-white"
+                        : "border-primary/45 bg-primary/15 text-primary")
                   )}
                 >
                   {dayLabel}
@@ -1088,7 +1126,7 @@ export function DashboardWorkoutCard({
               >
                 {!readOnly || !hasScheduledWorkout ? (
                   <DashboardWorkoutPlusMenu
-                    light={onPhoto}
+                    light={onPhoto || hasWorkout}
                     onEdit={() => setEditWorkoutOpen(true)}
                   />
                 ) : null}
@@ -1123,8 +1161,10 @@ export function DashboardWorkoutCard({
                       >
                         <Clock
                           className={cn(
-                            "h-5 w-5 shrink-0",
-                            onPhoto ? "text-sky-300" : "text-sky-600 dark:text-sky-300"
+                            "h-4 w-4 shrink-0",
+                            onPhoto || onSolid
+                              ? "text-sky-300"
+                              : "text-sky-600 dark:text-sky-300"
                           )}
                           aria-hidden
                         />
@@ -1147,8 +1187,8 @@ export function DashboardWorkoutCard({
                     >
                       <List
                         className={cn(
-                          "h-5 w-5 shrink-0",
-                          onPhoto ? "text-red-300" : "text-primary"
+                          "h-4 w-4 shrink-0",
+                          onPhoto || onSolid ? "text-white/80" : "text-primary"
                         )}
                         aria-hidden
                       />
@@ -1162,8 +1202,8 @@ export function DashboardWorkoutCard({
                     >
                       <Layers
                         className={cn(
-                          "h-5 w-5 shrink-0",
-                          onPhoto ? "text-red-300" : "text-primary"
+                          "h-4 w-4 shrink-0",
+                          onPhoto || onSolid ? "text-white/80" : "text-primary"
                         )}
                         aria-hidden
                       />
@@ -1177,7 +1217,7 @@ export function DashboardWorkoutCard({
                         )}
                       >
                         <Flame
-                          className="h-5 w-5 shrink-0 text-orange-400"
+                          className="h-4 w-4 shrink-0 text-orange-400"
                           aria-hidden
                         />
                         <span className="tabular-nums">{kcalLabel}</span>
@@ -1336,6 +1376,7 @@ export function DashboardWorkoutCard({
                 ) : null}
               </>
             )}
+            </div>
           </DashboardCardNavBody>
         </DashboardThemedShell>
         <EditDayWorkoutsDialog

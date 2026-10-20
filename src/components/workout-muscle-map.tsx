@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentProps } from "react
 import { usePlatformCopy } from "@/components/locale-provider";
 import {
   resolveBodyMapGender,
+  resolveMuscleMapView,
   resolveWorkoutMuscleHighlights,
   toBodyHighlighterData,
 } from "@/lib/muscle-map-utils";
@@ -227,6 +228,169 @@ export function WorkoutMuscleMap({
         </div>
       </div>
       {showLegend ? <MuscleMapLegend /> : null}
+    </div>
+  );
+}
+
+/**
+ * One body view, cropped so the working muscle fills the card center.
+ * The rest of the figure may extend past the card.
+ */
+export function FocusedWorkoutMuscleMap({
+  exercises,
+  dayTitle,
+  gender,
+  className,
+}: {
+  exercises: { name: string }[];
+  dayTitle?: string;
+  gender?: string | null;
+  className?: string;
+}) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState("translate(0px, 0px) scale(1)");
+  const [ready, setReady] = useState(false);
+  const bodyGender = resolveBodyMapGender(gender);
+
+  const highlights = useMemo(
+    () => resolveWorkoutMuscleHighlights(exercises, dayTitle),
+    [exercises, dayTitle]
+  );
+  const view = useMemo(
+    () => resolveMuscleMapView(highlights, dayTitle),
+    [highlights, dayTitle]
+  );
+  const { side, focus: focusSlugs } = view;
+  const highlightData = useMemo(() => {
+    const data = toBodyHighlighterData(highlights);
+    const bySlug = new Map(data.map((item) => [item.slug, item.intensity]));
+    for (const slug of focusSlugs) {
+      const current = bySlug.get(slug) ?? 0;
+      if (current < 2) bySlug.set(slug, 2);
+    }
+    return [...bySlug.entries()].map(([slug, intensity]) => ({
+      slug,
+      intensity,
+    }));
+  }, [focusSlugs, highlights]);
+  const focusKey = focusSlugs.join(",");
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame || highlightData.length === 0) return;
+
+    let cancelled = false;
+    let waitTimer = 0;
+
+    const fit = () => {
+      if (cancelled) return false;
+      const svg = frame.querySelector("svg");
+      if (!svg) return false;
+
+      const viewBox = svg.viewBox.baseVal;
+      const svgW = svg.width.baseVal.value;
+      const svgH = svg.height.baseVal.value;
+      if (viewBox.width < 1 || viewBox.height < 1 || svgW < 1 || svgH < 1) {
+        return false;
+      }
+
+      const focus = new Set(focusSlugs);
+      const highlighted = new Set(highlightData.map((item) => item.slug));
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+
+      svg.querySelectorAll("path").forEach((path) => {
+        const id = path.id;
+        if (focus.has(id as (typeof focusSlugs)[number])) {
+          const box = path.getBBox();
+          if (box.width > 0 || box.height > 0) {
+            minX = Math.min(minX, box.x);
+            minY = Math.min(minY, box.y);
+            maxX = Math.max(maxX, box.x + box.width);
+            maxY = Math.max(maxY, box.y + box.height);
+          }
+        }
+        path.style.opacity = focus.has(id as (typeof focusSlugs)[number])
+          ? "1"
+          : highlighted.has(id as (typeof focusSlugs)[number])
+            ? "0.22"
+            : "0.08";
+      });
+
+      const frameW = frame.clientWidth;
+      const frameH = frame.clientHeight;
+      if (frameW < 1 || frameH < 1 || !Number.isFinite(minX)) return false;
+
+      const boxW = Math.max(maxX - minX, viewBox.width * 0.08);
+      const boxH = Math.max(maxY - minY, viewBox.height * 0.06);
+      const padX = Math.max(boxW * 0.28, viewBox.width * 0.035);
+      const padY = Math.max(boxH * 0.32, viewBox.height * 0.03);
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      const relW = (boxW + padX * 2) / viewBox.width;
+      const relH = (boxH + padY * 2) / viewBox.height;
+      const muscleW = relW * svgW;
+      const muscleH = relH * svgH;
+      const scale = Math.min((frameH * 0.94) / muscleH, (frameW * 0.96) / muscleW);
+      const clamped = Math.max(1.05, Math.min(scale, 4.1));
+      const muscleCx = ((cx - viewBox.x) / viewBox.width) * svgW;
+      const muscleCy = ((cy - viewBox.y) / viewBox.height) * svgH;
+      const originX = frameW * 0.5 - muscleCx * clamped;
+      const originY = frameH * 0.5 - muscleCy * clamped;
+      const next = `translate(${originX.toFixed(1)}px, ${originY.toFixed(1)}px) scale(${clamped.toFixed(3)})`;
+
+      setTransform((prev) => (prev === next ? prev : next));
+      setReady(true);
+      return true;
+    };
+
+    if (!fit()) {
+      waitTimer = window.setInterval(() => {
+        if (fit()) window.clearInterval(waitTimer);
+      }, 40);
+    }
+
+    const observer = new ResizeObserver(() => {
+      fit();
+    });
+    observer.observe(frame);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(waitTimer);
+      observer.disconnect();
+    };
+  }, [bodyGender, focusKey, focusSlugs, highlightData, side]);
+
+  if (exercises.length === 0 || highlightData.length === 0) return null;
+
+  return (
+    <div
+      ref={frameRef}
+      className={cn(
+        "pointer-events-none absolute right-3 top-1/2 z-0 h-[122%] w-[58%] -translate-y-1/2 overflow-visible sm:right-4 sm:w-[54%]",
+        className
+      )}
+      aria-hidden
+    >
+      <div
+        className={cn(
+          "absolute left-0 top-0 will-change-transform",
+          ready ? "opacity-100" : "opacity-0"
+        )}
+        style={{ transform, transformOrigin: "0 0" }}
+      >
+        <ClientOnlyBody
+          data={highlightData}
+          gender={bodyGender}
+          side={side}
+          scale={1}
+          colors={HIGHLIGHT_COLORS}
+          border="none"
+        />
+      </div>
     </div>
   );
 }

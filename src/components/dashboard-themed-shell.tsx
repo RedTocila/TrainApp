@@ -27,61 +27,61 @@ const THEME: Record<
     accent: "text-primary",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/25",
+    glow: "bg-primary/28",
   },
   nutrition: {
     accent: "text-emerald-700 dark:text-emerald-300",
-    border: "border-emerald-500/40",
-    wash: "from-emerald-500/18",
-    glow: "bg-emerald-400/40",
+    border: "border-primary/40",
+    wash: "from-primary/18",
+    glow: "bg-primary/28",
   },
   water: {
     accent: "text-sky-700 dark:text-sky-300",
-    border: "border-sky-500/40",
-    wash: "from-sky-500/18",
-    glow: "bg-sky-400/40",
+    border: "border-primary/40",
+    wash: "from-primary/18",
+    glow: "bg-primary/28",
   },
   cardio: {
     accent: "text-orange-700 dark:text-orange-300",
-    border: "border-orange-500/40",
-    wash: "from-orange-500/18",
-    glow: "bg-orange-400/40",
+    border: "border-primary/40",
+    wash: "from-primary/18",
+    glow: "bg-primary/28",
   },
   bmi: {
     accent: "text-yellow-800 dark:text-yellow-300",
-    border: "border-amber-500/40",
-    wash: "from-amber-500/18",
-    glow: "bg-amber-400/40",
+    border: "border-primary/40",
+    wash: "from-primary/18",
+    glow: "bg-primary/28",
   },
   weight: {
     accent: "text-teal-800 dark:text-teal-300",
-    border: "border-teal-500/40",
-    wash: "from-teal-500/18",
-    glow: "bg-teal-400/40",
+    border: "border-primary/40",
+    wash: "from-primary/18",
+    glow: "bg-primary/28",
   },
   habits: {
     accent: "text-violet-700 dark:text-violet-300",
-    border: "border-violet-500/40",
-    wash: "from-violet-500/18",
-    glow: "bg-violet-400/40",
+    border: "border-primary/40",
+    wash: "from-primary/18",
+    glow: "bg-primary/28",
   },
   lifestyle: {
     accent: "text-rose-700 dark:text-rose-300",
-    border: "border-rose-500/40",
-    wash: "from-rose-500/18",
-    glow: "bg-rose-400/40",
+    border: "border-primary/40",
+    wash: "from-primary/18",
+    glow: "bg-primary/28",
   },
   photos: {
     accent: "text-fuchsia-700 dark:text-fuchsia-300",
-    border: "border-fuchsia-500/40",
-    wash: "from-fuchsia-500/18",
-    glow: "bg-fuchsia-400/40",
+    border: "border-primary/40",
+    wash: "from-primary/18",
+    glow: "bg-primary/28",
   },
   steps: {
     accent: "text-lime-800 dark:text-lime-300",
-    border: "border-lime-500/40",
-    wash: "from-lime-500/18",
-    glow: "bg-lime-400/40",
+    border: "border-primary/40",
+    wash: "from-primary/18",
+    glow: "bg-primary/28",
   },
 };
 
@@ -133,11 +133,13 @@ export function DashboardSolidCard({
   className,
   children,
   theme = "nutrition",
+  hideCornerGlow = false,
 }: {
   id?: string;
   className?: string;
   children: ReactNode;
   theme?: DashboardCardTheme;
+  hideCornerGlow?: boolean;
 }) {
   return (
     <div
@@ -147,13 +149,15 @@ export function DashboardSolidCard({
         className
       )}
     >
-      <div
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full blur-3xl",
-          THEME[theme].glow
-        )}
-      />
+      {hideCornerGlow ? null : (
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full blur-3xl",
+            THEME[theme].glow
+          )}
+        />
+      )}
       <div className="relative z-10 flex w-full flex-1 flex-col">{children}</div>
     </div>
   );
@@ -173,6 +177,7 @@ export function DashboardThemedShell({
   backgroundPriority = false,
   backgroundObjectClass,
   solid = false,
+  hideCornerGlow = false,
 }: {
   theme: DashboardCardTheme;
   className?: string;
@@ -184,10 +189,17 @@ export function DashboardThemedShell({
   /** Optional override for photo object-position / scale. */
   backgroundObjectClass?: string;
   solid?: boolean;
+  /** Skip the corner orb when a card paints its own glow above other art. */
+  hideCornerGlow?: boolean;
 }) {
   if (solid) {
     return (
-      <DashboardSolidCard id={id} className={className} theme={theme}>
+      <DashboardSolidCard
+        id={id}
+        className={className}
+        theme={theme}
+        hideCornerGlow={hideCornerGlow}
+      >
         {children}
       </DashboardSolidCard>
     );
@@ -241,13 +253,15 @@ export function DashboardThemedShell({
               t.wash
             )}
           />
-          <div
-            aria-hidden
-            className={cn(
-              "pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl",
-              t.glow
-            )}
-          />
+          {hideCornerGlow ? null : (
+            <div
+              aria-hidden
+              className={cn(
+                "pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl",
+                t.glow
+              )}
+            />
+          )}
         </>
       )}
       <div
