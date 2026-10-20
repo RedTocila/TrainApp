@@ -1,8 +1,8 @@
 import type { Profile } from "@/lib/types";
 
 /**
- * Native app (iOS/Android shell) is free: no packages or paywalls, and every
- * signed-in client is granted Elite while using the app. The website keeps paid plans.
+ * Native shell hides packages, checkout, and referral screens.
+ * Accounts and payment happen on the website. Signing in does not grant Elite.
  *
  * This build does not sell App Store subscriptions, so account deletion does not
  * mention Apple billing. If this flag is turned off, tell the user before they

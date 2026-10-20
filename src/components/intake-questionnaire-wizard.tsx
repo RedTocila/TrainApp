@@ -8,10 +8,21 @@ import {
   useRef,
   useState,
   useTransition,
-  type ChangeEvent,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Dumbbell, Mars, Sparkles, Venus } from "lucide-react";
+import { Check, Dumbbell, Mars, Venus } from "lucide-react";
+import {
+  AgeWheel,
+  FieldHint,
+  FollowUp,
+  FunnelBackButton,
+  FunnelContinue,
+  FunnelTextField,
+  HeightRuler,
+  PillOptions,
+  QuestionTitle,
+  WeightRuler,
+} from "@/components/intake-funnel-controls";
 import { starterProgramPreview } from "@/lib/intake-starter-program";
 import {
   ACTIVITY_OPTIONS,
@@ -22,15 +33,13 @@ import {
   DAILY_STEPS_OPTIONS,
   DIET_TYPE_OPTIONS,
   EMPTY_INTAKE_RESPONSES,
-  normalizeIntakeResponses,
-  toggleIntakeMultiSelectValue,
   ENERGY_OPTIONS,
   EQUIPMENT_OPTIONS,
   GOAL_OPTIONS,
   GOAL_TIMELINE_OPTIONS,
   HEALTH_CONDITION_OPTIONS,
   INJURY_AREA_OPTIONS,
-  INTAKE_STEPS,
+  JOB_TYPE_OPTIONS,
   MEALS_PER_DAY_OPTIONS,
   SLEEP_HOURS_OPTIONS,
   SMOKING_OPTIONS,
@@ -40,668 +49,533 @@ import {
   TRAINING_TIME_OPTIONS,
   WATER_HABITS_OPTIONS,
   WORK_HOURS_OPTIONS,
-  JOB_TYPE_OPTIONS,
   getMissingIntakeResponses,
-  getStepMissingFields,
   isIntakeResponsesComplete,
-  type IntakeOption,
+  normalizeIntakeResponses,
   type IntakeResponses,
 } from "@/lib/intake-questionnaire";
 import { GENDER_OPTIONS } from "@/lib/intake-display";
-import { useBodyUnits } from "@/components/locale-provider";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-function StepProgress({
-  step,
-  responses,
-  freeNavigation,
-  onStepSelect,
-}: {
-  step: number;
-  responses: IntakeResponses;
-  freeNavigation: boolean;
-  onStepSelect: (index: number) => void;
-}) {
-  return (
-    <div
-      className="flex w-full items-start"
-      role="tablist"
-      aria-label={`Step ${step + 1} of ${INTAKE_STEPS.length}: ${INTAKE_STEPS[step].title}`}
-    >
-      {INTAKE_STEPS.map((s, index) => {
-        const filled = getStepMissingFields(s.id, responses).length === 0;
-        const done = freeNavigation ? filled && index !== step : index < step;
-        const active = index === step;
-        const selectable = freeNavigation || done;
-        return (
-          <div
-            key={s.id}
-            className={cn("flex min-w-0 items-start", index < INTAKE_STEPS.length - 1 && "flex-1")}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onStepSelect(index)}
-              disabled={!selectable}
-              className={cn(
-                "flex w-8 shrink-0 flex-col items-center gap-1 sm:w-10",
-                selectable && "cursor-pointer"
-              )}
-              aria-label={selectable ? `Open ${s.title}` : s.title}
-            >
-              <span
-                className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm leading-none transition-colors sm:h-9 sm:w-9",
-                  done && "bg-emerald-500 text-white",
-                  active && "bg-primary text-primary-foreground shadow-[0_0_14px_-2px] shadow-primary/60",
-                  !done && !active && "bg-secondary text-muted-foreground"
-                )}
-              >
-                {done ? (
-                  <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={3} />
-                ) : (
-                  <span className="leading-none" aria-hidden>
-                    {s.emoji}
-                  </span>
-                )}
-              </span>
-              <span
-                className={cn(
-                  "w-full truncate text-center text-[8px] font-bold uppercase sm:text-[10px] sm:tracking-wide",
-                  active
-                    ? "text-primary"
-                    : done
-                      ? "text-emerald-500"
-                      : "text-muted-foreground/70"
-                )}
-              >
-                {s.short}
-              </span>
-            </button>
-            {index < INTAKE_STEPS.length - 1 && (
-              <span
-                aria-hidden
-                className={cn(
-                  "mx-0.5 mt-4 h-0.5 min-w-1 flex-1 self-start rounded-full sm:mt-[1.125rem]",
-                  freeNavigation
-                    ? filled
-                      ? "bg-emerald-500"
-                      : "bg-border"
-                    : index < step
-                      ? "bg-emerald-500"
-                      : "bg-border"
-                )}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+const DEFAULT_AGE = 25;
+const DEFAULT_HEIGHT_CM = 170;
+const DEFAULT_WEIGHT_KG = 75;
 
-function SelectionBadge({ count }: { count: number }) {
-  if (count <= 0) return null;
-  return (
-    <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-      {count} selected
-    </span>
-  );
-}
+const GENDER_PILLS = GENDER_OPTIONS.filter((option) => option.value).map((option) => ({
+  value: option.value,
+  label: option.label,
+}));
 
-function OptionGrid({
-  options,
-  value,
-  onChange,
-  multi = false,
-}: {
-  options: IntakeOption[];
-  value?: string | string[];
-  onChange: (value: string | string[]) => void;
-  multi?: boolean;
-}) {
-  const selected = multi ? (Array.isArray(value) ? value : []) : value;
-  const multiValueRef = useRef<string[]>(Array.isArray(value) ? value : []);
-
-  if (multi) {
-    multiValueRef.current = Array.isArray(value) ? value : [];
-  }
-
-  const toggle = (optionValue: string) => {
-    if (!multi) {
-      onChange(optionValue);
-      return;
-    }
-    const next = toggleIntakeMultiSelectValue(multiValueRef.current, optionValue);
-    multiValueRef.current = next;
-    onChange(next);
-  };
-
-  const isSelected = (optionValue: string) => {
-    if (multi) return Array.isArray(selected) && selected.includes(optionValue);
-    return selected === optionValue;
-  };
-
-  return (
-    <div
-      className="grid gap-2.5 sm:grid-cols-2"
-      role={multi ? "group" : undefined}
-      aria-label={multi ? "Multiple selections allowed" : undefined}
-    >
-      {options.map((option) => {
-        const active = isSelected(option.value);
-        return (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => toggle(option.value)}
-            className={cn(
-              "flex items-center gap-3 rounded-2xl border-2 px-3 py-3 text-left transition-all",
-              active
-                ? "border-primary bg-primary/10 shadow-[0_0_16px_-6px] shadow-primary/40"
-                : "border-border/70 bg-secondary/30 hover:border-primary/40 hover:bg-secondary/60"
-            )}
-          >
-            <span
-              className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg leading-none",
-                active ? "bg-primary/20" : "bg-secondary/80"
-              )}
-              aria-hidden
-            >
-              {option.emoji}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-bold leading-snug">{option.label}</span>
-              {option.description && (
-                <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
-                  {option.description}
-                </span>
-              )}
-            </span>
-            <span
-              className={cn(
-                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                active
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-muted-foreground/30 bg-transparent text-transparent"
-              )}
-              aria-hidden
-            >
-              <Check className="h-3.5 w-3.5" strokeWidth={3} />
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function BodyMetricInput({
-  id,
-  canonical,
-  format,
-  parse,
-  onCommit,
-  placeholder,
-  step,
-}: {
+type ScreenDef = {
   id: string;
-  canonical: number | undefined;
-  format: (value: number) => string;
-  parse: (raw: string) => number | null;
-  onCommit: (value: number | undefined) => void;
-  placeholder: string;
-  step: string;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
+  section: string;
+  lead: string;
+  emphasis: string;
+  picker?: boolean;
+  required: (keyof IntakeResponses)[];
+};
 
-  const display =
-    draft ?? (canonical != null ? format(canonical) : "");
+/** One screen per picker. Related choices share a screen so the funnel stays short. */
+const FUNNEL_SCREENS: ScreenDef[] = [
+  {
+    id: "age",
+    section: "About you",
+    lead: "How old",
+    emphasis: "are you?",
+    picker: true,
+    required: ["age"],
+  },
+  {
+    id: "gender",
+    section: "About you",
+    lead: "What's your",
+    emphasis: "gender?",
+    required: ["gender"],
+  },
+  {
+    id: "height",
+    section: "About you",
+    lead: "How tall",
+    emphasis: "are you?",
+    picker: true,
+    required: ["height_cm"],
+  },
+  {
+    id: "weight",
+    section: "About you",
+    lead: "What's your",
+    emphasis: "current weight?",
+    picker: true,
+    required: ["intake_weight_kg"],
+  },
+  {
+    id: "goal",
+    section: "Your goal",
+    lead: "What's",
+    emphasis: "your goal?",
+    required: ["goal", "goal_timeline"],
+  },
+  {
+    id: "training",
+    section: "Your training",
+    lead: "How do you",
+    emphasis: "train?",
+    required: ["training_experience", "training_days_per_week", "training_time_preference"],
+  },
+  {
+    id: "access",
+    section: "Your training",
+    lead: "What can you",
+    emphasis: "train with?",
+    required: [],
+  },
+  {
+    id: "day",
+    section: "Your day",
+    lead: "What does",
+    emphasis: "your day look like?",
+    required: ["job_type", "work_hours", "daily_steps"],
+  },
+  {
+    id: "recovery",
+    section: "Recovery",
+    lead: "How do you",
+    emphasis: "recover?",
+    required: ["sleep_hours", "energy_level"],
+  },
+  {
+    id: "food",
+    section: "Nutrition",
+    lead: "How do you",
+    emphasis: "eat?",
+    required: ["diet_type", "meals_per_day", "cooking_frequency"],
+  },
+  {
+    id: "limits",
+    section: "Nutrition",
+    lead: "Anything we should",
+    emphasis: "leave off?",
+    required: [],
+  },
+  {
+    id: "health",
+    section: "Health",
+    lead: "Any pain",
+    emphasis: "or limits?",
+    required: [],
+  },
+  {
+    id: "lifestyle",
+    section: "Lifestyle",
+    lead: "Life off",
+    emphasis: "the gym",
+    required: ["smoking", "alcohol", "stress_level", "water_habits"],
+  },
+];
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    setDraft(raw);
-    const parsed = parse(raw);
-    if (parsed != null) {
-      onCommit(parsed);
-    } else {
-      onCommit(undefined);
-    }
-  };
-
-  const handleBlur = () => {
-    setDraft(null);
-  };
-
-  return (
-    <Input
-      id={id}
-      type="text"
-      inputMode="decimal"
-      step={step}
-      placeholder={placeholder}
-      value={display}
-      onChange={handleChange}
-      onBlur={handleBlur}
-    />
-  );
+function filled(value: unknown): boolean {
+  if (value == null) return false;
+  if (typeof value === "number") return Number.isFinite(value) && value > 0;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return false;
 }
 
-function StepFields({
-  stepId,
+function isScreenComplete(screen: ScreenDef, responses: IntakeResponses): boolean {
+  return screen.required.every((key) => filled(responses[key]));
+}
+
+function withPickerDefaults(screenId: string, responses: IntakeResponses): IntakeResponses {
+  if (screenId === "age" && responses.age == null) return { ...responses, age: DEFAULT_AGE };
+  if (screenId === "height" && responses.height_cm == null) {
+    return { ...responses, height_cm: DEFAULT_HEIGHT_CM };
+  }
+  if (screenId === "weight" && responses.intake_weight_kg == null) {
+    return { ...responses, intake_weight_kg: DEFAULT_WEIGHT_KG };
+  }
+  return responses;
+}
+
+const slide = {
+  enter: (dir: number) => ({ x: dir * 36, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir * -36, opacity: 0 }),
+};
+
+function ScreenFields({
+  screenId,
   responses,
   onChange,
+  compact,
 }: {
-  stepId: string;
+  screenId: string;
   responses: IntakeResponses;
   onChange: (patch: Partial<IntakeResponses>) => void;
+  compact: boolean;
 }) {
-  const units = useBodyUnits();
-
-  switch (stepId) {
-    case "basics":
+  switch (screenId) {
+    case "age":
       return (
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="q-age">How old are you?</Label>
-              <Input
-                id="q-age"
-                type="number"
-                min={13}
-                max={120}
-                placeholder="28"
-                value={responses.age ?? ""}
-                onChange={(e) =>
-                  onChange({ age: parseInt(e.target.value, 10) || undefined })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Gender</Label>
-              <div className="grid grid-cols-2 gap-2 overflow-visible px-0.5 pt-0.5">
-                {GENDER_OPTIONS.filter((o) => o.value).map((opt) => {
-                  const active = responses.gender === opt.value;
-                  const GenderIcon = opt.value === "female" ? Venus : Mars;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => onChange({ gender: opt.value })}
-                      className={cn(
-                        "relative flex h-11 items-center justify-center gap-2 overflow-visible rounded-2xl border-2 px-3 text-sm font-bold transition-all",
-                        active
-                          ? "border-primary bg-primary/10 text-primary shadow-[0_0_16px_-6px] shadow-primary/40"
-                          : "border-border/70 bg-secondary/30 hover:border-primary/40"
-                      )}
-                    >
-                      <GenderIcon className="h-4 w-4 shrink-0" aria-hidden strokeWidth={2.25} />
-                      <span>{opt.label}</span>
-                      {active && (
-                        <span
-                          className="absolute -right-2 -top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-background"
-                          aria-hidden
-                        >
-                          <Check className="h-3 w-3" strokeWidth={3} />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+        <AgeWheel
+          compact={compact}
+          value={responses.age ?? DEFAULT_AGE}
+          onChange={(age) => onChange({ age })}
+        />
+      );
+    case "gender":
+      return (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            {GENDER_PILLS.map((option) => {
+              const active = responses.gender === option.value;
+              const Icon = option.value === "female" ? Venus : Mars;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => onChange({ gender: option.value })}
+                  className={cn(
+                    "flex aspect-square flex-col items-center justify-center gap-3 rounded-3xl border-2 transition-colors",
+                    active
+                      ? "border-primary bg-primary/15 text-primary shadow-lg shadow-primary/25"
+                      : "border-border bg-card text-foreground"
+                  )}
+                >
+                  <Icon className="h-10 w-10" strokeWidth={1.75} aria-hidden />
+                  <span className="text-base font-bold">{option.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="q-weight">{units.weightFieldLabel}</Label>
-              <BodyMetricInput
-                id="q-weight"
-                canonical={responses.intake_weight_kg}
-                format={units.formatWeightKgInput}
-                parse={units.parseWeightInput}
-                onCommit={(kg) => onChange({ intake_weight_kg: kg })}
-                placeholder={units.weightPlaceholder.replace("e.g. ", "")}
-                step="0.1"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="q-height">{units.heightFieldLabel}</Label>
-              <BodyMetricInput
-                id="q-height"
-                canonical={responses.height_cm}
-                format={units.formatHeightCm}
-                parse={units.parseHeightInput}
-                onCommit={(cm) => onChange({ height_cm: cm })}
-                placeholder={units.heightPlaceholder.replace("e.g. ", "")}
-                step="1"
-              />
-            </div>
-          </div>
-        </div>
+          <FieldHint>It changes how we estimate your energy burn.</FieldHint>
+        </>
+      );
+    case "height":
+      return (
+        <HeightRuler
+          compact={compact}
+          value={responses.height_cm ?? DEFAULT_HEIGHT_CM}
+          onChange={(height_cm) => onChange({ height_cm })}
+        />
+      );
+    case "weight":
+      return (
+        <WeightRuler
+          compact={compact}
+          value={responses.intake_weight_kg ?? DEFAULT_WEIGHT_KG}
+          onChange={(intake_weight_kg) => onChange({ intake_weight_kg })}
+        />
       );
     case "goal":
       return (
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label>Primary goal</Label>
-            <OptionGrid
-              options={GOAL_OPTIONS}
-              value={responses.goal}
-              onChange={(v) => onChange({ goal: v as string })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Target timeline</Label>
-            <OptionGrid
+        <>
+          <PillOptions
+            options={GOAL_OPTIONS}
+            value={responses.goal}
+            onChange={(value) => onChange({ goal: value as string })}
+          />
+          <FollowUp label="How fast do you want to get there?">
+            <PillOptions
               options={GOAL_TIMELINE_OPTIONS}
               value={responses.goal_timeline}
-              onChange={(v) => onChange({ goal_timeline: v as string })}
+              onChange={(value) => onChange({ goal_timeline: value as string })}
             />
-          </div>
-        </div>
+          </FollowUp>
+        </>
       );
     case "training":
       return (
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label>Training experience</Label>
-            <OptionGrid
+        <>
+          <FollowUp first label="Experience">
+            <PillOptions
               options={TRAINING_EXPERIENCE_OPTIONS}
               value={responses.training_experience}
-              onChange={(v) => onChange({ training_experience: v as string })}
+              onChange={(value) => onChange({ training_experience: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Days you train per week</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Days you train">
+            <PillOptions
               options={TRAINING_DAYS_OPTIONS}
               value={responses.training_days_per_week}
-              onChange={(v) => onChange({ training_days_per_week: v as string })}
+              onChange={(value) => onChange({ training_days_per_week: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Preferred workout time</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="When do you like to train?">
+            <PillOptions
               options={TRAINING_TIME_OPTIONS}
               value={responses.training_time_preference}
-              onChange={(v) => onChange({ training_time_preference: v as string })}
+              onChange={(value) => onChange({ training_time_preference: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label>Equipment access</Label>
-              <SelectionBadge count={responses.equipment_access?.length ?? 0} />
-            </div>
-            <OptionGrid
+          </FollowUp>
+        </>
+      );
+    case "access":
+      return (
+        <>
+          <FollowUp first label="Equipment">
+            <PillOptions
               multi
               options={EQUIPMENT_OPTIONS}
               value={responses.equipment_access}
-              onChange={(v) => onChange({ equipment_access: v as string[] })}
+              onChange={(value) => onChange({ equipment_access: value as string[] })}
             />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label>Other activities</Label>
-              <SelectionBadge count={responses.current_activities?.length ?? 0} />
-            </div>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Other activities">
+            <PillOptions
               multi
               options={ACTIVITY_OPTIONS}
               value={responses.current_activities}
-              onChange={(v) => onChange({ current_activities: v as string[] })}
+              onChange={(value) => onChange({ current_activities: value as string[] })}
             />
-          </div>
-        </div>
+          </FollowUp>
+          <FieldHint>Select every option that fits. You can leave these blank.</FieldHint>
+        </>
       );
-    case "work":
+    case "day":
       return (
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label>Job type</Label>
-            <OptionGrid
+        <>
+          <FollowUp first label="What kind of work?">
+            <PillOptions
               options={JOB_TYPE_OPTIONS}
               value={responses.job_type}
-              onChange={(v) => onChange({ job_type: v as string })}
+              onChange={(value) => onChange({ job_type: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Work hours</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Work hours">
+            <PillOptions
               options={WORK_HOURS_OPTIONS}
               value={responses.work_hours}
-              onChange={(v) => onChange({ work_hours: v as string })}
+              onChange={(value) => onChange({ work_hours: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Commute</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Commute">
+            <PillOptions
               options={COMMUTE_OPTIONS}
               value={responses.commute}
-              onChange={(v) => onChange({ commute: v as string })}
+              onChange={(value) => onChange({ commute: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Average daily steps</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Daily steps">
+            <PillOptions
               options={DAILY_STEPS_OPTIONS}
               value={responses.daily_steps}
-              onChange={(v) => onChange({ daily_steps: v as string })}
+              onChange={(value) => onChange({ daily_steps: value as string })}
             />
-          </div>
-        </div>
+          </FollowUp>
+        </>
       );
-    case "sleep":
+    case "recovery":
       return (
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label>Hours of sleep</Label>
-            <OptionGrid
+        <>
+          <FollowUp first label="Hours of sleep">
+            <PillOptions
               options={SLEEP_HOURS_OPTIONS}
               value={responses.sleep_hours}
-              onChange={(v) => onChange({ sleep_hours: v as string })}
+              onChange={(value) => onChange({ sleep_hours: value as string })}
             />
-          </div>
-          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="min-w-0 space-y-2">
-              <Label htmlFor="q-wake">Usual wake time</Label>
-              <Input
-                id="q-wake"
-                type="time"
-                className="relative w-full"
-                value={responses.wake_time ?? ""}
-                onChange={(e) => onChange({ wake_time: e.target.value })}
-              />
-            </div>
-            <div className="min-w-0 space-y-2">
-              <Label htmlFor="q-bed">Usual bedtime</Label>
-              <Input
-                id="q-bed"
-                type="time"
-                className="relative w-full"
-                value={responses.bedtime ?? ""}
-                onChange={(e) => onChange({ bedtime: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Daytime energy</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Daytime energy">
+            <PillOptions
               options={ENERGY_OPTIONS}
               value={responses.energy_level}
-              onChange={(v) => onChange({ energy_level: v as string })}
+              onChange={(value) => onChange({ energy_level: value as string })}
+            />
+          </FollowUp>
+          <div className="mt-9 grid grid-cols-2 gap-3">
+            <FunnelTextField
+              id="q-wake"
+              label="Usual wake time"
+              value={responses.wake_time ?? ""}
+              onChange={(wake_time) => onChange({ wake_time })}
+            />
+            <FunnelTextField
+              id="q-bed"
+              label="Usual bedtime"
+              value={responses.bedtime ?? ""}
+              onChange={(bedtime) => onChange({ bedtime })}
             />
           </div>
-        </div>
+        </>
       );
-    case "nutrition":
+    case "food":
       return (
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label>Diet style</Label>
-            <OptionGrid
+        <>
+          <FollowUp first label="Diet style">
+            <PillOptions
               options={DIET_TYPE_OPTIONS}
               value={responses.diet_type}
-              onChange={(v) => onChange({ diet_type: v as string })}
+              onChange={(value) => onChange({ diet_type: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Meals per day</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Meals per day">
+            <PillOptions
               options={MEALS_PER_DAY_OPTIONS}
               value={responses.meals_per_day}
-              onChange={(v) => onChange({ meals_per_day: v as string })}
+              onChange={(value) => onChange({ meals_per_day: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Cooking at home</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Cooking at home">
+            <PillOptions
               options={COOKING_OPTIONS}
               value={responses.cooking_frequency}
-              onChange={(v) => onChange({ cooking_frequency: v as string })}
+              onChange={(value) => onChange({ cooking_frequency: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label>Food allergies</Label>
-              <SelectionBadge count={responses.food_allergies?.length ?? 0} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Select every allergy that applies. Pick &quot;None&quot; only if you have no allergies.
-            </p>
-            <OptionGrid
+          </FollowUp>
+        </>
+      );
+    case "limits":
+      return (
+        <>
+          <FollowUp first label="Food allergies">
+            <PillOptions
               multi
               options={ALLERGY_OPTIONS}
               value={responses.food_allergies}
-              onChange={(v) => onChange({ food_allergies: v as string[] })}
+              onChange={(value) => onChange({ food_allergies: value as string[] })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="q-dislikes">Foods you dislike or avoid</Label>
-            <Textarea
+          </FollowUp>
+          <div className="mt-9">
+            <FunnelTextField
               id="q-dislikes"
-              rows={2}
+              label="Foods you dislike or avoid"
+              multiline
               placeholder="e.g. mushrooms, spicy food…"
               value={responses.food_dislikes ?? ""}
-              onChange={(e) => onChange({ food_dislikes: e.target.value })}
+              onChange={(food_dislikes) => onChange({ food_dislikes })}
             />
           </div>
-        </div>
+          <FieldHint>Pick every allergy that applies, or None.</FieldHint>
+        </>
       );
     case "health":
       return (
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label>Injury areas</Label>
-              <SelectionBadge count={responses.injury_areas?.length ?? 0} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Select every area that is affected. Pick &quot;None&quot; only if you have no injuries.
-            </p>
-            <OptionGrid
+        <>
+          <FollowUp first label="Injury areas">
+            <PillOptions
               multi
               options={INJURY_AREA_OPTIONS}
               value={responses.injury_areas}
-              onChange={(v) => onChange({ injury_areas: v as string[] })}
+              onChange={(value) => onChange({ injury_areas: value as string[] })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="q-injury-details">Injury details</Label>
-            <Textarea
+          </FollowUp>
+          <div className="mt-6">
+            <FunnelTextField
               id="q-injury-details"
-              rows={2}
+              label="Injury details"
+              multiline
               placeholder="What hurts, when it flares up, what to avoid…"
               value={responses.injury_details ?? ""}
-              onChange={(e) => onChange({ injury_details: e.target.value })}
+              onChange={(injury_details) => onChange({ injury_details })}
             />
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Label>Health conditions</Label>
-              <SelectionBadge count={responses.health_conditions?.length ?? 0} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Select every condition that applies. Pick &quot;None&quot; only if you have no conditions.
-            </p>
-            <OptionGrid
+          <FollowUp label="Health conditions">
+            <PillOptions
               multi
               options={HEALTH_CONDITION_OPTIONS}
               value={responses.health_conditions}
-              onChange={(v) => onChange({ health_conditions: v as string[] })}
+              onChange={(value) => onChange({ health_conditions: value as string[] })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="q-condition-details">Condition details</Label>
-            <Textarea
+          </FollowUp>
+          <div className="mt-6 space-y-4">
+            <FunnelTextField
               id="q-condition-details"
-              rows={2}
+              label="Condition details"
+              multiline
               placeholder="Anything your coach should know…"
               value={responses.health_condition_details ?? ""}
-              onChange={(e) =>
-                onChange({ health_condition_details: e.target.value })
-              }
+              onChange={(health_condition_details) => onChange({ health_condition_details })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="q-meds">Medications / supplements</Label>
-            <Textarea
+            <FunnelTextField
               id="q-meds"
-              rows={2}
+              label="Medications or supplements"
+              multiline
               placeholder="Optional"
               value={responses.medications ?? ""}
-              onChange={(e) => onChange({ medications: e.target.value })}
+              onChange={(medications) => onChange({ medications })}
             />
           </div>
-        </div>
+          <FieldHint>Optional. This is how the plan works around your body.</FieldHint>
+        </>
       );
     case "lifestyle":
       return (
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label>Smoking</Label>
-            <OptionGrid
+        <>
+          <FollowUp first label="Smoking">
+            <PillOptions
               options={SMOKING_OPTIONS}
               value={responses.smoking}
-              onChange={(v) => onChange({ smoking: v as string })}
+              onChange={(value) => onChange({ smoking: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Alcohol</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Alcohol">
+            <PillOptions
               options={ALCOHOL_OPTIONS}
               value={responses.alcohol}
-              onChange={(v) => onChange({ alcohol: v as string })}
+              onChange={(value) => onChange({ alcohol: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Stress level</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Stress">
+            <PillOptions
               options={STRESS_OPTIONS}
               value={responses.stress_level}
-              onChange={(v) => onChange({ stress_level: v as string })}
+              onChange={(value) => onChange({ stress_level: value as string })}
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Water habits</Label>
-            <OptionGrid
+          </FollowUp>
+          <FollowUp label="Water">
+            <PillOptions
               options={WATER_HABITS_OPTIONS}
               value={responses.water_habits}
-              onChange={(v) => onChange({ water_habits: v as string })}
+              onChange={(value) => onChange({ water_habits: value as string })}
             />
-          </div>
-        </div>
+          </FollowUp>
+        </>
       );
     default:
       return null;
   }
+}
+
+function FunnelProgress({
+  step,
+  free,
+  onJump,
+}: {
+  step: number;
+  free: boolean;
+  onJump: (index: number) => void;
+}) {
+  if (!free) {
+    return (
+      <div className="mx-5 h-0.5 overflow-hidden rounded-full bg-zinc-800">
+        <div
+          className="h-full bg-red-600 transition-[width] duration-300"
+          style={{ width: `${((step + 1) / FUNNEL_SCREENS.length) * 100}%` }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-1 px-5">
+      {FUNNEL_SCREENS.map((screen, index) => (
+        <button
+          key={screen.id}
+          type="button"
+          aria-label={`Open ${screen.section}`}
+          onClick={() => onJump(index)}
+          className="h-4 flex-1"
+        >
+          <span
+            className={cn(
+              "block h-0.5 rounded-full",
+              index <= step ? "bg-red-600" : "bg-zinc-800"
+            )}
+          />
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export type IntakeQuestionnaireWizardHandle = {
@@ -718,6 +592,12 @@ export const IntakeQuestionnaireWizard = forwardRef<
     /** Allow jumping to any step (dashboard edit). Default off for onboarding. */
     freeStepNavigation?: boolean;
     completeLabel?: string;
+    /** First-screen back. Onboarding uses this to leave the funnel. */
+    onExit?: () => void;
+    secondaryAction?: { label: string; onClick: () => void };
+    status?: string | null;
+    /** Ignore continue while a save is in flight. */
+    locked?: boolean;
   }
 >(function IntakeQuestionnaireWizard(
   {
@@ -727,6 +607,10 @@ export const IntakeQuestionnaireWizard = forwardRef<
     compact = false,
     freeStepNavigation = false,
     completeLabel = "See my plan preview",
+    onExit,
+    secondaryAction,
+    status,
+    locked = false,
   },
   ref
 ) {
@@ -737,7 +621,12 @@ export const IntakeQuestionnaireWizard = forwardRef<
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const serverSnapshot = useRef(JSON.stringify(initialResponses));
-  const rootRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const direction = useRef(1);
+  const screen = FUNNEL_SCREENS[step] ?? FUNNEL_SCREENS[0];
+  const shown = withPickerDefaults(screen.id, responses);
+  const last = FUNNEL_SCREENS.length - 1;
+  const ready = freeStepNavigation || isScreenComplete(screen, shown);
 
   useEffect(() => {
     const nextSnapshot = JSON.stringify(initialResponses);
@@ -747,7 +636,12 @@ export const IntakeQuestionnaireWizard = forwardRef<
     }
   }, [initialResponses]);
 
-  const current = INTAKE_STEPS[step];
+  useEffect(() => {
+    setResponses((prev) => {
+      const next = withPickerDefaults(screen.id, prev);
+      return next === prev ? prev : next;
+    });
+  }, [screen.id]);
 
   const patch = useCallback((update: Partial<IntakeResponses>) => {
     setResponses((prev) => ({ ...prev, ...update }));
@@ -755,129 +649,161 @@ export const IntakeQuestionnaireWizard = forwardRef<
   }, []);
 
   const goTo = (next: number) => {
-    setStep(next);
-    onStepChange?.(next);
+    const clamped = Math.max(0, Math.min(last, next));
+    direction.current = clamped >= step ? 1 : -1;
+    setStep(clamped);
+    onStepChange?.(clamped);
     setError(null);
-    // Bring the top of the questionnaire back into view on step change.
     requestAnimationFrame(() => {
-      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      bodyRef.current?.scrollTo({ top: 0 });
     });
   };
 
-  const submit = () => {
-    if (!isIntakeResponsesComplete(responses)) {
-      const missing = getMissingIntakeResponses(responses);
+  const submitFrom = (source: IntakeResponses) => {
+    const normalized = normalizeIntakeResponses(source);
+    if (!isIntakeResponsesComplete(normalized)) {
+      const missing = getMissingIntakeResponses(normalized);
+      const index = FUNNEL_SCREENS.findIndex((item) => !isScreenComplete(item, normalized));
+      if (index >= 0) goTo(index);
       setError(
         missing.length
           ? `Still need: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}`
           : "Fill in the required fields to save."
       );
-      const firstIncomplete = INTAKE_STEPS.findIndex(
-        (s) => getStepMissingFields(s.id, responses).length > 0
-      );
-      if (firstIncomplete >= 0) goTo(firstIncomplete);
       return false;
     }
     setError(null);
-    startTransition(() => onComplete(responses));
+    startTransition(() => onComplete(normalized));
     return true;
   };
 
-  useImperativeHandle(ref, () => ({ submit }));
+  useImperativeHandle(ref, () => ({
+    submit: () => submitFrom(withPickerDefaults(screen.id, responses)),
+  }));
 
   const handleNext = () => {
-    const missing = getStepMissingFields(current.id, responses);
-    if (missing.length > 0) {
-      setError("Pick an option or fill in the required fields to continue.");
+    if (locked) return;
+    const seeded = withPickerDefaults(screen.id, responses);
+    if (seeded !== responses) setResponses(seeded);
+    if (!freeStepNavigation && !isScreenComplete(screen, seeded)) {
+      setError("Choose an option to continue.");
       return;
     }
-    if (step < INTAKE_STEPS.length - 1) {
+    if (step < last) {
       goTo(step + 1);
       return;
     }
-    submit();
+    submitFrom(seeded);
   };
 
   const handleBack = () => {
-    if (step > 0) goTo(step - 1);
+    if (step > 0) {
+      goTo(step - 1);
+      return;
+    }
+    onExit?.();
   };
 
-  const handleStepSelect = (index: number) => {
-    if (freeStepNavigation || index < step) goTo(index);
-  };
+  const showBack = step > 0 || Boolean(onExit);
 
   return (
     <div
-      ref={rootRef}
-      className={cn("min-w-0 scroll-mt-20 space-y-6", compact && "space-y-4")}
+      className={cn(
+        "premium-gradient relative flex w-full flex-col text-foreground",
+        compact ? "min-h-[32rem]" : "min-h-0 flex-1"
+      )}
     >
-      <StepProgress
+      <div
+        className={cn(
+          "mx-auto flex w-full max-w-md flex-col",
+          compact ? "min-h-[32rem]" : "min-h-0 flex-1"
+        )}
+      >
+      <header className="relative flex h-14 shrink-0 items-center px-2">
+        {showBack ? (
+          <FunnelBackButton label={step === 0 ? "Back" : "Previous question"} onClick={handleBack} />
+        ) : (
+          <span className="w-10" />
+        )}
+        <p className="pointer-events-none absolute inset-x-14 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+          {screen.section}
+        </p>
+      </header>
+
+      <FunnelProgress
         step={step}
-        responses={responses}
-        freeNavigation={freeStepNavigation}
-        onStepSelect={handleStepSelect}
+        free={freeStepNavigation}
+        onJump={(index) => {
+          if (freeStepNavigation || index <= step) goTo(index);
+        }}
       />
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={current.id}
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -24 }}
-          transition={{ duration: 0.25 }}
-          className="space-y-4"
-        >
-          <div className="min-w-0 space-y-1">
-            <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
-              {current.title}
-            </h2>
-            <p className="text-sm text-muted-foreground">{current.subtitle}</p>
-          </div>
-
-          <StepFields stepId={current.id} responses={responses} onChange={patch} />
-        </motion.div>
-      </AnimatePresence>
-
-      {error && <p className="text-sm text-red-400">{error}</p>}
-
-      <div className="flex gap-2 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleBack}
-          disabled={step === 0}
-          className="gap-1"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        {freeStepNavigation ? (
-          <Button type="button" className="flex-1 gap-2" onClick={submit}>
-            <Check className="h-4 w-4" />
-            {completeLabel}
-          </Button>
-        ) : (
-          <Button type="button" className="flex-1 gap-2" onClick={handleNext}>
-            {step === INTAKE_STEPS.length - 1 ? (
-              <>
-                <Sparkles className="h-4 w-4" />
-                {completeLabel}
-              </>
-            ) : (
-              <>
-                Continue
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </Button>
+      <div
+        ref={bodyRef}
+        className={cn(
+          "relative px-5 pb-6",
+          compact ? "mt-2" : "mt-1 min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
         )}
+      >
+        <AnimatePresence mode="wait" custom={direction.current}>
+          <motion.div
+            key={screen.id}
+            custom={direction.current}
+            variants={slide}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className={cn("flex flex-col pt-8", screen.picker && !compact && "min-h-full")}
+          >
+            <QuestionTitle lead={screen.lead} emphasis={screen.emphasis} />
+            <div className={cn("mt-8", screen.picker && "flex flex-1 items-center")}>
+              <div className="w-full">
+                <ScreenFields
+                  screenId={screen.id}
+                  responses={shown}
+                  onChange={patch}
+                  compact={compact}
+                />
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {!freeStepNavigation && step === INTAKE_STEPS.length - 1 && (
-        <p className="text-center text-xs text-muted-foreground">
-          Your answers personalize macros, habits, and coach recommendations.
-        </p>
-      )}
+      <div className="relative shrink-0 px-5 pb-4 pt-1">
+        {error ? <p className="mb-3 text-center text-sm text-red-400">{error}</p> : null}
+        {status ? <p className="mb-3 text-center text-sm text-zinc-400">{status}</p> : null}
+        <FunnelContinue
+          label={step === last ? completeLabel : "Continue"}
+          ready={ready && !locked}
+          onClick={handleNext}
+        />
+        {freeStepNavigation && step < last ? (
+          <button
+            type="button"
+            onClick={() => submitFrom(withPickerDefaults(screen.id, responses))}
+            className="mt-3 w-full py-1 text-center text-sm text-zinc-400"
+          >
+            {completeLabel}
+          </button>
+        ) : null}
+        {secondaryAction ? (
+          <button
+            type="button"
+            onClick={secondaryAction.onClick}
+            className="mt-3 w-full py-1 text-center text-sm text-zinc-500"
+          >
+            {secondaryAction.label}
+          </button>
+        ) : null}
+        {!freeStepNavigation && step === last ? (
+          <p className="mt-3 text-center text-xs text-zinc-500">
+            Your answers personalize macros, habits, and coach recommendations.
+          </p>
+        ) : null}
+      </div>
+      </div>
     </div>
   );
 });
@@ -910,44 +836,44 @@ export function MacroDonut({
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative h-44 w-44">
-        <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="13"
-            className="text-secondary"
-          />
-          {segments.map((segment) => {
-            const length = (segment.cal / totalCal) * circumference;
-            const dashOffset = -progressOffset;
-            progressOffset += length;
-            return (
-              <circle
-                key={segment.key}
-                cx="60"
-                cy="60"
-                r={radius}
-                fill="none"
-                stroke={MACRO_COLORS[segment.key]}
-                strokeWidth="13"
-                strokeLinecap="butt"
-                strokeDasharray={`${Math.max(length - 1.5, 0)} ${circumference}`}
-                strokeDashoffset={dashOffset}
-              />
-            );
-          })}
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-black leading-none tracking-tight">
-            {macros.calories}
-          </span>
-          <span className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            cal / day
-          </span>
-        </div>
+      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+        <circle
+          cx="60"
+          cy="60"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="13"
+          className="text-secondary"
+        />
+        {segments.map((segment) => {
+          const length = (segment.cal / totalCal) * circumference;
+          const dashOffset = -progressOffset;
+          progressOffset += length;
+          return (
+            <circle
+              key={segment.key}
+              cx="60"
+              cy="60"
+              r={radius}
+              fill="none"
+              stroke={MACRO_COLORS[segment.key]}
+              strokeWidth="13"
+              strokeLinecap="butt"
+              strokeDasharray={`${Math.max(length - 1.5, 0)} ${circumference}`}
+              strokeDashoffset={dashOffset}
+            />
+          );
+        })}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-black leading-none tracking-tight">
+          {macros.calories}
+        </span>
+        <span className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          cal / day
+        </span>
+      </div>
       </div>
 
       <div className="grid w-full grid-cols-3 gap-2">

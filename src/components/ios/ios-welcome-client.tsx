@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { BrandWordmark } from "@/components/app-logo";
+import { useIsNativeApp } from "@/components/ios/use-native-app";
 import { buttonVariants } from "@/components/ui/button";
+import { openWebsiteSignup } from "@/lib/open-external-url";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,6 +14,17 @@ import { cn } from "@/lib/utils";
  * The hero photo backdrop comes from IosFunnelShell (IosWelcomeBackdrop).
  */
 export function IosWelcomeClient() {
+  const router = useRouter();
+  const nativeApp = useIsNativeApp();
+
+  const startAccount = () => {
+    if (nativeApp) {
+      void openWebsiteSignup();
+      return;
+    }
+    router.push("/get-started");
+  };
+
   return (
     <div
       className="relative flex flex-1 flex-col px-6"
@@ -45,15 +59,16 @@ export function IosWelcomeClient() {
           <div className="mb-6 flex justify-center">
             <BrandWordmark className="text-2xl" />
           </div>
-          <Link
-            href="/get-started"
+          <button
+            type="button"
+            onClick={startAccount}
             className={cn(
               buttonVariants({ variant: "default" }),
               "h-12 w-full rounded-xl text-base font-semibold"
             )}
           >
-            Get Started
-          </Link>
+            Create an account
+          </button>
           <Link
             href="/login?from=ios&next=%2Fdashboard"
             className={cn(

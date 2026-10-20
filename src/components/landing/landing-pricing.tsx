@@ -56,10 +56,6 @@ export function LandingPricing() {
           <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
             Plans that grow with your goals
           </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            AI Pro coaching from €20/month, or Elite community from €30/month —
-            create an account first, subscribe when you&apos;re ready.
-          </p>
         </FadeIn>
 
         <FadeIn delay={0.05}>

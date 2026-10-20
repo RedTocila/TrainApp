@@ -16,14 +16,14 @@ import {
   upsertBodyWeightLog,
 } from "@/lib/actions/weight-logs";
 import type { BodyWeightLog } from "@/lib/types";
-import { formatDateKey, cn } from "@/lib/utils";
+import { formatDateKey } from "@/lib/utils";
 import { dashboardDayCacheKey, setDashboardDayCache } from "@/lib/dashboard-day-cache";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DashboardSectionHeader } from "@/components/dashboard-ui";
-import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
 import { isDayEnded } from "@/lib/meal-times";
 
@@ -192,8 +192,7 @@ export function WeightTracker({
   return (
     <DashboardThemedShell
       theme="weight"
-      backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.weight}
-      backgroundAlt={platform.weight.title}
+      solid
       className="p-4"
     >
       <DashboardSectionHeader

@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/cached-profile";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { grantAppFreeAccess } from "@/lib/app-free-access-grant";
 import { getAuthEmailRedirectUrl } from "@/lib/app-url";
 import { formatUserError, isEmailNotConfirmedError } from "@/lib/format-user-error";
 import { IOS_WELCOME_PATH, safeNativeRedirect } from "@/lib/ios-routes";
@@ -273,10 +272,6 @@ export async function signIn(formData: FormData) {
 
   if (profile?.role === "admin") {
     redirect("/admin");
-  }
-
-  if (formData.get("free_app") === "1") {
-    await grantAppFreeAccess(user.id);
   }
 
   // Optional native funnel redirect (web login form does not send `next`).

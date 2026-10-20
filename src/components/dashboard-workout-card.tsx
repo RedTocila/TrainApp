@@ -999,8 +999,8 @@ export function DashboardWorkoutCard({
     const metaText = onPhoto ? "text-white/90" : "text-foreground/90";
     const softText = onPhoto ? "text-white/65" : "text-muted-foreground";
     const footerBar = onPhoto
-      ? "bg-black/25 backdrop-blur-sm"
-      : "bg-secondary/40";
+      ? "rounded-2xl border border-white/10 bg-black/40 backdrop-blur-sm"
+      : "rounded-2xl border border-border/60 bg-secondary/40";
     const isRestDayPhoto = onPhoto && !hasWorkout;
 
     return (

@@ -25,7 +25,17 @@ function matchesPrefix(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);
 }
 
-/** Packages, checkout and referral screens — not shown in the free native app. */
+/** Account creation and public checkout — website only. */
+export function isWebsiteSignupPath(pathname: string): boolean {
+  return (
+    matchesPrefix(pathname, "/register") ||
+    matchesPrefix(pathname, "/get-started") ||
+    matchesPrefix(pathname, "/pricing") ||
+    matchesPrefix(pathname, "/join")
+  );
+}
+
+/** Packages, checkout and referral screens — not shown in the native app. */
 export function isPaidOnlyPath(pathname: string): boolean {
   return (
     matchesPrefix(pathname, "/pricing") ||

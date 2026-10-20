@@ -16,7 +16,7 @@ import { useOptionalDashboardEnrichment } from "@/components/dashboard-enrichmen
 import { useDashboardSync } from "@/components/dashboard-sync";
 import { ExerciseVideoPlayer } from "@/components/exercise-video-player";
 import { DashboardStatusCheck, DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
-import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import {
   dashboard,
   DashboardEmptyState,
@@ -261,8 +261,7 @@ export function DashboardCardioCard({
       <DashboardThemedShell
         id="dashboard-cardio"
         theme="cardio"
-        backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.cardio}
-        backgroundAlt={platform.cardio.title}
+        solid
         className={cn(dashboard.pairTile, "relative isolate")}
       >
         <DashboardCardNavLink
@@ -274,10 +273,14 @@ export function DashboardCardioCard({
           }
         />
         <DashboardCardNavBody className="flex flex-1 flex-col gap-1">
-          <div className="flex h-7 shrink-0 items-center justify-between gap-2">
+          <div className="flex h-8 shrink-0 items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
-              <HeartPulse className="h-5 w-5 shrink-0 text-orange-300" />
-              <p className="truncate text-sm font-black">{platform.cardio.title}</p>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10">
+                <HeartPulse className="h-4 w-4 text-orange-300" aria-hidden />
+              </span>
+              <span className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-white/80">
+                {platform.cardio.title}
+              </span>
             </div>
             <div className="flex h-7 w-7 shrink-0 items-center justify-center">
               {activeEntry ? (
@@ -298,7 +301,7 @@ export function DashboardCardioCard({
 
           {activeCardio ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/30 backdrop-blur-[2px]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
                 <Icon className="h-6 w-6 text-orange-300" />
               </div>
               <p
@@ -328,8 +331,8 @@ export function DashboardCardioCard({
                     className={cn(
                       "tabular-nums",
                       sessionActive
-                        ? "border-orange-500/30 bg-orange-500/15 px-2.5 py-0.5 text-sm font-bold text-orange-700 dark:text-orange-300"
-                        : "text-[10px]",
+                        ? "border-white/15 bg-white/[0.07] px-2.5 py-0.5 text-sm font-bold text-white"
+                        : "rounded-full border-white/10 bg-white/[0.07] text-[10px] text-white",
                       sessionClock.running && "animate-pulse"
                     )}
                     aria-label={
@@ -351,10 +354,10 @@ export function DashboardCardioCard({
             </div>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/30 backdrop-blur-[2px]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
                 <HeartPulse className="h-6 w-6 text-orange-300" />
               </div>
-              <p className="min-h-[2rem] px-1 text-xs leading-snug text-muted-foreground">
+              <p className="min-h-[2rem] w-full min-w-0 px-2 text-xs leading-snug text-white/70">
                 {coachLabels.noCardioToday}
               </p>
               <div className="min-h-[1.125rem]" aria-hidden />
@@ -369,7 +372,7 @@ export function DashboardCardioCard({
               <Button
                 size="sm"
                 variant="outline"
-                className="!h-8 w-full rounded-full border-orange-500/30 bg-orange-500/10 px-3 text-xs hover:bg-orange-500/15"
+                className="!h-8 w-full rounded-full border-white/15 bg-white/[0.07] px-3 text-xs text-white hover:bg-white/15"
               >
                 {platform.cardio.myCardio}
               </Button>
@@ -378,7 +381,7 @@ export function DashboardCardioCard({
               <Link href={sessionHref} className="min-w-0 flex-1">
                 <Button
                   size="sm"
-                  className="!h-8 w-full rounded-full px-3 text-xs"
+                  className="!h-8 w-full rounded-full px-3 text-xs shadow-lg shadow-primary/30"
                 >
                   {startLabel}
                 </Button>

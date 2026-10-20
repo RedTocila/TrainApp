@@ -25,25 +25,20 @@ export function LandingAppPreview() {
                 Smarter workouts.
                 <span className="block text-primary">Better results.</span>
               </h2>
-              <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-                Personalized workout plans, adaptive programs, and progress tracking —
-                dashboard on desktop, guided workouts on your phone, all in one place.
+              <p className="mt-3 text-sm text-muted-foreground">
+                Plans, sessions, and progress in one place.
               </p>
             </FadeIn>
 
-            <ul className="space-y-4">
+            <ul className="grid grid-cols-2 gap-3">
               {LANDING_APP_PREVIEW_HIGHLIGHTS.map((item, i) => (
                 <FadeIn key={item.title} delay={0.05 * (i + 1)}>
-                  <li className="flex gap-4 text-left">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+                  <li className="h-full rounded-2xl border border-border bg-background/40 p-3.5 text-left">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
                       <item.icon className="h-5 w-5" />
                     </div>
-                    <div>
-                      <h3 className="font-bold">{item.title}</h3>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {item.description}
-                      </p>
-                    </div>
+                    <h3 className="mt-3 text-sm font-bold leading-tight">{item.title}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{item.description}</p>
                   </li>
                 </FadeIn>
               ))}

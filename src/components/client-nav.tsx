@@ -132,7 +132,7 @@ export function ClientNav({
         <div className="border-b border-border p-6">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <AppLogo href="/dashboard" />
+              <AppLogo href="/dashboard" showMark />
               <p className="mt-1 text-sm text-muted-foreground">{platform.nav.welcome(fullName)}</p>
             </div>
             <ChallengesHeaderLink className="h-9 w-9 shrink-0 rounded-full border border-border/60 bg-background/60" />

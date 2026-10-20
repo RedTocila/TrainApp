@@ -12,6 +12,7 @@ import { getClientWorkoutAssignment } from "@/lib/actions/plans";
 import { getScheduledWorkoutsForDate } from "@/lib/actions/user-workouts";
 import { getTaskCompletionsForDate } from "@/lib/actions/task-completions";
 import {
+  intervalConfigForPlan,
   isIntervalPlan,
   isMainWorkoutKind,
   normalizeWorkoutPlanKind,
@@ -231,6 +232,8 @@ export interface TodaysWorkoutInfo {
     image_url?: string | null;
     video_url?: string | null;
   }[];
+  /** Present for warm-up, HIIT, and stretch so the timer can open without a preview flash. */
+  hiitConfig?: HiitConfig | null;
 }
 
 function mapExercisePreview(ex: Exercise) {
@@ -290,6 +293,7 @@ function mapScheduledToWorkoutInfo(
     scheduledWorkoutId: scheduled.id,
     taskId: workoutTaskId(dateKey, scheduled.id),
     exercises: exercises.map((ex: Exercise) => mapExercisePreview(ex)),
+    hiitConfig: intervalConfigForPlan(scheduled.workout_plans),
   };
 }
 
@@ -466,6 +470,7 @@ export async function resolveWorkoutsForDate(
           scheduledWorkoutId: null,
           taskId: workoutTaskId(dateKey, null),
           exercises: exercises.map((ex: Exercise) => mapExercisePreview(ex)),
+          hiitConfig: intervalConfigForPlan(assignment.workout_plans),
         },
       ];
     }

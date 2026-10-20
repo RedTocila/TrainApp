@@ -30,7 +30,7 @@ import { usePlatformCopy } from "@/components/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DashboardSectionHeader } from "@/components/dashboard-ui";
-import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { cn } from "@/lib/utils";
 import type { MacroTargets } from "@/lib/macro-calculator";
 import type { Profile } from "@/lib/types";
@@ -289,8 +289,7 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
     <DashboardThemedShell
       id="dashboard-health-lifestyle"
       theme="lifestyle"
-      backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.lifestyle}
-      backgroundAlt={platform.profile.healthLifestyleTitle}
+      solid
       className="p-3.5"
     >
       <DashboardSectionHeader

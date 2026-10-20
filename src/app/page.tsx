@@ -6,9 +6,9 @@ import { SITE_URL } from "@/lib/landing-content";
 import { PLATFORM_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: `${PLATFORM_NAME} — Workouts, Nutrition & AI Coaching`,
+  title: `${PLATFORM_NAME} — Workouts and meals that adjust as you do`,
   description:
-    "Premium fitness platform with workout builder, nutrition tracking, AI coach, and live coaching. From €19/month.",
+    "Answer a two-minute questionnaire about your goal, equipment and schedule. RUTINA builds your plan, and Coach Alex keeps you on it.",
   keywords: [
     "fitness app",
     "workout tracker",
@@ -23,16 +23,16 @@ export const metadata: Metadata = {
     type: "website",
     url: SITE_URL,
     siteName: PLATFORM_NAME,
-    title: `${PLATFORM_NAME} — Workouts, Nutrition & AI Coaching`,
+    title: `${PLATFORM_NAME} — Workouts and meals that adjust as you do`,
     description:
-      "Train smarter with workouts, nutrition, AI coaching, and live sessions in one premium dashboard.",
+      "Answer a two-minute questionnaire about your goal, equipment and schedule. RUTINA builds your plan, and Coach Alex keeps you on it.",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${PLATFORM_NAME} — Workouts, Nutrition & AI Coaching`,
+    title: `${PLATFORM_NAME} — Workouts and meals that adjust as you do`,
     description:
-      "Premium fitness platform with AI meal logging, live coaching, and self-built workout plans.",
+      "Answer a two-minute questionnaire about your goal, equipment and schedule. RUTINA builds your plan, and Coach Alex keeps you on it.",
   },
   robots: {
     index: true,
@@ -45,8 +45,10 @@ export default function HomePage() {
   return (
     <>
       <LandingJsonLd />
-      <LandingPageClient />
-      <LandingFooter />
+      <div className="pb-6">
+        <LandingPageClient />
+        <LandingFooter />
+      </div>
     </>
   );
 }

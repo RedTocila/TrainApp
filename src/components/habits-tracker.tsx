@@ -20,9 +20,9 @@ import {
 } from "@/lib/actions/habits";
 import { getHabitDayStatus, canCompleteHabit } from "@/lib/habit-utils";
 import { MissedButton } from "@/components/missed-items-dialog";
-import { dashboard, DashboardEmptyState, DashboardSectionHeader } from "@/components/dashboard-ui";
+import { DashboardEmptyState, DashboardSectionHeader } from "@/components/dashboard-ui";
 import { DashboardStatusIcon, dashboardCompletionStatus } from "@/components/section-completed-badge";
-import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { useDashboardSync } from "@/components/dashboard-sync";
 import type { ClientHabit } from "@/lib/types";
 import type { HabitSuggestion } from "@/lib/habit-suggestions";
@@ -203,8 +203,7 @@ export function HabitsTracker({
       <DashboardThemedShell
         id="dashboard-habits"
         theme="habits"
-        backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.habits}
-        backgroundAlt={platform.habits.title}
+        solid
         className="p-4"
       >
         <DashboardSectionHeader
@@ -276,8 +275,8 @@ export function HabitsTracker({
         />
         <div className="mt-4 space-y-4">
           {suggestions.length > 0 && !readOnly && (
-            <div className="space-y-2 rounded-xl border border-violet-500/25 bg-violet-500/10 p-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-violet-700 dark:text-violet-300">
+            <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.07] p-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <Sparkles className="h-4 w-4" />
                 {platform.habits.suggestedFromProfile}
               </div>
@@ -285,7 +284,7 @@ export function HabitsTracker({
                 {suggestions.map((suggestion) => (
                   <li
                     key={suggestion.id}
-                    className="flex items-start justify-between gap-3 rounded-lg border border-violet-500/20 bg-background/50 px-3 py-2"
+                    className="flex items-start justify-between gap-3 rounded-2xl bg-white/[0.06] px-3 py-2"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium">{suggestion.title}</p>
@@ -342,7 +341,7 @@ export function HabitsTracker({
                   <li
                     key={habit.id}
                     id={`habit-${habit.id}`}
-                    className={cn(dashboard.listRow, "items-center gap-3 py-2.5 px-3")}
+                    className="flex items-center gap-3 rounded-2xl bg-white/[0.07] px-3 py-2.5"
                   >
                     <p
                       className={cn(

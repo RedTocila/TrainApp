@@ -33,9 +33,8 @@ export function DashboardDayDetailShell({
     <div className="mx-auto max-w-3xl space-y-1">
       <div
         className={cn(
-          "flex items-center gap-3",
-          hideBackOnMobile ? "justify-end lg:justify-between" : "justify-between",
-          hideBackOnMobile && !headerTrailing && "max-lg:hidden"
+          "flex items-center justify-between gap-3",
+          hideBackOnMobile && "max-lg:hidden"
         )}
       >
         <InstantNavLink

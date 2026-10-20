@@ -863,7 +863,7 @@ export async function getScheduledWorkoutsInRange(from: string, to: string) {
   const { data } = await supabase
     .from("scheduled_workouts")
     .select(
-      "*, workout_plans(title, kind), workout_days(title, day_index, exercises(id, name, sets, reps, order_index))"
+      "*, workout_plans(title, kind, hiit_config), workout_days(title, day_index, exercises(id, name, sets, reps, rest_seconds, notes, image_url, video_url, order_index))"
     )
     .eq("client_id", userId)
     .gte("scheduled_date", from)

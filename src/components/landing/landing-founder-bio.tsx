@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { UserRound } from "lucide-react";
+import { CalendarDays, Scale, UserRound, Video } from "lucide-react";
 import {
   LANDING_FOUNDER_BIO,
   LANDING_FOUNDER_IMAGE,
@@ -27,11 +27,34 @@ export function LandingFounderBio() {
           <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
             {headline}
           </h2>
-          <div className="mt-5 space-y-4 text-sm text-muted-foreground sm:text-base">
-            {paragraphs.map((paragraph, i) => (
-              <p key={i}>{paragraph}</p>
+          <p className="mt-5 max-w-md text-sm text-muted-foreground sm:text-base">
+            {paragraphs[0]}
+          </p>
+          <dl className="mt-6 grid grid-cols-3 gap-3">
+            {[
+              { icon: Scale, value: `−${kgLost}`, unit: "kg", label: "Lost" },
+              { icon: CalendarDays, value: String(months), unit: "mo", label: "Time" },
+              { icon: Video, value: "Live", unit: "", label: "Coach" },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="flex flex-col items-center rounded-2xl border border-border bg-card/70 px-2 py-4 text-center"
+              >
+                <stat.icon className="h-4 w-4 text-primary" aria-hidden />
+                <dd className="mt-2 text-2xl font-black tracking-tight">
+                  {stat.value}
+                  {stat.unit ? (
+                    <span className="ml-0.5 text-sm font-bold text-muted-foreground">
+                      {stat.unit}
+                    </span>
+                  ) : null}
+                </dd>
+                <dt className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {stat.label}
+                </dt>
+              </div>
             ))}
-          </div>
+          </dl>
           <p className="mt-6 text-lg font-black tracking-tight">
             — {name}
           </p>

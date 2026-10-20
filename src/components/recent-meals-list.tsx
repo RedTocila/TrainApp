@@ -93,6 +93,7 @@ export function RecentMealsList({
   showHeaderAdd = true,
   variant = "card",
   collapsible = true,
+  headingClassName,
 }: {
   meals: DailyMealLog[];
   onDelete?: (id: string) => void;
@@ -104,6 +105,7 @@ export function RecentMealsList({
   showHeaderAdd?: boolean;
   variant?: "card" | "flat" | "feed";
   collapsible?: boolean;
+  headingClassName?: string;
 }) {
   const coachLabels = useCoachLabels();
   const platform = usePlatformCopy();
@@ -117,21 +119,24 @@ export function RecentMealsList({
   const expanded = !collapsible || open;
 
   if (meals.length === 0) {
-    return (
+    const emptyCard = (
       <button
         type="button"
         onClick={onAdd}
         className={cn(
           "flex w-full items-center gap-4 p-4 text-left transition-colors hover:border-primary/30 hover:bg-card",
           dashboard.empty,
-          feed && dashboard.tile
+          feed &&
+            "rounded-3xl border border-white/10 bg-zinc-950 text-white shadow-[0_16px_40px_-12px_rgba(0,0,0,0.55)]"
         )}
       >
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
           <Salad className="h-6 w-6 text-primary" />
         </div>
-        <div>
-          <p className="text-sm font-medium">{resolvedTitle}</p>
+        <div className="min-w-0">
+          {headingClassName ? null : (
+            <p className="text-sm font-medium">{resolvedTitle}</p>
+          )}
           <p className="text-xs text-muted-foreground">{resolvedEmptyHint}</p>
         </div>
         {onAdd && (
@@ -141,12 +146,25 @@ export function RecentMealsList({
         )}
       </button>
     );
+
+    if (!headingClassName) return emptyCard;
+
+    return (
+      <div className="space-y-3">
+        <DashboardSectionHeading className={headingClassName}>
+          {resolvedTitle}
+        </DashboardSectionHeading>
+        {emptyCard}
+      </div>
+    );
   }
 
   if (feed) {
     return (
       <div className="space-y-3">
-        <DashboardSectionHeading>{resolvedTitle}</DashboardSectionHeading>
+        <DashboardSectionHeading className={headingClassName}>
+          {resolvedTitle}
+        </DashboardSectionHeading>
         <ul className="space-y-2">
           {meals.map((meal, index) => {
             const interactive = Boolean(onSelect);
@@ -156,9 +174,8 @@ export function RecentMealsList({
               <li key={meal.id}>
                 <div
                   className={cn(
-                    dashboard.listRow,
-                    "overflow-hidden p-0",
-                    interactive && dashboard.tileInteractive
+                    "flex items-center overflow-hidden rounded-2xl border border-white/10 bg-zinc-950 p-0 text-white",
+                    interactive && "transition-opacity hover:opacity-95 active:opacity-90"
                   )}
                 >
                   <div

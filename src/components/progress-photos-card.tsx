@@ -44,7 +44,7 @@ import { FullScreenFlow } from "@/components/programs/full-screen-flow";
 import {
   DashboardSectionHeader,
 } from "@/components/dashboard-ui";
-import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { DashboardStatusIcon } from "@/components/section-completed-badge";
 import { useCoachCopy, useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { cn } from "@/lib/utils";
@@ -103,11 +103,11 @@ function PhotoSlot({
     <div className="flex flex-col items-center gap-2">
       <div
         className={cn(
-          "relative flex aspect-[3/4] w-full max-w-[7.5rem] flex-col items-center justify-center overflow-hidden rounded-2xl border bg-secondary/30 sm:max-w-none",
+          "relative flex aspect-[3/4] w-full max-w-[7.5rem] flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07] sm:max-w-none",
           photoSlotPress,
           url
-            ? "cursor-pointer border-solid border-border/80"
-            : "border-dashed border-border"
+            ? "cursor-pointer border-solid border-white/15"
+            : "border-dashed border-white/20"
         )}
       >
         {url ? (
@@ -426,8 +426,7 @@ function ProgressPhotosCardInner({
       <DashboardThemedShell
         id="dashboard-progress-photos"
         theme="photos"
-        backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.photos}
-        backgroundAlt={platform.photos.title}
+        solid
         className="relative cursor-pointer p-4 transition-opacity hover:opacity-95 active:opacity-90"
       >
         <DashboardCardNavLink

@@ -2,9 +2,17 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LandingNav } from "@/components/landing/landing-nav";
-import { LandingHero } from "@/components/landing/landing-hero";
-import { LANDING_BACKGROUND_IMAGE } from "@/lib/landing-content";
+import { LandingHero, LandingStickyCta } from "@/components/landing/landing-hero";
+import { loadIntakeDraft, saveIntakeDraft } from "@/lib/intake-storage";
+import {
+  GET_STARTED_HREF,
+  LANDING_BACKGROUND_IMAGE,
+  LANDING_MAIN_GOALS,
+  LANDING_PLAN_CTA,
+} from "@/lib/landing-content";
 
 const LandingHowItWorks = dynamic(
   () =>
@@ -91,8 +99,33 @@ function LandingSectionSkeleton() {
 }
 
 export function LandingPageClient() {
+  const router = useRouter();
+  const [goalId, setGoalId] = useState<string | null>(null);
+  const [dockVisible, setDockVisible] = useState(false);
+  const ctaRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const node = ctaRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setDockVisible(!entry.isIntersecting),
+      { threshold: 0.2 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const continueToPlan = useCallback(() => {
+    const option = LANDING_MAIN_GOALS.find((goal) => goal.id === goalId);
+    if (option) {
+      const draft = loadIntakeDraft() ?? {};
+      saveIntakeDraft({ ...draft, goal: option.intakeGoal });
+    }
+    router.push(GET_STARTED_HREF);
+  }, [goalId, router]);
+
   return (
-    <div className="landing-page relative flex min-h-dvh flex-col">
+    <div className="landing-page relative flex min-h-dvh flex-col pb-24">
       <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
         <Image
           src={LANDING_BACKGROUND_IMAGE}
@@ -106,21 +139,27 @@ export function LandingPageClient() {
       </div>
 
       <div className="relative">
-        <LandingNav overlay />
-        <LandingHero />
+        <LandingNav overlay ctaLabel={LANDING_PLAN_CTA} onCta={continueToPlan} />
+        <LandingHero
+          goalId={goalId}
+          onGoalChange={setGoalId}
+          onContinue={continueToPlan}
+          ctaRef={ctaRef}
+        />
       </div>
       <main className="flex-1">
+        <LandingCoachAlex />
+        <LandingTransformations />
         <LandingHowItWorks />
         <LandingAppPreview />
         <LandingShowcase />
-        <LandingCoachAlex />
         <LandingChallenges />
         <LandingFounderBio />
         <LandingPricing />
-        <LandingTransformations />
         <LandingReviews />
-        <LandingCta />
+        <LandingCta onContinue={continueToPlan} />
       </main>
+      <LandingStickyCta goalId={goalId} visible={dockVisible} onContinue={continueToPlan} />
     </div>
   );
 }

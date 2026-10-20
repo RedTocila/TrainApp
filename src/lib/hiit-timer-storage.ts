@@ -64,6 +64,15 @@ export function clearHiitTimerState(sessionId: string) {
   localStorage.removeItem(storageKey(sessionId));
 }
 
+/** Keep the interval clock when a provisional session id is replaced by the real one. */
+export function moveHiitTimerState(fromId: string, toId: string) {
+  if (!fromId || !toId || fromId === toId) return;
+  const existing = getHiitTimerState(fromId);
+  if (!existing) return;
+  setHiitTimerState({ ...existing, sessionId: toId });
+  clearHiitTimerState(fromId);
+}
+
 export function getPhaseRemainingMs(
   state: HiitTimerState | null,
   nowMs = Date.now()

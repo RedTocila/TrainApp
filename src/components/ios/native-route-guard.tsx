@@ -9,6 +9,7 @@ import {
   isChallengePath,
   isIosAppPath,
   isPaidOnlyPath,
+  isWebsiteSignupPath,
 } from "@/lib/ios-routes";
 
 /** Native-only: send screens that are hidden in the app elsewhere. No-op on the website. */
@@ -19,7 +20,7 @@ export function NativeRouteGuard() {
   useEffect(() => {
     if (!isNativeApp()) return;
     // The marketing landing lists packages; logged-in users are sent on to /dashboard by the proxy.
-    if (pathname === "/") {
+    if (pathname === "/" || isWebsiteSignupPath(pathname)) {
       router.replace(IOS_WELCOME_PATH);
       return;
     }

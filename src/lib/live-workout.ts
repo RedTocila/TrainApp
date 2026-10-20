@@ -311,19 +311,23 @@ export async function flushLiveWorkoutLogs(): Promise<void> {
 }
 
 /** Pulls Lock Screen logs into the open workout, including any the server hasn't stored yet. */
-export async function catchUpLiveSession(sessionId: string): Promise<{
+export async function catchUpLiveSession(
+  sessionId: string,
+  seededExercises?: WorkoutSessionExercise[] | null
+): Promise<{
   exercises: WorkoutSessionExercise[];
   exerciseIndex: number;
   draft: { setId: string; reps: number; weightKg: number } | null;
 } | null> {
   if (!onIos()) return null;
-  void flushLiveWorkoutLogs();
-  const details = await getWorkoutSession(sessionId);
+  await flushLiveWorkoutLogs();
+  const base =
+    seededExercises ?? (await getWorkoutSession(sessionId))?.exercises ?? null;
   const snap = await currentLiveSnapshot();
   noteLiveRevision(snap?.revision ?? 0);
-  if (!details?.exercises) return null;
+  if (!base) return null;
   const exercises = mergeLiveBoard(
-    details.exercises,
+    base,
     parseBoard(snap?.boardJson),
     pendingSets(snap?.pendingJson)
   );

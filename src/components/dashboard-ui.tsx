@@ -138,7 +138,7 @@ export function DashboardCarouselDots({
 export function DashboardSectionHeader({
   icon: Icon,
   title,
-  iconClassName = "text-primary",
+  iconClassName = "text-white",
   action,
   badge,
   subtitle,
@@ -153,24 +153,13 @@ export function DashboardSectionHeader({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className={cn(dashboard.cardTitle, "flex-wrap")}>
-          <span
-            className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15",
-              iconClassName.includes("emerald") && "bg-emerald-500/15",
-              iconClassName.includes("sky") && "bg-sky-500/15",
-              iconClassName.includes("orange") && "bg-orange-500/15",
-              iconClassName.includes("violet") && "bg-violet-500/15",
-              iconClassName.includes("amber") && "bg-amber-500/15",
-              iconClassName.includes("yellow") && "bg-amber-500/15",
-              iconClassName.includes("teal") && "bg-teal-500/15",
-              iconClassName.includes("rose") && "bg-rose-500/15",
-              iconClassName.includes("fuchsia") && "bg-fuchsia-500/15"
-            )}
-          >
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10">
             <Icon className={cn("h-4 w-4 shrink-0", iconClassName)} />
           </span>
-          <span className="min-w-0">{title}</span>
+          <span className="min-w-0 truncate text-[11px] font-bold uppercase tracking-[0.16em] text-white/80">
+            {title}
+          </span>
           {badge}
         </div>
         {subtitle ? (

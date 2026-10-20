@@ -6,7 +6,7 @@ import {
   LEGACY_VERCEL_HOSTS,
   WWW_SITE_HOST,
 } from "@/lib/site-config";
-import { IOS_WELCOME_PATH } from "@/lib/ios-routes";
+import { IOS_WELCOME_PATH, isWebsiteSignupPath } from "@/lib/ios-routes";
 import { NATIVE_APP_COOKIE, isNativeAppRequest } from "@/lib/native-app-request";
 
 function missingSupabaseEnvResponse() {
@@ -75,6 +75,11 @@ export async function proxy(request: NextRequest) {
 
   // The app never shows the marketing landing (it lists packages).
   if (!user && isNativeApp && path === "/" && !isServerAction) {
+    return NextResponse.redirect(new URL(IOS_WELCOME_PATH, request.url));
+  }
+
+  // Signup and payment stay on the website. The app only signs in.
+  if (isNativeApp && isWebsiteSignupPath(path) && !isServerAction) {
     return NextResponse.redirect(new URL(IOS_WELCOME_PATH, request.url));
   }
 

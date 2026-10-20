@@ -218,6 +218,18 @@ export function isIntervalPlan(
   return false;
 }
 
+export function isTimedWorkoutKind(kind: string | null | undefined): boolean {
+  return kind === "hiit" || kind === "warmup" || kind === "stretch";
+}
+
+/** Interval timer config when this plan runs on the warm-up / HIIT / stretch clock. */
+export function intervalConfigForPlan(
+  plan: { kind?: string | null; hiit_config?: unknown } | null | undefined
+): HiitConfig | null {
+  if (!isIntervalPlan(plan)) return null;
+  return parseHiitConfig(plan?.hiit_config);
+}
+
 export function estimateHiitWorkRestSeconds(config: HiitConfig): {
   workSec: number;
   restSec: number;

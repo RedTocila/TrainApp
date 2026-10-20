@@ -178,17 +178,31 @@ export function ProgressRing({
 /** Funnel connector arrows between steps */
 export function FunnelConnector() {
   return (
-    <div className="hidden items-center px-2 md:flex" aria-hidden>
-      <svg width="40" height="12" viewBox="0 0 40 12" className="text-primary/50">
-        <path
-          d="M0 6h32M28 2l8 4-8 4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
+    <>
+      <div className="flex justify-center py-1 text-primary/50 md:hidden" aria-hidden>
+        <svg width="12" height="28" viewBox="0 0 12 28">
+          <path
+            d="M6 0v20M2 16l4 8 4-8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+      <div className="hidden items-center px-2 md:flex" aria-hidden>
+        <svg width="40" height="12" viewBox="0 0 40 12" className="text-primary/50">
+          <path
+            d="M0 6h32M28 2l8 4-8 4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+    </>
   );
 }

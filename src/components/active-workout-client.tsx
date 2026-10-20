@@ -870,7 +870,7 @@ function ReadyWorkoutDetails({
 
           return (
             <li
-              key={exercise.id}
+              key={`${index}-${exercise.name}`}
               className="shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-secondary/35"
             >
               <div className="flex items-start gap-3 p-3">
@@ -932,12 +932,20 @@ export function ActiveWorkoutClient({
   histories: initialHistories,
   gender,
   planKind = "strength",
+  initialExerciseIndex = null,
+  initialDraft = null,
+  liveSynced = false,
 }: {
   session: WorkoutSession;
   exercises: WorkoutSessionExercise[];
   histories?: Record<string, ExerciseHistoryEntry | null>;
   gender?: string | null;
   planKind?: WorkoutPlanKind;
+  /** Lock Screen already chose the open exercise. */
+  initialExerciseIndex?: number | null;
+  initialDraft?: { reps: number; weightKg: number } | null;
+  /** Sets from the Lock Screen card are already merged in. */
+  liveSynced?: boolean;
 }) {
   const coachCopy = useCoachCopy();
   const platform = usePlatformCopy();
@@ -956,13 +964,22 @@ export function ActiveWorkoutClient({
   const finishLockRef = useRef(false);
   const beginSentRef = useRef(false);
   const [startedLocally, setStartedLocally] = useState(false);
+  const [armStart, setArmStart] = useState(false);
   const [remoteDraft, setRemoteDraft] = useState<{
     token: number;
     reps: number;
     weightKg: number;
-  } | null>(null);
+  } | null>(() =>
+    initialDraft
+      ? { token: 1, reps: initialDraft.reps, weightKg: initialDraft.weightKg }
+      : null
+  );
   const [exercises, setExercises] = useState(initialExercises);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(() =>
+    initialExerciseIndex != null && initialExerciseIndex >= 0
+      ? initialExerciseIndex
+      : 0
+  );
   const [isLoadingExercises, setIsLoadingExercises] = useState(
     initialExercises.length === 0 && !!session.plan_id && !!session.day_id
   );
@@ -985,6 +1002,14 @@ export function ActiveWorkoutClient({
     if (exercises.length === 0) return;
     if (resumeForRef.current === session.id) return;
     resumeForRef.current = session.id;
+    if (
+      initialExerciseIndex != null &&
+      initialExerciseIndex >= 0 &&
+      initialExerciseIndex < exercises.length
+    ) {
+      setActiveIndex(initialExerciseIndex);
+      return;
+    }
     const saved = getWorkoutResumeIndex(session.id);
     if (saved != null && saved < exercises.length) {
       setActiveIndex(saved);
@@ -1001,7 +1026,7 @@ export function ActiveWorkoutClient({
       return done < target;
     });
     setActiveIndex(openIndex >= 0 ? openIndex : exercises.length - 1);
-  }, [exercises, session.id]);
+  }, [exercises, initialExerciseIndex, session.id]);
 
   useEffect(() => {
     if (resumeForRef.current !== session.id) return;
@@ -1044,6 +1069,7 @@ export function ActiveWorkoutClient({
     [activeExercise, activeIndex, exerciseGender, exercises, publishLive]
   );
 
+  const skipCatchUpRef = useRef(liveSynced);
   useEffect(() => {
     if (!isStarted || isPendingWorkoutSessionId(session.id)) return;
     let cancelled = false;
@@ -1065,7 +1091,11 @@ export function ActiveWorkoutClient({
         });
       }
     };
-    void catchUp();
+    if (skipCatchUpRef.current) {
+      skipCatchUpRef.current = false;
+    } else {
+      void catchUp();
+    }
     const stop = subscribeAppForeground(() => {
       if (!cancelled) void catchUp();
     });
@@ -1198,6 +1228,11 @@ export function ActiveWorkoutClient({
 
   const handleBeginWorkout = () => {
     if (isStarted) return;
+    if (isPendingWorkoutSessionId(session.id)) {
+      setArmStart(true);
+      return;
+    }
+    setArmStart(false);
     setError(null);
     setStartedLocally(true);
     clearWorkoutTimerState(session.id);
@@ -1210,6 +1245,19 @@ export function ActiveWorkoutClient({
       exerciseIndex: activeIndex,
     });
   };
+
+  const beginRef = useRef(handleBeginWorkout);
+  beginRef.current = handleBeginWorkout;
+
+  useEffect(() => {
+    if (!armStart) return;
+    if (isStarted) {
+      setArmStart(false);
+      return;
+    }
+    if (isPendingWorkoutSessionId(session.id)) return;
+    beginRef.current();
+  }, [armStart, isStarted, session.id]);
 
   useEffect(() => {
     if (!isStarted || session.started_at) return;
@@ -1431,12 +1479,12 @@ export function ActiveWorkoutClient({
             onBack={() => void leaveWorkout()}
             backDisabled={isPending || isGivingUp}
             trailing={
-              <StartWorkoutLoadingShell isLoading={isPending}>
+              <StartWorkoutLoadingShell isLoading={isPending || armStart}>
                 <SessionCircleButton
                   label={platform.workout.startWorkout}
                   onClick={handleBeginWorkout}
-                  disabled={isPending || isLoadingExercises}
-                  busy={isPending}
+                  disabled={isPending || isLoadingExercises || armStart}
+                  busy={isPending || armStart}
                 />
               </StartWorkoutLoadingShell>
             }

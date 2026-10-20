@@ -89,10 +89,6 @@ export function LandingReviews() {
           <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
             Real people. Real progress.
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-            Members use RUTINA to train smarter, eat better, and stay accountable —
-            with or without a live coach.
-          </p>
         </FadeIn>
       </div>
 

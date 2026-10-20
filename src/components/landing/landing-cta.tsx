@@ -2,18 +2,20 @@
 
 import Link from "next/link";
 import { ArrowRight, Clock, Euro, Sparkles, Zap } from "lucide-react";
-import {
-  GET_STARTED_CTA,
-  GET_STARTED_HREF,
-  LANDING_STATS,
-} from "@/lib/landing-content";
+import { LANDING_PLAN_CTA, LANDING_STATS } from "@/lib/landing-content";
 import { PLATFORM_NAME } from "@/lib/brand";
 import { FadeIn } from "@/components/landing/landing-motion";
 import { Button } from "@/components/ui/button";
 
 const statIcons = [Clock, Euro, Sparkles, Zap];
 
-export function LandingCta() {
+export function LandingCta({
+  onContinue,
+  ready = true,
+}: {
+  onContinue?: () => void;
+  ready?: boolean;
+}) {
   return (
     <section className="landing-deferred-section px-4 py-16 sm:px-6 sm:py-20">
       <FadeIn>
@@ -24,17 +26,17 @@ export function LandingCta() {
               Ready for {PLATFORM_NAME}?
             </h2>
             <p className="mx-auto max-w-md text-sm text-muted-foreground">
-              Answer a few questions, create your account, then pick a package — or skip straight to your dashboard.
+              A few questions. Then your plan.
             </p>
-            <Link href={GET_STARTED_HREF} className="inline-flex w-full max-w-sm justify-center sm:w-auto">
-              <Button
-                size="xl"
-                className="w-full gap-2.5 font-bold shadow-xl shadow-primary/30 sm:w-auto"
-              >
-                {GET_STARTED_CTA}
-                <ArrowRight className="h-5 w-5" />
-              </Button>
-            </Link>
+            <Button
+              size="xl"
+              disabled={!ready}
+              onClick={onContinue}
+              className="w-full max-w-sm gap-2.5 font-bold shadow-xl shadow-primary/30 sm:w-auto"
+            >
+              {LANDING_PLAN_CTA}
+              <ArrowRight className="h-5 w-5" />
+            </Button>
             <p className="text-xs text-muted-foreground">
               Already have an account?{" "}
               <Link href="/login" className="font-medium text-primary hover:underline">

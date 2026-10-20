@@ -40,6 +40,72 @@ export const SUPPORT_PHONE_DISPLAY =
 export const GET_STARTED_CTA = "Get Your Custom Program";
 export const GET_STARTED_HREF = "/get-started";
 
+/** Landing funnel label — unlocked after a goal is chosen. */
+export const LANDING_PLAN_CTA = "Build my plan";
+
+export const LANDING_HERO_HEADLINE = "Workouts and meals that adjust as you do.";
+
+export const LANDING_HERO_SUBTEXT =
+  "Answer a two-minute questionnaire about your goal, equipment and schedule. RUTINA builds your plan, and Coach Alex keeps you on it.";
+
+export interface LandingMainGoal {
+  id: string;
+  label: string;
+  /** Value stored on the intake draft when they continue. */
+  intakeGoal: string;
+  detail: string;
+}
+
+export const LANDING_MAIN_GOALS: LandingMainGoal[] = [
+  {
+    id: "lose_fat",
+    label: "Lose fat",
+    intakeGoal: "lose_weight",
+    detail: "Burn fat and keep the muscle you have",
+  },
+  {
+    id: "build_muscle",
+    label: "Build muscle",
+    intakeGoal: "build_muscle",
+    detail: "Grow with a plan that matches your week",
+  },
+  {
+    id: "get_stronger",
+    label: "Get stronger",
+    intakeGoal: "build_muscle",
+    detail: "Lift more, with sessions that progress",
+  },
+  {
+    id: "stay_consistent",
+    label: "Stay consistent",
+    intakeGoal: "stay_fit",
+    detail: "Show up on the days you would skip",
+  },
+];
+
+export interface LandingAlexMessage {
+  from: "you" | "alex";
+  text: string;
+}
+
+export const LANDING_ALEX_SAMPLE = {
+  quote: "That push stopped me skipping sessions.",
+  name: "Marko D.",
+  context: "strength training",
+  messages: [
+    { from: "you", text: "Skipped legs again. Not feeling it." },
+    {
+      from: "alex",
+      text: "Third week in a row. You told me you wanted a stronger squat by spring. Give me 20 minutes of squats today. Deal?",
+    },
+    { from: "you", text: "Deal. Logging lunch too." },
+    {
+      from: "alex",
+      text: "Nice. About 540 kcal and 38 g protein. Add eggs tonight and you hit your target.",
+    },
+  ] satisfies LandingAlexMessage[],
+};
+
 export const LANDING_HERO_IMAGE = "/landing/hero.png";
 export const LANDING_HERO_MARKETING_IMAGE = "/landing/hero-coach.png";
 export const LANDING_HERO_BACKGROUND_IMAGE = "/landing/hero-background.png";
@@ -63,23 +129,23 @@ export interface AppPreviewHighlight {
 export const LANDING_APP_PREVIEW_HIGHLIGHTS: AppPreviewHighlight[] = [
   {
     icon: Target,
-    title: "Personalized plans",
-    description: "Programs that adapt to your goals, level, and progress.",
+    title: "Your plan",
+    description: "Goals and schedule",
   },
   {
     icon: Dumbbell,
-    title: "Smart workouts",
-    description: "Guided sessions with sets, reps, rest timers, and video demos.",
+    title: "Workouts",
+    description: "Sets, reps, demos",
   },
   {
     icon: LineChart,
-    title: "Track & improve",
-    description: "Weight, macros, and trends — see what's working over time.",
+    title: "Progress",
+    description: "Weight and macros",
   },
   {
     icon: CalendarDays,
-    title: "Stay consistent",
-    description: "Calendar, habits, and reminders that keep you showing up.",
+    title: "Habits",
+    description: "Calendar and streaks",
   },
 ];
 
@@ -166,27 +232,23 @@ export interface CoachAlexHighlight {
 export const COACH_ALEX_HIGHLIGHTS: CoachAlexHighlight[] = [
   {
     icon: Target,
-    title: "Helps you stay on track",
-    description:
-      "Meal logs, workouts, and habits — Alex keeps you accountable without the boring lecture.",
+    title: "Stay on track",
+    description: "Meals, workouts, habits",
   },
   {
     icon: Flame,
-    title: "Motivates you to push harder",
-    description:
-      "Real talk that fires you up. No fluff, no empty cheerleading — just the nudge you need.",
+    title: "Push harder",
+    description: "Real talk, no fluff",
   },
   {
     icon: MessageCircle,
-    title: "Designed to make you win",
-    description:
-      "Built around your goals with insights that turn data into action, not guilt.",
+    title: "Built to win",
+    description: "Data into action",
   },
   {
     icon: Bot,
-    title: "Always in your corner",
-    description:
-      "Snap a meal, ask a question, or get roasted for skipping leg day — 24/7 in your pocket.",
+    title: "Always on",
+    description: "24/7 in your pocket",
   },
 ];
 
@@ -201,33 +263,29 @@ export const LANDING_CHALLENGE_TYPES: LandingChallengeType[] = [
   {
     icon: Zap,
     title: "Flash challenges",
-    description:
-      "Fast 24-hour events like longest plank, wall sit, or max burpees in 10 minutes. Join live on Zoom, compete on camera, and climb the leaderboard before the window closes.",
-    prize: "Win your share of the prize pool — entry fees grow the pot.",
+    description: "24-hour live events",
+    prize: "Shared prize pool",
   },
   {
     icon: Timer,
-    title: "Transformation challenges",
-    description:
-      "Longer community runs over weeks or months. Track progress, stay accountable with the group, and push for visible results alongside other members.",
-    prize: "Top performers earn recognition and prize pool rewards.",
+    title: "Transformation",
+    description: "Weeks with the group",
+    prize: "Prizes for top ranks",
   },
 ];
 
 export const LANDING_CHALLENGE_STEPS = [
   {
-    title: "Pick a challenge",
-    description: "Browse open flash events or long transformation runs in Live.",
+    title: "Pick",
+    description: "Open events",
   },
   {
-    title: "Join & compete",
-    description:
-      "Reserve your spot, pay the entry fee when required, and show up on camera for flash events.",
+    title: "Compete",
+    description: "Live on camera",
   },
   {
-    title: "Win prizes",
-    description:
-      "Perform your best, rank on the leaderboard, and split the prize pool with other winners.",
+    title: "Win",
+    description: "Split the pool",
   },
 ] as const;
 
@@ -248,9 +306,7 @@ export const LANDING_FOUNDER_BIO: LandingFounderBio = {
   role: "Founder & coach",
   headline: "I built RUTINA because I needed it myself.",
   paragraphs: [
-    "I'm not selling a fantasy — I went through the same grind: tracking meals, showing up when motivation was gone, and learning what actually moves the needle.",
-    "That two-month stretch in the photos is real. Consistent training, honest nutrition logging, and habits stacked day by day. RUTINA is the system I wish I had back then — now it's what I use with every client.",
-    "When you train here, you're not talking to a faceless app. I run live sessions and built Coach Alex to keep you accountable between check-ins.",
+    "I logged the meals, did the sessions, and stacked the habits. RUTINA is that system — and it's what I use with every client.",
   ],
   kgLost: 12,
   months: 2,

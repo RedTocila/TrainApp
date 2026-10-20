@@ -25,7 +25,7 @@ export function LandingHowItWorks() {
         </FadeIn>
 
         <FadeIn delay={0.05} className="mt-12">
-          <div className="flex flex-col items-stretch gap-6 md:flex-row md:items-center md:justify-center">
+          <div className="flex flex-col items-stretch md:flex-row md:items-center md:justify-center">
             {FUNNEL_STEPS.map((step, i) => (
               <div key={step.step} className="flex flex-col items-center md:flex-row">
                 <div className="premium-card flex w-full max-w-xs flex-col items-center p-6 text-center md:w-52">

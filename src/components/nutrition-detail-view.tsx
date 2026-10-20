@@ -1,286 +1,84 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  Beef,
-  Candy,
-  Egg,
-  Flame,
-  FlaskConical,
-  Heart,
-  Leaf,
-  Wheat,
-  type LucideIcon,
-} from "lucide-react";
 import { usePlatformCopy } from "@/components/locale-provider";
-import { dashboard, DashboardCarouselDots } from "@/components/dashboard-ui";
 import { MacroOverageInsightButton } from "@/components/macro-overage-insight-button";
-import { MiniProgressRing } from "@/components/nutrition-macro-rings";
 import type { MealMacros } from "@/lib/meal-utils";
-import { scrollElementIntoHorizontalView } from "@/lib/scroll-horizontal";
-import {
-  DAILY_MICRO_TARGETS,
-  microExceededHighLimit,
-  scoreDailyNutrition,
-  type DailyMicros,
-  type NutritionDayContext,
-} from "@/lib/nutrition-day-utils";
-import type { OverageNutrient } from "@/lib/macro-overage-local";
 import { macroOverageSeverity } from "@/lib/macro-targets";
+import type { OverageNutrient } from "@/lib/macro-overage-local";
+import type { DailyMicros, NutritionDayContext } from "@/lib/nutrition-day-utils";
 import type { DailyMealLog } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const OVER_RING = "text-red-500";
-const OVER_ICON = "text-red-400";
-
-type MacroKey = keyof MealMacros;
-type OverageTone = "ok" | "warn" | "alert";
-
-function MacroVerticalCard({
-  value,
-  target,
-  labelLeft,
-  labelOver,
-  unit = "g",
-  icon,
-  ringClass,
-  iconClass,
-  tone,
-  insightAction,
-}: {
-  value: number;
-  target: number;
-  labelLeft: string;
-  labelOver: string;
-  unit?: string;
-  icon: LucideIcon;
-  ringClass: string;
-  iconClass: string;
-  tone: OverageTone;
-  insightAction?: ReactNode;
-}) {
-  const over = tone !== "ok";
-  const alert = tone === "alert";
-  const remaining = Math.max(0, target - value);
-  const display = over ? value - target : remaining;
-  const progress = target > 0 ? Math.min(value / target, 1) : 0;
-
-  return (
-    <div className={cn(dashboard.metricTile, "relative justify-start gap-2")}>
-      {alert && insightAction ? (
-        <div className="pointer-events-auto absolute right-2 top-2 z-[2]">
-          {insightAction}
-        </div>
-      ) : null}
-      <div className="min-h-[2.75rem]">
-        <p
-          className={cn(
-            "text-2xl font-black tabular-nums leading-none",
-            alert
-              ? "text-red-400"
-              : tone === "warn"
-                ? "text-amber-400"
-                : "text-foreground"
-          )}
-        >
-          {Math.round(display)}
-          {unit}
-        </p>
-        <p className="mt-1 truncate whitespace-nowrap text-xs leading-4 text-muted-foreground">
-          {over ? labelOver : labelLeft}
-        </p>
-      </div>
-      <div className="flex flex-1 items-center justify-center">
-        <MiniProgressRing
-          progress={progress}
-          icon={icon}
-          size={52}
-          stroke={4}
-          ringClass={alert ? OVER_RING : ringClass}
-          iconClass={alert ? OVER_ICON : iconClass}
-        />
-      </div>
-    </div>
-  );
-}
-
-function HealthScoreHeroCard({
-  score,
-  before,
-  after,
-}: {
-  score: number;
-  before: string;
-  after: string;
-}) {
-  const progress = Math.min(Math.max(score, 0), 100) / 100;
-
-  return (
-    <div className={dashboard.heroTile}>
-      <div className="min-w-0 space-y-2">
-        <div>
-          <p className="text-4xl font-black tabular-nums tracking-tight sm:text-5xl">
-            {score}
-          </p>
-          <p className="mt-0.5 text-sm lowercase text-muted-foreground">
-            {before} {after}
-          </p>
-        </div>
-      </div>
-      <div className="relative h-24 w-24 shrink-0 sm:h-28 sm:w-28">
-        <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
-          <circle
-            cx="50"
-            cy="50"
-            r="42"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="6"
-            className="text-secondary/80"
-          />
-          <circle
-            cx="50"
-            cy="50"
-            r="42"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="6"
-            strokeLinecap="round"
-            className="text-emerald-500"
-            strokeDasharray={2 * Math.PI * 42}
-            strokeDashoffset={2 * Math.PI * 42 * (1 - progress)}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary/80 sm:h-16 sm:w-16">
-            <Heart className="h-7 w-7 text-emerald-400 sm:h-8 sm:w-8" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CaloriesHeroCard({
-  current,
-  target,
-  caloriesLeftLabel,
-  caloriesOverLabel,
-  insightAction,
-}: {
-  current: number;
-  target: number;
-  caloriesLeftLabel: string;
-  caloriesOverLabel: string;
-  insightAction?: ReactNode;
-}) {
-  const tone = macroOverageSeverity(current, target, "calories");
-  const over = tone !== "ok";
-  const alert = tone === "alert";
-  const caloriesLeft = Math.max(0, target - current);
-  const display = over ? current - target : caloriesLeft;
-  const progress = target > 0 ? Math.min(current / target, 1) : 0;
-
-  return (
-    <div className={cn(dashboard.heroTile, "relative")}>
-      {alert && insightAction ? (
-        <div className="pointer-events-auto absolute left-2 top-2 z-[2] sm:left-3 sm:top-3">
-          {insightAction}
-        </div>
-      ) : null}
-      <div className="min-w-0 space-y-2">
-        <div>
-          <p
-            className={cn(
-              "text-4xl font-black tabular-nums tracking-tight sm:text-5xl",
-              alert
-                ? "text-red-400"
-                : tone === "warn"
-                  ? "text-amber-400"
-                  : "text-foreground"
-            )}
-          >
-            {Math.round(display)}
-          </p>
-          <p className="mt-0.5 truncate whitespace-nowrap text-sm text-muted-foreground">
-            {over ? caloriesOverLabel : caloriesLeftLabel}
-          </p>
-        </div>
-      </div>
-      <div className="relative h-24 w-24 shrink-0 sm:h-28 sm:w-28">
-        <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
-          <circle
-            cx="50"
-            cy="50"
-            r="42"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="6"
-            className="text-secondary/80"
-          />
-          <circle
-            cx="50"
-            cy="50"
-            r="42"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="6"
-            strokeLinecap="round"
-            className={alert ? "text-red-500" : "text-orange-500"}
-            strokeDasharray={2 * Math.PI * 42}
-            strokeDashoffset={2 * Math.PI * 42 * (1 - progress)}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary/80 sm:h-16 sm:w-16">
-            <Flame className="h-7 w-7 text-orange-400 sm:h-8 sm:w-8" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const SLIDE_ONE: {
-  key: MacroKey;
-  icon: LucideIcon;
-  ringClass: string;
-  iconClass: string;
-  leftKey: "proteinStatusLeft" | "carbsStatusLeft" | "fatStatusLeft";
-  overKey: "proteinStatusOver" | "carbsStatusOver" | "fatStatusOver";
+/** Same macro palette as the rest of Rutina: rose protein, amber carbs, sky fat. */
+const PAGE_MACROS: {
+  key: "protein" | "carbs" | "fat";
+  labelKey: "proteinLeft" | "carbsLeft" | "fatLeft";
+  color: string;
 }[] = [
-  {
-    key: "protein",
-    icon: Beef,
-    ringClass: "text-rose-500",
-    iconClass: "text-rose-400",
-    leftKey: "proteinStatusLeft",
-    overKey: "proteinStatusOver",
-  },
-  {
-    key: "carbs",
-    icon: Wheat,
-    ringClass: "text-amber-400",
-    iconClass: "text-amber-300",
-    leftKey: "carbsStatusLeft",
-    overKey: "carbsStatusOver",
-  },
-  {
-    key: "fat",
-    icon: Egg,
-    ringClass: "text-sky-500",
-    iconClass: "text-sky-400",
-    leftKey: "fatStatusLeft",
-    overKey: "fatStatusOver",
-  },
+  { key: "protein", labelKey: "proteinLeft", color: "#f43f5e" },
+  { key: "carbs", labelKey: "carbsLeft", color: "#fbbf24" },
+  { key: "fat", labelKey: "fatLeft", color: "#0ea5e9" },
 ];
+
+function clamp01(n: number) {
+  return Math.min(Math.max(n, 0), 1);
+}
+
+function formatWaterAmount(ml: number) {
+  const safe = Math.max(0, Math.round(ml));
+  if (safe >= 1000) {
+    const liters = Math.round((safe / 1000) * 10) / 10;
+    return `${liters.toFixed(1)}L`;
+  }
+  return `${safe}`;
+}
+
+function RemainingCalorieRing({ ratio }: { ratio: number }) {
+  const size = 232;
+  const stroke = 10;
+  const r = (size - stroke) / 2 - 2;
+  const c = 2 * Math.PI * r;
+  const center = size / 2;
+  const clamped = clamp01(ratio);
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="-rotate-90"
+      aria-hidden
+    >
+      <circle
+        cx={center}
+        cy={center}
+        r={r}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={stroke}
+        className="text-foreground/15"
+      />
+      <circle
+        cx={center}
+        cy={center}
+        r={r}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        className="text-orange-500"
+        strokeDasharray={`${Math.max(c * clamped, clamped > 0 ? 1 : 0)} ${c}`}
+      />
+    </svg>
+  );
+}
 
 export function NutritionDetailView({
   current,
   targets,
-  micros,
   context,
   meals = [],
+  waterMl = 0,
   className,
 }: {
   current: MealMacros;
@@ -288,18 +86,24 @@ export function NutritionDetailView({
   micros: DailyMicros;
   context: NutritionDayContext;
   meals?: DailyMealLog[];
+  waterMl?: number;
+  waterGoalMl?: number;
   className?: string;
 }) {
   const platform = usePlatformCopy();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [slide, setSlide] = useState(0);
-  const health = scoreDailyNutrition({ ...context, micros });
+  const calorieTarget = Math.max(0, targets.calories);
+  const calorieCurrent = Math.max(0, current.calories);
+  const over = calorieTarget > 0 && calorieCurrent > calorieTarget;
+  const remaining = Math.max(0, calorieTarget - calorieCurrent);
+  const display = over ? calorieCurrent - calorieTarget : remaining;
+  const ratio = calorieTarget > 0 ? remaining / calorieTarget : 0;
+  const calorieTone = macroOverageSeverity(
+    current.calories,
+    targets.calories,
+    "calories"
+  );
 
-  const insightButton = (
-    nutrient: OverageNutrient,
-    severity: "warn" | "alert"
-  ) =>
+  const insightButton = (nutrient: OverageNutrient) =>
     meals.length > 0 ? (
       <MacroOverageInsightButton
         nutrient={nutrient}
@@ -307,190 +111,106 @@ export function NutritionDetailView({
         current={current}
         targets={targets}
         meals={meals}
-        severity={severity}
+        severity="alert"
       />
     ) : null;
 
-  const calorieTone = macroOverageSeverity(
-    current.calories,
-    targets.calories,
-    "calories"
-  );
-
-  const scrollToSlide = useCallback((index: number) => {
-    const node = slideRefs.current[index];
-    if (node) {
-      scrollElementIntoHorizontalView(node, {
-        behavior: "smooth",
-        inline: "start",
-        scroller: scrollRef.current,
-      });
-    }
-    setSlide(index);
-  }, []);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const onScroll = () => {
-      const slides = slideRefs.current.filter((node): node is HTMLDivElement => node !== null);
-      if (slides.length === 0) return;
-
-      const scrollLeft = el.scrollLeft;
-      let closest = 0;
-      let minDistance = Infinity;
-
-      slides.forEach((slideNode, index) => {
-        const distance = Math.abs(slideNode.offsetLeft - scrollLeft);
-        if (distance < minDistance) {
-          minDistance = distance;
-          closest = index;
-        }
-      });
-
-      setSlide(closest);
-    };
-
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const microCells = [
-    {
-      key: "fiber" as const,
-      icon: Leaf,
-      ringClass: "text-lime-500",
-      iconClass: "text-lime-400",
-      label: platform.nutrition.fiber,
-      overWhenHigh: false,
-    },
-    {
-      key: "sugar" as const,
-      icon: Candy,
-      ringClass: "text-pink-400",
-      iconClass: "text-pink-300",
-      label: platform.nutrition.sugar,
-      overWhenHigh: true,
-    },
-    {
-      key: "sodium" as const,
-      icon: FlaskConical,
-      ringClass: "text-indigo-400",
-      iconClass: "text-indigo-300",
-      label: platform.nutrition.sodium,
-      overWhenHigh: true,
-      unit: "mg",
-    },
-  ];
-
   return (
-    <div className={cn("space-y-4", className)}>
-      <div className="space-y-3">
-        <div
-          ref={scrollRef}
-          className={cn(
-            "flex gap-3 overflow-x-auto snap-x snap-mandatory",
-            "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          )}
-          aria-label={platform.nutrition.macros}
-        >
-          <div
-            ref={(node) => {
-              slideRefs.current[0] = node;
-            }}
-            className="w-full shrink-0 snap-start space-y-3"
-          >
-            <CaloriesHeroCard
-              current={current.calories}
-              target={targets.calories}
-              caloriesLeftLabel={platform.nutrition.caloriesLeft}
-              caloriesOverLabel={platform.nutrition.caloriesStatusOver}
-              insightAction={
-                calorieTone === "alert"
-                  ? insightButton("calories", "alert")
-                  : null
-              }
-            />
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {SLIDE_ONE.map(
-                ({ key, icon, ringClass, iconClass, leftKey, overKey }) => {
-                const target = targets[key];
-                const value = current[key];
-                const tone = macroOverageSeverity(value, target, key);
-                return (
-                  <MacroVerticalCard
-                    key={key}
-                    value={value}
-                    target={target}
-                    labelLeft={platform.nutrition[leftKey]}
-                    labelOver={platform.nutrition[overKey]}
-                    icon={icon}
-                    ringClass={ringClass}
-                    iconClass={iconClass}
-                    tone={tone}
-                    insightAction={
-                      tone === "alert" ? insightButton(key, "alert") : null
-                    }
-                  />
-                );
-              }
+    <div className={cn("space-y-6", className)}>
+      <h1 className="hidden text-3xl font-black tracking-tight lg:block">
+        {platform.nutrition.title}
+      </h1>
+
+      <div className="flex flex-col items-center max-lg:!mt-0">
+        <div className="relative h-[232px] w-[232px]">
+          <RemainingCalorieRing ratio={ratio} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {platform.nutrition.remaining}
+            </p>
+            <p
+              className={cn(
+                "mt-1 text-5xl font-black tabular-nums leading-none tracking-tight",
+                over && "text-red-400"
               )}
-            </div>
-          </div>
-
-          <div
-            ref={(node) => {
-              slideRefs.current[1] = node;
-            }}
-            className="w-full shrink-0 snap-start space-y-3"
-          >
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {microCells.map(({ key, icon, ringClass, iconClass, label, overWhenHigh, unit }) => {
-                const target = DAILY_MICRO_TARGETS[key];
-                const value = micros[key];
-                const over = overWhenHigh
-                  ? microExceededHighLimit(key, value, target)
-                  : false;
-                const tone: OverageTone = over ? "alert" : "ok";
-
-                return (
-                  <MacroVerticalCard
-                    key={key}
-                    value={value}
-                    target={target}
-                    labelLeft={`${label} left`}
-                    labelOver={`${label} over`}
-                    unit={unit ?? "g"}
-                    icon={icon}
-                    ringClass={ringClass}
-                    iconClass={iconClass}
-                    tone={tone}
-                    insightAction={
-                      over && (key === "sodium" || key === "sugar")
-                        ? insightButton(key, "alert")
-                        : null
-                    }
-                  />
-                );
-              })}
-            </div>
-            <HealthScoreHeroCard
-              score={health.score}
-              before={platform.nutrition.healthScoreInnerBefore}
-              after={platform.nutrition.healthScoreInnerAfter}
-            />
+            >
+              {Math.round(display).toLocaleString()}
+            </p>
+            <p className="mt-1.5 text-sm font-medium text-orange-400">
+              {over
+                ? platform.nutrition.caloriesStatusOver
+                : platform.nutrition.ofKcal(calorieTarget)}
+            </p>
+            {calorieTone === "alert" ? (
+              <div className="mt-2">{insightButton("calories")}</div>
+            ) : null}
           </div>
         </div>
+      </div>
 
-        <DashboardCarouselDots
-          count={2}
-          active={slide}
-          onSelect={scrollToSlide}
-          getLabel={(index) =>
-            index === 0 ? platform.nutrition.macros : platform.nutrition.microNutrients
-          }
-        />
+      <div className="grid grid-cols-2">
+        <div className="border-r border-border/70 px-3 text-center">
+          <p className="text-2xl font-black tabular-nums leading-none">
+            {Math.round(calorieCurrent).toLocaleString()}
+          </p>
+          <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {platform.nutrition.eaten}
+          </p>
+        </div>
+        <div className="px-3 text-center">
+          <p className="text-2xl font-black tabular-nums leading-none">
+            {formatWaterAmount(waterMl)}
+            {waterMl < 1000 ? (
+              <span className="ml-1 text-sm font-semibold text-muted-foreground">
+                ml
+              </span>
+            ) : null}
+          </p>
+          <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {platform.nutrition.water}
+          </p>
+        </div>
+      </div>
+
+      <div className="dashboard-photo-card space-y-4 rounded-3xl border border-white/10 bg-zinc-950 px-4 py-4 text-white shadow-[0_16px_40px_-12px_rgba(0,0,0,0.85)]">
+        {PAGE_MACROS.map((macro) => {
+          const value = Math.max(0, current[macro.key]);
+          const target = Math.max(0, targets[macro.key]);
+          const progress = target > 0 ? clamp01(value / target) : 0;
+          const tone = macroOverageSeverity(value, target, macro.key);
+          return (
+            <div key={macro.key} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: macro.color }}
+                    aria-hidden
+                  />
+                  <span className="truncate">{platform.nutrition[macro.labelKey]}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-1.5 text-sm tabular-nums">
+                  <span className={cn("font-semibold", tone !== "ok" && "text-red-400")}>
+                    {Math.round(value)}
+                  </span>
+                  <span className="text-muted-foreground">
+                    / {Math.round(target)} g
+                  </span>
+                  {tone === "alert" ? insightButton(macro.key) : null}
+                </span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                <div
+                  className="h-full rounded-full transition-[width] duration-500 ease-out"
+                  style={{
+                    width: `${progress * 100}%`,
+                    background: tone === "alert" ? "#f87171" : macro.color,
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

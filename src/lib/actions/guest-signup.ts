@@ -25,8 +25,6 @@ import {
 } from "@/lib/pokpay/client";
 import { withPokPayWebhookSecret } from "@/lib/pokpay/env";
 import { applyIntakeToProfile } from "@/lib/actions/client-intake";
-import { NATIVE_APP_FREE } from "@/lib/app-free-access";
-import { grantAppFreeAccess } from "@/lib/app-free-access-grant";
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
 export type GuestSignupPayload = {
@@ -685,53 +683,13 @@ export async function completeGuestCheckoutAndSignIn(localOrderId: string) {
   return { success: true as const };
 }
 
-/** Free native app: create the account without a package, grant full access, sign in. */
+/** Older app builds called this to create a free account. Signup now happens on the website. */
 export async function createFreeAppAccountAndSignIn(
-  signup: GuestSignupPayload
+  _signup: GuestSignupPayload
 ): Promise<{ success: true; role: string } | { error: string }> {
-  if (!NATIVE_APP_FREE) {
-    return { error: "Choose a package to create your account." };
-  }
-
-  const email = signup.email?.trim().toLowerCase() ?? "";
-  const fullName = signup.fullName?.trim() ?? "";
-  const password = signup.password ?? "";
-  if (!fullName) return { error: "Enter your full name." };
-  if (password.length < 6) return { error: "Password must be at least 6 characters." };
-
-  if (!email.includes("@")) return { error: "Enter a valid email address." };
-
-  const admin = createAdminClient();
-  const phone = signup.phone?.trim() || null;
-  const userMetadata: Record<string, string> = { full_name: fullName };
-  if (phone) userMetadata.phone = phone;
-
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: userMetadata,
-  });
-
-  if (createError || !created.user) {
-    if (createError?.message?.toLowerCase().includes("already")) {
-      return { error: "This email is already registered. Sign in to continue." };
-    }
-    return { error: formatUserError(createError?.message, "Could not create your account.") };
-  }
-
-  const userId = created.user.id;
-  const role = await ensureProfileRow(admin, userId, { fullName, email, phone });
-
-  const [signedIn] = await Promise.all([
-    signInCreatedUser(email, password),
-    grantAppFreeAccess(userId),
-    applyIntakeIfPresent(admin, userId, signup.intakeJson ?? null),
-  ]);
-  if (signedIn.error) return { error: signedIn.error };
-
-  revalidatePath("/dashboard");
-  return { success: true, role };
+  return {
+    error: "Create your account on rutina.al, then sign in to the app.",
+  };
 }
 
 /** Webhook / server path: create account if needed and activate subscription. */

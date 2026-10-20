@@ -20,11 +20,12 @@ import {
 } from "lucide-react";
 import {
   completeGuestCheckoutAndSignIn,
-  createFreeAppAccountAndSignIn,
   createGuestCheckoutOrder,
   createGuestAppleCheckoutOrder,
   type GuestSignupPayload,
 } from "@/lib/actions/guest-signup";
+import { OpenInAppDialog } from "@/components/open-in-app-dialog";
+import { isNativeApp } from "@/lib/native-app";
 import { completeGuestAppleCheckout } from "@/lib/actions/iap";
 import { BrandWordmark } from "@/components/app-logo";
 import { AuthCardShell } from "@/components/auth-card-shell";
@@ -53,11 +54,8 @@ import { OfferBanner } from "@/components/offer-banner";
 import type { SubscriptionOffer } from "@/lib/subscription-offers";
 import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import { getPlanPrice, type BillingInterval } from "@/lib/subscription-plans";
-import {
-  useIsFreeNativeApp,
-  useShouldUseAppleIap,
-} from "@/components/ios/use-native-app";
-import { IOS_GENERATING_PATH, IOS_WELCOME_PATH } from "@/lib/ios-routes";
+import { useShouldUseAppleIap } from "@/components/ios/use-native-app";
+import { IOS_WELCOME_PATH } from "@/lib/ios-routes";
 
 type PackagePlan = "ai" | "elite";
 type SignupDraft = GuestSignupPayload;
@@ -145,7 +143,12 @@ export function RegisterForm({
   const [paymentPending, setPaymentPending] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [offers] = useState<SubscriptionOffer[]>(initialOffers);
-  const freeApp = useIsFreeNativeApp();
+  const [readyEmail, setReadyEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    router.replace(IOS_WELCOME_PATH);
+  }, [router]);
 
   useEffect(() => {
     try {
@@ -178,11 +181,11 @@ export function RegisterForm({
       router.push("/admin");
       return;
     }
-    if (searchParams.get("from") === "ios" && intakeJson) {
-      router.push(IOS_GENERATING_PATH);
+    if (isNativeApp()) {
+      router.push("/dashboard");
       return;
     }
-    router.push("/dashboard");
+    setReadyEmail(signupDraft?.email?.trim() ?? "");
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -212,18 +215,6 @@ export function RegisterForm({
         intakeJson,
         referralCode: normalizedReferralCode,
       };
-
-      if (freeApp) {
-        setIsPending(true);
-        const result = await createFreeAppAccountAndSignIn(nextDraft);
-        if ("error" in result) {
-          setError(result.error);
-          setIsPending(false);
-          return;
-        }
-        finishSignup(result.role);
-        return;
-      }
 
       setSignupDraft(nextDraft);
     } catch (err) {
@@ -281,6 +272,25 @@ export function RegisterForm({
       : intakeJson
         ? "/get-started"
         : "/";
+
+  if (readyEmail !== null) {
+    return (
+      <>
+        <AuthCardShell backHref="/">
+          <Card className="w-full border-border/80 bg-background/95 shadow-xl backdrop-blur">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-black">You&apos;re in</CardTitle>
+              <CardDescription>Your plan is active.</CardDescription>
+            </CardHeader>
+          </Card>
+        </AuthCardShell>
+        <OpenInAppDialog
+          email={readyEmail}
+          onContinue={() => router.push("/dashboard")}
+        />
+      </>
+    );
+  }
 
   if (
     checkoutStarted &&
@@ -606,13 +616,9 @@ export function RegisterForm({
           JOIN <BrandWordmark />
         </CardTitle>
         <CardDescription>
-          {freeApp
-            ? intakeJson
-              ? "Your preferences are saved — create your account to start"
-              : "Create your account to start"
-            : intakeJson
-              ? "Your preferences are saved — complete package purchase to enter"
-              : "Create your account and buy a package to enter"}
+          {intakeJson
+            ? "Your preferences are saved — complete package purchase to enter"
+            : "Create your account and buy a package to enter"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -759,8 +765,7 @@ export function RegisterForm({
             <Label htmlFor="password">Password</Label>
             <PasswordInput id="password" name="password" required minLength={6} />
           </div>
-          {!freeApp ? (
-            <div className="rounded-2xl border border-border/70 bg-secondary/25 p-3.5">
+          <div className="rounded-2xl border border-border/70 bg-secondary/25 p-3.5">
               <div className="mb-2 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary">
                   <TicketPercent className="h-4 w-4" />
@@ -780,7 +785,6 @@ export function RegisterForm({
                 className="h-11"
               />
             </div>
-          ) : null}
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
             <input
               id="accept_terms"
@@ -820,12 +824,12 @@ export function RegisterForm({
             {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {freeApp ? "Creating your account..." : "Preparing checkout..."}
+                Preparing checkout...
               </>
             ) : (
               <>
                 <ArrowRight className="mr-2 h-4 w-4" />
-                {freeApp ? "Create account" : "Continue"}
+                Continue
               </>
             )}
           </Button>

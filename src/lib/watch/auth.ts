@@ -1,6 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { NATIVE_APP_FREE } from "@/lib/app-free-access";
-import { grantAppFreeAccess } from "@/lib/app-free-access-grant";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasPaidAccess } from "@/lib/subscription";
 import { getSubscriptionRequiredMessage } from "@/lib/subscription-messages";
@@ -75,13 +73,8 @@ export async function requireWatchUser(
     };
   }
 
-  let profile = await loadProfile(admin, data.user.id);
+  const profile = await loadProfile(admin, data.user.id);
   if (!profile) return { error: "Profile not found.", status: 401 };
-
-  if (!hasPaidAccess(profile) && NATIVE_APP_FREE) {
-    await grantAppFreeAccess(data.user.id);
-    profile = (await loadProfile(admin, data.user.id)) ?? profile;
-  }
 
   if (!hasPaidAccess(profile)) {
     const locale = profile.preferred_locale === "en" ? "en" : "al";

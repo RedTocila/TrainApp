@@ -1,5 +1,5 @@
-import { DashboardRouteLoading } from "@/components/dashboard-route-loading";
+import { SessionBootShell } from "@/components/dashboard-page-skeleton";
 
 export default function LiveWorkoutLoading() {
-  return <DashboardRouteLoading />;
+  return <SessionBootShell />;
 }

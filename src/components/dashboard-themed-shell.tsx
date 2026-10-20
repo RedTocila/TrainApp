@@ -33,55 +33,55 @@ const THEME: Record<
     accent: "text-emerald-700 dark:text-emerald-300",
     border: "border-emerald-500/40",
     wash: "from-emerald-500/18",
-    glow: "bg-emerald-400/25",
+    glow: "bg-emerald-400/40",
   },
   water: {
     accent: "text-sky-700 dark:text-sky-300",
     border: "border-sky-500/40",
     wash: "from-sky-500/18",
-    glow: "bg-sky-400/25",
+    glow: "bg-sky-400/40",
   },
   cardio: {
     accent: "text-orange-700 dark:text-orange-300",
     border: "border-orange-500/40",
     wash: "from-orange-500/18",
-    glow: "bg-orange-400/25",
+    glow: "bg-orange-400/40",
   },
   bmi: {
     accent: "text-yellow-800 dark:text-yellow-300",
     border: "border-amber-500/40",
     wash: "from-amber-500/18",
-    glow: "bg-amber-400/25",
+    glow: "bg-amber-400/40",
   },
   weight: {
     accent: "text-teal-800 dark:text-teal-300",
     border: "border-teal-500/40",
     wash: "from-teal-500/18",
-    glow: "bg-teal-400/25",
+    glow: "bg-teal-400/40",
   },
   habits: {
     accent: "text-violet-700 dark:text-violet-300",
     border: "border-violet-500/40",
     wash: "from-violet-500/18",
-    glow: "bg-violet-400/25",
+    glow: "bg-violet-400/40",
   },
   lifestyle: {
     accent: "text-rose-700 dark:text-rose-300",
     border: "border-rose-500/40",
     wash: "from-rose-500/18",
-    glow: "bg-rose-400/25",
+    glow: "bg-rose-400/40",
   },
   photos: {
     accent: "text-fuchsia-700 dark:text-fuchsia-300",
     border: "border-fuchsia-500/40",
     wash: "from-fuchsia-500/18",
-    glow: "bg-fuchsia-400/25",
+    glow: "bg-fuchsia-400/40",
   },
   steps: {
     accent: "text-lime-800 dark:text-lime-300",
     border: "border-lime-500/40",
     wash: "from-lime-500/18",
-    glow: "bg-lime-400/25",
+    glow: "bg-lime-400/40",
   },
 };
 
@@ -125,7 +125,43 @@ const PHOTO_OVERLAY: Partial<Record<DashboardCardTheme, string>> = {
 const DEFAULT_PHOTO_OVERLAY = "from-black/40 via-black/22 to-black/10";
 
 /**
+ * Solid dark card — same shell as the home nutrition card.
+ * The corner glow uses that card's own color.
+ */
+export function DashboardSolidCard({
+  id,
+  className,
+  children,
+  theme = "nutrition",
+}: {
+  id?: string;
+  className?: string;
+  children: ReactNode;
+  theme?: DashboardCardTheme;
+}) {
+  return (
+    <div
+      id={id}
+      className={cn(
+        "dashboard-photo-card relative flex w-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 text-white shadow-[0_16px_40px_-12px_rgba(0,0,0,0.85)]",
+        className
+      )}
+    >
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full blur-3xl",
+          THEME[theme].glow
+        )}
+      />
+      <div className="relative z-10 flex w-full flex-1 flex-col">{children}</div>
+    </div>
+  );
+}
+
+/**
  * Shared dashboard section shell — themed border + soft depth shadow.
+ * Pass `solid` for the nutrition-card container instead of a photo.
  */
 export function DashboardThemedShell({
   theme,
@@ -136,6 +172,7 @@ export function DashboardThemedShell({
   backgroundAlt = "",
   backgroundPriority = false,
   backgroundObjectClass,
+  solid = false,
 }: {
   theme: DashboardCardTheme;
   className?: string;
@@ -146,7 +183,16 @@ export function DashboardThemedShell({
   backgroundPriority?: boolean;
   /** Optional override for photo object-position / scale. */
   backgroundObjectClass?: string;
+  solid?: boolean;
 }) {
+  if (solid) {
+    return (
+      <DashboardSolidCard id={id} className={className} theme={theme}>
+        {children}
+      </DashboardSolidCard>
+    );
+  }
+
   const t = THEME[theme];
   const hasPhoto = Boolean(backgroundSrc);
   return (

@@ -23,7 +23,7 @@ const panels: {
     color: "text-violet-400",
     image: LANDING_MEAL_PHOTO_LOG_IMAGE,
     alt: "Photo meal log — snap a meal, get macros and ingredient breakdown",
-    caption: "Snap a photo → AI logs calories & macros",
+    caption: "Photo → calories & macros",
   },
   {
     icon: TrendingUp,
@@ -31,7 +31,7 @@ const panels: {
     color: "text-emerald-400",
     image: LANDING_TRACK_PROGRESS_IMAGE,
     alt: "Track progress — weight, photos, habits, and body metrics in one dashboard",
-    caption: "Weight, photos, habits & metrics — all in one view",
+    caption: "Weight, photos, habits",
   },
   {
     icon: Brain,
@@ -39,7 +39,7 @@ const panels: {
     color: "text-sky-400",
     image: LANDING_AI_PREDICTIONS_IMAGE,
     alt: "AI predictions — workouts, nutrition, sleep and weight turned into forecasts",
-    caption: "Your data in → AI forecasts where you're headed",
+    caption: "Your data → a forecast",
   },
 ];
 

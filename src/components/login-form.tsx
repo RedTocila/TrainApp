@@ -4,7 +4,8 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/actions/auth";
-import { isFreeNativeApp } from "@/lib/native-app";
+import { useIsNativeApp } from "@/components/ios/use-native-app";
+import { openWebsiteSignup } from "@/lib/open-external-url";
 import { BrandWordmark } from "@/components/app-logo";
 import { AuthCardShell } from "@/components/auth-card-shell";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ export function LoginForm({ authError }: { authError?: string }) {
   const searchParams = useSearchParams();
   const emailPrefill = searchParams.get("email")?.trim() ?? "";
   const fromIos = searchParams.get("from") === "ios";
+  const nativeApp = useIsNativeApp();
   const [email, setEmail] = useState(emailPrefill);
   const [password, setPassword] = useState("");
   const [saveLogin, setSaveLogin] = useState(false);
@@ -77,7 +79,6 @@ export function LoginForm({ authError }: { authError?: string }) {
     setError(null);
     const next = searchParams.get("next");
     if (next) formData.set("next", next);
-    if (isFreeNativeApp()) formData.set("free_app", "1");
     writeSavedLogin(
       saveLogin ? { email: email.trim(), password } : null
     );
@@ -146,12 +147,19 @@ export function LoginForm({ authError }: { authError?: string }) {
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link
-              href={fromIos ? "/register?from=ios" : "/register"}
-              className="text-primary hover:underline"
-            >
-              Register
-            </Link>
+            {nativeApp ? (
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => void openWebsiteSignup()}
+              >
+                Register
+              </button>
+            ) : (
+              <Link href="/register" className="text-primary hover:underline">
+                Register
+              </Link>
+            )}
           </p>
         </CardContent>
       </Card>

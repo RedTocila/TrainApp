@@ -30,7 +30,7 @@ import {
 } from "@/components/dashboard-card-nav-link";
 import { DASHBOARD_DAY_NUTRITION_PATH } from "@/lib/dashboard-day-routes";
 import { isDayEnded } from "@/lib/meal-times";
-import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 
 export function DashboardWaterCard({
   clientId,
@@ -152,10 +152,12 @@ export function DashboardWaterCard({
           type="button"
           onClick={() => handleAddWater(amount)}
           className={cn(
-            dashboard.chipButton,
             compact
-              ? "!h-8 px-2 py-0 text-xs hover:border-cyan-500/40 hover:bg-cyan-500/10"
-              : "!h-8 py-0 text-xs hover:border-cyan-500/40 hover:bg-cyan-500/10"
+              ? "inline-flex h-8 flex-1 items-center justify-center rounded-full bg-white/[0.07] px-2 text-xs font-semibold text-white transition-colors hover:bg-white/15"
+              : cn(
+                  dashboard.chipButton,
+                  "!h-8 py-0 text-xs hover:border-cyan-500/40 hover:bg-cyan-500/10"
+                )
           )}
         >
           {!compact && <GlassWater className="h-4 w-4 shrink-0 text-cyan-400" />}
@@ -226,8 +228,7 @@ export function DashboardWaterCard({
         <DashboardThemedShell
           id="dashboard-water"
           theme="water"
-          backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.water}
-          backgroundAlt={platform.nutrition.water}
+          solid
           className={cn(dashboard.pairTile, "relative isolate")}
         >
           <DashboardCardNavLink
@@ -235,7 +236,19 @@ export function DashboardWaterCard({
             ariaLabel={platform.nutrition.water}
           />
           <DashboardCardNavBody className="flex flex-1 flex-col gap-1">
-            <div className="shrink-0">{titleRow("text-sm")}</div>
+            <div className="shrink-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10">
+                    <GlassWater className="h-4 w-4 text-sky-300" aria-hidden />
+                  </span>
+                  <span className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-white/80">
+                    {platform.nutrition.water}
+                  </span>
+                </div>
+                {titleActions}
+              </div>
+            </div>
             <div className="flex flex-1 flex-col items-center justify-center py-0.5">
               {waterVisual(56)}
               <p className={dashboard.pairCaption}>

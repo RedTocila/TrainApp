@@ -103,10 +103,6 @@ export function LandingTransformations() {
           <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
             Before & after. Real results.
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-            Members tracking workouts, meals, and habits — turning consistency into
-            visible progress.
-          </p>
         </FadeIn>
       </div>
 

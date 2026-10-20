@@ -905,6 +905,30 @@ html.light .landing-page :where(svg.text-primary, .text-primary svg) {
     radial-gradient(ellipse 45% 35% at 90% 40%, rgba(var(--primary-rgb), 0.08), transparent 70%);
 }
 
+@keyframes landing-cta-loop {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 12px 28px -10px rgba(var(--primary-rgb), 0.75);
+  }
+  50% {
+    transform: scale(1.035);
+    box-shadow:
+      0 0 0 6px rgba(var(--primary-rgb), 0.28),
+      0 16px 36px -8px rgba(var(--primary-rgb), 0.95);
+  }
+}
+
+.landing-cta-loop {
+  animation: landing-cta-loop 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-cta-loop {
+    animation: none;
+  }
+}
+
 .landing-deferred-section {
   content-visibility: auto;
   contain-intrinsic-size: auto 600px;
@@ -1037,6 +1061,28 @@ input[type="time"]::-webkit-date-and-time-value {
 
 .challenge-announcement-flashy__enter {
   animation: challenge-announcement-slide-in 0.45s ease-out both;
+}
+
+@keyframes nutrition-status-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.85);
+    opacity: 0;
+  }
+}
+
+.nutrition-status-pulse {
+  animation: nutrition-status-pulse 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nutrition-status-pulse {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 /* Meal photo scan — beam trails behind the line, opposite its travel. */

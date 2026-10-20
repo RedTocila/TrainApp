@@ -12,7 +12,19 @@ import {
 } from "@/lib/landing-content";
 import { cn } from "@/lib/utils";
 
-export function LandingNav({ overlay = false }: { overlay?: boolean }) {
+export function LandingNav({
+  overlay = false,
+  ctaLabel = GET_STARTED_CTA,
+  ctaReady = true,
+  onCta,
+}: {
+  overlay?: boolean;
+  ctaLabel?: string;
+  /** False until a goal is chosen. The button still scrolls to the picker. */
+  ctaReady?: boolean;
+  /** When set, the CTA stays on this page (scroll to the goal, or continue). */
+  onCta?: () => void;
+}) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -38,7 +50,7 @@ export function LandingNav({ overlay = false }: { overlay?: boolean }) {
       )}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-        <AppLogo href="/" variant="text" />
+        <AppLogo href="/" variant="text" showMark />
 
         <nav className="hidden items-center gap-1 md:flex">
           {NAV_LINKS.map((link) => (
@@ -58,9 +70,15 @@ export function LandingNav({ overlay = false }: { overlay?: boolean }) {
               Sign in
             </Button>
           </Link>
-          <Link href={GET_STARTED_HREF}>
-            <Button size="sm">{GET_STARTED_CTA}</Button>
-          </Link>
+          {onCta ? (
+            <Button size="sm" variant={ctaReady ? "default" : "outline"} onClick={onCta}>
+              {ctaLabel}
+            </Button>
+          ) : (
+            <Link href={GET_STARTED_HREF}>
+              <Button size="sm">{ctaLabel}</Button>
+            </Link>
+          )}
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
@@ -94,14 +112,28 @@ export function LandingNav({ overlay = false }: { overlay?: boolean }) {
               </Link>
             ))}
             <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
-              <Link href={GET_STARTED_HREF} onClick={() => setMobileOpen(false)}>
+              {onCta ? (
                 <Button
                   size="xl"
+                  variant={ctaReady ? "default" : "outline"}
                   className="w-full font-bold shadow-xl shadow-primary/30"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    onCta();
+                  }}
                 >
-                  {GET_STARTED_CTA}
+                  {ctaLabel}
                 </Button>
-              </Link>
+              ) : (
+                <Link href={GET_STARTED_HREF} onClick={() => setMobileOpen(false)}>
+                  <Button
+                    size="xl"
+                    className="w-full font-bold shadow-xl shadow-primary/30"
+                  >
+                    {ctaLabel}
+                  </Button>
+                </Link>
+              )}
               <Link href="/login" onClick={() => setMobileOpen(false)}>
                 <Button
                   size="xl"

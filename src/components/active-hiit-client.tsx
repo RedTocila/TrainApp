@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -50,6 +51,7 @@ import {
 import { formatUserError } from "@/lib/format-user-error";
 import { markReminderDone } from "@/lib/reminder-events";
 import { useDashboardSync } from "@/components/dashboard-sync";
+import { TimerSessionSkeleton } from "@/components/dashboard-page-skeleton";
 import { DayFlowProgress } from "@/components/day-flow-progress";
 import { ExerciseDemoPlayer } from "@/components/exercise-demo-player";
 import { WorkoutTypeBanner } from "@/components/workout-type-banner";
@@ -168,6 +170,7 @@ export function ActiveHiitClient({
     "idle" | "saving" | "skipping" | "starting" | "leaving"
   >("idle");
   const busyLockRef = useRef(false);
+  const armStartRef = useRef(false);
   const advancingRef = useRef(false);
   const lastTickSecondRef = useRef<number | null>(null);
   const lastPhaseSoundRef = useRef<number | null>(null);
@@ -189,8 +192,7 @@ export function ActiveHiitClient({
     : isStretch
       ? platform.workout.skipStretch
       : platform.workout.skipSession;
-  const showSkipDayFlow =
-    (isWarmup && continuesToMain) || isStretch;
+  const showSkipDayFlow = isStretch;
   const finishCtaLabel =
     isWarmup && continuesToMain
       ? platform.workout.finishWarmupNextMain
@@ -242,7 +244,7 @@ export function ActiveHiitClient({
         )
     : 0;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const existing = getHiitTimerState(session.id);
     if (existing && existing.configHash === hash) {
       const durations = phases.map((phase) => phase.durationSeconds * 1000);
@@ -393,7 +395,13 @@ export function ActiveHiitClient({
   }, [hydrated, timer, remainingMs, isDone]);
 
   const handleStart = () => {
-    if (busyLockRef.current || isPendingWorkoutSessionId(session.id)) return;
+    if (busyLockRef.current) return;
+    if (!hydrated || isPendingWorkoutSessionId(session.id)) {
+      armStartRef.current = true;
+      return;
+    }
+    const saved = getHiitTimerState(session.id);
+    if (saved && (saved.status === "running" || saved.status === "paused")) return;
     busyLockRef.current = true;
     setError(null);
     unlockHiitAudio();
@@ -423,6 +431,16 @@ export function ActiveHiitClient({
       busyLockRef.current = false;
     }
   };
+
+  const handleStartRef = useRef(handleStart);
+  handleStartRef.current = handleStart;
+
+  useEffect(() => {
+    if (!armStartRef.current || !hydrated) return;
+    if (isPendingWorkoutSessionId(session.id)) return;
+    armStartRef.current = false;
+    handleStartRef.current();
+  }, [hydrated, session.id]);
 
   const handlePause = () => {
     const next = pauseHiitTimer(session.id);
@@ -543,13 +561,7 @@ export function ActiveHiitClient({
     }
   };
 
-  if (!hydrated) {
-    return (
-      <div className="flex min-h-[70vh] items-center justify-center text-muted-foreground">
-        Loading timer…
-      </div>
-    );
-  }
+  if (!hydrated) return <TimerSessionSkeleton />;
 
   if (phases.length === 0) {
     return (
@@ -765,11 +777,11 @@ export function ActiveHiitClient({
 
       <div className="flex shrink-0 flex-col gap-2 px-4 pb-[max(0.5rem,var(--safe-area-bottom))] pt-2">
         {!isIdle && !isDone ? (
-          <>
+          <div className="grid grid-cols-2 gap-2">
             <Button
               type="button"
               size="lg"
-              className="h-auto min-h-11 w-full gap-2 whitespace-normal rounded-full px-4 py-2.5 text-center text-sm font-black uppercase leading-tight tracking-wide"
+              className="min-w-0 overflow-hidden px-2.5 text-xs font-black uppercase tracking-wide sm:text-sm"
               disabled={isBusy}
               onClick={handleComplete}
             >
@@ -778,7 +790,11 @@ export function ActiveHiitClient({
               ) : (
                 <>
                   <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                  {finishCtaLabel}
+                  <span className="min-w-0 truncate">
+                    {isWarmup && continuesToMain
+                      ? platform.workout.finishWarmupNextMainShort
+                      : finishCtaLabel}
+                  </span>
                 </>
               )}
             </Button>
@@ -786,14 +802,14 @@ export function ActiveHiitClient({
               type="button"
               variant="secondary"
               size="lg"
-              className="h-11 w-full gap-1.5 rounded-full px-4 text-sm font-semibold"
+              className="min-w-0 overflow-hidden px-2.5 text-xs font-semibold sm:text-sm"
               disabled={isBusy}
               onClick={handleSkip}
             >
-              <SkipForward className="h-4 w-4" />
-              {platform.workout.skipExercise}
+              <SkipForward className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 truncate">{platform.workout.skipExerciseShort}</span>
             </Button>
-          </>
+          </div>
         ) : !isIdle ? (
           <Button
             type="button"

@@ -271,8 +271,51 @@ export function WorkoutOpenSkeleton({
   );
 }
 
-function SessionSkeleton() {
+/** Pulse placeholder shaped like the interval timer, used while that clock is loading. */
+export function TimerSessionSkeleton() {
+  return (
+    <div
+      data-native-pull-refresh="off"
+      className="fixed inset-0 z-[200] flex h-dvh max-h-dvh flex-col bg-background"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <div className="flex shrink-0 items-center gap-2 px-3 pt-[max(0.35rem,var(--safe-area-top))]">
+        <WorkoutBone className="h-11 w-11 shrink-0 rounded-full" />
+        <WorkoutBone className="mx-auto h-4 w-40 max-w-[50%]" />
+        <WorkoutBone className="h-11 w-11 shrink-0 rounded-full bg-primary/25" />
+      </div>
+      <WorkoutBone className="mx-4 mt-3 min-h-0 flex-1 rounded-3xl bg-zinc-800" />
+      <div className="flex shrink-0 flex-col items-center gap-2 px-4 py-3">
+        <WorkoutBone className="h-3 w-24" />
+        <WorkoutBone className="h-14 w-40 rounded-2xl" />
+        <WorkoutBone className="h-5 w-48" />
+      </div>
+      <div className="grid shrink-0 grid-cols-2 gap-2 px-4">
+        <WorkoutBone className="h-12 rounded-2xl" />
+        <WorkoutBone className="h-12 rounded-2xl" />
+      </div>
+      <div className="flex shrink-0 flex-col gap-2 px-4 pb-[max(0.5rem,var(--safe-area-bottom))] pt-3">
+        <WorkoutBone className="h-11 w-full rounded-full bg-primary/20" />
+        <WorkoutBone className="h-11 w-full rounded-full" />
+      </div>
+    </div>
+  );
+}
+
+/** Session loading state. `timer` matches the interval clock; otherwise the workout page. */
+export function SessionBootShell({
+  variant = "session",
+}: {
+  variant?: "session" | "timer";
+} = {}) {
+  if (variant === "timer") return <TimerSessionSkeleton />;
   return <WorkoutOpenSkeleton />;
+}
+
+function SessionSkeleton() {
+  return <SessionBootShell />;
 }
 
 function GenericSkeleton() {

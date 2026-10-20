@@ -201,7 +201,10 @@ export function NutritionStatusAdviceButton({
                 "hover:brightness-110"
               )
             : cn(
-                "inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold uppercase leading-none tracking-wide transition-colors",
+                "inline-flex max-w-full shrink-0 items-center border text-xs font-bold uppercase leading-none tracking-wide transition-colors",
+                status !== "good"
+                  ? "relative h-8 w-8 justify-center rounded-full p-0"
+                  : "gap-1.5 rounded-xl px-2.5 py-1.5",
                 styles.button
               ),
           className
@@ -220,17 +223,21 @@ export function NutritionStatusAdviceButton({
               ) : null}
             </div>
           </>
-        ) : (
+        ) : status !== "good" ? (
           <>
-            {status !== "good" ? (
-              <AlertTriangle
-                className="h-3.5 w-3.5 shrink-0"
-                strokeWidth={2.5}
+            {[0, 0.6, 1.2].map((delay) => (
+              <span
+                key={delay}
                 aria-hidden
+                className="nutrition-status-pulse pointer-events-none absolute inset-0 rounded-full border border-current"
+                style={{ animationDelay: `${delay}s` }}
               />
-            ) : null}
-            {advice.title}
+            ))}
+            <AlertTriangle className="relative h-4 w-4" strokeWidth={2.5} aria-hidden />
+            <span className="sr-only">{advice.title}</span>
           </>
+        ) : (
+          advice.title
         )}
       </button>
 

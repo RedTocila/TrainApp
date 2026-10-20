@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Apple,
   ArrowLeft,
   BookOpen,
-  Camera,
   ClipboardList,
   Dumbbell,
   Gift,
@@ -23,7 +21,6 @@ import { useWorkoutPageChromeActions } from "@/components/workout-page-chrome-co
 import { useProgressPhotosPageChromeActions } from "@/components/progress-photos-page-chrome-context";
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import { DashboardWorkoutPlusMenu } from "@/components/dashboard-workout-plus-menu";
-import { DashboardStatusCheck, DashboardStatusIcon } from "@/components/section-completed-badge";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { TrainSectionTabs } from "@/components/train-section-tabs";
 import { Button } from "@/components/ui/button";
@@ -39,16 +36,10 @@ import {
   showsTrainSectionTabs,
 } from "@/lib/train-nav";
 
-const headerSurface =
-  "rounded-full border border-border/70 bg-card/90 shadow-sm backdrop-blur-md dark:border-border/50 dark:bg-card/75";
-
 const headerIconButton =
   "h-[var(--control-height)] w-[var(--control-height)] shrink-0 rounded-full border border-border/60 bg-background/60 p-0 shadow-sm transition-colors hover:bg-secondary/80 hover:text-foreground";
 
 const headerActionsGroup = "flex items-center gap-1.5";
-
-const headerTextButton =
-  "h-[var(--control-height)] shrink-0 rounded-full px-4 text-sm font-semibold shadow-sm";
 
 function DashboardMobileHeaderBar() {
   const pathname = usePathname();
@@ -89,34 +80,19 @@ function DashboardMobileHeaderBar() {
           </div>
         </div>
       ) : isNutritionPage ? (
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex min-w-0 flex-1 items-center gap-1">
           <InstantNavLink
             href="/dashboard"
             exactMatch
             onNavigateStart={setPendingHref}
             aria-label={platform.common.back}
-            className="inline-flex h-[var(--control-height)] w-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary/80"
+            className="inline-flex h-9 w-8 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary/80"
           >
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </InstantNavLink>
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2"
-            aria-label={platform.dashboard.nutrition}
-          >
-            <Apple className="h-6 w-6 shrink-0 text-emerald-400" />
-            {/* Full title only when action buttons aren't crowding the header. */}
-            {!nutritionActions?.onLogMeal && !nutritionActions?.showDietPlan ? (
-              <span className="whitespace-nowrap text-xl font-black tracking-tight">
-                {platform.dashboard.nutrition}
-              </span>
-            ) : null}
-            {nutritionActions?.status === "completed" ? (
-              <DashboardStatusCheck aria-label={platform.aria.completed} />
-            ) : nutritionActions?.status === "over" ? (
-              <DashboardStatusIcon status="missed" aria-label="Over limit" />
-            ) : null}
-          </Link>
+          <span className="truncate text-3xl font-black tracking-tight">
+            {platform.nutrition.title}
+          </span>
         </div>
       ) : isWorkoutPage ? (
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -148,6 +124,7 @@ function DashboardMobileHeaderBar() {
           href="/dashboard"
           variant="text"
           size="default"
+          showMark
           className="text-2xl leading-none text-foreground sm:text-3xl dark:text-white"
         />
       )}
@@ -184,38 +161,25 @@ function DashboardMobileHeaderBar() {
             {platform.photos.readMeButton}
           </Button>
         </div>
+      ) : isNutritionPage ? (
+        <div className="flex shrink-0 items-center gap-1.5">
+          {nutritionActions?.headerTrailing}
+          {nutritionActions?.showDietPlan ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-xs font-semibold"
+              onClick={nutritionActions.onDietPlan}
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              {platform.nutrition.dietShort}
+            </Button>
+          ) : null}
+        </div>
       ) : !isProgressPhotosPage &&
         !isWorkoutPage &&
         !isCardioSession ? (
-        isNutritionPage && nutritionActions ? (
-          <div className="flex shrink-0 items-center gap-1.5">
-            <div className={cn(headerSurface, "flex shrink-0 items-center gap-1.5 p-1.5")}>
-              {nutritionActions.onLogMeal ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  className={headerTextButton}
-                  onClick={nutritionActions.onLogMeal}
-                >
-                  <Camera className="h-3.5 w-3.5" />
-                  {platform.nutrition.logMeal}
-                </Button>
-              ) : null}
-              {nutritionActions.showDietPlan ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className={cn(headerTextButton, "max-[380px]:hidden")}
-                  onClick={nutritionActions.onDietPlan}
-                >
-                  <ClipboardList className="h-3.5 w-3.5" />
-                  {platform.nutrition.viewDietPlan}
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        ) : (
           <div className={headerActionsGroup}>
             <ChallengesHeaderLink className={headerIconButton} />
             {!freeNativeApp ? (
@@ -235,7 +199,6 @@ function DashboardMobileHeaderBar() {
               </Link>
             ) : null}
           </div>
-        )
       ) : null}
     </div>
   );

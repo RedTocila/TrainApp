@@ -8,10 +8,7 @@ import { Footprints, Pencil } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { useSelectedDate } from "@/components/date-provider";
 import { dashboard } from "@/components/dashboard-ui";
-import {
-  DashboardThemedShell,
-  DASHBOARD_CARD_BACKGROUNDS,
-} from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { dashboardInteractive } from "@/components/dashboard-card-nav-link";
 import { AppDialog } from "@/components/app-dialog";
 import { Button } from "@/components/ui/button";
@@ -150,13 +147,16 @@ export function DashboardStepsCard({
     <DashboardThemedShell
       id="dashboard-steps"
       theme="steps"
-      backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.steps}
-      backgroundAlt={title}
+      solid
       className={cn(dashboard.pairTile, "relative isolate")}
     >
-      <div className="flex h-7 shrink-0 items-center gap-1.5">
-        <Footprints className="h-5 w-5 shrink-0 text-lime-300" />
-        <p className="min-w-0 truncate text-sm font-black leading-none">{title}</p>
+      <div className="flex h-8 shrink-0 items-center gap-2">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10">
+          <Footprints className="h-4 w-4 text-lime-300" aria-hidden />
+        </span>
+        <p className="min-w-0 flex-1 text-[10px] font-bold uppercase leading-tight tracking-[0.12em] text-white/80">
+          {title}
+        </p>
         <button
           type="button"
           className={cn(
@@ -180,7 +180,7 @@ export function DashboardStepsCard({
             {platform.dashboard.stepGoalOf(formattedGoal)}
           </p>
         </div>
-        <div className="h-4 w-full overflow-hidden rounded-full bg-white/15">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
           <div
             className="h-full rounded-full bg-lime-400"
             style={{ width: `${goalPercent}%` }}

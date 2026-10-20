@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { PLATFORM_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
@@ -40,16 +41,37 @@ export function BrandWordmark({ className }: { className?: string }) {
   return <LogoWordmark className={className} />;
 }
 
+const markSizeStyles = {
+  sm: "h-7 w-auto",
+  default: "h-9 w-auto",
+  lg: "h-11 w-auto",
+} as const;
+
+function LogoMark({ size = "default" }: { size?: keyof typeof markSizeStyles }) {
+  return (
+    <Image
+      src="/brand/mark.png"
+      alt=""
+      width={488}
+      height={609}
+      className={cn("shrink-0 object-contain", markSizeStyles[size])}
+    />
+  );
+}
+
 export function AppLogo({
   href = "/dashboard",
   className,
   size = "default",
   variant = "wordmark",
+  showMark = false,
 }: {
   href?: string | null;
   className?: string;
   size?: "sm" | "default" | "lg";
   variant?: "wordmark" | "text";
+  /** Ribbon icon beside the wordmark. */
+  showMark?: boolean;
 }) {
   const label =
     variant === "text" ? (
@@ -67,16 +89,23 @@ export function AppLogo({
       <LogoWordmark size={size} className={className} />
     );
 
+  const content = (
+    <>
+      {showMark ? <LogoMark size={size} /> : null}
+      {label}
+    </>
+  );
+
   if (href) {
     return (
       <Link
         href={href}
-        className="inline-flex shrink-0 rounded-sm transition-opacity hover:opacity-80"
+        className="inline-flex shrink-0 items-center gap-2 rounded-sm transition-opacity hover:opacity-80"
       >
-        {label}
+        {content}
       </Link>
     );
   }
 
-  return label;
+  return <span className="inline-flex items-center gap-2">{content}</span>;
 }

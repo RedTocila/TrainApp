@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { IntakeQuestionnaireWizard } from "@/components/intake-questionnaire-wizard";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   EMPTY_INTAKE_RESPONSES,
   type IntakeResponses,
@@ -12,10 +10,11 @@ import {
 import { loadIntakeDraft, saveIntakeDraft } from "@/lib/intake-storage";
 import { createClient } from "@/lib/supabase/client";
 import { IOS_GENERATING_PATH, IOS_WELCOME_PATH } from "@/lib/ios-routes";
+import { openWebsiteSignup } from "@/lib/open-external-url";
 
 /**
  * Same questionnaire as web get-started, wrapped in dark/red funnel chrome.
- * On finish → create account with macros (register), not a separate gateway.
+ * Signed-in users finish their intake here. New accounts are created on the website.
  */
 export function IosOnboardingClient() {
   const router = useRouter();
@@ -41,50 +40,25 @@ export function IosOnboardingClient() {
         return;
       }
     } catch {
-      // fall through to register
+      // No session in the app — account creation stays on the website.
     }
 
-    router.push("/register?from=ios");
+    void openWebsiteSignup();
+    router.push(IOS_WELCOME_PATH);
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-4">
-      <header className="flex items-center gap-3 py-2">
-        <button
-          type="button"
-          onClick={() => router.push(IOS_WELCOME_PATH)}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-300"
-          aria-label="Back to welcome"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-            RUTINA
-          </p>
-          <p className="text-sm text-zinc-400">
-            Health & lifestyle questionnaire
-          </p>
-        </div>
-      </header>
-
-      <Card className="border-zinc-800/80 bg-background/95 shadow-xl backdrop-blur">
-        <CardContent className="p-4 sm:p-6">
-          <IntakeQuestionnaireWizard
-            initialResponses={responses}
-            onComplete={(completed) => {
-              void handleComplete(completed);
-            }}
-            compact
-            completeLabel="Continue to create account"
-          />
-          {finishing ? (
-            <p className="mt-4 text-center text-sm text-zinc-400">
-              Saving your profile. Your workout is built next.
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
+    <div className="flex min-h-0 w-full flex-1 flex-col">
+      <IntakeQuestionnaireWizard
+        initialResponses={responses}
+        onComplete={(completed) => {
+          void handleComplete(completed);
+        }}
+        onExit={() => router.push(IOS_WELCOME_PATH)}
+        completeLabel="Continue"
+        locked={finishing}
+        status={finishing ? "Saving your profile. Your workout is built next." : null}
+      />
     </div>
   );
 }

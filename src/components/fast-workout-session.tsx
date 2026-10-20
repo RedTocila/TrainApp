@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ActiveHiitClient } from "@/components/active-hiit-client";
 import { ActiveWorkoutClient } from "@/components/active-workout-client";
-import { WorkoutOpenSkeleton } from "@/components/dashboard-page-skeleton";
+import { SessionBootShell } from "@/components/dashboard-page-skeleton";
 import { SessionTopBar } from "@/components/workout-session-ui";
 import {
   abandonUnstartedWorkoutSession,
@@ -12,8 +12,9 @@ import {
   type OpenedWorkout,
   type TodaysWorkoutInfo,
 } from "@/lib/actions/workout-sessions";
-import type { WorkoutPlanKind } from "@/lib/hiit";
+import { isTimedWorkoutKind, type WorkoutPlanKind } from "@/lib/hiit";
 import type { WorkoutSession, WorkoutSessionExercise } from "@/lib/types";
+import { moveHiitTimerState } from "@/lib/hiit-timer-storage";
 import { moveWorkoutTimerState } from "@/lib/workout-timer-storage";
 import {
   openWorkoutSessionCached,
@@ -142,6 +143,7 @@ export function FastWorkoutSession() {
   useLayoutEffect(() => {
     if (!pendingId || !liveSessionId || pendingId === liveSessionId) return;
     moveWorkoutTimerState(pendingId, liveSessionId);
+    moveHiitTimerState(pendingId, liveSessionId);
   }, [liveSessionId, pendingId]);
 
   const previewSession = useMemo(
@@ -157,29 +159,31 @@ export function FastWorkoutSession() {
   );
 
   if (!ready || !staged || !workout || !previewSession) {
-    return <WorkoutOpenSkeleton />;
+    return <SessionBootShell />;
   }
 
-  if (live?.hiitConfig && live.session) {
+  const planKind = (live?.planKind ?? workout.planKind ?? "strength") as WorkoutPlanKind;
+  const hiitConfig = live?.hiitConfig ?? workout.hiitConfig ?? null;
+  // Warm-up, stretch, and HIIT run on the interval clock. Their day rows also
+  // list those moves, which used to paint the strength overview for a second.
+  const timedSession = isTimedWorkoutKind(planKind) || Boolean(hiitConfig);
+
+  if (timedSession && hiitConfig) {
     return (
       <ActiveHiitClient
-        session={live.session}
-        config={live.hiitConfig}
-        planKind={(live.planKind ?? workout.planKind ?? "strength") as WorkoutPlanKind}
+        session={live?.session ?? previewSession}
+        config={hiitConfig}
+        planKind={isTimedWorkoutKind(planKind) ? planKind : "hiit"}
         gender={staged.gender}
         continuesToMain={staged.continuesToMain}
       />
     );
   }
 
-  const waitingForInterval =
-    !live?.session &&
-    (workout.planKind === "hiit" ||
-      ((workout.planKind === "warmup" || workout.planKind === "stretch") &&
-        workout.exercises.length === 0));
+  const waitingForInterval = timedSession && !live?.session;
 
   if (waitingForInterval && !error) {
-    return <WorkoutOpenSkeleton />;
+    return <SessionBootShell variant="timer" />;
   }
 
   if (waitingForInterval) {
@@ -215,7 +219,7 @@ export function FastWorkoutSession() {
         session={session}
         exercises={exercises}
         gender={staged.gender}
-        planKind={(live?.planKind ?? workout.planKind ?? "strength") as WorkoutPlanKind}
+        planKind={planKind}
       />
     </>
   );

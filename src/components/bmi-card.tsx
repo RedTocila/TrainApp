@@ -22,10 +22,7 @@ import {
 } from "@/lib/bmi-utils";
 import type { BodyWeightLog } from "@/lib/types";
 import { dashboard } from "@/components/dashboard-ui";
-import {
-  DashboardThemedShell,
-  DASHBOARD_CARD_BACKGROUNDS,
-} from "@/components/dashboard-themed-shell";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
 import { cn } from "@/lib/utils";
 
 function bmiCategoryLabel(
@@ -165,14 +162,17 @@ export function BmiCard({
     <DashboardThemedShell
       id="dashboard-bmi"
       theme="bmi"
-      backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.bmi}
-      backgroundAlt={platform.bmi.title}
+      solid
       className={cn(dashboard.pairTile, "relative isolate")}
     >
-      <div className="flex h-7 shrink-0 items-center justify-between gap-2">
+      <div className="flex h-8 shrink-0 items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <Activity className="h-5 w-5 shrink-0 text-amber-300" />
-          <p className="truncate text-sm font-black">{platform.bmi.title}</p>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10">
+            <Activity className="h-4 w-4 text-amber-300" aria-hidden />
+          </span>
+          <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-white/80">
+            {platform.bmi.title}
+          </p>
         </div>
         <button
           ref={buttonRef}

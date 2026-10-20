@@ -1,5 +1,5 @@
 import type { ClientSchedule } from "@/lib/daily-tasks";
-import { normalizeWorkoutPlanKind } from "@/lib/hiit";
+import { intervalConfigForPlan, normalizeWorkoutPlanKind } from "@/lib/hiit";
 import type { Exercise } from "@/lib/types";
 import { workoutTaskId } from "@/lib/workout-task-id";
 import { formatDateKey } from "@/lib/utils";
@@ -32,6 +32,7 @@ function mapScheduledDayToWorkout(
       image_url: ex.image_url ?? null,
       video_url: ex.video_url ?? null,
     })),
+    hiitConfig: intervalConfigForPlan(entry.workout_plans),
   };
 }
 
@@ -92,6 +93,7 @@ export function resolveWorkoutsFromSchedule(
         image_url: ex.image_url ?? null,
         video_url: ex.video_url ?? null,
       })),
+      hiitConfig: intervalConfigForPlan(assignment.workout_plans),
     },
   ];
 }

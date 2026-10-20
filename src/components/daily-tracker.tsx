@@ -4,7 +4,7 @@ import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-
 import { useEffect, useMemo, useState } from "react";
 import { isToday } from "date-fns";
 import { formatLocalized } from "@/lib/date-locale";
-import { Apple, Camera, ChevronRight, ClipboardList } from "lucide-react";
+import { Apple, Camera, ClipboardList } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   DashboardCardNavBody,
@@ -32,7 +32,8 @@ import { NutritionStatusAdviceButton } from "@/components/nutrition-status-advic
 import { RecentMealsList } from "@/components/recent-meals-list";
 import { NutritionDetailView } from "@/components/nutrition-detail-view";
 import { useRegisterNutritionPageChrome } from "@/components/nutrition-page-chrome-context";
-import { TaskNutritionMacroPreview } from "@/components/task-nutrition-macro-preview";
+import { NutritionRemainingCard } from "@/components/nutrition-remaining-card";
+import { DashboardSolidCard } from "@/components/dashboard-themed-shell";
 import {
   estimateDailyMicros,
   getNutritionDayStatuses,
@@ -50,7 +51,6 @@ import {
   DashboardStatusIcon,
   dashboardCompletionStatus,
 } from "@/components/section-completed-badge";
-import { DashboardThemedShell, DASHBOARD_CARD_BACKGROUNDS } from "@/components/dashboard-themed-shell";
 import { getPlannedMealSlots, isDayEnded } from "@/lib/meal-times";
 import { patchOverviewDayCache } from "@/lib/dashboard-route-cache";
 import type { MealPlanViewKind } from "@/lib/actions/user-nutrition-schedule";
@@ -385,114 +385,31 @@ export function DailyTracker({
     );
     return (
       <>
-      <DashboardThemedShell
+      <DashboardSolidCard
         id="dashboard-nutrition"
         theme="nutrition"
-        backgroundSrc={DASHBOARD_CARD_BACKGROUNDS.nutrition}
-        backgroundAlt={nutritionTitle}
-        className="relative w-full cursor-pointer transition-opacity hover:opacity-95 active:opacity-90"
+        className="cursor-pointer transition-opacity hover:opacity-95 active:opacity-90"
       >
         <DashboardCardNavLink
           href={DASHBOARD_DAY_NUTRITION_PATH}
           ariaLabel={nutritionTitle}
         />
         <DashboardCardNavBody className="flex flex-col">
-          <div className="absolute right-3 top-3 z-10">
-            <DashboardStatusIcon
-              status={nutritionStatus}
-              aria-label={
-                nutritionStatus === "completed"
-                  ? platform.aria.completed
-                  : nutritionStatus === "missed"
-                    ? platform.common.incomplete
-                    : platform.common.inProgress
-              }
-            />
-          </div>
-          <CardHeader className="space-y-2 p-4 pb-2">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1 pr-8">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <CardTitle className="flex items-center gap-2 text-lg font-black">
-                    <Apple className="h-5 w-5 text-emerald-300" />
-                    <span
-                      className={cn(nutritionChecked && "text-white/55 line-through")}
-                    >
-                      {nutritionTitle}
-                    </span>
-                  </CardTitle>
-                  {nutritionStatuses.map((status) => (
-                    <NutritionStatusAdviceButton
-                      key={status}
-                      status={status}
-                      context={nutritionContext}
-                      meals={dailyMeals}
-                      micros={dailyMicros}
-                    />
-                  ))}
-                </div>
-                {readOnly ? (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {platform.nutrition.loggedCount(dailyMeals.length)}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-col p-4 pt-0">
-            <div className="mt-1 rounded-2xl bg-black/25 p-2.5 backdrop-blur-[2px]">
-              <TaskNutritionMacroPreview
-                current={current}
-                targets={targets}
-                dailyMeals={dailyMeals}
-                waterMl={localWaterMl}
-                waterGoalMl={waterGoalMl}
-                dateKey={dateKey}
-                showHealthScore={false}
-              />
-            </div>
-            {!readOnly ? (
-              <div className="mt-5 flex items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    className="h-8 rounded-full px-3"
-                    onClick={() => setLogMealOpen(true)}
-                  >
-                    <Camera className="h-3.5 w-3.5" />
-                    {platform.nutrition.logMeal}
-                  </Button>
-                  {showMealPlanButton ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 rounded-full border-emerald-600/30 bg-emerald-500/10 px-3 hover:bg-emerald-500/15"
-                      onClick={handleMealPlanClick}
-                    >
-                      <ClipboardList className="h-3.5 w-3.5" />
-                      {platform.nutrition.viewDietPlan}
-                    </Button>
-                  ) : null}
-                  <span className="inline-flex items-center text-xs font-medium text-muted-foreground">
-                    {platform.nutrition.loggedCount(dailyMeals.length)}
-                  </span>
-                </div>
-                <ChevronRight
-                  className="h-5 w-5 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-              </div>
-            ) : (
-              <div className="mt-5 flex justify-end">
-                <ChevronRight
-                  className="h-5 w-5 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-              </div>
-            )}
-          </CardContent>
+          <NutritionRemainingCard
+            current={current}
+            targets={targets}
+            onLogMeal={readOnly ? undefined : () => setLogMealOpen(true)}
+            status={nutritionStatus}
+            statusLabel={
+              nutritionStatus === "completed"
+                ? platform.aria.completed
+                : nutritionStatus === "missed"
+                  ? platform.common.incomplete
+                  : platform.common.inProgress
+            }
+          />
         </DashboardCardNavBody>
-      </DashboardThemedShell>
+      </DashboardSolidCard>
         {nutritionDialogs}
       </>
     );
@@ -508,6 +425,8 @@ export function DailyTracker({
             micros={dailyMicros}
             context={nutritionContext}
             meals={dailyMeals}
+            waterMl={localWaterMl}
+            waterGoalMl={waterGoalMl}
           />
 
           <div className="hidden items-center justify-end gap-2 lg:flex">
@@ -551,9 +470,11 @@ export function DailyTracker({
             onSelect={handleSelectMeal}
             onAdd={readOnly ? undefined : () => setLogMealOpen(true)}
             showHeaderAdd={false}
+            title={platform.nutrition.mealsLogged}
             emptyHint={platform.nutrition.logFirstMealHint}
             variant="feed"
             collapsible={false}
+            headingClassName="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground"
           />
         </div>
         {nutritionDialogs}
