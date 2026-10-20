@@ -76,16 +76,9 @@ export function PersonalWorkoutListCard({
     .join(" · ");
 
   return (
-    <Card
-      className={cn(
-        "relative overflow-hidden border",
-        programStyle.cardBorder,
-        programStyle.cardBg
-      )}
-    >
+    <Card className="dashboard-flat-card relative overflow-hidden">
       <DashboardCardNavLink href={previewHref} ariaLabel={plan.title} />
       <div className="flex">
-        <div className={cn("w-1 shrink-0", programStyle.stripe)} aria-hidden />
         <DashboardCardNavBody className="flex min-w-0 flex-1 items-stretch gap-2 p-2.5">
           {hasExercises ? (
             <WorkoutMuscleMap

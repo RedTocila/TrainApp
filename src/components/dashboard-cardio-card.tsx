@@ -272,7 +272,7 @@ export function DashboardCardioCard({
               : platform.cardio.title
           }
         />
-        <DashboardCardNavBody className="flex flex-1 flex-col gap-1">
+        <DashboardCardNavBody className="flex min-h-0 flex-1 flex-col">
           <div className="flex h-8 shrink-0 items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10">
@@ -300,67 +300,42 @@ export function DashboardCardioCard({
           </div>
 
           {activeCardio ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
-                <Icon className="h-6 w-6 text-orange-300" />
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1">
+              <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full bg-white/10">
+                <Icon className="h-5 w-5 shrink-0 text-orange-300" />
+                {sessionActive ? (
+                  <span className="text-[8px] font-semibold uppercase leading-none tracking-wide text-orange-300">
+                    {sessionClock.paused ? platform.cardio.pause : platform.cardio.ongoing}
+                  </span>
+                ) : null}
+                {badge ? (
+                  <span
+                    className={cn(
+                      "max-w-[3.5rem] px-1 text-center text-[10px] font-bold leading-tight tabular-nums text-white",
+                      sessionClock.running && "animate-pulse"
+                    )}
+                  >
+                    {badge}
+                  </span>
+                ) : null}
               </div>
               <p
                 className={cn(
-                  "line-clamp-2 min-h-[2rem] max-w-full px-1 text-center text-xs font-semibold leading-snug",
+                  "line-clamp-2 max-w-full px-1 text-center text-[11px] font-semibold leading-tight",
                   activeCompleted && "text-muted-foreground line-through"
                 )}
               >
                 {localizeCardioTitle(activeCardio.title, platform.cardio.types)}
               </p>
-              <div
-                className={cn(
-                  "flex flex-col items-center justify-center gap-0.5",
-                  sessionActive ? "min-h-[2.25rem]" : "min-h-[1.125rem]"
-                )}
-              >
-                {sessionActive ? (
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-300">
-                    {sessionClock.paused
-                      ? platform.cardio.pause
-                      : platform.cardio.ongoing}
-                  </p>
-                ) : null}
-                {badge ? (
-                  <Badge
-                    variant="secondary"
-                    className={cn(
-                      "tabular-nums",
-                      sessionActive
-                        ? "border-white/15 bg-white/[0.07] px-2.5 py-0.5 text-sm font-bold text-white"
-                        : "rounded-full border-white/10 bg-white/[0.07] text-[10px] text-white",
-                      sessionClock.running && "animate-pulse"
-                    )}
-                    aria-label={
-                      sessionActive
-                        ? sessionClock.running
-                          ? platform.cardio.elapsed
-                          : platform.cardio.pause
-                        : undefined
-                    }
-                  >
-                    {badge}
-                  </Badge>
-                ) : (
-                  <span className="invisible text-[10px]" aria-hidden>
-                    —
-                  </span>
-                )}
-              </div>
             </div>
           ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-0.5 py-0.5 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
-                <HeartPulse className="h-6 w-6 text-orange-300" />
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 text-center">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white/10">
+                <HeartPulse className="h-5 w-5 text-orange-300" />
               </div>
-              <p className="min-h-[2rem] w-full min-w-0 px-2 text-xs leading-snug text-white/70">
+              <p className="line-clamp-2 w-full min-w-0 px-2 text-[11px] leading-tight text-white/70">
                 {coachLabels.noCardioToday}
               </p>
-              <div className="min-h-[1.125rem]" aria-hidden />
             </div>
           )}
 

@@ -55,33 +55,40 @@ export function PremiumSurface({
   children,
   accent = "neutral",
   rounded = "2xl",
+  flat = false,
 }: {
   className?: string;
   children: ReactNode;
   accent?: PremiumSurfaceAccent;
   rounded?: "2xl" | "3xl";
+  /** Flat grey, no border or color wash. Used on the plans list. */
+  flat?: boolean;
 }) {
   const t = ACCENTS[accent];
   return (
     <div
       className={cn(
-        "relative overflow-hidden border bg-card shadow-sm",
+        "relative overflow-hidden",
         rounded === "3xl" ? "rounded-[2rem]" : "rounded-3xl",
-        t.border,
+        flat ? "dashboard-flat-card" : cn("border bg-card shadow-sm", t.border),
         className
       )}
     >
-      <div
-        aria-hidden
-        className={cn("absolute inset-0 bg-gradient-to-br via-card to-card", t.wash)}
-      />
-      <div
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl",
-          t.glow
-        )}
-      />
+      {flat ? null : (
+        <>
+          <div
+            aria-hidden
+            className={cn("absolute inset-0 bg-gradient-to-br via-card to-card", t.wash)}
+          />
+          <div
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl",
+              t.glow
+            )}
+          />
+        </>
+      )}
       <div className="relative z-10">{children}</div>
     </div>
   );

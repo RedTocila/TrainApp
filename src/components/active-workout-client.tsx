@@ -13,6 +13,7 @@ import {
   Check,
   ChevronDown,
   ChevronLeft,
+  Keyboard,
   Loader2,
   Minus,
   Play,
@@ -258,6 +259,8 @@ function WorkoutMetricCard({
   onDecrement,
   onIncrement,
   disabled,
+  onValueChange,
+  formatValue,
 }: {
   label: string;
   value: string;
@@ -265,20 +268,90 @@ function WorkoutMetricCard({
   onDecrement: () => void;
   onIncrement: () => void;
   disabled?: boolean;
+  /** When set, the number opens the numeric keyboard. */
+  onValueChange?: (raw: string) => void;
+  formatValue?: (raw: string) => string;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    if (!onValueChange || disabled || editing) return;
+    setDraft(value);
+    setEditing(true);
+    window.setTimeout(() => inputRef.current?.select(), 0);
+  };
+
+  const commit = () => {
+    const next = formatValue ? formatValue(draft) : draft;
+    onValueChange?.(next);
+    setEditing(false);
+  };
+
   return (
     <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-border/50 bg-zinc-900/70 px-2.5 py-2">
-      <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-0.5 truncate text-xl font-black tabular-nums leading-none text-foreground">
-        {value}
-        {unit ? (
-          <span className="ml-1 text-[10px] font-bold uppercase text-muted-foreground">
-            {unit}
-          </span>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          {label}
+        </p>
+        {onValueChange ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={startEdit}
+            aria-label={`Type ${label}`}
+            className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-45"
+          >
+            <Keyboard className="h-3 w-3" />
+          </button>
         ) : null}
-      </p>
+      </div>
+      {editing && onValueChange ? (
+        <input
+          ref={inputRef}
+          autoFocus
+          inputMode="decimal"
+          enterKeyHint="done"
+          aria-label={label}
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            onValueChange(event.target.value);
+          }}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              event.currentTarget.blur();
+            }
+          }}
+          className="mt-0.5 w-full bg-transparent text-xl font-black tabular-nums leading-none text-foreground outline-none"
+        />
+      ) : onValueChange ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={startEdit}
+          className="mt-0.5 truncate text-left text-xl font-black tabular-nums leading-none text-foreground"
+        >
+          {value}
+          {unit ? (
+            <span className="ml-1 text-[10px] font-bold uppercase text-muted-foreground">
+              {unit}
+            </span>
+          ) : null}
+        </button>
+      ) : (
+        <p className="mt-0.5 truncate text-xl font-black tabular-nums leading-none text-foreground">
+          {value}
+          {unit ? (
+            <span className="ml-1 text-[10px] font-bold uppercase text-muted-foreground">
+              {unit}
+            </span>
+          ) : null}
+        </p>
+      )}
       <div className="mt-2 flex items-center justify-between gap-1.5">
         <button
           type="button"
@@ -639,6 +712,11 @@ function ActiveExercisePanel({
               value={weightDisplay}
               onDecrement={() => adjustWeight(-2.5)}
               onIncrement={() => adjustWeight(2.5)}
+              onValueChange={setWeightDraft}
+              formatValue={(raw) => {
+                const parsed = parseSetWeightKg(raw);
+                return parsed == null ? "" : units.formatWeightKg(parsed);
+              }}
             />
             <WorkoutMetricCard
               label={platform.workout.reps}
@@ -1422,10 +1500,10 @@ export function ActiveWorkoutClient({
     >
       {isStarted ? (
         <div className="shrink-0 space-y-1.5 px-0">
-          <header className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
+          <header className="relative flex h-9 items-center justify-between">
             <button
               type="button"
-              className="inline-flex h-9 items-center gap-1 rounded-full border border-border/60 bg-secondary/50 px-2.5 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
+              className="relative z-10 inline-flex h-9 items-center gap-1 rounded-full border border-border/60 bg-secondary/50 px-2.5 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-50"
               disabled={isPending || isGivingUp || isFinishing}
               onClick={() => void leaveWorkout()}
               aria-label={platform.workout.giveUp}
@@ -1433,7 +1511,7 @@ export function ActiveWorkoutClient({
               <ChevronDown className="h-3.5 w-3.5 shrink-0" />
               {platform.workout.giveUp}
             </button>
-            <div className="flex justify-center">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-secondary/60 px-3 py-1 font-mono text-xs font-bold tabular-nums text-foreground">
                 <span
                   className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"
@@ -1442,16 +1520,14 @@ export function ActiveWorkoutClient({
                 {formatElapsedClock(elapsedSeconds)}
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-secondary/50 text-foreground transition hover:bg-secondary"
-                onClick={() => setShowAddExercise(true)}
-                aria-label={platform.workout.addExercise}
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              className="relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-secondary/50 text-foreground transition hover:bg-secondary"
+              onClick={() => setShowAddExercise(true)}
+              aria-label={platform.workout.addExercise}
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           </header>
           <div
             className="h-0.5 overflow-hidden rounded-full bg-secondary/80"

@@ -1026,9 +1026,7 @@ export function DashboardWorkoutCard({
           }
           backgroundPriority
           solid={hasWorkout}
-          hideCornerGlow={showMuscleMap}
           className={cn(
-            "min-h-[20rem]",
             hasWorkout &&
               "cursor-pointer transition-opacity hover:opacity-95 active:opacity-90",
             liveSessionId &&
@@ -1062,16 +1060,6 @@ export function DashboardWorkoutCard({
                 gender={gender}
               />
             ) : null}
-            {showMuscleMap ? (
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 z-[1]"
-                style={{
-                  background:
-                    "radial-gradient(ellipse 78% 62% at 100% 0%, color-mix(in srgb, var(--primary) 40%, transparent) 0%, transparent 72%)",
-                }}
-              />
-            ) : null}
             <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -1091,7 +1079,9 @@ export function DashboardWorkoutCard({
                         : "border-primary/45 bg-primary/15 text-primary")
                   )}
                 >
-                  {dayLabel}
+                  {hasWorkout
+                    ? `${platform.trainTabs.workout} · ${dayLabel}`
+                    : dayLabel}
                 </span>
                 {liveSessionId ? (
                   <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-emerald-500 px-3 text-[11px] font-black uppercase tracking-[0.16em] text-white shadow-md shadow-emerald-900/40">
@@ -1226,7 +1216,7 @@ export function DashboardWorkoutCard({
                   </div>
                 ) : null}
 
-                <div className="mt-auto">
+                <div className="mt-3">
                   {mainDone && !liveSessionId ? (
                     <div
                       className={cn(

@@ -74,7 +74,13 @@ export async function proxy(request: NextRequest) {
   );
 
   // The app never shows the marketing landing (it lists packages).
-  if (!user && isNativeApp && path === "/" && !isServerAction) {
+  // Cold start loads /dashboard directly; logged-out users still land on welcome.
+  if (
+    !user &&
+    isNativeApp &&
+    (path === "/" || isDashboardRoute) &&
+    !isServerAction
+  ) {
     return NextResponse.redirect(new URL(IOS_WELCOME_PATH, request.url));
   }
 

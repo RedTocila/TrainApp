@@ -129,8 +129,16 @@ export function ClientNav({
   return (
     <>
       <aside className="hidden h-dvh w-64 flex-col border-r border-border bg-card lg:flex">
-        <div className="border-b border-border p-6">
-          <div className="flex items-start justify-between gap-2">
+        <div className="relative overflow-hidden border-b border-border p-6">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-full"
+            style={{
+              background:
+                "radial-gradient(ellipse 90% 120% at 50% 0%, color-mix(in srgb, var(--primary) 42%, transparent), transparent 72%)",
+            }}
+          />
+          <div className="relative flex items-start justify-between gap-2">
             <div className="min-w-0">
               <AppLogo href="/dashboard" showMark />
               <p className="mt-1 text-sm text-muted-foreground">{platform.nav.welcome(fullName)}</p>

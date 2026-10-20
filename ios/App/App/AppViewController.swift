@@ -10,9 +10,12 @@ class AppViewController: CAPBridgeViewController {
 
     /// Matches the web app's dark `--background` so overscroll areas don't show black.
     static let platformBackground = UIColor(red: 12 / 255, green: 12 / 255, blue: 14 / 255, alpha: 1)
+    /// Brand red behind the WebView until the first document finishes, so launch isn't a black gap.
+    static let launchBackground = UIColor(red: 248 / 255, green: 2 / 255, blue: 19 / 255, alpha: 1)
 
     private let pullToRefresh = WebViewPullToRefresh()
     private var allowsLandscape = false
+    private var hasFinishedFirstLoad = false
     private var loadingObservation: NSKeyValueObservation?
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
@@ -42,25 +45,43 @@ class AppViewController: CAPBridgeViewController {
                 self?.setLandscape(false)
             } else {
                 // Capacitor restores `isOpaque` after the first load; run after its delegate.
-                DispatchQueue.main.async { self?.applyPlatformBackground(to: webView) }
+                // Ignore about:blank — only the real site ending its load should leave brand red.
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if self.isRemoteDocument(webView) {
+                        self.hasFinishedFirstLoad = true
+                    }
+                    self.applyPlatformBackground(to: webView)
+                }
             }
         }
     }
 
+    /// True once the WebView has committed the live site, not the blank document Capacitor opens first.
+    private func isRemoteDocument(_ webView: WKWebView) -> Bool {
+        guard let url = webView.url, let scheme = url.scheme?.lowercased() else { return false }
+        if scheme != "https" && scheme != "http" { return false }
+        let host = url.host?.lowercased() ?? ""
+        if host.isEmpty || host == "localhost" || host == "capacitor" { return false }
+        return true
+    }
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        view.window?.backgroundColor = Self.platformBackground
+        view.window?.backgroundColor = hasFinishedFirstLoad ? Self.platformBackground : Self.launchBackground
     }
 
     /// Everything behind the page (pull-to-refresh gap, reload flashes, rotation) uses the
-    /// dashboard color. Non-opaque so WebKit never paints its own default behind content.
+    /// dashboard color. The first document uses brand red so the wait before HTML isn't black.
+    /// Non-opaque so WebKit never paints its own default behind content.
     private func applyPlatformBackground(to webView: WKWebView) {
+        let color = hasFinishedFirstLoad ? Self.platformBackground : Self.launchBackground
         webView.isOpaque = false
-        webView.backgroundColor = Self.platformBackground
-        webView.scrollView.backgroundColor = Self.platformBackground
-        webView.underPageBackgroundColor = Self.platformBackground
-        view.backgroundColor = Self.platformBackground
-        view.window?.backgroundColor = Self.platformBackground
+        webView.backgroundColor = color
+        webView.scrollView.backgroundColor = color
+        webView.underPageBackgroundColor = color
+        view.backgroundColor = color
+        view.window?.backgroundColor = color
         #if compiler(>=6.2)
         if #available(iOS 26.0, *) {
             // The iOS 26 scroll-edge effect draws a dark band over the top while pulling.

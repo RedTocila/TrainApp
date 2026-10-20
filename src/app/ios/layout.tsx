@@ -1,3 +1,4 @@
+import { AppReady } from "@/components/app-ready";
 import { RouteEnter } from "@/components/route-enter";
 import { IosFunnelShell } from "@/components/ios/ios-funnel-shell";
 
@@ -8,6 +9,7 @@ import { IosFunnelShell } from "@/components/ios/ios-funnel-shell";
 export default function IosLayout({ children }: { children: React.ReactNode }) {
   return (
     <IosFunnelShell>
+      <AppReady />
       <RouteEnter className="flex min-h-0 flex-1 flex-col">{children}</RouteEnter>
     </IosFunnelShell>
   );

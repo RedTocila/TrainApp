@@ -31,12 +31,12 @@ export const dashboard = {
    * iPad Safari + % heights collapses the row so BMI paints over the pair.
    */
   pairTile:
-    "relative box-border flex w-full flex-col overflow-hidden p-2.5 sm:p-3 min-h-[15rem] sm:min-h-[15.5rem]",
-  /** Footer row shared by pair tiles — room for compact h-8 actions. */
-  pairFooter: "mt-auto flex h-10 shrink-0 items-center gap-1.5 pt-1.5",
+    "relative box-border flex aspect-square w-full flex-col overflow-hidden p-2.5 sm:p-3",
+  /** Footer row shared by pair tiles — compact h-8 actions, no extra pad. */
+  pairFooter: "mt-auto flex h-8 shrink-0 items-center gap-1.5",
   /** One reserved caption line under the pair visual (remaining / empty). */
   pairCaption:
-    "mt-0.5 min-h-[0.875rem] truncate px-1 text-center text-[10px] leading-tight text-muted-foreground",
+    "truncate px-1 text-center text-[10px] leading-none text-muted-foreground",
   /** One line below trigger; aligned to the end (icon menus). */
   dropdownPanelBelowEnd: "absolute right-0 top-full z-30 mt-1",
   /** Cursor-style stack: main bar + attached tail sharing one outer border. */

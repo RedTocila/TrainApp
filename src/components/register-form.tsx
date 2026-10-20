@@ -12,7 +12,6 @@ import {
   Dumbbell,
   Check,
   CheckCircle2,
-  ChevronDown,
   Loader2,
   CreditCard,
   ArrowRight,
@@ -28,6 +27,7 @@ import { OpenInAppDialog } from "@/components/open-in-app-dialog";
 import { isNativeApp } from "@/lib/native-app";
 import { completeGuestAppleCheckout } from "@/lib/actions/iap";
 import { BrandWordmark } from "@/components/app-logo";
+import { AppDialog } from "@/components/app-dialog";
 import { AuthCardShell } from "@/components/auth-card-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,7 +50,6 @@ import { formatUserError } from "@/lib/format-user-error";
 import { cn } from "@/lib/utils";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
 import { getCurrencyPrice } from "@/lib/checkout-i18n";
-import { OfferBanner } from "@/components/offer-banner";
 import type { SubscriptionOffer } from "@/lib/subscription-offers";
 import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import { getPlanPrice, type BillingInterval } from "@/lib/subscription-plans";
@@ -63,34 +62,16 @@ type SignupDraft = GuestSignupPayload;
 const PACKAGE_OPTIONS: Array<{
   id: PackagePlan;
   name: string;
-  subtitle: string;
   badge?: string;
-  includesFrom?: string;
-  features: string[];
 }> = [
   {
     id: "ai",
     name: "RUTINA AI Pro",
-    subtitle: "AI coaching and personalized fitness guidance.",
     badge: "Popular",
-    features: [
-      "AI Fitness Coach",
-      "AI Nutrition Coach",
-      "AI Workout Generator",
-      "Personalized recommendations",
-    ],
   },
   {
     id: "elite",
     name: "RUTINA Elite",
-    subtitle: "Everything in AI Pro plus elite coaching and community.",
-    includesFrom: "RUTINA AI Pro",
-    features: [
-      "Everything in AI Pro",
-      "Live training classes",
-      "Community challenges",
-      "Priority support",
-    ],
   },
 ];
 
@@ -133,7 +114,6 @@ export function RegisterForm({
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PackagePlan>("ai");
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
-  const [openPackageDetails, setOpenPackageDetails] = useState<PackagePlan | null>(null);
   const [signupDraft, setSignupDraft] = useState<SignupDraft | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [localOrderId, setLocalOrderId] = useState<string | null>(null);
@@ -414,200 +394,6 @@ export function RegisterForm({
     );
   }
 
-  if (signupDraft) {
-    return (
-      <AuthCardShell backHref={backHref}>
-      <Card className="w-full overflow-visible border-border/80 bg-background/95 shadow-xl backdrop-blur">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-black">Choose your package</CardTitle>
-          <CardDescription>
-            Review package details and continue to payment.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 overflow-visible">
-          <div className="rounded-xl border border-border bg-secondary/20 p-3 text-sm">
-            <p className="font-semibold text-foreground">{signupDraft.fullName}</p>
-            <p className="text-muted-foreground">{signupDraft.email}</p>
-          </div>
-
-          <div className="mx-auto grid w-full max-w-[280px] grid-cols-2 gap-1 rounded-full border border-border/70 bg-secondary/25 p-0.5">
-            <button
-              type="button"
-              className={cn(
-                "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                billingInterval === "monthly"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setBillingInterval("monthly")}
-              aria-pressed={billingInterval === "monthly"}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                billingInterval === "annual"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              onClick={() => setBillingInterval("annual")}
-              aria-pressed={billingInterval === "annual"}
-            >
-              Yearly
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-2 overflow-visible px-1 pt-1">
-            {PACKAGE_OPTIONS.map((option) => {
-              const selected = selectedPlan === option.id;
-              const detailsOpen = openPackageDetails === option.id;
-              const bestOffer = pickBestOffer(offers, option.id, billingInterval);
-              return (
-                <div
-                  key={option.id}
-                  className={cn(
-                    "relative overflow-visible rounded-2xl border-2 transition-all",
-                    selected
-                      ? "border-primary bg-primary/10 shadow-[0_0_20px_-8px] shadow-primary/40"
-                      : "border-border/70 bg-secondary/30"
-                  )}
-                >
-                  {bestOffer ? (
-                    <OfferBanner offer={bestOffer} locale={locale} className="rounded-t-[14px]" />
-                  ) : null}
-                  {selected && (
-                    <span
-                      className="absolute -right-2.5 -top-2.5 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl ring-2 ring-background"
-                      aria-hidden
-                    >
-                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                    </span>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPlan(option.id)}
-                    className="w-full p-4 text-left"
-                    aria-pressed={selected}
-                  >
-                    {(() => {
-                      const basePrice = getPlanPrice(option.id, billingInterval);
-                      const baseAmountCents = basePrice.amountCents;
-                      const discountedAmountCents = applyOfferDiscount(baseAmountCents, bestOffer);
-                      const displayPrice = getCurrencyPrice({ amountEurCents: discountedAmountCents });
-                      const compareAtPrice =
-                        discountedAmountCents < baseAmountCents
-                          ? getCurrencyPrice({ amountEurCents: baseAmountCents })
-                          : null;
-                      return (
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="pr-6 text-lg font-black tracking-tight">{option.name}</p>
-                              {option.badge && (
-                                <span className="inline-flex rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black">
-                                  {option.badge}
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-1 text-xs text-muted-foreground">{option.subtitle}</p>
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <div className="flex items-baseline justify-end gap-1.5">
-                              {compareAtPrice ? (
-                                <span className="text-sm font-medium text-muted-foreground line-through decoration-muted-foreground/70">
-                                  {compareAtPrice.label}
-                                </span>
-                              ) : null}
-                              <p className="text-2xl font-black tracking-tight">{displayPrice.label}</p>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              / {billingInterval === "monthly" ? "month" : "year"}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenPackageDetails((current) => (current === option.id ? null : option.id))
-                    }
-                    className="flex w-full items-center justify-center gap-1.5 border-t border-border/50 px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
-                    aria-expanded={detailsOpen}
-                  >
-                    {detailsOpen ? "Hide details" : "See details"}
-                    <ChevronDown
-                      className={cn("h-3.5 w-3.5 transition-transform", detailsOpen && "rotate-180")}
-                      aria-hidden
-                    />
-                  </button>
-
-                  {detailsOpen && (
-                    <div className="space-y-3 border-t border-border/50 px-4 pb-4 pt-3">
-                      {option.includesFrom && (
-                        <p className="flex items-center gap-2 rounded-xl bg-secondary/50 px-3 py-2 text-xs font-semibold text-primary">
-                          <Check className="h-3.5 w-3.5 shrink-0" />
-                          Everything in {option.includesFrom}, plus:
-                        </p>
-                      )}
-                      <ul className="space-y-2">
-                        {option.features.map((feature) => (
-                          <li key={feature} className="flex items-start gap-2.5 text-sm">
-                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10">
-                              <Check className="h-3 w-3 text-primary" />
-                            </span>
-                            <span className="text-muted-foreground">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            You must complete payment before account access is granted.
-          </p>
-
-          {error && <p className="text-sm text-red-400">{error}</p>}
-
-          <Button type="button" className="w-full" onClick={handleStartCheckout} disabled={isPending}>
-            {isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Preparing checkout...
-              </>
-            ) : (
-              <>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Continue to payment
-              </>
-            )}
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full"
-            onClick={() => {
-              setSignupDraft(null);
-              setError(null);
-            }}
-          >
-            Back to account details
-          </Button>
-        </CardContent>
-      </Card>
-      </AuthCardShell>
-    );
-  }
-
   return (
     <AuthCardShell backHref={backHref}>
     <Card className="w-full border-border/80 bg-background/95 shadow-xl backdrop-blur">
@@ -819,7 +605,7 @@ export function RegisterForm({
               .
             </span>
           </label>
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && !signupDraft ? <p className="text-sm text-red-400">{error}</p> : null}
           <Button type="submit" className="w-full" disabled={isPending || !acceptedTerms}>
             {isPending ? (
               <>
@@ -849,6 +635,138 @@ export function RegisterForm({
         </p>
       </CardContent>
     </Card>
+
+      <AppDialog
+        open={signupDraft !== null}
+        onClose={() => {
+          if (isPending) return;
+          setSignupDraft(null);
+          setError(null);
+        }}
+        title="Choose your package"
+        footer={
+          <div className="space-y-2">
+            {error ? <p className="text-center text-sm text-red-400">{error}</p> : null}
+            <Button type="button" className="w-full" onClick={handleStartCheckout} disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Preparing checkout...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Continue to payment
+                </>
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              disabled={isPending}
+              onClick={() => {
+                setSignupDraft(null);
+                setError(null);
+              }}
+            >
+              Back to account details
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3 px-5 pb-2">
+          <div className="mx-auto grid w-full max-w-[280px] grid-cols-2 gap-1 rounded-full border border-border/70 bg-secondary/25 p-0.5">
+            <button
+              type="button"
+              className={cn(
+                "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                billingInterval === "monthly"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setBillingInterval("monthly")}
+              aria-pressed={billingInterval === "monthly"}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
+                billingInterval === "annual"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setBillingInterval("annual")}
+              aria-pressed={billingInterval === "annual"}
+            >
+              Yearly
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            {PACKAGE_OPTIONS.map((option) => {
+              const selected = selectedPlan === option.id;
+              const bestOffer = pickBestOffer(offers, option.id, billingInterval);
+              const basePrice = getPlanPrice(option.id, billingInterval);
+              const discountedAmountCents = applyOfferDiscount(basePrice.amountCents, bestOffer);
+              const displayPrice = getCurrencyPrice({ amountEurCents: discountedAmountCents });
+              const compareAtPrice =
+                discountedAmountCents < basePrice.amountCents
+                  ? getCurrencyPrice({ amountEurCents: basePrice.amountCents })
+                  : null;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setSelectedPlan(option.id)}
+                  aria-pressed={selected}
+                  className={cn(
+                    "relative rounded-2xl border-2 p-4 text-left transition-all",
+                    selected
+                      ? "border-primary bg-primary/10"
+                      : "border-border/70 bg-secondary/30"
+                  )}
+                >
+                  {selected ? (
+                    <span
+                      className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background"
+                      aria-hidden
+                    >
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    </span>
+                  ) : null}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-base font-black tracking-tight">{option.name}</p>
+                        {option.badge ? (
+                          <span className="inline-flex rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black">
+                            {option.badge}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="flex items-baseline justify-end gap-1.5">
+                        {compareAtPrice ? (
+                          <span className="text-sm font-medium text-muted-foreground line-through">
+                            {compareAtPrice.label}
+                          </span>
+                        ) : null}
+                        <p className="text-2xl font-black tracking-tight">{displayPrice.label}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        / {billingInterval === "monthly" ? "month" : "year"}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </AppDialog>
     </AuthCardShell>
   );
 }

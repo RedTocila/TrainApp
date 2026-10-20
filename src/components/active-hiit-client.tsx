@@ -780,6 +780,17 @@ export function ActiveHiitClient({
           <div className="grid grid-cols-2 gap-2">
             <Button
               type="button"
+              variant="secondary"
+              size="lg"
+              className="min-w-0 overflow-hidden px-2.5 text-xs font-semibold sm:text-sm"
+              disabled={isBusy}
+              onClick={handleSkip}
+            >
+              <SkipForward className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 truncate">{platform.workout.skipExerciseShort}</span>
+            </Button>
+            <Button
+              type="button"
               size="lg"
               className="min-w-0 overflow-hidden px-2.5 text-xs font-black uppercase tracking-wide sm:text-sm"
               disabled={isBusy}
@@ -797,17 +808,6 @@ export function ActiveHiitClient({
                   </span>
                 </>
               )}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              className="min-w-0 overflow-hidden px-2.5 text-xs font-semibold sm:text-sm"
-              disabled={isBusy}
-              onClick={handleSkip}
-            >
-              <SkipForward className="h-4 w-4 shrink-0" />
-              <span className="min-w-0 truncate">{platform.workout.skipExerciseShort}</span>
             </Button>
           </div>
         ) : !isIdle ? (

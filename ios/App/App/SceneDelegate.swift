@@ -8,7 +8,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.backgroundColor = AppViewController.platformBackground
+        window?.backgroundColor = AppViewController.launchBackground
         window?.rootViewController = AppViewController()
         window?.makeKeyAndVisible()
 

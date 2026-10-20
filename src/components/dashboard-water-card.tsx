@@ -91,28 +91,43 @@ export function DashboardWaterCard({
   const progress = waterGoalMl > 0 ? Math.min(waterMl / waterGoalMl, 1) : 0;
   const remaining = waterRemainingToMinimum(waterMl, waterGoalMl);
 
-  const waterVisual = (ringSize: number) => (
-    <div className="flex flex-col items-center gap-0.5">
+  const waterVisual = (ringSize: number) =>
+    compact ? (
       <MiniProgressRing
         progress={progress}
-        icon={GlassWater}
         size={ringSize}
         stroke={5}
         ringClass="text-cyan-500 transition-[stroke-dashoffset] duration-500 ease-out"
-        iconClass="text-cyan-400"
+        center={
+          <span className="flex max-w-[82%] flex-col items-center text-center text-white">
+            <span className="text-lg font-black leading-none tabular-nums">
+              {Math.round(waterMl)}
+            </span>
+            <span className="mt-0.5 text-[9px] font-semibold leading-none text-white/70">
+              /{waterGoalMl} ml
+            </span>
+          </span>
+        }
       />
-      <p
-        className={cn(
-          "font-black tabular-nums leading-none",
-          compact ? "text-lg sm:text-xl" : "text-2xl"
-        )}
-      >
-        {Math.round(waterMl)}
-        <span className="ml-0.5 text-xs font-semibold text-muted-foreground sm:text-sm">ml</span>
-      </p>
-      <p className="text-[10px] text-muted-foreground">/ {waterGoalMl} ml</p>
-    </div>
-  );
+    ) : (
+      <div className="flex flex-col items-center gap-0.5">
+        <MiniProgressRing
+          progress={progress}
+          icon={GlassWater}
+          size={ringSize}
+          stroke={5}
+          ringClass="text-cyan-500 transition-[stroke-dashoffset] duration-500 ease-out"
+          iconClass="text-cyan-400"
+        />
+        <p className="text-2xl font-black tabular-nums leading-none">
+          {Math.round(waterMl)}
+          <span className="ml-0.5 text-xs font-semibold text-muted-foreground sm:text-sm">
+            ml
+          </span>
+        </p>
+        <p className="text-[10px] leading-none text-muted-foreground">/ {waterGoalMl} ml</p>
+      </div>
+    );
 
   const handleAddWater = (amount: number) => {
     const next = waterMl + amount;
@@ -235,7 +250,7 @@ export function DashboardWaterCard({
             href={DASHBOARD_DAY_NUTRITION_PATH}
             ariaLabel={platform.nutrition.water}
           />
-          <DashboardCardNavBody className="flex flex-1 flex-col gap-1">
+          <DashboardCardNavBody className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
@@ -249,8 +264,8 @@ export function DashboardWaterCard({
                 {titleActions}
               </div>
             </div>
-            <div className="flex flex-1 flex-col items-center justify-center py-0.5">
-              {waterVisual(56)}
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+              {waterVisual(72)}
               <p className={dashboard.pairCaption}>
                 {!waterCompleted && remaining > 0
                   ? `${Math.round(remaining)} ml left`

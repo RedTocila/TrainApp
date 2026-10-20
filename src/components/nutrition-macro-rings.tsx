@@ -26,13 +26,16 @@ const OVER_AMOUNT_CLASS = "text-red-400";
 export function MiniProgressRing({
   progress,
   icon: Icon,
+  center,
   ringClass = "text-primary",
   iconClass = "text-primary",
   size = 44,
   stroke = 4,
 }: {
   progress: number;
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  /** Replaces the center icon (for example a value label). */
+  center?: ReactNode;
   ringClass?: string;
   iconClass?: string;
   size?: number;
@@ -42,19 +45,19 @@ export function MiniProgressRing({
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - clamped * circumference;
-  const center = size / 2;
+  const mid = size / 2;
   const iconSize = Math.max(14, Math.round(size * 0.36));
 
   return (
     <div
       className="relative shrink-0"
       style={{ width: size, height: size }}
-      aria-hidden
+      aria-hidden={center ? undefined : true}
     >
       <svg width={size} height={size} className="-rotate-90">
         <circle
-          cx={center}
-          cy={center}
+          cx={mid}
+          cy={mid}
           r={radius}
           fill="none"
           stroke="currentColor"
@@ -62,8 +65,8 @@ export function MiniProgressRing({
           className="text-foreground/25 dark:text-foreground/35"
         />
         <circle
-          cx={center}
-          cy={center}
+          cx={mid}
+          cy={mid}
           r={radius}
           fill="none"
           stroke="currentColor"
@@ -75,7 +78,10 @@ export function MiniProgressRing({
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <Icon className={iconClass} style={{ width: iconSize, height: iconSize }} />
+        {center ??
+          (Icon ? (
+            <Icon className={iconClass} style={{ width: iconSize, height: iconSize }} />
+          ) : null)}
       </div>
     </div>
   );

@@ -256,7 +256,7 @@ export const platformCopyAl = {
     toDoToday: "Detyrat e sotme",
     toDoTomorrow: "Detyrat e nesërme",
     myProgress: "Progresi im",
-    todaysSteps: "Hapat e ditës",
+    todaysSteps: "Hapat",
     stepsOnDay: (day: string) => `Hapat · ${day}`,
     stepsFromHealth: "Apple Health",
     stepsUnavailable: "Apple Health nuk është i disponueshëm në këtë telefon.",

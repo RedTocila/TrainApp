@@ -3,6 +3,7 @@ import { LandingPageClient } from "@/components/landing/landing-page";
 import { LandingJsonLd } from "@/components/landing/landing-json-ld";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { SITE_URL } from "@/lib/landing-content";
+import { AppReady } from "@/components/app-ready";
 import { PLATFORM_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
@@ -48,6 +49,7 @@ export default function HomePage() {
       <div className="pb-6">
         <LandingPageClient />
         <LandingFooter />
+        <AppReady />
       </div>
     </>
   );

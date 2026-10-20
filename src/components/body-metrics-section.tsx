@@ -51,7 +51,7 @@ export function BodyMetricsSection({
           <div className="w-1/2 min-w-0">{bmiCard}</div>
         </div>
       ) : (
-        bmiCard
+        <div className="w-1/2 min-w-0">{bmiCard}</div>
       )}
       <WeightTracker
         clientId={clientId}

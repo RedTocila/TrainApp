@@ -148,8 +148,8 @@ export function LandingPageClient() {
         />
       </div>
       <main className="flex-1">
-        <LandingCoachAlex />
         <LandingTransformations />
+        <LandingCoachAlex />
         <LandingHowItWorks />
         <LandingAppPreview />
         <LandingShowcase />

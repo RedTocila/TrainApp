@@ -255,7 +255,7 @@ export const platformCopyEn = {
     toDoToday: "Today's To Do",
     toDoTomorrow: "Tomorrow's To Do",
     myProgress: "My Progress",
-    todaysSteps: "Today's steps",
+    todaysSteps: "Steps",
     stepsOnDay: (day: string) => `Steps · ${day}`,
     stepsFromHealth: "Apple Health",
     stepsUnavailable: "Apple Health is not available on this phone.",

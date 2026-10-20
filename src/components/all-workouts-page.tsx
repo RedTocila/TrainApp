@@ -79,7 +79,7 @@ export function AllWorkoutsPage({
     return (
       <>
         <WorkoutPageHeader title="Workouts" />
-        <Card className="overflow-hidden border-dashed">
+        <Card className="dashboard-flat-card overflow-hidden">
           <div className="flex flex-col items-center gap-4 px-4 py-12 text-center">
             <WorkoutCategoryIcon category="general" size="lg" />
             <BuildWorkoutButton />
@@ -101,7 +101,7 @@ export function AllWorkoutsPage({
       />
 
       {filteredWorkouts.length === 0 ? (
-        <Card className="border-dashed p-8 text-center">
+        <Card className="dashboard-flat-card p-8 text-center">
           <p className="text-sm text-muted-foreground">No workouts in this category</p>
           <Button
             variant="ghost"

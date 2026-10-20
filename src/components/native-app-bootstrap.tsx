@@ -60,7 +60,8 @@ function syncNativePullToRefresh(): () => void {
 }
 
 /**
- * Native-only polish: status bar + splash + deep-link resume into the WebView.
+ * Native-only polish: status bar + deep-link resume into the WebView.
+ * The launch splash is dismissed by the boot script once the first screen is in the HTML.
  * No-ops on the regular website.
  */
 export function NativeAppBootstrap() {
@@ -106,12 +107,10 @@ export function NativeAppBootstrap() {
 
     void (async () => {
       try {
-        const [{ StatusBar, Style }, { SplashScreen }, { App }] =
-          await Promise.all([
-            import("@capacitor/status-bar"),
-            import("@capacitor/splash-screen"),
-            import("@capacitor/app"),
-          ]);
+        const [{ StatusBar, Style }, { App }] = await Promise.all([
+          import("@capacitor/status-bar"),
+          import("@capacitor/app"),
+        ]);
 
         if (cancelled) return;
 
@@ -121,7 +120,6 @@ export function NativeAppBootstrap() {
             () => undefined,
           );
         }
-        await SplashScreen.hide().catch(() => undefined);
 
         const openDeepLink = (url: string) => {
           try {

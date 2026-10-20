@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/actions/auth";
 import { getUnreadCount } from "@/lib/actions/notifications";
 import { AdminNav } from "@/components/admin-nav";
 import { AdminMobileHeader } from "@/components/admin-mobile-header";
+import { AppReady } from "@/components/app-ready";
 import { RouteEnter } from "@/components/route-enter";
 
 export default async function AdminLayout({
@@ -14,6 +15,7 @@ export default async function AdminLayout({
 
   return (
     <div className="app-shell flex h-dvh min-h-0 overflow-hidden bg-background">
+      <AppReady />
       <AdminNav fullName={profile.full_name} unreadCount={unreadCount} />
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <AdminMobileHeader unreadCount={unreadCount} />

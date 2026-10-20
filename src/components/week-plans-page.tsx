@@ -323,11 +323,8 @@ function WeekPlanCard({
     <>
       <PremiumSurface
         accent={accent}
-        className={cn(
-          "cursor-pointer transition-[transform,box-shadow,filter,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:brightness-[1.04] active:translate-y-0 active:shadow-sm",
-          effectivelyScheduled &&
-            "border-foreground/45 ring-2 ring-foreground/30 shadow-[0_0_28px_-10px] shadow-foreground/20"
-        )}
+        flat
+        className="cursor-pointer transition-[transform,filter] duration-200 ease-out hover:brightness-[1.04] active:brightness-95"
       >
         <div
           className="space-y-3 p-3.5"
@@ -563,7 +560,7 @@ export function WeekPlansPage({
   if (items.length === 0) {
     return (
       <>
-        <PremiumSurface accent="primary">
+        <PremiumSurface accent="primary" flat>
           <div className="flex flex-col items-center gap-4 px-4 py-12 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
               <CalendarRange className="h-6 w-6 text-primary" />

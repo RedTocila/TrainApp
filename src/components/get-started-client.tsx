@@ -77,7 +77,7 @@ export function GetStartedClient() {
         <div className="absolute -right-20 bottom-20 h-64 w-64 rounded-full bg-violet-500/10 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex max-w-2xl flex-col gap-6">
+      <div className="relative mx-auto flex w-full max-w-md flex-col gap-5">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AuthBackButton href="/" />
@@ -89,10 +89,7 @@ export function GetStartedClient() {
 
         {phase === "complete" && (
           <Card className="border-primary/30 bg-card/95 shadow-xl backdrop-blur">
-            <CardContent className="space-y-6 p-6 sm:p-8">
-              <p className="text-center text-xs font-semibold uppercase tracking-wider text-primary">
-                Step 2 — Create account
-              </p>
+            <CardContent className="space-y-5 p-4 sm:p-5">
               <IntakeCompleteSummary
                 responses={responses}
                 macros={previewMacros}

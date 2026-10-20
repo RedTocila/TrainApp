@@ -92,7 +92,7 @@ export function FolderWorkoutsPage({
       </div>
 
       {items.length === 0 ? (
-        <Card>
+        <Card className="dashboard-flat-card">
           <CardContent className="flex flex-col items-center gap-3 py-12">
             <Dumbbell className="h-10 w-10 text-muted-foreground" />
             <p className="font-medium">{coachLabels.emptyWorkoutFolder}</p>

@@ -12,7 +12,9 @@ const config: CapacitorConfig = {
   appendUserAgent: "RutinaApp",
   server: {
     // Production web app — change via CAP_SERVER_URL for staging/dev builds.
-    url: process.env.CAP_SERVER_URL ?? "https://rutina.al",
+    // Logged-in cold start. Logged-out native requests are sent to /ios/welcome
+    // by the proxy, so launch is one document instead of a redirect from /.
+    url: process.env.CAP_SERVER_URL ?? "https://rutina.al/dashboard",
     cleartext: false,
     allowNavigation: [
       "rutina.al",
@@ -25,8 +27,11 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
+      // Stay up until the page boot script calls SplashScreen.hide().
+      // 12s is only the fallback if that script never runs.
       launchAutoHide: true,
-      launchShowDuration: 800,
+      launchShowDuration: 12000,
+      launchFadeOutDuration: 200,
       backgroundColor: "#f80213",
       showSpinner: false,
     },

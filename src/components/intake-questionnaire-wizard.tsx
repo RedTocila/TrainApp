@@ -10,7 +10,7 @@ import {
   useTransition,
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Dumbbell, Mars, Venus } from "lucide-react";
+import { Dumbbell, Mars, Venus } from "lucide-react";
 import {
   AgeWheel,
   FieldHint,
@@ -21,8 +21,11 @@ import {
   HeightRuler,
   PillOptions,
   QuestionTitle,
+  RecoveryTimeFields,
   WeightRuler,
 } from "@/components/intake-funnel-controls";
+import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { NutritionRemainingCard } from "@/components/nutrition-remaining-card";
 import { starterProgramPreview } from "@/lib/intake-starter-program";
 import {
   ACTIVITY_OPTIONS,
@@ -382,20 +385,12 @@ function ScreenFields({
               onChange={(value) => onChange({ energy_level: value as string })}
             />
           </FollowUp>
-          <div className="mt-9 grid grid-cols-2 gap-3">
-            <FunnelTextField
-              id="q-wake"
-              label="Usual wake time"
-              value={responses.wake_time ?? ""}
-              onChange={(wake_time) => onChange({ wake_time })}
-            />
-            <FunnelTextField
-              id="q-bed"
-              label="Usual bedtime"
-              value={responses.bedtime ?? ""}
-              onChange={(bedtime) => onChange({ bedtime })}
-            />
-          </div>
+          <RecoveryTimeFields
+            wake={responses.wake_time ?? ""}
+            bedtime={responses.bedtime ?? ""}
+            onWake={(wake_time) => onChange({ wake_time })}
+            onBedtime={(bedtime) => onChange({ bedtime })}
+          />
         </>
       );
     case "food":
@@ -757,8 +752,19 @@ export const IntakeQuestionnaireWizard = forwardRef<
             className={cn("flex flex-col pt-8", screen.picker && !compact && "min-h-full")}
           >
             <QuestionTitle lead={screen.lead} emphasis={screen.emphasis} />
-            <div className={cn("mt-8", screen.picker && "flex flex-1 items-center")}>
-              <div className="w-full">
+            <div
+              className={cn(
+                "mt-8",
+                screen.picker && !compact && "flex min-h-0 flex-1 flex-col"
+              )}
+            >
+              <div
+                className={cn(
+                  "w-full",
+                  screen.picker && !compact && "flex min-h-0 flex-1 flex-col",
+                  screen.id === "height" && !compact && "justify-center"
+                )}
+              >
                 <ScreenFields
                   screenId={screen.id}
                   responses={shown}
@@ -911,48 +917,56 @@ export function IntakeCompleteSummary({
   const workout = starterProgramPreview(responses);
 
   return (
-    <div className="space-y-5 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-primary">
-        <Check className="h-7 w-7" />
-      </div>
-      <div className="space-y-1">
+    <div className="space-y-4 text-left">
+      <div className="space-y-1 text-center">
         <h2 className="text-2xl font-black">You&apos;re all set</h2>
         <p className="text-sm text-muted-foreground">
-          Macros and a workout program are ready. Create your account and both go live on your dashboard.
+          Your targets and training week, ready when you create your account.
         </p>
       </div>
-      {macros && (
-        <div className="rounded-2xl border border-border/70 bg-secondary/20 p-4">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-primary">
-            Your estimated daily targets
-          </p>
-          <MacroDonut macros={macros} />
-        </div>
-      )}
-      <div className="rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4 text-left">
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/20 text-sky-300">
-            <Dumbbell className="h-4 w-4" />
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-sky-200">
-              Your workout program
-            </p>
-            <p className="text-sm font-semibold text-foreground">
-              {workout.daysPerWeek} days/week · {workout.weeks} weeks
-            </p>
+      {macros ? (
+        <DashboardThemedShell theme="nutrition" solid>
+          <NutritionRemainingCard
+            mode="target"
+            caption="kcal / day"
+            current={{ calories: 0, protein: 0, carbs: 0, fat: 0 }}
+            targets={macros}
+          />
+        </DashboardThemedShell>
+      ) : null}
+      <DashboardThemedShell theme="workout" solid>
+        <div className="flex flex-col gap-3 px-3.5 py-3.5">
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
+              <Dumbbell className="h-4 w-4" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/80">
+                Workout
+              </p>
+              <p className="text-sm font-semibold text-white">
+                {workout.daysPerWeek} days/week · {workout.weeks} weeks
+              </p>
+            </div>
           </div>
+          <ul className="flex flex-col gap-1.5">
+            {workout.weekdayLabels.map((day) => (
+              <li
+                key={day}
+                className="flex items-center gap-3 rounded-2xl bg-white/[0.07] px-3 py-2.5"
+              >
+                <span className="w-9 shrink-0 text-sm font-black text-white">{day}</span>
+                <span className="min-w-0 truncate text-[11px] font-semibold tracking-wide text-white/70">
+                  Warm-up · Main · Stretch
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs leading-relaxed text-white/60">
+            {workout.experience} · {workout.equipment}. {workout.sessions} sessions land on your calendar after signup.
+          </p>
         </div>
-        <p className="text-sm text-foreground">
-          {workout.weekdayLabels.join(" · ")}
-        </p>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          {workout.experience} · {workout.equipment}. {workout.sessions} sessions are added to your calendar as soon as your account is created, matched to your level, equipment, and injuries.
-        </p>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Preview — AI builds the exercises and places them on your calendar when you sign up
-      </p>
+      </DashboardThemedShell>
     </div>
   );
 }

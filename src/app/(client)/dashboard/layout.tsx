@@ -18,6 +18,7 @@ import { ChallengesReturnTracker } from "@/components/challenges-back-button";
 import { DashboardNavPendingProvider } from "@/components/dashboard-nav-pending";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
+import { AppReady } from "@/components/app-ready";
 
 export const maxDuration = 60;
 
@@ -61,6 +62,7 @@ export default async function DashboardLayout({
 
   return (
     <LocaleProvider locale={locale}>
+      <AppReady />
       <PendingIntakeSync intakeComplete={intakeComplete} />
       {showStarterWorkout ? <StarterWorkoutGate /> : null}
       <NativeAppAccessSync />

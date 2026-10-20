@@ -20,68 +20,57 @@ const THEME: Record<
     accent: string;
     border: string;
     wash: string;
-    glow: string;
   }
 > = {
   workout: {
     accent: "text-primary",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/28",
   },
   nutrition: {
     accent: "text-emerald-700 dark:text-emerald-300",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/28",
   },
   water: {
     accent: "text-sky-700 dark:text-sky-300",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/28",
   },
   cardio: {
     accent: "text-orange-700 dark:text-orange-300",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/28",
   },
   bmi: {
     accent: "text-yellow-800 dark:text-yellow-300",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/28",
   },
   weight: {
     accent: "text-teal-800 dark:text-teal-300",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/28",
   },
   habits: {
     accent: "text-violet-700 dark:text-violet-300",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/28",
   },
   lifestyle: {
     accent: "text-rose-700 dark:text-rose-300",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/28",
   },
   photos: {
     accent: "text-fuchsia-700 dark:text-fuchsia-300",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/28",
   },
   steps: {
     accent: "text-lime-800 dark:text-lime-300",
     border: "border-primary/40",
     wash: "from-primary/18",
-    glow: "bg-primary/28",
   },
 };
 
@@ -126,20 +115,16 @@ const DEFAULT_PHOTO_OVERLAY = "from-black/40 via-black/22 to-black/10";
 
 /**
  * Solid dark card — same shell as the home nutrition card.
- * The corner glow uses that card's own color.
  */
 export function DashboardSolidCard({
   id,
   className,
   children,
-  theme = "nutrition",
-  hideCornerGlow = false,
 }: {
   id?: string;
   className?: string;
   children: ReactNode;
   theme?: DashboardCardTheme;
-  hideCornerGlow?: boolean;
 }) {
   return (
     <div
@@ -149,16 +134,7 @@ export function DashboardSolidCard({
         className
       )}
     >
-      {hideCornerGlow ? null : (
-        <div
-          aria-hidden
-          className={cn(
-            "pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full blur-3xl",
-            THEME[theme].glow
-          )}
-        />
-      )}
-      <div className="relative z-10 flex w-full flex-1 flex-col">{children}</div>
+      <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col">{children}</div>
     </div>
   );
 }
@@ -177,7 +153,6 @@ export function DashboardThemedShell({
   backgroundPriority = false,
   backgroundObjectClass,
   solid = false,
-  hideCornerGlow = false,
 }: {
   theme: DashboardCardTheme;
   className?: string;
@@ -189,17 +164,10 @@ export function DashboardThemedShell({
   /** Optional override for photo object-position / scale. */
   backgroundObjectClass?: string;
   solid?: boolean;
-  /** Skip the corner orb when a card paints its own glow above other art. */
-  hideCornerGlow?: boolean;
 }) {
   if (solid) {
     return (
-      <DashboardSolidCard
-        id={id}
-        className={className}
-        theme={theme}
-        hideCornerGlow={hideCornerGlow}
-      >
+      <DashboardSolidCard id={id} className={className} theme={theme}>
         {children}
       </DashboardSolidCard>
     );
@@ -211,7 +179,7 @@ export function DashboardThemedShell({
     <div
       id={id}
       className={cn(
-        "relative flex w-full flex-col overflow-hidden rounded-3xl border",
+        "dashboard-photo-card relative flex w-full flex-col overflow-hidden rounded-3xl border",
         t.border,
         hasPhoto
           ? "bg-zinc-950 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.85)]"
@@ -253,15 +221,6 @@ export function DashboardThemedShell({
               t.wash
             )}
           />
-          {hideCornerGlow ? null : (
-            <div
-              aria-hidden
-              className={cn(
-                "pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl",
-                t.glow
-              )}
-            />
-          )}
         </>
       )}
       <div

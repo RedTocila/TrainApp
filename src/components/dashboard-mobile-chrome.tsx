@@ -215,7 +215,15 @@ export function DashboardMobileChrome() {
   if (isImmersive) return null;
 
   return (
-    <div className="mobile-top-safe sticky top-0 z-50 shrink-0 bg-background lg:hidden">
+    <div className="mobile-top-safe sticky top-0 z-50 shrink-0 overflow-hidden bg-background lg:hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-full"
+        style={{
+          background:
+            "radial-gradient(ellipse 90% 120% at 50% 0%, color-mix(in srgb, var(--primary) 42%, transparent), transparent 72%)",
+        }}
+      />
       <DashboardMobileHeaderBar />
       {showTrainTabs ? (
         <div className="px-3 pb-2 sm:px-4">

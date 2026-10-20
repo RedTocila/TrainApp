@@ -20,15 +20,10 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-/** Critical boot CSS: dark canvas + splash before stylesheet/JS bundles load. */
+/** Critical boot CSS: dark canvas before the stylesheet bundle loads. The red splash is painted by the boot script. */
 const BOOT_STYLE = `
 html{background-color:#0c0c0e;color-scheme:dark}
 body{background-color:#0c0c0e;margin:0}
-.startup-splash{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:#f80213;pointer-events:none;opacity:1;transition:opacity 280ms cubic-bezier(0.22,1,0.36,1)}
-.startup-splash--hide{opacity:0}
-.startup-splash__mark{display:flex;align-items:center;justify-content:center}
-.startup-splash__logo{width:min(46vw,12.5rem);height:auto;display:block}
-@media (prefers-reduced-motion:reduce){.startup-splash{transition:none}}
 `;
 
 export const metadata: Metadata = {

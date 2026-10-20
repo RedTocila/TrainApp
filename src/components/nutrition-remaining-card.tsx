@@ -42,14 +42,16 @@ function SemiGauge({ ratio }: { ratio: number }) {
         strokeWidth="14"
         strokeLinecap="round"
       />
-      <path
-        d={d}
-        fill="none"
-        stroke={CALORIE_COLOR}
-        strokeWidth="14"
-        strokeLinecap="round"
-        strokeDasharray={`${Math.max(length * clamped, clamped > 0 ? 1 : 0)} ${length}`}
-      />
+      {clamped > 0 ? (
+        <path
+          d={d}
+          fill="none"
+          stroke={CALORIE_COLOR}
+          strokeWidth="14"
+          strokeLinecap="round"
+          strokeDasharray={`${Math.max(length * clamped, 1)} ${length}`}
+        />
+      ) : null}
     </svg>
   );
 }
@@ -101,20 +103,31 @@ export function NutritionRemainingCard({
   onLogMeal,
   status,
   statusLabel,
+  mode = "remaining",
+  caption,
 }: {
   current: MealMacros;
   targets: MealMacros;
   onLogMeal?: () => void;
   status?: DashboardStatusKind;
   statusLabel?: string;
+  /** Target preview shows the daily goal instead of what's left today. */
+  mode?: "remaining" | "target";
+  caption?: string;
 }) {
   const platform = usePlatformCopy();
   const calorieTarget = Math.max(0, targets.calories);
   const calorieCurrent = Math.max(0, current.calories);
-  const over = calorieTarget > 0 && calorieCurrent > calorieTarget;
+  const over = mode === "remaining" && calorieTarget > 0 && calorieCurrent > calorieTarget;
   const remaining = Math.max(0, Math.round(calorieTarget - calorieCurrent));
-  const display = over ? Math.round(calorieCurrent - calorieTarget) : remaining;
-  const ratio = calorieTarget > 0 ? calorieCurrent / calorieTarget : 0;
+  const display =
+    mode === "target"
+      ? Math.round(calorieTarget)
+      : over
+        ? Math.round(calorieCurrent - calorieTarget)
+        : remaining;
+  const ratio =
+    mode === "target" ? 0 : calorieTarget > 0 ? calorieCurrent / calorieTarget : 0;
 
   return (
     <div className="flex flex-col gap-1 px-3.5 pb-3.5 pt-3.5">
@@ -124,7 +137,7 @@ export function NutritionRemainingCard({
             <Utensils className="h-4 w-4 text-emerald-300" aria-hidden />
           </span>
           <span className="truncate text-[11px] font-bold uppercase tracking-[0.16em] text-white/80">
-            {platform.nutrition.remainingToday}
+            {platform.nutrition.title}
           </span>
           {status ? (
             <DashboardStatusIcon status={status} aria-label={statusLabel} />
@@ -153,7 +166,7 @@ export function NutritionRemainingCard({
             {display.toLocaleString()}
           </p>
           <p className="mt-1 text-sm font-medium text-white/70">
-            {platform.nutrition.kcal}
+            {caption ?? platform.nutrition.kcal}
           </p>
         </div>
       </div>
@@ -162,7 +175,7 @@ export function NutritionRemainingCard({
         {MACRO_CHIPS.map((chip) => {
           const value = Math.max(0, current[chip.key]);
           const target = Math.max(0, targets[chip.key]);
-          const progress = target > 0 ? value / target : 0;
+          const progress = mode === "target" ? 0 : target > 0 ? value / target : 0;
           return (
             <div
               key={chip.key}
@@ -170,11 +183,13 @@ export function NutritionRemainingCard({
             >
               <MacroDonut progress={progress} color={chip.color} />
               <div className="min-w-0">
-                <p className="truncate text-[10px] font-semibold leading-tight text-white">
+                <p className="break-words text-[10px] font-semibold leading-tight text-white">
                   {platform.nutrition[chip.labelKey]}
                 </p>
                 <p className="mt-0.5 text-[10px] tabular-nums leading-tight text-white/65">
-                  {Math.round(value)}/{Math.round(target)} g
+                  {mode === "target"
+                    ? `${Math.round(target)} g`
+                    : `${Math.round(value)}/${Math.round(target)} g`}
                 </p>
               </div>
             </div>
