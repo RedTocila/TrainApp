@@ -60,9 +60,9 @@ export function DeleteOwnAccountSection() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 text-left shadow-sm transition-colors hover:bg-secondary/40 active:scale-[0.99]"
+        className="dashboard-flat-card flex w-full items-center gap-3 rounded-3xl p-4 text-left active:scale-[0.99]"
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10">
           <Trash2 className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0 flex-1">

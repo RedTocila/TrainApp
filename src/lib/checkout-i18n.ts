@@ -76,9 +76,9 @@ export function getAnnualCompareAtLabel(
 }
 
 /**
- * PokPay order amounts use whole currency units (e.g. 1 EUR),
+ * PokPay order amounts use major currency units (e.g. 29.99 EUR),
  * not minor units. Our app stores/prices in minor units (×100).
  */
 export function toPokPayAmount(amountCents: number): number {
-  return Math.round(amountCents / 100);
+  return Number((amountCents / 100).toFixed(2));
 }

@@ -56,7 +56,7 @@ import { getPlanPrice, type BillingInterval } from "@/lib/subscription-plans";
 import { useShouldUseAppleIap } from "@/components/ios/use-native-app";
 import { IOS_WELCOME_PATH } from "@/lib/ios-routes";
 
-type PackagePlan = "ai" | "elite";
+type PackagePlan = "elite";
 type SignupDraft = GuestSignupPayload;
 
 const PACKAGE_OPTIONS: Array<{
@@ -64,11 +64,6 @@ const PACKAGE_OPTIONS: Array<{
   name: string;
   badge?: string;
 }> = [
-  {
-    id: "ai",
-    name: "RUTINA AI Pro",
-    badge: "Popular",
-  },
   {
     id: "elite",
     name: "RUTINA Elite",
@@ -112,7 +107,7 @@ export function RegisterForm({
   const [workoutPreview, setWorkoutPreview] = useState<StarterProgramPreview | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<PackagePlan>("ai");
+  const [selectedPlan, setSelectedPlan] = useState<PackagePlan>("elite");
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
   const [signupDraft, setSignupDraft] = useState<SignupDraft | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -722,24 +717,22 @@ export function RegisterForm({
                   onClick={() => setSelectedPlan(option.id)}
                   aria-pressed={selected}
                   className={cn(
-                    "relative rounded-2xl border-2 p-4 text-left transition-all",
-                    selected
-                      ? "border-primary bg-primary/10"
-                      : "border-border/70 bg-secondary/30"
+                    "dashboard-flat-card relative rounded-3xl p-4 text-left",
+                    selected && "ring-1 ring-inset ring-primary/70"
                   )}
                 >
-                  {selected ? (
-                    <span
-                      className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background"
-                      aria-hidden
-                    >
-                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                    </span>
-                  ) : null}
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-base font-black tracking-tight">{option.name}</p>
+                        {selected ? (
+                          <span
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                            aria-hidden
+                          >
+                            <Check className="h-3 w-3" strokeWidth={3} />
+                          </span>
+                        ) : null}
                         {option.badge ? (
                           <span className="inline-flex rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black">
                             {option.badge}

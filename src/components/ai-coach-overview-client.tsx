@@ -39,83 +39,40 @@ function CreatePlanCard({
   title,
   description,
   icon: Icon,
-  accent = "primary",
   backgroundImage,
 }: {
   href: string;
   title: string;
   description: string;
   icon: typeof Dumbbell;
-  accent?: "primary" | "emerald";
   backgroundImage: string;
 }) {
-  const isEmerald = accent === "emerald";
-
   return (
     <Link
       href={href}
-      className={cn(
-        "group relative flex min-h-[160px] flex-col justify-between overflow-hidden rounded-2xl border p-4 shadow-sm",
-        "transition-[transform,border-color] duration-200 active:scale-[0.99]",
-        isEmerald
-          ? "border-emerald-500/35 hover:border-emerald-400/60"
-          : "border-primary/35 hover:border-primary/60"
-      )}
+      className="dashboard-flat-card group relative flex min-h-[160px] flex-col justify-between overflow-hidden rounded-3xl p-4 active:scale-[0.99]"
     >
       <div
         aria-hidden
         className="absolute inset-0 bg-cover bg-right"
         style={{ backgroundImage: `url(${backgroundImage})` }}
       />
-      {/* Accent wash so the photo matches the card border color */}
-      <div
-        aria-hidden
-        className={cn(
-          "absolute inset-0 bg-gradient-to-br via-transparent to-transparent",
-          isEmerald ? "from-emerald-500/45" : "from-primary/45"
-        )}
-      />
-      <div
-        aria-hidden
-        className={cn(
-          "absolute inset-0 bg-gradient-to-t via-transparent to-transparent",
-          isEmerald ? "from-emerald-950/55" : "from-primary/40"
-        )}
-      />
-      {/* Keep left text readable; right side shows the photo */}
       <div
         aria-hidden
         className="absolute inset-0 bg-gradient-to-r from-black/80 from-0% via-black/50 via-[42%] to-transparent to-[68%]"
       />
-      <div
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full blur-2xl",
-          isEmerald ? "bg-emerald-400/30" : "bg-primary/30"
-        )}
-      />
 
       <div className="relative z-10 flex items-start justify-between gap-3">
-        <span
-          className={cn(
-            "flex h-11 w-11 items-center justify-center rounded-full backdrop-blur-sm",
-            isEmerald ? "bg-emerald-500/25 text-emerald-300" : "bg-primary/25 text-primary"
-          )}
-        >
-          <Icon className="h-5 w-5" />
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+          <Icon className="h-4 w-4" />
         </span>
-        <span
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-full text-white shadow-sm transition-transform group-hover:translate-x-0.5",
-            isEmerald ? "bg-emerald-500" : "bg-primary"
-          )}
-        >
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white">
           <ChevronRight className="h-4 w-4" />
         </span>
       </div>
 
       <div className="relative z-10 mt-5 max-w-[70%] space-y-1.5 text-white">
-        <p className="text-sm font-bold leading-snug drop-shadow-sm">{title}</p>
+        <p className="text-sm font-bold leading-snug">{title}</p>
         <p className="text-xs leading-relaxed text-white/75">{description}</p>
       </div>
     </Link>
@@ -127,58 +84,22 @@ function HelpTile({
   icon: Icon,
   label,
   desc,
-  iconWellClass,
-  iconClass,
-  borderClass,
-  washClass,
-  glowClass,
 }: {
   href: string;
   icon: typeof Dumbbell;
   label: string;
   desc: string;
-  iconWellClass: string;
-  iconClass: string;
-  borderClass: string;
-  washClass: string;
-  glowClass: string;
 }) {
   return (
     <Link
       href={href}
-      className={cn(
-        "group relative flex min-h-[128px] flex-col justify-between overflow-hidden rounded-2xl border bg-card p-3.5 shadow-sm",
-        "transition-[transform,border-color] duration-200 active:scale-[0.99]",
-        borderClass
-      )}
+      className="dashboard-flat-card group relative flex min-h-[128px] flex-col justify-between overflow-hidden rounded-3xl p-3.5 active:scale-[0.99]"
     >
-      <div
-        aria-hidden
-        className={cn("absolute inset-0 bg-gradient-to-br via-card to-card", washClass)}
-      />
-      <div
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full blur-2xl",
-          glowClass
-        )}
-      />
-
       <div className="relative z-10 flex items-start justify-between gap-2">
-        <span
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-full",
-            iconWellClass
-          )}
-        >
-          <Icon className={cn("h-5 w-5", iconClass)} />
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+          <Icon className="h-4 w-4 text-primary" />
         </span>
-        <ChevronRight
-          className={cn(
-            "h-4 w-4 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5",
-            iconClass
-          )}
-        />
+        <ChevronRight className="h-4 w-4 shrink-0 text-white/70" />
       </div>
       <div className="relative z-10 mt-3 space-y-1">
         <p className="text-[13px] font-bold leading-snug">{label}</p>
@@ -204,9 +125,9 @@ function WeeklyProgressCard({
   const days = ai.weekDayLabels;
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+    <section className="dashboard-flat-card overflow-hidden rounded-3xl p-4 sm:p-5">
       <div className="mb-4 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
           <BarChart3 className="h-4 w-4 text-primary" />
         </span>
         <h3 className="text-base font-bold">{ai.progressThisWeek}</h3>
@@ -316,11 +237,7 @@ export function AiCoachOverviewClient({
   return (
     <div className="space-y-7">
       {/* Hero + command bar */}
-      <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-card">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-primary/25 blur-3xl"
-        />
+      <section className="dashboard-flat-card relative overflow-hidden rounded-3xl">
         <div className="relative space-y-4 p-4 sm:p-5">
           <div className="flex items-center gap-4">
             <AiCoachAvatar className="h-24 w-24 shrink-0 sm:h-28 sm:w-28" />
@@ -391,44 +308,24 @@ export function AiCoachOverviewClient({
             icon={LineChart}
             label={ai.helpTiles.progress.label}
             desc={ai.helpTiles.progress.desc}
-            iconWellClass="bg-amber-500/15"
-            iconClass="text-amber-500"
-            borderClass="border-amber-500/30 hover:border-amber-400/55"
-            washClass="from-amber-500/18"
-            glowClass="bg-amber-400/30"
           />
           <HelpTile
             href={featureHref("/dashboard/ai/recommendations")}
             icon={Lightbulb}
             label={ai.helpTiles.tips.label}
             desc={ai.helpTiles.tips.desc}
-            iconWellClass="bg-violet-500/15"
-            iconClass="text-violet-400"
-            borderClass="border-violet-500/30 hover:border-violet-400/55"
-            washClass="from-violet-500/18"
-            glowClass="bg-violet-400/30"
           />
           <HelpTile
             href={featureHref("/dashboard/ai/reports")}
             icon={FileText}
             label={ai.helpTiles.weeklyReport.label}
             desc={ai.helpTiles.weeklyReport.desc}
-            iconWellClass="bg-cyan-500/15"
-            iconClass="text-cyan-400"
-            borderClass="border-cyan-500/35 hover:border-cyan-400/60"
-            washClass="from-cyan-500/18"
-            glowClass="bg-cyan-400/30"
           />
           <HelpTile
             href={featureHref("/dashboard/ai/meal-suggestions")}
             icon={UtensilsCrossed}
             label={ai.helpTiles.mealIdeas.label}
             desc={ai.helpTiles.mealIdeas.desc}
-            iconWellClass="bg-rose-500/15"
-            iconClass="text-rose-400"
-            borderClass="border-rose-500/30 hover:border-rose-400/55"
-            washClass="from-rose-500/18"
-            glowClass="bg-rose-400/30"
           />
         </div>
       </section>
@@ -442,7 +339,6 @@ export function AiCoachOverviewClient({
             title={ai.buildWorkoutWithAi}
             description={ai.buildWorkoutWithAiDesc}
             icon={Dumbbell}
-            accent="primary"
             backgroundImage="/ai-coach/create-workout.png"
           />
           <CreatePlanCard
@@ -450,7 +346,6 @@ export function AiCoachOverviewClient({
             title={ai.buildNutritionWithAi}
             description={ai.buildNutritionWithAiDesc}
             icon={Salad}
-            accent="emerald"
             backgroundImage="/ai-coach/create-nutrition.png"
           />
         </div>
@@ -482,13 +377,9 @@ export function AiCoachOverviewClient({
                   if (onLockedAction()) return;
                   openChat(item.prompt);
                 }}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-card px-3.5 py-3 text-left",
-                  "shadow-sm transition-[transform,border-color,background-color] duration-200",
-                  "hover:border-primary/40 hover:bg-secondary/40 active:scale-[0.99]"
-                )}
+                className="dashboard-flat-card flex w-full items-center gap-3 rounded-3xl px-3.5 py-3 text-left active:scale-[0.99]"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-primary">
                   <Icon className="h-[18px] w-[18px]" />
                 </span>
                 <span className="min-w-0 flex-1 text-sm font-medium leading-snug">
@@ -502,20 +393,10 @@ export function AiCoachOverviewClient({
       </section>
 
       {/* Tip of the day */}
-      <section className="relative overflow-hidden rounded-3xl border border-primary/30 bg-card p-4 sm:p-5">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-10 top-0 h-36 w-36 rounded-full bg-primary/25 blur-3xl"
-        />
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -bottom-3 right-3 text-7xl font-black leading-none text-primary/15"
-        >
-          ”
-        </span>
+      <section className="dashboard-flat-card relative overflow-hidden rounded-3xl p-4 sm:p-5">
         <div className="relative flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_0_18px_rgba(var(--primary-rgb),0.35)]">
-            <Sparkles className="h-5 w-5" />
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-primary">
+            <Sparkles className="h-4 w-4" />
           </span>
           <div className="min-w-0 space-y-1.5 pr-6">
             <p className="text-sm font-bold text-primary">{ai.tipOfTheDay}</p>

@@ -132,12 +132,12 @@ export const ADMIN_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "grant_subscription",
       description:
-        "Grant or extend a paid subscription (ai = AI Pro, elite = Elite). Destructive-ish: first call without confirm (or confirm=false) returns a preview; only call with confirm=true after the admin explicitly approves.",
+        "Grant or extend a paid Elite subscription. Destructive-ish: first call without confirm (or confirm=false) returns a preview; only call with confirm=true after the admin explicitly approves.",
       parameters: {
         type: "object",
         properties: {
           client_id: { type: "string" },
-          plan: { type: "string", enum: ["ai", "elite"] },
+          plan: { type: "string", enum: ["elite"] },
           interval: { type: "string", enum: ["monthly", "annual"] },
           extend_from_now: {
             type: "boolean",
@@ -183,7 +183,7 @@ export const ADMIN_CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             type: "string",
             description: "Optional; auto-generated if omitted",
           },
-          plan: { type: "string", enum: ["ai", "elite"] },
+          plan: { type: "string", enum: ["elite"] },
           interval: { type: "string", enum: ["monthly", "annual"] },
           confirm: { type: "boolean" },
         },
@@ -434,7 +434,7 @@ export const ADMIN_SYSTEM_PROMPT = `You are the RUTINA platform admin copilot. Y
 
 Capabilities:
 - Look up clients, subscriptions, revenue, offers
-- Grant/revoke subscriptions (ai = AI Pro, elite = Elite)
+- Grant/revoke the Elite subscription
 - Create or delete client accounts
 - Build and assign personalized workouts and nutrition plans for a client
 - Send mail (dry-run first)

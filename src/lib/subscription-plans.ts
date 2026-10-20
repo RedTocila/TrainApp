@@ -10,13 +10,13 @@ import { getCurrencyPrice } from "@/lib/checkout-i18n";
 /** @deprecated Legacy subscribers only — no longer sold. */
 export type LegacySubscriptionPlanId = "core" | "basic";
 
-/** Plans available for new purchases. */
+/** Plans available for new purchases. AI Pro stays in the type for existing subscribers. */
 export type SoldSubscriptionPlanId = "ai" | "elite";
 
 export type SubscriptionPlanId = SoldSubscriptionPlanId | "basic";
 export type BillingInterval = "monthly" | "annual";
 
-export const DEFAULT_SUBSCRIPTION_PLAN: SoldSubscriptionPlanId = "ai";
+export const DEFAULT_SUBSCRIPTION_PLAN: SoldSubscriptionPlanId = "elite";
 
 export interface PlanPrice {
   amountCents: number;
@@ -36,14 +36,15 @@ export interface SubscriptionPlan {
   includesFrom?: string;
 }
 
-/** Sold plans only. */
+/** Sold plans only. AI Pro is no longer offered. */
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
-    id: "ai",
-    name: PLATFORM_AI_PRO_NAME,
-    tagline: "Your own AI fitness coach for workouts, nutrition, and progress.",
-    monthly: { amountEurCents: 2000, compareAtEurCents: 4900 },
-    annual: { amountEurCents: 20_000, compareAtEurCents: 49_000 },
+    id: "elite",
+    name: PLATFORM_ELITE_NAME,
+    tagline:
+      "The complete fitness experience with coaching, community, and live events.",
+    monthly: { amountEurCents: 2999, compareAtEurCents: 7400 },
+    annual: { amountEurCents: 29_990, compareAtEurCents: 74_000 },
     highlighted: true,
     features: [
       "AI Fitness Coach",
@@ -57,17 +58,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       "Automatic workout adjustments",
       "Automatic calorie and macro recommendations",
       "AI recovery and performance insights",
-    ],
-  },
-  {
-    id: "elite",
-    name: PLATFORM_ELITE_NAME,
-    tagline:
-      "The complete fitness experience with coaching, community, and live events.",
-    monthly: { amountEurCents: 3000, compareAtEurCents: 7400 },
-    annual: { amountEurCents: 30_000, compareAtEurCents: 74_000 },
-    includesFrom: PLATFORM_AI_PRO_NAME,
-    features: [
       "Live training classes",
       "Community challenges",
       "Monthly transformation challenges",
@@ -84,6 +74,28 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 ];
 
 const PLAN_BY_ID = new Map(SUBSCRIPTION_PLANS.map((plan) => [plan.id, plan]));
+
+/** Legacy AI Pro — kept for existing subscribers / labels only. */
+const LEGACY_AI_PLAN: SubscriptionPlan = {
+  id: "ai",
+  name: PLATFORM_AI_PRO_NAME,
+  tagline: "Your own AI fitness coach for workouts, nutrition, and progress (legacy plan).",
+  monthly: { amountEurCents: 2000, compareAtEurCents: 4900 },
+  annual: { amountEurCents: 20_000, compareAtEurCents: 49_000 },
+  features: [
+    "AI Fitness Coach",
+    "AI Nutrition Coach",
+    "AI Workout Generator",
+    "AI Meal Suggestions",
+    "AI Progress Reports",
+    "AI Daily Motivation",
+    "AI Fitness Chat",
+    "Personalized recommendations",
+    "Automatic workout adjustments",
+    "Automatic calorie and macro recommendations",
+    "AI recovery and performance insights",
+  ],
+};
 
 /** Legacy Basic plan — kept for existing subscribers / labels only. */
 const LEGACY_BASIC_PLAN: SubscriptionPlan = {
@@ -111,6 +123,7 @@ const LEGACY_BASIC_PLAN: SubscriptionPlan = {
 export function getPlan(planId: string): SubscriptionPlan | undefined {
   const plan = PLAN_BY_ID.get(planId as SubscriptionPlanId);
   if (plan) return plan;
+  if (planId === "ai") return LEGACY_AI_PLAN;
   if (planId === "basic") return LEGACY_BASIC_PLAN;
   /** Legacy Core remaps to Basic-like features for display. */
   if (planId === "core") {
@@ -130,7 +143,7 @@ export function getPlanPrice(
 }
 
 export function isSoldPlanId(planId: string): planId is SoldSubscriptionPlanId {
-  return planId === "ai" || planId === "elite";
+  return planId === "elite";
 }
 
 export function planIncludesAi(planId: string | null | undefined): boolean {

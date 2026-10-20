@@ -112,7 +112,7 @@ export const platformCopyEn = {
     ruleInviter: "You earn €10 credit when they complete a paid package — store it for later.",
     ruleSpend:
       "Use credits on your next subscription or to enter paid flash challenges.",
-    ruleTwo: "Two invites (€20) cover a full AI Pro monthly plan.",
+    ruleTwo: "Two invites (€20) go toward the €29.99 monthly plan.",
     enterCode: "Referral code",
     codePlaceholder: "Enter referral code",
     applyCode: "Apply code",
@@ -1191,8 +1191,8 @@ export const platformCopyEn = {
     logMealsGuidance: "Log meals to get personalized guidance.",
   },
   aiUpgrade: {
-    unlockFeature: "Upgrade to AI Pro to unlock this feature",
-    viewAiPlan: "View AI Pro plan",
+    unlockFeature: "Upgrade to Elite to unlock this feature",
+    viewAiPlan: "View Elite plan",
     aiWorkoutPlan: "AI workout plan",
     aiNutritionPlan: "AI nutrition plan",
     photoLog: "Photo log",
@@ -1328,9 +1328,8 @@ export const platformCopyEn = {
   pricing: {
     step: "Step 3 — Pick a package",
     choosePlan: "Choose your plan",
-    onboardingBlurb: "Choose AI Pro or Elite to unlock coaching and start training.",
-    upgradeBlurb:
-      "AI Pro coaching from €20/month, or Elite community from €30/month.",
+    onboardingBlurb: "Elite unlocks coaching, community, and live training.",
+    upgradeBlurb: "Elite is €29.99/month.",
     skipForNow: "Skip for now",
     planReadyHeadline: (name: string) => `${name}, your plan is ready.`,
     planReadySub: "Training and nutrition, in one app only.",
@@ -1496,8 +1495,18 @@ export const platformCopyEn = {
       name: "RUTINA Elite",
       tagline:
         "The complete fitness experience with coaching, community, and live events.",
-      includesFrom: "RUTINA AI Pro",
       features: [
+        "AI Fitness Coach",
+        "AI Nutrition Coach",
+        "AI Workout Generator",
+        "AI Meal Suggestions",
+        "AI Progress Reports",
+        "AI Daily Motivation",
+        "AI Fitness Chat",
+        "Personalized recommendations",
+        "Automatic workout adjustments",
+        "Automatic calorie and macro recommendations",
+        "AI recovery and performance insights",
         "Live training classes",
         "Community challenges",
         "Monthly transformation challenges",

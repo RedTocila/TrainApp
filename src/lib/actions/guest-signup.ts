@@ -13,6 +13,7 @@ import { CHECKOUT_CURRENCY } from "@/lib/checkout-i18n";
 import {
   getPlan,
   getPlanPrice,
+  isSoldPlanId,
   type BillingInterval,
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
@@ -360,8 +361,8 @@ async function prepareGuestPendingOrder(
 > {
   const plan = getPlan(planId);
   if (!plan) return { ok: false, error: "Invalid plan" };
-  if (planId !== "ai" && planId !== "elite") {
-    return { ok: false, error: "That plan is no longer available. Choose AI Pro or Elite." };
+  if (!isSoldPlanId(planId)) {
+    return { ok: false, error: "That plan is no longer available. Choose Elite." };
   }
   if (interval !== "monthly" && interval !== "annual") {
     return { ok: false, error: "Invalid billing interval" };

@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { DashboardMobileChrome } from "@/components/dashboard-mobile-chrome";
+import { HeaderCalendarProvider } from "@/components/header-calendar-slot";
 import { DashboardPageSkeleton } from "@/components/dashboard-page-skeleton";
 import { NutritionPageChromeProvider } from "@/components/nutrition-page-chrome-context";
 import { WorkoutPageChromeProvider } from "@/components/workout-page-chrome-context";
@@ -37,6 +38,7 @@ export function DashboardMainArea({
     <NutritionPageChromeProvider>
       <WorkoutPageChromeProvider>
         <ProgressPhotosPageChromeProvider>
+          <HeaderCalendarProvider>
           <DashboardMobileChrome />
           <div
             className={cn(
@@ -66,6 +68,7 @@ export function DashboardMainArea({
               )}
             </TrainSectionShell>
           </div>
+          </HeaderCalendarProvider>
         </ProgressPhotosPageChromeProvider>
       </WorkoutPageChromeProvider>
     </NutritionPageChromeProvider>

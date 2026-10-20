@@ -1,16 +1,16 @@
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
 
 export const SUBSCRIPTION_REQUIRED_MESSAGE_EN =
-  "Upgrade to AI Pro or Elite for Coach Alex and premium features — from €19/month.";
+  "Upgrade to Elite for Coach Alex and premium features — €29.99/month.";
 
 export const SUBSCRIPTION_REQUIRED_MESSAGE_AL =
-  "Përmirësohu në AI Pro ose Elite për Coach Alex dhe funksione premium — nga 19€/muaj.";
+  "Përmirësohu në Elite për Coach Alex dhe funksione premium — 29.99€/muaj.";
 
 export const LIMIT_EXCEEDED_MESSAGE_EN =
-  "Upgrade to AI Pro or Elite to unlock this feature.";
+  "Upgrade to Elite to unlock this feature.";
 
 export const LIMIT_EXCEEDED_MESSAGE_AL =
-  "Përmirësohu në AI Pro ose Elite për të hapur këtë funksion.";
+  "Përmirësohu në Elite për të hapur këtë funksion.";
 
 /** @deprecated Use getSubscriptionRequiredMessage(locale) */
 export const SUBSCRIPTION_REQUIRED_MESSAGE = SUBSCRIPTION_REQUIRED_MESSAGE_AL;

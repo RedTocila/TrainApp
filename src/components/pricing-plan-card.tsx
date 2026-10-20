@@ -45,7 +45,7 @@ type PricingPlanCardProps = {
 function FeatureRow({ feature, icon: Icon }: { feature: string; icon: LucideIcon }) {
   return (
     <li className="flex items-start gap-2.5 text-sm">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10">
+      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10">
         <Icon className="h-3 w-3 text-primary" aria-hidden />
       </span>
       <span className="text-muted-foreground">{feature}</span>
@@ -78,31 +78,11 @@ export function PricingPlanCard({
           compareAtEurCents: tier.amountEurCents,
         })
       : getCompareAtLabel(tier));
-  const isElite = plan.id === "elite";
 
   return (
-    <div
-      className={cn(
-        "group relative transition-all duration-300 ease-out",
-        "hover:-translate-y-1.5",
-        plan.highlighted && "md:-mt-2 md:mb-2",
-        className
-      )}
-    >
-      <Card
-        className={cn(
-          "relative flex h-full flex-col overflow-hidden border-border/80 bg-card/95 backdrop-blur-sm",
-          "transition-all duration-300 group-hover:border-primary/40 group-hover:shadow-xl group-hover:shadow-primary/10",
-          plan.highlighted &&
-            "border-primary/60 shadow-lg shadow-primary/15 ring-1 ring-primary/20",
-          isElite && "border-amber-500/30 group-hover:border-amber-500/50"
-        )}
-      >
+    <div className={cn("relative", className)}>
+      <Card className="dashboard-flat-card relative flex h-full flex-col overflow-hidden">
         {offer ? <OfferBanner offer={offer} locale={locale} /> : null}
-
-        {plan.highlighted && !offer && (
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
-        )}
 
         {plan.badge && !offer && (
           <div className="absolute right-4 top-4 z-10">
@@ -175,13 +155,7 @@ export function PricingPlanCard({
                 </Button>
               ) : (
                 <Link href={checkoutHref} className="block">
-                  <Button
-                    className={cn(
-                      "w-full transition-transform duration-200 group-hover:scale-[1.02]",
-                      plan.highlighted && "shadow-md shadow-primary/25"
-                    )}
-                    variant={plan.highlighted ? "default" : "outline"}
-                  >
+                  <Button className="w-full" variant={plan.highlighted ? "default" : "outline"}>
                     {subscribed ? labels.switchPlan : labels.subscribe}
                   </Button>
                 </Link>

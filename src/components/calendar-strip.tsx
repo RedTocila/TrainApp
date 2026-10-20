@@ -8,6 +8,7 @@ import {
 } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarStripDay, isInactiveCalendarDay } from "@/components/calendar-strip-day";
+import { HeaderCalendarPortal } from "@/components/header-calendar-slot";
 import {
   type ClientSchedule,
   type DailyTask,
@@ -115,29 +116,32 @@ export function CalendarStrip({
   }, [selectedDate, startIndex]);
 
   return (
-    <div className="calendar-strip bg-background/80 backdrop-blur-sm">
-      {/* Mobile / tablet: scrollable week strip */}
-      <div
-        data-horizontal-scroll
-        className="flex min-w-0 items-stretch gap-0 overflow-x-auto overscroll-x-contain px-2 py-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3 md:px-4 lg:hidden [&::-webkit-scrollbar]:hidden"
-      >
-        {dayItems.map(({ day, tasks, dayStatus, inactive }) => (
-          <CalendarStripDay
-            key={day.toISOString()}
-            buttonRef={isSameDay(day, selectedDate) ? selectedRef : undefined}
-            date={day}
-            selected={isSameDay(day, selectedDate)}
-            tasks={tasks}
-            dayStatus={dayStatus}
-            inactive={inactive}
-            layout="scroll"
-            onSelect={() => onSelectDate(day)}
-          />
-        ))}
-      </div>
+    <>
+      <HeaderCalendarPortal>
+        <div className="calendar-strip pb-1.5">
+          <div
+            data-horizontal-scroll
+            className="flex min-w-0 items-stretch gap-0 overflow-x-auto overscroll-x-contain px-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3 md:px-4 [&::-webkit-scrollbar]:hidden"
+          >
+            {dayItems.map(({ day, tasks, dayStatus, inactive }) => (
+              <CalendarStripDay
+                key={day.toISOString()}
+                buttonRef={isSameDay(day, selectedDate) ? selectedRef : undefined}
+                date={day}
+                selected={isSameDay(day, selectedDate)}
+                tasks={tasks}
+                dayStatus={dayStatus}
+                inactive={inactive}
+                layout="scroll"
+                onSelect={() => onSelectDate(day)}
+              />
+            ))}
+          </div>
+        </div>
+      </HeaderCalendarPortal>
 
       {/* Desktop: fixed 7-day window centered on selection */}
-      <div className="hidden min-w-0 grid-cols-7 items-stretch px-6 py-1 lg:grid">
+      <div className="-mx-3 hidden min-w-0 grid-cols-7 items-stretch px-6 py-1 sm:-mx-4 md:-mx-6 lg:grid">
         {visibleDays.map(({ day, tasks, dayStatus, inactive }) => (
           <CalendarStripDay
             key={day.toISOString()}
@@ -151,7 +155,7 @@ export function CalendarStrip({
           />
         ))}
       </div>
-    </div>
+    </>
   );
 }
 

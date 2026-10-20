@@ -370,7 +370,7 @@ export function FocusedWorkoutMuscleMap({
     <div
       ref={frameRef}
       className={cn(
-        "pointer-events-none absolute right-3 top-1/2 z-0 h-[122%] w-[58%] -translate-y-1/2 overflow-visible sm:right-4 sm:w-[54%]",
+        "pointer-events-none absolute right-5 top-1/2 z-0 h-[100%] w-[46%] -translate-y-1/2 overflow-visible sm:right-6 sm:w-[42%]",
         className
       )}
       aria-hidden

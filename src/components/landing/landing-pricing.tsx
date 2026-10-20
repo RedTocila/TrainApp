@@ -72,7 +72,7 @@ export function LandingPricing() {
             />
           </div>
 
-          <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-3 md:grid-cols-2 md:items-end">
+          <div className="mx-auto mt-8 grid max-w-md items-stretch gap-6">
             {SUBSCRIPTION_PLANS.map((plan) => {
               const savings =
                 interval === "annual"

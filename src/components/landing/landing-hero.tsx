@@ -64,7 +64,7 @@ export function LandingHero({
               </p>
             ) : null}
             <p className="mt-1 text-center text-sm text-muted-foreground">
-              Takes 2 minutes. Plans from €20 a month.
+              Takes 2 minutes. €29.99 a month.
             </p>
             <p className="mt-2 text-center text-sm text-muted-foreground">
               Already a member?{" "}

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { motion } from "framer-motion";
 import { format } from "date-fns";
 import {
   ArrowRight,
@@ -11,6 +10,7 @@ import {
   Radio,
   Video,
 } from "lucide-react";
+import { dashboard } from "@/components/dashboard-ui";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ClassStatusBadge } from "@/components/class-session-panel";
@@ -36,16 +36,7 @@ function LiveClassCard({
 
   return (
     <Link href={href} className="group block">
-      <motion.article
-        layout
-        className={cn(
-          "relative overflow-hidden rounded-2xl border border-red-500/30 bg-card",
-          "shadow-2xl shadow-red-500/10 transition-shadow duration-300 group-hover:shadow-red-500/25",
-          styles.glow
-        )}
-        whileHover={{ y: -4 }}
-        transition={{ type: "spring", stiffness: 400, damping: 28 }}
-      >
+      <article className="dashboard-flat-card relative overflow-hidden rounded-3xl">
         <div
           className={cn("absolute inset-0 bg-gradient-to-br opacity-90", styles.gradient)}
         />
@@ -93,7 +84,7 @@ function LiveClassCard({
             </span>
           </div>
         </div>
-      </motion.article>
+      </article>
     </Link>
   );
 }
@@ -112,15 +103,7 @@ function ClassCard({
 
   return (
     <Link href={href} className="group block h-full">
-      <motion.article
-        layout
-        className={cn(
-          "relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card",
-          "transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
-        )}
-        whileHover={{ y: -3 }}
-        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-      >
+      <article className="dashboard-flat-card relative flex h-full flex-col overflow-hidden rounded-3xl">
         <div className={cn("relative h-36 shrink-0 bg-gradient-to-br", styles.gradient)}>
           {fitnessClass.cover_image && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -159,7 +142,7 @@ function ClassCard({
             </span>
           </div>
         </div>
-      </motion.article>
+      </article>
     </Link>
   );
 }
@@ -196,7 +179,7 @@ export function ClassesCatalog({
       </div>
 
       {!hasContent ? (
-        <div className="rounded-2xl border border-dashed border-border py-16 text-center text-muted-foreground">
+        <div className={dashboard.empty}>
           No classes yet. Check back soon for new live sessions.
         </div>
       ) : (

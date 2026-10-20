@@ -42,16 +42,7 @@ export default async function ProfilePage() {
             </div>
             <h1 className="text-lg font-black leading-none">{platform.profile.title}</h1>
           </div>
-          <Card
-            className={cn(
-              intakeStatus === "complete" &&
-                "!border-emerald-500/40 !bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.08)]",
-              intakeStatus === "partial" &&
-                "!border-amber-500/40 !bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.08)]",
-              intakeStatus === "empty" &&
-                "!border-red-500/40 !bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.08)]"
-            )}
-          >
+          <Card className="dashboard-flat-card">
             <CardContent className="flex items-center gap-2 p-3">
               {intakeStatus === "complete" ? (
                 <BadgeCheck className="h-4 w-4 text-emerald-400" />
@@ -110,10 +101,10 @@ export default async function ProfilePage() {
         <HiddenInFreeApp>
           <Link
             href="/dashboard/referrals"
-            className="block rounded-2xl border border-border/60 bg-card text-card-foreground shadow-sm transition-colors hover:bg-secondary/40 active:scale-[0.99]"
+            className="dashboard-flat-card block rounded-3xl text-card-foreground active:scale-[0.99]"
           >
             <div className="flex items-center gap-3 p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10">
                 <Gift className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
@@ -129,10 +120,10 @@ export default async function ProfilePage() {
 
         <ProfileSupportCard copy={platform.support} />
 
-        <Card>
+        <Card className="dashboard-flat-card">
           <CardContent className="space-y-3 p-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10">
                 <Scale className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0">

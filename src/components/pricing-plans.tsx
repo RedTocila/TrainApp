@@ -65,21 +65,11 @@ function PlanRow({
   return (
     <div
       className={cn(
-        "relative overflow-visible rounded-3xl border-2 transition-all",
-        selected
-          ? "border-primary bg-primary/10 shadow-[0_0_20px_-8px] shadow-primary/50"
-          : "border-border/70 bg-secondary/30"
+        "dashboard-flat-card relative overflow-hidden rounded-3xl",
+        selected && "ring-1 ring-inset ring-primary/70"
       )}
     >
-      {offer ? <OfferBanner offer={offer} locale={locale} className="rounded-t-[1.35rem]" /> : null}
-      {selected && (
-        <span
-          className="absolute -right-2.5 -top-2.5 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-background"
-          aria-hidden
-        >
-          <Check className="h-3.5 w-3.5" strokeWidth={3} />
-        </span>
-      )}
+      {offer ? <OfferBanner offer={offer} locale={locale} /> : null}
 
       <button
         type="button"
@@ -91,6 +81,14 @@ function PlanRow({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-lg font-black tracking-tight">{plan.name}</span>
+              {selected ? (
+                <span
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                  aria-hidden
+                >
+                  <Check className="h-3 w-3" strokeWidth={3} />
+                </span>
+              ) : null}
               {plan.badge && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black">
                   <Sparkles className="h-3 w-3" aria-hidden />
@@ -150,7 +148,7 @@ function PlanRow({
               const Icon = getPricingFeatureIcon(feature);
               return (
                 <li key={feature} className="flex items-start gap-2.5 text-sm">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10">
                     <Icon className="h-3 w-3 text-primary" aria-hidden />
                   </span>
                   <span className="text-muted-foreground">{feature}</span>

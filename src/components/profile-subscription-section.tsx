@@ -36,7 +36,7 @@ export function ProfileSubscriptionSection({
   const showGiveUp = Boolean(plan && isActive);
 
   return (
-    <Card>
+    <Card className="dashboard-flat-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <CreditCard className="h-4 w-4" />

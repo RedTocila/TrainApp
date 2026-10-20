@@ -144,7 +144,7 @@ export function ReminderSettingsCard({
   };
 
   return (
-    <Card>
+    <Card className="dashboard-flat-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           {settings.enabled ? (

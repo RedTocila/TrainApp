@@ -255,7 +255,7 @@ export function ProfileSettings({
         </div>
       )}
 
-      <Card>
+      <Card className="dashboard-flat-card">
         <CardHeader>
           <CardTitle className="text-base">{platform.profile.personalInfo}</CardTitle>
         </CardHeader>
@@ -402,7 +402,7 @@ export function ProfileSettings({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="dashboard-flat-card">
         <CardHeader>
           <CardTitle className="text-base">{platform.profile.appearance}</CardTitle>
         </CardHeader>
@@ -414,7 +414,7 @@ export function ProfileSettings({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="dashboard-flat-card">
         <CardHeader>
           <CardTitle className="text-base">{platform.profile.password}</CardTitle>
         </CardHeader>

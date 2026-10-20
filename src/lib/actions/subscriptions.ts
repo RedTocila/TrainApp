@@ -146,7 +146,7 @@ export async function createCheckoutOrder(
   if (!user) return { error: "Not authenticated" };
 
   if (!isSoldPlanId(planId)) {
-    return { error: "That plan is no longer available. Choose AI Pro or Elite." };
+    return { error: "That plan is no longer available. Choose Elite." };
   }
 
   const plan = getPlan(planId);

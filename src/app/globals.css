@@ -286,9 +286,9 @@ body:has(.dashboard-shell) {
   color: var(--foreground);
 }
 
-/* Dashboard, plans, and workout list cards: a small step above the page, no edge. */
-.dashboard-main .dashboard-photo-card:not(.border-2),
-.dashboard-main .dashboard-flat-card:not(.border-2) {
+/* Dashboard cards: a small step above the page, no edge. */
+.dashboard-flat-card:not(.border-2),
+.dashboard-main .dashboard-photo-card:not(.border-2) {
   border-width: 0;
   background-color: #161618;
   box-shadow: none;

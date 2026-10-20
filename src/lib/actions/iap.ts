@@ -123,7 +123,7 @@ export async function createAppleCheckoutOrder(
   if (!user) return { error: "Not authenticated" };
 
   if (!isSoldPlanId(planId)) {
-    return { error: "That plan is no longer available. Choose AI Pro or Elite." };
+    return { error: "That plan is no longer available. Choose Elite." };
   }
   if (interval !== "monthly" && interval !== "annual") {
     return { error: "Invalid billing interval" };

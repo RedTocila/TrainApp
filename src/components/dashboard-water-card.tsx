@@ -15,10 +15,7 @@ import { usePlatformCopy } from "@/components/locale-provider";
 import { useCachedDashboardDate } from "@/hooks/use-cached-dashboard-date";
 import { addWater, getDailyLog, updateWaterGoal } from "@/lib/actions/logs";
 import { patchOverviewDayCache } from "@/lib/dashboard-route-cache";
-import {
-  waterMetDailyMinimum,
-  waterRemainingToMinimum,
-} from "@/lib/water-targets";
+import { waterMetDailyMinimum } from "@/lib/water-targets";
 import { formatDateKey } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { markReminderDone } from "@/lib/reminder-events";
@@ -89,7 +86,6 @@ export function DashboardWaterCard({
   const waterCompleted =
     waterGoalMl > 0 && waterMetDailyMinimum(waterMl, waterGoalMl);
   const progress = waterGoalMl > 0 ? Math.min(waterMl / waterGoalMl, 1) : 0;
-  const remaining = waterRemainingToMinimum(waterMl, waterGoalMl);
 
   const waterVisual = (ringSize: number) =>
     compact ? (
@@ -266,11 +262,6 @@ export function DashboardWaterCard({
             </div>
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
               {waterVisual(72)}
-              <p className={dashboard.pairCaption}>
-                {!waterCompleted && remaining > 0
-                  ? `${Math.round(remaining)} ml left`
-                  : "\u00A0"}
-              </p>
             </div>
             {readOnly ? (
               <div className={dashboard.pairFooter} aria-hidden />
@@ -290,11 +281,6 @@ export function DashboardWaterCard({
         {titleRow("text-lg")}
         <div className="mt-4 flex flex-col items-center">
           {waterVisual(96)}
-          {!waterCompleted && remaining > 0 && (
-            <p className="mt-2 text-sm text-muted-foreground">
-              {Math.round(remaining)} ml left
-            </p>
-          )}
           {waterCompleted && (
             <p className="mt-2 text-sm font-medium text-green-400">
               {platform.nutrition.waterGoalReached}

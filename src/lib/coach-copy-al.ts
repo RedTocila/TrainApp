@@ -241,9 +241,9 @@ export const coachLabelsAl = {
   addHabitsHint: "Grumbulloni fitore të vogla para se Coach Alex të kritikojë qëndrueshmërinë tuaj",
   unlockDashboard: "Zgjidh një plan për të hapur coaching.",
   subscribeBlurb:
-    "Abonohu te AI Pro ose Elite për Coach Alex, planet AI dhe komunitetin Elite.",
-  viewPlans: "Shiko planet AI & Elite",
-  noSubscription: "Nuk ke plan aktiv ende. Zgjidh AI Pro ose Elite për të hapur Coach Alex.",
+    "Abonohu te Elite për Coach Alex, planet AI dhe komunitetin.",
+  viewPlans: "Shiko planin Elite",
+  noSubscription: "Nuk ke plan aktiv ende. Zgjidh Elite për të hapur Coach Alex.",
   pickAPlan: "Shiko planet",
   levelUp: "Përmirësohu",
   coachHasOpinions: "Coach Alex ka mendime. Përmirësohu nëse don t'i dëgjosh.",

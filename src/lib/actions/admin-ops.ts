@@ -175,7 +175,7 @@ export async function adminGrantSubscription(input: {
 }) {
   await requireAdmin();
   if (!isSoldPlanId(input.plan)) {
-    throw new Error("Plan must be 'ai' (AI Pro) or 'elite'.");
+    throw new Error("Plan must be 'elite'.");
   }
   if (input.interval !== "monthly" && input.interval !== "annual") {
     throw new Error("Interval must be monthly or annual.");

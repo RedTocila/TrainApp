@@ -34,6 +34,12 @@ const nextConfig: NextConfig = {
       // Meal photo analysis sends compressed base64; keep headroom above default 1 MB.
       bodySizeLimit: "3mb",
     },
+    // Dynamic pages default to 0s, so a route you just left is fetched again.
+    // Keep it for a few minutes. Saves still call revalidatePath / router.refresh,
+    // which drop this cache.
+    staleTimes: {
+      dynamic: 300,
+    },
   },
 };
 

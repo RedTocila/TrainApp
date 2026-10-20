@@ -22,6 +22,7 @@ import { useProgressPhotosPageChromeActions } from "@/components/progress-photos
 import { StartTodaysWorkoutButton } from "@/components/start-todays-workout-button";
 import { DashboardWorkoutPlusMenu } from "@/components/dashboard-workout-plus-menu";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { HeaderCalendarSlot } from "@/components/header-calendar-slot";
 import { TrainSectionTabs } from "@/components/train-section-tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -204,7 +205,7 @@ function DashboardMobileHeaderBar() {
   );
 }
 
-/** Mobile top chrome: logo row + program tabs, scrolls with page content. */
+/** Mobile top chrome: logo row, sliding calendar, and program tabs. Sticks while the page scrolls. */
 export function DashboardMobileChrome() {
   const pathname = usePathname();
   const { pendingHref } = useDashboardNavPending();
@@ -225,6 +226,7 @@ export function DashboardMobileChrome() {
         }}
       />
       <DashboardMobileHeaderBar />
+      <HeaderCalendarSlot />
       {showTrainTabs ? (
         <div className="px-3 pb-2 sm:px-4">
           <TrainSectionTabs className="mb-0" />

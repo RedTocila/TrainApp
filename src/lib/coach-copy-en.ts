@@ -241,9 +241,9 @@ export const coachLabelsEn = {
   addHabitsHint: "Stack small wins before Coach Alex roasts your consistency",
   unlockDashboard: "Choose a plan to unlock coaching.",
   subscribeBlurb:
-    "Subscribe to AI Pro or Elite for Coach Alex, AI plans, and the Elite community.",
-  viewPlans: "See AI & Elite plans",
-  noSubscription: "No active plan yet. Choose AI Pro or Elite to unlock Coach Alex.",
+    "Subscribe to Elite for Coach Alex, AI plans, and the community.",
+  viewPlans: "See the Elite plan",
+  noSubscription: "No active plan yet. Choose Elite to unlock Coach Alex.",
   pickAPlan: "See plans",
   levelUp: "Upgrade",
   coachHasOpinions: "Coach Alex has opinions. Upgrade if you want to hear them.",
