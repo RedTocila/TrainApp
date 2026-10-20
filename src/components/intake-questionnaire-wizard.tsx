@@ -586,6 +586,8 @@ export const IntakeQuestionnaireWizard = forwardRef<
     compact?: boolean;
     /** Allow jumping to any step (dashboard edit). Default off for onboarding. */
     freeStepNavigation?: boolean;
+    /** All questions on one page. Used when updating from the dashboard. */
+    stacked?: boolean;
     completeLabel?: string;
     /** First-screen back. Onboarding uses this to leave the funnel. */
     onExit?: () => void;
@@ -601,6 +603,7 @@ export const IntakeQuestionnaireWizard = forwardRef<
     onStepChange,
     compact = false,
     freeStepNavigation = false,
+    stacked = false,
     completeLabel = "See my plan preview",
     onExit,
     secondaryAction,
@@ -655,11 +658,25 @@ export const IntakeQuestionnaireWizard = forwardRef<
   };
 
   const submitFrom = (source: IntakeResponses) => {
-    const normalized = normalizeIntakeResponses(source);
+    const seeded = stacked
+      ? FUNNEL_SCREENS.reduce(
+          (current, item) => withPickerDefaults(item.id, current),
+          source
+        )
+      : source;
+    const normalized = normalizeIntakeResponses(seeded);
     if (!isIntakeResponsesComplete(normalized)) {
       const missing = getMissingIntakeResponses(normalized);
       const index = FUNNEL_SCREENS.findIndex((item) => !isScreenComplete(item, normalized));
-      if (index >= 0) goTo(index);
+      if (index >= 0) {
+        if (stacked) {
+          document
+            .getElementById(`intake-screen-${FUNNEL_SCREENS[index]?.id}`)
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          goTo(index);
+        }
+      }
       setError(
         missing.length
           ? `Still need: ${missing.slice(0, 3).join(", ")}${missing.length > 3 ? "…" : ""}`
@@ -700,6 +717,45 @@ export const IntakeQuestionnaireWizard = forwardRef<
   };
 
   const showBack = step > 0 || Boolean(onExit);
+
+  if (stacked) {
+    return (
+      <div className="space-y-6">
+        {FUNNEL_SCREENS.map((item, index) => {
+          const previous = FUNNEL_SCREENS[index - 1];
+          const showSection = !previous || previous.section !== item.section;
+          const values = withPickerDefaults(item.id, responses);
+          return (
+            <section key={item.id} id={`intake-screen-${item.id}`} className="space-y-3 scroll-mt-24">
+              {showSection ? (
+                <p className="px-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white/55">
+                  {item.section}
+                </p>
+              ) : null}
+              <div className="rounded-3xl bg-white/[0.04] px-3 py-4">
+                <QuestionTitle lead={item.lead} emphasis={item.emphasis} />
+                <div className="mt-5">
+                  <ScreenFields
+                    screenId={item.id}
+                    responses={values}
+                    onChange={patch}
+                    compact
+                  />
+                </div>
+              </div>
+            </section>
+          );
+        })}
+        {error ? <p className="text-center text-sm text-red-400">{error}</p> : null}
+        {status ? <p className="text-center text-sm text-zinc-400">{status}</p> : null}
+        <FunnelContinue
+          label={completeLabel}
+          ready={!locked}
+          onClick={() => submitFrom(responses)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div

@@ -23,7 +23,6 @@ import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import { cn } from "@/lib/utils";
 import { getClientIntakeStatus } from "@/lib/client-intake-utils";
-import { resolveProfileGoal } from "@/lib/intake-display";
 import { buttonVariants } from "@/components/ui/button";
 
 export default async function ProfilePage() {
@@ -80,7 +79,6 @@ export default async function ProfilePage() {
               fullName={profile.full_name}
               email={profile.email}
               phone={profile.phone}
-              goal={resolveProfileGoal(profile)}
               preferredLocale={profile.preferred_locale ?? "al"}
               macros={{
                 calories: profile.target_calories ?? 2000,

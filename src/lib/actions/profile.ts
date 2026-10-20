@@ -39,45 +39,48 @@ export async function updateProfile(formData: FormData) {
 
   const fullName = (formData.get("full_name") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim() || null;
-  const goal = (formData.get("goal") as string)?.trim() || null;
+  const goalField = formData.get("goal");
   const preferredLocale = parseCheckoutLocale(
     (formData.get("preferred_locale") as string)?.trim()
   );
 
   if (!fullName) return { error: "Name is required" };
 
-  const allowedGoals = new Set<string>(PROFILE_GOAL_KEYS);
-  const normalizedGoal =
-    goal && allowedGoals.has(goal) ? goal : null;
-
-  const { data: existingProfile } = await supabase
-    .from("profiles")
-    .select("intake_responses")
-    .eq("id", user.id)
-    .single();
-
-  const existingIntake =
-    (existingProfile?.intake_responses as Record<string, unknown> | null) ?? {};
-  const intakeResponses = { ...existingIntake };
-  if (normalizedGoal) {
-    intakeResponses.goal = normalizedGoal;
-  } else {
-    delete intakeResponses.goal;
-  }
-
   const profileUpdate: {
     full_name: string;
     phone: string | null;
-    goal: string | null;
     preferred_locale: CheckoutLocale;
-    intake_responses: Record<string, unknown>;
+    goal?: string | null;
+    intake_responses?: Record<string, unknown>;
   } = {
     full_name: fullName,
     phone,
-    goal: normalizedGoal,
     preferred_locale: preferredLocale,
-    intake_responses: intakeResponses,
   };
+
+  if (goalField !== null) {
+    const goal = String(goalField).trim() || null;
+    const allowedGoals = new Set<string>(PROFILE_GOAL_KEYS);
+    const normalizedGoal = goal && allowedGoals.has(goal) ? goal : null;
+
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("intake_responses")
+      .eq("id", user.id)
+      .single();
+
+    const existingIntake =
+      (existingProfile?.intake_responses as Record<string, unknown> | null) ?? {};
+    const intakeResponses = { ...existingIntake };
+    if (normalizedGoal) {
+      intakeResponses.goal = normalizedGoal;
+    } else {
+      delete intakeResponses.goal;
+    }
+
+    profileUpdate.goal = normalizedGoal;
+    profileUpdate.intake_responses = intakeResponses;
+  }
 
   const { error } = await supabase
     .from("profiles")

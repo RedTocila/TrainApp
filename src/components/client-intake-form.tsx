@@ -379,8 +379,7 @@ export function ClientIntakeForm({ profile }: { profile: Profile }) {
               <>
                 <IntakeQuestionnaireWizard
                   ref={wizardRef}
-                  compact
-                  freeStepNavigation
+                  stacked
                   completeLabel={platform.common.update}
                   initialResponses={initial}
                   onComplete={handleComplete}

@@ -28,20 +28,6 @@ import {
 } from "@/lib/macro-calculator";
 import { ACCENT_COLORS } from "@/lib/theme-colors";
 
-const GOAL_KEYS = [
-  "none",
-  "lose_weight",
-  "gain_weight",
-  "build_muscle",
-  "stay_fit",
-  "improve_endurance",
-  "general_health",
-] as const;
-
-function goalToFormValue(goal: string | null | undefined): string {
-  return goal && goal.length > 0 ? goal : "";
-}
-
 function normalizeTargets(targets?: MacroTargets | null): MacroTargets {
   return {
     calories: Math.round(targets?.calories ?? 2000),
@@ -55,7 +41,6 @@ export function ProfileSettings({
   fullName,
   email,
   phone,
-  goal,
   preferredLocale = "al",
   macros: initialMacros = {
     calories: 2000,
@@ -68,7 +53,6 @@ export function ProfileSettings({
   fullName: string;
   email: string;
   phone?: string | null;
-  goal: string | null;
   preferredLocale?: CheckoutLocale;
   macros?: MacroTargets;
   showHeader?: boolean;
@@ -83,7 +67,6 @@ export function ProfileSettings({
 
   const [name, setName] = useState(fullName);
   const [phoneValue, setPhoneValue] = useState(phone ?? "");
-  const [goalValue, setGoalValue] = useState(() => goalToFormValue(goal));
   const [locale, setLocale] = useState<CheckoutLocale>(preferredLocale);
   const [macros, setMacros] = useState(() => normalizeTargets(initialMacros));
   const [calorieEditOpen, setCalorieEditOpen] = useState(false);
@@ -91,7 +74,6 @@ export function ProfileSettings({
   const serverSnapshot = useRef({
     fullName,
     phone: phone ?? "",
-    goal: goalToFormValue(goal),
     preferredLocale,
     macros: normalizeTargets(initialMacros),
   });
@@ -99,13 +81,11 @@ export function ProfileSettings({
   useEffect(() => {
     const prev = serverSnapshot.current;
     const nextPhone = phone ?? "";
-    const nextGoal = goalToFormValue(goal);
     const nextMacros = normalizeTargets(initialMacros);
 
     if (
       prev.fullName !== fullName ||
       prev.phone !== nextPhone ||
-      prev.goal !== nextGoal ||
       prev.preferredLocale !== preferredLocale ||
       prev.macros.calories !== nextMacros.calories ||
       prev.macros.protein !== nextMacros.protein ||
@@ -115,17 +95,15 @@ export function ProfileSettings({
       serverSnapshot.current = {
         fullName,
         phone: nextPhone,
-        goal: nextGoal,
         preferredLocale,
         macros: nextMacros,
       };
       setName(fullName);
       setPhoneValue(nextPhone);
-      setGoalValue(nextGoal);
       setLocale(preferredLocale);
       setMacros(nextMacros);
     }
-  }, [fullName, phone, goal, preferredLocale, initialMacros]);
+  }, [fullName, phone, preferredLocale, initialMacros]);
 
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -154,7 +132,6 @@ export function ProfileSettings({
     const formData = new FormData(e.currentTarget);
     formData.set("full_name", name);
     formData.set("phone", phoneValue);
-    formData.set("goal", goalValue);
     formData.set("preferred_locale", locale);
 
     startProfileTransition(async () => {
@@ -165,7 +142,6 @@ export function ProfileSettings({
         serverSnapshot.current = {
           fullName: name,
           phone: phoneValue,
-          goal: goalValue,
           preferredLocale: locale,
           macros,
         };
@@ -285,21 +261,6 @@ export function ProfileSettings({
                 onChange={(e) => setPhoneValue(e.target.value)}
                 placeholder="+355 11 222 333 (Optional)"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="goal">{platform.settings.fitnessGoal}</Label>
-              <select
-                id="goal"
-                value={goalValue}
-                onChange={(e) => setGoalValue(e.target.value)}
-                className="flex h-10 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {GOAL_KEYS.map((key) => (
-                  <option key={key} value={key === "none" ? "" : key}>
-                    {platform.goals[key]}
-                  </option>
-                ))}
-              </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="daily_macros">{platform.settings.dailyMacros}</Label>
