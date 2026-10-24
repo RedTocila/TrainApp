@@ -44,7 +44,7 @@ export function AdminOffersManager({
   const [isUploadingImage, startUploadTransition] = useTransition();
   const [form, setForm] = useState({
     name: "",
-    planId: "elite" as SoldSubscriptionPlanId,
+    planId: "plus" as SoldSubscriptionPlanId,
     interval: "all" as OfferInterval,
     percentOff: 50,
     startsAt: "",
@@ -59,7 +59,7 @@ export function AdminOffersManager({
   const resetForm = () => {
     setForm({
       name: "",
-      planId: "elite",
+      planId: "plus",
       interval: "all",
       percentOff: 50,
       startsAt: "",
@@ -100,10 +100,8 @@ export function AdminOffersManager({
                 setForm((f) => ({ ...f, planId: e.target.value as SoldSubscriptionPlanId }))
               }
             >
-              {form.planId === "ai" ? (
-                <option value="ai">AI Pro (no longer sold)</option>
-              ) : null}
-              <option value="elite">Elite</option>
+              <option value="plus">Plus</option>
+              <option value="pro">Pro</option>
             </select>
           </div>
 

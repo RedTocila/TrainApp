@@ -39,6 +39,7 @@ import {
   useProgressPhotoReadMe,
 } from "@/components/progress-photo-read-me-context";
 import { ProgressPhotoEditMenu } from "@/components/progress-photo-edit-menu";
+import { ProgressPhotoThumb } from "@/components/progress-photo-thumb";
 import { useSarcasticConfirm } from "@/hooks/use-sarcastic-confirm";
 import { FullScreenFlow } from "@/components/programs/full-screen-flow";
 import {
@@ -117,9 +118,8 @@ function PhotoSlot({
             aria-label={platform.aria.viewPhoto(label)}
             className="absolute inset-0 cursor-zoom-in"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={url}
+            <ProgressPhotoThumb
+              url={url}
               alt={label}
               className="h-full w-full object-cover"
             />

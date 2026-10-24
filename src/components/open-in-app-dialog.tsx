@@ -33,8 +33,9 @@ export function OpenInAppDialog({
               You&apos;re in
             </h2>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Your plan is active. Open RUTINA on your phone and sign in
+              Your free account is ready. Open RUTINA on your phone and sign in
               {email ? ` with ${email}` : ""}, or keep going in the browser.
+              Account and billing stay on this website.
             </p>
           </div>
           <div className="space-y-2">

@@ -116,14 +116,27 @@ export function DashboardStepsCard({
       }
     };
 
-    void load();
-    const listener = App.addListener("appStateChange", ({ isActive }) => {
-      if (isActive) void load();
-    });
+    let listener: Promise<{ remove: () => Promise<void> }> | null = null;
+    const start = () => {
+      if (cancelled) return;
+      void load();
+      listener = App.addListener("appStateChange", ({ isActive }) => {
+        if (isActive) void load();
+      });
+    };
+    const cancelIdle =
+      typeof requestIdleCallback === "function"
+        ? requestIdleCallback(start, { timeout: 1500 })
+        : window.setTimeout(start, 300);
 
     return () => {
       cancelled = true;
-      void listener.then((handle) => handle.remove());
+      if (typeof cancelIdle === "number" && typeof cancelIdleCallback === "function") {
+        cancelIdleCallback(cancelIdle);
+      } else {
+        window.clearTimeout(cancelIdle);
+      }
+      void listener?.then((handle) => handle.remove());
     };
   }, [
     dateKey,

@@ -3,7 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
-import { getLimitExceededMessage } from "@/lib/subscription-messages";
+import { getPlusRequiredMessage, getProRequiredMessage } from "@/lib/subscription-messages";
 import {
   alexUsageKey,
   aiPlanUsageKey,
@@ -11,6 +11,8 @@ import {
   getAlexDailyLimit,
   hasUnlimitedAiPlans,
 } from "@/lib/subscription-limits";
+import { hasPlusAccess } from "@/lib/subscription";
+import { FREE_SAVED_PROGRAM_LIMIT } from "@/lib/subscription-plans";
 import type { Profile } from "@/lib/types";
 
 async function getUsageCount(userId: string, counterKey: string): Promise<number> {
@@ -58,8 +60,12 @@ async function incrementUsageCount(userId: string, counterKey: string): Promise<
   return next;
 }
 
-function limitMessage(profile: Profile): string {
-  return getLimitExceededMessage(parseCheckoutLocale(profile.preferred_locale));
+function plusMessage(profile: Profile): string {
+  return getPlusRequiredMessage(parseCheckoutLocale(profile.preferred_locale));
+}
+
+function proMessage(profile: Profile): string {
+  return getProRequiredMessage(parseCheckoutLocale(profile.preferred_locale));
 }
 
 export async function checkAlexCommandAllowed(
@@ -68,12 +74,12 @@ export async function checkAlexCommandAllowed(
   const limit = getAlexDailyLimit(profile);
   if (limit == null) return { allowed: true };
   if (limit <= 0) {
-    return { allowed: false, error: limitMessage(profile) };
+    return { allowed: false, error: proMessage(profile) };
   }
 
   const used = await getUsageCount(profile.id, alexUsageKey());
   if (used >= limit) {
-    return { allowed: false, error: limitMessage(profile) };
+    return { allowed: false, error: proMessage(profile) };
   }
   return { allowed: true };
 }
@@ -91,12 +97,12 @@ export async function checkAiPlanApplyAllowed(
   const limit = getAiPlanMonthlyLimit(profile, type);
   if (limit == null) return { allowed: true };
   if (limit <= 0) {
-    return { allowed: false, error: limitMessage(profile) };
+    return { allowed: false, error: plusMessage(profile) };
   }
 
   const used = await getUsageCount(profile.id, aiPlanUsageKey(type));
   if (used >= limit) {
-    return { allowed: false, error: limitMessage(profile) };
+    return { allowed: false, error: plusMessage(profile) };
   }
   return { allowed: true };
 }
@@ -124,6 +130,18 @@ export async function countPersonalPlans(userId: string): Promise<number> {
       .eq("is_personal", true),
   ]);
   return (workoutCount ?? 0) + (nutritionCount ?? 0);
+}
+
+/** Free accounts keep one saved program. Existing programs are never deleted on downgrade. */
+export async function assertCanCreateSavedProgram(
+  profile: Profile
+): Promise<{ allowed: true } | { allowed: false; error: string }> {
+  if (profile.role === "admin" || hasPlusAccess(profile)) return { allowed: true };
+  const count = await countPersonalPlans(profile.id);
+  if (count >= FREE_SAVED_PROGRAM_LIMIT) {
+    return { allowed: false, error: plusMessage(profile) };
+  }
+  return { allowed: true };
 }
 
 /** Manual plans are free for every authenticated client. */

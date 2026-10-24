@@ -6,10 +6,7 @@ import type { PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
 import { CreditCard, Lock, Loader2, ShieldCheck } from "lucide-react";
 import { AppleIapCheckout } from "@/components/apple-iap-checkout";
 import { PokPayGuestCheckout } from "@/components/pokpay-guest-checkout";
-import {
-  completeAppleCheckoutPurchase,
-  createAppleCheckoutOrder,
-} from "@/lib/actions/iap";
+import { completeAppleCheckoutPurchase } from "@/lib/actions/iap";
 import { createCheckoutOrder } from "@/lib/actions/subscriptions";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
 import {
@@ -115,20 +112,9 @@ export function CheckoutClient({
 
     startTransition(async () => {
       if (useAppleIap) {
-        const result = await createAppleCheckoutOrder(planId, interval, {
-          referralCode: referral.canApplyCode ? referralCode : undefined,
-        });
-        if ("error" in result && result.error) {
-          setError(result.error);
-          return;
-        }
-        clearCheckoutReferralCode();
-        if ("localOrderId" in result && result.localOrderId && result.productId) {
-          setLocalOrderId(result.localOrderId);
-          setAppleProductId(result.productId);
-          setAppleAccountToken(result.appAccountToken);
-          setCheckoutStarted(true);
-        }
+        setError(
+          "Subscriptions are purchased on the website. Open rutina.al to choose Plus or Pro."
+        );
         return;
       }
 

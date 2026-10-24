@@ -73,10 +73,11 @@ class AppViewController: CAPBridgeViewController {
 
     /// Everything behind the page (pull-to-refresh gap, reload flashes, rotation) uses the
     /// dashboard color. The first document uses brand red so the wait before HTML isn't black.
-    /// Non-opaque so WebKit never paints its own default behind content.
+    /// Opaque after that paint: the page background is the same color, and a transparent
+    /// WebView forces WebKit to composite every scroll frame.
     private func applyPlatformBackground(to webView: WKWebView) {
         let color = hasFinishedFirstLoad ? Self.platformBackground : Self.launchBackground
-        webView.isOpaque = false
+        webView.isOpaque = hasFinishedFirstLoad
         webView.backgroundColor = color
         webView.scrollView.backgroundColor = color
         webView.underPageBackgroundColor = color
@@ -106,7 +107,7 @@ class AppViewController: CAPBridgeViewController {
     }
 }
 
-/// Pulling past the top of the page reloads it, with the system spoke spinner.
+/// Pulling past the top of the page refreshes the live document in place, with the system spoke spinner.
 /// The web app can pause it (open sheets, active workouts) by posting
 /// `{ enabled: false }` to `window.webkit.messageHandlers.rutinaPullToRefresh`.
 final class WebViewPullToRefresh: NSObject {
@@ -118,6 +119,19 @@ final class WebViewPullToRefresh: NSObject {
     private let holdDistance: CGFloat = 44
     private let minimumSpinDuration: TimeInterval = 0.6
     private let timeoutDuration: TimeInterval = 20
+    /// Asks the page to refresh its data without tearing down the WebView.
+    /// Returns true when that hook exists. The page posts `{ done: true }` when it finishes.
+    private static let softRefreshScript = """
+    (function(){
+      var fn = window.__rutinaSoftRefresh;
+      if (typeof fn !== "function") return false;
+      Promise.resolve().then(function(){ return fn(); }).then(function(){}, function(){}).then(function(){
+        try { window.webkit.messageHandlers.rutinaPullToRefresh.postMessage({ done: true }); }
+        catch (e) {}
+      });
+      return true;
+    })()
+    """
 
     private weak var webView: WKWebView?
     private let spinner = PullSpinnerView()
@@ -269,10 +283,30 @@ final class WebViewPullToRefresh: NSObject {
         timeoutWork = timeout
         DispatchQueue.main.asyncAfter(deadline: .now() + timeoutDuration, execute: timeout)
 
-        if webView.reload() == nil {
-            DispatchQueue.main.asyncAfter(deadline: .now() + minimumSpinDuration) { [weak self] in
-                self?.endRefresh()
+        webView.evaluateJavaScript(Self.softRefreshScript) { [weak self] result, error in
+            guard let self else { return }
+            let started = error == nil && jsBoolean(result)
+            if started { return }
+            if self.webView?.reload() == nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + self.minimumSpinDuration) { [weak self] in
+                    self?.endRefresh()
+                }
             }
+        }
+    }
+
+    private func jsBoolean(_ value: Any?) -> Bool {
+        if let number = value as? NSNumber { return number.boolValue }
+        if let flag = value as? Bool { return flag }
+        return false
+    }
+
+    /// Soft refresh never flips `isLoading`, so the page signals completion itself.
+    private func completeRefresh() {
+        guard isRefreshing else { return }
+        let remaining = minimumSpinDuration - Date().timeIntervalSince(refreshStartedAt)
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, remaining)) { [weak self] in
+            self?.endRefresh()
         }
     }
 
@@ -310,8 +344,12 @@ final class WebViewPullToRefresh: NSObject {
     }
 
     fileprivate func receive(_ message: WKScriptMessage) {
-        guard let body = message.body as? [String: Any],
-              let enabled = body["enabled"] as? Bool else { return }
+        guard let body = message.body as? [String: Any] else { return }
+        if body["done"] as? Bool == true {
+            completeRefresh()
+            return
+        }
+        guard let enabled = body["enabled"] as? Bool else { return }
         setEnabled(enabled)
     }
 }

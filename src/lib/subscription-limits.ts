@@ -1,4 +1,5 @@
-import { hasAiAccess, hasPaidAccess } from "@/lib/subscription";
+import { hasAiAccess, hasPaidAccess, hasPlusAccess } from "@/lib/subscription";
+import { isLegacyBasicPlan } from "@/lib/subscription-plans";
 import type { Profile } from "@/lib/types";
 
 /** @deprecated Legacy Basic subscribers only — Basic is no longer sold. */
@@ -14,7 +15,7 @@ export function isBasicTier(
   >
 ): boolean {
   if (profile.role === "admin") return false;
-  return hasPaidAccess(profile) && !hasAiAccess(profile);
+  return hasPaidAccess(profile) && isLegacyBasicPlan(profile.subscription_plan);
 }
 
 export function hasUnlimitedAlexCommands(
@@ -27,7 +28,11 @@ export function hasUnlimitedAlexCommands(
   return hasAiAccess(profile);
 }
 
-/** Free accounts: no AI. Legacy Basic: limited. AI/Elite: unlimited. */
+/**
+ * Free and Plus: no open coach chat.
+ * Legacy Basic: limited daily commands.
+ * Pro, legacy AI Pro, and Elite: unlimited.
+ */
 export function getAlexDailyLimit(
   profile: Pick<
     Profile,
@@ -39,7 +44,7 @@ export function getAlexDailyLimit(
   return 0;
 }
 
-/** AI plan builders require AI Pro / Elite (or legacy Basic allowance). */
+/** AI workout and nutrition builders are Plus (and every higher or legacy paid plan). */
 export function hasAiPlanBuilderAccess(
   profile: Pick<
     Profile,
@@ -47,8 +52,7 @@ export function hasAiPlanBuilderAccess(
   >
 ): boolean {
   if (profile.role === "admin") return true;
-  if (hasAiAccess(profile)) return true;
-  return isBasicTier(profile);
+  return hasPlusAccess(profile);
 }
 
 export function hasUnlimitedAiPlans(
@@ -58,7 +62,7 @@ export function hasUnlimitedAiPlans(
   >
 ): boolean {
   if (profile.role === "admin") return true;
-  return hasAiAccess(profile);
+  return hasPlusAccess(profile) && !isBasicTier(profile);
 }
 
 export function getAiPlanMonthlyLimit(

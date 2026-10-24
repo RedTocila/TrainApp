@@ -7,6 +7,8 @@ import { SegmentedToggle } from "@/components/segmented-toggle";
 import { OfferBanner } from "@/components/offer-banner";
 import { Button } from "@/components/ui/button";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
+import { useIsNativeApp } from "@/components/ios/use-native-app";
+import { openWebsitePath } from "@/lib/open-external-url";
 import { getCompareAtLabel, getCurrencyPrice } from "@/lib/checkout-i18n";
 import { getPublicActiveSubscriptionOffers } from "@/lib/actions/admin-offers";
 import { getPricingFeatureIcon } from "@/lib/pricing-feature-icons";
@@ -179,6 +181,7 @@ export function PricingPlans({
 }) {
   const locale = useLocale();
   const platform = usePlatformCopy();
+  const nativeApp = useIsNativeApp();
   const pricing = platform.pricing;
   const plans = getLocalizedSubscriptionPlans(locale);
   const cardLabels = getPricingCardLabels(locale);
@@ -206,27 +209,36 @@ export function PricingPlans({
   }, []);
 
   const selectedPlan = plans.find((p) => p.id === selectedId) ?? plans[0];
+  const selectedIsFree = selectedPlan.id === "free";
   const offerByPlan = useMemo(
     () =>
       Object.fromEntries(
         plans.map((plan) => [
           plan.id,
-          plan.id === "ai" || plan.id === "elite"
+          plan.id === "plus" || plan.id === "pro"
             ? pickBestOffer(offers, plan.id, interval)
             : null,
         ])
       ),
     [plans, offers, interval]
   );
-  const selectedIsCurrent = Boolean(subscribed && currentPlan === selectedPlan.id);
-  const checkoutHref = `${checkoutBasePath}?plan=${selectedPlan.id}&interval=${interval}`;
+  const selectedIsCurrent =
+    selectedIsFree ? !subscribed : Boolean(subscribed && currentPlan === selectedPlan.id);
+  const freeWhilePaid = selectedIsFree && Boolean(subscribed);
+  const checkoutHref = selectedIsFree
+    ? "/register"
+    : `${checkoutBasePath}?plan=${selectedPlan.id}&interval=${interval}`;
   const ctaLabel = selectedIsCurrent
     ? cardLabels.currentPlan
-    : subscribed
-      ? cardLabels.switchPlan
-      : premiumPresentation
-        ? pricing.wantPlanNow
-        : cardLabels.subscribe;
+    : selectedIsFree
+      ? locale === "al"
+        ? "Fillo falas"
+        : "Start free"
+      : subscribed
+        ? cardLabels.switchPlan
+        : premiumPresentation
+          ? pricing.wantPlanNow
+          : cardLabels.subscribe;
 
   const selectedTier = interval === "monthly" ? selectedPlan.monthly : selectedPlan.annual;
   const selectedOffer = offerByPlan[selectedPlan.id] ?? null;
@@ -239,7 +251,7 @@ export function PricingPlans({
     interval === "monthly" ? cardLabels.perMonth : cardLabels.perYear;
 
   return (
-    <div className="mx-auto w-full max-w-md space-y-6">
+    <div className="mx-auto w-full max-w-md space-y-6 lg:max-w-none">
       {premiumPresentation ? (
         <div className="space-y-1 px-4 text-center">
           <p className="text-4xl font-black tracking-tight text-primary">{heroPrice.label}</p>
@@ -274,7 +286,11 @@ export function PricingPlans({
             interval={interval}
             locale={locale}
             selected={selectedId === plan.id}
-            isCurrent={Boolean(subscribed && currentPlan === plan.id)}
+            isCurrent={
+              plan.id === "free"
+                ? !subscribed
+                : Boolean(subscribed && currentPlan === plan.id)
+            }
             savings={
               interval === "annual"
                 ? formatAnnualSavingsLocalized(plan.monthly, plan.annual, locale)
@@ -291,9 +307,17 @@ export function PricingPlans({
         ))}
       </div>
 
-      {selectedIsCurrent ? (
+      {selectedIsCurrent || freeWhilePaid ? (
         <Button className="w-full" size="lg" variant="outline" disabled>
-          {cardLabels.currentPlan}
+          {freeWhilePaid ? cardLabels.currentPlan : ctaLabel}
+        </Button>
+      ) : nativeApp && !selectedIsFree ? (
+        <Button
+          className="w-full shadow-md shadow-primary/25"
+          size="lg"
+          onClick={() => void openWebsitePath(checkoutHref)}
+        >
+          {ctaLabel}
         </Button>
       ) : premiumPresentation ? (
         <Link href={checkoutHref} className="block px-4">

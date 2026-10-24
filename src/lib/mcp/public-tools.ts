@@ -137,7 +137,7 @@ export function getPublicCoachingFeatures() {
   return {
     product: "RUTINA",
     summary:
-      "RUTINA is an AI fitness coach. Elite includes workouts, nutrition guidance, live classes, community challenges, and group coaching.",
+      "RUTINA is an AI fitness coach. Free includes logging and tracking. Plus adds AI plans and reports. Pro adds AI Coach, adjustments, and live classes or challenges where available.",
     workoutCoaching: [
       "AI workout generator with warm-up, main session, and stretch",
       "Personalized recommendations and automatic workout adjustments",

@@ -35,14 +35,11 @@ export function isWebsiteSignupPath(pathname: string): boolean {
   );
 }
 
-/** Packages, checkout and referral screens — not shown in the native app. */
+/** Checkout stays on the website. Plan comparison can be opened from the app. */
 export function isPaidOnlyPath(pathname: string): boolean {
   return (
-    matchesPrefix(pathname, "/pricing") ||
-    matchesPrefix(pathname, "/join") ||
-    matchesPrefix(pathname, "/dashboard/pricing") ||
     matchesPrefix(pathname, "/dashboard/checkout") ||
-    matchesPrefix(pathname, "/dashboard/referrals")
+    matchesPrefix(pathname, "/join/checkout")
   );
 }
 

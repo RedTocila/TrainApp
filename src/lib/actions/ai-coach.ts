@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
-import { PLATFORM_AI_PRO_NAME } from "@/lib/brand";
-import { hasAiAccess } from "@/lib/subscription";
+import { PLATFORM_PLUS_NAME, PLATFORM_PRO_NAME } from "@/lib/brand";
+import { hasAiAccess, hasPlusAccess } from "@/lib/subscription";
 import { isAiConfigured } from "@/lib/ai/providers";
 import { getCoachContext } from "@/lib/ai/coach-context";
 import { loadMealSuggestions } from "@/lib/ai/load-meal-suggestions";
@@ -21,7 +21,21 @@ async function requireAiCoachAccess(): Promise<
   const profile = await getSubscriptionProfile();
   if (!profile) return { success: false, error: "Not authenticated" };
   if (!hasAiAccess(profile)) {
-    return { success: false, error: `Upgrade to ${PLATFORM_AI_PRO_NAME} to access AI Coach features.` };
+    return { success: false, error: `Upgrade to ${PLATFORM_PRO_NAME} for AI Coach conversations and detailed insights.` };
+  }
+  return { success: true, profile };
+}
+
+async function requirePlusAccess(): Promise<
+  { success: true; profile: Awaited<ReturnType<typeof getSubscriptionProfile>> & {} } | { success: false; error: string }
+> {
+  const profile = await getSubscriptionProfile();
+  if (!profile) return { success: false, error: "Not authenticated" };
+  if (!hasPlusAccess(profile)) {
+    return {
+      success: false,
+      error: `Upgrade to ${PLATFORM_PLUS_NAME} for nutrition plans, weekly reports, and the AI workout builder.`,
+    };
   }
   return { success: true, profile };
 }
@@ -31,7 +45,7 @@ export async function getMealSuggestionsAction(
 ): Promise<
   { error: string } | { headline: string; suggestions: MealSuggestion[]; gap: MacroGap }
 > {
-  const access = await requireAiCoachAccess();
+  const access = await requirePlusAccess();
   if (!access.success) return { error: access.error };
 
   const result = await loadMealSuggestions(access.profile.id, dateKey);
@@ -60,7 +74,7 @@ function scoreFromRatio(ratio: number): number {
 export async function generateWeeklyCoachReportAction(): Promise<
   WeeklyCoachReport | { error: string }
 > {
-  const access = await requireAiCoachAccess();
+  const access = await requirePlusAccess();
   if (!access.success) return { error: access.error };
 
   const today = formatDateKey(new Date());

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { ensureManualPlanCreation, ensurePlanMutationAccess } from "@/lib/actions/usage-limits";
+import { ensureManualPlanCreation, ensurePlanMutationAccess, assertCanCreateSavedProgram } from "@/lib/actions/usage-limits";
 import { UNCATEGORIZED_NUTRITION_FOLDER_ID } from "@/lib/nutrition-folders";
 import { mealPayloadFromForm, normalizeMealMacros, type MealFormData } from "@/lib/meal-utils";
 import { mealTypeForSlot, sumDayMenuMacros, type MealSlot } from "@/lib/meal-slots";
@@ -83,6 +83,8 @@ export async function createPersonalNutritionPlan(
 ) {
   const access = await ensureManualPlanCreation();
   if ("error" in access) return { error: access.error };
+  const programLimit = await assertCanCreateSavedProgram(access.profile);
+  if (!programLimit.allowed) return { error: programLimit.error };
   const { admin, userId } = access;
 
   const resolvedFolderId =

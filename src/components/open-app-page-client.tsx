@@ -31,8 +31,8 @@ export function OpenAppPageClient() {
           <CardTitle className="text-2xl font-black">Open RUTINA</CardTitle>
           <CardDescription>
             {email
-              ? `Sign in to the app with ${email}.`
-              : "Sign in to the app with the account you just created."}
+              ? `Sign in to the app with ${email}, or keep using the browser.`
+              : "Sign in to the app with the account you just created, or keep using the browser."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">

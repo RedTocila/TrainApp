@@ -1,4 +1,7 @@
-import type { BillingInterval, SoldSubscriptionPlanId } from "@/lib/subscription-plans";
+import type { BillingInterval } from "@/lib/subscription-plans";
+
+/** Legacy App Store product plans. New purchases are not sold in the app. */
+export type AppleIapPlanId = "ai" | "elite";
 
 /** Bundle ID / Capacitor appId — must match App Store Connect. */
 export const APPLE_BUNDLE_ID = "al.rutina.app";
@@ -16,10 +19,7 @@ export const IAP_PRODUCT_IDS = {
     monthly: "al.rutina.app.elite.monthly",
     annual: "al.rutina.app.elite.annual",
   },
-} as const satisfies Record<
-  SoldSubscriptionPlanId,
-  Record<BillingInterval, string>
->;
+} as const satisfies Record<AppleIapPlanId, Record<BillingInterval, string>>;
 
 export const ALL_IAP_PRODUCT_IDS: string[] = [
   IAP_PRODUCT_IDS.ai.monthly,
@@ -29,7 +29,7 @@ export const ALL_IAP_PRODUCT_IDS: string[] = [
 ];
 
 export function getIapProductId(
-  planId: SoldSubscriptionPlanId,
+  planId: AppleIapPlanId,
   interval: BillingInterval
 ): string {
   return IAP_PRODUCT_IDS[planId][interval];
@@ -37,7 +37,7 @@ export function getIapProductId(
 
 export function parseIapProductId(
   productId: string
-): { planId: SoldSubscriptionPlanId; interval: BillingInterval } | null {
+): { planId: AppleIapPlanId; interval: BillingInterval } | null {
   for (const planId of ["ai", "elite"] as const) {
     for (const interval of ["monthly", "annual"] as const) {
       if (IAP_PRODUCT_IDS[planId][interval] === productId) {

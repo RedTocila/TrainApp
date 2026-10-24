@@ -61,8 +61,9 @@ import {
   formatConflictToolResult,
   WorkoutRequirementConflictError,
 } from "@/lib/ai/workout-requirements";
-import { getLimitExceededMessage } from "@/lib/subscription-messages";
+import { getPlusRequiredMessage, getProRequiredMessage } from "@/lib/subscription-messages";
 import { hasAiPlanBuilderAccess } from "@/lib/subscription-limits";
+import { hasProAccess } from "@/lib/subscription";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import type { Profile } from "@/lib/types";
 import type OpenAI from "openai";
@@ -100,6 +101,8 @@ export type CoachChatToolEvent =
   | { type: "rich_blocks"; blocks: CoachChatRichBlock[] }
   | { type: "pending_action"; action: CoachPendingAction }
   | { type: "navigate"; href: string };
+
+const PLUS_BUILDER_TOOLS = new Set(["generate_workout_plan", "generate_nutrition_plan"]);
 
 const PLAN_TOOLS = new Set([
   "generate_workout_plan",
@@ -583,8 +586,9 @@ export function getCoachChatToolsForMode(
   );
 }
 
-function aiAccessError(profile: Profile): string {
-  return getLimitExceededMessage(parseCheckoutLocale(profile.preferred_locale));
+function aiAccessError(profile: Profile, tier: "plus" | "pro" = "pro"): string {
+  const locale = parseCheckoutLocale(profile.preferred_locale);
+  return tier === "plus" ? getPlusRequiredMessage(locale) : getProRequiredMessage(locale);
 }
 
 function parseToolArgs(raw: string): Record<string, unknown> {
@@ -666,7 +670,12 @@ export async function executeCoachChatTool(
 
   if (PLAN_TOOLS.has(name) && !hasAiPlanBuilderAccess(profile)) {
     onEvent?.({ type: "tool_done", name });
-    return { result: aiAccessError(profile) };
+    return { result: aiAccessError(profile, "plus") };
+  }
+
+  if (PLAN_TOOLS.has(name) && !PLUS_BUILDER_TOOLS.has(name) && !hasProAccess(profile)) {
+    onEvent?.({ type: "tool_done", name });
+    return { result: aiAccessError(profile, "pro") };
   }
 
   if (COACH_COMMAND_TOOL_NAMES.has(name)) {

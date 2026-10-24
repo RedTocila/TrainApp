@@ -197,7 +197,8 @@ export function AiCoachOverviewClient({
   daysTracked,
   weekDaysCompleted,
   report,
-  requiresUpgrade = false,
+  plusLocked = false,
+  coachLocked = false,
 }: {
   firstName: string;
   insightMessage: string;
@@ -206,7 +207,8 @@ export function AiCoachOverviewClient({
   daysTracked: number;
   weekDaysCompleted: boolean[];
   report: WeeklyReportPreview | null;
-  requiresUpgrade?: boolean;
+  plusLocked?: boolean;
+  coachLocked?: boolean;
 }) {
   const platform = usePlatformCopy();
   const ai = platform.ai;
@@ -225,9 +227,13 @@ export function AiCoachOverviewClient({
       ? Math.min(100, Math.round((gap.consumed.calories / gap.targets.calories) * 100))
       : report?.nutrition_score ?? 0;
 
-  const featureHref = (href: string) => (requiresUpgrade ? pricingHref : href);
+  const featureHref = (href: string, tier: "plus" | "pro") => {
+    if (tier === "plus" && plusLocked) return pricingHref;
+    if (tier === "pro" && coachLocked) return pricingHref;
+    return href;
+  };
   const onLockedAction = () => {
-    if (requiresUpgrade) {
+    if (coachLocked) {
       router.push(pricingHref);
       return true;
     }
@@ -304,25 +310,25 @@ export function AiCoachOverviewClient({
         <h3 className="text-base font-bold">{ai.howCanIHelp}</h3>
         <div className="grid grid-cols-2 gap-2.5">
           <HelpTile
-            href={featureHref("/dashboard/ai/predictions")}
+            href={featureHref("/dashboard/ai/predictions", "pro")}
             icon={LineChart}
             label={ai.helpTiles.progress.label}
             desc={ai.helpTiles.progress.desc}
           />
           <HelpTile
-            href={featureHref("/dashboard/ai/recommendations")}
+            href={featureHref("/dashboard/ai/recommendations", "pro")}
             icon={Lightbulb}
             label={ai.helpTiles.tips.label}
             desc={ai.helpTiles.tips.desc}
           />
           <HelpTile
-            href={featureHref("/dashboard/ai/reports")}
+            href={featureHref("/dashboard/ai/reports", "plus")}
             icon={FileText}
             label={ai.helpTiles.weeklyReport.label}
             desc={ai.helpTiles.weeklyReport.desc}
           />
           <HelpTile
-            href={featureHref("/dashboard/ai/meal-suggestions")}
+            href={featureHref("/dashboard/ai/meal-suggestions", "plus")}
             icon={UtensilsCrossed}
             label={ai.helpTiles.mealIdeas.label}
             desc={ai.helpTiles.mealIdeas.desc}
@@ -335,14 +341,14 @@ export function AiCoachOverviewClient({
         <h3 className="text-base font-bold">{ai.buildPlan}</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <CreatePlanCard
-            href={featureHref("/dashboard/ai/plans/workout")}
+            href={featureHref("/dashboard/ai/plans/workout", "plus")}
             title={ai.buildWorkoutWithAi}
             description={ai.buildWorkoutWithAiDesc}
             icon={Dumbbell}
             backgroundImage="/ai-coach/create-workout.png"
           />
           <CreatePlanCard
-            href={featureHref("/dashboard/ai/plans/nutrition")}
+            href={featureHref("/dashboard/ai/plans/nutrition", "plus")}
             title={ai.buildNutritionWithAi}
             description={ai.buildNutritionWithAiDesc}
             icon={Salad}

@@ -1,8 +1,8 @@
-import { Capacitor } from "@capacitor/core";
 import { ALL_IAP_PRODUCT_IDS } from "@/lib/iap/products";
 
+/** Purchases happen on the website. The app does not start App Store billing. */
 export function shouldUseAppleIap(): boolean {
-  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+  return false;
 }
 
 export type NativeIapProduct = {

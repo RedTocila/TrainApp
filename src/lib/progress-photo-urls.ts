@@ -79,6 +79,30 @@ export function hasPopulatedUrls(urls: PoseUrls): boolean {
   return Boolean(urls.front || urls.back || urls.side);
 }
 
+/**
+ * Same photo, sized for the small pose slot (about 120px, so 480 covers a 3x screen).
+ * Rewrites a signed object URL to Supabase's render endpoint. Callers fall back to
+ * the original URL if image transforms are unavailable.
+ */
+export function progressPhotoThumbUrl(signedUrl: string, width = 480): string {
+  try {
+    const url = new URL(signedUrl);
+    const marker = "/storage/v1/object/";
+    const index = url.pathname.indexOf(marker);
+    if (index === -1) return signedUrl;
+    url.pathname =
+      url.pathname.slice(0, index) +
+      "/storage/v1/render/image/" +
+      url.pathname.slice(index + marker.length);
+    url.searchParams.set("width", String(width));
+    url.searchParams.set("quality", "70");
+    url.searchParams.set("resize", "cover");
+    return url.toString();
+  } catch {
+    return signedUrl;
+  }
+}
+
 /** Resolve signed storage URLs in the browser (parallel, no server round-trip). */
 export async function resolveProgressPhotoUrls(
   set: Pick<ProgressPhotoSet, "front_path" | "back_path" | "side_path">

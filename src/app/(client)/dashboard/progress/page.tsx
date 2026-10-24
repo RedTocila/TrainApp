@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireClient } from "@/lib/actions/auth";
 import { getClientProgressSummary } from "@/lib/actions/client-progress";
+import { hasPlusAccess, hasProAccess } from "@/lib/subscription";
+import { buildPricingHref } from "@/lib/pricing-nav";
 import {
   Camera,
   ChartNoAxesCombined,
@@ -91,11 +93,26 @@ export default async function ProgressPage() {
           Profile & health data
         </Link>
         <Link
-          href="/dashboard/ai"
+          href={
+            hasPlusAccess(profile)
+              ? "/dashboard/ai/reports"
+              : buildPricingHref("/dashboard/progress")
+          }
+          className="flex items-center gap-3 rounded-2xl border border-border bg-secondary/40 px-4 py-3.5 text-sm font-semibold transition-colors hover:bg-secondary"
+        >
+          <ChartNoAxesCombined className="h-5 w-5 text-primary" />
+          {hasPlusAccess(profile) ? "Weekly report" : "Weekly report — Plus"}
+        </Link>
+        <Link
+          href={
+            hasProAccess(profile)
+              ? "/dashboard/ai/predictions"
+              : buildPricingHref("/dashboard/progress")
+          }
           className="flex items-center gap-3 rounded-2xl border border-border bg-secondary/40 px-4 py-3.5 text-sm font-semibold transition-colors hover:bg-secondary"
         >
           <Flame className="h-5 w-5 text-primary" />
-          Ask AI Coach about progress
+          {hasProAccess(profile) ? "Detailed progress insights" : "Detailed insights — Pro"}
         </Link>
       </div>
     </div>

@@ -4,8 +4,15 @@ import {
   PLATFORM_BASIC_NAME,
   PLATFORM_CORE_NAME,
   PLATFORM_ELITE_NAME,
+  PLATFORM_FREE_NAME,
+  PLATFORM_PLUS_NAME,
+  PLATFORM_PRO_NAME,
 } from "@/lib/brand";
-import { planIncludesAi, planIncludesElite } from "@/lib/subscription-plans";
+import {
+  planIncludesAi,
+  planIncludesElite,
+  planIncludesPlus,
+} from "@/lib/subscription-plans";
 
 export type SubscriptionStatus =
   | "inactive"
@@ -32,7 +39,31 @@ export function hasPaidAccess(
   return isSubscriptionActive(profile);
 }
 
-/** Premium AI features: plan builders, photo/text meal logging, AI coach. */
+/** Plus: AI builders, nutrition plans, multiple programs, weekly reports, advanced stats. */
+export function hasPlusAccess(
+  profile: Pick<
+    Profile,
+    "role" | "subscription_plan" | "subscription_status" | "subscription_expires_at"
+  >
+): boolean {
+  if (profile.role === "admin") return true;
+  if (!isSubscriptionActive(profile)) return false;
+  return planIncludesPlus(profile.subscription_plan);
+}
+
+/** Pro coach: conversations, adjustments, detailed insights. Legacy AI Pro included. */
+export function hasProAccess(
+  profile: Pick<
+    Profile,
+    "role" | "subscription_plan" | "subscription_status" | "subscription_expires_at"
+  >
+): boolean {
+  if (profile.role === "admin") return true;
+  if (!isSubscriptionActive(profile)) return false;
+  return planIncludesAi(profile.subscription_plan);
+}
+
+/** Premium AI coach features: conversations, adjustments, photo meals, detailed insights. */
 export function hasAiAccess(
   profile: Pick<
     Profile,
@@ -44,7 +75,7 @@ export function hasAiAccess(
   return planIncludesAi(profile.subscription_plan);
 }
 
-/** Elite-only features: live classes, community challenges, group coaching. */
+/** Pro community features: live classes and premium challenges. Legacy Elite included. */
 export function hasEliteAccess(
   profile: Pick<
     Profile,
@@ -60,15 +91,19 @@ export function subscriptionLabel(
   plan: Profile["subscription_plan"],
   interval: Profile["subscription_interval"]
 ): string {
-  if (!plan) return "No plan";
+  if (!plan || plan === "free") return PLATFORM_FREE_NAME;
   const planName =
-    plan === "elite"
-      ? PLATFORM_ELITE_NAME
-      : plan === "ai"
-        ? PLATFORM_AI_PRO_NAME
-        : plan === "basic"
-          ? PLATFORM_BASIC_NAME
-          : PLATFORM_CORE_NAME;
+    plan === "pro"
+      ? PLATFORM_PRO_NAME
+      : plan === "plus"
+        ? PLATFORM_PLUS_NAME
+        : plan === "elite"
+          ? PLATFORM_ELITE_NAME
+          : plan === "ai"
+            ? PLATFORM_AI_PRO_NAME
+            : plan === "basic"
+              ? PLATFORM_BASIC_NAME
+              : PLATFORM_CORE_NAME;
   if (!interval) return planName;
   const billing = interval === "annual" ? "Annual" : "Monthly";
   return `${planName} · ${billing}`;

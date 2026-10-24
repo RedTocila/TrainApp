@@ -5,15 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CHECKOUT_CURRENCY } from "@/lib/checkout-i18n";
 import {
-  getPlan,
   getPlanPrice,
-  isSoldPlanId,
   type BillingInterval,
-  type SoldSubscriptionPlanId,
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
 import { addBillingPeriod } from "@/lib/subscription";
-import { getIapProductId, parseIapProductId } from "@/lib/iap/products";
+import { parseIapProductId } from "@/lib/iap/products";
 import { verifyAppleTransactionJws } from "@/lib/iap/verify";
 import type { GuestSignupPayload } from "@/lib/actions/guest-signup";
 
@@ -111,73 +108,12 @@ async function activateFromVerifiedApple(args: {
 
 /** Create a pending Apple IAP order for an authenticated client (no PokPay). */
 export async function createAppleCheckoutOrder(
-  planId: SubscriptionPlanId,
-  interval: BillingInterval,
-  options?: { referralCode?: string }
+  _planId: SubscriptionPlanId,
+  _interval: BillingInterval,
+  _options?: { referralCode?: string }
 ) {
-  const supabase = await createClient();
-  const admin = createAdminClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  if (!isSoldPlanId(planId)) {
-    return { error: "That plan is no longer available. Choose Elite." };
-  }
-  if (interval !== "monthly" && interval !== "annual") {
-    return { error: "Invalid billing interval" };
-  }
-
-  const plan = getPlan(planId);
-  if (!plan) return { error: "Invalid plan" };
-  const price = getPlanPrice(planId, interval);
-  if (!price) return { error: "Invalid plan" };
-
-  if (options?.referralCode?.trim()) {
-    const { applyReferralCode, getCheckoutReferralState } = await import(
-      "@/lib/actions/referrals"
-    );
-    const applied = await applyReferralCode(options.referralCode);
-    if ("error" in applied && applied.error) {
-      const state = await getCheckoutReferralState(user.id);
-      if (!state.referredBy) {
-        return { error: applied.error };
-      }
-    }
-  }
-
-  const productId = getIapProductId(planId as SoldSubscriptionPlanId, interval);
-
-  const { data: orderRow, error: insertError } = await admin
-    .from("subscription_orders")
-    .insert({
-      user_id: user.id,
-      plan: planId,
-      billing_interval: interval,
-      amount_cents: price.amountCents,
-      currency_code: CHECKOUT_CURRENCY,
-      status: "pending",
-      order_kind: "subscription",
-      payment_provider: "apple",
-      invitee_discount_cents: 0,
-      referral_credits_applied_cents: 0,
-    })
-    .select("id")
-    .single();
-
-  if (insertError || !orderRow) {
-    return { error: insertError?.message ?? "Could not start Apple checkout" };
-  }
-
   return {
-    localOrderId: orderRow.id,
-    productId,
-    appAccountToken: user.id,
-    planId,
-    interval,
-    planName: plan.name,
-    priceLabel: price.label,
+    error: "Subscriptions are purchased on rutina.al. Open the website to manage Plus or Pro.",
   };
 }
 
@@ -276,12 +212,13 @@ export async function completeAppleCheckoutPurchase(input: CompleteApplePurchase
 
 /** Guest signup: create pending Apple order (no PokPay). */
 export async function startGuestAppleCheckout(
-  signup: GuestSignupPayload,
-  planId: SubscriptionPlanId,
-  interval: BillingInterval
+  _signup: GuestSignupPayload,
+  _planId: SubscriptionPlanId,
+  _interval: BillingInterval
 ) {
-  const { createGuestAppleCheckoutOrder } = await import("@/lib/actions/guest-signup");
-  return createGuestAppleCheckoutOrder(signup, planId, interval);
+  return {
+    error: "Subscriptions are purchased on rutina.al. Create a free account, then choose Plus or Pro on the website.",
+  };
 }
 
 /** Guest signup: verify Apple purchase, create account, sign in. */

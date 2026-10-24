@@ -23,7 +23,7 @@ export function PricingPageClient({
   onboarding?: boolean;
 }) {
   const platform = usePlatformCopy();
-  const [interval, setInterval] = useState<BillingInterval>("annual");
+  const [interval, setInterval] = useState<BillingInterval>("monthly");
   const subscribed = hasPaidAccess(profile);
   const firstName =
     profile.full_name?.trim().split(/\s+/)[0] ||

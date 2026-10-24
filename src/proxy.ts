@@ -100,7 +100,12 @@ export async function proxy(request: NextRequest) {
 
   if (!user && (isAdminRoute || isDashboardRoute)) {
     if (isServerAction) return supabaseResponse;
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    const next = `${path}${request.nextUrl.search}`;
+    if (next.startsWith("/dashboard") && !next.includes("..")) {
+      loginUrl.searchParams.set("next", next);
+    }
+    return NextResponse.redirect(loginUrl);
   }
 
   if (user) {
@@ -111,7 +116,15 @@ export async function proxy(request: NextRequest) {
 
     if (isAuthPage) {
       if (isServerAction) return supabaseResponse;
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      const next = request.nextUrl.searchParams.get("next");
+      const destination =
+        typeof next === "string" &&
+        next.startsWith("/dashboard") &&
+        !next.startsWith("//") &&
+        !next.includes("..")
+          ? next
+          : "/dashboard";
+      return NextResponse.redirect(new URL(destination, request.url));
     }
 
     if (path === "/ios" || path === "/ios/welcome") {

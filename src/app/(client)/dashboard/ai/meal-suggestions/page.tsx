@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasPlusAccess } from "@/lib/subscription";
 import { loadMealSuggestions } from "@/lib/ai/load-meal-suggestions";
 import { buildPricingHref } from "@/lib/pricing-nav";
 import { redirect } from "next/navigation";
@@ -13,7 +13,7 @@ export default async function MealSuggestionsPage() {
     return supabase.from("profiles").select("*").eq("id", user.id).single();
   });
 
-  if (!profile || !hasAiAccess(profile)) {
+  if (!profile || !hasPlusAccess(profile)) {
     redirect(buildPricingHref("/dashboard/ai/meal-suggestions"));
   }
 

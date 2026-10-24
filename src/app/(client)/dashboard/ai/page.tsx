@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasAiAccess, hasPlusAccess } from "@/lib/subscription";
 import { getDashboardAiInsight, getLatestWeeklyReport } from "@/lib/actions/ai-coach";
 import { AiCoachOverviewClient } from "@/components/ai-coach-overview-client";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
@@ -16,12 +16,16 @@ export default async function AiCoachOverviewPage() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
   if (!profile) return null;
 
-  const aiAccess = hasAiAccess(profile);
+  const coachAccess = hasAiAccess(profile);
+  const plusAccess = hasPlusAccess(profile);
   const locale = parseCheckoutLocale(profile.preferred_locale);
   const platform = getPlatformCopy(locale);
   const today = formatDateKey(new Date());
-  const [insight, report] = aiAccess
-    ? await Promise.all([getDashboardAiInsight(today), getLatestWeeklyReport()])
+  const [insight, report] = plusAccess || coachAccess
+    ? await Promise.all([
+        coachAccess ? getDashboardAiInsight(today) : Promise.resolve(null),
+        plusAccess ? getLatestWeeklyReport() : Promise.resolve(null),
+      ])
     : [null, null];
 
   const message =
@@ -46,7 +50,8 @@ export default async function AiCoachOverviewPage() {
       workoutsThisWeek={workoutsThisWeek}
       daysTracked={daysTracked}
       weekDaysCompleted={weekDaysCompleted}
-      requiresUpgrade={!aiAccess}
+      plusLocked={!plusAccess}
+      coachLocked={!coachAccess}
       report={
         report
           ? {

@@ -2,8 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { SUBSCRIPTION_ACCESS_COLUMNS } from "@/lib/db-selects";
-import { hasPaidAccess } from "@/lib/subscription";
-import { SUBSCRIPTION_REQUIRED_MESSAGE } from "@/lib/subscription-messages";
 import type { Profile } from "@/lib/types";
 
 export async function requireSubscribedUserAccess(): Promise<
@@ -23,10 +21,6 @@ export async function requireSubscribedUserAccess(): Promise<
     .single();
 
   if (!accessProfile) return { error: "Profile not found" };
-
-  if (!hasPaidAccess(accessProfile as Profile)) {
-    return { error: SUBSCRIPTION_REQUIRED_MESSAGE };
-  }
 
   const { data: profile } = await supabase
     .from("profiles")

@@ -17,6 +17,9 @@ import {
   checkAlexCommandAllowed,
   consumeAlexCommand,
 } from "@/lib/actions/usage-limits";
+import { hasPlusAccess, hasProAccess } from "@/lib/subscription";
+import { getPlusRequiredMessage, getProRequiredMessage } from "@/lib/subscription-messages";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { SUBSCRIPTION_ACCESS_COLUMNS } from "@/lib/db-selects";
 import { createClient } from "@/lib/supabase/server";
 import type { ChatImageAttachment, ChatMessage } from "@/lib/ai/types";
@@ -89,11 +92,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const alexAccess = await checkAlexCommandAllowed(profile as Profile);
-  if (!alexAccess.allowed) {
-    return Response.json({ error: alexAccess.error }, { status: 403 });
-  }
-
   let body: {
     message?: string;
     history?: ChatMessage[];
@@ -111,6 +109,28 @@ export async function POST(request: Request) {
   const history = Array.isArray(body.history) ? body.history : [];
   const imageInput = body.image ?? null;
   const coachMode = parseCoachChatMode(body.mode);
+  const typedProfile = profile as Profile;
+  const locale = parseCheckoutLocale(typedProfile.preferred_locale);
+  if (hasProAccess(typedProfile)) {
+    const alexAccess = await checkAlexCommandAllowed(typedProfile);
+    if (!alexAccess.allowed) {
+      return Response.json({ error: alexAccess.error }, { status: 403 });
+    }
+  } else if (hasPlusAccess(typedProfile) && coachMode === "act") {
+    // Plus can build plans in Act mode. Open coach chat stays on Pro.
+  } else if (hasPlusAccess(typedProfile)) {
+    return Response.json({ error: getProRequiredMessage(locale) }, { status: 403 });
+  } else {
+    return Response.json(
+      {
+        error:
+          coachMode === "act"
+            ? getPlusRequiredMessage(locale)
+            : getProRequiredMessage(locale),
+      },
+      { status: 403 }
+    );
+  }
   const timezoneOffsetMinutes =
     typeof body.timezoneOffsetMinutes === "number" &&
     Number.isFinite(body.timezoneOffsetMinutes)

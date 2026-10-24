@@ -12,11 +12,11 @@ import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: `Pricing — ${PLATFORM_NAME}`,
-  description: "RUTINA Elite for €29.99/month.",
+  description: "RUTINA Free, Plus (€7/month), and Pro (€25/month). Start free — no card required.",
   alternates: { canonical: `${SITE_URL}/pricing` },
   openGraph: {
     title: `Pricing — ${PLATFORM_NAME}`,
-    description: "Upgrade for AI coaching and Elite community.",
+    description: "Free, Plus, and Pro. Pay on the website.",
     url: `${SITE_URL}/pricing`,
   },
 };
@@ -41,12 +41,12 @@ export default async function PublicPricingPage() {
               Plans that grow with your goals
             </h1>
             <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
-              One plan. Coaching, community, and live training for €29.99/month.
+              Free to start. Plus is €7/month. Pro is €25/month. Pay on this website, then use the app or the browser.
             </p>
           </FadeIn>
           <PublicPricingClient />
           <p className="text-center text-sm text-muted-foreground">
-            Create an account, then start Elite.{" "}
+            Create a free account, then upgrade here when you want Plus or Pro.{" "}
             <Link href="/" className="text-primary hover:underline">
               Back to home
             </Link>

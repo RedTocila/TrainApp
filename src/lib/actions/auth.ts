@@ -245,6 +245,71 @@ export async function completeRegistration(input: RegistrationInput) {
   });
 }
 
+/** Create a free account on the website. No card. Plus and Pro are bought later. */
+export async function registerFreeAccount(input: {
+  fullName: string;
+  email: string;
+  phone: string | null;
+  password: string;
+  intakeJson?: string | null;
+  referralCode?: string | null;
+}) {
+  const email = input.email.trim().toLowerCase();
+  const fullName = input.fullName.trim();
+  const password = input.password;
+  if (!email || !fullName) return { error: "Enter your name and email." };
+  if (!password || password.length < 6) {
+    return { error: "Password must be at least 6 characters." };
+  }
+
+  const existing = await findAuthUserIdByEmail(email);
+  if (existing) {
+    return { error: "This email is already registered. Sign in to continue." };
+  }
+
+  const admin = createAdminClient();
+  const userMetadata: Record<string, string> = { full_name: fullName };
+  if (input.phone) userMetadata.phone = input.phone;
+
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: userMetadata,
+  });
+
+  if (createError || !created.user) {
+    if (createError?.message?.toLowerCase().includes("already")) {
+      return { error: "This email is already registered. Sign in to continue." };
+    }
+    return {
+      error: formatUserError(createError?.message, "Could not create your account."),
+    };
+  }
+
+  const finalized = await finalizeNewUserProfile(admin, created.user.id, userMetadata, {
+    fullName,
+    email,
+    phone: input.phone,
+    intakeJson: input.intakeJson,
+  });
+  if ("error" in finalized && finalized.error) return finalized;
+
+  if (input.referralCode?.trim()) {
+    try {
+      const { applyReferralCodeForUser } = await import("@/lib/actions/referrals");
+      await applyReferralCodeForUser(created.user.id, input.referralCode);
+    } catch {
+      // A bad invite code must not block the free account.
+    }
+  }
+
+  const signedIn = await signInWithPasswordOnly(email, password);
+  if (signedIn.error) return { error: signedIn.error };
+
+  return { success: true as const, role: finalized.role ?? "client", email };
+}
+
 export async function signIn(formData: FormData) {
   const emailRaw = formData.get("email");
   const passwordRaw = formData.get("password");

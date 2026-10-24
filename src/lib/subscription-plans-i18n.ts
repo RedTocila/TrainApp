@@ -11,7 +11,16 @@ export function getLocalizedSubscriptionPlans(
   const plans = copy.subscriptionPlans;
 
   return SUBSCRIPTION_PLANS.map((plan) => {
-    const localized = plan.id === "ai" ? plans.aiPro : plans.elite;
+    const localized =
+      plan.id === "free"
+        ? plans.free
+        : plan.id === "plus"
+          ? plans.plus
+          : plan.id === "pro"
+            ? plans.pro
+            : plan.id === "ai"
+              ? plans.aiPro
+              : plans.elite;
 
     const localizedBadge =
       "badge" in localized && typeof localized.badge === "string"

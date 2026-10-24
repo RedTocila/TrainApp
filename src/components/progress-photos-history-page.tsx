@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Camera, ImageIcon, X } from "lucide-react";
-import Image from "next/image";
+import { ProgressPhotoThumb } from "@/components/progress-photo-thumb";
 import { uploadProgressPhotoWithAiReview } from "@/lib/progress-photo-upload-flow";
 import {
   getProgressPhotoSets,
@@ -140,13 +140,10 @@ function PhotoSlot({
             aria-label={platform.aria.viewPhoto(label)}
             className="absolute inset-0 cursor-zoom-in"
           >
-            <Image
-              src={url}
+            <ProgressPhotoThumb
+              url={url}
               alt={label}
-              fill
-              unoptimized
-              sizes="(max-width: 640px) 33vw, 200px"
-              className="object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
             />
           </button>
         ) : canUpload ? (

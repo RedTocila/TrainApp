@@ -280,7 +280,8 @@ export function FocusedWorkoutMuscleMap({
     if (!frame || highlightData.length === 0) return;
 
     let cancelled = false;
-    let waitTimer = 0;
+    let attempts = 0;
+    let raf = 0;
 
     const fit = () => {
       if (cancelled) return false;
@@ -346,11 +347,14 @@ export function FocusedWorkoutMuscleMap({
       return true;
     };
 
-    if (!fit()) {
-      waitTimer = window.setInterval(() => {
-        if (fit()) window.clearInterval(waitTimer);
-      }, 40);
-    }
+    const waitForSvg = () => {
+      if (cancelled) return;
+      if (fit()) return;
+      attempts += 1;
+      if (attempts >= 48) return;
+      raf = window.requestAnimationFrame(waitForSvg);
+    };
+    if (!fit()) waitForSvg();
 
     const observer = new ResizeObserver(() => {
       fit();
@@ -359,7 +363,7 @@ export function FocusedWorkoutMuscleMap({
 
     return () => {
       cancelled = true;
-      window.clearInterval(waitTimer);
+      window.cancelAnimationFrame(raf);
       observer.disconnect();
     };
   }, [bodyGender, focusKey, focusSlugs, highlightData, side]);

@@ -30,9 +30,10 @@ test("list_plans returns sold plans and public pricing", () => {
   const result = listPublicPlans();
   assert.deepEqual(
     result.plans.map((plan) => plan.name),
-    ["RUTINA Elite"]
+    ["RUTINA Free", "RUTINA Plus", "RUTINA Pro"]
   );
-  assert.equal(result.plans[0]?.monthlyPrice, "€29.99/month");
+  assert.equal(result.plans[1]?.monthlyPrice, "€7/month");
+  assert.equal(result.plans[2]?.monthlyPrice, "€25/month");
   assert.equal(result.pricingUrl, "https://rutina.al/pricing");
   assert.equal(result.plans.some((plan) => plan.id === "basic"), false);
 });

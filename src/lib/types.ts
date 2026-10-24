@@ -1,7 +1,14 @@
 import type { IntakeResponses } from "@/lib/intake-questionnaire";
 
 export type UserRole = "admin" | "client";
-export type SubscriptionPlanId = "core" | "basic" | "ai" | "elite";
+export type SubscriptionPlanId =
+  | "free"
+  | "plus"
+  | "pro"
+  | "core"
+  | "basic"
+  | "ai"
+  | "elite";
 export type SubscriptionStatus =
   | "inactive"
   | "active"

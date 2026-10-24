@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { ensureManualPlanCreation, ensurePlanMutationAccess } from "@/lib/actions/usage-limits";
+import { ensureManualPlanCreation, ensurePlanMutationAccess, assertCanCreateSavedProgram } from "@/lib/actions/usage-limits";
 import { generateRecurringScheduleDates, inferScheduleFromSessions } from "@/lib/schedule-utils";
 import { WORKOUT_DAY_WITH_EXERCISES, WORKOUT_PLAN_LIST_COLUMNS, WORKOUT_PLAN_WEEK_LIST_COLUMNS } from "@/lib/db-selects";
 import { isExtraWorkoutKind, isMainWorkoutKind } from "@/lib/hiit";
@@ -54,6 +54,8 @@ export async function createPersonalWorkoutPlan(
 ) {
   const access = await ensureManualPlanCreation();
   if ("error" in access) return { error: access.error };
+  const programLimit = await assertCanCreateSavedProgram(access.profile);
+  if (!programLimit.allowed) return { error: programLimit.error };
   const { admin, userId } = access;
 
   const resolvedFolderId =
@@ -1488,6 +1490,8 @@ export async function createPersonalWeekPlan(input: {
 }) {
   const access = await ensureManualPlanCreation();
   if ("error" in access) return { error: access.error };
+  const programLimit = await assertCanCreateSavedProgram(access.profile);
+  if (!programLimit.allowed) return { error: programLimit.error };
   const { admin, userId } = access;
 
   const title = input.title.trim();

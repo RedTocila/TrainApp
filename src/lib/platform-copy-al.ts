@@ -1200,8 +1200,8 @@ export const platformCopyAl = {
     logMealsGuidance: "Regjistro vakte për udhëzime të personalizuara.",
   },
   aiUpgrade: {
-    unlockFeature: "Përmirëso në Elite për të hapur këtë funksion",
-    viewAiPlan: "Shiko planin Elite",
+    unlockFeature: "Përmirëso në Plus për të hapur këtë funksion",
+    viewAiPlan: "Shiko Plus",
     aiWorkoutPlan: "Plan stërvitjeje me AI",
     aiNutritionPlan: "Plan ushqimi me AI",
     photoLog: "Regjistrim me foto",
@@ -1209,8 +1209,8 @@ export const platformCopyAl = {
     aiChat: "Chat fitnesi AI",
   },
   eliteUpgrade: {
-    unlockFeature: "Përmirëso në Elite për klasa live, sfida dhe komunitet",
-    viewElitePlan: "Shiko planin Elite",
+    unlockFeature: "Pro përfshin klasa live dhe sfida premium kur janë të disponueshme",
+    viewElitePlan: "Shiko Pro",
     liveClasses: "Klasa live",
     challenges: "Sfida",
     community: "Komuniteti",
@@ -1338,8 +1338,8 @@ export const platformCopyAl = {
   pricing: {
     step: "Hapi 3 — Zgjidh paketën",
     choosePlan: "Zgjidh planin tënd",
-    onboardingBlurb: "Elite hap coaching, komunitetin dhe trajnimin live.",
-    upgradeBlurb: "Elite është 29.99€/muaj.",
+    onboardingBlurb: "Fillo falas. Plus është 7€/muaj. Pro është 25€/muaj.",
+    upgradeBlurb: "Plus është 7€/muaj. Pro është 25€/muaj. Pa kartë për të filluar.",
     skipForNow: "Anashkalo për tani",
     planReadyHeadline: (name: string) => `${name}, plani yt është gati.`,
     planReadySub: "Stërvitje dhe ushqim, në një aplikacion.",
@@ -1465,6 +1465,42 @@ export const platformCopyAl = {
     viewPhotos: "Fotot",
   },
   subscriptionPlans: {
+    free: {
+      name: "RUTINA Free",
+      tagline: "Stërvit, regjistro dhe ndiq progresin pa të dhëna pagese.",
+      features: [
+        "Kalendar",
+        "Ndjekje zakonesh",
+        "Regjistrim manual stërvitjesh",
+        "Bibliotekë ushtrimesh",
+        "Regjistrim uji dhe ushqimi",
+        "Ndjekje bazë e progresit",
+      ],
+    },
+    plus: {
+      name: "RUTINA Plus",
+      tagline: "Plane me AI, disa programe dhe një pamje më e qartë e javës.",
+      includesFrom: "RUTINA Free",
+      features: [
+        "Ndërtues stërvitjesh me AI",
+        "Plane ushqimi të personalizuara",
+        "Disa programe të ruajtura",
+        "Raporte javore",
+        "Statistika të avancuara",
+      ],
+    },
+    pro: {
+      name: "RUTINA Pro",
+      tagline: "Një coach që përshtat planin, plus trajnim live kur është i hapur.",
+      badge: "Akses i plotë",
+      includesFrom: "RUTINA Plus",
+      features: [
+        "Biseda të avancuara me AI Coach",
+        "Përshtatje të personalizuara stërvitjeje dhe ushqimi",
+        "Analiza të detajuara progresi",
+        "Sfida premium dhe klasa live kur janë të disponueshme",
+      ],
+    },
     basic: {
       name: "RUTINA Basic",
       tagline: "Plan i vjetër — nuk shitet më.",
@@ -1532,9 +1568,9 @@ export const platformCopyAl = {
   },
   classes: {
     upgradeDescription:
-      "Përmirëso në Elite për klasa trajnimi live, sfida komuniteti dhe coaching në grup.",
+      "Pro përfshin klasa trajnimi live dhe sfida premium kur janë të disponueshme.",
     upgradeDescriptionShort:
-      "Përmirëso në Elite për klasa live, sfida dhe akses në komunitet.",
+      "Përmirëso në Pro për klasa live dhe sfida premium.",
   },
   challenges: {
     leagueTagMen: "Liga e burrave",

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasPlusAccess } from "@/lib/subscription";
 import { getLatestWeeklyReport } from "@/lib/actions/ai-coach";
 import { buildPricingHref } from "@/lib/pricing-nav";
 import { redirect } from "next/navigation";
@@ -13,7 +13,7 @@ export default async function AiReportsPage() {
   if (!user) return null;
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-  if (!profile || !hasAiAccess(profile)) {
+  if (!profile || !hasPlusAccess(profile)) {
     redirect(buildPricingHref("/dashboard/ai/reports"));
   }
 

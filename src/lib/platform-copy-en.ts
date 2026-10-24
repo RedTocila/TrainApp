@@ -1191,8 +1191,8 @@ export const platformCopyEn = {
     logMealsGuidance: "Log meals to get personalized guidance.",
   },
   aiUpgrade: {
-    unlockFeature: "Upgrade to Elite to unlock this feature",
-    viewAiPlan: "View Elite plan",
+    unlockFeature: "Upgrade to Plus to unlock this feature",
+    viewAiPlan: "See Plus",
     aiWorkoutPlan: "AI workout plan",
     aiNutritionPlan: "AI nutrition plan",
     photoLog: "Photo log",
@@ -1200,8 +1200,8 @@ export const platformCopyEn = {
     aiChat: "AI fitness chat",
   },
   eliteUpgrade: {
-    unlockFeature: "Upgrade to Elite for live classes, challenges, and community access",
-    viewElitePlan: "View Elite plan",
+    unlockFeature: "Pro includes live classes and premium challenges where available",
+    viewElitePlan: "See Pro",
     liveClasses: "Live classes",
     challenges: "Challenges",
     community: "Community",
@@ -1328,8 +1328,8 @@ export const platformCopyEn = {
   pricing: {
     step: "Step 3 — Pick a package",
     choosePlan: "Choose your plan",
-    onboardingBlurb: "Elite unlocks coaching, community, and live training.",
-    upgradeBlurb: "Elite is €29.99/month.",
+    onboardingBlurb: "Free to start. Plus is €7/month. Pro is €25/month.",
+    upgradeBlurb: "Plus is €7/month. Pro is €25/month. No card to get started.",
     skipForNow: "Skip for now",
     planReadyHeadline: (name: string) => `${name}, your plan is ready.`,
     planReadySub: "Training and nutrition, in one app only.",
@@ -1456,6 +1456,42 @@ export const platformCopyEn = {
     viewPhotos: "Photos",
   },
   subscriptionPlans: {
+    free: {
+      name: "RUTINA Free",
+      tagline: "Train, log, and track with no payment details.",
+      features: [
+        "Calendar",
+        "Habit tracking",
+        "Manual workout logging",
+        "Exercise library",
+        "Water and food logging",
+        "Basic progress tracking",
+      ],
+    },
+    plus: {
+      name: "RUTINA Plus",
+      tagline: "AI plans, saved programs, and a clearer look at your week.",
+      includesFrom: "RUTINA Free",
+      features: [
+        "AI workout builder",
+        "Personalized nutrition plans",
+        "Multiple saved programs",
+        "Weekly reports",
+        "Advanced statistics",
+      ],
+    },
+    pro: {
+      name: "RUTINA Pro",
+      tagline: "A coach that adjusts the plan, plus live training when it's on.",
+      badge: "Full access",
+      includesFrom: "RUTINA Plus",
+      features: [
+        "Advanced AI Coach conversations",
+        "Personalized workout and nutrition adjustments",
+        "Detailed progress insights",
+        "Premium challenges and live classes where available",
+      ],
+    },
     basic: {
       name: "RUTINA Basic",
       tagline: "Legacy plan — no longer sold.",
@@ -1523,9 +1559,9 @@ export const platformCopyEn = {
   },
   classes: {
     upgradeDescription:
-      "Upgrade to Elite to join live training classes, community challenges, and group coaching.",
+      "Pro includes live training classes and premium challenges where available.",
     upgradeDescriptionShort:
-      "Upgrade to Elite for live classes, challenges, and community access.",
+      "Upgrade to Pro for live classes and premium challenges.",
   },
   challenges: {
     leagueTagMen: "Men's League",

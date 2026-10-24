@@ -11,7 +11,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { useVoiceDictation } from "@/hooks/use-voice-dictation";
 import { getAiPlanBuilderProfile } from "@/lib/actions/ai-plan-builder";
 import { buildPricingHref } from "@/lib/pricing-nav";
-import { hasAiAccess } from "@/lib/subscription";
+import { hasPlusAccess } from "@/lib/subscription";
 import { cn } from "@/lib/utils";
 
 export function AiBuildPromptPanel({
@@ -49,7 +49,7 @@ export function AiBuildPromptPanel({
     void getAiPlanBuilderProfile().then((result) => {
       if (cancelled) return;
       if ("profile" in result) {
-        setAiAccess(hasAiAccess(result.profile));
+        setAiAccess(hasPlusAccess(result.profile));
       } else {
         // Fail open so the field still works; chat enforces limits.
         setAiAccess(true);

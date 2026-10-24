@@ -16,7 +16,7 @@ import {
   type SubscriptionPlanId,
 } from "@/lib/subscription-plans";
 import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
-import { addBillingPeriod, hasPaidAccess } from "@/lib/subscription";
+import { addBillingPeriod } from "@/lib/subscription";
 import {
   createSdkOrder,
   getSdkOrder,
@@ -26,20 +26,18 @@ import {
 import { withPokPayWebhookSecret } from "@/lib/pokpay/env";
 import { getAppBaseUrl } from "@/lib/app-url";
 import type { Profile } from "@/lib/types";
-import { getSubscriptionRequiredMessage } from "@/lib/subscription-messages";
 
 export async function getSubscriptionProfile(): Promise<Profile | null> {
   return getCachedProfile();
 }
 
+/** Logged-in client mutations. A paid plan is not required for free features. */
 export async function ensureSubscribedMutation(): Promise<
   { profile: Profile } | { error: string }
 > {
   const profile = await getSubscriptionProfile();
   if (!profile) return { error: "Not authenticated" };
-  if (hasPaidAccess(profile)) return { profile };
-  const locale = parseCheckoutLocale(profile.preferred_locale);
-  return { error: getSubscriptionRequiredMessage(locale) };
+  return { profile };
 }
 
 async function completeSubscriptionOrder(
@@ -146,7 +144,7 @@ export async function createCheckoutOrder(
   if (!user) return { error: "Not authenticated" };
 
   if (!isSoldPlanId(planId)) {
-    return { error: "That plan is no longer available. Choose Elite." };
+    return { error: "That plan is no longer available. Choose Plus or Pro." };
   }
 
   const plan = getPlan(planId);

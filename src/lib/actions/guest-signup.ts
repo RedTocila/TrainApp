@@ -362,7 +362,7 @@ async function prepareGuestPendingOrder(
   const plan = getPlan(planId);
   if (!plan) return { ok: false, error: "Invalid plan" };
   if (!isSoldPlanId(planId)) {
-    return { ok: false, error: "That plan is no longer available. Choose Elite." };
+    return { ok: false, error: "That plan is no longer available. Choose Plus or Pro." };
   }
   if (interval !== "monthly" && interval !== "annual") {
     return { ok: false, error: "Invalid billing interval" };
@@ -501,29 +501,12 @@ export async function createGuestCheckoutOrder(
 
 /** Guest signup checkout via App Store IAP (no PokPay order). */
 export async function createGuestAppleCheckoutOrder(
-  signup: GuestSignupPayload,
-  planId: SubscriptionPlanId,
-  interval: BillingInterval
+  _signup: GuestSignupPayload,
+  _planId: SubscriptionPlanId,
+  _interval: BillingInterval
 ) {
-  const prepared = await prepareGuestPendingOrder(signup, planId, interval, {
-    paymentProvider: "apple",
-    applyOffers: false,
-  });
-  if (!prepared.ok) return { error: prepared.error };
-
-  const { getIapProductId } = await import("@/lib/iap/products");
-  const productId = getIapProductId(planId as "ai" | "elite", interval);
-
   return {
-    localOrderId: prepared.localOrderId,
-    productId,
-    appAccountToken: prepared.pendingSignupId,
-    pendingSignupId: prepared.pendingSignupId,
-    amountCents: prepared.price.amountCents,
-    planId,
-    interval,
-    planName: prepared.plan.name,
-    priceLabel: prepared.price.label,
+    error: "Subscriptions are purchased on rutina.al. Create a free account, then choose Plus or Pro on the website.",
   };
 }
 

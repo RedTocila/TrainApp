@@ -1,7 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { hasPaidAccess } from "@/lib/subscription";
-import { getSubscriptionRequiredMessage } from "@/lib/subscription-messages";
 import type { Profile } from "@/lib/types";
 
 export type WatchContext = {
@@ -75,11 +73,6 @@ export async function requireWatchUser(
 
   const profile = await loadProfile(admin, data.user.id);
   if (!profile) return { error: "Profile not found.", status: 401 };
-
-  if (!hasPaidAccess(profile)) {
-    const locale = profile.preferred_locale === "en" ? "en" : "al";
-    return { error: getSubscriptionRequiredMessage(locale), status: 403 };
-  }
 
   return { admin, userId: data.user.id, profile };
 }
