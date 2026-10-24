@@ -180,7 +180,7 @@ export const FUNNEL_STEPS: FunnelStep[] = [
     step: 3,
     icon: Package,
     title: "Choose your package",
-    subtitle: "€29.99 a month",
+    subtitle: "Free, Plus €7, or Pro €25",
   },
 ];
 
@@ -353,7 +353,7 @@ export const LANDING_HERO_STATS = [
 
 export const LANDING_STATS = [
   { value: "2 min", label: "Setup time" },
-  { value: "€29.99", label: "Per month" },
+  { value: "Free", label: "To start" },
   { value: "AI", label: "Smart coaching" },
   { value: "24/7", label: "Track anytime" },
 ];

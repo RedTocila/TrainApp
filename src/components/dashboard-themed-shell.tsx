@@ -153,6 +153,7 @@ export function DashboardThemedShell({
   backgroundPriority = false,
   backgroundObjectClass,
   solid = false,
+  keepPhoto = false,
 }: {
   theme: DashboardCardTheme;
   className?: string;
@@ -164,6 +165,8 @@ export function DashboardThemedShell({
   /** Optional override for photo object-position / scale. */
   backgroundObjectClass?: string;
   solid?: boolean;
+  /** Keep the photo and card body. Dashboard CSS hides other photo layers. */
+  keepPhoto?: boolean;
 }) {
   if (solid) {
     return (
@@ -184,6 +187,7 @@ export function DashboardThemedShell({
         hasPhoto
           ? "bg-zinc-950 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.85)]"
           : "bg-card shadow-[0_12px_32px_-12px_rgba(0,0,0,0.55)]",
+        keepPhoto && "dashboard-rest-photo",
         className
       )}
     >
@@ -226,7 +230,9 @@ export function DashboardThemedShell({
       <div
         className={cn(
           "relative z-10 flex w-full flex-1 flex-col",
-          hasPhoto ? "dashboard-photo-card" : "text-foreground"
+          hasPhoto && "dashboard-photo-card",
+          hasPhoto && keepPhoto && "dashboard-rest-photo",
+          !hasPhoto && "text-foreground"
         )}
       >
         {children}

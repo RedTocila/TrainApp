@@ -84,7 +84,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(IOS_WELCOME_PATH, request.url));
   }
 
-  // Signup and payment stay on the website. The app only signs in.
+  // Public marketing checkout stays on the website. The app registers and sells with Apple.
   if (isNativeApp && isWebsiteSignupPath(path) && !isServerAction) {
     return NextResponse.redirect(new URL(IOS_WELCOME_PATH, request.url));
   }

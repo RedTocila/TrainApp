@@ -6,11 +6,24 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isClientIntakeComplete } from "@/lib/client-intake-utils";
 import { isAiConfigured } from "@/lib/ai/providers";
-import { generateOnboardingWorkoutPlanFromProfile } from "@/lib/ai/generate-workout-plan";
+import { generateWeeklyFullProgramFromProfile } from "@/lib/ai/generate-weekly-full-program";
+import type { AiWeeklyFullDay, AiWeeklyFullProgram } from "@/lib/ai/generate-weekly-full-program";
 import { enrichExerciseWithGif } from "@/lib/exercise-gif";
+import { normalizeHiitConfig, type WorkoutPlanKind } from "@/lib/hiit";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
+import {
+  calculateMacrosFromIntakeResponses,
+  calculateMacrosFromProfile,
+} from "@/lib/macro-calculator";
+import { mealTypeForSlot } from "@/lib/meal-slots";
+import {
+  fallbackStarterMeals,
+  fallbackStarterWorkout,
+} from "@/lib/starter-fallback-plans";
 import { formatUserError } from "@/lib/format-user-error";
 import {
   STARTER_PROGRAM_WEEKS,
+  buildOnboardingProgramPreferences,
   daysPerWeekFromIntake,
   weekdaysForSessionCount,
 } from "@/lib/intake-starter-program";
@@ -79,125 +92,358 @@ export async function ensureStarterWorkoutForCurrentUser(): Promise<StarterProgr
   return buildStarterWorkoutProgramForUser(user.id, profile as Profile);
 }
 
+function mainExerciseCount(day: AiWeeklyFullDay): number {
+  return day.main.kind === "hiit"
+    ? day.main.plan.config.exercises.length
+    : day.main.workout.exercises.length;
+}
+
+/** Reject short samples so signup falls back to a full warm-up / main / stretch day. */
+function isCompleteStarterProgram(program: AiWeeklyFullProgram, daysPerWeek: number): boolean {
+  if (!program.includeExtras || program.days.length < daysPerWeek) return false;
+  return program.days.every(
+    (day) =>
+      day.warmup.config.exercises.length >= 4 &&
+      day.stretch.config.exercises.length >= 4 &&
+      mainExerciseCount(day) >= 6
+  );
+}
+
 /**
- * After first questionnaire completion: generate a personalized weekly strength
- * plan, assign it, and schedule each day across 4 weeks.
+ * After first questionnaire completion: a weekly split where every training
+ * day is warm-up, a full main session, and stretching.
  */
+async function starterWorkoutPlan(profile: Profile): Promise<AiWeeklyFullProgram> {
+  const responses = profileToResponses(profile);
+  const locale = parseCheckoutLocale(profile.preferred_locale);
+  const daysPerWeek = daysPerWeekFromIntake(responses);
+  if (isAiConfigured()) {
+    try {
+      const generated = await generateWeeklyFullProgramFromProfile(profile, {
+        daysPerWeek,
+        preferences: buildOnboardingProgramPreferences(responses),
+        includeExtras: true,
+        completeSession: true,
+      });
+      if (isCompleteStarterProgram(generated, daysPerWeek)) return generated;
+      console.error("[starterWorkoutPlan] AI program was too short, using starter template");
+    } catch (error) {
+      console.error("[starterWorkoutPlan] AI failed, using starter template", error);
+    }
+  }
+  return fallbackStarterWorkout(responses, locale);
+}
+
+/**
+ * First nutrition menu for every account, including free. Skips when one already exists.
+ */
+async function ensureStarterNutrition(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  profile: Profile
+): Promise<void> {
+  const { data: existing } = await admin
+    .from("nutrition_plans")
+    .select("id")
+    .eq("created_by", userId)
+    .eq("is_personal", true)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    const { data: active } = await admin
+      .from("nutrition_assignments")
+      .select("id")
+      .eq("client_id", userId)
+      .eq("active", true)
+      .limit(1)
+      .maybeSingle();
+    if (!active) {
+      await admin.from("nutrition_assignments").insert({
+        client_id: userId,
+        plan_id: existing.id,
+        active: true,
+      });
+    }
+    return;
+  }
+
+  const responses = profileToResponses(profile);
+  const locale = parseCheckoutLocale(profile.preferred_locale);
+  const targets =
+    (profile.target_calories
+      ? {
+          calories: profile.target_calories,
+          protein: profile.target_protein ?? 0,
+          carbs: profile.target_carbs ?? 0,
+          fat: profile.target_fat ?? 0,
+        }
+      : null) ??
+    calculateMacrosFromProfile(profile) ??
+    calculateMacrosFromIntakeResponses(responses);
+  if (!targets || targets.calories <= 0) return;
+
+  const meals = fallbackStarterMeals(targets, responses, locale);
+  const title = locale === "al" ? "Menuja jote e parë" : "Your first menu";
+  const { data: created, error } = await admin
+    .from("nutrition_plans")
+    .insert({
+      title,
+      description:
+        locale === "al"
+          ? "Vaktet e para, të ndara sipas objektivave të tua ditore."
+          : "Your first meals, split across your daily targets.",
+      created_by: userId,
+      is_personal: true,
+      target_calories: Math.round(targets.calories),
+      target_protein: Math.round(targets.protein),
+      target_carbs: Math.round(targets.carbs),
+      target_fat: Math.round(targets.fat),
+    })
+    .select("id")
+    .single();
+  if (error || !created) {
+    console.error("[ensureStarterNutrition]", error?.message);
+    return;
+  }
+
+  const { error: mealError } = await admin.from("meals").insert(
+    meals.map((meal, orderIndex) => ({
+      plan_id: created.id,
+      slot: meal.slot,
+      meal_type: mealTypeForSlot(meal.slot),
+      name: meal.name,
+      calories: meal.calories,
+      protein: meal.protein,
+      carbs: meal.carbs,
+      fat: meal.fat,
+      foods: meal.foods,
+      order_index: orderIndex,
+    }))
+  );
+  if (mealError) {
+    console.error("[ensureStarterNutrition]", mealError.message);
+    await admin.from("nutrition_plans").delete().eq("id", created.id);
+    return;
+  }
+
+  await admin
+    .from("nutrition_assignments")
+    .update({ active: false })
+    .eq("client_id", userId);
+  const { error: assignError } = await admin.from("nutrition_assignments").insert({
+    client_id: userId,
+    plan_id: created.id,
+    active: true,
+  });
+  if (assignError) console.error("[ensureStarterNutrition]", assignError.message);
+  revalidatePath("/dashboard/nutrition");
+}
+
+type SavedSlot = { planId: string; dayId: string };
+
+async function insertPersonalIntervalPlan(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  input: {
+    title: string;
+    description: string;
+    kind: Extract<WorkoutPlanKind, "warmup" | "stretch" | "hiit">;
+    config: unknown;
+  }
+): Promise<SavedSlot | { error: string }> {
+  const config = normalizeHiitConfig(input.config);
+  if (!config) return { error: `Invalid ${input.kind} session` };
+
+  const { data: plan, error: planError } = await admin
+    .from("workout_plans")
+    .insert({
+      title: input.title,
+      description: input.description,
+      created_by: userId,
+      is_personal: true,
+      kind: input.kind,
+      hiit_config: config,
+    })
+    .select("id")
+    .single();
+  if (planError || !plan) {
+    return { error: planError?.message ?? `Could not create ${input.kind}` };
+  }
+
+  const { data: day, error: dayError } = await admin
+    .from("workout_days")
+    .insert({
+      plan_id: plan.id,
+      day_index: 0,
+      title: input.title,
+    })
+    .select("id")
+    .single();
+  if (dayError || !day) {
+    await admin.from("workout_plans").delete().eq("id", plan.id);
+    return { error: dayError?.message ?? `Could not create ${input.kind} day` };
+  }
+
+  return { planId: plan.id as string, dayId: day.id as string };
+}
+
+async function insertPersonalStrengthPlan(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  day: Extract<AiWeeklyFullDay["main"], { kind: "strength" }>["workout"]
+): Promise<SavedSlot | { error: string }> {
+  const title = day.title?.trim() || "Workout";
+  const { data: plan, error: planError } = await admin
+    .from("workout_plans")
+    .insert({
+      title,
+      description: day.description?.trim() || "Starter main workout",
+      created_by: userId,
+      is_personal: true,
+      kind: "strength",
+    })
+    .select("id")
+    .single();
+  if (planError || !plan) {
+    return { error: planError?.message ?? "Could not create main workout" };
+  }
+
+  const { data: dayRow, error: dayError } = await admin
+    .from("workout_days")
+    .insert({ plan_id: plan.id, day_index: 0, title })
+    .select("id")
+    .single();
+  if (dayError || !dayRow) {
+    await admin.from("workout_plans").delete().eq("id", plan.id);
+    return { error: dayError?.message ?? "Could not create workout day" };
+  }
+
+  if (day.exercises.length > 0) {
+    const enriched = day.exercises.map((exercise) =>
+      enrichExerciseWithGif({
+        name: exercise.name,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        rest_seconds: exercise.rest_seconds,
+        notes: exercise.notes,
+        image_url: exercise.image_url,
+        video_url: exercise.video_url,
+      })
+    );
+    const { error: exError } = await admin.from("exercises").insert(
+      enriched.map((exercise, orderIndex) => ({
+        day_id: dayRow.id,
+        name: exercise.name,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        rest_seconds: exercise.rest_seconds,
+        notes: exercise.notes ?? null,
+        image_url: exercise.image_url ?? null,
+        video_url: exercise.video_url ?? null,
+        order_index: orderIndex,
+      }))
+    );
+    if (exError) {
+      await admin.from("workout_plans").delete().eq("id", plan.id);
+      return { error: exError.message };
+    }
+  }
+
+  return { planId: plan.id as string, dayId: dayRow.id as string };
+}
+
 export async function buildStarterWorkoutProgramForUser(
   userId: string,
   profile: Profile
 ): Promise<StarterProgramResult> {
-  if (!isAiConfigured()) {
-    return { built: false, skipped: true, reason: "ai_not_configured" };
-  }
-
   const admin = createAdminClient();
 
   if (await clientAlreadyHasWorkoutProgram(admin, userId)) {
+    await ensureStarterNutrition(admin, userId, profile);
     return { built: false, skipped: true, reason: "already_has_program" };
   }
 
   try {
-    const plan = await generateOnboardingWorkoutPlanFromProfile(profile);
+    const program = await starterWorkoutPlan(profile);
     const responses = profileToResponses(profile);
     const daysPerWeek = Math.min(
-      plan.days.length,
+      program.days.length,
       daysPerWeekFromIntake(responses)
     );
-    const days = plan.days.slice(0, daysPerWeek);
+    const days = program.days.slice(0, daysPerWeek);
     if (days.length === 0) {
       return { built: false, error: "AI did not return workout days" };
     }
 
-    const { data: created, error: createError } = await admin
-      .from("workout_plans")
-      .insert({
-        title: plan.title,
-        description:
-          plan.description ||
-          `4-week starter · ${days.length} days/week from your health profile`,
-        created_by: userId,
-        is_personal: true,
-        kind: "strength",
-      })
-      .select("id")
-      .single();
+    const createdPlanIds: string[] = [];
+    const discard = async () => {
+      if (createdPlanIds.length === 0) return;
+      await admin.from("workout_plans").delete().in("id", createdPlanIds);
+    };
+    const fail = async (error: string): Promise<StarterProgramResult> => {
+      await discard();
+      return { built: false, error };
+    };
 
-    if (createError || !created) {
-      return {
-        built: false,
-        error: createError?.message ?? "Could not create workout plan",
-      };
+    type PreparedDay = {
+      focus: string;
+      warmup: SavedSlot;
+      main: SavedSlot;
+      stretch: SavedSlot;
+    };
+    const prepared: PreparedDay[] = [];
+
+    for (const day of days) {
+      const warmup = await insertPersonalIntervalPlan(admin, userId, {
+        title: day.warmup.title,
+        description: day.warmup.description?.trim() || "Warm-up",
+        kind: "warmup",
+        config: day.warmup.config,
+      });
+      if ("error" in warmup) return fail(warmup.error);
+      createdPlanIds.push(warmup.planId);
+
+      const main =
+        day.main.kind === "hiit"
+          ? await insertPersonalIntervalPlan(admin, userId, {
+              title: day.main.plan.title,
+              description: day.main.plan.description?.trim() || "Main workout",
+              kind: "hiit",
+              config: day.main.plan.config,
+            })
+          : await insertPersonalStrengthPlan(admin, userId, day.main.workout);
+      if ("error" in main) return fail(main.error);
+      createdPlanIds.push(main.planId);
+
+      const stretch = await insertPersonalIntervalPlan(admin, userId, {
+        title: day.stretch.title,
+        description: day.stretch.description?.trim() || "Stretching",
+        kind: "stretch",
+        config: day.stretch.config,
+      });
+      if ("error" in stretch) return fail(stretch.error);
+      createdPlanIds.push(stretch.planId);
+
+      prepared.push({
+        focus: day.focus || day.warmup.title,
+        warmup,
+        main,
+        stretch,
+      });
     }
 
-    const planId = created.id as string;
-    const dayIds: string[] = [];
-
-    for (let i = 0; i < days.length; i++) {
-      const day = days[i];
-      const { data: dayRow, error: dayError } = await admin
-        .from("workout_days")
-        .insert({ plan_id: planId, day_index: i, title: day.title })
-        .select("id")
-        .single();
-
-      if (dayError || !dayRow) {
-        return {
-          built: false,
-          error: dayError?.message ?? "Could not create workout day",
-        };
-      }
-
-      dayIds.push(dayRow.id as string);
-
-      if (day.exercises.length > 0) {
-        const enriched = day.exercises.map((ex) =>
-          enrichExerciseWithGif({
-            name: ex.name,
-            sets: ex.sets,
-            reps: ex.reps,
-            rest_seconds: ex.rest_seconds,
-            notes: ex.notes,
-            image_url: ex.image_url,
-            video_url: ex.video_url,
-          })
-        );
-        const { error: exError } = await admin.from("exercises").insert(
-          enriched.map((ex, orderIndex) => ({
-            day_id: dayRow.id,
-            name: ex.name,
-            sets: ex.sets,
-            reps: ex.reps,
-            rest_seconds: ex.rest_seconds,
-            notes: ex.notes ?? null,
-            image_url: ex.image_url ?? null,
-            video_url: ex.video_url ?? null,
-            order_index: orderIndex,
-          }))
-        );
-        if (exError) return { built: false, error: exError.message };
-      }
-    }
-
-    await admin
-      .from("workout_assignments")
-      .update({ active: false })
-      .eq("client_id", userId);
-
-    const { error: assignError } = await admin.from("workout_assignments").insert({
-      client_id: userId,
-      plan_id: planId,
-      active: true,
-    });
-    if (assignError) return { built: false, error: assignError.message };
-
-    const weekdays = weekdaysForSessionCount(dayIds.length);
+    const weekdays = weekdaysForSessionCount(prepared.length);
     const today = new Date();
     today.setHours(12, 0, 0, 0);
     const startKey = format(today, "yyyy-MM-dd");
     let sessionsScheduled = 0;
+    let scheduledUntil = startKey;
 
-    const scheduleSession = async (dayId: string, scheduledDate: string) => {
+    const scheduleSession = async (
+      slot: SavedSlot,
+      scheduledDate: string
+    ): Promise<string | null> => {
       if (scheduledDate < startKey) return null;
 
       const { data: existing } = await admin
@@ -205,8 +451,8 @@ export async function buildStarterWorkoutProgramForUser(
         .select("id")
         .eq("client_id", userId)
         .eq("scheduled_date", scheduledDate)
-        .eq("plan_id", planId)
-        .eq("day_id", dayId)
+        .eq("plan_id", slot.planId)
+        .eq("day_id", slot.dayId)
         .maybeSingle();
       if (existing) return null;
 
@@ -222,46 +468,102 @@ export async function buildStarterWorkoutProgramForUser(
       const { error: insertError } = await admin.from("scheduled_workouts").insert({
         client_id: userId,
         scheduled_date: scheduledDate,
-        plan_id: planId,
-        day_id: dayId,
+        plan_id: slot.planId,
+        day_id: slot.dayId,
         order_index: orderIndex,
       });
       if (insertError) return insertError.message;
       sessionsScheduled += 1;
+      if (scheduledDate > scheduledUntil) scheduledUntil = scheduledDate;
       return null;
     };
 
-    // If today is not one of the split days, still put session 1 on today
+    const scheduleDay = async (day: PreparedDay, scheduledDate: string) => {
+      const warmupError = await scheduleSession(day.warmup, scheduledDate);
+      if (warmupError) return warmupError;
+      const mainError = await scheduleSession(day.main, scheduledDate);
+      if (mainError) return mainError;
+      return scheduleSession(day.stretch, scheduledDate);
+    };
+
+    // If today is not one of the split days, still put day 1 on today
     // so the program can be started as soon as the account exists.
-    if (!weekdays.includes(today.getDay()) && dayIds[0]) {
-      const todayError = await scheduleSession(dayIds[0], startKey);
-      if (todayError) return { built: false, error: todayError };
+    if (!weekdays.includes(today.getDay()) && prepared[0]) {
+      const todayError = await scheduleDay(prepared[0], startKey);
+      if (todayError) return fail(todayError);
     }
 
-    for (let i = 0; i < dayIds.length; i++) {
+    for (let i = 0; i < prepared.length; i++) {
       const weekday = weekdays[i] ?? weekdays[weekdays.length - 1]!;
       const dates = generateRecurringScheduleDates(
         today,
         [weekday],
         STARTER_PROGRAM_WEEKS
       );
-
       for (const scheduledDate of dates) {
-        const insertError = await scheduleSession(dayIds[i]!, scheduledDate);
-        if (insertError) return { built: false, error: insertError };
+        const insertError = await scheduleDay(prepared[i]!, scheduledDate);
+        if (insertError) return fail(insertError);
       }
     }
 
+    const weekDays = prepared.map((day, index) => ({
+      focus: day.focus,
+      weekday: weekdays[index] ?? weekdays[weekdays.length - 1] ?? 1,
+      mainPlanId: day.main.planId,
+      mainDayId: day.main.dayId,
+      warmupPlanId: day.warmup.planId,
+      stretchPlanId: day.stretch.planId,
+    }));
+    const { data: weekPlan, error: weekError } = await admin
+      .from("workout_plans")
+      .insert({
+        title: program.title,
+        description:
+          program.description ||
+          `4-week program · warm-up, full workout, and stretch · ${prepared.length} days/week`,
+        created_by: userId,
+        is_personal: true,
+        kind: "week",
+        week_config: {
+          includeExtras: true,
+          days: weekDays,
+          lastScheduledAt: new Date().toISOString(),
+          scheduledUntil,
+          scheduledStartDate: startKey,
+          scheduledWeeks: STARTER_PROGRAM_WEEKS,
+        },
+      })
+      .select("id")
+      .single();
+    if (weekError || !weekPlan) {
+      return fail(weekError?.message ?? "Could not create week plan");
+    }
+    createdPlanIds.push(weekPlan.id as string);
+
+    const assignedPlanId = prepared[0]!.main.planId;
+    await admin
+      .from("workout_assignments")
+      .update({ active: false })
+      .eq("client_id", userId);
+    const { error: assignError } = await admin.from("workout_assignments").insert({
+      client_id: userId,
+      plan_id: assignedPlanId,
+      active: true,
+    });
+    if (assignError) return fail(assignError.message);
+
+    await ensureStarterNutrition(admin, userId, profile);
+
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/workout");
-    revalidatePath(`/dashboard/workout/${planId}`);
-    revalidatePath(`/dashboard/workout/${planId}/edit`);
+    revalidatePath("/dashboard/workout/plans");
+    revalidatePath(`/dashboard/workout/${assignedPlanId}`);
 
     return {
       built: true,
-      planId,
-      title: plan.title,
-      daysPerWeek: dayIds.length,
+      planId: (weekPlan.id as string) || assignedPlanId,
+      title: program.title,
+      daysPerWeek: prepared.length,
       sessionsScheduled,
     };
   } catch (error) {

@@ -427,11 +427,6 @@ function ActiveExercisePanel({
   const [weightDraft, setWeightDraft] = useState("");
   const applyingRemote = useRef(false);
   const remoteToken = useRef<number | null>(null);
-  const historyLabel = formatExerciseHistoryLabel(
-    history,
-    platform.workout.lastSets,
-    platform.workout.neverTried
-  );
   const previousSets = (history?.sets ?? []).filter(
     (s) => s.reps != null || s.weight_kg != null
   );
@@ -449,10 +444,20 @@ function ActiveExercisePanel({
   const catalog = findCatalogExercise(exercise.name);
   const instructionSteps = catalog?.instructions ?? [];
   const coachNotes = exercise.notes?.trim() || null;
-  // Match previous set by index for the set you're about to log.
-  const previousForNextSet =
-    previousSets[completedSets] ?? previousSets[previousSets.length - 1] ?? null;
   const currentSetNumber = Math.min(completedSets + 1, targetSets);
+  // Only the matching previous set — set 1 uses last time's set 1.
+  const previousForNextSet =
+    previousSets.find(
+      (set, index) => (set.set_number ?? index + 1) === currentSetNumber
+    ) ?? null;
+  const historyLabel = formatExerciseHistoryLabel(
+    history,
+    platform.workout.lastSets,
+    previousSets.length > 0 && !previousForNextSet
+      ? ""
+      : platform.workout.neverTried,
+    currentSetNumber
+  );
   const startingReps =
     activeSet?.reps ?? previousForNextSet?.reps ?? 6;
   const startingWeightKg =

@@ -16,6 +16,7 @@ import {
   uploadMealPhotoBuffer,
   type MealPhotoUploadInput,
 } from "@/lib/meal-photo-storage";
+import { freeAiMealSlotOpen } from "@/lib/free-ai-meals";
 import { mealPayloadFromForm, sumMealMacros, type MealFormData } from "@/lib/meal-utils";
 import { getMealSlotPhase, resolveMealSlotForLog } from "@/lib/meal-times";
 import { mealTypeForSlot, type MealSlot } from "@/lib/meal-slots";
@@ -49,6 +50,7 @@ async function insertMealLogWithSlot(
     explicitSlot?: MealSlot | null;
     photo_path?: string | null;
     photo_expires_at?: string | null;
+    ai_assisted?: boolean;
   }
 ) {
   const existingLogs = await getDailyMealLogs(clientId, date);
@@ -75,6 +77,7 @@ async function insertMealLogWithSlot(
     source_meal_id: input.source_meal_id ?? null,
     photo_path: input.photo_path ?? null,
     photo_expires_at: input.photo_expires_at ?? null,
+    ai_assisted: input.ai_assisted ?? false,
   });
 }
 
@@ -268,7 +271,7 @@ export async function logCustomMeal(
   clientId: string,
   date: string,
   data: MealFormData,
-  options?: { photo?: MealPhotoUploadInput }
+  options?: { photo?: MealPhotoUploadInput; aiAssisted?: boolean }
 ) {
   const mutation = await requireSubscribedMutationAdmin(clientId);
   if ("error" in mutation) return { error: mutation.error };
@@ -276,6 +279,12 @@ export async function logCustomMeal(
 
   const payload = mealPayloadFromForm(data);
   if (!payload.name) return { error: "Meal name is required" };
+
+  const aiAssisted = Boolean(options?.aiAssisted || options?.photo);
+  if (aiAssisted) {
+    const slot = await freeAiMealSlotOpen(admin, mutation.profile, date);
+    if (!slot.ok) return { error: slot.error };
+  }
 
   const logId = crypto.randomUUID();
   let photo_path: string | null = null;
@@ -300,6 +309,7 @@ export async function logCustomMeal(
     foods: payload.foods,
     photo_path,
     photo_expires_at,
+    ai_assisted: aiAssisted,
   });
 
   if (error) {
@@ -318,6 +328,45 @@ export async function logCustomMeal(
     revalidatePath("/dashboard/meal-photos");
   });
   return { success: true, logId };
+}
+
+export async function updateDailyMealLog(
+  clientId: string,
+  date: string,
+  logId: string,
+  data: MealFormData
+) {
+  const mutation = await requireSubscribedMutationAdmin(clientId);
+  if ("error" in mutation) return { error: mutation.error };
+
+  const payload = mealPayloadFromForm(data);
+  if (!payload.name) return { error: "Meal name is required" };
+
+  const { error } = await mutation.admin
+    .from("daily_meal_logs")
+    .update({
+      meal_type: payload.meal_type,
+      name: payload.name,
+      description: payload.description,
+      calories: payload.calories,
+      protein: payload.protein,
+      carbs: payload.carbs,
+      fat: payload.fat,
+      foods: payload.foods,
+    })
+    .eq("id", logId)
+    .eq("client_id", clientId)
+    .eq("date", date);
+
+  if (error) return { error: formatDbError(error.message) };
+
+  await syncDailyMacros(clientId, date);
+  after(() => {
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/day/nutrition");
+    revalidatePath("/dashboard/meal-photos");
+  });
+  return { success: true };
 }
 
 export async function deleteDailyMealLog(clientId: string, date: string, logId: string) {

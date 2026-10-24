@@ -1,10 +1,10 @@
 import type { Profile } from "@/lib/types";
 
 /**
- * Native shell does not sell subscriptions. Account and payment stay on the website.
- * Signing in does not grant Plus or Pro.
+ * iPhone sells Plus and Pro with App Store billing. The website keeps card checkout.
+ * Signing in still honors a plan already bought on either side.
  */
-export const NATIVE_APP_FREE = true;
+export const NATIVE_APP_FREE = false;
 
 /**
  * Challenges and live classes are Pro features. The app shows them and the

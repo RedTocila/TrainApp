@@ -21,9 +21,12 @@ import {
   UtensilsCrossed,
   Zap,
 } from "lucide-react";
+import { useState } from "react";
 import { AiCoachAvatar } from "@/components/ai-coach-avatar";
+import { AppDialog } from "@/components/app-dialog";
 import { useAiCoachChat } from "@/components/ai-coach-chat-context";
 import { usePlatformCopy } from "@/components/locale-provider";
+import { Button } from "@/components/ui/button";
 import type { MacroGap } from "@/lib/ai/types";
 import { buildPricingHref } from "@/lib/pricing-nav";
 import { cn } from "@/lib/utils";
@@ -40,18 +43,19 @@ function CreatePlanCard({
   description,
   icon: Icon,
   backgroundImage,
+  onLocked,
 }: {
   href: string;
   title: string;
   description: string;
   icon: typeof Dumbbell;
   backgroundImage: string;
+  onLocked?: () => void;
 }) {
-  return (
-    <Link
-      href={href}
-      className="dashboard-flat-card group relative flex min-h-[160px] flex-col justify-between overflow-hidden rounded-3xl p-4 active:scale-[0.99]"
-    >
+  const className =
+    "dashboard-flat-card group relative flex min-h-[160px] flex-col justify-between overflow-hidden rounded-3xl p-4 text-left active:scale-[0.99]";
+  const body = (
+    <>
       <div
         aria-hidden
         className="absolute inset-0 bg-cover bg-right"
@@ -75,6 +79,20 @@ function CreatePlanCard({
         <p className="text-sm font-bold leading-snug">{title}</p>
         <p className="text-xs leading-relaxed text-white/75">{description}</p>
       </div>
+    </>
+  );
+
+  if (onLocked) {
+    return (
+      <button type="button" onClick={onLocked} className={className}>
+        {body}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {body}
     </Link>
   );
 }
@@ -84,17 +102,18 @@ function HelpTile({
   icon: Icon,
   label,
   desc,
+  onLocked,
 }: {
   href: string;
   icon: typeof Dumbbell;
   label: string;
   desc: string;
+  onLocked?: () => void;
 }) {
-  return (
-    <Link
-      href={href}
-      className="dashboard-flat-card group relative flex min-h-[128px] flex-col justify-between overflow-hidden rounded-3xl p-3.5 active:scale-[0.99]"
-    >
+  const className =
+    "dashboard-flat-card group relative flex min-h-[128px] flex-col justify-between overflow-hidden rounded-3xl p-3.5 text-left active:scale-[0.99]";
+  const body = (
+    <>
       <div className="relative z-10 flex items-start justify-between gap-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
           <Icon className="h-4 w-4 text-primary" />
@@ -105,6 +124,20 @@ function HelpTile({
         <p className="text-[13px] font-bold leading-snug">{label}</p>
         <p className="text-[11px] leading-relaxed text-muted-foreground">{desc}</p>
       </div>
+    </>
+  );
+
+  if (onLocked) {
+    return (
+      <button type="button" onClick={onLocked} className={className}>
+        {body}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {body}
     </Link>
   );
 }
@@ -216,6 +249,7 @@ export function AiCoachOverviewClient({
   const router = useRouter();
   const { openChat } = useAiCoachChat();
   const pricingHref = buildPricingHref(pathname);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const tipText =
     insightMessage && insightMessage !== ai.logMealsGuidance
@@ -227,17 +261,17 @@ export function AiCoachOverviewClient({
       ? Math.min(100, Math.round((gap.consumed.calories / gap.targets.calories) * 100))
       : report?.nutrition_score ?? 0;
 
-  const featureHref = (href: string, tier: "plus" | "pro") => {
-    if (tier === "plus" && plusLocked) return pricingHref;
-    if (tier === "pro" && coachLocked) return pricingHref;
-    return href;
+  const tierLocked = (tier: "plus" | "pro") =>
+    tier === "plus" ? plusLocked : coachLocked;
+  const openUpgrade = () => setUpgradeOpen(true);
+  const onChatLocked = () => {
+    if (!coachLocked) return false;
+    openUpgrade();
+    return true;
   };
-  const onLockedAction = () => {
-    if (coachLocked) {
-      router.push(pricingHref);
-      return true;
-    }
-    return false;
+  const openPackages = () => {
+    setUpgradeOpen(false);
+    router.push(pricingHref);
   };
 
   return (
@@ -258,7 +292,7 @@ export function AiCoachOverviewClient({
           <button
             type="button"
             onClick={() => {
-              if (onLockedAction()) return;
+              if (onChatLocked()) return;
               openChat();
             }}
             aria-label={ai.startChatting}
@@ -287,7 +321,7 @@ export function AiCoachOverviewClient({
                   key={topic.id}
                   type="button"
                   onClick={() => {
-                    if (onLockedAction()) return;
+                    if (onChatLocked()) return;
                     openChat(topic.prompt);
                   }}
                   className={cn(
@@ -310,28 +344,32 @@ export function AiCoachOverviewClient({
         <h3 className="text-base font-bold">{ai.howCanIHelp}</h3>
         <div className="grid grid-cols-2 gap-2.5">
           <HelpTile
-            href={featureHref("/dashboard/ai/predictions", "pro")}
+            href="/dashboard/ai/predictions"
             icon={LineChart}
             label={ai.helpTiles.progress.label}
             desc={ai.helpTiles.progress.desc}
+            onLocked={tierLocked("pro") ? openUpgrade : undefined}
           />
           <HelpTile
-            href={featureHref("/dashboard/ai/recommendations", "pro")}
+            href="/dashboard/ai/recommendations"
             icon={Lightbulb}
             label={ai.helpTiles.tips.label}
             desc={ai.helpTiles.tips.desc}
+            onLocked={tierLocked("pro") ? openUpgrade : undefined}
           />
           <HelpTile
-            href={featureHref("/dashboard/ai/reports", "plus")}
+            href="/dashboard/ai/reports"
             icon={FileText}
             label={ai.helpTiles.weeklyReport.label}
             desc={ai.helpTiles.weeklyReport.desc}
+            onLocked={tierLocked("plus") ? openUpgrade : undefined}
           />
           <HelpTile
-            href={featureHref("/dashboard/ai/meal-suggestions", "plus")}
+            href="/dashboard/ai/meal-suggestions"
             icon={UtensilsCrossed}
             label={ai.helpTiles.mealIdeas.label}
             desc={ai.helpTiles.mealIdeas.desc}
+            onLocked={tierLocked("plus") ? openUpgrade : undefined}
           />
         </div>
       </section>
@@ -341,18 +379,20 @@ export function AiCoachOverviewClient({
         <h3 className="text-base font-bold">{ai.buildPlan}</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <CreatePlanCard
-            href={featureHref("/dashboard/ai/plans/workout", "plus")}
+            href="/dashboard/ai/plans/workout"
             title={ai.buildWorkoutWithAi}
             description={ai.buildWorkoutWithAiDesc}
             icon={Dumbbell}
             backgroundImage="/ai-coach/create-workout.png"
+            onLocked={tierLocked("plus") ? openUpgrade : undefined}
           />
           <CreatePlanCard
-            href={featureHref("/dashboard/ai/plans/nutrition", "plus")}
+            href="/dashboard/ai/plans/nutrition"
             title={ai.buildNutritionWithAi}
             description={ai.buildNutritionWithAiDesc}
             icon={Salad}
             backgroundImage="/ai-coach/create-nutrition.png"
+            onLocked={tierLocked("plus") ? openUpgrade : undefined}
           />
         </div>
         <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
@@ -380,7 +420,7 @@ export function AiCoachOverviewClient({
                 key={item.question}
                 type="button"
                 onClick={() => {
-                  if (onLockedAction()) return;
+                  if (onChatLocked()) return;
                   openChat(item.prompt);
                 }}
                 className="dashboard-flat-card flex w-full items-center gap-3 rounded-3xl px-3.5 py-3 text-left active:scale-[0.99]"
@@ -412,6 +452,25 @@ export function AiCoachOverviewClient({
       </section>
 
       <div className="h-16 lg:h-8" aria-hidden />
+
+      <AppDialog
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        ariaLabel={ai.upgradeDrawerTitle}
+        footer={
+          <Button className="w-full" size="lg" onClick={openPackages}>
+            {ai.upgradeDrawerCta}
+          </Button>
+        }
+      >
+        <div className="flex items-start gap-3 px-5 pb-2">
+          <AiCoachAvatar size="sm" className="h-12 w-12 shrink-0" />
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-base font-black leading-tight">{ai.upgradeDrawerTitle}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">{ai.upgradeDrawerBody}</p>
+          </div>
+        </div>
+      </AppDialog>
     </div>
   );
 }

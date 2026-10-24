@@ -66,12 +66,14 @@ CAP_SERVER_URL=https://your-preview.vercel.app npx cap sync
 | Android Capacitor shell | **PokPay** (for now) |
 | iOS Capacitor shell | **Apple In-App Purchase** |
 
-iOS auto-renewable product IDs (create exactly in App Store Connect):
+iOS auto-renewable product IDs (create exactly in App Store Connect, one subscription group):
 
-- `al.rutina.app.ai.monthly`
-- `al.rutina.app.ai.annual`
-- `al.rutina.app.elite.monthly`
-- `al.rutina.app.elite.annual`
+- `al.rutina.app.plus.monthly`
+- `al.rutina.app.plus.annual`
+- `al.rutina.app.pro.monthly`
+- `al.rutina.app.pro.annual`
+
+Legacy `ai` and `elite` product IDs are still recognized for restore. New purchases use Plus and Pro.
 
 Set `APPLE_APP_APPLE_ID` in Vercel (numeric App Store Connect Apple ID) so production receipts verify.
 

@@ -38,6 +38,7 @@ function isMealPhotoRejected(
 }
 
 export function MealPhotoLogStep({
+  dateKey,
   form,
   onFormChange,
   onError,
@@ -49,6 +50,7 @@ export function MealPhotoLogStep({
   isSaving = false,
   onLogMeal,
 }: {
+  dateKey: string;
   form: MealFormData;
   onFormChange: (form: MealFormData) => void;
   onError: (message: string | null) => void;
@@ -98,7 +100,7 @@ export function MealPhotoLogStep({
     startTransition(async () => {
       try {
         const response = await runServerAction(() =>
-          analyzeMealPhotoAction(imageBase64, mimeType)
+          analyzeMealPhotoAction(imageBase64, mimeType, dateKey)
         );
         if (gen !== analyzeGenRef.current) return;
         if (isActionError(response)) {
@@ -232,7 +234,8 @@ export function MealPhotoLogStep({
             imageBase64,
             mimeType,
             specification,
-            lastAnalysis ?? undefined
+            lastAnalysis ?? undefined,
+            dateKey
           )
         );
         if (isActionError(response)) {

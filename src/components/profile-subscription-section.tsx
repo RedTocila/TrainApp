@@ -33,7 +33,9 @@ export function ProfileSubscriptionSection({
   const isActive = profile.subscription_status === "active";
   const isCanceled = profile.subscription_status === "canceled";
   const hasAccess = isSubscriptionActive(profile);
+  const appleBilled = Boolean(profile.apple_original_transaction_id);
   const showGiveUp = Boolean(plan && isActive);
+  const showPlanLink = !hasAccess || appleBilled;
 
   return (
     <Card className="dashboard-flat-card">
@@ -75,21 +77,23 @@ export function ProfileSubscriptionSection({
         <div
           className={cn(
             "grid gap-2",
-            showGiveUp ? "grid-cols-2" : "grid-cols-1"
+            showGiveUp && showPlanLink ? "grid-cols-2" : "grid-cols-1"
           )}
         >
-          <Link
-            href={buildPricingHref("/dashboard/profile")}
-            className={buttonVariants({
-              variant: "outline",
-              size: "sm",
-              className: "w-full",
-            })}
-          >
-            {plan && hasAccess ? coachLabels.levelUp : coachLabels.pickAPlan}
-          </Link>
+          {showPlanLink ? (
+            <Link
+              href={buildPricingHref("/dashboard/profile")}
+              className={buttonVariants({
+                variant: "outline",
+                size: "sm",
+                className: "w-full",
+              })}
+            >
+              {plan && hasAccess ? coachLabels.levelUp : coachLabels.pickAPlan}
+            </Link>
+          ) : null}
           <ProfileSubscriptionActions
-            billedViaApple={Boolean(profile.apple_original_transaction_id)}
+            billedViaApple={appleBilled}
             showCancel={showGiveUp}
           />
         </div>

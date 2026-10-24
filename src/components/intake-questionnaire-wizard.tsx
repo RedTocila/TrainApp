@@ -25,8 +25,10 @@ import {
   WeightRuler,
 } from "@/components/intake-funnel-controls";
 import { DashboardThemedShell } from "@/components/dashboard-themed-shell";
+import { ExerciseGifImage } from "@/components/exercise-gif-image";
 import { NutritionRemainingCard } from "@/components/nutrition-remaining-card";
 import { starterProgramPreview } from "@/lib/intake-starter-program";
+import { resolveExerciseGifUrls, resolveProfileGender } from "@/lib/exercise-gif";
 import {
   ACTIVITY_OPTIONS,
   ALCOHOL_OPTIONS,
@@ -963,6 +965,28 @@ export function MacroDonut({
   );
 }
 
+function ExampleExerciseGif({
+  name,
+  gender,
+}: {
+  name: string;
+  gender?: string;
+}) {
+  const { url, fallbackUrl } = resolveExerciseGifUrls({
+    name,
+    gender: resolveProfileGender(gender),
+  });
+
+  return (
+    <ExerciseGifImage
+      gifUrl={url}
+      fallbackUrl={fallbackUrl}
+      alt={name}
+      className="h-10 w-10 shrink-0 rounded-lg bg-white"
+    />
+  );
+}
+
 export function IntakeCompleteSummary({
   responses,
   macros,
@@ -1006,20 +1030,26 @@ export function IntakeCompleteSummary({
             </div>
           </div>
           <ul className="flex flex-col gap-1.5">
-            {workout.weekdayLabels.map((day) => (
+            {workout.weekdayLabels.map((day, index) => (
               <li
                 key={day}
-                className="flex items-center gap-3 rounded-2xl bg-white/[0.07] px-3 py-2.5"
+                className="flex items-center gap-3 rounded-2xl bg-white/[0.07] px-3 py-2"
               >
                 <span className="w-9 shrink-0 text-sm font-black text-white">{day}</span>
-                <span className="min-w-0 truncate text-[11px] font-semibold tracking-wide text-white/70">
-                  Warm-up · Main · Stretch
+                <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
+                  {(workout.exampleExercises[index] ?? []).map((name) => (
+                    <ExampleExerciseGif
+                      key={`${day}-${name}`}
+                      name={name}
+                      gender={responses.gender}
+                    />
+                  ))}
                 </span>
               </li>
             ))}
           </ul>
           <p className="text-xs leading-relaxed text-white/60">
-            {workout.experience} · {workout.equipment}. {workout.sessions} sessions land on your calendar after signup.
+            {workout.experience} · {workout.equipment}. Each day is a warm-up, full workout, and stretch — {workout.sessions} sessions land on your calendar after signup.
           </p>
         </div>
       </DashboardThemedShell>

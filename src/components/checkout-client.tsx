@@ -6,7 +6,7 @@ import type { PaymentErrorResponse } from "@nebula-ltd/pok-payments-js";
 import { CreditCard, Lock, Loader2, ShieldCheck } from "lucide-react";
 import { AppleIapCheckout } from "@/components/apple-iap-checkout";
 import { PokPayGuestCheckout } from "@/components/pokpay-guest-checkout";
-import { completeAppleCheckoutPurchase } from "@/lib/actions/iap";
+import { completeAppleCheckoutPurchase, createAppleCheckoutOrder } from "@/lib/actions/iap";
 import { createCheckoutOrder } from "@/lib/actions/subscriptions";
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
 import {
@@ -20,7 +20,7 @@ import {
   clearCheckoutReferralCode,
   loadCheckoutReferralCode,
 } from "@/lib/referral-storage";
-import { shouldUseAppleIap } from "@/lib/native-iap";
+import { useShouldUseAppleIap } from "@/components/ios/use-native-app";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,7 +71,7 @@ export function CheckoutClient({
 }) {
   const platform = usePlatformCopy();
   const router = useRouter();
-  const useAppleIap = shouldUseAppleIap();
+  const useAppleIap = useShouldUseAppleIap();
   const [checkoutStarted, setCheckoutStarted] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [localOrderId, setLocalOrderId] = useState<string | null>(null);
@@ -112,9 +112,25 @@ export function CheckoutClient({
 
     startTransition(async () => {
       if (useAppleIap) {
-        setError(
-          "Subscriptions are purchased on the website. Open rutina.al to choose Plus or Pro."
-        );
+        const result = await createAppleCheckoutOrder(planId, interval);
+        if ("error" in result && result.error) {
+          setError(result.error);
+          return;
+        }
+        if (
+          !("localOrderId" in result) ||
+          !result.localOrderId ||
+          !result.productId ||
+          !result.appAccountToken
+        ) {
+          setError(platform.checkoutFlow.checkoutErrorTitle);
+          return;
+        }
+        clearCheckoutReferralCode();
+        setLocalOrderId(result.localOrderId);
+        setAppleProductId(result.productId);
+        setAppleAccountToken(result.appAccountToken);
+        setCheckoutStarted(true);
         return;
       }
 
@@ -159,9 +175,11 @@ export function CheckoutClient({
       backHref="/dashboard/pricing"
       subtitle={plan ? `${plan.name} · ${intervalLabel}` : platform.checkoutFlow.completePurchase}
       totalLabel={
-        payableCents !== price?.amountCents
-          ? formatReferralCreditEuros(payableCents, locale)
-          : price?.label
+        useAppleIap
+          ? undefined
+          : payableCents !== price?.amountCents
+            ? formatReferralCreditEuros(payableCents, locale)
+            : price?.label
       }
       summary={
         <div className="space-y-4">
@@ -174,7 +192,11 @@ export function CheckoutClient({
                 <p className="text-lg font-black leading-tight">{plan?.name ?? "Subscription"}</p>
                 <p className="text-sm text-muted-foreground">{intervalLabel}</p>
               </div>
-              {price ? (
+              {useAppleIap ? (
+                <p className="text-sm font-semibold text-muted-foreground">
+                  {platform.checkoutFlow.applePriceNote}
+                </p>
+              ) : price ? (
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-semibold text-muted-foreground">
                     {platform.checkoutFlow.priceLabel}
@@ -247,7 +269,7 @@ export function CheckoutClient({
         <>
           {!checkoutStarted && (
             <div className="space-y-4">
-              {referral.canApplyCode ? (
+              {!useAppleIap && referral.canApplyCode ? (
                 <div className="space-y-1.5">
                   <Label htmlFor="checkout-referral">{platform.referral.enterCode}</Label>
                   <Input

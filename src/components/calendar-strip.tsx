@@ -6,7 +6,7 @@ import {
   isSameDay,
   startOfDay,
 } from "date-fns";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CalendarStripDay, isInactiveCalendarDay } from "@/components/calendar-strip-day";
 import { HeaderCalendarPortal } from "@/components/header-calendar-slot";
 import {
@@ -46,6 +46,8 @@ export function CalendarStrip({
 }: CalendarStripProps) {
   const [now, setNow] = useState(() => new Date());
   const selectedRef = useRef<HTMLButtonElement>(null);
+  const centeredKey = useRef<string | null>(null);
+  const [scrollerNode, setScrollerNode] = useState<HTMLDivElement | null>(null);
 
   const activeFrom = useMemo(() => {
     if (!enrichment.accountCreatedAt) return null;
@@ -85,43 +87,53 @@ export function CalendarStrip({
     [dayItems, selectedDate]
   );
 
-  const startForIndex = useCallback(
-    (index: number) => {
-      const maxStart = Math.max(0, dayItems.length - VISIBLE_DAYS);
-      const centered = index - Math.floor(VISIBLE_DAYS / 2);
-      return Math.min(Math.max(0, centered), maxStart);
-    },
-    [dayItems.length]
-  );
-
-  const startIndex = useMemo(() => {
-    if (selectedIndex === -1) return 0;
-    return startForIndex(selectedIndex);
-  }, [selectedIndex, startForIndex]);
-
-  const visibleDays = dayItems.slice(startIndex, startIndex + VISIBLE_DAYS);
-
-  useEffect(() => {
-    const node = selectedRef.current;
-    if (!node) return;
-
-    const frame = requestAnimationFrame(() => {
-      scrollElementIntoHorizontalView(node, {
-        behavior: "smooth",
-        inline: "center",
-      });
+  const desktopCells = useMemo(() => {
+    const center = selectedIndex >= 0 ? selectedIndex : 0;
+    const half = Math.floor(VISIBLE_DAYS / 2);
+    return Array.from({ length: VISIBLE_DAYS }, (_, column) => {
+      return dayItems[center - half + column] ?? null;
     });
+  }, [dayItems, selectedIndex]);
 
-    return () => cancelAnimationFrame(frame);
-  }, [selectedDate, startIndex]);
+  const rangeSignature = `${dayItems[0]?.day.getTime() ?? 0}:${dayItems.length}`;
+
+  const centerSelected = (behavior: ScrollBehavior) => {
+    const node = selectedRef.current;
+    const scroller = scrollerNode;
+    if (!node || !scroller) return;
+    const dayWidth = node.offsetWidth || 56;
+    const pad = Math.max(0, (scroller.clientWidth - dayWidth) / 2);
+    scroller.style.paddingInline = `${pad}px`;
+    scrollElementIntoHorizontalView(node, {
+      behavior,
+      inline: "center",
+      scroller,
+    });
+  };
+
+  useLayoutEffect(() => {
+    const key = `${selectedDate.toISOString()}:${rangeSignature}`;
+    const behavior: ScrollBehavior =
+      centeredKey.current && centeredKey.current !== key ? "smooth" : "auto";
+    centeredKey.current = key;
+    centerSelected(behavior);
+
+    if (!scrollerNode) return;
+    const observer = new ResizeObserver(() => centerSelected("auto"));
+    observer.observe(scrollerNode);
+    return () => observer.disconnect();
+    // centerSelected closes over the latest selected day on each run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, rangeSignature, scrollerNode]);
 
   return (
     <>
       <HeaderCalendarPortal>
         <div className="calendar-strip pb-1.5">
           <div
+            ref={setScrollerNode}
             data-horizontal-scroll
-            className="flex min-w-0 items-stretch gap-0 overflow-x-auto overscroll-x-contain px-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:px-3 md:px-4 [&::-webkit-scrollbar]:hidden"
+            className="flex min-w-0 items-stretch gap-0 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {dayItems.map(({ day, tasks, dayStatus, inactive }) => (
               <CalendarStripDay
@@ -142,18 +154,22 @@ export function CalendarStrip({
 
       {/* Desktop: fixed 7-day window centered on selection */}
       <div className="-mx-3 hidden min-w-0 grid-cols-7 items-stretch px-6 py-1 sm:-mx-4 md:-mx-6 lg:grid">
-        {visibleDays.map(({ day, tasks, dayStatus, inactive }) => (
-          <CalendarStripDay
-            key={day.toISOString()}
-            date={day}
-            selected={isSameDay(day, selectedDate)}
-            tasks={tasks}
-            dayStatus={dayStatus}
-            inactive={inactive}
-            layout="grid"
-            onSelect={() => onSelectDate(day)}
-          />
-        ))}
+        {desktopCells.map((item, column) =>
+          item ? (
+            <CalendarStripDay
+              key={item.day.toISOString()}
+              date={item.day}
+              selected={isSameDay(item.day, selectedDate)}
+              tasks={item.tasks}
+              dayStatus={item.dayStatus}
+              inactive={item.inactive}
+              layout="grid"
+              onSelect={() => onSelectDate(item.day)}
+            />
+          ) : (
+            <div key={`calendar-pad-${column}`} aria-hidden />
+          )
+        )}
       </div>
     </>
   );

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PLATFORM_AI_NAME } from "@/lib/brand";
 import {
   ArrowLeft,
   BookOpen,
@@ -16,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { logCustomMeal, logMealFromLibrary } from "@/lib/actions/daily-meals";
+import { FREE_AI_MEALS_PER_DAY } from "@/lib/free-ai-meals";
 import { parseDataUrl } from "@/lib/image-compress";
 import { isActionError, runServerAction } from "@/lib/run-server-action";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
@@ -67,6 +67,7 @@ export function LogMealDialog({
   dateKey,
   library,
   hasAiAccess,
+  aiMealsUsed = 0,
   onClose,
   onLogged,
 }: {
@@ -75,6 +76,7 @@ export function LogMealDialog({
   dateKey: string;
   library: PersonalMealLibraryItem[];
   hasAiAccess: boolean;
+  aiMealsUsed?: number;
   onClose: () => void;
   onLogged: (preview?: MealFormData) => void;
   goal?: string | null;
@@ -190,7 +192,10 @@ export function LogMealDialog({
       try {
         const result = await withTimeout(
           runServerAction(() =>
-            logCustomMeal(clientId, dateKey, form, photo ? { photo } : undefined)
+            logCustomMeal(clientId, dateKey, form, {
+              ...(photo ? { photo } : {}),
+              aiAssisted: mode === "photo" || mode === "text",
+            })
           ),
           SAVE_TIMEOUT_MS
         );
@@ -323,16 +328,18 @@ export function LogMealDialog({
             : platform.mealLog.photoLog;
 
   const showBack = mode !== "picker";
+  const aiMealsOpen =
+    hasAiAccess || aiMealsUsed < FREE_AI_MEALS_PER_DAY;
   const canLogCustom =
-    mode === "custom" || (mode === "text" && hasAiAccess && textReady);
+    mode === "custom" || (mode === "text" && aiMealsOpen && textReady);
   // Photo review uses a sticky Log footer (Safari chrome covers in-scroll buttons).
-  const canLogPhoto = mode === "photo" && hasAiAccess && photoReady;
+  const canLogPhoto = mode === "photo" && aiMealsOpen && photoReady;
 
   const logButtonLabel = platform.mealLog.logMeal;
 
-  const isPhotoReviewFullscreen = mode === "photo" && hasAiAccess && photoReady;
+  const isPhotoReviewFullscreen = mode === "photo" && aiMealsOpen && photoReady;
   const isPhotoCaptureFullscreen =
-    mode === "photo" && hasAiAccess && !photoReady;
+    mode === "photo" && aiMealsOpen && !photoReady;
   const isPhotoFullscreen = isPhotoReviewFullscreen || isPhotoCaptureFullscreen;
 
   const header = (
@@ -540,8 +547,9 @@ export function LogMealDialog({
           )}
 
           {mode === "photo" &&
-            (hasAiAccess ? (
+            (aiMealsOpen ? (
               <MealPhotoLogStep
+                dateKey={dateKey}
                 form={form}
                 onFormChange={setForm}
                 onError={setError}
@@ -559,10 +567,9 @@ export function LogMealDialog({
                   <Sparkles className="h-7 w-7 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold">{PLATFORM_AI_NAME} required</p>
+                  <p className="font-semibold">{platform.mealLog.photoLog}</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Upgrade to snap meal photos and let AI estimate food and macros
-                    automatically.
+                    {platform.mealLog.freeAiMealsUsed}
                   </p>
                 </div>
                 <Link
@@ -570,14 +577,15 @@ export function LogMealDialog({
                   className={buttonVariants({ className: "w-full" })}
                   onClick={onClose}
                 >
-                  View AI plan
+                  {platform.reminders.seePlans}
                 </Link>
               </div>
             ))}
 
           {mode === "text" &&
-            (hasAiAccess ? (
+            (aiMealsOpen ? (
               <MealTextLogStep
+                dateKey={dateKey}
                 form={form}
                 onFormChange={setForm}
                 onError={setError}
@@ -591,9 +599,9 @@ export function LogMealDialog({
                   <Sparkles className="h-7 w-7 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold">{PLATFORM_AI_NAME} required</p>
+                  <p className="font-semibold">{platform.mealLog.typeMeal}</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Upgrade to type meals naturally and let AI estimate macros.
+                    {platform.mealLog.freeAiMealsUsed}
                   </p>
                 </div>
                 <Link
@@ -601,7 +609,7 @@ export function LogMealDialog({
                   className={buttonVariants({ className: "w-full" })}
                   onClick={onClose}
                 >
-                  View AI plan
+                  {platform.reminders.seePlans}
                 </Link>
               </div>
             ))}
@@ -649,7 +657,7 @@ export function LogMealDialog({
     <div className="grid grid-cols-3 gap-4">
       {pickerOptions.map((option) => {
         const Icon = option.icon;
-        const locked = option.ai && !hasAiAccess;
+        const locked = option.ai && !aiMealsOpen;
         const iconColor = {
           primary: "text-primary",
           emerald: "text-emerald-400",
@@ -678,6 +686,13 @@ export function LogMealDialog({
           </button>
         );
       })}
+      {!hasAiAccess && aiMealsOpen ? (
+        <p className="col-span-3 text-center text-xs text-muted-foreground">
+          {platform.mealLog.freeAiMealsLeft(
+            Math.max(0, FREE_AI_MEALS_PER_DAY - aiMealsUsed)
+          )}
+        </p>
+      ) : null}
     </div>
   );
 

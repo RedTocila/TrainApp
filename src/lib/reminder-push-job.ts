@@ -10,9 +10,17 @@ import {
 } from "@/lib/reminder-pending";
 import { reminderSlotForHour, tiraneClock, type ReminderSlot } from "@/lib/reminder-clock";
 import { parseReminderSettings } from "@/lib/reminder-settings";
+import {
+  dailyReportMessage,
+  highRiskMessage,
+  highRiskPoints,
+  weeklyReportMessage,
+} from "@/lib/report-notifications";
+import type { IntakeResponses } from "@/lib/intake-questionnaire";
 import { waterMetDailyMinimum } from "@/lib/water-targets";
 import { createPushSender, apnsConfigured, fcmConfigured, type PushPlatform } from "@/lib/push-delivery";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { hasPlusAccess } from "@/lib/subscription";
 
 type DeviceRow = {
   user_id: string;
@@ -22,9 +30,16 @@ type DeviceRow = {
 
 type ProfileRow = {
   id: string;
+  role: string | null;
   preferred_locale: string | null;
   water_goal_ml: number | null;
   reminder_settings: unknown;
+  intake_responses: IntakeResponses | null;
+  injuries: string | null;
+  medical_conditions: string | null;
+  subscription_plan: string | null;
+  subscription_status: string | null;
+  subscription_expires_at: string | null;
 };
 
 const CHUNK = 100;
@@ -72,6 +87,54 @@ export type ReminderPushJobResult = {
   android: boolean;
 };
 
+async function claimAndSend(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  sender: Awaited<ReturnType<typeof createPushSender>>;
+  userId: string;
+  dateKey: string;
+  slot: number;
+  types: string[];
+  message: { title: string; body: string; path: string } | null;
+  devices: DeviceRow[];
+  deadTokens: string[];
+}): Promise<"sent" | "failed" | "empty" | "duplicate" | "unavailable"> {
+  if (!input.message) return "empty";
+  const { error: claimError } = await input.admin.from("reminder_push_sends").insert({
+    user_id: input.userId,
+    date_key: input.dateKey,
+    slot: input.slot,
+    types: input.types,
+  });
+  if (claimError) {
+    if (claimError.code === "23505") return "duplicate";
+    // Slot check not migrated yet — don't fail the rest of the reminder job.
+    if (claimError.code === "23514") return "unavailable";
+    throw new Error(claimError.message);
+  }
+
+  let delivered = false;
+  for (const device of input.devices) {
+    try {
+      const result = await input.sender.send(device.platform, device.token, input.message);
+      if (result.ok) delivered = true;
+      else if (result.invalidToken) input.deadTokens.push(device.token);
+    } catch {
+      // try the next device; the slot is released if none succeed
+    }
+  }
+
+  if (!delivered) {
+    await input.admin
+      .from("reminder_push_sends")
+      .delete()
+      .eq("user_id", input.userId)
+      .eq("date_key", input.dateKey)
+      .eq("slot", input.slot);
+    return "failed";
+  }
+  return "sent";
+}
+
 export async function runReminderPushJob(
   at: Date = new Date()
 ): Promise<ReminderPushJobResult> {
@@ -118,13 +181,34 @@ export async function runReminderPushJob(
     const profiles = await selectChunks<ProfileRow>(userIds, (slice) =>
       admin
         .from("profiles")
-        .select("id, preferred_locale, water_goal_ml, reminder_settings")
+        .select(
+          "id, role, preferred_locale, water_goal_ml, reminder_settings, intake_responses, injuries, medical_conditions, subscription_plan, subscription_status, subscription_expires_at"
+        )
         .in("id", slice)
     );
 
-    const enabled = profiles.filter(
-      (profile) => parseReminderSettings(profile.reminder_settings).enabled
-    );
+    const enabled = profiles.filter((profile) => {
+      if (!parseReminderSettings(profile.reminder_settings).enabled) return false;
+      return hasPlusAccess({
+        role: profile.role === "admin" ? "admin" : "client",
+        subscription_plan: profile.subscription_plan as
+          | "free"
+          | "plus"
+          | "pro"
+          | "basic"
+          | "core"
+          | "ai"
+          | "elite"
+          | null,
+        subscription_status: profile.subscription_status as
+          | "inactive"
+          | "active"
+          | "past_due"
+          | "canceled"
+          | undefined,
+        subscription_expires_at: profile.subscription_expires_at,
+      });
+    });
     base.considered = enabled.length;
     if (enabled.length === 0) return base;
 
@@ -369,64 +453,91 @@ export async function runReminderPushJob(
         },
       });
 
-      if (progress.open.length === 0 || (slot === 4 && progress.done.length > 0)) {
-        base.skippedComplete += 1;
-        continue;
+      const userDevices = devicesByUser.get(profile.id) ?? [];
+      const locale = parseCheckoutLocale(profile.preferred_locale);
+      const skipTaskNudge =
+        progress.open.length === 0 || (slot === 4 && progress.done.length > 0);
+
+      if (skipTaskNudge || userDevices.length === 0) {
+        if (skipTaskNudge) base.skippedComplete += 1;
+      } else {
+        const taskResult = await claimAndSend({
+          admin,
+          sender,
+          userId: profile.id,
+          dateKey,
+          slot,
+          types: progress.open,
+          message: reminderPushMessage({
+            open: progress.open,
+            done: progress.done,
+            locale,
+            slot,
+            seed: `${profile.id}:${dateKey}:${slot}`,
+          }),
+          devices: userDevices,
+          deadTokens,
+        });
+        if (taskResult === "sent") base.sent += 1;
+        else if (taskResult === "failed") base.failed += 1;
+        else if (taskResult === "empty") base.skippedComplete += 1;
       }
 
-      const userDevices = devicesByUser.get(profile.id) ?? [];
       if (userDevices.length === 0) continue;
 
-      const { error: claimError } = await admin.from("reminder_push_sends").insert({
-        user_id: profile.id,
-        date_key: dateKey,
-        slot,
-        types: progress.open,
-      });
-      if (claimError) {
-        if (claimError.code === "23505") continue;
-        throw new Error(claimError.message);
+      const reportFacts = {
+        workoutDue,
+        workoutOpen: workoutsOpen,
+        mealsOpen: !mealsLogged.has(profile.id),
+        waterShort: !waterMetDailyMinimum(waterMl, waterGoalMl),
+      };
+      const reports: { slot: number; types: string[]; message: { title: string; body: string; path: string } | null }[] =
+        [];
+      if (settings.dailyReport && slot === 3) {
+        reports.push({
+          slot: 5,
+          types: ["dailyReport"],
+          message: dailyReportMessage(locale, reportFacts),
+        });
+      }
+      if (settings.weeklyReport && slot === 3 && clock.weekday === 0) {
+        reports.push({
+          slot: 6,
+          types: ["weeklyReport"],
+          message: weeklyReportMessage(locale),
+        });
+      }
+      if (settings.highRisk && slot === 1) {
+        reports.push({
+          slot: 7,
+          types: ["highRisk"],
+          message: highRiskMessage(
+            locale,
+            highRiskPoints({
+              locale,
+              intake: profile.intake_responses,
+              injuries: profile.injuries,
+              medicalConditions: profile.medical_conditions,
+            })
+          ),
+        });
       }
 
-      const message = reminderPushMessage({
-        open: progress.open,
-        done: progress.done,
-        locale: parseCheckoutLocale(profile.preferred_locale),
-        slot,
-        seed: `${profile.id}:${dateKey}:${slot}`,
-      });
-      if (!message) {
-        base.skippedComplete += 1;
-        await admin
-          .from("reminder_push_sends")
-          .delete()
-          .eq("user_id", profile.id)
-          .eq("date_key", dateKey)
-          .eq("slot", slot);
-        continue;
+      for (const report of reports) {
+        const reportResult = await claimAndSend({
+          admin,
+          sender,
+          userId: profile.id,
+          dateKey,
+          slot: report.slot,
+          types: report.types,
+          message: report.message,
+          devices: userDevices,
+          deadTokens,
+        });
+        if (reportResult === "sent") base.sent += 1;
+        else if (reportResult === "failed") base.failed += 1;
       }
-      let delivered = false;
-      for (const device of userDevices) {
-        try {
-          const result = await sender.send(device.platform, device.token, message);
-          if (result.ok) delivered = true;
-          else if (result.invalidToken) deadTokens.push(device.token);
-        } catch {
-          // try the next device; the slot is released if none succeed
-        }
-      }
-
-      if (!delivered) {
-        base.failed += 1;
-        await admin
-          .from("reminder_push_sends")
-          .delete()
-          .eq("user_id", profile.id)
-          .eq("date_key", dateKey)
-          .eq("slot", slot);
-        continue;
-      }
-      base.sent += 1;
     }
 
     if (deadTokens.length > 0) {

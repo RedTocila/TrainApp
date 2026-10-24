@@ -1,7 +1,7 @@
-import type { BillingInterval } from "@/lib/subscription-plans";
+import type { BillingInterval, SoldSubscriptionPlanId } from "@/lib/subscription-plans";
 
-/** Legacy App Store product plans. New purchases are not sold in the app. */
-export type AppleIapPlanId = "ai" | "elite";
+/** Plans sold in the App Store. Legacy AI and Elite ids still restore. */
+export type AppleIapPlanId = SoldSubscriptionPlanId;
 
 /** Bundle ID / Capacitor appId — must match App Store Connect. */
 export const APPLE_BUNDLE_ID = "al.rutina.app";
@@ -11,6 +11,18 @@ export const APPLE_BUNDLE_ID = "al.rutina.app";
  * Create these exact IDs in App Store Connect → Subscriptions.
  */
 export const IAP_PRODUCT_IDS = {
+  plus: {
+    monthly: "al.rutina.app.plus.monthly",
+    annual: "al.rutina.app.plus.annual",
+  },
+  pro: {
+    monthly: "al.rutina.app.pro.monthly",
+    annual: "al.rutina.app.pro.annual",
+  },
+} as const satisfies Record<AppleIapPlanId, Record<BillingInterval, string>>;
+
+/** Previous App Store products. Not sold anymore; restore still recognizes them. */
+const LEGACY_IAP_PRODUCT_IDS = {
   ai: {
     monthly: "al.rutina.app.ai.monthly",
     annual: "al.rutina.app.ai.annual",
@@ -19,13 +31,13 @@ export const IAP_PRODUCT_IDS = {
     monthly: "al.rutina.app.elite.monthly",
     annual: "al.rutina.app.elite.annual",
   },
-} as const satisfies Record<AppleIapPlanId, Record<BillingInterval, string>>;
+} as const;
 
 export const ALL_IAP_PRODUCT_IDS: string[] = [
-  IAP_PRODUCT_IDS.ai.monthly,
-  IAP_PRODUCT_IDS.ai.annual,
-  IAP_PRODUCT_IDS.elite.monthly,
-  IAP_PRODUCT_IDS.elite.annual,
+  IAP_PRODUCT_IDS.plus.monthly,
+  IAP_PRODUCT_IDS.plus.annual,
+  IAP_PRODUCT_IDS.pro.monthly,
+  IAP_PRODUCT_IDS.pro.annual,
 ];
 
 export function getIapProductId(
@@ -37,11 +49,14 @@ export function getIapProductId(
 
 export function parseIapProductId(
   productId: string
-): { planId: AppleIapPlanId; interval: BillingInterval } | null {
-  for (const planId of ["ai", "elite"] as const) {
-    for (const interval of ["monthly", "annual"] as const) {
-      if (IAP_PRODUCT_IDS[planId][interval] === productId) {
-        return { planId, interval };
+): { planId: AppleIapPlanId | "ai" | "elite"; interval: BillingInterval } | null {
+  const catalogs = [IAP_PRODUCT_IDS, LEGACY_IAP_PRODUCT_IDS] as const;
+  for (const catalog of catalogs) {
+    for (const planId of Object.keys(catalog) as (keyof typeof catalog)[]) {
+      for (const interval of ["monthly", "annual"] as const) {
+        if (catalog[planId][interval] === productId) {
+          return { planId, interval };
+        }
       }
     }
   }

@@ -75,6 +75,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       "Multiple saved programs",
       "Weekly reports",
       "Advanced statistics",
+      "Notifications and reminders",
     ],
   },
   {

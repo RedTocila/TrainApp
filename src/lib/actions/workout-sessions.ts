@@ -1115,7 +1115,7 @@ export async function getExerciseHistory(
   const loadSetsForExercise = async (sessionExerciseId: string) => {
     const { data: sets } = await supabase
       .from("workout_session_sets")
-      .select("reps, weight_kg")
+      .select("set_number, reps, weight_kg")
       .eq("session_exercise_id", sessionExerciseId)
       .eq("completed", true)
       .order("set_number");
@@ -1159,6 +1159,7 @@ export async function getExerciseHistory(
       exercise_id: recentExercise.exercise_id,
       name: recentExercise.name,
       sets: sets.map((s) => ({
+        set_number: s.set_number,
         reps: s.reps,
         weight_kg: s.weight_kg != null ? Number(s.weight_kg) : null,
       })),

@@ -31,13 +31,18 @@ function euros(cents: number): string {
   return formatCurrencyAmount(cents);
 }
 
+function planPrice(cents: number, period: "month" | "year"): string {
+  if (cents <= 0) return "Free";
+  return `${euros(cents)}/${period}`;
+}
+
 function summarizePlan(plan: SubscriptionPlan): PublicPlanSummary {
   return {
     id: plan.id,
     name: plan.name,
     tagline: plan.tagline,
-    monthlyPrice: `${euros(plan.monthly.amountEurCents)}/month`,
-    annualPrice: `${euros(plan.annual.amountEurCents)}/year`,
+    monthlyPrice: planPrice(plan.monthly.amountEurCents, "month"),
+    annualPrice: planPrice(plan.annual.amountEurCents, "year"),
     includesFrom: plan.includesFrom ?? null,
     features: plan.features,
   };

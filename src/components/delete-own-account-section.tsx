@@ -5,16 +5,22 @@ import { Trash2 } from "lucide-react";
 import { AppOverlay } from "@/components/app-overlay";
 import { usePlatformCopy } from "@/components/locale-provider";
 import { deleteOwnAccount } from "@/lib/actions/profile";
+import { openAppleSubscriptionManagement, shouldUseAppleIap } from "@/lib/native-iap";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function DeleteOwnAccountSection() {
+export function DeleteOwnAccountSection({
+  appleBilled = false,
+}: {
+  appleBilled?: boolean;
+}) {
   const platform = usePlatformCopy();
   const copy = platform.profile;
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [openedAppleSettings, setOpenedAppleSettings] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const phrase = copy.deleteAccountPhrase;
@@ -24,6 +30,7 @@ export function DeleteOwnAccountSection() {
     if (!open) {
       setTyped("");
       setError(null);
+      setOpenedAppleSettings(false);
     }
   }, [open]);
 
@@ -40,8 +47,31 @@ export function DeleteOwnAccountSection() {
     if (!isPending) setOpen(false);
   };
 
+  const canDelete = matches && (!appleBilled || openedAppleSettings);
+
+  const openAppleSettings = () => {
+    if (isPending) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        if (shouldUseAppleIap()) {
+          await openAppleSubscriptionManagement();
+        } else {
+          window.open(
+            "https://apps.apple.com/account/subscriptions",
+            "_blank",
+            "noopener,noreferrer"
+          );
+        }
+        setOpenedAppleSettings(true);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : copy.deleteAccountFailed);
+      }
+    });
+  };
+
   const handleDelete = () => {
-    if (!matches || isPending) return;
+    if (!canDelete || isPending) return;
     setError(null);
     startTransition(async () => {
       const result = await deleteOwnAccount(typed.trim());
@@ -91,9 +121,21 @@ export function DeleteOwnAccountSection() {
               {copy.deleteAccountTitle}
             </h2>
             <p className="text-sm leading-snug text-muted-foreground">
-              {copy.deleteAccountDescription}
+              {appleBilled ? copy.deleteAccountAppleDescription : copy.deleteAccountDescription}
             </p>
           </div>
+
+          {appleBilled ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              onClick={openAppleSettings}
+              className="h-11 w-full"
+            >
+              {copy.deleteAccountAppleOpenSettings}
+            </Button>
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="delete-confirm-phrase" className="text-center sm:text-left">
@@ -129,7 +171,7 @@ export function DeleteOwnAccountSection() {
             <Button
               type="button"
               variant="destructive"
-              disabled={!matches || isPending}
+              disabled={!canDelete || isPending}
               onClick={handleDelete}
               className="h-11 w-full bg-red-500/90 hover:bg-red-500"
             >

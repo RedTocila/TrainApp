@@ -710,6 +710,18 @@ export function buildFullIntakeSummaryFromResponses(
     labelFor(WATER_HABITS_OPTIONS, responses.water_habits),
     emojiFor(WATER_HABITS_OPTIONS, responses.water_habits)
   );
+  push(
+    "Training location",
+    responses.training_location?.replaceAll("_", " ")
+  );
+  push(
+    "Session length",
+    responses.workout_duration?.replaceAll("_", " ")
+  );
+  push(
+    "Workout style",
+    responses.workout_styles?.map((style) => style.replaceAll("_", " ")).join(", ")
+  );
 
   return items;
 }

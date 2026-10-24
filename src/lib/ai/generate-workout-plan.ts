@@ -56,13 +56,6 @@ import { inferAiWorkoutKind, inferAiMainWorkoutKind } from "@/lib/ai/infer-worko
 import { trainingGoalRulesForAi } from "@/lib/goal-coaching";
 import type { Profile } from "@/lib/types";
 import {
-  STARTER_PROGRAM_WEEKS,
-  buildOnboardingProgramPreferences,
-  daysPerWeekFromIntake,
-  experienceConstraintFromIntake,
-} from "@/lib/intake-starter-program";
-import { profileToResponses } from "@/lib/intake-questionnaire";
-import {
   dayMatchesExcludedFocus,
   generateWithValidation,
   stripHardViolations,
@@ -343,8 +336,6 @@ function enforceHiitPlan(
 export type WorkoutPlanGenerationOptions = CoachGenerationInput & {
   /** Exact number of training days the weekly template must include. */
   targetDaysPerWeek?: number;
-  /** Extra hard constraints for first-time onboarding programs. */
-  onboarding?: boolean;
   /** Prompt-only context (e.g. the current plan JSON) — never parsed for constraints. */
   baseContext?: string;
 };
@@ -461,15 +452,6 @@ async function generateStrengthWorkoutPlanFromProfile(
     ? `- Create EXACTLY ${targetDays} training days in the "days" array (days_per_week must be ${targetDays}).`
     : "- 3–5 training days per week unless schedule clearly allows fewer.";
 
-  const onboardingRules = options?.onboarding
-    ? `
-ONBOARDING CONSTRAINTS (mandatory):
-- This weekly template will be scheduled across ${STARTER_PROGRAM_WEEKS} weeks on the client's calendar.
-- ${experienceConstraintFromIntake(profileToResponses(profile))}
-- Keep sessions 40–70 minutes.
-`
-    : "";
-
   const prompt = `You are an expert personal trainer. Create a safe, practical weekly TRADITIONAL strength/fitness workout plan (sets, reps, rest) tailored to this client.
 
 CLIENT PROFILE:
@@ -491,7 +473,6 @@ ${daysRule}
 - Sets: 2–5, reps as ranges like "8-10" or "12-15", rest 45–120 seconds.
 - Description and coach_notes must explicitly mention why this plan is safe and appropriate for this specific profile.
 - End coach_notes with a short disclaimer: you are not a doctor; this is a general suggestion, not medical advice.
-${onboardingRules}
 ${buildPlanTextLanguageRule(profile.preferred_locale)}
 
 Respond with ONLY valid JSON:
@@ -692,19 +673,6 @@ export async function generateWorkoutPlanFromProfile(
   return generateStrengthWorkoutPlanFromProfile(profile, preferences, options);
 }
 
-/** First-time questionnaire → personalized weekly strength template for a 4-week calendar. */
-export async function generateOnboardingWorkoutPlanFromProfile(
-  profile: Profile
-): Promise<AiGeneratedWorkoutPlan> {
-  const responses = profileToResponses(profile);
-  const targetDays = daysPerWeekFromIntake(responses);
-  const preferences = buildOnboardingProgramPreferences(responses);
-  return generateStrengthWorkoutPlanFromProfile(profile, preferences, {
-    targetDaysPerWeek: targetDays,
-    onboarding: true,
-  });
-}
-
 function normalizeWorkoutDay(
   raw: AiGeneratedWorkoutDay,
   locale?: string | null
@@ -768,6 +736,11 @@ export async function generateWorkoutSessionFromProfile(
   };
 }
 
+export type FullTrainingDayOptions = {
+  /** Account creation: warm-up, a full main session, and stretch — not a short sample. */
+  completeSession?: boolean;
+};
+
 /**
  * Builds a complete day: short interval warm-up, main workout (fitness or HIIT),
  * and interval stretching — matched to the same focus.
@@ -775,7 +748,8 @@ export async function generateWorkoutSessionFromProfile(
 export async function generateFullTrainingDayFromProfile(
   profile: Profile,
   prompt: string,
-  input?: CoachGenerationInput
+  input?: CoachGenerationInput,
+  options?: FullTrainingDayOptions
 ): Promise<AiDayProgramResult> {
   const ctx = await prepareGenerationContext(profile, prompt, input);
   const { requirements, pool } = ctx;
@@ -785,6 +759,15 @@ export async function generateFullTrainingDayFromProfile(
   const sessionRequest =
     prompt.trim() ||
     "A balanced training day that matches my goals, schedule, and available equipment.";
+  const completeSession = options?.completeSession === true;
+  const sessionShape = completeSession
+    ? `- Warm-up: 5–6 dynamic moves for this day's joints and muscles. work_seconds 25–40, rest 10–15, rounds 1.
+- Stretching: 5–6 stretches for the muscles just trained. work_seconds 30–40, rest 8–12, rounds 1.
+- Main strength: a complete session. One or two primary compounds, two or three secondary lifts, and two or three accessories for the muscles this day should change. Beginners land on 6–7 movements at 3 sets. Intermediate on 7–8 movements with 3–4 sets on compounds. Advanced on 8–10 movements with 4–5 sets on the primary lifts. Do not stop at a three-move sample.
+- Main intervals: 6–10 movements and enough rounds to be a full conditioning session.`
+    : `- Warm-up: 4–6 dynamic activation / mobility moves, ~5–10 min. work_seconds 20–40, rest 10–20, rounds 1–2.
+- Stretching: 4–6 gentle stretches matched to muscles used in main, ~5–10 min. work_seconds 20–40, rest 5–15, rounds 1.
+- Main: 4–8 exercises.`;
 
   const mainBlock =
     mainKind === "hiit"
@@ -834,9 +817,8 @@ Rules:
       ? "timed intervals like HIIT"
       : "traditional sets × reps fitness"
   }).
-- Warm-up: 4–6 dynamic activation / mobility moves, ~5–10 min. work_seconds 20–40, rest 10–20, rounds 1–2.
-- Stretching: 4–6 gentle stretches matched to muscles used in main, ~5–10 min. work_seconds 20–40, rest 5–15, rounds 1.
-- Main: 4–8 exercises. Respect injuries. Match the day request (push/pull/legs/full body/etc.).
+${sessionShape}
+- Respect injuries. Match the day request (push/pull/legs/full body/etc.).
 ${trainingGoalRulesForAi(profile.goal)}
 ${buildCatalogExerciseNameRule(equipment, pool)}
 - Titles should be clear (e.g. "Upper warm-up", "Upper Push", "Upper stretch").
@@ -887,7 +869,11 @@ Respond with ONLY valid JSON:
   };
 
   const generateParts = async (feedback: string | null): Promise<DayParts> => {
-  const raw = await runTextPrompt(withFeedback(aiPrompt, feedback), { maxTokens: 3200, json: true, tier: "quality" });
+  const raw = await runTextPrompt(withFeedback(aiPrompt, feedback), {
+    maxTokens: completeSession ? 4500 : 3200,
+    json: true,
+    tier: "quality",
+  });
   const parsed = parseJsonObject(raw) as {
     warmup?: Parameters<typeof normalizeAiHiitPlan>[0];
     stretch?: Parameters<typeof normalizeAiHiitPlan>[0];

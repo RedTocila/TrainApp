@@ -1,6 +1,9 @@
 import type { CheckoutLocale } from "@/lib/checkout-i18n";
 import { getPlatformCopy } from "@/lib/platform-copy";
 
+/** Flip back on when the referral program should show in the product again. */
+export const REFERRALS_ENABLED = false;
+
 /** Invitee first-subscription discount (€5). */
 export const INVITEE_DISCOUNT_CENTS = 500;
 

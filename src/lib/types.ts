@@ -289,6 +289,8 @@ export interface DailyMealLog {
   logged_at: string;
   photo_path?: string | null;
   photo_expires_at?: string | null;
+  /** Photo or typed AI analysis. Counts toward the free daily allowance. */
+  ai_assisted?: boolean;
   /** Resolved client-side from photo_path when not expired. */
   photo_url?: string | null;
 }
@@ -426,7 +428,11 @@ export interface WorkoutSessionSet {
 export interface ExerciseHistoryEntry {
   exercise_id: string | null;
   name: string;
-  sets: { reps: number | null; weight_kg: number | null }[];
+  sets: {
+    set_number?: number;
+    reps: number | null;
+    weight_kg: number | null;
+  }[];
   completed_at: string;
 }
 

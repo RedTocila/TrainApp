@@ -31,6 +31,7 @@ import {
   DASHBOARD_PROGRESS_PHOTOS_PATH,
 } from "@/lib/dashboard-day-routes";
 import { cn } from "@/lib/utils";
+import { REFERRALS_ENABLED } from "@/lib/referral";
 import {
   hidesDashboardChrome,
   isCardioSessionPath,
@@ -183,7 +184,7 @@ function DashboardMobileHeaderBar() {
         !isCardioSession ? (
           <div className={headerActionsGroup}>
             <ChallengesHeaderLink className={headerIconButton} />
-            {!freeNativeApp ? (
+            {REFERRALS_ENABLED && !freeNativeApp ? (
               <Link
                 href="/dashboard/referrals"
                 aria-label={platform.referral.navAria}

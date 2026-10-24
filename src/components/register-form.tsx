@@ -35,6 +35,7 @@ import {
   type StarterProgramPreview,
 } from "@/lib/intake-starter-program";
 import { loadCheckoutReferralCode, saveCheckoutReferralCode } from "@/lib/referral-storage";
+import { REFERRALS_ENABLED } from "@/lib/referral";
 import { formatUserError } from "@/lib/format-user-error";
 import { cn } from "@/lib/utils";
 import { isSoldPlanId, type BillingInterval } from "@/lib/subscription-plans";
@@ -54,7 +55,7 @@ function WorkoutPreviewRow({ preview }: { preview: StarterProgramPreview }) {
           {preview.daysPerWeek} days/week · {preview.weekdayLabels.join(", ")}
         </p>
         <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-          {preview.experience} · {preview.equipment}. {preview.sessions} sessions land on your calendar right after signup.
+          {preview.experience} · {preview.equipment}. Each day is a warm-up, full workout, and stretch — {preview.sessions} sessions land on your calendar right after signup.
         </p>
       </div>
     </div>
@@ -75,11 +76,6 @@ export function RegisterForm() {
 
   const requestedPlan = searchParams.get("plan") ?? "";
   const requestedInterval = searchParams.get("interval") === "annual" ? "annual" : "monthly";
-
-  useEffect(() => {
-    if (!isNativeApp()) return;
-    router.replace(IOS_WELCOME_PATH);
-  }, [router]);
 
   useEffect(() => {
     try {
@@ -128,7 +124,9 @@ export function RegisterForm() {
     const email = (formData.get("email") as string).trim().toLowerCase();
     const phone = ((formData.get("phone") as string) || "").trim() || null;
     const password = formData.get("password") as string;
-    const normalizedReferralCode = referralCode.trim() || null;
+    const normalizedReferralCode = REFERRALS_ENABLED
+      ? referralCode.trim() || null
+      : null;
     if (normalizedReferralCode) saveCheckoutReferralCode(normalizedReferralCode);
 
     setIsPending(true);
@@ -293,6 +291,7 @@ export function RegisterForm() {
               <Label htmlFor="password">Password</Label>
               <PasswordInput id="password" name="password" required minLength={6} />
             </div>
+            {REFERRALS_ENABLED ? (
             <div className="rounded-2xl border border-border/70 bg-secondary/25 p-3.5">
               <div className="mb-2 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -313,6 +312,7 @@ export function RegisterForm() {
                 className="h-11"
               />
             </div>
+            ) : null}
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-3">
               <input
                 id="accept_terms"

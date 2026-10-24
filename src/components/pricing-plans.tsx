@@ -7,12 +7,18 @@ import { SegmentedToggle } from "@/components/segmented-toggle";
 import { OfferBanner } from "@/components/offer-banner";
 import { Button } from "@/components/ui/button";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
-import { useIsNativeApp } from "@/components/ios/use-native-app";
-import { openWebsitePath } from "@/lib/open-external-url";
-import { getCompareAtLabel, getCurrencyPrice } from "@/lib/checkout-i18n";
+import { useShouldUseAppleIap } from "@/components/ios/use-native-app";
+import { getIapProductId } from "@/lib/iap/products";
+import { fetchIapProducts } from "@/lib/native-iap";
+import {
+  formatDisplayedPlanPrice,
+  getCompareAtLabel,
+  getCurrencyPrice,
+  type CheckoutLocale,
+} from "@/lib/checkout-i18n";
 import { getPublicActiveSubscriptionOffers } from "@/lib/actions/admin-offers";
 import { getPricingFeatureIcon } from "@/lib/pricing-feature-icons";
-import type { BillingInterval, SubscriptionPlan } from "@/lib/subscription-plans";
+import { isSoldPlanId, type BillingInterval, type SubscriptionPlan } from "@/lib/subscription-plans";
 import type { SubscriptionOffer } from "@/lib/subscription-offers";
 import { applyOfferDiscount, pickBestOffer } from "@/lib/subscription-offers";
 import {
@@ -24,11 +30,24 @@ import { cn } from "@/lib/utils";
 
 const BILLING_INTERVALS = ["monthly", "annual"] as const;
 
+function defaultSelectedPlanId(
+  plans: SubscriptionPlan[],
+  currentPlan: string | null | undefined,
+  subscribed: boolean | undefined
+): string {
+  if (subscribed && currentPlan && plans.some((plan) => plan.id === currentPlan)) {
+    return currentPlan;
+  }
+  if (!subscribed && plans.some((plan) => plan.id === "free")) return "free";
+  return plans.find((plan) => plan.highlighted)?.id ?? plans[0].id;
+}
+
 function PlanRow({
   plan,
   interval,
   locale,
   selected,
+  detailsOpen,
   isCurrent,
   savings,
   perLabel,
@@ -36,13 +55,16 @@ function PlanRow({
   seeDetailsLabel,
   hideDetailsLabel,
   includesFromLabel,
+  storePriceLabel,
   onSelect,
+  onToggleDetails,
   offer,
 }: {
   plan: SubscriptionPlan;
   interval: BillingInterval;
   locale: string;
   selected: boolean;
+  detailsOpen: boolean;
   isCurrent: boolean;
   savings: string | null;
   perLabel: string;
@@ -50,25 +72,30 @@ function PlanRow({
   seeDetailsLabel: string;
   hideDetailsLabel: string;
   includesFromLabel: (planName: string) => string;
+  storePriceLabel?: string | null;
   onSelect: () => void;
+  onToggleDetails: () => void;
   offer: SubscriptionOffer | null;
 }) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const tier = interval === "monthly" ? plan.monthly : plan.annual;
   const discountedCents = applyOfferDiscount(tier.amountEurCents, offer);
-  const price = getCurrencyPrice({ amountEurCents: discountedCents });
-  const compareAt = offer
-    ? getCompareAtLabel({
-        amountEurCents: discountedCents,
-        compareAtEurCents: tier.amountEurCents,
-      })
-    : getCompareAtLabel(tier);
+  const priceLocale: CheckoutLocale = locale === "al" ? "al" : "en";
+  const priceLabel = storePriceLabel ?? formatDisplayedPlanPrice(discountedCents, priceLocale);
+  const isFreePrice = storePriceLabel ? false : discountedCents <= 0;
+  const compareAt = storePriceLabel
+    ? null
+    : offer
+      ? getCompareAtLabel({
+          amountEurCents: discountedCents,
+          compareAtEurCents: tier.amountEurCents,
+        })
+      : getCompareAtLabel(tier);
 
   return (
     <div
       className={cn(
-        "dashboard-flat-card relative overflow-hidden rounded-3xl",
-        selected && "ring-1 ring-inset ring-primary/70"
+        "dashboard-flat-card relative overflow-hidden rounded-3xl border-2 transition-colors",
+        selected ? "border-primary" : "border-transparent"
       )}
     >
       {offer ? <OfferBanner offer={offer} locale={locale} /> : null}
@@ -114,9 +141,11 @@ function PlanRow({
                   {compareAt}
                 </span>
               )}
-              <p className="text-2xl font-black tracking-tight">{price.label}</p>
+              <p className="text-2xl font-black tracking-tight">{priceLabel}</p>
             </div>
-            <p className="text-xs text-muted-foreground">/{perLabel}</p>
+            {isFreePrice ? null : (
+              <p className="text-xs text-muted-foreground">/{perLabel}</p>
+            )}
             {savings && (
               <p className="mt-0.5 text-[11px] font-semibold text-green-400">{savings}</p>
             )}
@@ -126,7 +155,7 @@ function PlanRow({
 
       <button
         type="button"
-        onClick={() => setDetailsOpen((open) => !open)}
+        onClick={onToggleDetails}
         aria-expanded={detailsOpen}
         className="flex w-full items-center justify-center gap-1.5 border-t border-border/50 px-4 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
       >
@@ -137,29 +166,36 @@ function PlanRow({
         />
       </button>
 
-      {detailsOpen && (
-        <div className="space-y-3 px-4 pb-4">
-          {plan.includesFrom && (
-            <p className="flex items-center gap-2 rounded-xl bg-secondary/50 px-3 py-2 text-xs font-semibold text-primary">
-              <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {includesFromLabel(plan.includesFrom)}
-            </p>
-          )}
-          <ul className="space-y-2">
-            {plan.features.map((feature) => {
-              const Icon = getPricingFeatureIcon(feature);
-              return (
-                <li key={feature} className="flex items-start gap-2.5 text-sm">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10">
-                    <Icon className="h-3 w-3 text-primary" aria-hidden />
-                  </span>
-                  <span className="text-muted-foreground">{feature}</span>
-                </li>
-              );
-            })}
-          </ul>
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-300 ease-out",
+          detailsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="space-y-3 px-4 pb-4">
+            {plan.includesFrom && (
+              <p className="flex items-center gap-2 rounded-xl bg-secondary/50 px-3 py-2 text-xs font-semibold text-primary">
+                <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {includesFromLabel(plan.includesFrom)}
+              </p>
+            )}
+            <ul className="space-y-2">
+              {plan.features.map((feature) => {
+                const Icon = getPricingFeatureIcon(feature);
+                return (
+                  <li key={feature} className="flex items-start gap-2.5 text-sm">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10">
+                      <Icon className="h-3 w-3 text-primary" aria-hidden />
+                    </span>
+                    <span className="text-muted-foreground">{feature}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -181,17 +217,21 @@ export function PricingPlans({
 }) {
   const locale = useLocale();
   const platform = usePlatformCopy();
-  const nativeApp = useIsNativeApp();
+  const appleIap = useShouldUseAppleIap();
   const pricing = platform.pricing;
   const plans = getLocalizedSubscriptionPlans(locale);
   const cardLabels = getPricingCardLabels(locale);
+  const [storePrices, setStorePrices] = useState<Record<string, string>>({});
 
-  const [selectedId, setSelectedId] = useState<string>(() => {
-    if (subscribed && currentPlan && plans.some((p) => p.id === currentPlan)) {
-      return currentPlan;
-    }
-    return plans.find((p) => p.highlighted)?.id ?? plans[0].id;
-  });
+  const [selectedId, setSelectedId] = useState<string>(() =>
+    defaultSelectedPlanId(plans, currentPlan, subscribed)
+  );
+  const [openDetailsId, setOpenDetailsId] = useState<string | null>(selectedId);
+
+  const selectPlan = (planId: string) => {
+    setSelectedId(planId);
+    setOpenDetailsId(planId);
+  };
   const [offers, setOffers] = useState<SubscriptionOffer[]>([]);
 
   useEffect(() => {
@@ -208,6 +248,26 @@ export function PricingPlans({
     };
   }, []);
 
+  useEffect(() => {
+    if (!appleIap) return;
+    let cancelled = false;
+    void fetchIapProducts()
+      .then((products) => {
+        if (cancelled) return;
+        const next: Record<string, string> = {};
+        for (const product of products) {
+          if (product.priceString) next[product.identifier] = product.priceString;
+        }
+        setStorePrices(next);
+      })
+      .catch(() => {
+        if (!cancelled) setStorePrices({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [appleIap]);
+
   const selectedPlan = plans.find((p) => p.id === selectedId) ?? plans[0];
   const selectedIsFree = selectedPlan.id === "free";
   const offerByPlan = useMemo(
@@ -216,11 +276,13 @@ export function PricingPlans({
         plans.map((plan) => [
           plan.id,
           plan.id === "plus" || plan.id === "pro"
-            ? pickBestOffer(offers, plan.id, interval)
+            ? appleIap
+              ? null
+              : pickBestOffer(offers, plan.id, interval)
             : null,
         ])
       ),
-    [plans, offers, interval]
+    [plans, offers, interval, appleIap]
   );
   const selectedIsCurrent =
     selectedIsFree ? !subscribed : Boolean(subscribed && currentPlan === selectedPlan.id);
@@ -246,7 +308,17 @@ export function PricingPlans({
     selectedTier.amountEurCents,
     selectedOffer
   );
-  const heroPrice = getCurrencyPrice({ amountEurCents: selectedDiscounted });
+  const heroLocale: CheckoutLocale = locale === "al" ? "al" : "en";
+  const selectedStorePrice =
+    appleIap && isSoldPlanId(selectedPlan.id)
+      ? storePrices[getIapProductId(selectedPlan.id, interval)]
+      : undefined;
+  const heroPriceLabel = selectedStorePrice
+    ? selectedStorePrice
+    : appleIap && !selectedIsFree
+      ? "…"
+      : formatDisplayedPlanPrice(selectedDiscounted, heroLocale);
+  const heroIsFree = appleIap ? selectedIsFree : selectedDiscounted <= 0;
   const heroPer =
     interval === "monthly" ? cardLabels.perMonth : cardLabels.perYear;
 
@@ -254,15 +326,17 @@ export function PricingPlans({
     <div className="mx-auto w-full max-w-md space-y-6 lg:max-w-none">
       {premiumPresentation ? (
         <div className="space-y-1 px-4 text-center">
-          <p className="text-4xl font-black tracking-tight text-primary">{heroPrice.label}</p>
-          <p className="text-xs text-muted-foreground">
-            /{heroPer}
-            {interval === "annual" && selectedPlan.monthly.amountEurCents > 0
-              ? ` · ${getCurrencyPrice({
-                  amountEurCents: Math.round(selectedDiscounted / 12),
-                }).label}/${cardLabels.perMonth}`
-              : null}
-          </p>
+          <p className="text-4xl font-black tracking-tight text-primary">{heroPriceLabel}</p>
+          {heroIsFree || (appleIap && !selectedIsFree) ? null : (
+            <p className="text-xs text-muted-foreground">
+              /{heroPer}
+              {interval === "annual" && selectedPlan.monthly.amountEurCents > 0
+                ? ` · ${getCurrencyPrice({
+                    amountEurCents: Math.round(selectedDiscounted / 12),
+                  }).label}/${cardLabels.perMonth}`
+                : null}
+            </p>
+          )}
         </div>
       ) : null}
       <div className="flex justify-center">
@@ -286,23 +360,38 @@ export function PricingPlans({
             interval={interval}
             locale={locale}
             selected={selectedId === plan.id}
+            detailsOpen={openDetailsId === plan.id}
             isCurrent={
               plan.id === "free"
                 ? !subscribed
                 : Boolean(subscribed && currentPlan === plan.id)
             }
             savings={
-              interval === "annual"
-                ? formatAnnualSavingsLocalized(plan.monthly, plan.annual, locale)
-                : null
+              appleIap
+                ? null
+                : interval === "annual"
+                  ? formatAnnualSavingsLocalized(plan.monthly, plan.annual, locale)
+                  : null
             }
             perLabel={interval === "monthly" ? cardLabels.perMonth : cardLabels.perYear}
             currentPlanLabel={cardLabels.currentPlan}
             seeDetailsLabel={pricing.seeDetails}
             hideDetailsLabel={pricing.hideDetails}
             includesFromLabel={cardLabels.includesFrom}
-            onSelect={() => setSelectedId(plan.id)}
-            offer={offerByPlan[plan.id] ?? null}
+            storePriceLabel={
+              appleIap && isSoldPlanId(plan.id)
+                ? (storePrices[getIapProductId(plan.id, interval)] ?? "…")
+                : null
+            }
+            onSelect={() => selectPlan(plan.id)}
+            onToggleDetails={() => {
+              if (selectedId !== plan.id) {
+                selectPlan(plan.id);
+                return;
+              }
+              setOpenDetailsId((current) => (current === plan.id ? null : plan.id));
+            }}
+            offer={appleIap ? null : (offerByPlan[plan.id] ?? null)}
           />
         ))}
       </div>
@@ -310,14 +399,6 @@ export function PricingPlans({
       {selectedIsCurrent || freeWhilePaid ? (
         <Button className="w-full" size="lg" variant="outline" disabled>
           {freeWhilePaid ? cardLabels.currentPlan : ctaLabel}
-        </Button>
-      ) : nativeApp && !selectedIsFree ? (
-        <Button
-          className="w-full shadow-md shadow-primary/25"
-          size="lg"
-          onClick={() => void openWebsitePath(checkoutHref)}
-        >
-          {ctaLabel}
         </Button>
       ) : premiumPresentation ? (
         <Link href={checkoutHref} className="block px-4">

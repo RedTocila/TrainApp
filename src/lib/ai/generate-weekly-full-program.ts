@@ -2,6 +2,7 @@ import { generateFullTrainingDayFromProfile } from "@/lib/ai/generate-workout-pl
 import type {
   AiDayProgramResult,
   CoachGenerationInput,
+  FullTrainingDayOptions,
 } from "@/lib/ai/generate-workout-plan";
 import { trainingGoalRulesForAi } from "@/lib/goal-coaching";
 import { buildIntakeContextForAi } from "@/lib/ai/intake-context";
@@ -65,10 +66,14 @@ export async function generateWeeklyFullProgramFromProfile(
     preferences?: string;
     includeExtras?: boolean;
     dayFocuses?: string[];
+    completeSession?: boolean;
   } & CoachGenerationInput
 ): Promise<AiWeeklyFullProgram> {
   const daysPerWeek = Math.min(6, Math.max(1, Math.round(options.daysPerWeek)));
   const includeExtras = options.includeExtras !== false;
+  const dayOptions: FullTrainingDayOptions = {
+    completeSession: options.completeSession === true,
+  };
   const intake = buildIntakeContextForAi(profile, options.preferences);
   const input: CoachGenerationInput = {
     conversation: options.conversation,
@@ -124,7 +129,8 @@ Respond with ONLY JSON: { "title": "plan name", "description": "1 sentence", "fo
           focuses,
           options.preferences,
           includeExtras,
-          input
+          input,
+          dayOptions
         );
         return {
           title: parsed.title?.trim() || `${daysPerWeek}-day weekly program`,
@@ -152,7 +158,8 @@ Respond with ONLY JSON: { "title": "plan name", "description": "1 sentence", "fo
     focuses,
     options.preferences,
     includeExtras,
-    input
+    input,
+    dayOptions
   );
 
   return {
@@ -171,7 +178,8 @@ async function buildDaysInParallel(
   focuses: string[],
   preferences: string | undefined,
   includeExtras: boolean,
-  input: CoachGenerationInput
+  input: CoachGenerationInput,
+  dayOptions?: FullTrainingDayOptions
 ): Promise<AiWeeklyFullDay[]> {
   const results = await Promise.all(
     focuses.map(async (focus) => {
@@ -181,16 +189,31 @@ async function buildDaysInParallel(
         includeExtras
           ? "Include warm-up, main workout, and stretching matched to this focus. Exercises must be unique to this focus — do not reuse the same warm-up/stretch list from other days."
           : "Main workout is the priority; still return warm-up and stretch sections (they may be used). Keep exercises specific to this focus.",
+        dayOptions?.completeSession
+          ? "The main workout must be a full session for this focus: primary lift, secondary lifts, and accessories. Warm-up and stretch are required."
+          : "",
         preferences?.trim() ? `Extra instructions: ${preferences.trim()}` : "",
       ]
         .filter(Boolean)
         .join("\n");
 
-      const program = await generateFullTrainingDayFromProfile(profile, prompt, input);
+      const program = await generateFullTrainingDayFromProfile(
+        profile,
+        prompt,
+        input,
+        dayOptions
+      );
       return { ...program, focus };
     })
   );
-  return dedupeWeeklyDaySessions(profile, results, preferences, includeExtras, input);
+  return dedupeWeeklyDaySessions(
+    profile,
+    results,
+    preferences,
+    includeExtras,
+    input,
+    dayOptions
+  );
 }
 
 function sessionFingerprints(day: AiWeeklyFullDay): string[] {
@@ -215,7 +238,8 @@ async function dedupeWeeklyDaySessions(
   days: AiWeeklyFullDay[],
   preferences: string | undefined,
   includeExtras: boolean,
-  input: CoachGenerationInput
+  input: CoachGenerationInput,
+  dayOptions?: FullTrainingDayOptions
 ): Promise<AiWeeklyFullDay[]> {
   const out = [...days];
   const seen = new Set<string>();
@@ -245,7 +269,8 @@ async function dedupeWeeklyDaySessions(
       const regenerated = await generateFullTrainingDayFromProfile(
         profile,
         prompt,
-        input
+        input,
+        dayOptions
       );
       out[i] = { ...regenerated, focus };
     } catch {

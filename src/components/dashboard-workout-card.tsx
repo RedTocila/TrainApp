@@ -1,7 +1,7 @@
 "use client";
 import { useCoachLabels, useLocale, usePlatformCopy } from "@/components/locale-provider";
 
-import { ArrowUpRight, Check, ChevronRight, Clock, Dumbbell, Flame, Layers, List, Loader2, Play, TriangleAlert } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, Clock, Dumbbell, Flame, List, Loader2, Play, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addDays } from "date-fns";
@@ -969,8 +969,6 @@ export function DashboardWorkoutCard({
       workoutsForDay.find((session) => isMainWorkoutKind(session.planKind)) ??
       focusWorkout;
     const workout = mainWorkout;
-    const totalSets =
-      workout?.exercises.reduce((sum, exercise) => sum + exercise.sets, 0) ?? 0;
     const exerciseCount = workout?.exercises.length ?? 0;
     const dayLabel = formatLocalized(selectedDate, "EEEE", locale);
     const durationSeconds = workout
@@ -1026,7 +1024,9 @@ export function DashboardWorkoutCard({
           }
           backgroundPriority
           solid={hasWorkout}
+          keepPhoto={isRestDayPhoto}
           className={cn(
+            isRestDayPhoto && "min-h-[17.5rem]",
             hasWorkout &&
               "cursor-pointer transition-opacity hover:opacity-95 active:opacity-90",
             liveSessionId &&
@@ -1183,21 +1183,6 @@ export function DashboardWorkoutCard({
                         aria-hidden
                       />
                       <span>{platform.common.exercises(exerciseCount)}</span>
-                    </p>
-                    <p
-                      className={cn(
-                        "flex items-center gap-2.5 text-sm font-semibold sm:text-base",
-                        metaText
-                      )}
-                    >
-                      <Layers
-                        className={cn(
-                          "h-4 w-4 shrink-0",
-                          onPhoto || onSolid ? "text-white/80" : "text-primary"
-                        )}
-                        aria-hidden
-                      />
-                      <span>{platform.workout.setsCount(totalSets)}</span>
                     </p>
                     {kcalLabel ? (
                       <p

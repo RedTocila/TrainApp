@@ -3,6 +3,7 @@ import { ElectronicScale } from "@/components/icons/electronic-scale";
 import {
   Award,
   BarChart3,
+  Bell,
   Bot,
   Brain,
   Calendar,
@@ -50,6 +51,7 @@ const FEATURE_ICON_RULES: { pattern: RegExp; icon: LucideIcon }[] = [
   { pattern: /automatic/i, icon: Zap },
   { pattern: /manual meal|recipe|chef/i, icon: ChefHat },
   { pattern: /measurement|ruler/i, icon: Ruler },
+  { pattern: /notification|reminder|njoftim|kujtes/i, icon: Bell },
   { pattern: /calendar|weekly/i, icon: Calendar },
   { pattern: /support/i, icon: Headphones },
 ];

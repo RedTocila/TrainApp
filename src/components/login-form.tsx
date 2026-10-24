@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/actions/auth";
 import { useIsNativeApp } from "@/components/ios/use-native-app";
-import { openWebsiteSignup } from "@/lib/open-external-url";
 import { BrandWordmark } from "@/components/app-logo";
 import { AuthCardShell } from "@/components/auth-card-shell";
 import { Button } from "@/components/ui/button";
@@ -147,19 +146,12 @@ export function LoginForm({ authError }: { authError?: string }) {
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            {nativeApp ? (
-              <button
-                type="button"
-                className="text-primary hover:underline"
-                onClick={() => void openWebsiteSignup()}
-              >
-                Register
-              </button>
-            ) : (
-              <Link href="/register" className="text-primary hover:underline">
-                Register
-              </Link>
-            )}
+            <Link
+              href={nativeApp ? "/register?from=ios" : "/register"}
+              className="text-primary hover:underline"
+            >
+              Register
+            </Link>
           </p>
         </CardContent>
       </Card>

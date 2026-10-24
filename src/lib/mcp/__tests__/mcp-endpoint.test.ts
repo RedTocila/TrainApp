@@ -32,8 +32,12 @@ test("list_plans returns sold plans and public pricing", () => {
     result.plans.map((plan) => plan.name),
     ["RUTINA Free", "RUTINA Plus", "RUTINA Pro"]
   );
+  assert.equal(result.plans[0]?.monthlyPrice, "Free");
+  assert.equal(result.plans[0]?.annualPrice, "Free");
   assert.equal(result.plans[1]?.monthlyPrice, "€7/month");
+  assert.equal(result.plans[1]?.annualPrice, "€70/year");
   assert.equal(result.plans[2]?.monthlyPrice, "€25/month");
+  assert.equal(result.plans[2]?.annualPrice, "€250/year");
   assert.equal(result.pricingUrl, "https://rutina.al/pricing");
   assert.equal(result.plans.some((plan) => plan.id === "basic"), false);
 });

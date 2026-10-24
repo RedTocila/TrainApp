@@ -25,10 +25,9 @@ function matchesPrefix(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);
 }
 
-/** Account creation and public checkout — website only. */
+/** Public marketing checkout stays on the website. Free registration is allowed in the app. */
 export function isWebsiteSignupPath(pathname: string): boolean {
   return (
-    matchesPrefix(pathname, "/register") ||
     matchesPrefix(pathname, "/get-started") ||
     matchesPrefix(pathname, "/pricing") ||
     matchesPrefix(pathname, "/join")

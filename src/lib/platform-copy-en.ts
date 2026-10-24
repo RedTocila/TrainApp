@@ -75,6 +75,9 @@ export const platformCopyEn = {
     deleteAccountTitle: "Delete your account?",
     deleteAccountDescription:
       "Everything goes — workouts, meals, progress, subscription access. No coming back.",
+    deleteAccountAppleDescription:
+      "Deleting your account removes your login and data. Apple may keep billing this subscription until you cancel it. Open Apple subscription settings before you confirm.",
+    deleteAccountAppleOpenSettings: "Open Apple subscription settings",
     deleteAccountTypeLabel: "Type this exactly to confirm:",
     deleteAccountPhrase: "I GIVE UP!",
     deleteAccountPlaceholder: "I GIVE UP!",
@@ -112,7 +115,7 @@ export const platformCopyEn = {
     ruleInviter: "You earn €10 credit when they complete a paid package — store it for later.",
     ruleSpend:
       "Use credits on your next subscription or to enter paid flash challenges.",
-    ruleTwo: "Two invites (€20) go toward the €29.99 monthly plan.",
+    ruleTwo: "Two invites (€20) cover a month of Plus (€7), or go toward Pro (€25).",
     enterCode: "Referral code",
     codePlaceholder: "Enter referral code",
     applyCode: "Apply code",
@@ -190,6 +193,8 @@ export const platformCopyEn = {
     saved: "Reminder settings saved",
     resync: "Allow notifications on this phone",
     networkError: "Couldn’t reach the server. Check your connection and try again.",
+    plusRequired: "Reminders are included with Plus and Pro.",
+    seePlans: "See plans",
     channelName: "Daily reminders",
     channelDescription:
       "Nudges when workouts, meals, water, or habits are still pending",
@@ -230,6 +235,43 @@ export const platformCopyEn = {
       cardio: "Your cardio session is still waiting.",
       water: "You’re under your water goal — grab a drink.",
       habits: "Some daily habits are still open.",
+    },
+    reports: {
+      daily: "Everyday report",
+      weekly: "Weekly report",
+      highRisk: "High-risk points",
+      dailyHint: "A recap of today at 20:00",
+      weeklyHint: "Sunday at 20:00, with your weekly report",
+      highRiskHint: "11:00 reminder of injuries and health limits",
+      dailyTitle: "Today's report",
+      weeklyTitle: "Weekly report",
+      weeklyBody:
+        "Your week is ready. Open it for training, nutrition, and consistency.",
+      highRiskTitle: "High-risk points",
+      highRiskBody: (points: string) => `${points}. Keep these in mind today.`,
+      restDay: "Rest day",
+      workoutDone: "Workout done",
+      workoutOpen: "Workout still open",
+      mealsLogged: "Meals logged",
+      mealsMissing: "No meals logged",
+      waterOk: "Water on track",
+      waterShort: "Water still short",
+      areas: {
+        knees: "Knees",
+        back: "Back",
+        shoulders: "Shoulders",
+        hips: "Hips",
+        ankles: "Ankles / feet",
+        wrists: "Wrists / elbows",
+      } as Record<string, string>,
+      conditions: {
+        diabetes: "Diabetes",
+        hypertension: "High blood pressure",
+        asthma: "Asthma",
+        pcos: "PCOS",
+        thyroid: "Thyroid",
+        other: "Other health condition",
+      } as Record<string, string>,
     },
   },
   goals: {
@@ -1111,6 +1153,10 @@ export const platformCopyEn = {
     buildNutritionWithAi: "Create meal plan with AI",
     buildNutritionWithAiDesc: "A personalized meal plan based on your preferences",
     createPrivacyNote: "Your data is private and secure",
+    upgradeDrawerTitle: "That's the paid part, champ.",
+    upgradeDrawerBody:
+      "I can stand here and look motivational for free. The chat, the reports, and the plans I actually build sit on Plus and Pro. Pick a package before I start charging you in push-ups.",
+    upgradeDrawerCta: "See packages",
     hello: (name: string) => (name ? `Hey ${name}! 👋` : "Hey! 👋"),
     hereForYou: "I'm here for you",
     howCanIHelp: "How can I help you today?",
@@ -1396,6 +1442,12 @@ export const platformCopyEn = {
     photoDesc: "Snap a photo — AI fills in the details",
     fromLibraryDesc: "Browse 13k recipes or pick a saved meal",
     nameRequired: "Meal name is required",
+    freeAiMealsLeft: (n: number) =>
+      n === 1
+        ? "1 photo or typed meal left today"
+        : `${n} photo or typed meals left today`,
+    freeAiMealsUsed:
+      "Free includes 2 photo or typed meals a day. Plus and Pro log without that limit.",
     goBack: "Go back",
     chooseImage: "Please choose an image file",
     processFailed: "Couldn’t use that photo. Try another one.",
@@ -1478,6 +1530,7 @@ export const platformCopyEn = {
         "Multiple saved programs",
         "Weekly reports",
         "Advanced statistics",
+        "Notifications and reminders",
       ],
     },
     pro: {

@@ -7,6 +7,7 @@ import { getAppBaseUrl } from "@/lib/app-url";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import {
   INVITEE_DISCOUNT_CENTS,
+  REFERRALS_ENABLED,
   INVITER_CREDIT_CENTS,
   normalizeReferralCode,
   referralEarnDescription,
@@ -126,6 +127,7 @@ export async function applyReferralCodeForUser(
   userId: string,
   rawCode: string
 ): Promise<{ success: true } | { error: string }> {
+  if (!REFERRALS_ENABLED) return { success: true };
   const admin = createAdminClient();
   const { data: me } = await admin
     .from("profiles")
@@ -205,6 +207,16 @@ export async function getCheckoutReferralState(userId: string): Promise<{
   referredBy: string | null;
   canApplyCode: boolean;
 }> {
+  if (!REFERRALS_ENABLED) {
+    return {
+      canApplyInviteeDiscount: false,
+      inviteeDiscountCents: 0,
+      creditBalanceCents: 0,
+      referredBy: null,
+      canApplyCode: false,
+    };
+  }
+
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from("profiles")

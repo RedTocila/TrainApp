@@ -10,6 +10,7 @@ import {
   encryptPendingPassword,
 } from "@/lib/pending-signup-crypto";
 import { CHECKOUT_CURRENCY } from "@/lib/checkout-i18n";
+import { getIapProductId } from "@/lib/iap/products";
 import {
   getPlan,
   getPlanPrice,
@@ -427,6 +428,28 @@ async function prepareGuestPendingOrder(
   };
 }
 
+/** Start an App Store subscription for a not-yet-created account. */
+export async function createGuestAppleCheckoutOrder(
+  signup: GuestSignupPayload,
+  planId: SubscriptionPlanId,
+  interval: BillingInterval
+) {
+  const prepared = await prepareGuestPendingOrder(signup, planId, interval, {
+    paymentProvider: "apple",
+    applyOffers: false,
+  });
+  if (!prepared.ok) return { error: prepared.error };
+  if (!isSoldPlanId(planId)) {
+    return { error: "That plan is no longer available. Choose Plus or Pro." };
+  }
+
+  return {
+    localOrderId: prepared.localOrderId,
+    productId: getIapProductId(planId, interval),
+    appAccountToken: null as string | null,
+  };
+}
+
 export async function createGuestCheckoutOrder(
   signup: GuestSignupPayload,
   planId: SubscriptionPlanId,
@@ -497,17 +520,6 @@ export async function createGuestCheckoutOrder(
       error: err instanceof Error ? err.message : "Payment provider unavailable",
     };
   }
-}
-
-/** Guest signup checkout via App Store IAP (no PokPay order). */
-export async function createGuestAppleCheckoutOrder(
-  _signup: GuestSignupPayload,
-  _planId: SubscriptionPlanId,
-  _interval: BillingInterval
-) {
-  return {
-    error: "Subscriptions are purchased on rutina.al. Create a free account, then choose Plus or Pro on the website.",
-  };
 }
 
 async function completePaidGuestOrder(

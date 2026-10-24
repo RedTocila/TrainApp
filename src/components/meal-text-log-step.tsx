@@ -16,6 +16,7 @@ import { ConfidenceBadge } from "@/components/confidence-badge";
 type TextPhase = "input" | "analyzing" | "review";
 
 export function MealTextLogStep({
+  dateKey,
   form,
   onFormChange,
   onError,
@@ -23,6 +24,7 @@ export function MealTextLogStep({
   confidence,
   onConfidenceChange,
 }: {
+  dateKey: string;
   form: MealFormData;
   onFormChange: (form: MealFormData) => void;
   onError: (message: string | null) => void;
@@ -49,7 +51,7 @@ export function MealTextLogStep({
 
     startTransition(async () => {
       const response = await runServerAction(() =>
-        analyzeMealTextAction(input.trim())
+        analyzeMealTextAction(input.trim(), dateKey)
       );
       if (isActionError(response)) {
         onError(response.error);

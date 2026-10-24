@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSubscriptionProfile } from "@/lib/actions/subscriptions";
-import { PLATFORM_AI_NAME } from "@/lib/brand";
-import { hasAiAccess } from "@/lib/subscription";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { freeAiMealSlotOpen, mealLogDateKey } from "@/lib/free-ai-meals";
 import { isAiConfigured } from "@/lib/ai/providers";
 import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import { formatUserError } from "@/lib/format-user-error";
@@ -29,18 +29,21 @@ export type AnalyzeMealPhotoActionResult =
   | { rejected: true; alexMessage: string }
   | { error: string };
 
-async function requireAiMealAccess(): Promise<
+async function requireAiMealAccess(date?: string): Promise<
   { success: true; profile: NonNullable<Awaited<ReturnType<typeof getSubscriptionProfile>>> } |
   { success: false; error: string }
 > {
   const profile = await getSubscriptionProfile();
   if (!profile) return { success: false, error: "Not authenticated" };
-  if (!hasAiAccess(profile)) {
-    return { success: false, error: `Upgrade to ${PLATFORM_AI_NAME} to use AI meal logging.` };
-  }
   if (!isAiConfigured()) {
     return { success: false, error: "AI meal analysis is not configured on the server yet." };
   }
+  const slot = await freeAiMealSlotOpen(
+    createAdminClient(),
+    profile,
+    mealLogDateKey(date)
+  );
+  if (!slot.ok) return { success: false, error: slot.error };
   return { success: true, profile };
 }
 
@@ -62,9 +65,10 @@ async function storeMealAnalysis(
 
 export async function analyzeMealPhotoAction(
   imageBase64: string,
-  mimeType: string
+  mimeType: string,
+  date?: string
 ): Promise<AnalyzeMealPhotoActionResult> {
-  const access = await requireAiMealAccess();
+  const access = await requireAiMealAccess(date);
   if (!access.success) return { error: access.error };
 
   if (!imageBase64.trim()) return { error: "No photo provided" };
@@ -101,9 +105,10 @@ export async function refineMealPhotoAction(
   imageBase64: string,
   mimeType: string,
   specification: string,
-  previousResult?: MealAnalysisResult
+  previousResult?: MealAnalysisResult,
+  date?: string
 ): Promise<AnalyzeMealPhotoActionResult> {
-  const access = await requireAiMealAccess();
+  const access = await requireAiMealAccess(date);
   if (!access.success) return { error: access.error };
 
   if (!imageBase64.trim()) return { error: "No photo provided" };
@@ -143,9 +148,10 @@ export async function refineMealPhotoAction(
 }
 
 export async function analyzeMealTextAction(
-  text: string
+  text: string,
+  date?: string
 ): Promise<{ result: MealAnalysisResult; form: ReturnType<typeof mealAnalysisToForm> } | { error: string }> {
-  const access = await requireAiMealAccess();
+  const access = await requireAiMealAccess(date);
   if (!access.success) return { error: access.error };
 
   try {

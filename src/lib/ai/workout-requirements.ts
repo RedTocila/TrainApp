@@ -697,11 +697,11 @@ export function buildRequirementsPromptBlock(
 
 const EXPERIENCE_PROGRAMMING: Record<ExperienceLevel, string> = {
   beginner:
-    "simple, stable, low-skill movements; 4–6 exercises; 2–3 sets of 8–15 reps; 60–90s rest; clear technique cues; no complex/skill lifts.",
+    "simple, stable, low-skill movements and clear technique cues; still a complete session — primary compound, secondary lifts, and accessories (6–7 exercises); 3 sets of 8–12 reps; 60–90s rest; no complex/skill lifts.",
   intermediate:
-    "compound lifts first, then accessories; 5–7 exercises; 3–4 sets of 6–12 reps; progressive overload; sensible weekly volume.",
+    "compound lifts first, then accessories; a complete session of 7–8 exercises; 3–4 sets of 6–12 reps on compounds; progressive overload; sensible weekly volume.",
   advanced:
-    "higher volume/intensity with purposeful technique (tempo, pauses, supersets where useful); 6–8 exercises; 3–5 sets across rep ranges; advanced variations only where they add value.",
+    "a complete session of 8–10 exercises; 4–5 sets on primary lifts and 3–4 on accessories; purposeful technique (tempo, pauses) where it adds value; respect recovery.",
 };
 
 export function formatConflictToolResult(

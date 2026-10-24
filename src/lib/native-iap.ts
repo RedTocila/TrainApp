@@ -1,8 +1,13 @@
+import { Capacitor } from "@capacitor/core";
 import { ALL_IAP_PRODUCT_IDS } from "@/lib/iap/products";
 
-/** Purchases happen on the website. The app does not start App Store billing. */
+/** iPhone shell sells Plus and Pro with StoreKit. Website and Android keep card checkout. */
 export function shouldUseAppleIap(): boolean {
-  return false;
+  try {
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+  } catch {
+    return false;
+  }
 }
 
 export type NativeIapProduct = {

@@ -75,6 +75,9 @@ export const platformCopyAl = {
     deleteAccountTitle: "Të fshihet llogaria?",
     deleteAccountDescription:
       "Zhduket gjithçka — stërvitje, ushqime, progres, aksesi i abonimit. Pa kthim.",
+    deleteAccountAppleDescription:
+      "Fshirja e llogarisë heq hyrjen dhe të dhënat. Apple mund të vazhdojë faturimin e këtij abonimi derisa ta anulosh. Hap cilësimet e abonimit Apple para se të konfirmosh.",
+    deleteAccountAppleOpenSettings: "Hap cilësimet e abonimit Apple",
     deleteAccountTypeLabel: "Shkruaje saktësisht për të konfirmuar:",
     deleteAccountPhrase: "JAP DOREHEQJE!",
     deleteAccountPlaceholder: "JAP DOREHEQJE!",
@@ -112,7 +115,7 @@ export const platformCopyAl = {
     ruleInviter: "Ti fiton €10 kredi kur ata përfundojnë një paketë me pagesë — ruaji për më vonë.",
     ruleSpend:
       "Përdor kreditë në abonimin tënd ose për të hyrë në flash challenges me pagesë.",
-    ruleTwo: "Dy ftesa (€20) zbriten nga plani mujor 29.99€.",
+    ruleTwo: "Dy ftesa (€20) mbulojnë një muaj Plus (7€), ose zbriten nga Pro (25€).",
     enterCode: "Kod referimi",
     codePlaceholder: "Vendos kodin e referimit",
     applyCode: "Apliko kodin",
@@ -191,6 +194,8 @@ export const platformCopyAl = {
     saved: "Cilësimet e kujtesave u ruajtën",
     resync: "Lejo njoftimet në këtë telefon",
     networkError: "Nuk u lidh me serverin. Kontrollo lidhjen dhe provo përsëri.",
+    plusRequired: "Kujtesat janë pjesë e Plus dhe Pro.",
+    seePlans: "Shiko planet",
     channelName: "Kujtesa ditore",
     channelDescription:
       "Kujtesa kur stërvitjet, vaktet, uji ose zakonet janë ende të hapura",
@@ -231,6 +236,43 @@ export const platformCopyAl = {
       cardio: "Seanca jote e kardios është ende në pritje.",
       water: "Je nën objektivin e ujit — pi një gotë.",
       habits: "Disa zakone ditore janë ende të hapura.",
+    },
+    reports: {
+      daily: "Raporti i përditshëm",
+      weekly: "Raporti javor",
+      highRisk: "Pikat me rrezik të lartë",
+      dailyHint: "Përmbledhje e ditës në 20:00",
+      weeklyHint: "Të dielën në 20:00, me raportin javor",
+      highRiskHint: "Kujtesë në 11:00 për lëndimet dhe kufijtë shëndetësorë",
+      dailyTitle: "Raporti i sotëm",
+      weeklyTitle: "Raporti javor",
+      weeklyBody:
+        "Java është gati. Hape për stërvitjen, ushqimin dhe qëndrueshmërinë.",
+      highRiskTitle: "Pikat me rrezik të lartë",
+      highRiskBody: (points: string) => `${points}. Mbaji parasysh sot.`,
+      restDay: "Ditë pushimi",
+      workoutDone: "Stërvitja u krye",
+      workoutOpen: "Stërvitja ende hapur",
+      mealsLogged: "Vaktet u regjistruan",
+      mealsMissing: "Asnjë vakt i regjistruar",
+      waterOk: "Uji në rregull",
+      waterShort: "Uji ende i ulët",
+      areas: {
+        knees: "Gjunjët",
+        back: "Shpina",
+        shoulders: "Supet",
+        hips: "Ijet",
+        ankles: "Këmbët / kyçet",
+        wrists: "Duart / bërrylat",
+      } as Record<string, string>,
+      conditions: {
+        diabetes: "Diabeti",
+        hypertension: "Tension i lartë",
+        asthma: "Astma",
+        pcos: "PCOS",
+        thyroid: "Tiroide",
+        other: "Gjendje tjetër shëndetësore",
+      } as Record<string, string>,
     },
   },
   goals: {
@@ -1120,6 +1162,10 @@ export const platformCopyAl = {
     buildNutritionWithAi: "Krijo plan ushqimi me AI",
     buildNutritionWithAiDesc: "Plan ushqimi i personalizuar sipas preferencave të tua",
     createPrivacyNote: "Të dhënat e tua janë private dhe të sigurta",
+    upgradeDrawerTitle: "Kjo pjesë paguhet, kampion.",
+    upgradeDrawerBody:
+      "Falas mund të rri këtu dhe të dukem motivues. Biseda, raportet dhe planet që i ndërtoj unë janë te Plus dhe Pro. Zgjidh një paketë para se të të vendos të paguash me pompa.",
+    upgradeDrawerCta: "Shiko paketat",
     hello: (name: string) => (name ? `Përshëndetje ${name}! 👋` : "Përshëndetje! 👋"),
     hereForYou: "Unë jam këtu për ty",
     howCanIHelp: "Si mund të të ndihmoj sot?",
@@ -1406,6 +1452,12 @@ export const platformCopyAl = {
     photoDesc: "Bëni një foto — AI plotëson detajet",
     fromLibraryDesc: "Shfletoni 13k receta ose zgjidhni një vakt të ruajtur",
     nameRequired: "Emri i vaktit është i detyrueshëm",
+    freeAiMealsLeft: (n: number) =>
+      n === 1
+        ? "1 vakt me foto ose tekst ka mbetur sot"
+        : `${n} vakte me foto ose tekst kanë mbetur sot`,
+    freeAiMealsUsed:
+      "Falas përfshin 2 vakte me foto ose tekst në ditë. Plus dhe Pro i regjistrojnë pa atë kufi.",
     goBack: "Kthehu",
     chooseImage: "Zgjidhni një skedar fotoje",
     processFailed: "Fotoja nuk u përdor. Provo një tjetër.",
@@ -1487,6 +1539,7 @@ export const platformCopyAl = {
         "Disa programe të ruajtura",
         "Raporte javore",
         "Statistika të avancuara",
+        "Njoftime dhe kujtesa",
       ],
     },
     pro: {

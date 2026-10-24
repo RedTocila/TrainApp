@@ -10,7 +10,11 @@ import {
 import type { BillingInterval, SubscriptionPlan } from "@/lib/subscription-plans";
 import type { SubscriptionOffer } from "@/lib/subscription-offers";
 import { applyOfferDiscount } from "@/lib/subscription-offers";
-import { getCompareAtLabel, getCurrencyPrice } from "@/lib/checkout-i18n";
+import {
+  formatDisplayedPlanPrice,
+  getCompareAtLabel,
+  type CheckoutLocale,
+} from "@/lib/checkout-i18n";
 import { getPricingFeatureIcon } from "@/lib/pricing-feature-icons";
 import { OfferBanner } from "@/components/offer-banner";
 import { Button } from "@/components/ui/button";
@@ -69,7 +73,9 @@ export function PricingPlanCard({
 }: PricingPlanCardProps) {
   const tier = interval === "monthly" ? plan.monthly : plan.annual;
   const discountedCents = applyOfferDiscount(tier.amountEurCents, offer);
-  const price = getCurrencyPrice({ amountEurCents: discountedCents });
+  const priceLocale: CheckoutLocale = locale === "al" ? "al" : "en";
+  const priceLabel = formatDisplayedPlanPrice(discountedCents, priceLocale);
+  const isFreePrice = discountedCents <= 0;
   const compareAtLabel =
     compareAt ??
     (offer
@@ -116,10 +122,12 @@ export function PricingPlanCard({
                   {compareAtLabel}
                 </span>
               )}
-              <span className="text-4xl font-black tracking-tight">{price.label}</span>
-              <span className="text-sm text-muted-foreground">
-                /{interval === "monthly" ? labels.perMonth : labels.perYear}
-              </span>
+              <span className="text-4xl font-black tracking-tight">{priceLabel}</span>
+              {isFreePrice ? null : (
+                <span className="text-sm text-muted-foreground">
+                  /{interval === "monthly" ? labels.perMonth : labels.perYear}
+                </span>
+              )}
             </div>
             {savings && (
               <p className="mt-1.5 text-sm font-medium text-green-400">{savings}</p>

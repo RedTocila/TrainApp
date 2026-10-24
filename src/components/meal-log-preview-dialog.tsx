@@ -26,7 +26,9 @@ export function MealLogPreviewDialog({
   goal,
   onClose,
   onDelete,
+  onUpdate,
   isDeleting = false,
+  isSaving = false,
   variant = "new",
 }: {
   open: boolean;
@@ -36,15 +38,22 @@ export function MealLogPreviewDialog({
   goal?: string | null;
   onClose: () => void;
   onDelete?: () => void;
+  onUpdate?: (meal: MealFormData) => void;
   isDeleting?: boolean;
+  isSaving?: boolean;
   variant?: "new" | "view";
 }) {
   const coachCopy = useCoachCopy();
   const platform = usePlatformCopy();
   const [adviceKey, setAdviceKey] = useState(0);
+  const [draft, setDraft] = useState<MealFormData | null>(meal);
 
   useEffect(() => {
     if (open && meal) setAdviceKey(Date.now());
+  }, [open, meal]);
+
+  useEffect(() => {
+    if (open) setDraft(meal);
   }, [open, meal]);
 
   useEffect(() => {
@@ -88,6 +97,8 @@ export function MealLogPreviewDialog({
 
   if (!open || !meal) return null;
 
+  const shown = draft ?? meal;
+
   if (variant === "view") {
     return (
       <AppOverlay
@@ -119,15 +130,19 @@ export function MealLogPreviewDialog({
           <div className="relative min-h-0 flex-1 overflow-hidden">
             <div className="absolute inset-0">
               <MealAnalysisSummary
-                form={meal}
+                form={shown}
+                onFormChange={onUpdate ? setDraft : undefined}
                 confidence={null}
                 imageUrl={photoUrl}
-                onSave={onClose}
-                saveLabel={platform.common.done}
-                isSaving={isDeleting}
+                onSave={() => {
+                  if (onUpdate) onUpdate(shown);
+                  else onClose();
+                }}
+                saveLabel={onUpdate ? platform.common.save : platform.common.done}
+                isSaving={isSaving || isDeleting}
                 onSecondary={onDelete}
                 secondaryLabel={onDelete ? platform.aria.deleteMeal : undefined}
-                secondaryDisabled={isDeleting}
+                secondaryDisabled={isDeleting || isSaving}
               />
             </div>
           </div>

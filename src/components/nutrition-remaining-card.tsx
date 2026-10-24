@@ -25,13 +25,54 @@ function clamp01(n: number) {
   return Math.min(Math.max(n, 0), 1);
 }
 
-function SemiGauge({ ratio }: { ratio: number }) {
+function SemiGauge({
+  ratio,
+  segments,
+}: {
+  ratio: number;
+  /** When set, the arc is painted full and split by these shares (signup target). */
+  segments?: { key: string; color: string; share: number }[];
+}) {
   const clamped = clamp01(ratio);
   const r = 86;
   const cx = 110;
   const cy = 108;
   const length = Math.PI * r;
   const d = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+
+  if (segments && segments.length > 0) {
+    const gap = 16;
+    const usable = Math.max(length - gap * (segments.length - 1), 1);
+    let offset = 0;
+    return (
+      <svg viewBox="0 0 220 124" className="w-full" aria-hidden>
+        <path
+          d={d}
+          fill="none"
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth="14"
+          strokeLinecap="butt"
+        />
+        {segments.map((segment) => {
+          const segLen = Math.max(usable * segment.share, 1);
+          const node = (
+            <path
+              key={segment.key}
+              d={d}
+              fill="none"
+              stroke={segment.color}
+              strokeWidth="14"
+              strokeLinecap="round"
+              strokeDasharray={`${segLen} ${length}`}
+              strokeDashoffset={-offset}
+            />
+          );
+          offset += segLen + gap;
+          return node;
+        })}
+      </svg>
+    );
+  }
 
   return (
     <svg viewBox="0 0 220 124" className="w-full" aria-hidden>
@@ -59,26 +100,38 @@ function SemiGauge({ ratio }: { ratio: number }) {
 function MacroDonut({
   progress,
   color,
+  filled = false,
 }: {
   progress: number;
   color: string;
+  /** Solid ring plus tinted center — used when the number is the full daily target. */
+  filled?: boolean;
 }) {
   const size = 34;
-  const stroke = 4;
+  const stroke = filled ? 6 : 4;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const clamped = clamp01(progress);
+  const clamped = filled ? 1 : clamp01(progress);
   const center = size / 2;
 
   return (
     <svg width={size} height={size} className="-rotate-90 shrink-0" aria-hidden>
+      {filled ? (
+        <circle
+          cx={center}
+          cy={center}
+          r={Math.max(r - stroke * 0.35, 1)}
+          fill={color}
+          fillOpacity={0.34}
+        />
+      ) : null}
       <circle
         cx={center}
         cy={center}
         r={r}
         fill="none"
         stroke={color}
-        strokeOpacity={0.28}
+        strokeOpacity={filled ? 0.35 : 0.28}
         strokeWidth={stroke}
       />
       {clamped > 0 ? (
@@ -95,6 +148,27 @@ function MacroDonut({
       ) : null}
     </svg>
   );
+}
+
+function macroCalorieShares(targets: MealMacros) {
+  const parts = MACRO_CHIPS.map((chip) => ({
+    key: chip.key,
+    color: chip.color,
+    cal: Math.max(0, targets[chip.key]) * (chip.key === "fat" ? 9 : 4),
+  }));
+  const total = parts.reduce((sum, part) => sum + part.cal, 0);
+  if (total <= 0) {
+    return parts.map((part) => ({
+      key: part.key,
+      color: part.color,
+      share: 1 / parts.length,
+    }));
+  }
+  return parts.map((part) => ({
+    key: part.key,
+    color: part.color,
+    share: part.cal / total,
+  }));
 }
 
 export function NutritionRemainingCard({
@@ -127,7 +201,8 @@ export function NutritionRemainingCard({
         ? Math.round(calorieCurrent - calorieTarget)
         : remaining;
   const ratio =
-    mode === "target" ? 0 : calorieTarget > 0 ? calorieCurrent / calorieTarget : 0;
+    mode === "target" ? 1 : calorieTarget > 0 ? calorieCurrent / calorieTarget : 0;
+  const gaugeSegments = mode === "target" ? macroCalorieShares(targets) : undefined;
 
   return (
     <div className="flex flex-col gap-1 px-3.5 pb-3.5 pt-3.5">
@@ -156,7 +231,7 @@ export function NutritionRemainingCard({
       </div>
 
       <div className="relative mx-auto mt-1 w-full max-w-[17.5rem]">
-        <SemiGauge ratio={ratio} />
+        <SemiGauge ratio={ratio} segments={gaugeSegments} />
         <div className="absolute inset-x-0 bottom-0 flex flex-col items-center">
           <p
             className={`text-[2.65rem] font-black tabular-nums leading-none tracking-tight ${
@@ -175,13 +250,17 @@ export function NutritionRemainingCard({
         {MACRO_CHIPS.map((chip) => {
           const value = Math.max(0, current[chip.key]);
           const target = Math.max(0, targets[chip.key]);
-          const progress = mode === "target" ? 0 : target > 0 ? value / target : 0;
+          const progress = mode === "target" ? 1 : target > 0 ? value / target : 0;
           return (
             <div
               key={chip.key}
               className="flex min-w-0 items-center gap-1.5 rounded-2xl bg-white/[0.07] px-1.5 py-2"
             >
-              <MacroDonut progress={progress} color={chip.color} />
+              <MacroDonut
+                progress={progress}
+                color={chip.color}
+                filled={mode === "target"}
+              />
               <div className="min-w-0">
                 <p className="break-words text-[10px] font-semibold leading-tight text-white">
                   {platform.nutrition[chip.labelKey]}

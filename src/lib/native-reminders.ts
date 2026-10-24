@@ -6,8 +6,14 @@ import { reminderPushMessage } from "@/lib/reminder-message";
 import { reminderDaySplit } from "@/lib/reminder-pending";
 import { getPlatformCopy } from "@/lib/platform-copy";
 import {
+  dailyReportMessage,
+  highRiskMessage,
+  weeklyReportMessage,
+} from "@/lib/report-notifications";
+import {
   allReminderNotificationIds,
   REMINDER_SLOT_NOTIFICATION_IDS,
+  REPORT_NOTIFICATION_IDS,
   type ReminderSettings,
 } from "@/lib/reminder-settings";
 
@@ -88,7 +94,13 @@ export async function syncTodaySlotReminders(options: {
     due: options.today.due,
     open: options.today.open,
   });
-  if (progress.open.length === 0) {
+  const snapshot = options.today.snapshot;
+  const wantsReport =
+    Boolean(snapshot) &&
+    (options.settings.dailyReport ||
+      (options.settings.weeklyReport && snapshot?.weekday === 0) ||
+      (options.settings.highRisk && (snapshot?.highRiskPoints.length ?? 0) > 0));
+  if (progress.open.length === 0 && !wantsReport) {
     return { scheduled: 0, permissionGranted: true };
   }
 
@@ -113,6 +125,7 @@ export async function syncTodaySlotReminders(options: {
     channelId?: string;
   }[] = [];
 
+  if (progress.open.length > 0) {
   REMINDER_PUSH_HOURS.forEach((hour, index) => {
     const slot = (index + 1) as ReminderSlot;
     if (slot === 4 && progress.done.length > 0) return;
@@ -136,6 +149,58 @@ export async function syncTodaySlotReminders(options: {
       ...(Capacitor.getPlatform() === "android" ? { channelId: "reminders" } : {}),
     });
   });
+  }
+
+  const scheduleAt = (hour: number) => {
+    const at = new Date();
+    at.setHours(hour, 0, 0, 0);
+    return at.getTime() > now.getTime() + 15_000 ? at : null;
+  };
+
+  if (snapshot && options.settings.dailyReport) {
+    const at = scheduleAt(20);
+    if (at) {
+      const message = dailyReportMessage(options.locale, snapshot);
+      notifications.push({
+        id: REPORT_NOTIFICATION_IDS.daily,
+        title: message.title,
+        body: message.body,
+        schedule: { at, allowWhileIdle: true },
+        extra: { path: message.path },
+        ...(Capacitor.getPlatform() === "android" ? { channelId: "reminders" } : {}),
+      });
+    }
+  }
+
+  if (snapshot && options.settings.weeklyReport && snapshot.weekday === 0) {
+    const at = scheduleAt(20);
+    if (at) {
+      const message = weeklyReportMessage(options.locale);
+      notifications.push({
+        id: REPORT_NOTIFICATION_IDS.weekly,
+        title: message.title,
+        body: message.body,
+        schedule: { at, allowWhileIdle: true },
+        extra: { path: message.path },
+        ...(Capacitor.getPlatform() === "android" ? { channelId: "reminders" } : {}),
+      });
+    }
+  }
+
+  if (snapshot && options.settings.highRisk) {
+    const at = scheduleAt(11);
+    const message = highRiskMessage(options.locale, snapshot.highRiskPoints);
+    if (at && message) {
+      notifications.push({
+        id: REPORT_NOTIFICATION_IDS.highRisk,
+        title: message.title,
+        body: message.body,
+        schedule: { at, allowWhileIdle: true },
+        extra: { path: message.path },
+        ...(Capacitor.getPlatform() === "android" ? { channelId: "reminders" } : {}),
+      });
+    }
+  }
 
   if (notifications.length === 0) {
     return { scheduled: 0, permissionGranted: true };

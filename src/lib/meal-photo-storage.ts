@@ -10,7 +10,7 @@ import { STORAGE_BUCKETS } from "@/lib/supabase/storage";
 import type { DailyMealLog } from "@/lib/types";
 
 export const MEAL_LOG_PHOTO_COLUMNS =
-  "id, client_id, date, slot, meal_type, name, description, calories, protein, carbs, fat, foods, source_meal_id, logged_at, photo_path, photo_expires_at";
+  "id, client_id, date, slot, meal_type, name, description, calories, protein, carbs, fat, foods, source_meal_id, logged_at, photo_path, photo_expires_at, ai_assisted";
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 

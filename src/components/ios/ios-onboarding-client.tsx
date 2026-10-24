@@ -10,11 +10,10 @@ import {
 import { loadIntakeDraft, saveIntakeDraft } from "@/lib/intake-storage";
 import { createClient } from "@/lib/supabase/client";
 import { IOS_GENERATING_PATH, IOS_WELCOME_PATH } from "@/lib/ios-routes";
-import { openWebsiteSignup } from "@/lib/open-external-url";
 
 /**
  * Same questionnaire as web get-started, wrapped in dark/red funnel chrome.
- * Signed-in users finish their intake here. New accounts are created on the website.
+ * Signed-in users finish their intake here. New accounts register inside the app.
  */
 export function IosOnboardingClient() {
   const router = useRouter();
@@ -40,11 +39,10 @@ export function IosOnboardingClient() {
         return;
       }
     } catch {
-      // No session in the app — account creation stays on the website.
+      // No session yet — continue to free registration in the app.
     }
 
-    void openWebsiteSignup();
-    router.push(IOS_WELCOME_PATH);
+    router.push("/register?from=ios");
   };
 
   return (

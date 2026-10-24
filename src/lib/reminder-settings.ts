@@ -21,6 +21,12 @@ export type ReminderSettings = {
   cardio: ReminderTypeConfig;
   water: ReminderTypeConfig;
   habits: ReminderTypeConfig;
+  /** 20:00 recap of today. */
+  dailyReport: boolean;
+  /** Sunday 20:00 link to the weekly report. */
+  weeklyReport: boolean;
+  /** 11:00 list of injury and health limits. */
+  highRisk: boolean;
 };
 
 export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
@@ -30,6 +36,9 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
   cardio: { enabled: true, time: "17:00" },
   water: { enabled: true, time: "19:30" },
   habits: { enabled: true, time: "20:00" },
+  dailyReport: true,
+  weeklyReport: true,
+  highRisk: true,
 };
 
 /** Older local reminders used one id per type per day. Cancel these so they stop firing. */
@@ -46,6 +55,13 @@ export const REMINDER_SCHEDULE_DAYS = 14;
 /** One local notification per slot (fallback when remote push is not configured). */
 export const REMINDER_SLOT_NOTIFICATION_IDS = [1701, 1702, 1703, 1704] as const;
 
+/** Local fallbacks for everyday report, weekly report, and high-risk points. */
+export const REPORT_NOTIFICATION_IDS = {
+  daily: 1801,
+  weekly: 1802,
+  highRisk: 1803,
+} as const;
+
 export function reminderNotificationId(
   type: ReminderType,
   dayOffset: number
@@ -54,7 +70,10 @@ export function reminderNotificationId(
 }
 
 export function allReminderNotificationIds(): number[] {
-  const ids: number[] = [...REMINDER_SLOT_NOTIFICATION_IDS];
+  const ids: number[] = [
+    ...REMINDER_SLOT_NOTIFICATION_IDS,
+    ...Object.values(REPORT_NOTIFICATION_IDS),
+  ];
   for (const type of REMINDER_TYPES) {
     for (let i = 0; i < REMINDER_SCHEDULE_DAYS; i++) {
       ids.push(reminderNotificationId(type, i));
@@ -99,6 +118,18 @@ export function parseReminderSettings(raw: unknown): ReminderSettings {
     cardio: normalizeTypeConfig(obj.cardio, DEFAULT_REMINDER_SETTINGS.cardio),
     water: normalizeTypeConfig(obj.water, DEFAULT_REMINDER_SETTINGS.water),
     habits: normalizeTypeConfig(obj.habits, DEFAULT_REMINDER_SETTINGS.habits),
+    dailyReport:
+      typeof obj.dailyReport === "boolean"
+        ? obj.dailyReport
+        : DEFAULT_REMINDER_SETTINGS.dailyReport,
+    weeklyReport:
+      typeof obj.weeklyReport === "boolean"
+        ? obj.weeklyReport
+        : DEFAULT_REMINDER_SETTINGS.weeklyReport,
+    highRisk:
+      typeof obj.highRisk === "boolean"
+        ? obj.highRisk
+        : DEFAULT_REMINDER_SETTINGS.highRisk,
   };
 }
 

@@ -294,7 +294,7 @@ body:has(.dashboard-shell) {
   box-shadow: none;
 }
 
-.dashboard-main .dashboard-photo-card > .pointer-events-none {
+.dashboard-main .dashboard-photo-card:not(.dashboard-rest-photo) > .pointer-events-none {
   display: none;
 }
 

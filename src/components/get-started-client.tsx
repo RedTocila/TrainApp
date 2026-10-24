@@ -13,7 +13,6 @@ import { AuthBackButton } from "@/components/auth-back-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useIsNativeApp } from "@/components/ios/use-native-app";
-import { openWebsiteSignup } from "@/lib/open-external-url";
 import { calculateMacrosFromIntakeResponses } from "@/lib/macro-calculator";
 import {
   EMPTY_INTAKE_RESPONSES,
@@ -43,7 +42,7 @@ export function GetStartedClient() {
 
   const continueToRegister = () => {
     if (nativeApp) {
-      void openWebsiteSignup();
+      router.push("/register?from=ios");
       return;
     }
     router.push(registerHref);
@@ -96,7 +95,7 @@ export function GetStartedClient() {
               />
               {nativeApp ? (
                 <Button size="lg" className="w-full gap-2" onClick={continueToRegister}>
-                  Continue on the website
+                  Continue to sign up
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (

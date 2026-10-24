@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { Bell, BellOff } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { useLocale, usePlatformCopy } from "@/components/locale-provider";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateReminderSettings } from "@/lib/actions/reminders";
 import { syncReminderDelivery } from "@/lib/reminder-delivery";
@@ -64,8 +65,10 @@ function Toggle({
 
 export function ReminderSettingsCard({
   initialSettings,
+  locked = false,
 }: {
   initialSettings?: unknown;
+  locked?: boolean;
 }) {
   const locale = useLocale();
   const platform = usePlatformCopy();
@@ -143,6 +146,25 @@ export function ReminderSettingsCard({
     });
   };
 
+  if (locked) {
+    return (
+      <Card className="dashboard-flat-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BellOff className="h-4 w-4 text-muted-foreground" />
+            {platform.reminders.title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">{platform.reminders.plusRequired}</p>
+          <Link href="/dashboard/pricing" className={buttonVariants({ className: "w-full" })}>
+            {platform.reminders.seePlans}
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="dashboard-flat-card">
       <CardHeader>
@@ -185,6 +207,29 @@ export function ReminderSettingsCard({
                 onChange={(enabled) => setTypeEnabled(type, enabled)}
                 disabled={!settings.enabled || isPending}
                 label={platform.reminders.types[TYPE_LABEL_KEY[type]]}
+              />
+            </div>
+          ))}
+          {(
+            [
+              ["dailyReport", platform.reminders.reports.daily, platform.reminders.reports.dailyHint],
+              ["weeklyReport", platform.reminders.reports.weekly, platform.reminders.reports.weeklyHint],
+              ["highRisk", platform.reminders.reports.highRisk, platform.reminders.reports.highRiskHint],
+            ] as const
+          ).map(([key, label, hint]) => (
+            <div
+              key={key}
+              className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-secondary/30 px-3 py-2.5"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">{label}</p>
+                <p className="text-xs text-muted-foreground">{hint}</p>
+              </div>
+              <Toggle
+                checked={settings[key]}
+                onChange={(enabled) => persist({ ...settings, [key]: enabled })}
+                disabled={!settings.enabled || isPending}
+                label={label}
               />
             </div>
           ))}

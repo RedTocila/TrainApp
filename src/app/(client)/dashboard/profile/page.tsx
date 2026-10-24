@@ -24,6 +24,8 @@ import { getPlatformCopy } from "@/lib/platform-copy";
 import { cn } from "@/lib/utils";
 import { getClientIntakeStatus } from "@/lib/client-intake-utils";
 import { buttonVariants } from "@/components/ui/button";
+import { hasPlusAccess } from "@/lib/subscription";
+import { REFERRALS_ENABLED } from "@/lib/referral";
 
 export default async function ProfilePage() {
   const profile = await getProfileWithEmail();
@@ -88,7 +90,10 @@ export default async function ProfilePage() {
               }}
               showHeader={false}
             />
-            <ReminderSettingsCard initialSettings={profile.reminder_settings} />
+            <ReminderSettingsCard
+              initialSettings={profile.reminder_settings}
+              locked={!hasPlusAccess(profile)}
+            />
           </div>
 
           <HiddenInFreeApp>
@@ -96,6 +101,7 @@ export default async function ProfilePage() {
           </HiddenInFreeApp>
         </div>
 
+        {REFERRALS_ENABLED ? (
         <HiddenInFreeApp>
           <Link
             href="/dashboard/referrals"
@@ -115,6 +121,7 @@ export default async function ProfilePage() {
             </div>
           </Link>
         </HiddenInFreeApp>
+        ) : null}
 
         <ProfileSupportCard copy={platform.support} />
 
@@ -160,7 +167,9 @@ export default async function ProfilePage() {
           </CardContent>
         </Card>
 
-        <DeleteOwnAccountSection />
+        <DeleteOwnAccountSection
+          appleBilled={Boolean(profile.apple_original_transaction_id)}
+        />
 
         <div className="pt-2">
           <SignOutButton variant="profile" />

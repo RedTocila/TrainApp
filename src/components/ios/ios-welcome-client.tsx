@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { BrandWordmark } from "@/components/app-logo";
 import { useIsNativeApp } from "@/components/ios/use-native-app";
 import { buttonVariants } from "@/components/ui/button";
-import { openWebsiteSignup } from "@/lib/open-external-url";
+import { IOS_ONBOARDING_PATH } from "@/lib/ios-routes";
 import { cn } from "@/lib/utils";
 
 /**
@@ -19,7 +19,7 @@ export function IosWelcomeClient() {
 
   const startAccount = () => {
     if (nativeApp) {
-      void openWebsiteSignup();
+      router.push(IOS_ONBOARDING_PATH);
       return;
     }
     router.push("/get-started");

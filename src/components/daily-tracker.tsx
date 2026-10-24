@@ -13,7 +13,7 @@ import {
 import { formatDateKey } from "@/lib/utils";
 import { DASHBOARD_DAY_NUTRITION_PATH } from "@/lib/dashboard-day-routes";
 import { addWater, updateWaterGoal } from "@/lib/actions/logs";
-import { deleteDailyMealLog } from "@/lib/actions/daily-meals";
+import { deleteDailyMealLog, updateDailyMealLog } from "@/lib/actions/daily-meals";
 import type { PersonalMealLibraryItem } from "@/lib/actions/user-nutrition";
 import type { MealFormData } from "@/lib/meal-utils";
 import { sumMealMacros, mealFormFromMeal } from "@/lib/meal-utils";
@@ -115,6 +115,7 @@ export function DailyTracker({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewVariant, setPreviewVariant] = useState<"new" | "view">("new");
   const [isDeletingMeal, setIsDeletingMeal] = useState(false);
+  const [isSavingMeal, setIsSavingMeal] = useState(false);
   const [localWaterMl, setLocalWaterMl] = useState(waterMl);
   const { patchDashboard, notifySync } = useDashboardSync();
   const dateKey = formatDateKey(date);
@@ -252,6 +253,23 @@ export function DailyTracker({
     });
   };
 
+  const handleUpdateMeal = (form: MealFormData) => {
+    if (!previewMealLogId || readOnly || isSavingMeal) return;
+    setIsSavingMeal(true);
+    void runServerAction(() =>
+      updateDailyMealLog(clientId, dateKey, previewMealLogId, form)
+    ).then((result) => {
+      setIsSavingMeal(false);
+      if (isActionError(result) || ("error" in result && result.error)) return;
+      refreshMeals();
+      setPreviewOpen(false);
+      setPreviewMealLogId(null);
+      setPreviewPhotoUrl(null);
+    });
+  };
+
+  const aiMealsUsed = dailyMeals.filter((meal) => meal.ai_assisted).length;
+
   const refreshMeals = () => {
     void runServerAction(() =>
       import("@/lib/actions/daily-meals").then(({ getDailyMealLogs }) =>
@@ -355,6 +373,7 @@ export function DailyTracker({
         dateKey={dateKey}
         library={mealLibrary}
         hasAiAccess={hasAiAccess}
+        aiMealsUsed={aiMealsUsed}
         onClose={() => setLogMealOpen(false)}
         onLogged={handleLogged}
         goal={goal}
@@ -373,7 +392,9 @@ export function DailyTracker({
           setPreviewMealLogId(null);
         }}
         onDelete={previewVariant === "view" && !readOnly ? handleDeleteFromPreview : undefined}
+        onUpdate={previewVariant === "view" && !readOnly ? handleUpdateMeal : undefined}
         isDeleting={isDeletingMeal}
+        isSaving={isSavingMeal}
       />
     </>
   );

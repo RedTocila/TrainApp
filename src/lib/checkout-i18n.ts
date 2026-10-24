@@ -53,6 +53,15 @@ export function formatCurrencyAmount(amountCents: number): string {
     : `€${(amountCents / 100).toFixed(2)}`;
 }
 
+/** Zero-cost plans read as Free. Paid plans keep the euro amount. */
+export function formatDisplayedPlanPrice(
+  amountCents: number,
+  locale: CheckoutLocale = "en"
+): string {
+  if (amountCents <= 0) return locale === "al" ? "Falas" : "Free";
+  return formatCurrencyAmount(amountCents);
+}
+
 export function formatAnnualSavings(
   monthly: PriceInEur,
   annual: PriceInEur
@@ -76,7 +85,7 @@ export function getAnnualCompareAtLabel(
 }
 
 /**
- * PokPay order amounts use major currency units (e.g. 29.99 EUR),
+ * PokPay order amounts use major currency units (e.g. 7.00 EUR),
  * not minor units. Our app stores/prices in minor units (×100).
  */
 export function toPokPayAmount(amountCents: number): number {

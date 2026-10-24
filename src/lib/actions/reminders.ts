@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedProfile } from "@/lib/cached-profile";
+import { hasPlusAccess } from "@/lib/subscription";
+import { getPlatformCopy } from "@/lib/platform-copy";
 import { getDailyLog } from "@/lib/actions/logs";
 import { getDailyMealLogs } from "@/lib/actions/daily-meals";
 import {
@@ -22,8 +24,10 @@ import {
   type ReminderSettings,
   type ReminderType,
 } from "@/lib/reminder-settings";
+import { highRiskPoints } from "@/lib/report-notifications";
 import { waterMetDailyMinimum } from "@/lib/water-targets";
 import { getDateKeyForTimezoneOffset } from "@/lib/utils";
+import { parseCheckoutLocale } from "@/lib/checkout-i18n";
 import type { ClientHabit } from "@/lib/types";
 
 export type ReminderPendingStatus = Record<ReminderType, boolean>;
@@ -31,6 +35,15 @@ export type ReminderPendingStatus = Record<ReminderType, boolean>;
 export type ReminderDayStatus = {
   open: ReminderPendingStatus;
   due: ReminderPendingStatus;
+  snapshot?: {
+    workoutDue: boolean;
+    workoutOpen: boolean;
+    mealsOpen: boolean;
+    waterShort: boolean;
+    highRiskPoints: string[];
+    /** 0 = Sunday, in the user's calendar date. */
+    weekday: number;
+  };
 };
 
 function weekdayIndex(dateKey: string): number {
@@ -50,7 +63,10 @@ function habitsForDate(
 
 export async function getReminderSettings(): Promise<ReminderSettings> {
   const profile = await getCachedProfile();
-  return parseReminderSettings(profile?.reminder_settings);
+  if (!profile || !hasPlusAccess(profile)) {
+    return parseReminderSettings({ enabled: false });
+  }
+  return parseReminderSettings(profile.reminder_settings);
 }
 
 export async function updateReminderSettings(
@@ -61,6 +77,14 @@ export async function updateReminderSettings(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  const profile = await getCachedProfile();
+  if (!profile || !hasPlusAccess(profile)) {
+    return {
+      error: getPlatformCopy(parseCheckoutLocale(profile?.preferred_locale)).reminders
+        .plusRequired,
+    };
+  }
 
   const settings = parseReminderSettings(input);
 
@@ -172,6 +196,7 @@ export async function getTodayReminderPendingStatus(
     todayHabits.length > 0 &&
     todayHabits.some((habit) => !completedHabitIds.has(habit.id));
 
+  const locale = parseCheckoutLocale(profile?.preferred_locale);
   return {
     open: {
       workout: workoutPending,
@@ -186,6 +211,19 @@ export async function getTodayReminderPendingStatus(
       cardio: cardios.length > 0,
       water: true,
       habits: todayHabits.length > 0,
+    },
+    snapshot: {
+      workoutDue: workouts.length > 0,
+      workoutOpen: workoutPending,
+      mealsOpen: mealsPending,
+      waterShort: waterPending,
+      weekday: new Date(`${dateKey}T12:00:00Z`).getUTCDay(),
+      highRiskPoints: highRiskPoints({
+        locale,
+        intake: profile?.intake_responses,
+        injuries: profile?.injuries,
+        medicalConditions: profile?.medical_conditions,
+      }),
     },
   };
 }
